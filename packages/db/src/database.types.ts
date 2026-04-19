@@ -12,7 +12,10 @@ export interface Database {
           org_id: string | null;
           display_name: string | null;
           avatar_url: string | null;
-          tier: "free" | "pro" | "enterprise";
+          tier: "free" | "pro" | "builder" | "unlimited";
+          plan_expires_at: string | null;
+          bonus_runs: number;
+          is_beta_tester: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -21,7 +24,10 @@ export interface Database {
           org_id?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
-          tier?: "free" | "pro" | "enterprise";
+          tier?: "free" | "pro" | "builder" | "unlimited";
+          plan_expires_at?: string | null;
+          bonus_runs?: number;
+          is_beta_tester?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -30,9 +36,76 @@ export interface Database {
           org_id?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
-          tier?: "free" | "pro" | "enterprise";
+          tier?: "free" | "pro" | "builder" | "unlimited";
+          plan_expires_at?: string | null;
+          bonus_runs?: number;
+          is_beta_tester?: boolean;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      redemption_codes: {
+        Row: {
+          id: string;
+          code: string;
+          label: string | null;
+          type: "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
+          value: Json | null;
+          locked_to_email: string | null;
+          max_uses: number | null;
+          uses_count: number;
+          expires_at: string | null;
+          is_active: boolean;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          label?: string | null;
+          type: "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
+          value?: Json | null;
+          locked_to_email?: string | null;
+          max_uses?: number | null;
+          uses_count?: number;
+          expires_at?: string | null;
+          is_active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          label?: string | null;
+          type?: "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
+          value?: Json | null;
+          locked_to_email?: string | null;
+          max_uses?: number | null;
+          uses_count?: number;
+          expires_at?: string | null;
+          is_active?: boolean;
+          created_by?: string | null;
+          created_at?: string;
+        };
+      };
+      redemptions: {
+        Row: {
+          id: string;
+          code_id: string;
+          user_id: string;
+          redeemed_at: string;
+        };
+        Insert: {
+          id?: string;
+          code_id: string;
+          user_id: string;
+          redeemed_at?: string;
+        };
+        Update: {
+          id?: string;
+          code_id?: string;
+          user_id?: string;
+          redeemed_at?: string;
         };
       };
       api_keys: {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
+import { sendRunFailureEmail } from "@/lib/email";
 import { headers } from "next/headers";
 
 /**
@@ -26,10 +27,12 @@ export async function POST(
   }
 
   const body = await request.json().catch(() => ({}));
-  const { program_id, user_id, status = "completed" } = body as {
+  const { program_id, user_id, status = "completed", error_message, triggered_by } = body as {
     program_id: string;
     user_id: string;
     status?: string;
+    error_message?: string;
+    triggered_by?: string;
   };
 
   if (!program_id || !user_id) {
@@ -43,6 +46,30 @@ export async function POST(
     .from("resource_locks")
     .delete()
     .eq("locked_by_run_id", params.id);
+
+  // ── 1b. Send failure email ─────────────────────────────────────────────────
+  if (status === "failed") {
+    try {
+      const [{ data: userData }, { data: programData }] = await Promise.all([
+        db.auth.admin.getUserById(user_id),
+        db.from("programs").select("name").eq("id", program_id).single(),
+      ]);
+      const email = userData?.user?.email;
+      const programName = (programData as { name?: string } | null)?.name ?? "Unknown program";
+      if (email) {
+        await sendRunFailureEmail({
+          to: email,
+          programName,
+          runId: params.id,
+          programId: program_id,
+          errorMessage: error_message,
+          triggeredBy: triggered_by,
+        });
+      }
+    } catch (err) {
+      console.error("[complete] Failed to send failure email:", err);
+    }
+  }
 
   // ── 2. Find downstream program triggers ───────────────────────────────────
   if (status === "completed") {

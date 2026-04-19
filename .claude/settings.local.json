@@ -217,7 +217,10 @@
       "Bash(New-Item -Path \"H:\\\\Archon\\\\ARCHON_1\\\\apps\\\\web\\\\app\\\\auth\\\\callback\\\\route.ts\" -ItemType File -Force)",
       "Bash(Out-Null)",
       "Bash(New-Item -Path \"H:\\\\Archon\\\\ARCHON_1\\\\apps\\\\web\\\\app\\\\\\(auth\\)\\\\update-password\\\\page.tsx\" -ItemType File -Force)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(supabase gen:*)",
+      "Bash(ls H:/Archon/ARCHON_1/apps/web/.env*)",
+      "Bash(pnpm --filter @flowos/db build)"
     ]
   }
 }
