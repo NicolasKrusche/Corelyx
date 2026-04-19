@@ -234,6 +234,65 @@ export async function sendRunFailureEmail({
   });
 }
 
+// ─── Run limit warning ─────────────────────────────────────────────────────
+
+interface RunLimitWarningOptions {
+  to: string;
+  used: number;
+  total: number;
+  tier: string;
+}
+
+export async function sendRunLimitWarningEmail({
+  to,
+  used,
+  total,
+  tier,
+}: RunLimitWarningOptions): Promise<void> {
+  const planUrl = `${APP_URL}/plan`;
+  const pct = Math.round((used / total) * 100);
+
+  await sendEmail({
+    to,
+    subject: `You've used ${pct}% of your monthly runs`,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+        <tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;">
+          <span style="font-size:18px;font-weight:600;color:#111827;">Nexflow</span>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">Running low on runs</h1>
+          <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
+            You've used <strong>${used} of ${total} runs</strong> this month on the <strong>${escapeHtml(tier)}</strong> plan.
+            Once you hit the limit, new runs will be queued until your monthly reset.
+          </p>
+          <!-- Progress bar -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td style="background:#f3f4f6;border-radius:999px;height:8px;overflow:hidden;">
+              <td style="background:#f97316;border-radius:999px;height:8px;width:${pct}%;"></td>
+            </td></tr>
+          </table>
+          <a href="${planUrl}" style="display:inline-block;padding:12px 24px;background:#111827;color:#ffffff;font-size:14px;font-weight:500;text-decoration:none;border-radius:6px;">
+            View plans
+          </a>
+        </td></tr>
+        <tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;">You're receiving this because you're approaching your monthly run limit.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim(),
+  });
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")

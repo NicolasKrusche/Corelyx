@@ -471,9 +471,13 @@ function NewProgramPageInner() {
                   {genesisError.error === "INSUFFICIENT_DESCRIPTION" ? "Description too vague"
                     : genesisError.error === "MISSING_CONNECTIONS" ? "Missing connections"
                     : genesisError.error === "SCHEMA_VALIDATION_FAILED" ? "Schema validation failed"
+                    : genesisError.error === "PROGRAM_LIMIT_REACHED" ? "Program limit reached"
                     : "Generation failed"}
                 </p>
                 {genesisError.message && <p>{genesisError.message}</p>}
+                {genesisError.error === "PROGRAM_LIMIT_REACHED" && (
+                  <p><a href="/plan" className="underline font-medium">View plans →</a></p>
+                )}
                 {!genesisError.message && genesisError.error !== "INSUFFICIENT_DESCRIPTION" && genesisError.error !== "MISSING_CONNECTIONS" && genesisError.error !== "SCHEMA_VALIDATION_FAILED" && (
                   <p>{genesisError.error}</p>
                 )}

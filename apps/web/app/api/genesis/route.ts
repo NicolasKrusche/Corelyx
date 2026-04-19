@@ -12,6 +12,8 @@ import { vaultRetrieve } from "@/lib/vault";
 import { GENESIS_SYSTEM_PROMPT, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
 import { ProgramSchemaZ } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
+import { checkProgramLimit } from "@/lib/limits";
+import { rateLimit } from "@/lib/rate-limit";
 
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
@@ -35,6 +37,25 @@ export async function POST(request: Request) {
 
   const { description, connection_ids, api_key_id, model, existing_schema, refinement, existing_program_id } = parsed.data;
   const isRefinement = !!(existing_schema && refinement && existing_program_id);
+
+  // Rate limit: 10 genesis calls per minute per user
+  if (!rateLimit(`genesis:${user.id}`, 10, 60_000)) {
+    return NextResponse.json(
+      { error: "RATE_LIMITED", message: "Too many requests. Please wait a moment and try again." },
+      { status: 429 }
+    );
+  }
+
+  // Check program limit before generating (skip for refinements — no new program created)
+  if (!isRefinement) {
+    const limitCheck = await checkProgramLimit(user.id);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { error: "PROGRAM_LIMIT_REACHED", message: limitCheck.upgradeMessage },
+        { status: 403 }
+      );
+    }
+  }
 
   // Resolve the selected connections
   const { data: connections, error: connError } = await supabase

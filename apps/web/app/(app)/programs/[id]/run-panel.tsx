@@ -102,8 +102,12 @@ export function RunPanel({ programId }: { programId: string }) {
         const { run_id } = (await res.json()) as { run_id: string };
         router.push(`/programs/${programId}/runs/${run_id}`);
       } else {
-        const err = await res.json().catch(() => ({}));
-        setFetchError((err as { error?: string }).error ?? "Failed to start run");
+        const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
+        if (err.error === "RUN_LIMIT_REACHED") {
+          setFetchError(err.message ?? "Monthly run limit reached. Upgrade your plan for more runs.");
+        } else {
+          setFetchError(err.error ?? "Failed to start run");
+        }
         setState("done");
       }
     } catch {
@@ -185,7 +189,14 @@ export function RunPanel({ programId }: { programId: string }) {
         </Button>
       </div>
 
-      {fetchError && <p className="text-xs text-destructive">{fetchError}</p>}
+      {fetchError && (
+        <p className="text-xs text-destructive">
+          {fetchError}
+          {fetchError.toLowerCase().includes("limit") && (
+            <> <a href="/plan" className="underline font-medium">View plans →</a></>
+          )}
+        </p>
+      )}
 
       {preflight && (
         <div className="space-y-2">

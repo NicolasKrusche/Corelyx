@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#0f0f0f;border-radius:12px;border:1px solid #1f1f1f;overflow:hidden;">
+
+        <!-- Header -->
+        <tr><td style="padding:28px 32px;border-bottom:1px solid #1f1f1f;">
+          <table cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding-right:8px;vertical-align:middle;">
+                <!-- N logo mark in orange -->
+                <div style="width:28px;height:28px;background:#f97316;border-radius:6px;display:inline-block;text-align:center;line-height:28px;">
+                  <span style="color:#fff;font-size:16px;font-weight:900;">N</span>
+                </div>
+              </td>
+              <td style="vertical-align:middle;">
+                <span style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Nexflow</span>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:36px 32px;">
+          <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Confirm your email</h1>
+          <p style="margin:0 0 28px;font-size:14px;color:#888;line-height:1.6;">
+            Thanks for signing up. Click the button below to confirm your email address and start building your first automation.
+          </p>
+
+          <a href="{{ .ConfirmationURL }}"
+             style="display:inline-block;padding:13px 28px;background:#f97316;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:-0.1px;">
+            Confirm email address
+          </a>
+
+          <p style="margin:28px 0 0;font-size:12px;color:#555;line-height:1.5;">
+            Or copy this link into your browser:<br />
+            <span style="color:#f97316;word-break:break-all;">{{ .ConfirmationURL }}</span>
+          </p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:20px 32px;border-top:1px solid #1f1f1f;">
+          <p style="margin:0;font-size:12px;color:#444;">
+            If you didn't create a Nexflow account, you can safely ignore this email.
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
 import { GenesisPrompt } from "@/components/dashboard/genesis-prompt";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { getRunUsage } from "@/lib/limits";
 
 type Program = {
   id: string;
@@ -72,7 +73,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [programsResult, connectionsResult, apiKeysResult] = await Promise.all([
+  const [programsResult, connectionsResult, apiKeysResult, runUsage] = await Promise.all([
     supabase
       .from("programs")
       .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, updated_at")
@@ -86,6 +87,7 @@ export default async function DashboardPage() {
       .from("api_keys")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id),
+    getRunUsage(user.id),
   ]);
 
   const programs = (programsResult.data ?? []) as Program[];
@@ -137,7 +139,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-border bg-card px-5 py-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Programs</p>
           <p className="text-2xl font-black tabular-nums">{programs.length}</p>
@@ -149,6 +151,27 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-border bg-card px-5 py-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Connections</p>
           <p className="text-2xl font-black tabular-nums">{connectionCount}</p>
+        </div>
+        {/* Runs this month */}
+        <div className="rounded-xl border border-border bg-card px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Runs this month</p>
+          <p className={`text-2xl font-black tabular-nums ${runUsage.total && runUsage.current / runUsage.total >= 0.8 ? "text-yellow-400" : ""}`}>
+            {runUsage.current}
+            {runUsage.total !== null && (
+              <span className="text-sm font-normal text-muted-foreground/50 ml-1">/ {runUsage.total}</span>
+            )}
+          </p>
+          {runUsage.total !== null && (
+            <div className="mt-2 h-1 rounded-full bg-border/60 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  runUsage.current / runUsage.total >= 0.9 ? "bg-destructive" :
+                  runUsage.current / runUsage.total >= 0.8 ? "bg-yellow-400" : "bg-primary"
+                }`}
+                style={{ width: `${Math.min(100, (runUsage.current / runUsage.total) * 100)}%` }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
