@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
 import { GenesisPrompt } from "@/components/dashboard/genesis-prompt";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 
 type Program = {
   id: string;
@@ -71,7 +72,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [programsResult, connectionsResult] = await Promise.all([
+  const [programsResult, connectionsResult, apiKeysResult] = await Promise.all([
     supabase
       .from("programs")
       .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, updated_at")
@@ -81,10 +82,15 @@ export default async function DashboardPage() {
       .from("connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id),
+    supabase
+      .from("api_keys")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
   ]);
 
   const programs = (programsResult.data ?? []) as Program[];
   const connectionCount = connectionsResult.count ?? 0;
+  const apiKeyCount = apiKeysResult.count ?? 0;
 
   const programIds = programs.map((p) => p.id);
   let recentRuns: RecentRun[] = [];
@@ -145,6 +151,13 @@ export default async function DashboardPage() {
           <p className="text-2xl font-black tabular-nums">{connectionCount}</p>
         </div>
       </div>
+
+      {/* ── Onboarding checklist — visible until all steps done ── */}
+      <OnboardingChecklist
+        hasPrograms={programs.length > 0}
+        hasConnections={connectionCount > 0}
+        hasApiKeys={apiKeyCount > 0}
+      />
 
       {/* ── Genesis prompt ── */}
       <GenesisPrompt />

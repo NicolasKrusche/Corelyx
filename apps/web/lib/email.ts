@@ -4,8 +4,8 @@
  */
 
 const RESEND_API_URL = "https://api.resend.com/emails";
-const FROM = process.env.FROM_EMAIL ?? "FlowOS <noreply@flowos.app>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.flowos.app";
+const FROM = process.env.FROM_EMAIL ?? "Nexflow <noreply@nexflow.app>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.nexflow.app";
 
 interface SendEmailOptions {
   to: string;
@@ -74,7 +74,7 @@ export async function sendApprovalEmail({
           <!-- Header -->
           <tr>
             <td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;">
-              <span style="font-size:18px;font-weight:600;color:#111827;">FlowOS</span>
+              <span style="font-size:18px;font-weight:600;color:#111827;">Nexflow</span>
             </td>
           </tr>
 
@@ -118,6 +118,108 @@ export async function sendApprovalEmail({
               <p style="margin:0;font-size:12px;color:#9ca3af;">
                 You're receiving this because a program you own requires human approval.
                 <a href="${approvalsUrl}" style="color:#6b7280;">View all pending approvals</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+}
+
+// ─── Run failure notification ──────────────────────────────────────────────
+
+interface RunFailureEmailOptions {
+  to: string;
+  programName: string;
+  runId: string;
+  programId: string;
+  errorMessage?: string;
+  triggeredBy?: string;
+}
+
+export async function sendRunFailureEmail({
+  to,
+  programName,
+  runId,
+  programId,
+  errorMessage,
+  triggeredBy,
+}: RunFailureEmailOptions): Promise<void> {
+  const runUrl = `${APP_URL}/programs/${programId}/runs/${runId}`;
+
+  await sendEmail({
+    to,
+    subject: `Run failed: "${programName}"`,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;">
+              <span style="font-size:18px;font-weight:600;color:#111827;">Nexflow</span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <table width="24" cellpadding="0" cellspacing="0" style="display:inline-table;margin-bottom:16px;">
+                <tr>
+                  <td style="background:#fee2e2;border-radius:50%;width:40px;height:40px;text-align:center;vertical-align:middle;">
+                    <span style="font-size:18px;">✕</span>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">
+                Run failed
+              </h1>
+              <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
+                A run of <strong>${escapeHtml(programName)}</strong> failed${triggeredBy ? ` (triggered by ${escapeHtml(triggeredBy)})` : ""}.
+              </p>
+
+              <!-- Details card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;border-radius:6px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Program</p>
+                    <p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#111827;">${escapeHtml(programName)}</p>
+                    ${errorMessage ? `
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Error</p>
+                    <p style="margin:0;font-size:13px;color:#dc2626;font-family:monospace;word-break:break-all;">${escapeHtml(errorMessage)}</p>
+                    ` : ""}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <a href="${runUrl}"
+                 style="display:inline-block;padding:12px 24px;background:#111827;color:#ffffff;font-size:14px;font-weight:500;text-decoration:none;border-radius:6px;">
+                View run logs
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">
+                You're receiving this because a program you own failed to complete.
               </p>
             </td>
           </tr>

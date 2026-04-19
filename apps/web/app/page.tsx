@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConsentBanner } from "@/components/consent-banner";
 
 const CONNECTORS = [
   "Gmail", "Slack", "Notion", "GitHub", "Google Sheets",
@@ -266,6 +267,7 @@ export default function LandingPage() {
             <a href="#how-it-works" className="hover:text-foreground transition-colors">How it works</a>
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#integrations" className="hover:text-foreground transition-colors">Integrations</a>
+            <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Sign in</Link>
@@ -545,6 +547,8 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <ConsentBanner />
+
       {/* ── Footer ── */}
       <footer className="border-t border-border/40 px-6 py-6">
         <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground/50">
@@ -554,6 +558,8 @@ export default function LandingPage() {
             <span>© {new Date().getFullYear()} Nexflow. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-5">
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/login" className="hover:text-foreground transition-colors">Sign in</Link>
             <Link href="/signup" className="hover:text-foreground transition-colors">Sign up</Link>
           </div>

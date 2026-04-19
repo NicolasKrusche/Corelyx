@@ -48,7 +48,28 @@ function NavItem({
 
 // ─── Main sidebar ─────────────────────────────────────────────────────────────
 
-export function Sidebar() {
+type Tier = "free" | "pro" | "builder" | "unlimited";
+
+const TIER_CONFIG: Record<Tier, { label: string; className: string }> = {
+  free:      { label: "Free",      className: "bg-muted/60 text-muted-foreground border-border/60" },
+  pro:       { label: "Pro",       className: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  builder:   { label: "Builder",   className: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  unlimited: { label: "Unlimited", className: "bg-primary/10 text-primary border-primary/20" },
+};
+
+export function Sidebar({
+  isAdmin = false,
+  email = "",
+  tier = "free",
+  planExpiresAt = null,
+  isBetaTester = false,
+}: {
+  isAdmin?: boolean;
+  email?: string;
+  tier?: Tier;
+  planExpiresAt?: string | null;
+  isBetaTester?: boolean;
+}) {
   const pathname = usePathname();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [failedRuns, setFailedRuns] = useState(0);
@@ -139,9 +160,71 @@ export function Sidebar() {
 
         <NavItem href="/api-keys" label="API Keys" active={pathname.startsWith("/api-keys")}
           icon={<KeyIcon />} />
+
+        {/* Group separator */}
+        <div className="!my-2 mx-3 h-px bg-border/60" />
+
+        <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
+          icon={<PricingIcon />} />
+        <NavItem href="/settings" label="Settings" active={pathname.startsWith("/settings")}
+          icon={<SettingsIcon />} />
+
+        {isAdmin && (
+          <>
+            <div className="!my-2 mx-3 h-px bg-border/60" />
+            <NavItem href="/admin/codes" label="Code Manager" active={pathname.startsWith("/admin")}
+              icon={<AdminIcon />} />
+          </>
+        )}
       </nav>
 
       <div className="border-t border-border shrink-0">
+        {/* User / tier section */}
+        <div className="px-3 py-3 space-y-2">
+          {/* Email */}
+          <p className="text-[11px] text-muted-foreground/50 truncate px-1">{email}</p>
+
+          {/* Badges row */}
+          <div className="flex flex-wrap gap-1.5">
+            {/* Tier badge */}
+            <span className={cn(
+              "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border tracking-wide",
+              TIER_CONFIG[tier].className
+            )}>
+              {TIER_CONFIG[tier].label}
+            </span>
+
+            {/* Beta badge */}
+            {isBetaTester && (
+              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-green-500/10 text-green-400 border-green-500/20 tracking-wide">
+                Beta
+              </span>
+            )}
+
+            {/* Dev/Admin badge */}
+            {isAdmin && (
+              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-primary/10 text-primary border-primary/20 tracking-wide">
+                Dev
+              </span>
+            )}
+          </div>
+
+          {/* Trial expiry warning */}
+          {planExpiresAt && (() => {
+            const daysLeft = Math.ceil((new Date(planExpiresAt).getTime() - Date.now()) / 86400000);
+            if (daysLeft > 14) return null;
+            return (
+              <p className={cn(
+                "text-[10px] px-1",
+                daysLeft <= 3 ? "text-destructive" : "text-yellow-500/80"
+              )}>
+                {daysLeft <= 0 ? "Trial expired" : `Trial ends in ${daysLeft}d`}
+              </p>
+            );
+          })()}
+
+        </div>
+
         <ThemePicker />
         <div className="p-2">
           <SignOutButton />
@@ -226,6 +309,28 @@ function BrowseIcon() {
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 8.5 10 10l-1.5 5.5 5.5-1.5 1.5-5.5z" />
+    </svg>
+  );
+}
+function AdminIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+    </svg>
+  );
+}
+function PricingIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+  );
+}
+function SettingsIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
     </svg>
   );
 }
