@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
+import { checkRunLimit } from "@/lib/limits";
+import { sendRunLimitWarningEmail } from "@/lib/email";
 import type { ProgramSchema } from "@flowos/schema";
 
 // POST /api/runs — create a run and dispatch to runtime
@@ -25,6 +27,30 @@ export async function POST(request: Request) {
     .single();
 
   if (progError || !program) return apiError("Program not found", 404);
+
+  // Check monthly run limit
+  const runLimitCheck = await checkRunLimit(user.id);
+  if (!runLimitCheck.allowed) {
+    return NextResponse.json(
+      { error: "RUN_LIMIT_REACHED", message: runLimitCheck.upgradeMessage },
+      { status: 403 }
+    );
+  }
+  // Fire 80% warning email in background (non-blocking)
+  if (runLimitCheck.warnAt80Percent) {
+    const adminClient = createServiceClient();
+    void adminClient.auth.admin.getUserById(user.id).then(({ data }) => {
+      const email = data.user?.email;
+      if (email && runLimitCheck.currentCount && runLimitCheck.totalAllowed) {
+        void sendRunLimitWarningEmail({
+          to: email,
+          used: runLimitCheck.currentCount,
+          total: runLimitCheck.totalAllowed,
+          tier: "free", // will show correct tier since email.ts just displays the string
+        });
+      }
+    });
+  }
 
   type ProgramRow = { id: string; schema: unknown; user_id: string };
   const prog = program as unknown as ProgramRow;

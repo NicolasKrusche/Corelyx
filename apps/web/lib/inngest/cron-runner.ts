@@ -2,6 +2,7 @@ import { NonRetriableError } from "inngest";
 import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
+import { checkRunLimit } from "@/lib/limits";
 
 /**
  * Inngest function: runs every minute, finds all active cron triggers that are
@@ -50,6 +51,14 @@ export const cronRunner = inngest.createFunction(
 
         if (progErr || !program) {
           logger.warn(`Skipping trigger ${trigger.id}: program not found or inactive`);
+          return;
+        }
+
+        // Check monthly run limit before firing
+        const userId = (program as Record<string, unknown>).user_id as string;
+        const limitCheck = await checkRunLimit(userId);
+        if (!limitCheck.allowed) {
+          logger.warn(`Skipping cron trigger ${trigger.id}: run limit reached for user ${userId}`);
           return;
         }
 

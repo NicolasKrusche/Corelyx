@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/api";
+import { checkRunLimit } from "@/lib/limits";
 
 type JsonObject = Record<string, unknown>;
 
@@ -106,6 +107,9 @@ export async function dispatchEventTriggers(
 
       if (input.user_id && program.user_id !== input.user_id) return;
       if (allowedProgramIds && !allowedProgramIds.has(program.id)) return;
+
+      const runLimitCheck = await checkRunLimit(program.user_id);
+      if (!runLimitCheck.allowed) return;
 
       const conflict = await _checkAndAcquireSlot(db, program.id, program.conflict_policy);
       if (!conflict.allowed) return;

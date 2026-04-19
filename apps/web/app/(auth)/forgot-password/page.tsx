@@ -26,64 +26,75 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  if (done) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-center space-y-2">
-          <h2 className="text-xl font-semibold">Email sent</h2>
-          <p className="text-muted-foreground text-sm">
-            Check <strong>{email}</strong> for a password reset link.
-          </p>
-          <Link href="/login" className="text-sm underline hover:text-foreground">
-            Back to sign in
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Reset password</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Enter your email and we&apos;ll send a reset link.
-          </p>
-        </div>
-
-        <form onSubmit={handleReset} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="you@example.com"
-            />
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(249,115,22,0.09) 0%, transparent 60%)" }}
+    >
+      <div className="w-full max-w-sm">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-xl">
+          {/* Logo + heading */}
+          <div className="flex flex-col items-center gap-4 mb-8">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-11 w-11 object-contain" />
+            <div className="text-center">
+              {done ? (
+                <>
+                  <h1 className="text-xl font-bold tracking-tight">Check your email</h1>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    We sent a reset link to <strong>{email}</strong>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-xl font-bold tracking-tight">Reset password</h1>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    Enter your email and we&apos;ll send a reset link.
+                  </p>
+                </>
+              )}
+            </div>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {!done && (
+            <form onSubmit={handleReset} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-shadow"
+                  placeholder="you@example.com"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {loading ? "Sending…" : "Send reset link"}
-          </button>
-        </form>
+              {error && (
+                <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
 
-        <p className="text-center text-sm text-muted-foreground">
-          <Link href="/login" className="underline hover:text-foreground">
-            Back to sign in
-          </Link>
-        </p>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity shadow-[0_0_16px_rgba(249,115,22,0.3)]"
+              >
+                {loading ? "Sending…" : "Send reset link"}
+              </button>
+            </form>
+          )}
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            <Link href="/login" className="hover:text-foreground transition-colors">
+              ← Back to sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

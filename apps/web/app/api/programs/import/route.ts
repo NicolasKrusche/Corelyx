@@ -5,6 +5,7 @@ import { apiError } from "@/lib/api";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
+import { checkProgramLimit } from "@/lib/limits";
 
 const ImportProgramBodyZ = z.object({
   json: z.string().optional(),
@@ -58,6 +59,14 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = ImportProgramBodyZ.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
+
+  const limitCheck = await checkProgramLimit(user.id);
+  if (!limitCheck.allowed) {
+    return NextResponse.json(
+      { error: "PROGRAM_LIMIT_REACHED", message: limitCheck.upgradeMessage },
+      { status: 403 }
+    );
+  }
 
   if (!parsed.data.schema && !parsed.data.json) {
     return apiError("Provide either `schema` or `json`", 400);

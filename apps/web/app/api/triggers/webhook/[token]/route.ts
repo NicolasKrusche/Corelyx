@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
+import { checkRunLimit } from "@/lib/limits";
 
 /**
  * POST /api/triggers/webhook/[token]
@@ -71,6 +72,12 @@ export async function POST(
 
   if (!program.is_active) {
     return apiError("Program is not active", 409);
+  }
+
+  // Check monthly run limit
+  const runLimitCheck = await checkRunLimit(program.user_id);
+  if (!runLimitCheck.allowed) {
+    return NextResponse.json({ error: "Run limit reached for this account" }, { status: 429 });
   }
 
   // Check conflict policy before creating run

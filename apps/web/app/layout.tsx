@@ -9,10 +9,43 @@ const inter = Inter({
   display: "swap",
 });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://nexflow.app";
+
 export const metadata: Metadata = {
-  title: "Nexflow — Visual AI Automation",
+  title: {
+    default: "Nexflow — Visual AI Automation",
+    template: "%s — Nexflow",
+  },
   description:
     "Describe what you want to automate. Nexflow designs the agent graph, you tune it visually — then it runs itself.",
+  metadataBase: new URL(APP_URL),
+  openGraph: {
+    type: "website",
+    siteName: "Nexflow",
+    title: "Nexflow — Visual AI Automation",
+    description:
+      "Describe what you want to automate. Nexflow designs the agent graph, you tune it visually — then it runs itself.",
+    url: APP_URL,
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Nexflow — Visual AI Automation",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nexflow — Visual AI Automation",
+    description:
+      "Describe what you want to automate. Nexflow designs the agent graph, you tune it visually — then it runs itself.",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/pictures/logo-no-bg.png",
+    apple: "/pictures/logo-no-bg.png",
+  },
 };
 
 export default function RootLayout({
