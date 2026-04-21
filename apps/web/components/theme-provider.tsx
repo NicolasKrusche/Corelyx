@@ -2,70 +2,65 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-export type ThemeId =
-  | "dark"
-  | "midnight-blue"
-  | "graphite"
-  | "emerald-terminal"
-  | "rose-gold"
-  | "cyberpunk-neon"
-  | "light"
-  | "liquid-glass";
+export type BaseTheme = "dark" | "light";
+export type AccentColor = "orange" | "blue" | "indigo" | "green" | "pink" | "cyan";
 
-const ALL_THEMES: ThemeId[] = [
-  "dark",
-  "midnight-blue",
-  "graphite",
-  "emerald-terminal",
-  "rose-gold",
-  "cyberpunk-neon",
-  "light",
-  "liquid-glass",
-];
+const BASE_THEMES: BaseTheme[] = ["dark", "light"];
+const ACCENT_COLORS: AccentColor[] = ["orange", "blue", "indigo", "green", "pink", "cyan"];
 
 interface ThemeContextValue {
-  theme: ThemeId;
-  setTheme: (t: ThemeId) => void;
+  base: BaseTheme;
+  accent: AccentColor;
+  setBase: (b: BaseTheme) => void;
+  setAccent: (a: AccentColor) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: "dark",
-  setTheme: () => {},
+  base: "dark",
+  accent: "orange",
+  setBase: () => {},
+  setAccent: () => {},
 });
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>("dark");
+function applyTheme(base: BaseTheme, accent: AccentColor) {
+  const el = document.documentElement;
+  el.classList.remove(...BASE_THEMES, ...ACCENT_COLORS.map((a) => `accent-${a}`));
+  el.classList.add(base, `accent-${accent}`);
+}
 
-  // Read persisted theme after hydration to avoid SSR mismatch
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [base, setBaseState] = useState<BaseTheme>("dark");
+  const [accent, setAccentState] = useState<AccentColor>("orange");
+
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("nexflow-theme") as ThemeId | null;
-      if (stored && ALL_THEMES.includes(stored)) {
-        setThemeState(stored);
-        applyTheme(stored);
-      }
+      const storedBase = localStorage.getItem("nexflow-base") as BaseTheme | null;
+      const storedAccent = localStorage.getItem("nexflow-accent") as AccentColor | null;
+      const b = storedBase && BASE_THEMES.includes(storedBase) ? storedBase : "dark";
+      const a = storedAccent && ACCENT_COLORS.includes(storedAccent) ? storedAccent : "orange";
+      setBaseState(b);
+      setAccentState(a);
+      applyTheme(b, a);
     } catch {}
   }, []);
 
-  function setTheme(t: ThemeId) {
-    setThemeState(t);
-    applyTheme(t);
-    try {
-      localStorage.setItem("nexflow-theme", t);
-    } catch {}
+  function setBase(b: BaseTheme) {
+    setBaseState(b);
+    applyTheme(b, accent);
+    try { localStorage.setItem("nexflow-base", b); } catch {}
+  }
+
+  function setAccent(a: AccentColor) {
+    setAccentState(a);
+    applyTheme(base, a);
+    try { localStorage.setItem("nexflow-accent", a); } catch {}
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ base, accent, setBase, setAccent }}>
       {children}
     </ThemeContext.Provider>
   );
-}
-
-function applyTheme(t: ThemeId) {
-  const el = document.documentElement;
-  el.classList.remove(...ALL_THEMES);
-  el.classList.add(t);
 }
 
 export function useTheme() {

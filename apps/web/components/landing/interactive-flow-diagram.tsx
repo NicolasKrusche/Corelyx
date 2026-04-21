@@ -15,9 +15,9 @@ type NodeData = {
 const H = 78;
 
 const COLORS = {
-  trigger: { stroke: "#f97316", fill: "#0d0d0d",  text: "#f97316", header: "rgba(249,115,22,0.08)" },
-  agent:   { stroke: "#a855f7", fill: "#0d0a12",  text: "#a855f7", header: "rgba(168,85,247,0.10)" },
-  step:    { stroke: "#10b981", fill: "#0a0f0d",  text: "#10b981", header: "rgba(16,185,129,0.08)" },
+  trigger: { stroke: "#f97316", fill: "#ffffff",  text: "#ea6a00", header: "rgba(249,115,22,0.07)" },
+  agent:   { stroke: "#a855f7", fill: "#ffffff",  text: "#8b3ec9", header: "rgba(168,85,247,0.07)" },
+  step:    { stroke: "#10b981", fill: "#ffffff",  text: "#0a8f63", header: "rgba(16,185,129,0.07)" },
 };
 
 const TYPE_LABELS = { trigger: "TRIGGER", agent: "AGENT", step: "STEP" };
@@ -87,7 +87,7 @@ export function InteractiveFlowDiagram() {
     >
       <defs>
         <pattern id="fd-dots" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
-          <circle cx="1" cy="1" r="1" fill="#ffffff" fillOpacity="0.04" />
+          <circle cx="1" cy="1" r="1" fill="#000000" fillOpacity="0.07" />
         </pattern>
         {[
           { id: "arr-o", color: "#f97316" },
@@ -106,16 +106,16 @@ export function InteractiveFlowDiagram() {
       </defs>
 
       {/* Background */}
-      <rect width="660" height="220" rx="12" fill="#080808" />
+      <rect width="660" height="220" rx="12" fill="#f1f4f9" />
       <rect width="660" height="220" rx="12" fill="url(#fd-dots)" />
 
       {/* Title bar */}
-      <rect width="660" height="32" rx="12" fill="#111111" />
-      <rect y="12" width="660" height="20" fill="#111111" />
-      <circle cx="18" cy="16" r="4" fill="#2a2a2a" />
-      <circle cx="32" cy="16" r="4" fill="#2a2a2a" />
-      <circle cx="46" cy="16" r="4" fill="#2a2a2a" />
-      <text x="330" y="21" fontSize="9" fill="#444" textAnchor="middle" fontFamily="system-ui">
+      <rect width="660" height="32" rx="12" fill="#e4e8f2" />
+      <rect y="12" width="660" height="20" fill="#e4e8f2" />
+      <circle cx="18" cy="16" r="4" fill="#c8cedc" />
+      <circle cx="32" cy="16" r="4" fill="#c8cedc" />
+      <circle cx="46" cy="16" r="4" fill="#c8cedc" />
+      <text x="330" y="21" fontSize="9" fill="#8892a8" textAnchor="middle" fontFamily="system-ui">
         Programs / Email Summary / editor
       </text>
 
@@ -180,14 +180,14 @@ export function InteractiveFlowDiagram() {
             </text>
             <text
               x={node.x + 12} y={node.y + 36}
-              fontSize="11.5" fill="#f0f0f0"
+              fontSize="11.5" fill="#1e2a3a"
               fontWeight="600" fontFamily="system-ui"
             >
               {node.label}
             </text>
             <text
               x={node.x + 12} y={node.y + 54}
-              fontSize="9" fill="#555" fontFamily="system-ui"
+              fontSize="9" fill="#7a8499" fontFamily="system-ui"
             >
               {node.subtitle}
             </text>

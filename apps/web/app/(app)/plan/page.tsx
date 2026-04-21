@@ -27,12 +27,12 @@ export default async function PricingPage() {
       style: (currentTier === "free" ? "disabled" : "border") as "disabled" | "border",
     },
     {
-      label: currentTier === "pro" ? "Current plan" : "Redeem a code",
+      label: currentTier === "pro" ? "Current plan" : "Upgrade",
       href: "/settings#redeem",
       style: (currentTier === "pro" ? "disabled" : "primary") as "disabled" | "primary",
     },
     {
-      label: currentTier === "builder" ? "Current plan" : "Redeem a code",
+      label: currentTier === "builder" ? "Current plan" : "Upgrade",
       href: "/settings#redeem",
       style: (currentTier === "builder" ? "disabled" : "border") as "disabled" | "border",
     },

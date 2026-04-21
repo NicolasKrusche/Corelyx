@@ -1,45 +1,60 @@
 "use client";
 
-import { useTheme, type ThemeId } from "@/components/theme-provider";
+import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 
-const THEMES: { id: ThemeId; label: string; swatch: string; gradient?: boolean }[] = [
-  { id: "dark",             label: "Dark",             swatch: "#f97316" },
-  { id: "midnight-blue",    label: "Midnight Blue",    swatch: "#3b9eff" },
-  { id: "graphite",         label: "Graphite",         swatch: "#818cf8" },
-  { id: "emerald-terminal", label: "Emerald Terminal", swatch: "#34d399" },
-  { id: "rose-gold",        label: "Rose Gold",        swatch: "#fb7185" },
-  { id: "cyberpunk-neon",   label: "Cyberpunk",        swatch: "#22d3ee" },
-  { id: "light",            label: "Light",            swatch: "#f5f0e8" },
-  { id: "liquid-glass",     label: "Liquid Glass",     swatch: "linear-gradient(135deg,#38bdf8,#a78bfa)", gradient: true },
+const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
+  { id: "orange", label: "Orange", color: "#f97316" },
+  { id: "blue",   label: "Blue",   color: "#3b9eff" },
+  { id: "indigo", label: "Indigo", color: "#818cf8" },
+  { id: "green",  label: "Green",  color: "#22c55e" },
+  { id: "pink",   label: "Pink",   color: "#fb7185" },
+  { id: "cyan",   label: "Cyan",   color: "#22d3ee" },
 ];
 
 export function ThemePicker() {
-  const { theme, setTheme } = useTheme();
+  const { base, accent, setBase, setAccent } = useTheme();
 
   return (
-    <div className="px-3 py-2">
-      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Theme</p>
-      <div className="flex flex-wrap gap-1.5">
-        {THEMES.map((t) => (
-          <button
-            key={t.id}
-            title={t.label}
-            onClick={() => setTheme(t.id)}
-            className={cn(
-              "w-5 h-5 rounded-full transition-all duration-150 shrink-0",
-              "ring-offset-background ring-offset-1",
-              theme === t.id
-                ? "ring-2 ring-foreground/60 scale-110"
-                : "hover:scale-110 ring-1 ring-border"
-            )}
-            style={
-              t.gradient
-                ? { background: t.swatch }
-                : { backgroundColor: t.swatch }
-            }
-          />
-        ))}
+    <div className="px-3 py-2 space-y-3">
+      <div>
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">Mode</p>
+        <div className="flex gap-1">
+          {(["dark", "light"] as BaseTheme[]).map((b) => (
+            <button
+              key={b}
+              onClick={() => setBase(b)}
+              className={cn(
+                "flex-1 rounded-md px-2 py-1 text-[11px] font-medium capitalize transition-colors",
+                base === b
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {b === "dark" ? "Dark" : "Light"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">Accent</p>
+        <div className="flex flex-wrap gap-1.5">
+          {ACCENTS.map((a) => (
+            <button
+              key={a.id}
+              title={a.label}
+              onClick={() => setAccent(a.id)}
+              className={cn(
+                "w-5 h-5 rounded-full transition-all duration-150 shrink-0",
+                "ring-offset-background ring-offset-1",
+                accent === a.id
+                  ? "ring-2 ring-foreground/60 scale-110"
+                  : "hover:scale-110 ring-1 ring-border/50"
+              )}
+              style={{ backgroundColor: a.color }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

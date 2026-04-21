@@ -54,12 +54,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} dark`}>
+    <html lang="en" className={`${inter.variable} dark accent-orange`}>
       <head>
-        {/* Anti-flash: apply persisted theme before first paint */}
+        {/* Anti-flash: apply persisted base + accent before first paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('nexflow-theme');var themes=['dark','midnight-blue','graphite','emerald-terminal','rose-gold','cyberpunk-neon','light','liquid-glass'];if(t&&themes.includes(t)){var el=document.documentElement;el.className=el.className.replace(/\b(dark|midnight-blue|graphite|emerald-terminal|rose-gold|cyberpunk-neon|light|liquid-glass)\b/g,'').trim()+' '+t;}}catch(e){}})();`,
+            __html: `(function(){try{var b=localStorage.getItem('nexflow-base');var a=localStorage.getItem('nexflow-accent');var bases=['dark','light'];var accents=['orange','blue','indigo','green','pink','cyan'];var el=document.documentElement;var base=b&&bases.includes(b)?b:'dark';var acc=a&&accents.includes(a)?a:'orange';el.classList.remove('dark','light','accent-orange','accent-blue','accent-indigo','accent-green','accent-pink','accent-cyan');el.classList.add(base,'accent-'+acc);}catch(e){}})();`,
           }}
         />
       </head>

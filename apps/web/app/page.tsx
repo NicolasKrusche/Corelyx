@@ -14,7 +14,7 @@ export default function LandingPage() {
   const marqueeItems = [...CONNECTORS, ...CONNECTORS];
 
   return (
-    <div className="public-black-theme min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="light min-h-screen bg-[#eceff4] text-foreground overflow-x-hidden">
 
       {/* ── Nav ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/85 backdrop-blur-xl">
@@ -47,20 +47,14 @@ export default function LandingPage() {
       {/* ── Hero ── */}
       <section className="relative flex flex-col items-center text-center px-6 pt-24 pb-12 overflow-hidden min-h-[92vh] justify-center">
         {/* Dot grid */}
-        <div className="pointer-events-none absolute inset-0 bg-grid-dots opacity-40" />
-
-        {/* Radial vignette to keep center readable */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 65% 75% at 50% 50%, rgba(9,9,9,0.82) 0%, rgba(9,9,9,0.4) 60%, transparent 100%)" }}
-        />
+        <div className="pointer-events-none absolute inset-0 bg-grid-dots opacity-20" />
 
         {/* Edge masks — fade node clusters at viewport edges */}
-        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-52 bg-gradient-to-r from-background to-transparent z-10" />
-        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-52 bg-gradient-to-l from-background to-transparent z-10" />
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-52 bg-gradient-to-r from-[#eceff4] to-transparent z-10" />
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-52 bg-gradient-to-l from-[#eceff4] to-transparent z-10" />
 
         {/* Bottom fade */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[#eceff4] to-transparent" />
 
         {/* Badge */}
         <div className="animate-fade-up relative z-10 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-primary mb-8">
@@ -94,7 +88,7 @@ export default function LandingPage() {
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
           </Link>
-          <Link href="/login" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/4 backdrop-blur-sm px-8 py-3.5 text-sm font-medium hover:border-white/20 hover:bg-white/6 transition-all duration-200">
+          <Link href="/login" className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/70 backdrop-blur-sm px-8 py-3.5 text-sm font-medium hover:bg-white transition-all duration-200">
             Sign in
           </Link>
         </div>
@@ -116,7 +110,7 @@ export default function LandingPage() {
         <div className="animate-fade-up-delay-4 relative z-10 mt-16 w-full max-w-4xl">
           <div className="absolute inset-x-8 top-6 bottom-0 -z-10 blur-[50px] rounded-full opacity-60"
             style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.3) 0%, rgba(168,85,247,0.15) 50%, transparent 80%)" }} />
-          <div className="rounded-2xl overflow-hidden border border-white/6 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_48px_96px_rgba(0,0,0,0.8)] ring-1 ring-inset ring-white/4">
+          <div className="rounded-2xl overflow-hidden border border-border shadow-[0_8px_48px_rgba(0,0,0,0.12)]">
             <InteractiveFlowDiagram />
           </div>
         </div>
@@ -128,8 +122,8 @@ export default function LandingPage() {
           Connects to your entire stack
         </p>
         <div className="relative">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background to-transparent z-10" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background to-transparent z-10" />
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[#eceff4] to-transparent z-10" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#eceff4] to-transparent z-10" />
           <div className="flex gap-3 animate-marquee whitespace-nowrap">
             {marqueeItems.map((name, i) => (
               <span key={`${name}-${i}`} className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground/70 shrink-0">
