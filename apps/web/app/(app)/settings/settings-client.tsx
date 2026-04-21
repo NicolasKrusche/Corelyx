@@ -329,10 +329,10 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
 
       <Section title="Plan" description="Compare plans, buy a new plan, or upgrade from the public pricing page.">
         <Link
-          href="/pricing"
+          href="/plan"
           className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Choose new plan
+          Upgrade Plan
         </Link>
       </Section>
 

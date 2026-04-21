@@ -69,10 +69,10 @@ export default async function ProfilePage() {
             </p>
           </div>
           <Link
-            href="/pricing"
+            href="/plan"
             className="inline-flex shrink-0 items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
-            Choose new plan
+            Upgrade Plan
           </Link>
         </div>
       </div>

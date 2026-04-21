@@ -38,30 +38,30 @@ export default function SignupPage() {
 
   if (done) {
     return (
-      <div className="min-h-screen bg-[#ececec] text-zinc-900">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="grid min-h-screen lg:grid-cols-2">
           <section className="relative flex items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
             <Link
               href="/"
-              className="absolute left-6 top-6 text-sm font-semibold text-zinc-700 transition-colors hover:text-zinc-900 sm:left-10 lg:left-16"
+              className="absolute left-6 top-6 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground sm:left-10 lg:left-16"
             >
               Nexflow
             </Link>
 
-            <div className="w-full max-w-sm rounded-2xl border border-zinc-300 bg-white p-7 text-center shadow-[0_12px_30px_rgba(0,0,0,0.08)] sm:p-8">
-              <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
+            <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-7 text-center shadow-xl sm:p-8">
+              <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full border border-green-500/30 bg-green-500/10 text-green-500">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-6 w-6">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Check your inbox</h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                We sent a confirmation link to <span className="font-medium text-zinc-900">{email}</span>.
+              <h2 className="text-2xl font-semibold tracking-tight">Check your inbox</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>.
                 <br />Click it to activate your account.
               </p>
               <Link
                 href="/login"
-                className="mt-4 inline-block text-sm font-medium text-zinc-800 transition-colors hover:text-zinc-900 hover:underline"
+                className="mt-4 inline-block text-sm font-medium text-foreground transition-colors hover:text-primary hover:underline"
               >
                 Back to sign in
               </Link>
@@ -75,18 +75,18 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#ececec] text-zinc-900">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen lg:grid-cols-2">
         <section className="relative flex items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
           <Link
             href="/"
-            className="absolute left-6 top-6 text-sm font-semibold text-zinc-700 transition-colors hover:text-zinc-900 sm:left-10 lg:left-16"
+            className="absolute left-6 top-6 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground sm:left-10 lg:left-16"
           >
             Nexflow
           </Link>
 
           <div className="w-full max-w-sm">
-            <h1 className="mb-6 text-center text-4xl font-semibold tracking-tight text-zinc-800 sm:text-5xl">
+            <h1 className="mb-6 text-center text-4xl font-semibold tracking-tight sm:text-5xl">
               Create your account
             </h1>
 
@@ -97,7 +97,7 @@ export default function SignupPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+                className="h-12 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
                 placeholder="Email"
               />
 
@@ -108,12 +108,12 @@ export default function SignupPage() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+                className="h-12 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
                 placeholder="Password (min. 8 chars)"
               />
 
               {error && (
-                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {error}
                 </p>
               )}
@@ -121,20 +121,20 @@ export default function SignupPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Creating account..." : "Create account"}
               </button>
             </form>
 
-            <p className="mt-5 text-center text-xs text-zinc-500">
+            <p className="mt-5 text-center text-xs text-muted-foreground">
               By signing up, you agree to our terms and privacy policy.
             </p>
 
-            <p className="mt-6 text-center text-sm text-zinc-600">
+            <p className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="font-medium text-zinc-900 hover:underline">
+              <Link href="/login" className="font-medium text-foreground hover:underline">
                 Sign in
               </Link>
             </p>

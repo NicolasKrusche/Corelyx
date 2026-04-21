@@ -54,12 +54,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} dark accent-orange`}>
+    <html lang="en" className={`${inter.variable} light accent-blue`}>
       <head>
         {/* Anti-flash: apply persisted base + accent before first paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var b=localStorage.getItem('nexflow-base');var a=localStorage.getItem('nexflow-accent');var bases=['dark','light'];var accents=['orange','blue','indigo','green','pink','cyan'];var el=document.documentElement;var base=b&&bases.includes(b)?b:'dark';var acc=a&&accents.includes(a)?a:'orange';el.classList.remove('dark','light','accent-orange','accent-blue','accent-indigo','accent-green','accent-pink','accent-cyan');el.classList.add(base,'accent-'+acc);}catch(e){}})();`,
+            __html: `(function(){try{var b=localStorage.getItem('nexflow-base');var a=localStorage.getItem('nexflow-accent');var bases=['dark','light'];var accents=['orange','blue','indigo','green','pink','cyan'];var el=document.documentElement;var base=b&&bases.includes(b)?b:'light';var acc=a&&accents.includes(a)?a:'blue';el.classList.remove('dark','light','accent-orange','accent-blue','accent-indigo','accent-green','accent-pink','accent-cyan');el.classList.add(base,'accent-'+acc);}catch(e){}})();`,
           }}
         />
       </head>

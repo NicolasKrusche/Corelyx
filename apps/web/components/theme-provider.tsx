@@ -16,8 +16,8 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  base: "dark",
-  accent: "orange",
+  base: "light",
+  accent: "blue",
   setBase: () => {},
   setAccent: () => {},
 });
@@ -29,15 +29,15 @@ function applyTheme(base: BaseTheme, accent: AccentColor) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [base, setBaseState] = useState<BaseTheme>("dark");
-  const [accent, setAccentState] = useState<AccentColor>("orange");
+  const [base, setBaseState] = useState<BaseTheme>("light");
+  const [accent, setAccentState] = useState<AccentColor>("blue");
 
   useEffect(() => {
     try {
       const storedBase = localStorage.getItem("nexflow-base") as BaseTheme | null;
       const storedAccent = localStorage.getItem("nexflow-accent") as AccentColor | null;
-      const b = storedBase && BASE_THEMES.includes(storedBase) ? storedBase : "dark";
-      const a = storedAccent && ACCENT_COLORS.includes(storedAccent) ? storedAccent : "orange";
+      const b = storedBase && BASE_THEMES.includes(storedBase) ? storedBase : "light";
+      const a = storedAccent && ACCENT_COLORS.includes(storedAccent) ? storedAccent : "blue";
       setBaseState(b);
       setAccentState(a);
       applyTheme(b, a);

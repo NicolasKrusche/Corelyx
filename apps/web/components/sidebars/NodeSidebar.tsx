@@ -631,7 +631,7 @@ function Toggle({
       >
         <span
           className={cn(
-            "inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform",
+            "inline-block h-3.5 w-3.5 rounded-full bg-background shadow-sm transition-transform",
             checked ? "translate-x-4" : "translate-x-1"
           )}
         />

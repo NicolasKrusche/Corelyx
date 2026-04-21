@@ -13,9 +13,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("tier, plan_expires_at, is_beta_tester")
+    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at")
     .eq("id", user.id)
     .single();
+
+  const isOAuthUser = !user.identities?.some((i) => i.provider === "email");
 
   return (
     <div className="min-h-screen bg-background">
@@ -25,15 +27,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         tier={(isAdminEmail(user.email) ? "unlimited" : (profile?.tier ?? "free")) as "free" | "pro" | "builder" | "unlimited"}
         planExpiresAt={profile?.plan_expires_at ?? null}
         isBetaTester={profile?.is_beta_tester ?? false}
+        userId={user.id}
+        createdAt={profile?.created_at ?? user.created_at}
+        initialDisplayName={profile?.display_name ?? ""}
+        initialAvatarUrl={profile?.avatar_url ?? ""}
+        isOAuthUser={isOAuthUser}
       />
       <main className="relative ml-16 min-h-screen px-6 py-6 lg:px-8 lg:py-8">
-        <div
-          className="pointer-events-none fixed inset-0 -z-10 bg-background"
-          style={{
-            backgroundImage:
-              "radial-gradient(ellipse at 85% 0%, rgba(79,70,229,0.06) 0%, transparent 45%), radial-gradient(ellipse at 20% 100%, rgba(99,102,241,0.04) 0%, transparent 40%)",
-          }}
-        />
+        <div className="app-bg-gradient pointer-events-none fixed inset-0 -z-10 bg-background" />
         <div className="mx-auto w-full max-w-[1180px]">{children}</div>
       </main>
     </div>

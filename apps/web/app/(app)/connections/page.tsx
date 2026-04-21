@@ -66,7 +66,7 @@ function ProviderLogo({ provider, size = 26 }: { provider: string; size?: number
   return (
     <div
       style={{ width: size, height: size }}
-      className="rounded-md bg-white border border-border/50 flex items-center justify-center shrink-0 overflow-hidden p-0.5"
+      className="rounded-md bg-card border border-border/50 flex items-center justify-center shrink-0 overflow-hidden p-0.5"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

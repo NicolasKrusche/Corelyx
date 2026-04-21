@@ -28,12 +28,12 @@ export default async function PricingPage() {
     },
     {
       label: currentTier === "pro" ? "Current plan" : "Upgrade",
-      href: "/settings#redeem",
+      href: "/plan?settings=1",
       style: (currentTier === "pro" ? "disabled" : "primary") as "disabled" | "primary",
     },
     {
       label: currentTier === "builder" ? "Current plan" : "Upgrade",
-      href: "/settings#redeem",
+      href: "/plan?settings=1",
       style: (currentTier === "builder" ? "disabled" : "border") as "disabled" | "border",
     },
   ];
@@ -51,7 +51,7 @@ export default async function PricingPage() {
 
       <p className="text-xs text-muted-foreground/50">
         Have a promo or beta code?{" "}
-        <Link href="/settings#redeem" className="text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+        <Link href="/plan?settings=1" className="text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
           Redeem it in Settings.
         </Link>
       </p>
