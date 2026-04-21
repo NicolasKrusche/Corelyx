@@ -4,46 +4,63 @@ import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAdvancedMode } from "@/lib/advanced-mode";
-import { useTheme, type ThemeId } from "@/components/theme-provider";
+import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 
-const THEMES: { id: ThemeId; label: string; swatch: string; gradient?: boolean }[] = [
-  { id: "dark",             label: "Dark",             swatch: "#f97316" },
-  { id: "midnight-blue",    label: "Midnight Blue",    swatch: "#3b9eff" },
-  { id: "graphite",         label: "Graphite",         swatch: "#818cf8" },
-  { id: "emerald-terminal", label: "Emerald Terminal", swatch: "#34d399" },
-  { id: "rose-gold",        label: "Rose Gold",        swatch: "#fb7185" },
-  { id: "cyberpunk-neon",   label: "Cyberpunk",        swatch: "#22d3ee" },
-  { id: "light",            label: "Light",            swatch: "#f5f0e8" },
-  { id: "liquid-glass",     label: "Liquid Glass",     swatch: "linear-gradient(135deg,#38bdf8,#a78bfa)", gradient: true },
+const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
+  { id: "orange", label: "Orange", color: "#f97316" },
+  { id: "blue",   label: "Blue",   color: "#3b9eff" },
+  { id: "indigo", label: "Indigo", color: "#818cf8" },
+  { id: "green",  label: "Green",  color: "#22c55e" },
+  { id: "pink",   label: "Pink",   color: "#fb7185" },
+  { id: "cyan",   label: "Cyan",   color: "#22d3ee" },
 ];
 
 function AppearanceSection() {
-  const { theme, setTheme } = useTheme();
+  const { base, accent, setBase, setAccent } = useTheme();
   return (
-    <Section title="Appearance" description="Pick a theme for the Nexflow UI. Applies instantly.">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {THEMES.map((t) => {
-          const active = theme === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTheme(t.id)}
-              aria-pressed={active}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs transition-colors text-left ${
-                active
-                  ? "border-primary bg-accent text-foreground"
-                  : "border-border hover:bg-accent/50 text-muted-foreground"
-              }`}
-            >
-              <span
-                className="h-4 w-4 rounded-full shrink-0 ring-1 ring-border"
-                style={t.gradient ? { background: t.swatch } : { backgroundColor: t.swatch }}
-              />
-              <span className="truncate">{t.label}</span>
-            </button>
-          );
-        })}
+    <Section title="Appearance" description="Choose a mode and accent colour. Applies instantly.">
+      <div className="space-y-4">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Mode</p>
+          <div className="flex gap-2">
+            {(["dark", "light"] as BaseTheme[]).map((b) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setBase(b)}
+                aria-pressed={base === b}
+                className={`flex-1 rounded-lg border px-4 py-2.5 text-xs font-medium capitalize transition-colors ${
+                  base === b
+                    ? "border-primary bg-accent text-foreground"
+                    : "border-border hover:bg-accent/50 text-muted-foreground"
+                }`}
+              >
+                {b === "dark" ? "🌙  Dark" : "☀️  Light"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Accent colour</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {ACCENTS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setAccent(a.id)}
+                aria-pressed={accent === a.id}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs transition-colors ${
+                  accent === a.id
+                    ? "border-primary bg-accent text-foreground"
+                    : "border-border hover:bg-accent/50 text-muted-foreground"
+                }`}
+              >
+                <span className="h-3.5 w-3.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                <span>{a.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </Section>
   );
