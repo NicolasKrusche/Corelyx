@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ConsentBanner } from "@/components/consent-banner";
+import { InteractiveFlowDiagram } from "@/components/landing/interactive-flow-diagram";
 
 const CONNECTORS = [
   "Gmail", "Slack", "Notion", "GitHub", "Google Sheets",
@@ -7,253 +8,13 @@ const CONNECTORS = [
   "Google Docs", "Google Drive",
 ];
 
-// ─── Hero background: floating agent graph ─────────────────────────────────
-
-function HeroGraph() {
-  return (
-    <svg
-      className="absolute inset-0 w-full h-full"
-      viewBox="0 0 1400 680"
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden
-    >
-      <defs>
-        <marker id="h-arr-orange" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-          <path d="M0,1 L0,5 L5,3 z" fill="#f97316" fillOpacity="0.5" />
-        </marker>
-        <marker id="h-arr-purple" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-          <path d="M0,1 L0,5 L5,3 z" fill="#a855f7" fillOpacity="0.5" />
-        </marker>
-        <marker id="h-arr-green" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-          <path d="M0,1 L0,5 L5,3 z" fill="#10b981" fillOpacity="0.5" />
-        </marker>
-        <filter id="h-glow-o">
-          <feGaussianBlur stdDeviation="2.5" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-        <filter id="h-glow-p">
-          <feGaussianBlur stdDeviation="3" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
-
-      {/* ── Cluster 1: Email → Summarize → Notion (top-left) ── */}
-      <g className="drift-1" style={{ opacity: 0.18 }}>
-        {/* edges */}
-        <line x1="222" y1="109" x2="290" y2="109" stroke="#f97316" strokeWidth="1.2" strokeDasharray="5,3" strokeOpacity="0.6" markerEnd="url(#h-arr-orange)" className="edge-hero" />
-        <line x1="432" y1="109" x2="490" y2="109" stroke="#a855f7" strokeWidth="1.2" strokeDasharray="5,3" strokeOpacity="0.6" markerEnd="url(#h-arr-purple)" className="edge-hero" style={{ animationDelay: "-1.2s" }} />
-        {/* TRIGGER */}
-        <g filter="url(#h-glow-o)">
-          <rect x="50" y="80" width="172" height="58" rx="7" fill="#0d0d0d" stroke="#f97316" strokeWidth="1" strokeOpacity="0.8" />
-          <rect x="50" y="80" width="172" height="16" rx="7" fill="#f97316" fillOpacity="0.08" />
-          <rect x="50" y="88" width="172" height="8" fill="#f97316" fillOpacity="0.08" />
-          <text x="62" y="95" fontSize="7" fill="#f97316" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">TRIGGER</text>
-          <text x="62" y="116" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">New Email Received</text>
-          <text x="62" y="130" fontSize="8" fill="#555" fontFamily="system-ui">Gmail · unread</text>
-          <circle cx="222" cy="109" r="3" fill="#f97316" fillOpacity="0.9" />
-        </g>
-        {/* AGENT */}
-        <g filter="url(#h-glow-p)">
-          <rect x="290" y="80" width="142" height="58" rx="7" fill="#0d0a12" stroke="#a855f7" strokeWidth="1" strokeOpacity="0.8" />
-          <rect x="290" y="80" width="142" height="16" rx="7" fill="#a855f7" fillOpacity="0.1" />
-          <rect x="290" y="88" width="142" height="8" fill="#a855f7" fillOpacity="0.1" />
-          <text x="302" y="95" fontSize="7" fill="#a855f7" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">AGENT</text>
-          <text x="302" y="116" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">AI Summarizer</text>
-          <text x="302" y="130" fontSize="8" fill="#555" fontFamily="system-ui">GPT-4o</text>
-          <circle cx="290" cy="109" r="3" fill="#a855f7" fillOpacity="0.9" />
-          <circle cx="432" cy="109" r="3" fill="#a855f7" fillOpacity="0.9" />
-        </g>
-        {/* STEP */}
-        <g>
-          <rect x="490" y="80" width="140" height="58" rx="7" fill="#0a0f0d" stroke="#10b981" strokeWidth="1" strokeOpacity="0.7" />
-          <rect x="490" y="80" width="140" height="16" rx="7" fill="#10b981" fillOpacity="0.08" />
-          <rect x="490" y="88" width="140" height="8" fill="#10b981" fillOpacity="0.08" />
-          <text x="502" y="95" fontSize="7" fill="#10b981" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">STEP</text>
-          <text x="502" y="116" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Save to Notion</text>
-          <text x="502" y="130" fontSize="8" fill="#555" fontFamily="system-ui">append_to_page</text>
-          <circle cx="490" cy="109" r="3" fill="#10b981" fillOpacity="0.9" />
-        </g>
-      </g>
-
-      {/* ── Cluster 2: GitHub Issue → Code Review (left-mid) ── */}
-      <g className="drift-2" style={{ opacity: 0.16 }}>
-        <line x1="222" y1="359" x2="290" y2="359" stroke="#f97316" strokeWidth="1.2" strokeDasharray="5,3" strokeOpacity="0.6" markerEnd="url(#h-arr-orange)" className="edge-hero" style={{ animationDelay: "-0.8s" }} />
-        <g filter="url(#h-glow-o)">
-          <rect x="50" y="330" width="172" height="58" rx="7" fill="#0d0d0d" stroke="#f97316" strokeWidth="1" strokeOpacity="0.75" />
-          <rect x="50" y="330" width="172" height="16" rx="7" fill="#f97316" fillOpacity="0.07" />
-          <rect x="50" y="338" width="172" height="8" fill="#f97316" fillOpacity="0.07" />
-          <text x="62" y="345" fontSize="7" fill="#f97316" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">TRIGGER</text>
-          <text x="62" y="366" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">GitHub Issue Opened</text>
-          <text x="62" y="380" fontSize="8" fill="#555" fontFamily="system-ui">nexflow/nexflow</text>
-          <circle cx="222" cy="359" r="3" fill="#f97316" fillOpacity="0.9" />
-        </g>
-        <g filter="url(#h-glow-p)">
-          <rect x="290" y="330" width="148" height="58" rx="7" fill="#0d0a12" stroke="#a855f7" strokeWidth="1" strokeOpacity="0.75" />
-          <rect x="290" y="330" width="148" height="16" rx="7" fill="#a855f7" fillOpacity="0.09" />
-          <rect x="290" y="338" width="148" height="8" fill="#a855f7" fillOpacity="0.09" />
-          <text x="302" y="345" fontSize="7" fill="#a855f7" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">AGENT</text>
-          <text x="302" y="366" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Code Reviewer</text>
-          <text x="302" y="380" fontSize="8" fill="#555" fontFamily="system-ui">Claude 3.5 · 2 tools</text>
-          <circle cx="290" cy="359" r="3" fill="#a855f7" fillOpacity="0.9" />
-        </g>
-      </g>
-
-      {/* ── Cluster 3: Form → HubSpot → Slack (top-right) ── */}
-      <g className="drift-3" style={{ opacity: 0.16 }}>
-        <line x1="1002" y1="119" x2="1060" y2="119" stroke="#f97316" strokeWidth="1.2" strokeDasharray="5,3" strokeOpacity="0.6" markerEnd="url(#h-arr-orange)" className="edge-hero" style={{ animationDelay: "-2s" }} />
-        <line x1="1202" y1="119" x2="1255" y2="119" stroke="#a855f7" strokeWidth="1.2" strokeDasharray="5,3" strokeOpacity="0.6" markerEnd="url(#h-arr-purple)" className="edge-hero" style={{ animationDelay: "-3s" }} />
-        <g filter="url(#h-glow-o)">
-          <rect x="840" y="90" width="162" height="58" rx="7" fill="#0d0d0d" stroke="#f97316" strokeWidth="1" strokeOpacity="0.7" />
-          <rect x="840" y="90" width="162" height="16" rx="7" fill="#f97316" fillOpacity="0.07" />
-          <rect x="840" y="98" width="162" height="8" fill="#f97316" fillOpacity="0.07" />
-          <text x="852" y="105" fontSize="7" fill="#f97316" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">TRIGGER</text>
-          <text x="852" y="126" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Form Submitted</text>
-          <text x="852" y="140" fontSize="8" fill="#555" fontFamily="system-ui">Typeform · Lead Gen</text>
-          <circle cx="1002" cy="119" r="3" fill="#f97316" fillOpacity="0.9" />
-        </g>
-        <g filter="url(#h-glow-p)">
-          <rect x="1060" y="90" width="142" height="58" rx="7" fill="#0d0a12" stroke="#a855f7" strokeWidth="1" strokeOpacity="0.75" />
-          <rect x="1060" y="90" width="142" height="16" rx="7" fill="#a855f7" fillOpacity="0.09" />
-          <rect x="1060" y="98" width="142" height="8" fill="#a855f7" fillOpacity="0.09" />
-          <text x="1072" y="105" fontSize="7" fill="#a855f7" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">AGENT</text>
-          <text x="1072" y="126" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Lead Qualifier</text>
-          <text x="1072" y="140" fontSize="8" fill="#555" fontFamily="system-ui">GPT-4o-mini</text>
-          <circle cx="1060" cy="119" r="3" fill="#a855f7" fillOpacity="0.9" />
-          <circle cx="1202" cy="119" r="3" fill="#a855f7" fillOpacity="0.9" />
-        </g>
-        <g>
-          <rect x="1255" y="90" width="128" height="58" rx="7" fill="#0a0f0d" stroke="#10b981" strokeWidth="1" strokeOpacity="0.65" />
-          <rect x="1255" y="90" width="128" height="16" rx="7" fill="#10b981" fillOpacity="0.07" />
-          <rect x="1255" y="98" width="128" height="8" fill="#10b981" fillOpacity="0.07" />
-          <text x="1267" y="105" fontSize="7" fill="#10b981" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">STEP</text>
-          <text x="1267" y="126" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Add to HubSpot</text>
-          <text x="1267" y="140" fontSize="8" fill="#555" fontFamily="system-ui">create_contact</text>
-          <circle cx="1255" cy="119" r="3" fill="#10b981" fillOpacity="0.9" />
-        </g>
-      </g>
-
-      {/* ── Cluster 4: Slack alert → Analyst → Report (bottom-right) ── */}
-      <g className="drift-4" style={{ opacity: 0.15 }}>
-        <line x1="992" y1="469" x2="1050" y2="469" stroke="#f97316" strokeWidth="1.2" strokeDasharray="5,3" strokeOpacity="0.6" markerEnd="url(#h-arr-orange)" className="edge-hero" style={{ animationDelay: "-1.5s" }} />
-        <line x1="1192" y1="469" x2="1250" y2="469" stroke="#a855f7" strokeWidth="1.2" strokeDasharray="5,3" strokeOpacity="0.6" markerEnd="url(#h-arr-purple)" className="edge-hero" style={{ animationDelay: "-2.5s" }} />
-        <g filter="url(#h-glow-o)">
-          <rect x="830" y="440" width="162" height="58" rx="7" fill="#0d0d0d" stroke="#f97316" strokeWidth="1" strokeOpacity="0.7" />
-          <rect x="830" y="440" width="162" height="16" rx="7" fill="#f97316" fillOpacity="0.07" />
-          <rect x="830" y="448" width="162" height="8" fill="#f97316" fillOpacity="0.07" />
-          <text x="842" y="455" fontSize="7" fill="#f97316" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">TRIGGER</text>
-          <text x="842" y="476" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Weekly Schedule</text>
-          <text x="842" y="490" fontSize="8" fill="#555" fontFamily="system-ui">Every Monday 09:00</text>
-          <circle cx="992" cy="469" r="3" fill="#f97316" fillOpacity="0.9" />
-        </g>
-        <g filter="url(#h-glow-p)">
-          <rect x="1050" y="440" width="142" height="58" rx="7" fill="#0d0a12" stroke="#a855f7" strokeWidth="1" strokeOpacity="0.75" />
-          <rect x="1050" y="440" width="142" height="16" rx="7" fill="#a855f7" fillOpacity="0.09" />
-          <rect x="1050" y="448" width="142" height="8" fill="#a855f7" fillOpacity="0.09" />
-          <text x="1062" y="455" fontSize="7" fill="#a855f7" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">AGENT</text>
-          <text x="1062" y="476" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Data Analyst</text>
-          <text x="1062" y="490" fontSize="8" fill="#555" fontFamily="system-ui">Claude 3.5 · Sheets</text>
-          <circle cx="1050" cy="469" r="3" fill="#a855f7" fillOpacity="0.9" />
-          <circle cx="1192" cy="469" r="3" fill="#a855f7" fillOpacity="0.9" />
-        </g>
-        <g>
-          <rect x="1250" y="440" width="132" height="58" rx="7" fill="#0a0f0d" stroke="#10b981" strokeWidth="1" strokeOpacity="0.65" />
-          <rect x="1250" y="440" width="132" height="16" rx="7" fill="#10b981" fillOpacity="0.07" />
-          <rect x="1250" y="448" width="132" height="8" fill="#10b981" fillOpacity="0.07" />
-          <text x="1262" y="455" fontSize="7" fill="#10b981" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">STEP</text>
-          <text x="1262" y="476" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Send Report</text>
-          <text x="1262" y="490" fontSize="8" fill="#555" fontFamily="system-ui">Gmail · team@...</text>
-          <circle cx="1250" cy="469" r="3" fill="#10b981" fillOpacity="0.9" />
-        </g>
-      </g>
-
-      {/* ── Lone drifting agent (center-low, adds depth) ── */}
-      <g className="drift-5" style={{ opacity: 0.12 }}>
-        <g filter="url(#h-glow-p)">
-          <rect x="620" y="520" width="148" height="58" rx="7" fill="#0d0a12" stroke="#a855f7" strokeWidth="1" strokeOpacity="0.7" />
-          <rect x="620" y="520" width="148" height="16" rx="7" fill="#a855f7" fillOpacity="0.09" />
-          <rect x="620" y="528" width="148" height="8" fill="#a855f7" fillOpacity="0.09" />
-          <text x="632" y="535" fontSize="7" fill="#a855f7" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">AGENT</text>
-          <text x="632" y="556" fontSize="10.5" fill="#e5e5e5" fontWeight="600" fontFamily="system-ui">Customer Support</text>
-          <text x="632" y="570" fontSize="8" fill="#555" fontFamily="system-ui">GPT-4o · 5 tools</text>
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-// ─── Product diagram (hero showcase) ──────────────────────────────────────────
-
-function FlowDiagram() {
-  return (
-    <svg viewBox="0 0 660 220" xmlns="http://www.w3.org/2000/svg" className="w-full select-none" aria-hidden>
-      <defs>
-        <pattern id="dots" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
-          <circle cx="1" cy="1" r="1" fill="#ffffff" fillOpacity="0.04" />
-        </pattern>
-        <marker id="arrow-orange" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-          <path d="M0,1 L0,6 L6,3.5 z" fill="#f97316" fillOpacity="0.55" />
-        </marker>
-        <marker id="arrow-purple" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-          <path d="M0,1 L0,6 L6,3.5 z" fill="#a855f7" fillOpacity="0.55" />
-        </marker>
-        <filter id="glow-orange" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-        <filter id="glow-agent" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="5" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
-      <rect width="660" height="220" rx="12" fill="#080808" />
-      <rect width="660" height="220" rx="12" fill="url(#dots)" />
-      <rect width="660" height="32" rx="12" fill="#111111" />
-      <rect y="12" width="660" height="20" fill="#111111" />
-      <circle cx="18" cy="16" r="4" fill="#2a2a2a" />
-      <circle cx="32" cy="16" r="4" fill="#2a2a2a" />
-      <circle cx="46" cy="16" r="4" fill="#2a2a2a" />
-      <text x="330" y="21" fontSize="9" fill="#444" textAnchor="middle" fontFamily="system-ui">Programs / Email Summary / editor</text>
-      <line x1="205" y1="129" x2="248" y2="129" stroke="#f97316" strokeWidth="1.5" strokeOpacity="0.5" strokeDasharray="5,3" markerEnd="url(#arrow-orange)" className="edge-animate" />
-      <line x1="415" y1="129" x2="458" y2="129" stroke="#a855f7" strokeWidth="1.5" strokeOpacity="0.5" strokeDasharray="5,3" markerEnd="url(#arrow-purple)" className="edge-animate" style={{ animationDelay: "0.4s" }} />
-      <g filter="url(#glow-orange)">
-        <rect x="28" y="90" width="177" height="78" rx="8" fill="#0d0d0d" stroke="#f97316" strokeWidth="1.25" strokeOpacity="0.7" />
-        <rect x="28" y="98" width="177" height="14" fill="#f97316" fillOpacity="0.08" />
-        <circle cx="205" cy="129" r="3.5" fill="#f97316" fillOpacity="0.8" />
-        <text x="40" y="109" fontSize="7.5" fill="#f97316" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">TRIGGER</text>
-        <text x="40" y="132" fontSize="11.5" fill="#f0f0f0" fontWeight="600" fontFamily="system-ui">New Email Received</text>
-        <text x="40" y="150" fontSize="9" fill="#555" fontFamily="system-ui">via Gmail · unread</text>
-      </g>
-      <g filter="url(#glow-agent)">
-        <rect x="248" y="90" width="167" height="78" rx="8" fill="#0d0a12" stroke="#a855f7" strokeWidth="1.5" strokeOpacity="0.75" />
-        <rect x="248" y="98" width="167" height="14" fill="#a855f7" fillOpacity="0.1" />
-        <circle cx="248" cy="129" r="3.5" fill="#a855f7" fillOpacity="0.8" />
-        <circle cx="415" cy="129" r="3.5" fill="#a855f7" fillOpacity="0.8" />
-        <text x="260" y="109" fontSize="7.5" fill="#a855f7" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">AGENT</text>
-        <text x="260" y="132" fontSize="11.5" fill="#f0f0f0" fontWeight="600" fontFamily="system-ui">AI Summarizer</text>
-        <text x="260" y="150" fontSize="9" fill="#555" fontFamily="system-ui">GPT-4o · 3 tools assigned</text>
-      </g>
-      <g>
-        <rect x="458" y="90" width="167" height="78" rx="8" fill="#0a0f0d" stroke="#10b981" strokeWidth="1.25" strokeOpacity="0.65" />
-        <rect x="458" y="98" width="167" height="14" fill="#10b981" fillOpacity="0.08" />
-        <circle cx="458" cy="129" r="3.5" fill="#10b981" fillOpacity="0.8" />
-        <text x="470" y="109" fontSize="7.5" fill="#10b981" fontFamily="monospace" fontWeight="700" letterSpacing="1.5">STEP</text>
-        <text x="470" y="132" fontSize="11.5" fill="#f0f0f0" fontWeight="600" fontFamily="system-ui">Save to Notion</text>
-        <text x="470" y="150" fontSize="9" fill="#555" fontFamily="system-ui">append_to_page · inbox</text>
-      </g>
-      <rect x="558" y="192" width="84" height="18" rx="9" fill="#10b981" fillOpacity="0.12" />
-      <circle cx="570" cy="201" r="3" fill="#10b981" fillOpacity="0.9" />
-      <text x="577" y="205" fontSize="8.5" fill="#10b981" fontFamily="system-ui" fontWeight="500">Running…</text>
-    </svg>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   const marqueeItems = [...CONNECTORS, ...CONNECTORS];
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="public-black-theme min-h-screen bg-background text-foreground overflow-x-hidden">
 
       {/* ── Nav ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/85 backdrop-blur-xl">
@@ -270,6 +31,7 @@ export default function LandingPage() {
             <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden">Pricing</Link>
             <Link href="/login" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors">Sign in</Link>
             <Link href="/signup" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 sm:px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:shadow-[0_0_28px_rgba(249,115,22,0.45)] transition-all duration-200">
               <span className="hidden sm:inline">Get started free</span>
@@ -284,9 +46,6 @@ export default function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="relative flex flex-col items-center text-center px-6 pt-24 pb-12 overflow-hidden min-h-[92vh] justify-center">
-        {/* Floating agent graph background */}
-        <HeroGraph />
-
         {/* Dot grid */}
         <div className="pointer-events-none absolute inset-0 bg-grid-dots opacity-40" />
 
@@ -313,7 +72,7 @@ export default function LandingPage() {
         </div>
 
         {/* Headline */}
-        <h1 className="animate-fade-up-delay-1 relative z-10 font-black tracking-tight leading-[1.0] max-w-4xl" style={{ fontSize: "clamp(48px, 8vw, 92px)" }}>
+        <h1 className="animate-fade-up-delay-1 relative z-10 font-black tracking-tight leading-[1.0] max-w-4xl" style={{ fontSize: "clamp(36px, 6vw, 68px)" }}>
           Your team just got
           <br />
           <span className="bg-gradient-to-br from-orange-300 via-orange-400 to-red-500 bg-clip-text text-transparent">
@@ -358,7 +117,7 @@ export default function LandingPage() {
           <div className="absolute inset-x-8 top-6 bottom-0 -z-10 blur-[50px] rounded-full opacity-60"
             style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.3) 0%, rgba(168,85,247,0.15) 50%, transparent 80%)" }} />
           <div className="rounded-2xl overflow-hidden border border-white/6 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_48px_96px_rgba(0,0,0,0.8)] ring-1 ring-inset ring-white/4">
-            <FlowDiagram />
+            <InteractiveFlowDiagram />
           </div>
         </div>
       </section>
@@ -525,31 +284,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-20 px-6 border-t border-border/40">
-        <div className="mx-auto max-w-xl">
-          <div className="relative rounded-3xl border border-border overflow-hidden p-14 text-center">
-            <div className="pointer-events-none absolute inset-0 bg-grid-dots opacity-30" />
-            <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse 90% 60% at 50% 120%, rgba(249,115,22,0.2) 0%, transparent 65%)" }} />
-            <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-72 h-28 blur-[70px] bg-orange-500/20" />
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
-            <div className="relative z-10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="mx-auto h-11 w-11 object-contain mb-7 opacity-75" />
-              <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">Start automating today</h2>
-              <p className="text-muted-foreground mb-9 text-sm leading-relaxed">Free to start. No credit card required.<br />Your first two programs are on us.</p>
-              <Link href="/signup" className="inline-flex items-center gap-2 rounded-xl bg-primary px-10 py-4 text-sm font-bold text-primary-foreground shadow-[0_0_50px_rgba(249,115,22,0.55)] hover:shadow-[0_0_70px_rgba(249,115,22,0.7)] transition-all duration-300">
-                Create free account
-                <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                  <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <ConsentBanner />
-
       {/* ── Footer ── */}
       <footer className="border-t border-border/40 px-6 py-6">
         <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground/50">
@@ -559,6 +294,7 @@ export default function LandingPage() {
             <span>© {new Date().getFullYear()} Nexflow. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-5">
+            <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/login" className="hover:text-foreground transition-colors">Sign in</Link>

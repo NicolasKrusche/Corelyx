@@ -44,6 +44,49 @@ type NodeExecutionRow = {
   created_at: string;
 };
 
+function normalizeRunRow(raw: unknown): RunRow {
+  const row = raw as Partial<RunRow>;
+  return {
+    id: row.id ?? "",
+    program_id: row.program_id ?? "",
+    status: row.status ?? "pending",
+    triggered_by: row.triggered_by ?? "manual",
+    trigger_payload: row.trigger_payload ?? null,
+    started_at: row.started_at ?? null,
+    completed_at: row.completed_at ?? null,
+    error_message: row.error_message ?? null,
+    prompt_tokens: Number(row.prompt_tokens ?? 0),
+    completion_tokens: Number(row.completion_tokens ?? 0),
+    total_tokens: Number(row.total_tokens ?? 0),
+    estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+    connector_api_calls: Number(row.connector_api_calls ?? 0),
+    model_call_count: Number(row.model_call_count ?? 0),
+    created_at: row.created_at ?? new Date(0).toISOString(),
+  };
+}
+
+function normalizeNodeExecutionRow(raw: unknown): NodeExecutionRow {
+  const row = raw as Partial<NodeExecutionRow>;
+  return {
+    id: row.id ?? "",
+    node_id: row.node_id ?? "",
+    status: row.status ?? "pending",
+    input_payload: row.input_payload ?? null,
+    output_payload: row.output_payload ?? null,
+    error_message: row.error_message ?? null,
+    retry_count: row.retry_count ?? null,
+    started_at: row.started_at ?? null,
+    completed_at: row.completed_at ?? null,
+    prompt_tokens: Number(row.prompt_tokens ?? 0),
+    completion_tokens: Number(row.completion_tokens ?? 0),
+    total_tokens: Number(row.total_tokens ?? 0),
+    estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+    connector_api_calls: Number(row.connector_api_calls ?? 0),
+    model_call_count: Number(row.model_call_count ?? 0),
+    created_at: row.created_at ?? new Date(0).toISOString(),
+  };
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDuration(start: string | null, end: string | null): string {
@@ -117,15 +160,13 @@ export default async function RunLogPage({
   // Fetch run
   const { data: runRaw, error: runError } = await serviceClient
     .from("runs")
-    .select(
-      "id, program_id, status, triggered_by, trigger_payload, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
-    )
+    .select("*")
     .eq("id", params.runId)
     .single();
 
   if (runError || !runRaw) notFound();
 
-  const run = runRaw as unknown as RunRow;
+  const run = normalizeRunRow(runRaw);
 
   // Verify program ownership
   const { data: program, error: progError } = await supabase
@@ -148,13 +189,11 @@ export default async function RunLogPage({
   // Fetch initial node_executions
   const { data: execsRaw } = await serviceClient
     .from("node_executions")
-    .select(
-      "id, node_id, status, input_payload, output_payload, error_message, retry_count, started_at, completed_at, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
-    )
+    .select("*")
     .eq("run_id", params.runId)
     .order("created_at", { ascending: true });
 
-  const initialExecs = (execsRaw ?? []) as unknown as NodeExecutionRow[];
+  const initialExecs = (execsRaw ?? []).map(normalizeNodeExecutionRow);
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -246,6 +285,7 @@ export default async function RunLogPage({
         runId={params.runId}
         initialExecs={initialExecs}
         nodeMap={nodeMap}
+        edges={schema.edges}
         runStatus={run.status}
       />
     </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
-import type { Node } from "@flowos/schema";
+import Plan, { type PlanStatus, type PlanTask } from "@/components/ui/agent-plan";
+import type { Edge, Node } from "@flowos/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,28 @@ function formatUsd(value: number): string {
     minimumFractionDigits: 4,
     maximumFractionDigits: 6,
   }).format(value);
+}
+
+function normalizeNodeExecutionRow(raw: unknown): NodeExecutionRow {
+  const row = raw as Partial<NodeExecutionRow>;
+  return {
+    id: row.id ?? "",
+    node_id: row.node_id ?? "",
+    status: row.status ?? "pending",
+    input_payload: row.input_payload ?? null,
+    output_payload: row.output_payload ?? null,
+    error_message: row.error_message ?? null,
+    retry_count: row.retry_count ?? null,
+    started_at: row.started_at ?? null,
+    completed_at: row.completed_at ?? null,
+    prompt_tokens: Number(row.prompt_tokens ?? 0),
+    completion_tokens: Number(row.completion_tokens ?? 0),
+    total_tokens: Number(row.total_tokens ?? 0),
+    estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+    connector_api_calls: Number(row.connector_api_calls ?? 0),
+    model_call_count: Number(row.model_call_count ?? 0),
+    created_at: row.created_at ?? new Date(0).toISOString(),
+  };
 }
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -126,15 +149,137 @@ function ErrorBlock({ message }: { message: string }) {
 const TERMINAL = new Set(["completed", "failed", "cancelled"]);
 const POLL_INTERVAL_MS = 2000;
 
+function toPlanStatus(status: string | null | undefined): PlanStatus {
+  if (status === "completed" || status === "success") return "completed";
+  if (status === "running") return "in-progress";
+  if (status === "waiting_approval") return "need-help";
+  if (status === "failed" || status === "cancelled") return "failed";
+  if (status === "skipped") return "skipped";
+  return "pending";
+}
+
+function getNodeTools(node: Node): string[] {
+  if (node.type === "agent") {
+    const model =
+      node.config.model && node.config.model !== "__USER_ASSIGNED__"
+        ? node.config.model
+        : "model";
+    return [model, ...node.config.tools].filter(Boolean);
+  }
+
+  if (node.type === "connection") {
+    if ("connector_type" in node.config && node.config.connector_type === "http") {
+      return ["http", node.config.method].filter(Boolean);
+    }
+    return [
+      node.config.provider ?? node.connection ?? "oauth",
+      node.config.operation ?? "token",
+    ].filter(Boolean);
+  }
+
+  if (node.type === "step") {
+    return [node.config.logic_type];
+  }
+
+  return [node.config.trigger_type];
+}
+
+function getPriority(node: Node, status: string | null | undefined) {
+  if (status === "failed" || status === "waiting_approval") return "high";
+  if (node.type === "agent" || node.type === "connection") return "high";
+  if (node.type === "trigger") return "medium";
+  return "low";
+}
+
+function summarizeNode(node: Node) {
+  if (node.description) return node.description;
+  if (node.type === "agent") return "Run an agent step in this program.";
+  if (node.type === "connection") return "Call a connected service.";
+  if (node.type === "step") return `Apply ${node.config.logic_type} logic.`;
+  return `Handle the ${node.config.trigger_type} trigger.`;
+}
+
+function buildPlanTasks({
+  nodeMap,
+  edges,
+  execs,
+  runStatus,
+}: {
+  nodeMap: Record<string, Node>;
+  edges: Edge[];
+  execs: NodeExecutionRow[];
+  runStatus: string;
+}): PlanTask[] {
+  const execByNode = new Map(execs.map((exec) => [exec.node_id, exec]));
+  const nodeIdsWithIncoming = new Set(edges.map((edge) => edge.to));
+
+  return Object.values(nodeMap).map((node) => {
+    const exec = execByNode.get(node.id);
+    const inferredStatus =
+      exec?.status ??
+      (TERMINAL.has(runStatus) && !exec ? "skipped" : node.status);
+    const taskStatus = toPlanStatus(inferredStatus);
+    const dependencies = edges
+      .filter((edge) => edge.to === node.id)
+      .map((edge) => nodeMap[edge.from]?.label ?? edge.from);
+    const tools = getNodeTools(node);
+    const priority = getPriority(node, inferredStatus);
+
+    return {
+      id: node.id,
+      title: node.label,
+      description: summarizeNode(node),
+      status: taskStatus,
+      priority,
+      level: nodeIdsWithIncoming.has(node.id) ? 1 : 0,
+      dependencies,
+      subtasks: [
+        {
+          id: `${node.id}-input`,
+          title: "Receive input",
+          description: exec?.input_payload
+            ? "Runtime captured input for this node."
+            : "Waiting for upstream data or trigger payload.",
+          status: exec?.started_at ? "completed" : taskStatus,
+          priority,
+        },
+        {
+          id: `${node.id}-execute`,
+          title: `Execute ${node.type}`,
+          description: summarizeNode(node),
+          status: taskStatus,
+          priority,
+          tools,
+        },
+        {
+          id: `${node.id}-output`,
+          title: "Publish output",
+          description: exec?.output_payload
+            ? "Runtime captured output for downstream nodes."
+            : "Output will appear after this node completes.",
+          status: exec?.output_payload
+            ? "completed"
+            : taskStatus === "failed"
+              ? "failed"
+              : "pending",
+          priority,
+        },
+      ],
+    };
+  });
+}
+
 export function RunLogLive({
   runId,
   initialExecs,
   nodeMap,
+  edges,
   runStatus: initialRunStatus,
 }: {
   runId: string;
   initialExecs: NodeExecutionRow[];
   nodeMap: Record<string, Node>;
+  edges: Edge[];
   runStatus: string;
 }) {
   const [execs, setExecs] = useState<NodeExecutionRow[]>(initialExecs);
@@ -143,6 +288,10 @@ export function RunLogLive({
   const supabase = createBrowserClient();
 
   const isTerminal = TERMINAL.has(runStatus);
+  const planTasks = useMemo(
+    () => buildPlanTasks({ nodeMap, edges, execs, runStatus }),
+    [edges, execs, nodeMap, runStatus]
+  );
 
   // Merge incoming exec rows (insert or update)
   const mergeExec = (updated: NodeExecutionRow) =>
@@ -160,10 +309,10 @@ export function RunLogLive({
   const fetchExecs = async () => {
     const { data } = await supabase
       .from("node_executions")
-      .select("id, node_id, status, input_payload, output_payload, error_message, retry_count, started_at, completed_at, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at")
+      .select("*")
       .eq("run_id", runId)
       .order("created_at", { ascending: true });
-    if (data && data.length > 0) setExecs(data as NodeExecutionRow[]);
+    if (data && data.length > 0) setExecs(data.map(normalizeNodeExecutionRow));
   };
 
   // Fetch current run status
@@ -173,7 +322,8 @@ export function RunLogLive({
       .select("status")
       .eq("id", runId)
       .single();
-    if (data?.status) setRunStatus(data.status as string);
+    const row = data as { status?: string } | null;
+    if (row?.status) setRunStatus(row.status);
   };
 
   useEffect(() => {
@@ -189,7 +339,7 @@ export function RunLogLive({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "node_executions", filter: `run_id=eq.${runId}` },
-        (payload) => mergeExec(payload.new as NodeExecutionRow)
+        (payload) => mergeExec(normalizeNodeExecutionRow(payload.new))
       )
       .on(
         "postgres_changes",
@@ -226,7 +376,21 @@ export function RunLogLive({
   }, [isTerminal]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-medium">Run overview</h2>
+          <StatusBadge status={runStatus} />
+        </div>
+        <Plan
+          tasks={planTasks}
+          interactive={false}
+          className="p-0"
+          emptyMessage="No plan steps available for this run."
+        />
+      </section>
+
+      <section className="space-y-3">
       <div className="flex items-center gap-2">
         <h2 className="text-base font-medium">Node executions</h2>
         <StatusBadge status={runStatus} />
@@ -309,6 +473,7 @@ export function RunLogLive({
           })}
         </div>
       )}
+      </section>
     </div>
   );
 }

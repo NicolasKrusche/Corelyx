@@ -1,8 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import type { CookieOptions } from "@supabase/ssr";
 import type { Database } from "@flowos/db";
 
-const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/api/browse", "/api/health", "/privacy", "/terms", "/pricing", "/robots.txt", "/sitemap.xml"];
+const PUBLIC_ROUTES = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/auth/callback",
+  "/api/browse",
+  "/api/health",
+  "/privacy",
+  "/terms",
+  "/pricing",
+  "/prices",
+  "/robots.txt",
+  "/sitemap.xml",
+];
 
 // Internal API routes authenticated by x-runtime-secret — never redirect these to login
 const INTERNAL_API_PREFIX = "/api/internal/";
@@ -36,7 +50,7 @@ export async function middleware(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { BoltStyleChat } from "@/components/ui/bolt-style-chat";
 import type { ValidationResult } from "@/lib/validation";
 import { TEMPLATES } from "@/lib/templates";
 
@@ -35,6 +36,12 @@ type ApiKey = {
 };
 
 type Step = "describe" | "connections" | "model" | "generating" | "result";
+type InlinePhase = "idle" | "thinking" | "connections" | "generating";
+
+type InlineChatMessage = {
+  role: "user" | "assistant";
+  text: string;
+};
 
 const PROVIDER_LABELS: Record<string, string> = {
   gmail: "Gmail",
@@ -81,6 +88,20 @@ function NewProgramPageInner() {
   const [wasRefined, setWasRefined] = useState(false);
   // Template import state
   const [importingTemplateId, setImportingTemplateId] = useState<string | null>(null);
+  const [inlinePhase, setInlinePhase] = useState<InlinePhase>("idle");
+  const [inlineMessages, setInlineMessages] = useState<InlineChatMessage[]>([]);
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     fetch("/api/connections")
@@ -116,6 +137,29 @@ function NewProgramPageInner() {
     setLoadingKeys(false);
   }
 
+  async function ensureModelSelection(): Promise<{ keyId: string; modelId: string } | null> {
+    if (selectedKeyId && model.trim()) {
+      return { keyId: selectedKeyId, modelId: model.trim() };
+    }
+
+    const res = await fetch("/api/keys");
+    if (!res.ok) return null;
+
+    const data: ApiKey[] = await res.json();
+    const valid = data.filter((k) => k.is_valid);
+    setApiKeys(valid);
+
+    if (valid.length === 0) return null;
+
+    const keyId = valid[0].id;
+    const modelId = DEFAULT_MODELS[valid[0].provider] ?? "";
+    setSelectedKeyId(keyId);
+    setModel(modelId);
+
+    if (!modelId) return null;
+    return { keyId, modelId };
+  }
+
   function toggleConnection(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -124,7 +168,15 @@ function NewProgramPageInner() {
     });
   }
 
-  async function handleGenerate() {
+  async function handleGenerate(overrides?: { description?: string; keyId?: string; modelId?: string }) {
+    const descriptionToUse = overrides?.description ?? description;
+    const keyIdToUse = overrides?.keyId ?? selectedKeyId;
+    const modelToUse = (overrides?.modelId ?? model).trim();
+
+    if (!keyIdToUse || !modelToUse || descriptionToUse.trim().length < 10) {
+      return;
+    }
+
     setStep("generating");
     setGeneratingMessage("Generating your program…");
     setGenesisError(null);
@@ -134,10 +186,10 @@ function NewProgramPageInner() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        description,
+        description: descriptionToUse,
         connection_ids: [...selectedIds],
-        api_key_id: selectedKeyId,
-        model: model.trim(),
+        api_key_id: keyIdToUse,
+        model: modelToUse,
       }),
     });
 
@@ -228,6 +280,204 @@ function NewProgramPageInner() {
 
   const errorCount = validationResult?.errors.length ?? 0;
   const warningCount = validationResult?.warnings.length ?? 0;
+
+  const runInlineBuild = async (message: string) => {
+    const trimmedMessage = message.trim();
+    if (trimmedMessage.length < 10) return;
+
+    setDescription(trimmedMessage);
+    setInlineMessages([{ role: "user", text: trimmedMessage }]);
+    setInlinePhase("thinking");
+
+    const fakeReasoning = [
+      "Analyzing your prompt and extracting requirements...",
+      "Designing trigger, agent, and action steps...",
+      "Preparing a first program draft for your review...",
+      "One more thing: choose the app connections to grant access.",
+    ];
+
+    for (let i = 0; i < fakeReasoning.length; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 850));
+      setInlineMessages((prev) => [...prev, { role: "assistant", text: fakeReasoning[i] }]);
+    }
+
+    setInlinePhase("connections");
+  };
+
+  const handleInlineGenerate = async () => {
+    const selection = await ensureModelSelection();
+    if (!selection) {
+      setInlineMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: "I need a valid API key before generating. Add one in API Keys, then try Build now again.",
+        },
+      ]);
+      return;
+    }
+
+    setInlinePhase("generating");
+    setGenesisError(null);
+    setWasRefined(false);
+    setInlineMessages((prev) => [
+      ...prev,
+      { role: "assistant", text: "Great, generating your program graph now..." },
+      { role: "assistant", text: "Mapping nodes, edges, and execution mode..." },
+    ]);
+
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    const res = await fetch("/api/genesis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description,
+        connection_ids: [...selectedIds],
+        api_key_id: selection.keyId,
+        model: selection.modelId,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.error) {
+        setGenesisError(data);
+      } else {
+        setGenesisError({ error: "INSUFFICIENT_DESCRIPTION", message: data.error ?? "Unknown error" });
+      }
+      setInlineMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text:
+            typeof data?.message === "string"
+              ? data.message
+              : "Generation failed. Tweak your prompt or connections and try again.",
+        },
+      ]);
+      setInlinePhase("connections");
+      return;
+    }
+
+    setProgramId(data.program.id);
+    setProgramName(data.program.name);
+    setValidationResult(data.validation);
+    setGeneratedSchema(data.schema);
+    setInlineMessages((prev) => [
+      ...prev,
+      { role: "assistant", text: `Done. Program \"${data.program.name}\" is ready.` },
+    ]);
+    setInlinePhase("connections");
+  };
+
+  const chatFeed = (
+    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-sm">
+      {inlineMessages.length === 0 ? (
+        <p className="text-sm text-[#8a8a8f]">
+          Describe your program and click Build now. I will think through it here before generating.
+        </p>
+      ) : (
+        <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
+          {inlineMessages.map((message, index) => (
+            <div
+              key={`${message.role}-${index}`}
+              className={`max-w-[92%] rounded-xl px-3 py-2 text-sm animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                message.role === "user"
+                  ? "ml-auto bg-[#1488fc]/20 text-blue-100"
+                  : "bg-white/5 text-[#d2d2d8]"
+              }`}
+            >
+              {message.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(inlinePhase === "thinking" || inlinePhase === "generating") && (
+        <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-[#9fa0a8]">
+          <Spinner />
+          {inlinePhase === "thinking" ? "Thinking..." : "Generating..."}
+        </div>
+      )}
+
+      {(inlinePhase === "connections" || inlinePhase === "generating") && (
+        <div className="space-y-3 rounded-xl border border-white/10 bg-[#0f0f12]/80 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#8f9098]">Choose Connections</p>
+
+          {loadingConnections ? (
+            <p className="text-sm text-[#9ea0a9]">Loading available connections...</p>
+          ) : connections.length === 0 ? (
+            <p className="text-sm text-[#9ea0a9]">
+              No connections found. You can continue without connections, or add some in Connections.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {connections.map((conn) => {
+                const selected = selectedIds.has(conn.id);
+                return (
+                  <button
+                    key={conn.id}
+                    type="button"
+                    onClick={() => toggleConnection(conn.id)}
+                    className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                      selected
+                        ? "border-blue-400 bg-blue-500/20 text-blue-100"
+                        : "border-white/15 bg-white/5 text-[#b5b7c0] hover:border-white/25 hover:text-white"
+                    }`}
+                  >
+                    {conn.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button size="sm" disabled={inlinePhase === "generating"} onClick={handleInlineGenerate}>
+              {inlinePhase === "generating" ? "Generating..." : "Generate Program"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => router.push("/connections")}>
+              Manage Connections
+            </Button>
+            {programId && (
+              <Button size="sm" variant="outline" onClick={() => router.push(`/programs/${programId}`)}>
+                Open Program
+              </Button>
+            )}
+          </div>
+
+          {genesisError?.message && (
+            <p className="text-xs text-red-300">{genesisError.message}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  if (step === "describe") {
+    return (
+      <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] -mt-6 w-screen lg:-mt-8">
+        <BoltStyleChat
+          title="What will you"
+          subtitle="Create powerful workflows by chatting with AI."
+          announcementText="New Program Builder"
+          placeholder="Describe the workflow you want to automate..."
+          initialMessage=""
+          chatFeed={chatFeed}
+          inputDisabled={inlinePhase === "thinking" || inlinePhase === "generating"}
+          hideHero={inlineMessages.length > 0 || inlinePhase !== "idle"}
+          onSend={(message) => {
+            void runInlineBuild(message);
+          }}
+          onImport={() => {
+            router.push("/programs/import");
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl space-y-6">

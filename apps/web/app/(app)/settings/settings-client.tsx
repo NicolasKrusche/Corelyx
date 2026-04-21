@@ -3,6 +3,51 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { useAdvancedMode } from "@/lib/advanced-mode";
+import { useTheme, type ThemeId } from "@/components/theme-provider";
+
+const THEMES: { id: ThemeId; label: string; swatch: string; gradient?: boolean }[] = [
+  { id: "dark",             label: "Dark",             swatch: "#f97316" },
+  { id: "midnight-blue",    label: "Midnight Blue",    swatch: "#3b9eff" },
+  { id: "graphite",         label: "Graphite",         swatch: "#818cf8" },
+  { id: "emerald-terminal", label: "Emerald Terminal", swatch: "#34d399" },
+  { id: "rose-gold",        label: "Rose Gold",        swatch: "#fb7185" },
+  { id: "cyberpunk-neon",   label: "Cyberpunk",        swatch: "#22d3ee" },
+  { id: "light",            label: "Light",            swatch: "#f5f0e8" },
+  { id: "liquid-glass",     label: "Liquid Glass",     swatch: "linear-gradient(135deg,#38bdf8,#a78bfa)", gradient: true },
+];
+
+function AppearanceSection() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <Section title="Appearance" description="Pick a theme for the Nexflow UI. Applies instantly.">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {THEMES.map((t) => {
+          const active = theme === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTheme(t.id)}
+              aria-pressed={active}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs transition-colors text-left ${
+                active
+                  ? "border-primary bg-accent text-foreground"
+                  : "border-border hover:bg-accent/50 text-muted-foreground"
+              }`}
+            >
+              <span
+                className="h-4 w-4 rounded-full shrink-0 ring-1 ring-border"
+                style={t.gradient ? { background: t.swatch } : { backgroundColor: t.swatch }}
+              />
+              <span className="truncate">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
 
 interface Props {
   email: string;
@@ -96,6 +141,8 @@ function RedeemSection() {
 }
 
 export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
+  const [advanced, setAdvanced] = useAdvancedMode();
+
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -192,6 +239,9 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
         </Field>
       </Section>
 
+      {/* Appearance / theme */}
+      <AppearanceSection />
+
       {/* Change password — only for email/password users */}
       {!isOAuthUser && (
         <Section
@@ -259,6 +309,33 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       <div id="redeem">
         <RedeemSection />
       </div>
+
+      <Section title="Plan" description="Compare plans, buy a new plan, or upgrade from the public pricing page.">
+        <Link
+          href="/pricing"
+          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          Choose new plan
+        </Link>
+      </Section>
+
+      <Section title="Advanced options" description="Reveal developer-only views such as raw execution logs.">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={advanced}
+          onClick={() => setAdvanced(!advanced)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+            advanced ? "bg-primary" : "bg-muted"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 rounded-full bg-background shadow transition-transform ${
+              advanced ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      </Section>
 
       {/* Legal */}
       <Section title="Legal" description="Review our policies at any time.">
