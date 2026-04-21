@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
-import { ThemePicker } from "@/components/theme-picker";
+import { useAdvancedMode } from "@/lib/advanced-mode";
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
@@ -25,20 +25,21 @@ function NavItem({
   return (
     <Link
       href={href}
+      title={label}
       className={cn(
-        "relative flex items-center gap-2.5 rounded-md px-3 py-[7px] text-sm transition-colors",
+        "relative flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-sm transition-colors",
         active
-          ? "bg-accent text-foreground font-medium"
-          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground font-normal"
+          ? "bg-white/14 text-white font-medium"
+          : "text-blue-100/80 hover:bg-white/8 hover:text-white font-normal"
       )}
     >
       {active && (
-        <span className="absolute left-0 inset-y-2 w-[2px] rounded-full bg-primary" />
+        <span className="absolute left-0 inset-y-2 w-[2px] rounded-full bg-blue-300" />
       )}
       <span className="shrink-0 w-4 h-4 flex items-center justify-center">{icon}</span>
-      <span className="flex-1 truncate">{label}</span>
+      <span className="max-w-0 flex-1 truncate opacity-0 transition-all duration-200 group-hover/side:max-w-[120px] group-hover/side:opacity-100">{label}</span>
       {badge != null && badge > 0 && (
-        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1 shrink-0">
+        <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold text-white transition-all duration-200 group-hover/side:translate-x-0">
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -51,10 +52,10 @@ function NavItem({
 type Tier = "free" | "pro" | "builder" | "unlimited";
 
 const TIER_CONFIG: Record<Tier, { label: string; className: string }> = {
-  free:      { label: "Free",      className: "bg-muted/60 text-muted-foreground border-border/60" },
-  pro:       { label: "Pro",       className: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
-  builder:   { label: "Builder",   className: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  unlimited: { label: "Unlimited", className: "bg-primary/10 text-primary border-primary/20" },
+  free:      { label: "Free",      className: "bg-white/10 text-blue-100 border-white/15" },
+  pro:       { label: "Pro",       className: "bg-violet-500/20 text-violet-100 border-violet-400/30" },
+  builder:   { label: "Builder",   className: "bg-blue-500/25 text-blue-100 border-blue-300/30" },
+  unlimited: { label: "Unlimited", className: "bg-amber-500/20 text-amber-100 border-amber-300/30" },
 };
 
 export function Sidebar({
@@ -73,6 +74,7 @@ export function Sidebar({
   const pathname = usePathname();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [failedRuns, setFailedRuns] = useState(0);
+  const [advanced] = useAdvancedMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -122,21 +124,32 @@ export function Sidebar({
   }, [pathname]);
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-56 bg-background border-r border-border flex flex-col z-40">
+    <aside className="group/side fixed left-0 top-0 z-40 flex h-full w-16 hover:w-56 flex-col overflow-hidden border-r border-blue-300/10 bg-gradient-to-b from-[#232d60] via-[#212b5d] to-[#1d2656] text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)] transition-[width] duration-300 ease-out">
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-border gap-2.5 shrink-0">
+      <div className="h-14 flex items-center border-b border-white/10 px-4 gap-2.5 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-6 w-6 object-contain shrink-0" />
-        <span className="font-bold text-sm tracking-tight">Nexflow</span>
+        <span className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-bold tracking-tight text-white opacity-0 transition-all duration-200 group-hover/side:max-w-[120px] group-hover/side:opacity-100">Nexflow</span>
+      </div>
+
+      <div className="px-3 pt-3">
+        <Link
+          href="/programs/new"
+          title="Create new"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-0 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-400 group-hover/side:px-3"
+        >
+          <PlusIcon />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/side:max-w-[100px] group-hover/side:opacity-100">Create new</span>
+        </Link>
       </div>
 
       <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
         {/* Dashboard */}
-        <NavItem href="/dashboard" label="Dashboard" active={pathname === "/dashboard"}
+        <NavItem href="/dashboard" label="Home" active={pathname === "/dashboard"}
           icon={<GridIcon />} />
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-border/60" />
+        <div className="!my-2 mx-3 h-px bg-white/10" />
 
         <NavItem href="/programs/new" label="New Program" active={pathname === "/programs/new"}
           icon={<PlusIcon />} />
@@ -148,44 +161,50 @@ export function Sidebar({
           icon={<LinkIcon />} />
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-border/60" />
+        <div className="!my-2 mx-3 h-px bg-white/10" />
 
         <NavItem href="/runs" label="Runs" active={pathname.startsWith("/runs")}
           icon={<RunsIcon />} badge={failedRuns} />
         <NavItem href="/approvals" label="Approvals" active={pathname.startsWith("/approvals")}
           icon={<BellIcon />} badge={pendingApprovals} />
+        {advanced && (
+          <NavItem href="/logs" label="Logs" active={pathname.startsWith("/logs")}
+            icon={<LogsIcon />} />
+        )}
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-border/60" />
+        <div className="!my-2 mx-3 h-px bg-white/10" />
 
         <NavItem href="/api-keys" label="API Keys" active={pathname.startsWith("/api-keys")}
           icon={<KeyIcon />} />
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-border/60" />
+        <div className="!my-2 mx-3 h-px bg-white/10" />
 
         <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
           icon={<PricingIcon />} />
+        <NavItem href="/profile" label="Profile" active={pathname.startsWith("/profile")}
+          icon={<UserIcon />} />
         <NavItem href="/settings" label="Settings" active={pathname.startsWith("/settings")}
           icon={<SettingsIcon />} />
 
         {isAdmin && (
           <>
-            <div className="!my-2 mx-3 h-px bg-border/60" />
+            <div className="!my-2 mx-3 h-px bg-white/10" />
             <NavItem href="/admin/codes" label="Code Manager" active={pathname.startsWith("/admin")}
               icon={<AdminIcon />} />
           </>
         )}
       </nav>
 
-      <div className="border-t border-border shrink-0">
+      <div className="border-t border-white/10 shrink-0">
         {/* User / tier section */}
-        <div className="px-3 py-3 space-y-2">
+        <div className="space-y-2 px-3 py-3">
           {/* Email */}
-          <p className="text-[11px] text-muted-foreground/50 truncate px-1">{email}</p>
+          <p className="max-h-0 truncate px-1 text-[11px] text-blue-100/70 opacity-0 transition-all duration-200 group-hover/side:max-h-6 group-hover/side:opacity-100">{email}</p>
 
           {/* Badges row */}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="max-h-0 flex flex-wrap gap-1.5 overflow-hidden opacity-0 transition-all duration-200 group-hover/side:max-h-24 group-hover/side:opacity-100">
             {/* Tier badge */}
             <span className={cn(
               "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border tracking-wide",
@@ -196,17 +215,22 @@ export function Sidebar({
 
             {/* Beta badge */}
             {isBetaTester && (
-              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-green-500/10 text-green-400 border-green-500/20 tracking-wide">
+              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-green-500/20 text-green-100 border-green-300/30 tracking-wide">
                 Beta
               </span>
             )}
 
             {/* Dev/Admin badge */}
             {isAdmin && (
-              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-primary/10 text-primary border-primary/20 tracking-wide">
+              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-blue-500/20 text-blue-100 border-blue-300/30 tracking-wide">
                 Dev
               </span>
             )}
+          </div>
+
+          <div className="mt-2 max-h-0 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-2.5 py-0 text-[10px] text-blue-100/80 opacity-0 transition-all duration-200 group-hover/side:max-h-20 group-hover/side:py-2 group-hover/side:opacity-100">
+            <p className="font-semibold text-blue-100/90">Workspace usage</p>
+            <p className="mt-1">Tier: {TIER_CONFIG[tier].label}</p>
           </div>
 
           {/* Trial expiry warning */}
@@ -215,8 +239,8 @@ export function Sidebar({
             if (daysLeft > 14) return null;
             return (
               <p className={cn(
-                "text-[10px] px-1",
-                daysLeft <= 3 ? "text-destructive" : "text-yellow-500/80"
+                "max-h-0 overflow-hidden px-1 text-[10px] opacity-0 transition-all duration-200 group-hover/side:max-h-6 group-hover/side:opacity-100",
+                daysLeft <= 3 ? "text-red-300" : "text-yellow-200"
               )}>
                 {daysLeft <= 0 ? "Trial expired" : `Trial ends in ${daysLeft}d`}
               </p>
@@ -225,8 +249,7 @@ export function Sidebar({
 
         </div>
 
-        <ThemePicker />
-        <div className="p-2">
+        <div className="p-2 border-t border-white/10">
           <SignOutButton />
         </div>
       </div>
@@ -244,10 +267,11 @@ function SignOutButton() {
   return (
     <button
       onClick={handleSignOut}
-      className="flex items-center gap-2.5 w-full rounded-md px-3 py-[7px] text-sm text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+      title="Sign out"
+      className="flex items-center gap-2.5 w-full rounded-md px-3 py-[7px] text-sm text-blue-100/80 hover:bg-white/8 hover:text-white transition-colors"
     >
       <span className="shrink-0 w-4 h-4 flex items-center justify-center"><LogOutIcon /></span>
-      Sign out
+      <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/side:max-w-[100px] group-hover/side:opacity-100">Sign out</span>
     </button>
   );
 }
@@ -323,6 +347,20 @@ function PricingIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+  );
+}
+function LogsIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 9h8M8 13h5M6 4.5h9l3.75 3.75V18a1.5 1.5 0 01-1.5 1.5H6A1.5 1.5 0 014.5 18V6A1.5 1.5 0 016 4.5z" />
+    </svg>
+  );
+}
+function UserIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0" />
     </svg>
   );
 }

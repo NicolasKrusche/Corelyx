@@ -2,6 +2,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Search, Plus, Workflow, Sparkles, Clock3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
@@ -110,59 +111,111 @@ export default async function DashboardPage() {
 
   const activePrograms = programs.filter((p) => p.is_active).length;
   const displayName = user.email?.split("@")[0] ?? "there";
+  const featuredPrograms = programs.slice(0, 2);
+  const initials = displayName.slice(0, 1).toUpperCase();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 text-[#1d2433]">
+      <section className="rounded-2xl border border-[#d9deea] bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full max-w-xl">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+            <input
+              type="text"
+              aria-label="Search"
+              placeholder="Search programs, runs, connections"
+              className="h-10 w-full rounded-xl border border-[#d7ddea] bg-white pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-[#7d8698] focus:border-indigo-400"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/programs/import">Import</Link>
+            </Button>
+            <Button asChild size="sm" className="gap-1.5">
+              <Link href="/programs/new">
+                <Plus className="h-3.5 w-3.5" />
+                Create new
+              </Link>
+            </Button>
+          </div>
+        </div>
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">
-            Good {getGreeting()},{" "}
-            <span
-              className="text-primary"
-              style={{ textShadow: "0 0 32px rgba(249,115,22,0.5), 0 0 64px rgba(249,115,22,0.2)" }}
-            >
-              {displayName}
+        <div className="mt-4 flex items-center gap-2 text-sm">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-semibold text-emerald-700">
+            {initials}
+          </span>
+          <p className="font-medium">
+            {displayName}&apos;s workspace
+            <span className="ml-2 text-xs font-normal text-[#6f7890]">
+              Good {getGreeting()}.
             </span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1.5">Here&apos;s what&apos;s running.</p>
+          </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0 pt-1">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/programs/import">Import</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/programs/new">New program</Link>
-          </Button>
-        </div>
-      </div>
+      </section>
 
-      {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Programs</p>
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {featuredPrograms.length === 0 ? (
+          <div className="md:col-span-2 rounded-2xl border border-dashed border-[#d4dbea] bg-white/60 p-6">
+            <p className="text-sm font-semibold">No agents yet</p>
+            <p className="mt-1 text-xs text-[#6f7890]">
+              Create your first automation to populate this workspace board.
+            </p>
+          </div>
+        ) : (
+          featuredPrograms.map((program, index) => (
+            <Link
+              key={program.id}
+              href={`/programs/${program.id}`}
+              className="group rounded-2xl border border-[#d9deea] bg-white/85 p-5 transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
+            >
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+                {index === 0 ? <Sparkles className="h-5 w-5" /> : <Workflow className="h-5 w-5" />}
+              </div>
+              <p className="text-lg font-semibold tracking-tight">{program.name}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-[#6f7890]">
+                {program.description ?? "Automation workspace ready for new workflows."}
+              </p>
+              <p className="mt-4 text-[11px] text-[#6f7890]">{program.is_active ? "Active" : "Inactive"} workflow</p>
+            </Link>
+          ))
+        )}
+
+        <Link
+          href="/programs/new"
+          className="group grid place-items-center rounded-2xl border border-dashed border-[#d1d8e8] bg-white/60 p-5 text-center transition-colors hover:border-indigo-300 hover:bg-white/90"
+        >
+          <div className="space-y-2">
+            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#d5dcec] bg-white text-[#7a8498] group-hover:text-indigo-600">
+              <Plus className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-medium">Create new agent</p>
+          </div>
+        </Link>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Programs</p>
           <p className="text-2xl font-black tabular-nums">{programs.length}</p>
         </div>
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Active</p>
-          <p className="text-2xl font-black tabular-nums text-green-400">{activePrograms}</p>
+        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Active</p>
+          <p className="text-2xl font-black tabular-nums text-emerald-600">{activePrograms}</p>
         </div>
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Connections</p>
+        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Connections</p>
           <p className="text-2xl font-black tabular-nums">{connectionCount}</p>
         </div>
-        {/* Runs this month */}
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">Runs this month</p>
+        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Runs this month</p>
           <p className={`text-2xl font-black tabular-nums ${runUsage.total && runUsage.current / runUsage.total >= 0.8 ? "text-yellow-400" : ""}`}>
             {runUsage.current}
             {runUsage.total !== null && (
-              <span className="text-sm font-normal text-muted-foreground/50 ml-1">/ {runUsage.total}</span>
+              <span className="ml-1 text-sm font-normal text-[#7f889b]">/ {runUsage.total}</span>
             )}
           </p>
           {runUsage.total !== null && (
-            <div className="mt-2 h-1 rounded-full bg-border/60 overflow-hidden">
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#e4e8f2]">
               <div
                 className={`h-full rounded-full transition-all ${
                   runUsage.current / runUsage.total >= 0.9 ? "bg-destructive" :
@@ -173,130 +226,102 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* ── Onboarding checklist — visible until all steps done ── */}
+      <section className="rounded-2xl border border-[#d9deea] bg-white/85 p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+              <Workflow className="h-4 w-4" />
+            </span>
+            <h2 className="text-lg font-semibold">Workflows</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-[#eef2fb] px-3 py-1 text-[#69758d]">Needs attention</span>
+            <span className="rounded-full bg-[#dee6fb] px-3 py-1 text-[#2f3e68]">Recently edited</span>
+            <span className="rounded-full bg-[#eef2fb] px-3 py-1 text-[#69758d]">Recently run</span>
+            <span className="rounded-full bg-[#eef2fb] px-3 py-1 text-[#69758d]">Starred</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            {programs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#d5dcec] p-12 text-center">
+                <p className="text-sm text-[#69758d]">No workflows match your selected filters.</p>
+                <Button asChild size="sm" className="mt-4">
+                  <Link href="/programs/new">Create a new workflow</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-[#d8dff0] divide-y divide-[#e4e8f2]">
+                {programs.map((p) => (
+                  <div key={p.id} className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[#f2f5fb]">
+                    <div className={`h-8 w-1 shrink-0 rounded-full ${p.is_active ? "bg-emerald-500/70 group-hover:bg-emerald-500" : "bg-[#d8deeb]"}`} />
+
+                    <Link href={`/programs/${p.id}`} className="min-w-0 flex-1 py-0.5">
+                      <p className="truncate text-sm font-semibold">{p.name}</p>
+                      <p className="mt-0.5 truncate font-mono text-[11px] text-[#7c8599]">
+                        v{p.schema_version} · {p.execution_mode}
+                        {p.last_run_at && <> · {timeAgo(p.last_run_at)}</>}
+                      </p>
+                    </Link>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant={p.is_active ? "success" : "outline"} className="text-[10px] capitalize">
+                        {p.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                      <DeleteProgramButton programId={p.id} programName={p.name} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="mb-3 flex items-center gap-2">
+              <Clock3 className="h-4 w-4 text-[#6f7890]" />
+              <h3 className="text-sm font-semibold">Recent runs</h3>
+            </div>
+
+            {recentRuns.length === 0 ? (
+              <div className="rounded-xl border border-[#d9deea] bg-white/70 p-8 text-center">
+                <p className="text-xs font-medium text-[#6f7890]">No runs yet</p>
+                <p className="mt-1 text-xs text-[#8892a6]">Open a workflow and click Run.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-[#d9deea] bg-white/70 divide-y divide-[#e4e8f2]">
+                {recentRuns.map((run) => (
+                  <Link
+                    key={run.id}
+                    href={`/programs/${run.program_id}/runs/${run.id}`}
+                    className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[#f2f5fb]"
+                  >
+                    <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold capitalize ${STATUS_BG[run.status] ?? "bg-muted/60 text-muted-foreground"}`}>
+                      <span className={`h-1 w-1 shrink-0 rounded-full ${STATUS_COLORS[run.status] ?? "bg-muted-foreground"}`} />
+                      {run.status.replace(/_/g, " ")}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{run.programs?.name ?? "Unknown"}</p>
+                      <p className="font-mono text-[11px] text-[#7c8599]">{timeAgo(run.created_at)}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       <OnboardingChecklist
         hasPrograms={programs.length > 0}
         hasConnections={connectionCount > 0}
         hasApiKeys={apiKeyCount > 0}
       />
 
-      {/* ── Genesis prompt ── */}
       <GenesisPrompt />
-
-      {/* ── Main grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-
-        {/* Programs — 3/5 */}
-        <div className="lg:col-span-3">
-          {/* Panel header */}
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Programs</h2>
-            {programs.length > 0 && (
-              <Link
-                href="/programs/new"
-                className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors flex items-center gap-1"
-              >
-                <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-                  <path d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z" />
-                </svg>
-                New
-              </Link>
-            )}
-          </div>
-
-          {programs.length === 0 ? (
-            <div className="relative rounded-xl border border-dashed border-border overflow-hidden p-12 text-center">
-              <div className="absolute inset-0 bg-grid-dots opacity-20" />
-              <div className="relative">
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-border bg-card text-primary mb-4">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                    <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-semibold mb-1">No programs yet</p>
-                <p className="text-xs text-muted-foreground mb-5 max-w-xs mx-auto">Describe an automation in plain English and Nexflow designs the agent graph.</p>
-                <Button asChild size="sm">
-                  <Link href="/programs/new">Create first program</Link>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border/60">
-              {programs.map((p) => (
-                <div key={p.id} className="group flex items-center gap-3 px-4 py-3.5 hover:bg-accent/30 transition-colors">
-                  {/* Active indicator */}
-                  <div className={`w-1 h-8 rounded-full shrink-0 transition-all ${p.is_active ? "bg-green-500/70 group-hover:bg-green-500" : "bg-border/60"}`} />
-
-                  <Link href={`/programs/${p.id}`} className="min-w-0 flex-1 py-0.5">
-                    <p className="text-sm font-semibold truncate">{p.name}</p>
-                    <p className="text-[11px] text-muted-foreground/50 mt-0.5 font-mono truncate">
-                      v{p.schema_version} · {p.execution_mode}
-                      {p.last_run_at && <> · {timeAgo(p.last_run_at)}</>}
-                    </p>
-                  </Link>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={p.is_active ? "success" : "outline"} className="text-[10px] capitalize">
-                      {p.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                    <DeleteProgramButton programId={p.id} programName={p.name} />
-                  </div>
-
-                  <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors shrink-0">
-                    <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Recent runs — 2/5 */}
-        <div className="lg:col-span-2">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Recent runs</h2>
-
-          {recentRuns.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-8 text-center">
-              <div className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-background text-muted-foreground/40 mb-3">
-                <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
-                  <path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531L5.305 13.533A1.5 1.5 0 0 1 3 12.267V3.732Z" />
-                </svg>
-              </div>
-              <p className="text-xs font-medium text-muted-foreground">No runs yet</p>
-              <p className="text-xs text-muted-foreground/50 mt-1">Open a program and click Run.</p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden">
-              {recentRuns.map((run) => (
-                <Link
-                  key={run.id}
-                  href={`/programs/${run.program_id}/runs/${run.id}`}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors group"
-                >
-                  {/* Status badge */}
-                  <span className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold font-mono capitalize shrink-0 ${STATUS_BG[run.status] ?? "bg-muted/60 text-muted-foreground"}`}>
-                    <span className={`w-1 h-1 rounded-full shrink-0 ${STATUS_COLORS[run.status] ?? "bg-muted-foreground"}`} />
-                    {run.status.replace(/_/g, " ")}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate">{run.programs?.name ?? "Unknown"}</p>
-                    <p className="text-[11px] text-muted-foreground/50 font-mono">
-                      {timeAgo(run.created_at)}
-                    </p>
-                  </div>
-
-                  <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors shrink-0">
-                    <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                  </svg>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

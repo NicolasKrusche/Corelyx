@@ -1,0 +1,42 @@
+
+> @flowos/web@0.0.1 dev N:\ai\apps\web
+> next dev
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
+ ✓ Compiled /middleware in 470ms (168 modules)
+[middleware] path: / user: null error: Auth session missing!
+[middleware] cookies: 
+ ○ Compiling / ...
+ ✓ Compiled / in 2.4s (624 modules)
+ GET / 200 in 2562ms
+[middleware] path: /dashboard user: demo@nexflow.systems error: null
+[middleware] cookies: sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1089ms (791 modules)
+ GET /dashboard 200 in 1799ms
+[middleware] path: /api/approvals user: demo@nexflow.systems error: null
+[middleware] cookies: sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
+[middleware] path: /api/runs/failed-count user: demo@nexflow.systems error: null
+[middleware] cookies: sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
+ ✓ Compiled /api/runs/failed-count in 126ms (465 modules)
+ ✓ Compiled (467 modules)
+ GET /api/approvals 200 in 464ms
+[middleware] path: /api/approvals user: demo@nexflow.systems error: null
+[middleware] cookies: sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
+ GET /api/runs/failed-count?since=1776456021831 200 in 563ms
+[middleware] path: /api/runs/failed-count user: demo@nexflow.systems error: null
+[middleware] cookies: sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
+ GET /api/approvals 200 in 322ms
+ GET /api/runs/failed-count?since=1776456021831 200 in 301ms
+[middleware] path: /login user: null error: Auth session missing!
+[middleware] cookies: 
+ ✓ Compiled /login in 215ms (789 modules)
+ GET /login 200 in 329ms
+[middleware] path: / user: null error: Auth session missing!
+[middleware] cookies: 
+ GET / 200 in 65ms

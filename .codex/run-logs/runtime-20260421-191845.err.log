@@ -1,0 +1,65 @@
+N:\ai\apps\runtime\main.py:127: UserWarning: Field name "schema" in "ExecuteRequest" shadows an attribute in parent "BaseModel"
+  class ExecuteRequest(BaseModel):
+INFO:     Started server process [26736]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8002 (Press CTRL+C to quit)
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 420, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\middleware\cors.py", line 88, in __call__
+    await self.app(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\fastapi\routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\fastapi\routing.py", line 121, in app
+    await response(scope, receive, send)
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\responses.py", line 170, in __call__
+    await self.background()
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\background.py", line 36, in __call__
+    await task()
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\starlette\background.py", line 21, in __call__
+    await self.func(*self.args, **self.kwargs)
+  File "N:\ai\apps\runtime\main.py", line 193, in _run_program
+    await update_run(
+    ...<6 lines>...
+    )
+  File "N:\ai\apps\runtime\db.py", line 50, in update_run
+    result = db.table("runs").update(kwargs).eq("id", run_id).execute()
+  File "N:\ai\apps\runtime\venv\Lib\site-packages\postgrest\_sync\request_builder.py", line 53, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': "Could not find the 'completion_tokens' column of 'runs' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}

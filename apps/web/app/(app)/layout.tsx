@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#eceff4]">
       <Sidebar
         isAdmin={isAdminEmail(user.email)}
         email={user.email ?? ""}
@@ -26,13 +26,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         planExpiresAt={profile?.plan_expires_at ?? null}
         isBetaTester={profile?.is_beta_tester ?? false}
       />
-      <main className="ml-56 min-h-screen p-8 relative">
-        {/* Subtle ambient gradient — top right */}
+      <main className="relative ml-16 min-h-screen px-6 py-6 lg:px-8 lg:py-8">
         <div
-          className="pointer-events-none fixed top-0 right-0 w-[700px] h-[500px] -z-10"
-          style={{ background: "radial-gradient(ellipse at 100% 0%, rgba(249,115,22,0.04) 0%, transparent 60%)" }}
+          className="pointer-events-none fixed inset-0 -z-10"
+          style={{
+            background:
+              "radial-gradient(ellipse at 85% 0%, rgba(79,70,229,0.08) 0%, transparent 45%), radial-gradient(ellipse at 20% 100%, rgba(99,102,241,0.05) 0%, transparent 40%), #eceff4",
+          }}
         />
-        {children}
+        <div className="mx-auto w-full max-w-[1180px]">{children}</div>
       </main>
     </div>
   );
