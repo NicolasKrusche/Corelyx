@@ -1,11 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAdvancedMode } from "@/lib/advanced-mode";
+import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
+
+// ─── Sidebar palette ──────────────────────────────────────────────────────────
+
+interface SidebarPalette {
+  from: string; via: string; to: string;
+  activeBar: string;
+  btnBg: string; btnHover: string;
+  badgeBg: string;
+}
+
+const SIDEBAR_PALETTE: Record<BaseTheme, Record<AccentColor, SidebarPalette>> = {
+  dark: {
+    orange: { from: "#1e1006", via: "#190d05", to: "#140a04", activeBar: "#fdba74", btnBg: "#ea580c", btnHover: "#c2410c", badgeBg: "#ea580c" },
+    blue:   { from: "#071524", via: "#061220", to: "#050f1c", activeBar: "#93c5fd", btnBg: "#2563eb", btnHover: "#1d4ed8", badgeBg: "#2563eb" },
+    indigo: { from: "#0c0a22", via: "#09081c", to: "#070616", activeBar: "#a5b4fc", btnBg: "#4f46e5", btnHover: "#4338ca", badgeBg: "#4f46e5" },
+    green:  { from: "#061508", via: "#051207", to: "#040f06", activeBar: "#86efac", btnBg: "#16a34a", btnHover: "#15803d", badgeBg: "#16a34a" },
+    pink:   { from: "#200710", via: "#1b060d", to: "#16050a", activeBar: "#f9a8d4", btnBg: "#db2777", btnHover: "#be185d", badgeBg: "#db2777" },
+    cyan:   { from: "#04151a", via: "#031115", to: "#030e11", activeBar: "#67e8f9", btnBg: "#0891b2", btnHover: "#0e7490", badgeBg: "#0891b2" },
+  },
+  light: {
+    orange: { from: "#fff4ea", via: "#ffeedd", to: "#ffe8d0", activeBar: "#ea580c", btnBg: "#ea580c", btnHover: "#c2410c", badgeBg: "#ea580c" },
+    blue:   { from: "#eaf4ff", via: "#ddeeff", to: "#d0e8ff", activeBar: "#2563eb", btnBg: "#2563eb", btnHover: "#1d4ed8", badgeBg: "#2563eb" },
+    indigo: { from: "#f0eeff", via: "#e8e4ff", to: "#e0daff", activeBar: "#4f46e5", btnBg: "#4f46e5", btnHover: "#4338ca", badgeBg: "#4f46e5" },
+    green:  { from: "#eafaf0", via: "#dff6e8", to: "#d4f2e0", activeBar: "#16a34a", btnBg: "#16a34a", btnHover: "#15803d", badgeBg: "#16a34a" },
+    pink:   { from: "#fff0f5", via: "#ffe8ef", to: "#ffe0ea", activeBar: "#db2777", btnBg: "#db2777", btnHover: "#be185d", badgeBg: "#db2777" },
+    cyan:   { from: "#eafbff", via: "#dcf8ff", to: "#cef5ff", activeBar: "#0891b2", btnBg: "#0891b2", btnHover: "#0e7490", badgeBg: "#0891b2" },
+  },
+};
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
@@ -15,12 +44,14 @@ function NavItem({
   icon,
   active,
   badge,
+  isDark = true,
 }: {
   href: string;
   label: string;
   icon: React.ReactNode;
   active: boolean;
   badge?: number;
+  isDark?: boolean;
 }) {
   return (
     <Link
@@ -29,17 +60,21 @@ function NavItem({
       className={cn(
         "relative flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-sm transition-colors",
         active
-          ? "bg-white/14 text-white font-medium"
-          : "text-blue-100/80 hover:bg-white/8 hover:text-white font-normal"
+          ? isDark
+            ? "bg-white/14 text-white font-medium"
+            : "bg-black/10 text-gray-900 font-medium"
+          : isDark
+            ? "text-blue-100/80 hover:bg-white/8 hover:text-white font-normal"
+            : "text-gray-600 hover:bg-black/8 hover:text-gray-900 font-normal"
       )}
     >
       {active && (
-        <span className="absolute left-0 inset-y-2 w-[2px] rounded-full bg-blue-300" />
+        <span className="absolute left-0 inset-y-2 w-[2px] rounded-full" style={{ backgroundColor: "var(--sb-bar)" }} />
       )}
       <span className="shrink-0 w-4 h-4 flex items-center justify-center">{icon}</span>
       <span className="max-w-0 flex-1 truncate opacity-0 transition-all duration-200 group-hover/side:max-w-[120px] group-hover/side:opacity-100">{label}</span>
       {badge != null && badge > 0 && (
-        <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold text-white transition-all duration-200 group-hover/side:translate-x-0">
+        <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white transition-all duration-200 group-hover/side:translate-x-0" style={{ backgroundColor: "var(--sb-badge)" }}>
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -64,17 +99,48 @@ export function Sidebar({
   tier = "free",
   planExpiresAt = null,
   isBetaTester = false,
+  userId = "",
+  createdAt = "",
+  initialDisplayName = "",
+  initialAvatarUrl = "",
+  isOAuthUser = false,
 }: {
   isAdmin?: boolean;
   email?: string;
   tier?: Tier;
   planExpiresAt?: string | null;
   isBetaTester?: boolean;
+  userId?: string;
+  createdAt?: string;
+  initialDisplayName?: string;
+  initialAvatarUrl?: string;
+  isOAuthUser?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [failedRuns, setFailedRuns] = useState(0);
-  const [advanced] = useAdvancedMode();
+  const [advanced, setAdvanced] = useAdvancedMode();
+  const { base, accent, setBase, setAccent } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const palette = SIDEBAR_PALETTE[base][accent];
+  const isDark = base === "dark";
+  const separatorCls = isDark ? "bg-white/10" : "bg-black/10";
+  const borderCls = isDark ? "border-blue-300/10" : "border-black/10";
+  const footerBorderCls = isDark ? "border-white/10" : "border-black/10";
+
+  const displayName = useMemo(() => {
+    if (initialDisplayName.trim()) return initialDisplayName.trim();
+    const local = email.split("@")[0]?.trim();
+    return local || "Workspace";
+  }, [email, initialDisplayName]);
+
+  const tierLabel = TIER_CONFIG[tier].label;
+  const initials = displayName.slice(0, 1).toUpperCase();
 
   useEffect(() => {
     let cancelled = false;
@@ -123,20 +189,69 @@ export function Sidebar({
     return () => { cancelled = true; };
   }, [pathname]);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!menuRef.current) return;
+      if (menuRef.current.contains(event.target as Node)) return;
+      setMenuOpen(false);
+    }
+
+    if (menuOpen) {
+      window.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => window.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (searchParams.get("settings") === "1") {
+      setMenuOpen(false);
+      setSettingsOpen(true);
+    }
+  }, [searchParams]);
+
+  function handleCloseSettings() {
+    setSettingsOpen(false);
+    if (!searchParams.has("settings")) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("settings");
+    const nextQuery = params.toString();
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }
+
   return (
-    <aside className="group/side fixed left-0 top-0 z-40 flex h-full w-16 hover:w-56 flex-col overflow-hidden border-r border-blue-300/10 bg-gradient-to-b from-[#232d60] via-[#212b5d] to-[#1d2656] text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)] transition-[width] duration-300 ease-out">
+    <aside
+      className={cn(
+        "group/side fixed left-0 top-0 z-40 flex h-full w-16 hover:w-56 flex-col overflow-hidden border-r transition-[width] duration-300 ease-out",
+        isDark ? "text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)]" : "text-gray-900",
+        borderCls
+      )}
+      style={{
+        background: `linear-gradient(to bottom, ${palette.from}, ${palette.via}, ${palette.to})`,
+        ["--sb-bar" as string]: palette.activeBar,
+        ["--sb-badge" as string]: palette.badgeBg,
+      }}
+    >
       {/* Logo */}
-      <div className="h-14 flex items-center border-b border-white/10 px-4 gap-2.5 shrink-0">
+      <div className={cn("h-14 flex items-center border-b px-4 gap-2.5 shrink-0", footerBorderCls)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-6 w-6 object-contain shrink-0" />
-        <span className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-bold tracking-tight text-white opacity-0 transition-all duration-200 group-hover/side:max-w-[120px] group-hover/side:opacity-100">Nexflow</span>
+        <span className={cn(
+          "max-w-0 overflow-hidden whitespace-nowrap text-sm font-bold tracking-tight opacity-0 transition-all duration-200 group-hover/side:max-w-[120px] group-hover/side:opacity-100",
+          isDark ? "text-white" : "text-gray-900"
+        )}>Nexflow</span>
       </div>
 
       <div className="px-3 pt-3">
         <Link
           href="/programs/new"
           title="Create new"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-0 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-400 group-hover/side:px-3"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-0 py-2 text-sm font-semibold text-white transition-colors group-hover/side:px-3"
+          style={{ backgroundColor: palette.btnBg }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = palette.btnHover; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = palette.btnBg; }}
         >
           <PlusIcon />
           <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/side:max-w-[100px] group-hover/side:opacity-100">Create new</span>
@@ -146,134 +261,649 @@ export function Sidebar({
       <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
         {/* Dashboard */}
         <NavItem href="/dashboard" label="Home" active={pathname === "/dashboard"}
-          icon={<GridIcon />} />
+          icon={<GridIcon />} isDark={isDark} />
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-white/10" />
+        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
         <NavItem href="/programs/new" label="New Program" active={pathname === "/programs/new"}
-          icon={<PlusIcon />} />
+          icon={<PlusIcon />} isDark={isDark} />
         <NavItem href="/programs/import" label="Import" active={pathname.startsWith("/programs/import")}
-          icon={<ImportIcon />} />
+          icon={<ImportIcon />} isDark={isDark} />
         <NavItem href="/browse" label="Browse" active={pathname.startsWith("/browse")}
-          icon={<BrowseIcon />} />
+          icon={<BrowseIcon />} isDark={isDark} />
         <NavItem href="/connections" label="Connections" active={pathname.startsWith("/connections")}
-          icon={<LinkIcon />} />
+          icon={<LinkIcon />} isDark={isDark} />
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-white/10" />
+        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
         <NavItem href="/runs" label="Runs" active={pathname.startsWith("/runs")}
-          icon={<RunsIcon />} badge={failedRuns} />
+          icon={<RunsIcon />} badge={failedRuns} isDark={isDark} />
         <NavItem href="/approvals" label="Approvals" active={pathname.startsWith("/approvals")}
-          icon={<BellIcon />} badge={pendingApprovals} />
+          icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} />
         {advanced && (
           <NavItem href="/logs" label="Logs" active={pathname.startsWith("/logs")}
-            icon={<LogsIcon />} />
+            icon={<LogsIcon />} isDark={isDark} />
         )}
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-white/10" />
+        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
         <NavItem href="/api-keys" label="API Keys" active={pathname.startsWith("/api-keys")}
-          icon={<KeyIcon />} />
+          icon={<KeyIcon />} isDark={isDark} />
 
         {/* Group separator */}
-        <div className="!my-2 mx-3 h-px bg-white/10" />
+        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
         <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
-          icon={<PricingIcon />} />
-        <NavItem href="/profile" label="Profile" active={pathname.startsWith("/profile")}
-          icon={<UserIcon />} />
-        <NavItem href="/settings" label="Settings" active={pathname.startsWith("/settings")}
-          icon={<SettingsIcon />} />
+          icon={<PricingIcon />} isDark={isDark} />
 
         {isAdmin && (
           <>
-            <div className="!my-2 mx-3 h-px bg-white/10" />
+            <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
             <NavItem href="/admin/codes" label="Code Manager" active={pathname.startsWith("/admin")}
-              icon={<AdminIcon />} />
+              icon={<AdminIcon />} isDark={isDark} />
           </>
         )}
       </nav>
 
-      <div className="border-t border-white/10 shrink-0">
-        {/* User / tier section */}
-        <div className="space-y-2 px-3 py-3">
-          {/* Email */}
-          <p className="max-h-0 truncate px-1 text-[11px] text-blue-100/70 opacity-0 transition-all duration-200 group-hover/side:max-h-6 group-hover/side:opacity-100">{email}</p>
+      <div className={cn("border-t shrink-0 px-2.5 py-2.5", footerBorderCls)}>
+        <div className="max-h-0 overflow-hidden opacity-0 pointer-events-none transition-all duration-200 group-hover/side:mb-2 group-hover/side:max-h-[280px] group-hover/side:opacity-100 group-hover/side:pointer-events-auto">
+          <div className={cn(
+            "rounded-2xl border px-3 py-3",
+            isDark ? "border-white/10 bg-white/5 text-blue-50" : "border-black/10 bg-black/5 text-gray-900"
+          )}>
+            <p className={cn("text-[11px] font-semibold", isDark ? "text-blue-100/90" : "text-gray-700")}>Workspace usage</p>
 
-          {/* Badges row */}
-          <div className="max-h-0 flex flex-wrap gap-1.5 overflow-hidden opacity-0 transition-all duration-200 group-hover/side:max-h-24 group-hover/side:opacity-100">
-            {/* Tier badge */}
-            <span className={cn(
-              "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border tracking-wide",
-              TIER_CONFIG[tier].className
+            <div className={cn(
+              "mt-2 rounded-xl px-3 py-2.5",
+              isDark ? "bg-white/5" : "bg-black/5"
             )}>
-              {TIER_CONFIG[tier].label}
-            </span>
+              <div className="flex items-center justify-between text-[12px] font-medium">
+                <span>Monthly steps</span>
+                <span>0 / 200</span>
+              </div>
+              <div className={cn("mt-2 h-1.5 rounded-full", isDark ? "bg-blue-200/20" : "bg-black/10")}>
+                <div className="h-full w-0 rounded-full" style={{ backgroundColor: palette.btnBg }} />
+              </div>
+              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets on May 7</p>
+            </div>
 
-            {/* Beta badge */}
-            {isBetaTester && (
-              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-green-500/20 text-green-100 border-green-300/30 tracking-wide">
-                Beta
-              </span>
-            )}
-
-            {/* Dev/Admin badge */}
-            {isAdmin && (
-              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold border bg-blue-500/20 text-blue-100 border-blue-300/30 tracking-wide">
-                Dev
-              </span>
-            )}
+            <div className={cn(
+              "mt-2 rounded-xl px-3 py-2.5",
+              isDark ? "bg-white/5" : "bg-black/5"
+            )}>
+              <div className="flex items-center justify-between text-[12px] font-medium">
+                <span>Monthly AI credits</span>
+                <span>0 / 500</span>
+              </div>
+              <div className={cn("mt-2 h-1.5 rounded-full", isDark ? "bg-blue-200/20" : "bg-black/10")}>
+                <div className="h-full w-0 rounded-full" style={{ backgroundColor: "#9f7aea" }} />
+              </div>
+              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets on May 7</p>
+            </div>
           </div>
-
-          <div className="mt-2 max-h-0 overflow-hidden rounded-lg border border-white/10 bg-white/5 px-2.5 py-0 text-[10px] text-blue-100/80 opacity-0 transition-all duration-200 group-hover/side:max-h-20 group-hover/side:py-2 group-hover/side:opacity-100">
-            <p className="font-semibold text-blue-100/90">Workspace usage</p>
-            <p className="mt-1">Tier: {TIER_CONFIG[tier].label}</p>
-          </div>
-
-          {/* Trial expiry warning */}
-          {planExpiresAt && (() => {
-            const daysLeft = Math.ceil((new Date(planExpiresAt).getTime() - Date.now()) / 86400000);
-            if (daysLeft > 14) return null;
-            return (
-              <p className={cn(
-                "max-h-0 overflow-hidden px-1 text-[10px] opacity-0 transition-all duration-200 group-hover/side:max-h-6 group-hover/side:opacity-100",
-                daysLeft <= 3 ? "text-red-300" : "text-yellow-200"
-              )}>
-                {daysLeft <= 0 ? "Trial expired" : `Trial ends in ${daysLeft}d`}
-              </p>
-            );
-          })()}
-
         </div>
 
-        <div className="p-2 border-t border-white/10">
-          <SignOutButton />
+        <div ref={menuRef} className="relative">
+          {menuOpen && (
+            <div className={cn(
+              "absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 rounded-xl border p-1.5 shadow-xl",
+              isDark ? "border-white/10 bg-white text-gray-900" : "border-black/10 bg-white text-gray-900"
+            )}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSettingsOpen(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-black/5"
+              >
+                <SettingsIcon />
+                <span>Settings</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-black/5"
+              >
+                <LogOutIcon />
+                <span>Sign out</span>
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left",
+              isDark ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-black/10 bg-black/5 hover:bg-black/10"
+            )}
+          >
+            <div className={cn(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold",
+              isDark ? "border-white/15 bg-white/10 text-blue-100" : "border-black/10 bg-black/5 text-gray-700"
+            )}>
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold leading-4">{displayName}</p>
+              <p
+                className={cn(
+                  "mt-0.5 max-h-0 overflow-hidden text-[11px] leading-3 opacity-0 transition-all duration-200 group-hover/side:max-h-4 group-hover/side:opacity-100",
+                  isDark ? "text-blue-100/70" : "text-gray-600"
+                )}
+              >
+                {tierLabel}
+              </p>
+            </div>
+            <ChevronDownIcon className={cn("h-4 w-4 shrink-0 transition-transform", menuOpen && "rotate-180")} />
+          </button>
         </div>
       </div>
+
+      {settingsOpen && (
+        <SettingsModal
+          email={email}
+          userId={userId}
+          createdAt={createdAt}
+          displayName={displayName}
+          initialDisplayName={initialDisplayName}
+          initialAvatarUrl={initialAvatarUrl}
+          tierLabel={tierLabel}
+          isAdmin={isAdmin}
+          isBetaTester={isBetaTester}
+          isOAuthUser={isOAuthUser}
+          advanced={advanced}
+          onAdvancedChange={setAdvanced}
+          base={base}
+          accent={accent}
+          onBaseChange={setBase}
+          onAccentChange={setAccent}
+          onClose={handleCloseSettings}
+        />
+      )}
     </aside>
   );
 }
 
-function SignOutButton() {
-  async function handleSignOut() {
-    const { createBrowserClient } = await import("@/lib/supabase/client");
+function SettingsModal({
+  email,
+  userId,
+  createdAt,
+  displayName,
+  initialDisplayName,
+  initialAvatarUrl,
+  tierLabel,
+  isAdmin,
+  isBetaTester,
+  isOAuthUser,
+  advanced,
+  onAdvancedChange,
+  base,
+  accent,
+  onBaseChange,
+  onAccentChange,
+  onClose,
+}: {
+  email: string;
+  userId: string;
+  createdAt: string;
+  displayName: string;
+  initialDisplayName: string;
+  initialAvatarUrl: string;
+  tierLabel: string;
+  isAdmin: boolean;
+  isBetaTester: boolean;
+  isOAuthUser: boolean;
+  advanced: boolean;
+  onAdvancedChange: (next: boolean) => void;
+  base: BaseTheme;
+  accent: AccentColor;
+  onBaseChange: (next: BaseTheme) => void;
+  onAccentChange: (next: AccentColor) => void;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [tab, setTab] = useState<"account" | "workspace">("account");
+
+  const [formDisplayName, setFormDisplayName] = useState(initialDisplayName);
+  const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileStatus, setProfileStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordStatus, setPasswordStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [code, setCode] = useState("");
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeStatus, setCodeStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const memberSince = createdAt
+    ? new Date(createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    : "-";
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileStatus(null);
+
+    const supabase = createBrowserClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setProfileStatus({ type: "error", message: "Not signed in." });
+      setProfileSaving(false);
+      return;
+    }
+
+    const profiles = supabase.from("profiles") as unknown as {
+      upsert: (
+        value: { id: string; display_name: string | null; avatar_url: string | null },
+        options: { onConflict: string }
+      ) => PromiseLike<{ error: { message: string } | null }>;
+    };
+
+    const { error } = await profiles.upsert(
+      {
+        id: user.id,
+        display_name: formDisplayName.trim() || null,
+        avatar_url: avatarUrl.trim() || null,
+      },
+      { onConflict: "id" }
+    );
+
+    if (error) {
+      setProfileStatus({ type: "error", message: error.message });
+    } else {
+      setProfileStatus({ type: "success", message: "Profile saved." });
+      router.refresh();
+    }
+    setProfileSaving(false);
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordStatus(null);
+
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus({ type: "error", message: "New passwords do not match." });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordStatus({ type: "error", message: "Password must be at least 8 characters." });
+      return;
+    }
+
+    setPasswordLoading(true);
+    const supabase = createBrowserClient();
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+    if (signInError) {
+      setPasswordStatus({ type: "error", message: "Current password is incorrect." });
+      setPasswordLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      setPasswordStatus({ type: "error", message: error.message });
+    } else {
+      setPasswordStatus({ type: "success", message: "Password updated successfully." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+    setPasswordLoading(false);
+  }
+
+  async function handleRedeem(e: React.FormEvent) {
+    e.preventDefault();
+    setCodeStatus(null);
+    setCodeLoading(true);
+
+    const res = await fetch("/api/settings/redeem", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json() as { benefit?: string; error?: string };
+
+    if (!res.ok) {
+      setCodeStatus({ type: "error", message: data.error ?? "Invalid code." });
+    } else {
+      setCodeStatus({ type: "success", message: `Applied: ${data.benefit}` });
+      setCode("");
+      router.refresh();
+    }
+
+    setCodeLoading(false);
+  }
+
+  async function handleDeleteAccount(e: React.FormEvent) {
+    e.preventDefault();
+    if (deleteConfirm !== "delete my account") return;
+
+    setDeleteLoading(true);
+    setDeleteStatus(null);
+
+    const res = await fetch("/api/settings/account", { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      setDeleteStatus({ type: "error", message: body.error ?? "Failed to delete account." });
+      setDeleteLoading(false);
+      return;
+    }
+
     const supabase = createBrowserClient();
     await supabase.auth.signOut();
-    window.location.href = "/login";
+    window.location.href = "/?deleted=1";
   }
+
   return (
-    <button
-      onClick={handleSignOut}
-      title="Sign out"
-      className="flex items-center gap-2.5 w-full rounded-md px-3 py-[7px] text-sm text-blue-100/80 hover:bg-white/8 hover:text-white transition-colors"
-    >
-      <span className="shrink-0 w-4 h-4 flex items-center justify-center"><LogOutIcon /></span>
-      <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/side:max-w-[100px] group-hover/side:opacity-100">Sign out</span>
-    </button>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/35 p-4">
+      <div className="flex h-[88vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl">
+        <div className="w-52 border-r border-black/10 bg-black/5 p-3">
+          <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Personal</p>
+          <button
+            type="button"
+            onClick={() => setTab("account")}
+            className={cn(
+              "mt-1 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm",
+              tab === "account" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:bg-white/70"
+            )}
+          >
+            <UserIcon />
+            <span>Account</span>
+          </button>
+          <p className="mt-4 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Workspace</p>
+          <button
+            type="button"
+            onClick={() => setTab("workspace")}
+            className={cn(
+              "mt-1 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm",
+              tab === "workspace" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:bg-white/70"
+            )}
+          >
+            <SettingsIcon />
+            <span>General</span>
+          </button>
+        </div>
+
+        <div className="min-h-[500px] flex-1 overflow-y-auto p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">{tab === "account" ? "Account" : "General"}</h2>
+            <button type="button" onClick={onClose} className="rounded-md p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-900" aria-label="Close settings">
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          </div>
+
+          {tab === "account" && (
+            <div className="mt-8 space-y-8">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-md bg-green-500 text-lg font-semibold text-white">
+                  {(formDisplayName || displayName).slice(0, 1).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{formDisplayName || displayName}</p>
+                  <p className="text-xs text-gray-500">{email}</p>
+                </div>
+              </div>
+
+              <div className="border-t border-black/10 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Profile</p>
+                <form onSubmit={handleSaveProfile} className="mt-3 space-y-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-600">Display name</label>
+                    <input
+                      type="text"
+                      value={formDisplayName}
+                      onChange={(e) => setFormDisplayName(e.target.value)}
+                      maxLength={60}
+                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                      placeholder="Your name"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-600">Avatar URL</label>
+                    <input
+                      type="text"
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  {profileStatus && (
+                    <p className={cn("text-xs", profileStatus.type === "success" ? "text-green-600" : "text-red-600")}>{profileStatus.message}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={profileSaving}
+                    className="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                  >
+                    {profileSaving ? "Saving..." : "Save changes"}
+                  </button>
+                </form>
+              </div>
+
+              <div className="border-t border-black/10 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Skill level</p>
+                <p className="mt-2 text-sm text-gray-900">AI Agent Builder</p>
+                <p className="text-xs text-gray-500">Skill level 0</p>
+              </div>
+
+              {!isOAuthUser ? (
+                <div className="border-t border-black/10 pt-6">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Password</p>
+                  <form onSubmit={handlePasswordChange} className="mt-3 space-y-3">
+                    <input
+                      type="password"
+                      required
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                      placeholder="Current password"
+                    />
+                    <input
+                      type="password"
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                      placeholder="New password"
+                    />
+                    <input
+                      type="password"
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                      placeholder="Confirm new password"
+                    />
+                    {passwordStatus && (
+                      <p className={cn("text-xs", passwordStatus.type === "success" ? "text-green-600" : "text-red-600")}>{passwordStatus.message}</p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={passwordLoading}
+                      className="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                    >
+                      {passwordLoading ? "Updating..." : "Update password"}
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="border-t border-black/10 pt-6">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Password</p>
+                  <p className="mt-2 text-sm text-gray-600">You signed in with Google. Password login is not available for your account.</p>
+                </div>
+              )}
+
+              <div className="border-t border-black/10 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Redeem a code</p>
+                <form onSubmit={handleRedeem} className="mt-3 flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    className="flex-1 rounded-lg border border-black/10 px-3 py-2.5 text-sm uppercase tracking-wider text-gray-900 outline-none ring-0 focus:border-gray-400"
+                    placeholder="ENTER CODE"
+                  />
+                  <button
+                    type="submit"
+                    disabled={codeLoading || code.length < 3}
+                    className="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                  >
+                    {codeLoading ? "..." : "Redeem"}
+                  </button>
+                </form>
+                {codeStatus && (
+                  <p className={cn("mt-2 text-xs", codeStatus.type === "success" ? "text-green-600" : "text-red-600")}>{codeStatus.message}</p>
+                )}
+              </div>
+
+              <div className="border-t border-black/10 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Workspace status</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="rounded-md bg-black/5 px-2 py-1 text-xs text-gray-700">{tierLabel}</span>
+                  {isAdmin && <span className="rounded-md bg-black/5 px-2 py-1 text-xs text-gray-700">Admin</span>}
+                  {isBetaTester && <span className="rounded-md bg-black/5 px-2 py-1 text-xs text-gray-700">Beta</span>}
+                </div>
+              </div>
+
+              <div className="border-t border-black/10 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Plan</p>
+                <p className="mt-2 text-sm text-gray-600">Compare plans or upgrade anytime.</p>
+                <Link
+                  href="/plan"
+                  onClick={onClose}
+                  className="mt-3 inline-flex rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                >
+                  Upgrade Plan
+                </Link>
+              </div>
+
+              <div className="border-t border-black/10 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Account</p>
+                <div className="mt-2 grid grid-cols-[120px_1fr] gap-x-4 gap-y-2 text-sm">
+                  <span className="text-gray-500">Email</span>
+                  <span className="break-all font-mono text-xs text-gray-700">{email || "-"}</span>
+                  <span className="text-gray-500">User ID</span>
+                  <span className="break-all font-mono text-xs text-gray-700">{userId || "-"}</span>
+                  <span className="text-gray-500">Joined</span>
+                  <span className="font-mono text-xs text-gray-700">{memberSince}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-black/10 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Legal</p>
+                <div className="mt-3 flex flex-col gap-2">
+                  <Link href="/privacy" onClick={onClose} className="rounded-lg border border-black/10 px-3 py-2 text-sm text-gray-700 hover:bg-black/5">Privacy Policy</Link>
+                  <Link href="/terms" onClick={onClose} className="rounded-lg border border-black/10 px-3 py-2 text-sm text-gray-700 hover:bg-black/5">Terms of Service</Link>
+                </div>
+              </div>
+
+              <div className="border-t border-red-200 pt-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Danger zone</p>
+                <p className="mt-2 text-sm text-gray-600">Delete your account and all associated programs, runs, connections, and credentials. This cannot be undone.</p>
+                <form onSubmit={handleDeleteAccount} className="mt-3 space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
+                  <input
+                    type="text"
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    className="w-full rounded-lg border border-red-200 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-red-400"
+                    placeholder='Type "delete my account"'
+                    autoComplete="off"
+                  />
+                  {deleteStatus && (
+                    <p className={cn("text-xs", deleteStatus.type === "success" ? "text-green-600" : "text-red-600")}>{deleteStatus.message}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={deleteLoading || deleteConfirm !== "delete my account"}
+                    className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                  >
+                    {deleteLoading ? "Deleting..." : "Delete my account"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {tab === "workspace" && (
+            <div className="mt-8 space-y-8">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Theme mode</p>
+                <div className="mt-2 flex gap-2">
+                  {(["dark", "light"] as BaseTheme[]).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => onBaseChange(option)}
+                      className={cn(
+                        "rounded-md border px-3 py-1.5 text-xs font-medium capitalize",
+                        base === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
+                      )}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-800">Accent</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(["orange", "blue", "indigo", "green", "pink", "cyan"] as AccentColor[]).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => onAccentChange(option)}
+                      className={cn(
+                        "rounded-md border px-3 py-1.5 text-xs capitalize",
+                        accent === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
+                      )}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-sm text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={advanced}
+                    onChange={(e) => onAdvancedChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-black/20"
+                  />
+                  Enable advanced mode
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
+}
+
+async function handleSignOut() {
+  const { createBrowserClient } = await import("@/lib/supabase/client");
+  const supabase = createBrowserClient();
+  await supabase.auth.signOut();
+  window.location.href = "/login";
 }
 
 // ─── Icons ─────────────────────────────────────────────────────────────────────
@@ -376,6 +1006,20 @@ function LogOutIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+    </svg>
+  );
+}
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+  );
+}
+function CloseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
     </svg>
   );
 }

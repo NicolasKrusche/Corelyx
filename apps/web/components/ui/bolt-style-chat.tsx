@@ -92,7 +92,7 @@ function ModelSelector({
     <div className='relative'>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className='flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-[#8a8a8f] transition-all duration-200 hover:bg-white/5 hover:text-white active:scale-95'
+        className='flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground active:scale-95'
       >
         {selected.icon}
         <span>{selected.name}</span>
@@ -102,9 +102,9 @@ function ModelSelector({
       {isOpen && (
         <>
           <div className='fixed inset-0 z-40' onClick={() => setIsOpen(false)} />
-          <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 min-w-[220px] overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1e]/95 shadow-2xl shadow-black/50 backdrop-blur-xl duration-200'>
+          <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 min-w-[220px] overflow-hidden rounded-xl border border-border bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl duration-200'>
             <div className='p-1.5'>
-              <div className='px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#5a5a5f]'>
+              <div className='px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60'>
                 Select Model
               </div>
               {models.map((model) => (
@@ -113,8 +113,8 @@ function ModelSelector({
                   onClick={() => handleSelect(model)}
                   className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
                     selected.id === model.id
-                      ? 'bg-white/10 text-white'
-                      : 'text-[#a0a0a5] hover:bg-white/5 hover:text-white'
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                   }`}
                 >
                   <div className='flex items-center gap-3'>
@@ -126,17 +126,17 @@ function ModelSelector({
                           <span
                             className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                               model.badge === 'Pro'
-                                ? 'bg-purple-500/20 text-purple-300'
-                                : 'bg-blue-500/20 text-blue-300'
+                                ? 'bg-purple-500/20 text-purple-400'
+                                : 'bg-primary/20 text-primary'
                             }`}
                           >
                             {model.badge}
                           </span>
                         )}
                       </div>
-                      <span className='text-[11px] text-[#6a6a6f]'>{model.description}</span>
+                      <span className='text-[11px] text-muted-foreground/70'>{model.description}</span>
                     </div>
-                    {selected.id === model.id && <Check className='size-4 flex-shrink-0 text-blue-400' />}
+                    {selected.id === model.id && <Check className='size-4 flex-shrink-0 text-primary' />}
                   </div>
                 </button>
               ))}
@@ -187,8 +187,8 @@ function ChatInput({
 
   return (
     <div className='relative mx-auto w-full max-w-[680px]'>
-      <div className='pointer-events-none absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-white/[0.08] to-transparent' />
-      <div className='relative rounded-2xl bg-[#1e1e22] ring-1 ring-white/[0.08] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_2px_20px_rgba(0,0,0,0.4)]'>
+      <div className='pointer-events-none absolute -inset-[1px] rounded-2xl bg-gradient-to-b from-border/40 to-transparent' />
+      <div className='relative rounded-2xl border border-border bg-card shadow-lg ring-1 ring-border/30'>
         <div className='relative'>
           <textarea
             ref={textareaRef}
@@ -197,7 +197,7 @@ function ChatInput({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className='min-h-[80px] max-h-[200px] w-full resize-none bg-transparent px-5 pb-3 pt-5 text-[15px] text-white placeholder-[#5a5a5f] focus:outline-none'
+            className='min-h-[80px] max-h-[200px] w-full resize-none bg-transparent px-5 pb-3 pt-5 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none'
             style={{ height: '80px' }}
           />
         </div>
@@ -207,7 +207,7 @@ function ChatInput({
             <div className='relative'>
               <button
                 onClick={() => setShowAttachMenu(!showAttachMenu)}
-                className='flex size-8 items-center justify-center rounded-full bg-white/[0.08] text-[#8a8a8f] transition-all duration-200 hover:bg-white/[0.12] hover:text-white active:scale-95'
+                className='flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground active:scale-95'
               >
                 <Plus className={`size-4 transition-transform duration-200 ${showAttachMenu ? 'rotate-45' : ''}`} />
               </button>
@@ -215,7 +215,7 @@ function ChatInput({
               {showAttachMenu && (
                 <>
                   <div className='fixed inset-0 z-40' onClick={() => setShowAttachMenu(false)} />
-                  <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1e]/95 shadow-2xl shadow-black/50 backdrop-blur-xl duration-200'>
+                  <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-xl border border-border bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl duration-200'>
                     <div className='min-w-[180px] p-1.5'>
                       {[
                         { icon: <Paperclip className='size-4' />, label: 'Upload file' },
@@ -224,7 +224,7 @@ function ChatInput({
                       ].map((item, i) => (
                         <button
                           key={i}
-                          className='flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[#a0a0a5] transition-all duration-150 hover:bg-white/5 hover:text-white'
+                          className='flex w-full items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all duration-150 hover:bg-accent/50 hover:text-foreground'
                         >
                           {item.icon}
                           <span className='text-sm'>{item.label}</span>
@@ -241,7 +241,7 @@ function ChatInput({
           <div className='flex-1' />
 
           <div className='flex items-center gap-2'>
-            <button className='flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-[#6a6a6f] transition-all duration-200 hover:bg-white/5 hover:text-white'>
+            <button className='flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-muted-foreground/70 transition-all duration-200 hover:bg-accent/50 hover:text-foreground'>
               <Lightbulb className='size-4' />
               <span className='hidden sm:inline'>Plan</span>
             </button>
@@ -249,7 +249,7 @@ function ChatInput({
             <button
               onClick={handleSubmit}
               disabled={!message.trim() || disabled}
-              className='flex items-center gap-2 rounded-full bg-[#1488fc] px-4 py-2 text-sm font-medium text-white shadow-[0_0_20px_rgba(20,136,252,0.3)] transition-all duration-200 hover:bg-[#1a94ff] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40'
+              className='flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all duration-200 hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40'
             >
               <span className='hidden sm:inline'>Build now</span>
               <SendHorizontal className='size-4' />
@@ -264,44 +264,64 @@ function ChatInput({
 function RayBackground() {
   return (
     <div className='pointer-events-none absolute inset-0 h-full w-full select-none overflow-hidden'>
-      <div className='absolute inset-0 bg-[#0f0f0f]' />
+      {/* Base background — uses theme background color */}
+      <div className='absolute inset-0 bg-background' />
+      {/* Primary-colored radial glow emanating from bottom */}
       <div
         className='absolute left-1/2 h-[1800px] w-[4000px] -translate-x-1/2 sm:w-[6000px]'
         style={{
           background:
-            'radial-gradient(circle at center 800px, rgba(20, 136, 252, 0.8) 0%, rgba(20, 136, 252, 0.35) 14%, rgba(20, 136, 252, 0.18) 18%, rgba(20, 136, 252, 0.08) 22%, rgba(17, 17, 20, 0.2) 25%)',
+            'radial-gradient(circle at center 800px, hsl(var(--primary) / 0.75) 0%, hsl(var(--primary) / 0.32) 14%, hsl(var(--primary) / 0.15) 18%, hsl(var(--primary) / 0.06) 22%, transparent 25%)',
         }}
       />
+      {/* Arc rings */}
       <div
         className='absolute left-1/2 top-[175px] h-[1600px] w-[1600px] sm:top-1/2 sm:h-[2865px] sm:w-[3043px]'
         style={{ transform: 'translate(-50%) rotate(180deg)' }}
       >
+        {/* Innermost fill — same as page background to cut out the center */}
         <div
           className='absolute -mt-[13px] h-full w-full rounded-full'
           style={{
-            background: 'radial-gradient(43.89% 25.74% at 50.02% 97.24%, #111114 0%, #0f0f0f 100%)',
-            border: '16px solid white',
+            background: 'hsl(var(--background))',
+            border: '16px solid hsl(var(--background))',
             transform: 'rotate(180deg)',
             zIndex: 5,
           }}
         />
         <div
-          className='absolute -mt-[11px] h-full w-full rounded-full bg-[#0f0f0f]'
-          style={{ border: '23px solid #b7d7f6', transform: 'rotate(180deg)', zIndex: 4 }}
-        />
-        <div
-          className='absolute -mt-[8px] h-full w-full rounded-full bg-[#0f0f0f]'
-          style={{ border: '23px solid #8fc1f2', transform: 'rotate(180deg)', zIndex: 3 }}
-        />
-        <div
-          className='absolute -mt-[4px] h-full w-full rounded-full bg-[#0f0f0f]'
-          style={{ border: '23px solid #64acf6', transform: 'rotate(180deg)', zIndex: 2 }}
-        />
-        <div
-          className='absolute h-full w-full rounded-full bg-[#0f0f0f]'
+          className='absolute -mt-[11px] h-full w-full rounded-full'
           style={{
-            border: '20px solid #1172e2',
-            boxShadow: '0 -15px 24.8px rgba(17, 114, 226, 0.6)',
+            background: 'hsl(var(--background))',
+            border: '23px solid hsl(var(--primary) / 0.25)',
+            transform: 'rotate(180deg)',
+            zIndex: 4,
+          }}
+        />
+        <div
+          className='absolute -mt-[8px] h-full w-full rounded-full'
+          style={{
+            background: 'hsl(var(--background))',
+            border: '23px solid hsl(var(--primary) / 0.45)',
+            transform: 'rotate(180deg)',
+            zIndex: 3,
+          }}
+        />
+        <div
+          className='absolute -mt-[4px] h-full w-full rounded-full'
+          style={{
+            background: 'hsl(var(--background))',
+            border: '23px solid hsl(var(--primary) / 0.65)',
+            transform: 'rotate(180deg)',
+            zIndex: 2,
+          }}
+        />
+        <div
+          className='absolute h-full w-full rounded-full'
+          style={{
+            background: 'hsl(var(--background))',
+            border: '20px solid hsl(var(--primary))',
+            boxShadow: '0 -15px 24.8px hsl(var(--primary) / 0.6)',
             transform: 'rotate(180deg)',
             zIndex: 1,
           }}
@@ -322,22 +342,21 @@ function AnnouncementBadge({ text, href = '#' }: { text: string; href?: string }
         className='absolute -top-px left-1/2 h-[2px] w-[100px] -translate-x-1/2 opacity-60'
         style={{
           background:
-            'linear-gradient(90deg, transparent 0%, rgba(37, 119, 255, 0.8) 20%, rgba(126, 93, 225, 0.8) 50%, rgba(59, 130, 246, 0.8) 80%, transparent 100%)',
+            'linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.8) 30%, hsl(var(--primary) / 0.6) 70%, transparent 100%)',
           filter: 'blur(0.5px)',
         }}
       />
-      <Bolt className='relative z-10 size-4 text-white' />
-      <span className='relative z-10 font-medium text-white'>{text}</span>
+      <Bolt className='relative z-10 size-4 text-foreground' />
+      <span className='relative z-10 font-medium text-foreground'>{text}</span>
     </>
   )
 
   const className =
-    'relative inline-flex items-center gap-2 overflow-hidden rounded-full px-5 py-2 min-h-[40px] text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
+    'relative inline-flex items-center gap-2 overflow-hidden rounded-full px-5 py-2 min-h-[40px] text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer border border-border/50'
   const style = {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))',
+    background: 'hsl(var(--card) / 0.7)',
     backdropFilter: 'blur(20px) saturate(140%)',
-    boxShadow:
-      'inset 0 1px rgba(255,255,255,0.2), inset 0 -1px rgba(0,0,0,0.1), 0 8px 32px -8px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.08)',
+    boxShadow: 'inset 0 1px hsl(var(--border) / 0.5), 0 8px 32px -8px hsl(var(--primary) / 0.15)',
   }
 
   return href !== '#' ? (
@@ -354,7 +373,7 @@ function AnnouncementBadge({ text, href = '#' }: { text: string; href?: string }
 function ImportButtons({ onImport }: { onImport?: (source: string) => void }) {
   return (
     <div className='flex items-center justify-center gap-4'>
-      <span className='text-sm text-[#6a6a6f]'>or import from</span>
+      <span className='text-sm text-muted-foreground'>or import from</span>
       <div className='flex gap-2'>
         {[
           { id: 'figma', name: 'Figma', icon: <FigmaIcon className='size-4' /> },
@@ -363,7 +382,7 @@ function ImportButtons({ onImport }: { onImport?: (source: string) => void }) {
           <button
             key={option.id}
             onClick={() => onImport?.(option.id)}
-            className='flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0f0f0f] px-3 py-1.5 text-xs font-medium text-[#8a8a8f] transition-all duration-200 hover:bg-[#1a1a1e] hover:text-white active:scale-95'
+            className='flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95'
           >
             {option.icon}
             <span>{option.name}</span>
@@ -402,7 +421,7 @@ export function BoltStyleChat({
   onImport,
 }: BoltChatProps) {
   return (
-    <div className='relative flex min-h-screen w-full flex-col items-center overflow-hidden bg-[#0f0f0f]'>
+    <div className='relative flex min-h-screen w-full flex-col items-center overflow-hidden bg-background text-foreground'>
       <RayBackground />
 
       {!hideHero && (
@@ -414,14 +433,14 @@ export function BoltStyleChat({
       <div className='relative z-10 flex w-full flex-1 flex-col items-center justify-center px-4 pb-10 pt-36 sm:pt-40'>
         {!hideHero && (
           <div className='mb-5 text-center'>
-            <h1 className='mb-1 text-4xl font-bold tracking-tight text-white sm:text-5xl'>
+            <h1 className='mb-1 text-4xl font-bold tracking-tight sm:text-5xl'>
               {title}{' '}
-              <span className='bg-gradient-to-b from-[#4da5fc] via-[#4da5fc] to-white bg-clip-text italic text-transparent'>
+              <span className='bg-gradient-to-b from-primary/80 via-primary to-primary/60 bg-clip-text italic text-transparent'>
                 build
               </span>{' '}
               today?
             </h1>
-            <p className='text-base font-semibold text-[#8a8a8f] sm:text-lg'>{subtitle}</p>
+            <p className='text-base font-semibold text-muted-foreground sm:text-lg'>{subtitle}</p>
           </div>
         )}
 

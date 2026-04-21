@@ -60,12 +60,12 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_BG: Record<string, string> = {
-  running: "bg-yellow-400/10 text-yellow-400",
-  completed: "bg-green-500/10 text-green-400",
-  success: "bg-green-500/10 text-green-400",
-  failed: "bg-red-500/10 text-red-400",
+  running: "bg-yellow-400/10 text-yellow-500",
+  completed: "bg-green-500/10 text-green-600",
+  success: "bg-green-500/10 text-green-600",
+  failed: "bg-red-500/10 text-red-500",
   cancelled: "bg-muted/60 text-muted-foreground",
-  waiting_approval: "bg-blue-400/10 text-blue-400",
+  waiting_approval: "bg-blue-400/10 text-blue-500",
   pending: "bg-muted/60 text-muted-foreground",
 };
 
@@ -115,8 +115,8 @@ export default async function DashboardPage() {
   const initials = displayName.slice(0, 1).toUpperCase();
 
   return (
-    <div className="space-y-6 text-[#1d2433]">
-      <section className="rounded-2xl border border-[#d9deea] bg-white/70 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+    <div className="space-y-6 text-foreground">
+      <section className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm backdrop-blur-sm sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full max-w-xl">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
@@ -124,7 +124,7 @@ export default async function DashboardPage() {
               type="text"
               aria-label="Search"
               placeholder="Search programs, runs, connections"
-              className="h-10 w-full rounded-xl border border-[#d7ddea] bg-white pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-[#7d8698] focus:border-indigo-400"
+              className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -141,12 +141,12 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-4 flex items-center gap-2 text-sm">
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-semibold text-emerald-700">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[11px] font-semibold text-primary">
             {initials}
           </span>
           <p className="font-medium">
             {displayName}&apos;s workspace
-            <span className="ml-2 text-xs font-normal text-[#6f7890]">
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
               Good {getGreeting()}.
             </span>
           </p>
@@ -155,9 +155,9 @@ export default async function DashboardPage() {
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {featuredPrograms.length === 0 ? (
-          <div className="md:col-span-2 rounded-2xl border border-dashed border-[#d4dbea] bg-white/60 p-6">
+          <div className="md:col-span-2 rounded-2xl border border-dashed border-border bg-card/60 p-6">
             <p className="text-sm font-semibold">No agents yet</p>
-            <p className="mt-1 text-xs text-[#6f7890]">
+            <p className="mt-1 text-xs text-muted-foreground">
               Create your first automation to populate this workspace board.
             </p>
           </div>
@@ -166,26 +166,26 @@ export default async function DashboardPage() {
             <Link
               key={program.id}
               href={`/programs/${program.id}`}
-              className="group rounded-2xl border border-[#d9deea] bg-white/85 p-5 transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
+              className="group rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
             >
-              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+              <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 {index === 0 ? <Sparkles className="h-5 w-5" /> : <Workflow className="h-5 w-5" />}
               </div>
               <p className="text-lg font-semibold tracking-tight">{program.name}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-[#6f7890]">
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                 {program.description ?? "Automation workspace ready for new workflows."}
               </p>
-              <p className="mt-4 text-[11px] text-[#6f7890]">{program.is_active ? "Active" : "Inactive"} workflow</p>
+              <p className="mt-4 text-[11px] text-muted-foreground/70">{program.is_active ? "Active" : "Inactive"} workflow</p>
             </Link>
           ))
         )}
 
         <Link
           href="/programs/new"
-          className="group grid place-items-center rounded-2xl border border-dashed border-[#d1d8e8] bg-white/60 p-5 text-center transition-colors hover:border-indigo-300 hover:bg-white/90"
+          className="group grid place-items-center rounded-2xl border border-dashed border-border bg-card/60 p-5 text-center transition-colors hover:border-primary/40 hover:bg-card"
         >
           <div className="space-y-2">
-            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#d5dcec] bg-white text-[#7a8498] group-hover:text-indigo-600">
+            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground group-hover:text-primary group-hover:border-primary/30 transition-colors">
               <Plus className="h-5 w-5" />
             </div>
             <p className="text-sm font-medium">Create new agent</p>
@@ -194,32 +194,32 @@ export default async function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Programs</p>
+        <div className="rounded-xl border border-border bg-card px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Programs</p>
           <p className="text-2xl font-black tabular-nums">{programs.length}</p>
         </div>
-        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Active</p>
-          <p className="text-2xl font-black tabular-nums text-emerald-600">{activePrograms}</p>
+        <div className="rounded-xl border border-border bg-card px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Active</p>
+          <p className="text-2xl font-black tabular-nums text-green-500">{activePrograms}</p>
         </div>
-        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Connections</p>
+        <div className="rounded-xl border border-border bg-card px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Connections</p>
           <p className="text-2xl font-black tabular-nums">{connectionCount}</p>
         </div>
-        <div className="rounded-xl border border-[#d9deea] bg-white/85 px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#7f889b]">Runs this month</p>
-          <p className={`text-2xl font-black tabular-nums ${runUsage.total && runUsage.current / runUsage.total >= 0.8 ? "text-yellow-400" : ""}`}>
+        <div className="rounded-xl border border-border bg-card px-5 py-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Runs this month</p>
+          <p className={`text-2xl font-black tabular-nums ${runUsage.total && runUsage.current / runUsage.total >= 0.8 ? "text-yellow-500" : ""}`}>
             {runUsage.current}
             {runUsage.total !== null && (
-              <span className="ml-1 text-sm font-normal text-[#7f889b]">/ {runUsage.total}</span>
+              <span className="ml-1 text-sm font-normal text-muted-foreground/70">/ {runUsage.total}</span>
             )}
           </p>
           {runUsage.total !== null && (
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#e4e8f2]">
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
               <div
                 className={`h-full rounded-full transition-all ${
                   runUsage.current / runUsage.total >= 0.9 ? "bg-destructive" :
-                  runUsage.current / runUsage.total >= 0.8 ? "bg-yellow-400" : "bg-primary"
+                  runUsage.current / runUsage.total >= 0.8 ? "bg-yellow-500" : "bg-primary"
                 }`}
                 style={{ width: `${Math.min(100, (runUsage.current / runUsage.total) * 100)}%` }}
               />
@@ -228,40 +228,40 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#d9deea] bg-white/85 p-4 sm:p-5">
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Workflow className="h-4 w-4" />
             </span>
             <h2 className="text-lg font-semibold">Workflows</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full bg-[#eef2fb] px-3 py-1 text-[#69758d]">Needs attention</span>
-            <span className="rounded-full bg-[#dee6fb] px-3 py-1 text-[#2f3e68]">Recently edited</span>
-            <span className="rounded-full bg-[#eef2fb] px-3 py-1 text-[#69758d]">Recently run</span>
-            <span className="rounded-full bg-[#eef2fb] px-3 py-1 text-[#69758d]">Starred</span>
+            <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Needs attention</span>
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">Recently edited</span>
+            <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Recently run</span>
+            <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Starred</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
           <div className="lg:col-span-3">
             {programs.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#d5dcec] p-12 text-center">
-                <p className="text-sm text-[#69758d]">No workflows match your selected filters.</p>
+              <div className="rounded-xl border border-dashed border-border p-12 text-center">
+                <p className="text-sm text-muted-foreground">No workflows match your selected filters.</p>
                 <Button asChild size="sm" className="mt-4">
                   <Link href="/programs/new">Create a new workflow</Link>
                 </Button>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-[#d8dff0] divide-y divide-[#e4e8f2]">
+              <div className="overflow-hidden rounded-xl border border-border divide-y divide-border/60">
                 {programs.map((p) => (
-                  <div key={p.id} className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-[#f2f5fb]">
-                    <div className={`h-8 w-1 shrink-0 rounded-full ${p.is_active ? "bg-emerald-500/70 group-hover:bg-emerald-500" : "bg-[#d8deeb]"}`} />
+                  <div key={p.id} className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-accent/40">
+                    <div className={`h-8 w-1 shrink-0 rounded-full ${p.is_active ? "bg-green-500/70 group-hover:bg-green-500" : "bg-muted-foreground/20"}`} />
 
                     <Link href={`/programs/${p.id}`} className="min-w-0 flex-1 py-0.5">
                       <p className="truncate text-sm font-semibold">{p.name}</p>
-                      <p className="mt-0.5 truncate font-mono text-[11px] text-[#7c8599]">
+                      <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground/70">
                         v{p.schema_version} · {p.execution_mode}
                         {p.last_run_at && <> · {timeAgo(p.last_run_at)}</>}
                       </p>
@@ -281,22 +281,22 @@ export default async function DashboardPage() {
 
           <div className="lg:col-span-2">
             <div className="mb-3 flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-[#6f7890]" />
+              <Clock3 className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold">Recent runs</h3>
             </div>
 
             {recentRuns.length === 0 ? (
-              <div className="rounded-xl border border-[#d9deea] bg-white/70 p-8 text-center">
-                <p className="text-xs font-medium text-[#6f7890]">No runs yet</p>
-                <p className="mt-1 text-xs text-[#8892a6]">Open a workflow and click Run.</p>
+              <div className="rounded-xl border border-border bg-card/70 p-8 text-center">
+                <p className="text-xs font-medium text-muted-foreground">No runs yet</p>
+                <p className="mt-1 text-xs text-muted-foreground/60">Open a workflow and click Run.</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-[#d9deea] bg-white/70 divide-y divide-[#e4e8f2]">
+              <div className="overflow-hidden rounded-xl border border-border bg-card/70 divide-y divide-border/60">
                 {recentRuns.map((run) => (
                   <Link
                     key={run.id}
                     href={`/programs/${run.program_id}/runs/${run.id}`}
-                    className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[#f2f5fb]"
+                    className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
                   >
                     <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold capitalize ${STATUS_BG[run.status] ?? "bg-muted/60 text-muted-foreground"}`}>
                       <span className={`h-1 w-1 shrink-0 rounded-full ${STATUS_COLORS[run.status] ?? "bg-muted-foreground"}`} />
@@ -305,7 +305,7 @@ export default async function DashboardPage() {
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">{run.programs?.name ?? "Unknown"}</p>
-                      <p className="font-mono text-[11px] text-[#7c8599]">{timeAgo(run.created_at)}</p>
+                      <p className="font-mono text-[11px] text-muted-foreground/70">{timeAgo(run.created_at)}</p>
                     </div>
                   </Link>
                 ))}

@@ -40,25 +40,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#ececec] text-zinc-900">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen lg:grid-cols-2">
         <section className="relative flex items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
           <Link
             href="/"
-            className="absolute left-6 top-6 text-sm font-semibold text-zinc-700 transition-colors hover:text-zinc-900 sm:left-10 lg:left-16"
+            className="absolute left-6 top-6 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground sm:left-10 lg:left-16"
           >
             Nexflow
           </Link>
 
           <div className="w-full max-w-sm">
-            <h1 className="mb-6 text-center text-4xl font-semibold tracking-tight text-zinc-800 sm:text-5xl">
+            <h1 className="mb-6 text-center text-4xl font-semibold tracking-tight sm:text-5xl">
               Sign in to your account
             </h1>
 
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="mb-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mb-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -80,7 +80,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+                className="h-12 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
                 placeholder="Email"
               />
 
@@ -91,13 +91,13 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+                  className="h-12 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
                   placeholder="Password"
                 />
                 <div className="mt-2 text-right">
                   <Link
                     href="/forgot-password"
-                    className="text-xs text-zinc-500 transition-colors hover:text-zinc-800"
+                    className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
                     Forgot password?
                   </Link>
@@ -105,7 +105,7 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {error}
                 </p>
               )}
@@ -113,15 +113,15 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
             </form>
 
-            <p className="mt-7 text-center text-sm text-zinc-600">
+            <p className="mt-7 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="font-medium text-zinc-900 hover:underline">
+              <Link href="/signup" className="font-medium text-foreground hover:underline">
                 Sign up
               </Link>
             </p>

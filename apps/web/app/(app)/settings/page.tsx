@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { SettingsClient } from "./settings-client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,14 +11,6 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Detect if user signed up via OAuth (no password set)
-  const isOAuthUser = !user.identities?.some((i) => i.provider === "email");
-
-  return (
-    <SettingsClient
-      email={user.email ?? ""}
-      isOAuthUser={isOAuthUser}
-      createdAt={user.created_at}
-    />
-  );
+  // Compatibility route: keep old /settings links working by opening the sidebar popup.
+  redirect("/dashboard?settings=1");
 }

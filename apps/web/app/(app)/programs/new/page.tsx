@@ -373,9 +373,9 @@ function NewProgramPageInner() {
   };
 
   const chatFeed = (
-    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-sm">
+    <div className="space-y-3 rounded-2xl border border-border bg-card/80 p-4 backdrop-blur-sm shadow-sm">
       {inlineMessages.length === 0 ? (
-        <p className="text-sm text-[#8a8a8f]">
+        <p className="text-sm text-muted-foreground">
           Describe your program and click Build now. I will think through it here before generating.
         </p>
       ) : (
@@ -385,8 +385,8 @@ function NewProgramPageInner() {
               key={`${message.role}-${index}`}
               className={`max-w-[92%] rounded-xl px-3 py-2 text-sm animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                 message.role === "user"
-                  ? "ml-auto bg-[#1488fc]/20 text-blue-100"
-                  : "bg-white/5 text-[#d2d2d8]"
+                  ? "ml-auto bg-primary/20 text-primary"
+                  : "bg-muted/60 text-foreground"
               }`}
             >
               {message.text}
@@ -396,20 +396,20 @@ function NewProgramPageInner() {
       )}
 
       {(inlinePhase === "thinking" || inlinePhase === "generating") && (
-        <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-[#9fa0a8]">
+        <div className="inline-flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
           <Spinner />
           {inlinePhase === "thinking" ? "Thinking..." : "Generating..."}
         </div>
       )}
 
       {(inlinePhase === "connections" || inlinePhase === "generating") && (
-        <div className="space-y-3 rounded-xl border border-white/10 bg-[#0f0f12]/80 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#8f9098]">Choose Connections</p>
+        <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Choose Connections</p>
 
           {loadingConnections ? (
-            <p className="text-sm text-[#9ea0a9]">Loading available connections...</p>
+            <p className="text-sm text-muted-foreground">Loading available connections...</p>
           ) : connections.length === 0 ? (
-            <p className="text-sm text-[#9ea0a9]">
+            <p className="text-sm text-muted-foreground">
               No connections found. You can continue without connections, or add some in Connections.
             </p>
           ) : (
@@ -423,8 +423,8 @@ function NewProgramPageInner() {
                     onClick={() => toggleConnection(conn.id)}
                     className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
                       selected
-                        ? "border-blue-400 bg-blue-500/20 text-blue-100"
-                        : "border-white/15 bg-white/5 text-[#b5b7c0] hover:border-white/25 hover:text-white"
+                        ? "border-primary bg-primary/20 text-primary"
+                        : "border-border bg-muted/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
                     }`}
                   >
                     {conn.name}

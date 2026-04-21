@@ -97,6 +97,28 @@
   *::-webkit-scrollbar { display: none; }
 }
 
+/* ── App background gradient (uses --primary CSS var, auto-updates with theme) ── */
+.app-bg-gradient {
+  background-image:
+    radial-gradient(ellipse at 85% 0%, hsl(var(--primary) / 0.07) 0%, transparent 45%),
+    radial-gradient(ellipse at 20% 100%, hsl(var(--primary) / 0.04) 0%, transparent 40%);
+}
+
+/* ── Auth page background glow ── */
+.auth-page-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, hsl(var(--primary) / 0.1) 0%, transparent 60%),
+    hsl(var(--background));
+}
+
+/* ── Auth visual panel background ── */
+.auth-panel-bg {
+  background:
+    radial-gradient(circle at 35% 30%, hsl(var(--primary) / 0.3), transparent 40%),
+    radial-gradient(circle at 70% 85%, rgba(99, 102, 241, 0.35), transparent 45%),
+    linear-gradient(160deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%);
+}
+
 /* ── Dot grid ── */
 .bg-grid-dots {
   background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
