@@ -28,12 +28,12 @@ export default async function PricingPage() {
     },
     {
       label: currentTier === "pro" ? "Current plan" : "Upgrade",
-      href: "/plan?settings=1",
+      checkout: { tier: "pro", interval: "month" as const },
       style: (currentTier === "pro" ? "disabled" : "primary") as "disabled" | "primary",
     },
     {
       label: currentTier === "builder" ? "Current plan" : "Upgrade",
-      href: "/plan?settings=1",
+      checkout: { tier: "builder", interval: "month" as const },
       style: (currentTier === "builder" ? "disabled" : "border") as "disabled" | "border",
     },
   ];

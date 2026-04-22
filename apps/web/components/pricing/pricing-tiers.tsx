@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { BillingInterval, PaidTier } from "@/lib/billing";
 
 export const TIERS = [
   {
@@ -84,7 +85,12 @@ export const FAQ = [
   },
 ];
 
-type TierCTA = { label: string; href: string; style: "primary" | "border" | "disabled" };
+type TierCTA = {
+  label: string;
+  style: "primary" | "border" | "disabled";
+  href?: string;
+  checkout?: { tier: PaidTier; interval: BillingInterval };
+};
 
 export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
   return (
@@ -124,9 +130,24 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
               <span className="w-full text-center rounded-xl px-5 py-3 text-sm font-bold border border-border bg-background/50 opacity-50 cursor-default">
                 {cta.label}
               </span>
+            ) : cta.checkout ? (
+              <form action="/api/billing/checkout" method="POST">
+                <input type="hidden" name="tier" value={cta.checkout.tier} />
+                <input type="hidden" name="interval" value={cta.checkout.interval} />
+                <button
+                  type="submit"
+                  className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 ${
+                    cta.style === "primary"
+                      ? "bg-primary text-primary-foreground shadow-[0_0_28px_rgba(249,115,22,0.4)] hover:shadow-[0_0_40px_rgba(249,115,22,0.55)]"
+                      : "border border-border bg-background/50 hover:bg-accent hover:border-border/80"
+                  }`}
+                >
+                  {cta.label}
+                </button>
+              </form>
             ) : (
               <Link
-                href={cta.href}
+                href={cta.href ?? "/dashboard"}
                 className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 ${
                   cta.style === "primary"
                     ? "bg-primary text-primary-foreground shadow-[0_0_28px_rgba(249,115,22,0.4)] hover:shadow-[0_0_40px_rgba(249,115,22,0.55)]"
