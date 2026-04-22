@@ -36,9 +36,23 @@ Fill in `apps/web/.env.local`:
 | `GOOGLE_CLIENT_ID` | console.cloud.google.com → OAuth 2.0 Client IDs |
 | `GOOGLE_CLIENT_SECRET` | Same page |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` for local dev |
+| `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys |
+| `STRIPE_WEBHOOK_SECRET` | Stripe CLI `listen` output or Dashboard webhook endpoint secret |
+| `STRIPE_PRICE_PRO_MONTHLY` | Stripe Price ID for Pro monthly subscription |
+| `STRIPE_PRICE_PRO_YEARLY` | Stripe Price ID for Pro yearly subscription |
+| `STRIPE_PRICE_BUILDER_MONTHLY` | Stripe Price ID for Builder monthly subscription |
+| `STRIPE_PRICE_BUILDER_YEARLY` | Stripe Price ID for Builder yearly subscription |
 
 For Google OAuth, add these **Authorized redirect URIs**:
 - `http://localhost:3000/api/connections/oauth/gmail/callback`
+
+For Stripe local webhook forwarding, run this in a separate terminal:
+
+```bash
+stripe listen --forward-to localhost:3000/api/billing/webhook
+```
+
+Use the printed signing secret value as `STRIPE_WEBHOOK_SECRET`.
 
 ---
 
