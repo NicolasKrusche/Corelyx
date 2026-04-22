@@ -58,7 +58,7 @@ function NavItem({
       href={href}
       title={label}
       className={cn(
-        "relative flex items-center gap-2.5 rounded-lg px-3 py-[7px] text-sm transition-colors",
+        "relative flex h-8 items-center overflow-hidden rounded-lg text-sm transition-colors",
         active
           ? isDark
             ? "bg-white/14 text-white font-medium"
@@ -71,10 +71,10 @@ function NavItem({
       {active && (
         <span className="absolute left-0 inset-y-2 w-[2px] rounded-full" style={{ backgroundColor: "var(--sb-bar)" }} />
       )}
-      <span className="shrink-0 w-4 h-4 flex items-center justify-center">{icon}</span>
-      <span className="max-w-0 flex-1 truncate opacity-0 transition-all duration-200 group-hover/side:max-w-[120px] group-hover/side:opacity-100">{label}</span>
+      <span className="flex h-full w-12 shrink-0 items-center justify-center">{icon}</span>
+      <span className="min-w-0 flex-1 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">{label}</span>
       {badge != null && badge > 0 && (
-        <span className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white transition-all duration-200 group-hover/side:translate-x-0" style={{ backgroundColor: "var(--sb-badge)" }}>
+        <span className="absolute right-1 top-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ backgroundColor: "var(--sb-badge)" }}>
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -235,11 +235,13 @@ export function Sidebar({
       }}
     >
       {/* Logo */}
-      <div className={cn("h-14 flex items-center border-b px-4 gap-2.5 shrink-0", footerBorderCls)}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-6 w-6 object-contain shrink-0" />
+      <div className={cn("flex h-14 shrink-0 items-center overflow-hidden border-b", footerBorderCls)}>
+        <span className="flex h-full w-16 shrink-0 items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-6 w-6 object-contain" />
+        </span>
         <span className={cn(
-          "max-w-0 overflow-hidden whitespace-nowrap text-sm font-bold tracking-tight opacity-0 transition-all duration-200 group-hover/side:max-w-[120px] group-hover/side:opacity-100",
+          "whitespace-nowrap text-sm font-bold tracking-tight opacity-0 transition-opacity duration-150 group-hover/side:opacity-100",
           isDark ? "text-white" : "text-gray-900"
         )}>Nexflow</span>
       </div>
@@ -248,13 +250,13 @@ export function Sidebar({
         <Link
           href="/programs/new"
           title="Create new"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-0 py-2 text-sm font-semibold text-white transition-colors group-hover/side:px-3"
+          className="flex h-10 w-full items-center overflow-hidden rounded-lg text-sm font-semibold text-white transition-colors"
           style={{ backgroundColor: palette.btnBg }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = palette.btnHover; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = palette.btnBg; }}
         >
-          <PlusIcon />
-          <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/side:max-w-[100px] group-hover/side:opacity-100">Create new</span>
+          <span className="flex h-full w-10 shrink-0 items-center justify-center"><PlusIcon /></span>
+          <span className="min-w-0 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">Create new</span>
         </Link>
       </div>
 
@@ -308,7 +310,7 @@ export function Sidebar({
         )}
       </nav>
 
-      <div className={cn("border-t shrink-0 px-2.5 py-2.5", footerBorderCls)}>
+      <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>
         <div className="max-h-0 overflow-hidden opacity-0 pointer-events-none transition-all duration-200 group-hover/side:mb-2 group-hover/side:max-h-[280px] group-hover/side:opacity-100 group-hover/side:pointer-events-auto">
           <div className={cn(
             "rounded-2xl border px-3 py-3",
@@ -378,17 +380,19 @@ export function Sidebar({
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             className={cn(
-              "flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left",
+              "flex h-12 w-full items-center overflow-hidden rounded-xl border text-left transition-colors",
               isDark ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-black/10 bg-black/5 hover:bg-black/10"
             )}
           >
-            <div className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold",
-              isDark ? "border-white/15 bg-white/10 text-blue-100" : "border-black/10 bg-black/5 text-gray-700"
-            )}>
-              {initials}
+            <div className="flex h-full w-12 shrink-0 items-center justify-center">
+              <div className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold",
+                isDark ? "border-white/15 bg-white/10 text-blue-100" : "border-black/10 bg-black/5 text-gray-700"
+              )}>
+                {initials}
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">
               <p className="truncate text-[13px] font-semibold leading-4">{displayName}</p>
               <p
                 className={cn(
@@ -399,7 +403,7 @@ export function Sidebar({
                 {tierLabel}
               </p>
             </div>
-            <ChevronDownIcon className={cn("h-4 w-4 shrink-0 transition-transform", menuOpen && "rotate-180")} />
+            <ChevronDownIcon className={cn("mr-3 h-4 w-4 shrink-0 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100", menuOpen && "rotate-180")} />
           </button>
         </div>
       </div>

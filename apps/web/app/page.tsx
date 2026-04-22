@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ConsentBanner } from "@/components/consent-banner";
 import { InteractiveFlowDiagram } from "@/components/landing/interactive-flow-diagram";
-import { LandingThemeEnforcer } from "@/components/landing-theme-enforcer";
+import { ForcedOrangeTheme } from "@/components/forced-orange-theme";
 
 const CONNECTORS = [
   "Gmail", "Slack", "Notion", "GitHub", "Google Sheets",
@@ -15,8 +15,8 @@ export default function LandingPage() {
   const marqueeItems = [...CONNECTORS, ...CONNECTORS];
 
   return (
-    <div className="light min-h-screen bg-[#eceff4] text-foreground overflow-x-hidden">
-      <LandingThemeEnforcer />
+    <div className="light accent-orange min-h-screen bg-[#eceff4] text-foreground overflow-x-hidden">
+      <ForcedOrangeTheme />
 
       {/* ── Nav ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/85 backdrop-blur-xl">
