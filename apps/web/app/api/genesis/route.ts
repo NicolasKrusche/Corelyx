@@ -14,6 +14,7 @@ import { ProgramSchemaZ } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { checkProgramLimit } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
+import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
 
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
@@ -25,21 +26,103 @@ const RequestSchema = z.object({
   existing_program_id: z.string().uuid().optional(),
 });
 
+const OPENROUTER_FALLBACK_MODELS = [
+  "qwen/qwen3-coder:free",
+  "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-3-27b-it:free",
+] as const;
+
+const PRIMARY_MODEL_ATTEMPTS = 2;
+const FALLBACK_MODEL_ATTEMPTS = 1;
+
+function getModelCandidates(provider: string, requestedModel: string): string[] {
+  if (provider !== "openrouter") return [requestedModel];
+
+  return [requestedModel, ...OPENROUTER_FALLBACK_MODELS].filter(
+    (candidate, index, candidates) => Boolean(candidate) && candidates.indexOf(candidate) === index
+  );
+}
+
 // POST /api/genesis — generate a program schema from a description
 export async function POST(request: Request) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
+  const userId = user.id;
 
   const body = await request.json().catch(() => null);
   const parsed = RequestSchema.safeParse(body);
-  if (!parsed.success) return apiError(parsed.error.message, 400);
+  if (!parsed.success) {
+    await writeAppLog(supabase, {
+      userId,
+      level: "error",
+      source: "Genesis",
+      event: "genesis.request.invalid",
+      status: "failed",
+      message: "Program generation request was invalid.",
+      details: {
+        issues: parsed.error.flatten(),
+        body_keys: body && typeof body === "object" && !Array.isArray(body) ? Object.keys(body) : [],
+      },
+    });
+    return apiError(parsed.error.message, 400);
+  }
 
   const { description, connection_ids, api_key_id, model, existing_schema, refinement, existing_program_id } = parsed.data;
   const isRefinement = !!(existing_schema && refinement && existing_program_id);
+  const genesisStartedAt = Date.now();
+  const genesisMode = isRefinement ? "refinement" : "generation";
+  const baseLogDetails = {
+    mode: genesisMode,
+    model,
+    connection_count: connection_ids.length,
+    existing_program_id: existing_program_id ?? null,
+    description: truncateForLog(description, 1000),
+    refinement: refinement ? truncateForLog(refinement, 1000) : null,
+  };
+
+  async function logGenesis(
+    level: "info" | "warning" | "error",
+    event: string,
+    status: string,
+    message: string,
+    details?: Record<string, unknown>,
+    programId?: string | null
+  ) {
+    await writeAppLog(supabase, {
+      userId,
+      level,
+      source: "Genesis",
+      event,
+      status,
+      message,
+      programId: programId ?? existing_program_id ?? null,
+      durationMs: Date.now() - genesisStartedAt,
+      details: { ...baseLogDetails, ...(details ?? {}) },
+    });
+  }
+
+  async function loggedApiError(message: string, status: number, event: string, details?: Record<string, unknown>) {
+    await logGenesis("error", event, "failed", message, details);
+    return apiError(message, status);
+  }
+
+  await logGenesis(
+    "info",
+    `genesis.${genesisMode}.started`,
+    "running",
+    isRefinement ? "Started program refinement." : "Started program generation."
+  );
 
   // Rate limit: 10 genesis calls per minute per user
-  if (!rateLimit(`genesis:${user.id}`, 10, 60_000)) {
+  if (!rateLimit(`genesis:${userId}`, 10, 60_000)) {
+    await logGenesis(
+      "warning",
+      "genesis.rate_limited",
+      "failed",
+      "Program generation was rate limited."
+    );
     return NextResponse.json(
       { error: "RATE_LIMITED", message: "Too many requests. Please wait a moment and try again." },
       { status: 429 }
@@ -48,10 +131,17 @@ export async function POST(request: Request) {
 
   // Check program limit before generating (skip for refinements — no new program created)
   if (!isRefinement) {
-    const limitCheck = await checkProgramLimit(user.id);
+    const limitCheck = await checkProgramLimit(userId);
     if (!limitCheck.allowed) {
+      const upgradeMessage = limitCheck.upgradeMessage ?? "Program limit reached.";
+      await logGenesis(
+        "warning",
+        "genesis.program_limit_reached",
+        "failed",
+        upgradeMessage
+      );
       return NextResponse.json(
-        { error: "PROGRAM_LIMIT_REACHED", message: limitCheck.upgradeMessage },
+        { error: "PROGRAM_LIMIT_REACHED", message: upgradeMessage },
         { status: 403 }
       );
     }
@@ -62,9 +152,11 @@ export async function POST(request: Request) {
     .from("connections")
     .select("id, name, provider, scopes")
     .in("id", connection_ids)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
-  if (connError) return apiError(connError.message, 500);
+  if (connError) {
+    return loggedApiError(connError.message, 500, "genesis.connections_lookup_failed");
+  }
 
   const availableConnections = (connections ?? []).map((c) => ({
     name: c.name,
@@ -78,18 +170,28 @@ export async function POST(request: Request) {
     .from("api_keys")
     .select("vault_secret_id, provider")
     .eq("id", api_key_id)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single();
 
   if (keysError || !apiKeyRow) {
-    return apiError("API key not found. Please select a valid key.", 402);
+    return loggedApiError(
+      "API key not found. Please select a valid key.",
+      402,
+      "genesis.api_key_lookup_failed",
+      keysError ? { error: keysError.message } : undefined
+    );
   }
 
   let anthropicApiKey: string;
   try {
     anthropicApiKey = await vaultRetrieve(serviceClient, apiKeyRow.vault_secret_id);
   } catch (err) {
-    return apiError(`Failed to retrieve API key: ${(err as Error).message}`, 500);
+    return loggedApiError(
+      `Failed to retrieve API key: ${(err as Error).message}`,
+      500,
+      "genesis.api_key_retrieval_failed",
+      { error: errorDetails(err) }
+    );
   }
 
   // Call the model — use OpenAI-compatible SDK for OpenRouter/OpenAI/etc, Anthropic SDK for Anthropic
@@ -98,36 +200,52 @@ export async function POST(request: Request) {
   // Transient provider errors that are safe to retry (OpenRouter 524 timeout, 529 overloaded, etc.)
   const isRetryable = (err: unknown): boolean => {
     const msg = err instanceof Error ? err.message : String(err);
+    const lowerMsg = msg.toLowerCase();
     return (
       msg.includes("524") ||
       msg.includes("529") ||
-      msg.includes("Provider returned error") ||
-      msg.includes("overloaded") ||
-      msg.includes("timeout") ||
+      lowerMsg.includes("provider returned error") ||
+      lowerMsg.includes("no endpoints found") ||
+      lowerMsg.includes("temporarily unavailable") ||
+      lowerMsg.includes("overloaded") ||
+      lowerMsg.includes("rate-limited") ||
+      lowerMsg.includes("rate limit") ||
+      (lowerMsg.includes("model") && lowerMsg.includes("not found")) ||
+      lowerMsg.includes("timeout") ||
       msg.includes("ECONNRESET") ||
       msg.includes("ETIMEDOUT")
     );
   };
 
-  let rawText: string;
+  let rawText = "";
   let lastErr: unknown;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      if (useAnthropicSDK) {
-        // Stream to keep the connection alive during long generations
-        const anthropic = new Anthropic({ apiKey: anthropicApiKey });
-        const userMessage = isRefinement
-          ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
-          : buildGenesisUserMessage(description, availableConnections);
-        const stream = anthropic.messages.stream({
-          model,
-          max_tokens: 8192,
-          system: GENESIS_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: userMessage }],
-        });
-        const msg = await stream.finalMessage();
-        rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
-      } else {
+  let modelUsed = model;
+  const modelCandidates = getModelCandidates(apiKeyRow.provider, model);
+
+  modelAttemptLoop:
+  for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex++) {
+    const candidateModel = modelCandidates[modelIndex] ?? model;
+    const maxAttempts = candidateModel === model ? PRIMARY_MODEL_ATTEMPTS : FALLBACK_MODEL_ATTEMPTS;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        rawText = "";
+
+        if (useAnthropicSDK) {
+          // Stream to keep the connection alive during long generations
+          const anthropic = new Anthropic({ apiKey: anthropicApiKey });
+          const userMessage = isRefinement
+            ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
+            : buildGenesisUserMessage(description, availableConnections);
+          const stream = anthropic.messages.stream({
+            model: candidateModel,
+            max_tokens: 8192,
+            system: GENESIS_SYSTEM_PROMPT,
+            messages: [{ role: "user", content: userMessage }],
+          });
+          const msg = await stream.finalMessage();
+          rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
+        } else {
         const baseURL = apiKeyRow.provider === "openrouter"
           ? "https://openrouter.ai/api/v1"
           : apiKeyRow.provider === "openai"
@@ -142,7 +260,7 @@ export async function POST(request: Request) {
         // keeping the connection alive during generation instead of holding one long request.
         const openai = new OpenAI({ apiKey: anthropicApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
         const stream = await openai.chat.completions.create({
-          model,
+          model: candidateModel,
           max_tokens: 8192,
           stream: true,
           messages: [
@@ -155,28 +273,93 @@ export async function POST(request: Request) {
             },
           ],
         });
-        rawText = "";
         for await (const chunk of stream) {
           rawText += chunk.choices[0]?.delta?.content ?? "";
         }
       }
-      if (!rawText) throw new Error(`Model returned empty response (model="${model}" may be unavailable or rate-limited)`);
-      break; // success
+      if (!rawText) throw new Error(`Model returned empty response (model="${candidateModel}" may be unavailable or rate-limited)`);
+      modelUsed = candidateModel;
+      break modelAttemptLoop; // success
     } catch (err) {
       lastErr = err;
-      if (isRetryable(err) && attempt < 3) {
+      const retryable = isRetryable(err);
+      const hasMoreAttempts = retryable && attempt < maxAttempts;
+      const hasFallbackModel = retryable && modelIndex < modelCandidates.length - 1;
+
+      if (hasMoreAttempts) {
+        await logGenesis(
+          "warning",
+          "genesis.model_retry",
+          "retrying",
+          `Genesis model call failed on attempt ${attempt}; retrying.`,
+          {
+            attempt,
+            max_attempts: maxAttempts,
+            provider: apiKeyRow.provider,
+            requested_model: model,
+            candidate_model: candidateModel,
+            error: errorDetails(err),
+          }
+        );
         await new Promise((r) => setTimeout(r, attempt * 2000));
         continue;
       }
+
+      if (hasFallbackModel) {
+        const nextModel = modelCandidates[modelIndex + 1] ?? "unknown";
+        await logGenesis(
+          "warning",
+          "genesis.model_fallback",
+          "retrying",
+          `Genesis model ${candidateModel} failed; trying fallback model ${nextModel}.`,
+          {
+            attempt,
+            max_attempts: maxAttempts,
+            provider: apiKeyRow.provider,
+            requested_model: model,
+            failed_model: candidateModel,
+            fallback_model: nextModel,
+            attempted_models: modelCandidates.slice(0, modelIndex + 1),
+            error: errorDetails(err),
+          }
+        );
+        break;
+      }
+
       const errMsg = (err as Error).message ?? String(err);
       const causeMsg = (err as { cause?: { message?: string } })?.cause?.message;
-      return apiError(`Genesis model call failed: ${causeMsg ?? errMsg}`, 502);
+      return loggedApiError(
+        `Genesis model call failed: ${causeMsg ?? errMsg}`,
+        502,
+        "genesis.model_failed",
+        {
+          attempt,
+          max_attempts: maxAttempts,
+          provider: apiKeyRow.provider,
+          requested_model: model,
+          candidate_model: candidateModel,
+          attempted_models: modelCandidates.slice(0, modelIndex + 1),
+          error: errorDetails(err),
+        }
+      );
     }
   }
-  if (!rawText!) {
+  }
+
+  if (!rawText) {
     const lastErrMsg = (lastErr as Error)?.message ?? "empty response";
     const lastCauseMsg = (lastErr as { cause?: { message?: string } })?.cause?.message;
-    return apiError(`Genesis model call failed after 3 attempts: ${lastCauseMsg ?? lastErrMsg}`, 502);
+    return loggedApiError(
+      `Genesis model call failed after trying ${modelCandidates.length} model(s): ${lastCauseMsg ?? lastErrMsg}`,
+      502,
+      "genesis.model_failed",
+      {
+        provider: apiKeyRow.provider,
+        requested_model: model,
+        attempted_models: modelCandidates,
+        error: errorDetails(lastErr),
+      }
+    );
   }
 
   // ── Parse the response — three-layer recovery ───────────────────────────
@@ -213,7 +396,7 @@ export async function POST(request: Request) {
         if (useAnthropicSDK) {
           const anthropic = new Anthropic({ apiKey: anthropicApiKey });
           const repairMsg = await anthropic.messages.create({
-            model,
+            model: modelUsed,
             max_tokens: 8192,
             messages: [{ role: "user", content: repairPrompt }],
           });
@@ -232,7 +415,7 @@ export async function POST(request: Request) {
                   : undefined;
           const openai = new OpenAI({ apiKey: anthropicApiKey, ...(baseURL && { baseURL }), timeout: 120_000 });
           const repairMsg = await openai.chat.completions.create({
-            model,
+            model: modelUsed,
             max_tokens: 8192,
             messages: [{ role: "user", content: repairPrompt }],
           });
@@ -252,6 +435,17 @@ export async function POST(request: Request) {
     const preview = rawText?.slice(0, 2000) ?? "(empty)";
     const tail = rawText && rawText.length > 2000 ? `…[${rawText.length} chars total]` : "";
     console.error("[genesis] Failed to parse JSON. Raw output:", preview + tail);
+    await logGenesis(
+      "error",
+      "genesis.invalid_json",
+      "failed",
+      "Genesis model returned invalid JSON.",
+      {
+        requested_model: model,
+        model_used: modelUsed,
+        raw_preview: preview + tail,
+      }
+    );
     return NextResponse.json(
       { error: "Genesis model returned invalid JSON", raw_preview: preview + tail },
       { status: 502 }
@@ -264,6 +458,16 @@ export async function POST(request: Request) {
     typeof parsed_schema === "object" &&
     "error" in parsed_schema
   ) {
+    const genesisError = parsed_schema as Record<string, unknown>;
+    await logGenesis(
+      "error",
+      "genesis.model_reported_error",
+      "failed",
+      typeof genesisError.message === "string"
+        ? genesisError.message
+        : "Genesis model reported that it could not generate this program.",
+      { requested_model: model, model_used: modelUsed, model_error: genesisError }
+    );
     return NextResponse.json(parsed_schema, { status: 422 });
   }
 
@@ -284,6 +488,18 @@ export async function POST(request: Request) {
   if (!schemaResult.success) {
     console.error("[genesis] Schema validation failed:", JSON.stringify(schemaResult.error.flatten(), null, 2));
     console.error("[genesis] Raw model output:", rawText.slice(0, 2000));
+    await logGenesis(
+      "error",
+      "genesis.schema_validation_failed",
+      "failed",
+      "Generated schema failed validation.",
+      {
+        requested_model: model,
+        model_used: modelUsed,
+        validation: schemaResult.error.flatten(),
+        raw_preview: truncateForLog(rawText, 2000),
+      }
+    );
     return NextResponse.json(
       {
         error: "SCHEMA_VALIDATION_FAILED",
@@ -307,10 +523,17 @@ export async function POST(request: Request) {
       .from("programs")
       .select("id, schema_version")
       .eq("id", existing_program_id!)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
-    if (fetchError || !rawExisting) return apiError("Existing program not found", 404);
+    if (fetchError || !rawExisting) {
+      return loggedApiError(
+        "Existing program not found",
+        404,
+        "genesis.refinement_program_not_found",
+        fetchError ? { error: fetchError.message } : undefined
+      );
+    }
 
     const existingRow = rawExisting as unknown as { id: string; schema_version: number | null };
     const nextVersion = (existingRow.schema_version ?? 0) + 1;
@@ -326,11 +549,18 @@ export async function POST(request: Request) {
         updated_at: now,
       } as unknown as never)
       .eq("id", existing_program_id!)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .select("id, name, description, execution_mode, is_active, created_at")
       .single();
 
-    if (updateError) return apiError(updateError.message, 500);
+    if (updateError) {
+      return loggedApiError(
+        updateError.message,
+        500,
+        "genesis.refinement_update_failed",
+        { error: updateError.message }
+      );
+    }
 
     // Store refinement snapshot
     const { error: versionErr } = await supabase.from("program_versions").insert({
@@ -339,8 +569,31 @@ export async function POST(request: Request) {
       schema: schema as unknown as Record<string, unknown>,
       change_summary: `Refined — ${refinement!.slice(0, 120)}`,
     } as unknown as never);
-    if (versionErr) console.error("[genesis] Failed to store refinement version:", versionErr.message);
+    if (versionErr) {
+      console.error("[genesis] Failed to store refinement version:", versionErr.message);
+      await logGenesis(
+        "warning",
+        "genesis.refinement_version_snapshot_failed",
+        "warning",
+        "Refined program was saved, but version snapshot storage failed.",
+        { error: versionErr.message },
+        existing_program_id
+      );
+    }
 
+    await logGenesis(
+      "info",
+      "genesis.refinement.completed",
+      "completed",
+      `Refined program "${schema.program_name}".`,
+      {
+        requested_model: model,
+        model_used: modelUsed,
+        validation_errors: validation.errors.length,
+        validation_warnings: validation.warnings.length,
+      },
+      existing_program_id
+    );
     return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
   }
 
@@ -348,7 +601,7 @@ export async function POST(request: Request) {
   const { data: program, error: insertError } = await supabase
     .from("programs")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       name: schema.program_name,
       description,
       schema: schema as unknown as Record<string, unknown>,
@@ -357,14 +610,31 @@ export async function POST(request: Request) {
     .select("id, name, description, execution_mode, is_active, created_at")
     .single();
 
-  if (insertError) return apiError(insertError.message, 500);
+  if (insertError) {
+    return loggedApiError(
+      insertError.message,
+      500,
+      "genesis.program_insert_failed",
+      { error: insertError.message }
+    );
+  }
 
   // Link connections
   if (connection_ids.length > 0) {
     const { error: connLinkErr } = await supabase.from("program_connections").insert(
       connection_ids.map((cid) => ({ program_id: program.id, connection_id: cid }))
     );
-    if (connLinkErr) console.error("[genesis] Failed to link connections:", connLinkErr.message);
+    if (connLinkErr) {
+      console.error("[genesis] Failed to link connections:", connLinkErr.message);
+      await logGenesis(
+        "warning",
+        "genesis.connection_link_failed",
+        "warning",
+        "Program was generated, but linking selected connections failed.",
+        { error: connLinkErr.message, connection_count: connection_ids.length },
+        program.id
+      );
+    }
   }
 
   // Store genesis snapshot as version 0
@@ -374,8 +644,35 @@ export async function POST(request: Request) {
     schema: schema as unknown as Record<string, unknown>,
     change_summary: "Genesis — AI-generated from description",
   });
-  if (versionErr) console.error("[genesis] Failed to store version snapshot:", versionErr.message);
+  if (versionErr) {
+    console.error("[genesis] Failed to store version snapshot:", versionErr.message);
+    await logGenesis(
+      "warning",
+      "genesis.version_snapshot_failed",
+      "warning",
+      "Program was generated, but version snapshot storage failed.",
+      { error: versionErr.message },
+      program.id
+    );
+  }
 
+  await logGenesis(
+    "info",
+    "genesis.generation.completed",
+    "completed",
+    `Generated program "${schema.program_name}".`,
+    {
+      program_name: schema.program_name,
+      requested_model: model,
+      model_used: modelUsed,
+      validation_errors: validation.errors.length,
+      validation_warnings: validation.warnings.length,
+      node_count: schema.nodes.length,
+      edge_count: schema.edges.length,
+      trigger_count: schema.triggers.length,
+    },
+    program.id
+  );
   return NextResponse.json({ program, schema, validation }, { status: 201 });
 }
 

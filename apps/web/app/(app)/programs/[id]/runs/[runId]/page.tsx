@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/api";
 import type { ProgramSchema, Node } from "@flowos/schema";
 import { RunLogLive } from "./run-log-live";
 import { StopRunButton } from "./stop-button";
+import { SkipTriggerButton } from "./skip-trigger-button";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -195,6 +196,15 @@ export default async function RunLogPage({
 
   const initialExecs = (execsRaw ?? []).map(normalizeNodeExecutionRow);
 
+  const triggerNode = Object.values(nodeMap).find((n) => n.type === "trigger");
+  const triggerExec = triggerNode
+    ? initialExecs.find((e) => e.node_id === triggerNode.id)
+    : undefined;
+  const showSkipTrigger =
+    ["running", "pending"].includes(run.status) &&
+    !!triggerNode &&
+    (!triggerExec || !["completed", "success"].includes(triggerExec.status));
+
   return (
     <div className="max-w-4xl space-y-6">
       {/* Header */}
@@ -216,6 +226,7 @@ export default async function RunLogPage({
         </p>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">Run log</h1>
+          {showSkipTrigger && <SkipTriggerButton runId={run.id} />}
           {["running", "waiting_approval", "pending"].includes(run.status) && (
             <StopRunButton runId={run.id} />
           )}

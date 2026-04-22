@@ -386,21 +386,35 @@ class ProgramExecutor:
         state: dict[str, Any] = {n.id: None for n in self.schema.nodes}
         state[trigger_node.id] = trigger_payload or {}
 
-        # Create node_execution rows for all nodes
+        # Create node_execution rows for all nodes (idempotent — safe to re-dispatch)
         for node in self.schema.nodes:
             await create_node_execution(self.db, self.run_id, node.id)
 
-        # Update trigger node to completed immediately
-        await update_node_execution(
-            self.db,
-            self.run_id,
-            trigger_node.id,
-            status="completed",
-            started_at="now()",
-            completed_at="now()",
-            output_payload=state[trigger_node.id],
-            **self._node_telemetry_payload(trigger_node.id),
+        # Check if trigger was pre-completed externally (e.g. "Skip trigger" UI action)
+        trigger_check = (
+            self.db.table("node_executions")
+            .select("status")
+            .eq("run_id", self.run_id)
+            .eq("node_id", trigger_node.id)
+            .single()
+            .execute()
         )
+        trigger_pre_completed = (
+            trigger_check.data is not None
+            and trigger_check.data.get("status") in ("completed", "success")
+        )
+
+        if not trigger_pre_completed:
+            await update_node_execution(
+                self.db,
+                self.run_id,
+                trigger_node.id,
+                status="completed",
+                started_at="now()",
+                completed_at="now()",
+                output_payload=state[trigger_node.id],
+                **self._node_telemetry_payload(trigger_node.id),
+            )
 
         # Topological execution
         visited: set[str] = {trigger_node.id}

@@ -108,6 +108,53 @@ export interface Database {
           redeemed_at?: string;
         };
       };
+      app_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          org_id: string | null;
+          program_id: string | null;
+          run_id: string | null;
+          level: "info" | "warning" | "error";
+          source: string;
+          event: string;
+          status: string;
+          message: string;
+          details: Json | null;
+          duration_ms: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          org_id?: string | null;
+          program_id?: string | null;
+          run_id?: string | null;
+          level: "info" | "warning" | "error";
+          source: string;
+          event: string;
+          status: string;
+          message: string;
+          details?: Json | null;
+          duration_ms?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          org_id?: string | null;
+          program_id?: string | null;
+          run_id?: string | null;
+          level?: "info" | "warning" | "error";
+          source?: string;
+          event?: string;
+          status?: string;
+          message?: string;
+          details?: Json | null;
+          duration_ms?: number | null;
+          created_at?: string;
+        };
+      };
       api_keys: {
         Row: {
           id: string;
