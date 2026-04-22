@@ -63,3 +63,7 @@ Traceback (most recent call last):
   File "N:\ai\apps\runtime\venv\Lib\site-packages\postgrest\_sync\request_builder.py", line 53, in execute
     raise APIError(dict(json_obj))
 postgrest.exceptions.APIError: {'message': "Could not find the 'completion_tokens' column of 'runs' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [26736]

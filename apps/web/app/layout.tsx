@@ -54,12 +54,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} light accent-blue`}>
+    <html lang="en" className={`${inter.variable} light accent-blue`} suppressHydrationWarning>
       <head>
-        {/* Anti-flash: apply persisted base + accent before first paint */}
+        {/* Anti-flash: apply landing override or persisted base + accent before first paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var b=localStorage.getItem('nexflow-base');var a=localStorage.getItem('nexflow-accent');var bases=['dark','light'];var accents=['orange','blue','indigo','green','pink','cyan'];var el=document.documentElement;var base=b&&bases.includes(b)?b:'light';var acc=a&&accents.includes(a)?a:'blue';el.classList.remove('dark','light','accent-orange','accent-blue','accent-indigo','accent-green','accent-pink','accent-cyan');el.classList.add(base,'accent-'+acc);}catch(e){}})();`,
+            __html: `(function(){try{var el=document.documentElement;var bases=['dark','light'];var accents=['orange','blue','indigo','green','pink','cyan'];var p=location.pathname.replace(/\\/$/,'')||'/';var forceOrange=['/','/login','/signup','/forgot-password','/update-password'].includes(p);el.classList.remove('dark','light','accent-orange','accent-blue','accent-indigo','accent-green','accent-pink','accent-cyan');if(forceOrange){el.setAttribute('data-nexflow-forced-orange-theme','true');el.classList.add('light','accent-orange');return;}el.removeAttribute('data-nexflow-forced-orange-theme');var b=localStorage.getItem('nexflow-base');var a=localStorage.getItem('nexflow-accent');var base=b&&bases.includes(b)?b:'light';var acc=a&&accents.includes(a)?a:'blue';el.classList.add(base,'accent-'+acc);}catch(e){}})();`,
           }}
         />
       </head>

@@ -1378,3 +1378,7 @@
 [middleware] cookies: sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
  GET /api/approvals 200 in 273ms
  GET /api/runs/failed-count?since=1776794990293 200 in 320ms
+[middleware] path: /settings user: demo@nexflow.systems error: null
+[middleware] cookies: sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
+Batchvorgang abbrechen (J/N)? 
+[?25h

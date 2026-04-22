@@ -8,7 +8,7 @@ import {
   ChevronDown,
   FileCode,
   GitBranch,
-  Image,
+  Image as ImageIcon,
   Lightbulb,
   Paperclip,
   Plus,
@@ -219,7 +219,7 @@ function ChatInput({
                     <div className='min-w-[180px] p-1.5'>
                       {[
                         { icon: <Paperclip className='size-4' />, label: 'Upload file' },
-                        { icon: <Image className='size-4' />, label: 'Add image' },
+                        { icon: <ImageIcon className='size-4' />, label: 'Add image' },
                         { icon: <FileCode className='size-4' />, label: 'Import code' },
                       ].map((item, i) => (
                         <button
@@ -435,7 +435,7 @@ export function BoltStyleChat({
           <div className='mb-5 text-center'>
             <h1 className='mb-1 text-4xl font-bold tracking-tight sm:text-5xl'>
               {title}{' '}
-              <span className='bg-gradient-to-b from-primary/80 via-primary to-primary/60 bg-clip-text italic text-transparent'>
+              <span className='-mx-1 inline-block px-1 bg-gradient-to-b from-primary/80 via-primary to-primary/60 bg-clip-text italic text-transparent'>
                 build
               </span>{' '}
               today?
