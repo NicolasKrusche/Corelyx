@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BoltStyleChat } from "@/components/ui/bolt-style-chat";
 import type { ValidationResult } from "@/lib/validation";
 import { TEMPLATES } from "@/lib/templates";
+import { writeClientLog } from "@/lib/client-logs";
 
 type Connection = {
   id: string;
@@ -36,7 +37,7 @@ type ApiKey = {
 };
 
 type Step = "describe" | "connections" | "model" | "generating" | "result";
-type InlinePhase = "idle" | "thinking" | "connections" | "generating";
+type InlinePhase = "idle" | "thinking" | "connections" | "generating" | "opening";
 
 type InlineChatMessage = {
   role: "user" | "assistant";
@@ -62,11 +63,90 @@ const MODEL_PROVIDER_LABELS: Record<string, string> = {
   cohere: "Command",
 };
 
+const INLINE_PLANNING_UPDATES = [
+  "Reading your request for triggers, actions, and conditions...",
+  "Sketching the workflow shape and the apps it should touch...",
+  "Preparing the connection choices before generation...",
+  "One more thing: choose the app connections to grant access.",
+];
+
+const GENERATION_THINKING_UPDATES = [
+  "Turning the prompt into concrete workflow requirements...",
+  "Choosing the trigger, execution mode, and node sequence...",
+  "Mapping app actions, agent steps, and data handoffs...",
+  "Checking selected connections against required access...",
+  "Generating the program schema...",
+  "Validating the graph and normalizing details...",
+  "Saving the generated program...",
+];
+
+const REFINEMENT_THINKING_UPDATES = [
+  "Reading the existing program and your requested change...",
+  "Finding the smallest graph update that satisfies the refinement...",
+  "Regenerating the schema while preserving unchanged steps...",
+  "Validating and saving the refined program...",
+];
+
+function getGenesisErrorMessage(payload: unknown, fallback: string) {
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    if (typeof record.message === "string") return record.message;
+    if (typeof record.error === "string") return record.error;
+  }
+
+  if (payload instanceof Error) return payload.message;
+  return fallback;
+}
+
+function recordClientGenesisFailure(input: {
+  mode: "generation" | "refinement";
+  description: string;
+  model: string;
+  connectionCount: number;
+  durationMs: number;
+  responseStatus?: number;
+  payload?: unknown;
+  error?: unknown;
+}) {
+  const message = getGenesisErrorMessage(
+    input.payload ?? input.error,
+    input.mode === "refinement" ? "Program refinement failed." : "Program generation failed."
+  );
+
+  writeClientLog({
+    level: "error",
+    source: "Genesis",
+    event: `genesis.${input.mode}.client_failed`,
+    status: "failed",
+    message,
+    durationMs: input.durationMs,
+    details: {
+      mode: input.mode,
+      model: input.model,
+      connection_count: input.connectionCount,
+      response_status: input.responseStatus ?? null,
+      description: input.description.slice(0, 1000),
+      payload: input.payload ?? null,
+      error: input.error instanceof Error ? { name: input.error.name, message: input.error.message } : input.error ?? null,
+      storage: "browser fallback",
+    },
+  });
+}
+
+async function readJsonSafely(response: Response) {
+  return response.json().catch(() => ({
+    error: "INVALID_RESPONSE",
+    message: "Genesis returned a response that could not be parsed as JSON.",
+  }));
+}
+
 function NewProgramPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [step, setStep] = useState<Step>("describe");
-  const [generatingMessage, setGeneratingMessage] = useState("Generating your program…");
+  const [generationThoughts, setGenerationThoughts] = useState<string[]>([]);
+  const [generatingMessage, setGeneratingMessage] = useState("Generating your program...");
   const [description, setDescription] = useState(searchParams.get("prompt") ?? "");
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -104,6 +184,14 @@ function NewProgramPageInner() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     fetch("/api/connections")
       .then((r) => r.json())
       .then((data) => {
@@ -119,7 +207,7 @@ function NewProgramPageInner() {
     google: "gemini-1.5-pro",
     groq: "llama-3.3-70b-versatile",
     mistral: "mistral-large-latest",
-    openrouter: "nvidia/nemotron-3-super-120b-a12b:free",
+    openrouter: "qwen/qwen3-coder:free",
   };
 
   async function loadApiKeys() {
@@ -168,6 +256,47 @@ function NewProgramPageInner() {
     });
   }
 
+  function stopThinkingProgress() {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+  }
+
+  function appendInlineAssistantMessage(text: string) {
+    setInlineMessages((prev) => [...prev, { role: "assistant", text }]);
+  }
+
+  function startThinkingProgress(options?: { inline?: boolean; refinement?: boolean }) {
+    stopThinkingProgress();
+
+    const updates = options?.refinement ? REFINEMENT_THINKING_UPDATES : GENERATION_THINKING_UPDATES;
+    let index = 0;
+
+    if (!options?.inline) {
+      setGenerationThoughts([]);
+    }
+
+    const pushUpdate = () => {
+      const update = updates[index];
+      if (!update) {
+        stopThinkingProgress();
+        return;
+      }
+
+      if (options?.inline) {
+        appendInlineAssistantMessage(update);
+      } else {
+        setGenerationThoughts((prev) => [...prev, update]);
+      }
+
+      index += 1;
+    };
+
+    pushUpdate();
+    progressTimerRef.current = setInterval(pushUpdate, 1300);
+  }
+
   async function handleGenerate(overrides?: { description?: string; keyId?: string; modelId?: string }) {
     const descriptionToUse = overrides?.description ?? description;
     const keyIdToUse = overrides?.keyId ?? selectedKeyId;
@@ -178,24 +307,55 @@ function NewProgramPageInner() {
     }
 
     setStep("generating");
-    setGeneratingMessage("Generating your program…");
     setGenesisError(null);
     setWasRefined(false);
+    setGeneratingMessage("Generating your program...");
+    startThinkingProgress();
+    const startedAt = Date.now();
 
-    const res = await fetch("/api/genesis", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    let res: Response;
+    try {
+      res = await fetch("/api/genesis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: descriptionToUse,
+          connection_ids: [...selectedIds],
+          api_key_id: keyIdToUse,
+          model: modelToUse,
+        }),
+      });
+    } catch (error) {
+      stopThinkingProgress();
+      recordClientGenesisFailure({
+        mode: "generation",
         description: descriptionToUse,
-        connection_ids: [...selectedIds],
-        api_key_id: keyIdToUse,
         model: modelToUse,
-      }),
-    });
+        connectionCount: selectedIds.size,
+        durationMs: Date.now() - startedAt,
+        error,
+      });
+      setGenesisError({
+        error: "NETWORK_ERROR",
+        message: getGenesisErrorMessage(error, "Generation failed before the server returned a response."),
+      });
+      setStep("result");
+      return;
+    }
 
-    const data = await res.json();
+    const data = await readJsonSafely(res);
+    stopThinkingProgress();
 
     if (!res.ok) {
+      recordClientGenesisFailure({
+        mode: "generation",
+        description: descriptionToUse,
+        model: modelToUse,
+        connectionCount: selectedIds.size,
+        durationMs: Date.now() - startedAt,
+        responseStatus: res.status,
+        payload: data,
+      });
       if (data.error) {
         setGenesisError(data);
       } else {
@@ -209,7 +369,12 @@ function NewProgramPageInner() {
     setProgramName(data.program.name);
     setValidationResult(data.validation);
     setGeneratedSchema(data.schema);
-    setStep("result");
+    setGeneratingMessage(`Opening ${data.program.name}...`);
+    setGenerationThoughts((prev) => [
+      ...prev,
+      `Program "${data.program.name}" is ready. Opening it now...`,
+    ]);
+    router.push(`/programs/${data.program.id}`);
   }
 
   async function handleRefine() {
@@ -217,25 +382,54 @@ function NewProgramPageInner() {
     setIsRefining(true);
     setRefinementError(null);
     setStep("generating");
-    setGeneratingMessage("Refining your program…");
+    setGeneratingMessage("Refining your program...");
+    startThinkingProgress({ refinement: true });
+    const startedAt = Date.now();
 
-    const res = await fetch("/api/genesis", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    let res: Response;
+    try {
+      res = await fetch("/api/genesis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description,
+          connection_ids: [...selectedIds],
+          api_key_id: selectedKeyId,
+          model: model.trim(),
+          existing_schema: generatedSchema,
+          refinement: refinement.trim(),
+          existing_program_id: programId,
+        }),
+      });
+    } catch (error) {
+      stopThinkingProgress();
+      recordClientGenesisFailure({
+        mode: "refinement",
         description,
-        connection_ids: [...selectedIds],
-        api_key_id: selectedKeyId,
         model: model.trim(),
-        existing_schema: generatedSchema,
-        refinement: refinement.trim(),
-        existing_program_id: programId,
-      }),
-    });
+        connectionCount: selectedIds.size,
+        durationMs: Date.now() - startedAt,
+        error,
+      });
+      setRefinementError(getGenesisErrorMessage(error, "Refinement failed before the server returned a response."));
+      setIsRefining(false);
+      setStep("result");
+      return;
+    }
 
-    const data = await res.json();
+    const data = await readJsonSafely(res);
+    stopThinkingProgress();
 
     if (!res.ok) {
+      recordClientGenesisFailure({
+        mode: "refinement",
+        description,
+        model: model.trim(),
+        connectionCount: selectedIds.size,
+        durationMs: Date.now() - startedAt,
+        responseStatus: res.status,
+        payload: data,
+      });
       const msg =
         typeof data.error === "string" ? data.error : data.message ?? "Refinement failed. Please try again.";
       setRefinementError(msg);
@@ -289,16 +483,9 @@ function NewProgramPageInner() {
     setInlineMessages([{ role: "user", text: trimmedMessage }]);
     setInlinePhase("thinking");
 
-    const fakeReasoning = [
-      "Analyzing your prompt and extracting requirements...",
-      "Designing trigger, agent, and action steps...",
-      "Preparing a first program draft for your review...",
-      "One more thing: choose the app connections to grant access.",
-    ];
-
-    for (let i = 0; i < fakeReasoning.length; i += 1) {
+    for (let i = 0; i < INLINE_PLANNING_UPDATES.length; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 850));
-      setInlineMessages((prev) => [...prev, { role: "assistant", text: fakeReasoning[i] }]);
+      appendInlineAssistantMessage(INLINE_PLANNING_UPDATES[i]);
     }
 
     setInlinePhase("connections");
@@ -323,25 +510,56 @@ function NewProgramPageInner() {
     setInlineMessages((prev) => [
       ...prev,
       { role: "assistant", text: "Great, generating your program graph now..." },
-      { role: "assistant", text: "Mapping nodes, edges, and execution mode..." },
     ]);
+    startThinkingProgress({ inline: true });
+    const startedAt = Date.now();
 
-    await new Promise((resolve) => setTimeout(resolve, 700));
-
-    const res = await fetch("/api/genesis", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    let res: Response;
+    try {
+      res = await fetch("/api/genesis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description,
+          connection_ids: [...selectedIds],
+          api_key_id: selection.keyId,
+          model: selection.modelId,
+        }),
+      });
+    } catch (error) {
+      stopThinkingProgress();
+      recordClientGenesisFailure({
+        mode: "generation",
         description,
-        connection_ids: [...selectedIds],
-        api_key_id: selection.keyId,
         model: selection.modelId,
-      }),
-    });
+        connectionCount: selectedIds.size,
+        durationMs: Date.now() - startedAt,
+        error,
+      });
+      setInlineMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: getGenesisErrorMessage(error, "Generation failed before the server returned a response."),
+        },
+      ]);
+      setInlinePhase("connections");
+      return;
+    }
 
-    const data = await res.json();
+    const data = await readJsonSafely(res);
+    stopThinkingProgress();
 
     if (!res.ok) {
+      recordClientGenesisFailure({
+        mode: "generation",
+        description,
+        model: selection.modelId,
+        connectionCount: selectedIds.size,
+        durationMs: Date.now() - startedAt,
+        responseStatus: res.status,
+        payload: data,
+      });
       if (data.error) {
         setGenesisError(data);
       } else {
@@ -365,11 +583,12 @@ function NewProgramPageInner() {
     setProgramName(data.program.name);
     setValidationResult(data.validation);
     setGeneratedSchema(data.schema);
+    setInlinePhase("opening");
     setInlineMessages((prev) => [
       ...prev,
-      { role: "assistant", text: `Done. Program \"${data.program.name}\" is ready.` },
+      { role: "assistant", text: `Done. Program "${data.program.name}" is ready. Opening it now...` },
     ]);
-    setInlinePhase("connections");
+    router.push(`/programs/${data.program.id}`);
   };
 
   const chatFeed = (
@@ -395,14 +614,14 @@ function NewProgramPageInner() {
         </div>
       )}
 
-      {(inlinePhase === "thinking" || inlinePhase === "generating") && (
+      {(inlinePhase === "thinking" || inlinePhase === "generating" || inlinePhase === "opening") && (
         <div className="inline-flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
           <Spinner />
-          {inlinePhase === "thinking" ? "Thinking..." : "Generating..."}
+          {inlinePhase === "thinking" ? "Thinking..." : inlinePhase === "opening" ? "Opening..." : "Generating..."}
         </div>
       )}
 
-      {(inlinePhase === "connections" || inlinePhase === "generating") && (
+      {(inlinePhase === "connections" || inlinePhase === "generating" || inlinePhase === "opening") && (
         <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Choose Connections</p>
 
@@ -435,8 +654,8 @@ function NewProgramPageInner() {
           )}
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button size="sm" disabled={inlinePhase === "generating"} onClick={handleInlineGenerate}>
-              {inlinePhase === "generating" ? "Generating..." : "Generate Program"}
+            <Button size="sm" disabled={inlinePhase === "generating" || inlinePhase === "opening"} onClick={handleInlineGenerate}>
+              {inlinePhase === "generating" || inlinePhase === "opening" ? "Generating..." : "Generate Program"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => router.push("/connections")}>
               Manage Connections
@@ -466,7 +685,7 @@ function NewProgramPageInner() {
           placeholder="Describe the workflow you want to automate..."
           initialMessage=""
           chatFeed={chatFeed}
-          inputDisabled={inlinePhase === "thinking" || inlinePhase === "generating"}
+          inputDisabled={inlinePhase === "thinking" || inlinePhase === "generating" || inlinePhase === "opening"}
           hideHero={inlineMessages.length > 0 || inlinePhase !== "idle"}
           onSend={(message) => {
             void runInlineBuild(message);
@@ -479,10 +698,12 @@ function NewProgramPageInner() {
     );
   }
 
+  const renderedStep = step as Step;
+
   return (
     <div className="max-w-2xl space-y-6">
       {/* Step: Describe */}
-      {step === "describe" && (
+      {renderedStep === "describe" && (
         <>
           <div>
             <h1 className="text-xl font-semibold">New program</h1>
@@ -683,7 +904,7 @@ function NewProgramPageInner() {
             <Button variant="outline" onClick={() => setStep("connections")}>
               ← Back
             </Button>
-            <Button disabled={!selectedKeyId || !model.trim()} onClick={handleGenerate}>
+            <Button disabled={!selectedKeyId || !model.trim()} onClick={() => { void handleGenerate(); }}>
               Generate program
             </Button>
           </div>
@@ -704,6 +925,19 @@ function NewProgramPageInner() {
               <Spinner />
               {generatingMessage}
             </div>
+            {generationThoughts.length > 0 && (
+              <div className="mx-auto mt-5 max-w-md space-y-2 rounded-lg border border-border bg-card/70 p-4 text-left">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Thinking through the build</p>
+                <div className="space-y-2">
+                  {generationThoughts.map((thought, index) => (
+                    <div key={`${thought}-${index}`} className="flex gap-2 text-sm text-muted-foreground">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                      <span>{thought}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               {modelDisplay} is designing the graph schema. This usually takes about 1 minute.
             </p>

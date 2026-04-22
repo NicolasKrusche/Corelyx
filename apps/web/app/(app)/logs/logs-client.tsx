@@ -8,6 +8,7 @@ import {
   type Log,
   type LogLevel,
 } from "@/components/ui/interactive-logs-table-shadcnui";
+import { readClientLogs, subscribeToClientLogs, type ClientLogRow } from "@/lib/client-logs";
 
 type NodeExecution = {
   id: string;
@@ -36,6 +37,38 @@ type RunRow = {
   node_executions: NodeExecution[] | null;
 };
 
+type AppLogRow = {
+  id: string;
+  user_id: string;
+  program_id: string | null;
+  run_id: string | null;
+  level: LogLevel;
+  source: string;
+  event: string;
+  status: string;
+  message: string;
+  details: unknown;
+  duration_ms: number | null;
+  created_at: string;
+};
+
+function clientLogToAppLog(row: ClientLogRow): AppLogRow {
+  return {
+    id: `client:${row.id}`,
+    user_id: "client",
+    program_id: row.program_id,
+    run_id: row.run_id,
+    level: row.level,
+    source: row.source,
+    event: row.event,
+    status: row.status,
+    message: row.message,
+    details: row.details,
+    duration_ms: row.duration_ms,
+    created_at: row.created_at,
+  };
+}
+
 function runLevel(status: string): LogLevel {
   if (status === "failed") return "error";
   if (status === "cancelled" || status === "paused") return "warning";
@@ -50,6 +83,13 @@ function formatDuration(start: string | null, end: string | null): string {
   if (diff < 1000) return `${diff}ms`;
   if (diff < 60000) return `${(diff / 1000).toFixed(1)}s`;
   return `${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s`;
+}
+
+function formatDurationMs(durationMs: number | null): string {
+  if (durationMs == null) return "â€”";
+  if (durationMs < 1000) return `${durationMs}ms`;
+  if (durationMs < 60000) return `${(durationMs / 1000).toFixed(1)}s`;
+  return `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`;
 }
 
 function runToLog(run: RunRow): Log {
@@ -75,6 +115,25 @@ function runToLog(run: RunRow): Log {
     tags,
     detail: run.error_message,
     href: `/programs/${run.program_id}/runs/${run.id}`,
+  };
+}
+
+function appLogToLog(row: AppLogRow): Log {
+  const tags = [row.event];
+  if (row.program_id) tags.push("program");
+  if (row.run_id) tags.push("run");
+
+  return {
+    id: `app:${row.id}`,
+    timestamp: row.created_at,
+    level: row.level,
+    service: row.source,
+    message: row.message,
+    duration: formatDurationMs(row.duration_ms),
+    status: row.status,
+    tags,
+    detail: typeof row.details === "string" ? row.details : JSON.stringify(row.details, null, 2),
+    href: row.program_id ? `/programs/${row.program_id}` : null,
   };
 }
 
@@ -195,9 +254,93 @@ function RunDetail({ run }: { run: RunRow }) {
   );
 }
 
+function AppLogDetail({ row }: { row: AppLogRow }) {
+  const detailText = row.details
+    ? typeof row.details === "string"
+      ? row.details
+      : JSON.stringify(row.details, null, 2)
+    : "No additional details recorded.";
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="grid grid-cols-4 gap-4 text-sm">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Source
+          </p>
+          <p className="font-mono text-foreground">{row.source}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Event
+          </p>
+          <p className="font-mono text-foreground">{row.event}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Status
+          </p>
+          <p className="font-mono text-foreground">{row.status}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Duration
+          </p>
+          <p className="font-mono text-foreground">{formatDurationMs(row.duration_ms)}</p>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Message
+        </p>
+        <p className="rounded bg-background p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words border border-border">
+          {row.message}
+        </p>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Details
+        </p>
+        <pre className="rounded bg-background p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words border border-border">
+          {detailText}
+        </pre>
+      </div>
+
+      <div className="flex gap-3">
+        {row.program_id && (
+          <Link
+            href={`/programs/${row.program_id}`}
+            className="inline-flex items-center text-xs font-semibold text-primary hover:underline"
+          >
+            Open program â†’
+          </Link>
+        )}
+        {row.program_id && row.run_id && (
+          <Link
+            href={`/programs/${row.program_id}/runs/${row.run_id}`}
+            className="inline-flex items-center text-xs font-semibold text-primary hover:underline"
+          >
+            Open run â†’
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LogsClient() {
   const [runs, setRuns] = useState<RunRow[]>([]);
+  const [appLogs, setAppLogs] = useState<AppLogRow[]>([]);
+  const [clientLogs, setClientLogs] = useState<AppLogRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const refresh = () => setClientLogs(readClientLogs().map(clientLogToAppLog));
+    refresh();
+    return subscribeToClientLogs(refresh);
+  }, []);
 
   useEffect(() => {
     const supabase = createBrowserClient();
@@ -219,6 +362,40 @@ export function LogsClient() {
 
       if (!cancelled && !error && data) {
         setRuns(data as unknown as RunRow[]);
+      }
+
+      const { data: logData, error: logError } = await supabase
+        .from("app_logs")
+        .select(
+          `
+          id, user_id, program_id, run_id, level, source, event, status,
+          message, details, duration_ms, created_at
+          `
+        )
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!cancelled && !logError && logData) {
+        setAppLogs(logData as unknown as AppLogRow[]);
+      }
+      if (!cancelled && logError) {
+        setClientLogs((current) => [
+          {
+            id: "client:app-logs-table-unavailable",
+            user_id: "client",
+            program_id: null,
+            run_id: null,
+            level: "warning",
+            source: "Logs",
+            event: "logs.app_logs_unavailable",
+            status: "warning",
+            message: "Database app logs are not available yet. Apply the app_logs migration for persistent server logs.",
+            details: { code: logError.code, message: logError.message },
+            duration_ms: null,
+            created_at: new Date().toISOString(),
+          },
+          ...current.filter((row) => row.id !== "client:app-logs-table-unavailable"),
+        ]);
       }
       if (!cancelled) setLoading(false);
     }
@@ -242,6 +419,14 @@ export function LogsClient() {
           () => { void load(); }
         )
         .subscribe(),
+      supabase
+        .channel("logs-app-logs")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "app_logs" },
+          () => { void load(); }
+        )
+        .subscribe(),
     ];
 
     return () => {
@@ -256,7 +441,19 @@ export function LogsClient() {
     return map;
   }, [runs]);
 
-  const logs = useMemo(() => runs.map(runToLog), [runs]);
+  const appLogsByLogId = useMemo(() => {
+    const map = new Map<string, AppLogRow>();
+    for (const row of [...appLogs, ...clientLogs]) map.set(`app:${row.id}`, row);
+    return map;
+  }, [appLogs, clientLogs]);
+
+  const logs = useMemo(
+    () =>
+      [...runs.map(runToLog), ...appLogs.map(appLogToLog), ...clientLogs.map(appLogToLog)].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      ),
+    [runs, appLogs, clientLogs]
+  );
 
   return (
     <div className="h-[calc(100vh-6rem)]">
@@ -266,14 +463,17 @@ export function LogsClient() {
         subtitle={
           loading
             ? "Loading…"
-            : `${logs.length} recent run${logs.length === 1 ? "" : "s"}`
+            : `${logs.length} recent log${logs.length === 1 ? "" : "s"}`
         }
         emptyMessage={
           loading
             ? "Loading runs…"
-            : "No runs yet. Trigger a program to see activity here."
+            : "No logs yet. Generate or trigger a program to see activity here."
         }
         renderDetail={(log) => {
+          const appLog = appLogsByLogId.get(log.id);
+          if (appLog) return <AppLogDetail row={appLog} />;
+
           const run = runsById.get(log.id);
           if (!run) return null;
           return <RunDetail run={run} />;

@@ -75,20 +75,30 @@ async def get_run_status(db: Client, run_id: str) -> str:
 
 
 async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
-    result = (
-        db.table("node_executions")
-        .insert(
-            {
-                "run_id": run_id,
-                "node_id": node_id,
-                "status": "pending",
-            }
+    try:
+        result = (
+            db.table("node_executions")
+            .insert({"run_id": run_id, "node_id": node_id, "status": "pending"})
+            .execute()
         )
+        if result.data:
+            return result.data[0]
+    except Exception as e:
+        err = str(e).lower()
+        if not ("unique" in err or "duplicate" in err or "23505" in err):
+            raise
+    # Row already exists (e.g. re-dispatch after skip-trigger) — fetch it
+    existing = (
+        db.table("node_executions")
+        .select("*")
+        .eq("run_id", run_id)
+        .eq("node_id", node_id)
+        .single()
         .execute()
     )
-    if not result.data:
-        raise RuntimeError(f"DB insert for node_execution (run={run_id}, node={node_id}) returned no data")
-    return result.data[0]
+    if not existing.data:
+        raise RuntimeError(f"node_execution row missing after conflict (run={run_id}, node={node_id})")
+    return existing.data
 
 
 async def update_node_execution(
