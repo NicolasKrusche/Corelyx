@@ -227,9 +227,9 @@
       "Bash(curl -s http://localhost:3000/api/health)",
       "Bash(node -e \"console.log\\(require\\('H:/Archon/ARCHON_1/apps/web/node_modules/lucide-react/package.json'\\).version\\)\")",
       "Bash(grep -n \"zinc\\\\|#[0-9a-f]\\\\{3,6\\\\}\\\\|bg-white\\\\|bg-gray\\\\|text-gray\\\\|border-gray\\\\|bg-\\\\[#\\\\|text-\\\\[#\\\\|border-\\\\[#\" c:/NexFlow/apps/web/app/\\\\\\(app\\\\\\)/api-keys/page.tsx c:/NexFlow/apps/web/app/\\\\\\(auth\\\\\\)/update-password/page.tsx c:/NexFlow/apps/web/app/\\\\\\(app\\\\\\)/browse/page.tsx)",
-      "Bash(cat .env)",
-      "Bash(cat .env.local)",
-      "Bash(venv/Scripts/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload)"
+      "Bash(python -c \"import ast; ast.parse\\(open\\('c:/NexFlow/apps/runtime/db.py'\\).read\\(\\)\\); ast.parse\\(open\\('c:/NexFlow/apps/runtime/engine/executor.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "Bash(netstat -ano -p tcp)",
+      "Bash(taskkill //F //PID 31928)"
     ]
   }
 }

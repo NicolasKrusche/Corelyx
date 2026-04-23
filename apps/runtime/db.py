@@ -75,6 +75,18 @@ async def get_run_status(db: Client, run_id: str) -> str:
 
 
 async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
+    # No DB-level unique constraint on (run_id, node_id), so check first to
+    # avoid creating duplicate rows on re-dispatch (e.g. Skip trigger flow).
+    existing = (
+        db.table("node_executions")
+        .select("*")
+        .eq("run_id", run_id)
+        .eq("node_id", node_id)
+        .limit(1)
+        .execute()
+    )
+    if existing.data:
+        return existing.data[0]
     try:
         result = (
             db.table("node_executions")
@@ -87,18 +99,18 @@ async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
         err = str(e).lower()
         if not ("unique" in err or "duplicate" in err or "23505" in err):
             raise
-    # Row already exists (e.g. re-dispatch after skip-trigger) — fetch it
-    existing = (
+    # Racy re-check: another writer may have inserted between our select and insert
+    recheck = (
         db.table("node_executions")
         .select("*")
         .eq("run_id", run_id)
         .eq("node_id", node_id)
-        .single()
+        .limit(1)
         .execute()
     )
-    if not existing.data:
+    if not recheck.data:
         raise RuntimeError(f"node_execution row missing after conflict (run={run_id}, node={node_id})")
-    return existing.data
+    return recheck.data[0]
 
 
 async def update_node_execution(

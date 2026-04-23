@@ -1,37 +1,49 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
 import { upsertOAuthConnection } from "@/lib/oauth-token";
+import { decodeOAuthState } from "@/lib/oauth-state";
+
+function getCallbackUrl() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) return null;
+  return `${appUrl.replace(/\/$/, "")}/api/connections/oauth/github/callback`;
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const errorParam = searchParams.get("error");
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+  const redirectUri = getCallbackUrl();
 
   if (errorParam) return NextResponse.redirect(`${origin}/connections?error=${errorParam}`);
   if (!code || !state) return NextResponse.redirect(`${origin}/connections?error=missing_params`);
+  if (!clientId || !clientSecret || !redirectUri) {
+    return NextResponse.redirect(`${origin}/connections?error=missing_github_oauth_config`);
+  }
 
   let userId: string;
   let label: string;
-  try {
-    const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
-    userId = decoded.userId;
-    label = decoded.label ?? "github:primary";
-  } catch {
+  const decoded = decodeOAuthState<{ userId?: unknown; label?: unknown }>(state);
+  if (!decoded || typeof decoded.userId !== "string") {
     return NextResponse.redirect(`${origin}/connections?error=invalid_state`);
   }
+  userId = decoded.userId;
+  label = typeof decoded.label === "string" ? decoded.label : "github:primary";
 
   const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: {
       "Accept": "application/json",
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: JSON.stringify({
-      client_id: process.env.GITHUB_CLIENT_ID!,
-      client_secret: process.env.GITHUB_CLIENT_SECRET!,
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
       code,
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/connections/oauth/github/callback`,
+      redirect_uri: redirectUri,
     }),
     cache: "no-store",
   });
@@ -57,7 +69,7 @@ export async function GET(request: Request) {
       provider: "github",
       label,
       tokens,
-      scopes: ["repo", "issues:write", "read:user"],
+      scopes: ["repo", "read:user", "user:email"],
       metadata: {
         login: ghUser.login ?? null,
         email: ghUser.email ?? null,
