@@ -5,6 +5,7 @@ Allow: /
 Allow: /pricing
 Allow: /privacy
 Allow: /terms
+Allow: /impressum
 Disallow: /dashboard
 Disallow: /programs
 Disallow: /runs

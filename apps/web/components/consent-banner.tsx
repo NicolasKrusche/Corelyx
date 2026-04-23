@@ -1,59 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "nexflow-consent";
+const STORAGE_KEY = "nexflow-cookie-notice-dismissed";
+const LEGACY_STORAGE_KEY = "nexflow-consent";
 
-export function ConsentBanner() {
+export function CookieNotice() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      if (!localStorage.getItem(STORAGE_KEY)) {
-        setVisible(true);
-      }
-    } catch {
-      // localStorage blocked (private browsing etc.) — don't show
-    }
+    const dismissed =
+      window.localStorage.getItem(STORAGE_KEY) ||
+      window.localStorage.getItem(LEGACY_STORAGE_KEY);
+
+    setVisible(!dismissed);
   }, []);
 
-  function accept() {
-    try {
-      localStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      // ignore
-    }
-    setVisible(false);
+  if (!visible) {
+    return null;
   }
 
-  if (!visible) return null;
-
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 p-4 pointer-events-none">
-      <div className="mx-auto max-w-2xl pointer-events-auto">
-        <div className="relative rounded-2xl border border-white/10 bg-card/90 backdrop-blur-xl px-5 py-4 shadow-[0_-8px_32px_rgba(0,0,0,0.5)] flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          {/* Top border glow */}
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent rounded-t-2xl" />
-
-          <p className="flex-1 text-xs text-muted-foreground leading-relaxed">
-            We use cookies strictly for authentication and preferences — no tracking.{" "}
-            <Link href="/privacy" className="text-foreground/70 hover:text-primary underline underline-offset-2 transition-colors">
-              Privacy Policy
-            </Link>
-            {" · "}
-            <Link href="/terms" className="text-foreground/70 hover:text-primary underline underline-offset-2 transition-colors">
-              Terms of Service
-            </Link>
-          </p>
-
-          <button
-            onClick={accept}
-            className="shrink-0 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity shadow-[0_0_16px_rgba(249,115,22,0.35)]"
-          >
-            Got it
-          </button>
-        </div>
+    <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p className="leading-relaxed">
+          We only use essential authentication cookies and saved interface
+          preferences. We do not load analytics, advertising, or other optional
+          trackers. See our{" "}
+          <Link href="/privacy" className="text-primary hover:underline">
+            Privacy Policy
+          </Link>{" "}
+          and{" "}
+          <Link href="/terms" className="text-primary hover:underline">
+            Terms
+          </Link>
+          .
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            window.localStorage.setItem(STORAGE_KEY, "dismissed");
+            window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+            setVisible(false);
+          }}
+          className="inline-flex shrink-0 items-center justify-center rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+        >
+          Dismiss
+        </button>
       </div>
     </div>
   );
