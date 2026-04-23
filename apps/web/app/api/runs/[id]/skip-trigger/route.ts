@@ -42,15 +42,19 @@ export async function POST(
   const triggerNode = schema.nodes.find((n) => n.type === "trigger");
   if (!triggerNode) return apiError("No trigger node in this program", 422);
 
-  // Check it hasn't already completed
-  const { data: existing } = await serviceClient
+  // Check it hasn't already completed. Use limit(1) (not maybeSingle) so any
+  // legacy duplicate rows — which can exist because node_executions has no
+  // unique constraint on (run_id, node_id) — don't crash this endpoint.
+  const { data: existingRows } = await serviceClient
     .from("node_executions")
     .select("id, status")
     .eq("run_id", run.id)
     .eq("node_id", triggerNode.id)
-    .maybeSingle();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  const existingRow = existing as { id: string; status: string } | null;
+  const existingRow =
+    (existingRows?.[0] as { id: string; status: string } | undefined) ?? null;
 
   if (existingRow && ["completed", "success"].includes(existingRow.status)) {
     return apiError("Trigger node already completed", 422);
