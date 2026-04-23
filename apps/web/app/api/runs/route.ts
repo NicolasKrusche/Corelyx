@@ -37,18 +37,12 @@ export async function POST(request: Request) {
     );
   }
   // Fire 80% warning email in background (non-blocking)
-  if (runLimitCheck.warnAt80Percent) {
-    const adminClient = createServiceClient();
-    void adminClient.auth.admin.getUserById(user.id).then(({ data }) => {
-      const email = data.user?.email;
-      if (email && runLimitCheck.currentCount && runLimitCheck.totalAllowed) {
-        void sendRunLimitWarningEmail({
-          to: email,
-          used: runLimitCheck.currentCount,
-          total: runLimitCheck.totalAllowed,
-          tier: "free", // will show correct tier since email.ts just displays the string
-        });
-      }
+  if (runLimitCheck.warnAt80Percent && user.email && runLimitCheck.currentCount && runLimitCheck.totalAllowed) {
+    void sendRunLimitWarningEmail({
+      to: user.email,
+      used: runLimitCheck.currentCount,
+      total: runLimitCheck.totalAllowed,
+      tier: "free",
     });
   }
 

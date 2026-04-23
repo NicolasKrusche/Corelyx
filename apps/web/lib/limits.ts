@@ -4,7 +4,6 @@
  */
 
 import { createServiceClient } from "@/lib/api";
-import { isAdminEmail } from "@/lib/admin";
 
 type Tier = "free" | "pro" | "builder" | "unlimited";
 
@@ -29,12 +28,6 @@ interface UserProfile {
 /** Fetch the user's profile tier + bonuses. Falls back to free on error. */
 async function getUserProfile(userId: string): Promise<UserProfile> {
   const serviceClient = createServiceClient();
-
-  const { data: authData } = await serviceClient.auth.admin.getUserById(userId);
-  if (authData?.user?.email && isAdminEmail(authData.user.email)) {
-    return { tier: "unlimited", bonus_runs: 0, is_beta_tester: true };
-  }
-
   const { data } = await serviceClient
     .from("profiles")
     .select("tier, bonus_runs, is_beta_tester")
