@@ -287,8 +287,8 @@ export async function validatePreFlight(
 
         if (node.type === "connection") {
           const connNode = node as ConnectionNode;
+          if (connNode.config.connector_type === "http") continue;
           const cfg = connNode.config as OAuthConnectionConfig;
-          if (cfg.connector_type === "http") continue;
           if (!cfg.operation) continue;
 
           const connRow = connections.find((c) => c.name === node.connection);
@@ -362,8 +362,10 @@ export async function validatePreFlight(
     const isConnectionUnassigned =
       node.type === "connection" &&
       (() => {
-        const cfg = (node as ConnectionNode).config as OAuthConnectionConfig;
-        if (cfg.connector_type === "http" || !cfg.operation) return false;
+        const rawCfg = (node as ConnectionNode).config;
+        if (rawCfg.connector_type === "http") return false;
+        const cfg = rawCfg as OAuthConnectionConfig;
+        if (!cfg.operation) return false;
         const provider = connections.find((c) => c.name === node.connection)?.provider ?? cfg.provider ?? "";
         if (!provider) return false;
         return getMissingRequiredParams(provider, cfg.operation, cfg.operation_params).length > 0;

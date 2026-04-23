@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = [
   "/api/health",
   "/privacy",
   "/terms",
+  "/impressum",
   "/pricing",
   "/prices",
   "/robots.txt",
@@ -64,13 +65,10 @@ export async function middleware(request: NextRequest) {
 
   let user = null;
   try {
-    const { data, error } = await supabase.auth.getUser();
+    const { data } = await supabase.auth.getUser();
     user = data.user;
-    console.log("[middleware] path:", pathname, "user:", user?.email ?? null, "error:", error?.message ?? null);
-    const allCookies = request.cookies.getAll();
-    console.log("[middleware] cookies:", allCookies.map(c => `${c.name}=${c.value.slice(0, 40)}`).join(" | "));
-  } catch (e) {
-    console.log("[middleware] exception:", e);
+  } catch {
+    user = null;
   }
 
   if (!user && !isPublic) {
