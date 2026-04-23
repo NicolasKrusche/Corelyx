@@ -390,18 +390,22 @@ class ProgramExecutor:
         for node in self.schema.nodes:
             await create_node_execution(self.db, self.run_id, node.id)
 
-        # Check if trigger was pre-completed externally (e.g. "Skip trigger" UI action)
+        # Check if trigger was pre-completed externally (e.g. "Skip trigger" UI action).
+        # Use limit(1) (not .single()) so stale duplicate rows from legacy runs do not
+        # crash the re-dispatch path.
         trigger_check = (
             self.db.table("node_executions")
             .select("status")
             .eq("run_id", self.run_id)
             .eq("node_id", trigger_node.id)
-            .single()
+            .order("created_at", desc=True)
+            .limit(1)
             .execute()
         )
+        trigger_row = trigger_check.data[0] if trigger_check.data else None
         trigger_pre_completed = (
-            trigger_check.data is not None
-            and trigger_check.data.get("status") in ("completed", "success")
+            trigger_row is not None
+            and trigger_row.get("status") in ("completed", "success")
         )
 
         if not trigger_pre_completed:
