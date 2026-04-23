@@ -433,6 +433,26 @@ export function Sidebar({
   );
 }
 
+type AccountSettingsSection =
+  | "account"
+  | "profile"
+  | "security"
+  | "benefits"
+  | "legal"
+  | "danger"
+  | "general"
+  | "advanced";
+
+type AccountSettingsGroup = {
+  label: string;
+  items: Array<{
+    id: AccountSettingsSection;
+    label: string;
+    caption: string;
+    icon: React.ComponentType;
+  }>;
+};
+
 function SettingsModal({
   email,
   userId,
@@ -471,7 +491,7 @@ function SettingsModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"account" | "workspace">("account");
+  const [tab, setTab] = useState<AccountSettingsSection>("account");
 
   const [formDisplayName, setFormDisplayName] = useState(initialDisplayName);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
@@ -495,6 +515,30 @@ function SettingsModal({
   const memberSince = createdAt
     ? new Date(createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : "-";
+
+  const identityName = (formDisplayName.trim() || displayName.trim() || email.trim() || "User");
+  const identityInitial = identityName.slice(0, 1).toUpperCase();
+  const settingsGroups: AccountSettingsGroup[] = [
+    {
+      label: "Personal",
+      items: [
+        { id: "account", label: "Account", caption: "Overview and access", icon: UserIcon },
+        { id: "profile", label: "Profile", caption: "Display name and avatar", icon: BrowseIcon },
+        { id: "security", label: "Security", caption: "Password and sign-in", icon: KeyIcon },
+        { id: "benefits", label: "Benefits", caption: "Codes and plan", icon: PricingIcon },
+        { id: "legal", label: "Legal", caption: "Privacy and terms", icon: LogsIcon },
+        { id: "danger", label: "Danger zone", caption: "Delete this account", icon: CloseIcon },
+      ],
+    },
+    {
+      label: "Workspace",
+      items: [
+        { id: "general", label: "General", caption: "Theme and preferences", icon: SettingsIcon },
+        { id: "advanced", label: "Advanced", caption: "Power-user controls", icon: AdminIcon },
+      ],
+    },
+  ];
+  const activeTabMeta = settingsGroups.flatMap((group) => group.items).find((item) => item.id === tab) ?? settingsGroups[0].items[0];
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -615,288 +659,425 @@ function SettingsModal({
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/35 p-4">
       <div className="flex h-[88vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl">
-        <div className="w-52 border-r border-black/10 bg-black/5 p-3">
-          <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Personal</p>
-          <button
-            type="button"
-            onClick={() => setTab("account")}
-            className={cn(
-              "mt-1 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm",
-              tab === "account" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:bg-white/70"
-            )}
-          >
-            <UserIcon />
-            <span>Account</span>
-          </button>
-          <p className="mt-4 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Workspace</p>
-          <button
-            type="button"
-            onClick={() => setTab("workspace")}
-            className={cn(
-              "mt-1 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm",
-              tab === "workspace" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:bg-white/70"
-            )}
-          >
-            <SettingsIcon />
-            <span>General</span>
-          </button>
-        </div>
-
-        <div className="min-h-[500px] flex-1 overflow-y-auto p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">{tab === "account" ? "Account" : "General"}</h2>
-            <button type="button" onClick={onClose} className="rounded-md p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-900" aria-label="Close settings">
-              <CloseIcon className="h-4 w-4" />
-            </button>
+        <aside className="flex h-full w-64 shrink-0 flex-col border-r border-black/10 bg-black/[0.03]">
+          <div className="border-b border-black/10 p-4">
+            <div className="rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-900 text-lg font-semibold text-white">
+                  {identityInitial}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">{identityName}</p>
+                  <p className="truncate text-xs text-gray-500">{email || "-"}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {tab === "account" && (
-            <div className="mt-8 space-y-8">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-md bg-green-500 text-lg font-semibold text-white">
-                  {(formDisplayName || displayName).slice(0, 1).toUpperCase()}
+          <div className="flex-1 overflow-y-auto px-3 py-4">
+            {settingsGroups.map((group) => (
+              <div key={group.label} className="mb-5 last:mb-0">
+                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  {group.label}
+                </p>
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = tab === item.id;
+                    const dangerItem = item.id === "danger";
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setTab(item.id)}
+                        className={cn(
+                          "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                          active
+                            ? dangerItem
+                              ? "bg-red-50 text-red-700 shadow-sm ring-1 ring-red-200"
+                              : "bg-white text-gray-900 shadow-sm ring-1 ring-black/10"
+                            : dangerItem
+                              ? "text-red-600 hover:bg-red-50 hover:text-red-700"
+                              : "text-gray-600 hover:bg-white/80 hover:text-gray-900"
+                        )}
+                      >
+                        <span className="mt-0.5 shrink-0">
+                          <Icon />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">{item.label}</span>
+                          <span
+                            className={cn(
+                              "block truncate text-xs",
+                              active ? (dangerItem ? "text-red-600/80" : "text-gray-500") : dangerItem ? "text-red-500/80" : "text-gray-500"
+                            )}
+                          >
+                            {item.caption}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{formDisplayName || displayName}</p>
-                  <p className="text-xs text-gray-500">{email}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-black/10 p-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-black/5"
+            >
+              Close settings
+            </button>
+          </div>
+        </aside>
+
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="border-b border-black/10 bg-gradient-to-br from-black/[0.04] via-white to-white px-6 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">{activeTabMeta.label}</h2>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500">{activeTabMeta.caption}</p>
+              </div>
+              <button type="button" onClick={onClose} className="rounded-md p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-900" aria-label="Close settings">
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            {tab === "account" && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900 text-xl font-semibold text-white">
+                      {identityInitial}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-lg font-semibold text-gray-900">{identityName}</p>
+                      <p className="truncate text-sm text-gray-500">{email || "-"}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">{tierLabel}</span>
+                        {isAdmin && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Admin</span>}
+                        {isBetaTester && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Beta</span>}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
+                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Account details</p>
+                    <div className="mt-4 grid grid-cols-[120px_1fr] gap-x-4 gap-y-3 text-sm">
+                      <span className="text-gray-500">Email</span>
+                      <span className="break-all font-mono text-xs text-gray-700">{email || "-"}</span>
+                      <span className="text-gray-500">User ID</span>
+                      <span className="break-all font-mono text-xs text-gray-700">{userId || "-"}</span>
+                      <span className="text-gray-500">Joined</span>
+                      <span className="font-mono text-xs text-gray-700">{memberSince}</span>
+                    </div>
+                  </section>
+
+                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Workspace status</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">{tierLabel}</span>
+                      {isAdmin && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Admin</span>}
+                      {isBetaTester && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Beta</span>}
+                    </div>
+                    <div className="mt-5 border-t border-black/10 pt-4">
+                      <p className="text-sm font-medium text-gray-900">Skill level</p>
+                      <p className="mt-1 text-sm text-gray-700">AI Agent Builder</p>
+                      <p className="text-xs text-gray-500">Skill level 0</p>
+                    </div>
+                  </section>
                 </div>
               </div>
+            )}
 
-              <div className="border-t border-black/10 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Profile</p>
-                <form onSubmit={handleSaveProfile} className="mt-3 space-y-3">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-gray-600">Display name</label>
-                    <input
-                      type="text"
-                      value={formDisplayName}
-                      onChange={(e) => setFormDisplayName(e.target.value)}
-                      maxLength={60}
-                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
-                      placeholder="Your name"
-                    />
+            {tab === "profile" && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900 text-xl font-semibold text-white">
+                      {identityInitial}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{identityName}</p>
+                      <p className="text-sm text-gray-500">Choose how your account appears in the workspace.</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-gray-600">Avatar URL</label>
-                    <input
-                      type="text"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
-                      placeholder="https://..."
-                    />
-                  </div>
-                  {profileStatus && (
-                    <p className={cn("text-xs", profileStatus.type === "success" ? "text-green-600" : "text-red-600")}>{profileStatus.message}</p>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={profileSaving}
-                    className="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
-                  >
-                    {profileSaving ? "Saving..." : "Save changes"}
-                  </button>
-                </form>
-              </div>
+                </section>
 
-              <div className="border-t border-black/10 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Skill level</p>
-                <p className="mt-2 text-sm text-gray-900">AI Agent Builder</p>
-                <p className="text-xs text-gray-500">Skill level 0</p>
-              </div>
-
-              {!isOAuthUser ? (
-                <div className="border-t border-black/10 pt-6">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Password</p>
-                  <form onSubmit={handlePasswordChange} className="mt-3 space-y-3">
-                    <input
-                      type="password"
-                      required
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
-                      placeholder="Current password"
-                    />
-                    <input
-                      type="password"
-                      required
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
-                      placeholder="New password"
-                    />
-                    <input
-                      type="password"
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
-                      placeholder="Confirm new password"
-                    />
-                    {passwordStatus && (
-                      <p className={cn("text-xs", passwordStatus.type === "success" ? "text-green-600" : "text-red-600")}>{passwordStatus.message}</p>
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Profile</p>
+                  <form onSubmit={handleSaveProfile} className="mt-4 space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-gray-600">Display name</label>
+                      <input
+                        type="text"
+                        value={formDisplayName}
+                        onChange={(e) => setFormDisplayName(e.target.value)}
+                        maxLength={60}
+                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        placeholder="Your name"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-gray-600">Avatar URL</label>
+                      <input
+                        type="text"
+                        value={avatarUrl}
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        placeholder="https://..."
+                      />
+                    </div>
+                    {profileStatus && (
+                      <p className={cn("text-xs", profileStatus.type === "success" ? "text-green-600" : "text-red-600")}>{profileStatus.message}</p>
                     )}
                     <button
                       type="submit"
-                      disabled={passwordLoading}
-                      className="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                      disabled={profileSaving}
+                      className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
                     >
-                      {passwordLoading ? "Updating..." : "Update password"}
+                      {profileSaving ? "Saving..." : "Save changes"}
                     </button>
                   </form>
-                </div>
-              ) : (
-                <div className="border-t border-black/10 pt-6">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Password</p>
-                  <p className="mt-2 text-sm text-gray-600">You signed in with Google. Password login is not available for your account.</p>
-                </div>
-              )}
+                </section>
+              </div>
+            )}
 
-              <div className="border-t border-black/10 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Redeem a code</p>
-                <form onSubmit={handleRedeem} className="mt-3 flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    className="flex-1 rounded-lg border border-black/10 px-3 py-2.5 text-sm uppercase tracking-wider text-gray-900 outline-none ring-0 focus:border-gray-400"
-                    placeholder="ENTER CODE"
-                  />
-                  <button
-                    type="submit"
-                    disabled={codeLoading || code.length < 3}
-                    className="rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
-                  >
-                    {codeLoading ? "..." : "Redeem"}
-                  </button>
-                </form>
-                {codeStatus && (
-                  <p className={cn("mt-2 text-xs", codeStatus.type === "success" ? "text-green-600" : "text-red-600")}>{codeStatus.message}</p>
+            {tab === "security" && (
+              <div className="space-y-6">
+                {!isOAuthUser ? (
+                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Password</p>
+                    <form onSubmit={handlePasswordChange} className="mt-4 space-y-3">
+                      <input
+                        type="password"
+                        required
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        placeholder="Current password"
+                      />
+                      <input
+                        type="password"
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        placeholder="New password"
+                      />
+                      <input
+                        type="password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        placeholder="Confirm new password"
+                      />
+                      {passwordStatus && (
+                        <p className={cn("text-xs", passwordStatus.type === "success" ? "text-green-600" : "text-red-600")}>{passwordStatus.message}</p>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={passwordLoading}
+                        className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                      >
+                        {passwordLoading ? "Updating..." : "Update password"}
+                      </button>
+                    </form>
+                  </section>
+                ) : (
+                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Password</p>
+                    <p className="mt-3 text-sm text-gray-600">
+                      You signed in with Google. Password login is not available for your account.
+                    </p>
+                  </section>
                 )}
-              </div>
 
-              <div className="border-t border-black/10 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Workspace status</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="rounded-md bg-black/5 px-2 py-1 text-xs text-gray-700">{tierLabel}</span>
-                  {isAdmin && <span className="rounded-md bg-black/5 px-2 py-1 text-xs text-gray-700">Admin</span>}
-                  {isBetaTester && <span className="rounded-md bg-black/5 px-2 py-1 text-xs text-gray-700">Beta</span>}
-                </div>
+                <section className="rounded-2xl border border-black/10 bg-black/[0.02] p-5">
+                  <p className="text-sm font-medium text-gray-900">Security note</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Use a strong password you do not reuse elsewhere, and rotate it if you suspect it has been exposed.
+                  </p>
+                </section>
               </div>
+            )}
 
-              <div className="border-t border-black/10 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Plan</p>
-                <p className="mt-2 text-sm text-gray-600">Compare plans or upgrade anytime.</p>
-                <Link
-                  href="/plan"
-                  onClick={onClose}
-                  className="mt-3 inline-flex rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-                >
-                  Upgrade Plan
-                </Link>
-              </div>
-
-              <div className="border-t border-black/10 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Account</p>
-                <div className="mt-2 grid grid-cols-[120px_1fr] gap-x-4 gap-y-2 text-sm">
-                  <span className="text-gray-500">Email</span>
-                  <span className="break-all font-mono text-xs text-gray-700">{email || "-"}</span>
-                  <span className="text-gray-500">User ID</span>
-                  <span className="break-all font-mono text-xs text-gray-700">{userId || "-"}</span>
-                  <span className="text-gray-500">Joined</span>
-                  <span className="font-mono text-xs text-gray-700">{memberSince}</span>
-                </div>
-              </div>
-
-              <div className="border-t border-black/10 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Legal</p>
-                <div className="mt-3 flex flex-col gap-2">
-                  <Link href="/privacy" onClick={onClose} className="rounded-lg border border-black/10 px-3 py-2 text-sm text-gray-700 hover:bg-black/5">Privacy Policy</Link>
-                  <Link href="/terms" onClick={onClose} className="rounded-lg border border-black/10 px-3 py-2 text-sm text-gray-700 hover:bg-black/5">Terms of Service</Link>
-                </div>
-              </div>
-
-              <div className="border-t border-red-200 pt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Danger zone</p>
-                <p className="mt-2 text-sm text-gray-600">Delete your account and all associated programs, runs, connections, and credentials. This cannot be undone.</p>
-                <form onSubmit={handleDeleteAccount} className="mt-3 space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
-                  <input
-                    type="text"
-                    value={deleteConfirm}
-                    onChange={(e) => setDeleteConfirm(e.target.value)}
-                    className="w-full rounded-lg border border-red-200 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-red-400"
-                    placeholder='Type "delete my account"'
-                    autoComplete="off"
-                  />
-                  {deleteStatus && (
-                    <p className={cn("text-xs", deleteStatus.type === "success" ? "text-green-600" : "text-red-600")}>{deleteStatus.message}</p>
+            {tab === "benefits" && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Redeem a code</p>
+                  <form onSubmit={handleRedeem} className="mt-4 flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      className="flex-1 rounded-xl border border-black/10 px-3 py-2.5 text-sm uppercase tracking-wider text-gray-900 outline-none ring-0 focus:border-gray-400"
+                      placeholder="ENTER CODE"
+                    />
+                    <button
+                      type="submit"
+                      disabled={codeLoading || code.length < 3}
+                      className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                    >
+                      {codeLoading ? "..." : "Redeem"}
+                    </button>
+                  </form>
+                  {codeStatus && (
+                    <p className={cn("mt-2 text-xs", codeStatus.type === "success" ? "text-green-600" : "text-red-600")}>{codeStatus.message}</p>
                   )}
-                  <button
-                    type="submit"
-                    disabled={deleteLoading || deleteConfirm !== "delete my account"}
-                    className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
-                  >
-                    {deleteLoading ? "Deleting..." : "Delete my account"}
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
+                </section>
 
-          {tab === "workspace" && (
-            <div className="mt-8 space-y-8">
-              <div>
-                <p className="text-sm font-medium text-gray-800">Theme mode</p>
-                <div className="mt-2 flex gap-2">
-                  {(["dark", "light"] as BaseTheme[]).map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => onBaseChange(option)}
-                      className={cn(
-                        "rounded-md border px-3 py-1.5 text-xs font-medium capitalize",
-                        base === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
-                      )}
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Plan</p>
+                    <p className="mt-3 text-sm text-gray-600">Current plan: {tierLabel}. Compare plans or upgrade anytime.</p>
+                    <Link
+                      href="/plan"
+                      onClick={onClose}
+                      className="mt-4 inline-flex rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
                     >
-                      {option}
-                    </button>
-                  ))}
+                      Upgrade plan
+                    </Link>
+                  </section>
+
+                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Current access</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">{tierLabel}</span>
+                      {isAdmin && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Admin</span>}
+                      {isBetaTester && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Beta</span>}
+                    </div>
+                  </section>
                 </div>
               </div>
+            )}
 
-              <div>
-                <p className="text-sm font-medium text-gray-800">Accent</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(["orange", "blue", "indigo", "green", "pink", "cyan"] as AccentColor[]).map((option) => (
+            {tab === "legal" && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Legal</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <Link href="/privacy" onClick={onClose} className="rounded-xl border border-black/10 px-3 py-3 text-sm text-gray-700 transition-colors hover:bg-black/5">
+                      Privacy Policy
+                    </Link>
+                    <Link href="/terms" onClick={onClose} className="rounded-xl border border-black/10 px-3 py-3 text-sm text-gray-700 transition-colors hover:bg-black/5">
+                      Terms of Service
+                    </Link>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {tab === "danger" && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">Danger zone</p>
+                  <p className="mt-3 text-sm text-gray-700">
+                    Delete your account and all associated programs, runs, connections, and credentials. This cannot be undone.
+                  </p>
+                  <form onSubmit={handleDeleteAccount} className="mt-4 space-y-3">
+                    <input
+                      type="text"
+                      value={deleteConfirm}
+                      onChange={(e) => setDeleteConfirm(e.target.value)}
+                      className="w-full rounded-xl border border-red-200 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-red-400"
+                      placeholder='Type "delete my account"'
+                      autoComplete="off"
+                    />
+                    {deleteStatus && (
+                      <p className={cn("text-xs", deleteStatus.type === "success" ? "text-green-600" : "text-red-600")}>{deleteStatus.message}</p>
+                    )}
                     <button
-                      key={option}
-                      type="button"
-                      onClick={() => onAccentChange(option)}
-                      className={cn(
-                        "rounded-md border px-3 py-1.5 text-xs capitalize",
-                        accent === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
-                      )}
+                      type="submit"
+                      disabled={deleteLoading || deleteConfirm !== "delete my account"}
+                      className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
                     >
-                      {option}
+                      {deleteLoading ? "Deleting..." : "Delete my account"}
                     </button>
-                  ))}
-                </div>
+                  </form>
+                </section>
               </div>
+            )}
 
-              <div>
-                <label className="flex items-center gap-2 text-sm text-gray-800">
-                  <input
-                    type="checkbox"
-                    checked={advanced}
-                    onChange={(e) => onAdvancedChange(e.target.checked)}
-                    className="h-4 w-4 rounded border-black/20"
-                  />
-                  Enable advanced mode
-                </label>
+            {tab === "general" && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Theme mode</p>
+                  <div className="mt-4 flex gap-2">
+                    {(["dark", "light"] as BaseTheme[]).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => onBaseChange(option)}
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-xs font-medium capitalize",
+                          base === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
+                        )}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Accent</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {(["orange", "blue", "indigo", "green", "pink", "cyan"] as AccentColor[]).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => onAccentChange(option)}
+                        className={cn(
+                          "rounded-xl border px-3 py-2 text-xs capitalize",
+                          accent === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
+                        )}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               </div>
-            </div>
-          )}
+            )}
+
+            {tab === "advanced" && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Advanced mode</p>
+                  <label className="mt-4 flex items-center gap-3 rounded-xl border border-black/10 px-4 py-3 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      checked={advanced}
+                      onChange={(e) => onAdvancedChange(e.target.checked)}
+                      className="h-4 w-4 rounded border-black/20"
+                    />
+                    <span>Enable advanced mode</span>
+                  </label>
+                  <p className="mt-3 text-sm text-gray-600">
+                    Show extra controls and power-user options throughout the app.
+                  </p>
+                </section>
+
+                <section className="rounded-2xl border border-black/10 bg-black/[0.02] p-5">
+                  <p className="text-sm font-medium text-gray-900">Current status</p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {advanced ? "Advanced mode is enabled for this workspace." : "Advanced mode is currently turned off."}
+                  </p>
+                </section>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1022,7 +1203,7 @@ function ChevronDownIcon({ className }: { className?: string }) {
 }
 function CloseIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    <svg className={cn("h-4 w-4", className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
     </svg>
   );

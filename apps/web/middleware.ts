@@ -8,6 +8,8 @@ const PUBLIC_ROUTES = [
   "/signup",
   "/forgot-password",
   "/auth/callback",
+  "/api/connections/oauth/github/callback",
+  "/api/connections/oauth/airtable/callback",
   "/api/browse",
   "/api/health",
   "/privacy",

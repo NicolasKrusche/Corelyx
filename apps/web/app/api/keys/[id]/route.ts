@@ -22,12 +22,14 @@ export async function DELETE(
 
   if (fetchError || !row) return apiError("Key not found", 404);
 
-  // Delete from Vault first
+  // Delete from Vault first. If this fails, do not remove DB row (avoid orphaned secret state).
   try {
     const serviceClient = createServiceClient();
     await vaultDelete(serviceClient, row.vault_secret_id);
-  } catch {
-    // Continue — if Vault delete fails, still remove the DB row
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown vault deletion error";
+    console.error(`[keys.delete] Vault delete failed for key ${params.id}: ${message}`);
+    return apiError("Failed to delete key secret from vault. Key was not deleted.", 502);
   }
 
   const { error } = await supabase.from("api_keys").delete().eq("id", params.id);
