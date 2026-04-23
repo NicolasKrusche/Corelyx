@@ -3,6 +3,7 @@ import type {
   AgentNode,
   ConnectionNode,
   HttpConnectionConfig,
+  OAuthConnectionConfig,
 } from "@flowos/schema";
 import {
   validatePostGenesis,
@@ -11,6 +12,7 @@ import {
   type ValidationWarning,
   type NodeValidationState,
 } from "./index";
+import { getMissingRequiredParams } from "@/lib/connectors/operation-params";
 
 // Input types
 export type PreFlightConnection = {
@@ -258,29 +260,52 @@ export async function validatePreFlight(
     // PRE_004 - Sentinel values still present at execution time
     (async () => {
       for (const node of schema.nodes) {
-        if (node.type !== "agent") continue;
+        if (node.type === "agent") {
+          const agentNode = node as AgentNode;
+          const hasUnassignedModel = agentNode.config.model === "__USER_ASSIGNED__";
+          const hasUnassignedKey = agentNode.config.api_key_ref === "__USER_ASSIGNED__";
 
-        const agentNode = node as AgentNode;
-        const hasUnassignedModel = agentNode.config.model === "__USER_ASSIGNED__";
-        const hasUnassignedKey = agentNode.config.api_key_ref === "__USER_ASSIGNED__";
+          if (hasUnassignedModel || hasUnassignedKey) {
+            const what = [
+              hasUnassignedModel && "model",
+              hasUnassignedKey && "API key",
+            ]
+              .filter(Boolean)
+              .join(" and ");
 
-        if (hasUnassignedModel || hasUnassignedKey) {
-          const what = [
-            hasUnassignedModel && "model",
-            hasUnassignedKey && "API key",
-          ]
-            .filter(Boolean)
-            .join(" and ");
+            const msg = `${node.label} still has an unassigned ${what}`;
+            const fix = "Open this node in the editor and assign a model and API key before running";
+            recordFailure(pre004, {
+              code: "PRE_004",
+              node_id: node.id,
+              message: msg,
+              fix_suggestion: fix,
+              remediation: defaultAgentRemediation(node.id),
+            });
+          }
+        }
 
-          const msg = `${node.label} still has an unassigned ${what}`;
-          const fix = "Open this node in the editor and assign a model and API key before running";
-          recordFailure(pre004, {
-            code: "PRE_004",
-            node_id: node.id,
-            message: msg,
-            fix_suggestion: fix,
-            remediation: defaultAgentRemediation(node.id),
-          });
+        if (node.type === "connection") {
+          const connNode = node as ConnectionNode;
+          const cfg = connNode.config as OAuthConnectionConfig;
+          if (cfg.connector_type === "http") continue;
+          if (!cfg.operation) continue;
+
+          const connRow = connections.find((c) => c.name === node.connection);
+          const provider = connRow?.provider ?? cfg.provider ?? "";
+          if (!provider) continue;
+
+          const missing = getMissingRequiredParams(provider, cfg.operation, cfg.operation_params);
+          if (missing.length > 0) {
+            const msg = `${node.label} needs ${missing.length === 1 ? "a value" : "values"} for: ${missing.join(", ")}`;
+            const fix = "Open this node in the editor and fill the highlighted fields before running";
+            recordFailure(pre004, {
+              code: "PRE_004",
+              node_id: node.id,
+              message: msg,
+              fix_suggestion: fix,
+            });
+          }
         }
       }
     })(),
@@ -330,13 +355,22 @@ export async function validatePreFlight(
   const node_states: Record<string, NodeValidationState> = {};
   schema.nodes.forEach((node) => {
     const hasError = errors.some((error) => error.node_id === node.id);
-    const isUnassigned =
+    const isAgentUnassigned =
       node.type === "agent" &&
       ((node as AgentNode).config.model === "__USER_ASSIGNED__" ||
         (node as AgentNode).config.api_key_ref === "__USER_ASSIGNED__");
+    const isConnectionUnassigned =
+      node.type === "connection" &&
+      (() => {
+        const cfg = (node as ConnectionNode).config as OAuthConnectionConfig;
+        if (cfg.connector_type === "http" || !cfg.operation) return false;
+        const provider = connections.find((c) => c.name === node.connection)?.provider ?? cfg.provider ?? "";
+        if (!provider) return false;
+        return getMissingRequiredParams(provider, cfg.operation, cfg.operation_params).length > 0;
+      })();
 
     if (hasError) node_states[node.id] = "error";
-    else if (isUnassigned) node_states[node.id] = "unassigned";
+    else if (isAgentUnassigned || isConnectionUnassigned) node_states[node.id] = "unassigned";
     else node_states[node.id] = "valid";
   });
 
