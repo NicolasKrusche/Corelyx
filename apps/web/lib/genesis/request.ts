@@ -14,9 +14,9 @@ export type GenesisApiKeyRow = {
 };
 
 export const OPENROUTER_FALLBACK_MODELS = [
+  "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-coder:free",
   "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-27b-it:free",
 ] as const;
 
@@ -30,7 +30,7 @@ export const KEY_PROVIDER_PRIORITY: Record<string, number> = {
 };
 
 export const KEY_DEFAULT_MODELS: Record<string, string> = {
-  anthropic: "claude-opus-4-6",
+  anthropic: "claude-sonnet-4-6",
   openai: "gpt-4o",
   google: "gemini-1.5-pro",
   groq: "llama-3.3-70b-versatile",
@@ -133,7 +133,9 @@ export function isKeyError(err: unknown): boolean {
     lowerMsg.includes("incorrect api key") ||
     lowerMsg.includes("authentication_error") ||
     lowerMsg.includes("you didn't provide an api key") ||
-    lowerMsg.includes("no api key provided")
+    lowerMsg.includes("no api key provided") ||
+    lowerMsg.includes("does not exist or you do not have access") ||
+    lowerMsg.includes("you do not have access to the model")
   );
 }
 
