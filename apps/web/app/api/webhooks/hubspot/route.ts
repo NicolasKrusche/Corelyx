@@ -155,10 +155,10 @@ async function _resolveConnections(
 
   const all = (rows ?? []) as unknown as HubSpotConnectionRow[];
 
-  if (portalId === null) return all;
+  if (portalId === null) return [];
 
   const scoped = all.filter(
     (row) => row.metadata?.portal_id === portalId || row.metadata?.hub_id === portalId
   );
-  return scoped.length > 0 ? scoped : all;
+  return scoped;
 }

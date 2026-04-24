@@ -184,6 +184,26 @@ export interface Database {
           created_at?: string;
         };
       };
+      webhook_deliveries: {
+        Row: {
+          source: string;
+          delivery_id: string;
+          first_seen_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          source: string;
+          delivery_id: string;
+          first_seen_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          source?: string;
+          delivery_id?: string;
+          first_seen_at?: string;
+          expires_at?: string;
+        };
+      };
       api_keys: {
         Row: {
           id: string;

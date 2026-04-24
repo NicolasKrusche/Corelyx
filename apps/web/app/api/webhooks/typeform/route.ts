@@ -128,14 +128,12 @@ async function _resolveConnections(
 
   const all = (rows ?? []) as unknown as TypeformConnectionRow[];
 
-  // If we know the form ID, prefer connections whose metadata records that form
-  // being accessible. Fall back to all valid Typeform connections.
-  if (!formId) return all;
+  if (!formId) return [];
 
   const scoped = all.filter((row) => {
     const forms = row.metadata?.form_ids;
     if (!Array.isArray(forms)) return false;
     return forms.includes(formId);
   });
-  return scoped.length > 0 ? scoped : all;
+  return scoped;
 }
