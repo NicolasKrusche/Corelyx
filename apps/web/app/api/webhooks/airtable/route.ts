@@ -163,12 +163,12 @@ async function _resolveConnections(
 
   const all = (rows ?? []) as unknown as AirtableConnectionRow[];
 
-  if (!baseId) return all;
+  if (!baseId) return [];
 
   const scoped = all.filter((row) => {
     const bases = row.metadata?.base_ids;
     if (!Array.isArray(bases)) return false;
     return bases.includes(baseId);
   });
-  return scoped.length > 0 ? scoped : all;
+  return scoped;
 }

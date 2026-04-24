@@ -35,6 +35,8 @@ Fill in `apps/web/.env.local`:
 | `ANTHROPIC_API_KEY` | console.anthropic.com |
 | `GOOGLE_CLIENT_ID` | console.cloud.google.com → OAuth 2.0 Client IDs |
 | `GOOGLE_CLIENT_SECRET` | Same page |
+| `PUBSUB_GMAIL_WEBHOOK_AUDIENCE` | The exact Gmail Pub/Sub push endpoint URL configured as the OIDC audience |
+| `PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL` | The service account email configured on the Gmail Pub/Sub push subscription |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` for local dev |
 | `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys |
 | `STRIPE_WEBHOOK_SECRET` | Stripe CLI `listen` output or Dashboard webhook endpoint secret |

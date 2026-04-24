@@ -4,7 +4,7 @@ This document lists issues that currently hold the app back from a safe public m
 
 ## Summary
 
-Core user-scoped data model and RLS exist. The OAuth callback `state` blocker is fixed, but there are still **high-risk auth/isolation gaps** that should be addressed before broad launch.
+Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail webhook authenticity, and broad webhook routing blockers are fixed, but there are still **high-risk auth/isolation gaps** that should be addressed before broad launch.
 
 ---
 
@@ -35,22 +35,32 @@ Core user-scoped data model and RLS exist. The OAuth callback `state` blocker is
 
 ---
 
-## 2) High — Gmail webhook endpoint does not verify request authenticity
+## 2) Fixed - Gmail webhook endpoint verifies request authenticity
 
-**Evidence**
+**Status**
+- Fixed on 2026-04-24. Gmail Pub/Sub pushes now require a Google-signed OIDC JWT for the configured audience and expected service account email.
+- Pub/Sub `messageId` values are persisted in `public.webhook_deliveries` and accepted only once.
+- No longer a launch blocker.
+
+**Previous evidence**
 - `apps/web/app/api/webhooks/gmail/route.ts:27-50` accepts and decodes payload but does not verify sender signature/JWT.
 
-**Why this blocks launch**
+**Previous risk**
 - Public endpoint can be spoofed, causing unauthorized run dispatch attempts and cross-user event noise.
 
-**Suggested fix**
-- Verify Pub/Sub push identity (OIDC/JWT + audience checks), add replay protection by message ID.
+**Implemented fix**
+- Pub/Sub OIDC/JWT verification with issuer, `RS256` signature, audience, service account email, and verified email checks, plus persistent replay protection by message ID.
 
 ---
 
-## 3) High — Webhook routing can fan out to **all** valid connections across users
+## 3) Fixed - Webhook routing no longer fans out to all valid connections
 
-**Evidence**
+**Status**
+- Fixed on 2026-04-24. Typeform, Airtable, and HubSpot webhooks now resolve only explicit connection IDs or payload identifiers already recorded in connection metadata.
+- Unmatched or under-scoped payloads return `matched_connections: 0` instead of falling back to every valid connection for that provider.
+- No longer a launch blocker.
+
+**Previous evidence**
 - Typeform fallback to all:
   - `apps/web/app/api/webhooks/typeform/route.ts:128`
   - `apps/web/app/api/webhooks/typeform/route.ts:135`
@@ -61,11 +71,11 @@ Core user-scoped data model and RLS exist. The OAuth callback `state` blocker is
   - `apps/web/app/api/webhooks/hubspot/route.ts:152`
   - `apps/web/app/api/webhooks/hubspot/route.ts:157`
 
-**Why this blocks launch**
+**Previous risk**
 - In multi-user production, weakly-scoped inbound webhooks can trigger runs for unrelated users.
 
-**Suggested fix**
-- Require strict source-to-connection binding; reject unmatched webhooks instead of global fallback.
+**Implemented fix**
+- Strict source-to-connection binding; unmatched webhooks are rejected from dispatch by returning zero matched connections.
 
 ---
 
