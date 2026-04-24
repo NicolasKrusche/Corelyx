@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ConsentBanner } from "@/components/consent-banner";
 import { InteractiveFlowDiagram } from "@/components/landing/interactive-flow-diagram";
 import { ForcedOrangeTheme } from "@/components/forced-orange-theme";
 
@@ -279,8 +278,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <ConsentBanner />
       {/* ── Footer ── */}
       <footer className="border-t border-border/40 px-6 py-6">
         <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground/50">
@@ -293,6 +290,7 @@ export default function LandingPage() {
             <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link href="/impressum" className="hover:text-foreground transition-colors">Impressum</Link>
             <Link href="/login" className="hover:text-foreground transition-colors">Sign in</Link>
             <Link href="/signup" className="hover:text-foreground transition-colors">Sign up</Link>
           </div>

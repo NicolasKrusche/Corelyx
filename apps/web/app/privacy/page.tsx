@@ -1,259 +1,476 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { LegalPageHeader } from "@/components/legal-page-header";
+import {
+  LEGAL_LAST_UPDATED,
+  connectedServices,
+  coreServiceProviders,
+  dataCategories,
+  legalBases,
+  legalIdentity,
+  modelProviders,
+  privacyContactEmail,
+  retentionItems,
+  rightsItems,
+  type ProcessorEntry,
+  type TextItem,
+} from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Nexflow",
-  description: "How Nexflow collects, uses, and protects your data.",
+  title: "Privacy Policy - Nexflow",
+  description:
+    "How Nexflow processes personal data, including its processor inventory, legal bases, and data transfer notes.",
 };
 
-const LAST_UPDATED = "April 19, 2026";
-
 const sections = [
-  {
-    id: "overview",
-    title: "1. Overview",
-    content: `Nexflow ("we", "us", or "our") is a visual AI automation platform. This Privacy Policy explains what information we collect when you use Nexflow, how we use it, and your rights regarding that information.
-
-By creating an account or using our services, you agree to the practices described in this policy. If you do not agree, please do not use Nexflow.`,
-  },
-  {
-    id: "information-we-collect",
-    title: "2. Information We Collect",
-    subsections: [
-      {
-        title: "Account Information",
-        content: `When you sign up, we collect your email address and, if you use Google Sign-In, your name and profile picture as provided by Google. We store a hashed password if you register with email and password directly.`,
-      },
-      {
-        title: "Automation Programs",
-        content: `We store the programs (agent graphs) you create, including their node configurations, edge connections, and execution settings. This data is necessary to run your automations.`,
-      },
-      {
-        title: "Run Logs and Telemetry",
-        content: `When a program executes, we record run status, node execution states, timing information, token usage, and cost estimates. We store input/output data passed between nodes only for the duration needed to display run logs. We do not use this data for model training.`,
-      },
-      {
-        title: "Third-Party Connection Credentials",
-        content: `When you connect a third-party service (Gmail, Slack, Notion, GitHub, etc.), we store the OAuth access token and refresh token in Supabase Vault — an encrypted secret storage system. These tokens are never returned to your browser and are only accessed server-side at execution time. API keys you add are likewise encrypted at rest in Vault and never exposed in API responses.`,
-      },
-      {
-        title: "Usage Data",
-        content: `We collect standard server logs including IP addresses, browser user-agent strings, pages visited, and feature usage. This helps us diagnose issues and improve the product.`,
-      },
-    ],
-  },
-  {
-    id: "how-we-use",
-    title: "3. How We Use Your Information",
-    content: `We use the information we collect to:
-
-• Provide, operate, and maintain the Nexflow platform
-• Execute your automation programs on your behalf using the credentials you have granted
-• Send transactional emails (run failure alerts, human-approval notifications, password resets)
-• Diagnose bugs and improve platform reliability
-• Enforce our Terms of Service and usage limits
-• Comply with legal obligations
-
-We do not sell your personal information to third parties. We do not use your automation data or third-party credentials for any purpose other than executing the automations you configure.`,
-  },
-  {
-    id: "google-api",
-    title: "4. Google API Services",
-    content: `Nexflow's use of information received from Google APIs (Gmail, Google Sheets, Google Docs, Google Drive, Google Calendar) complies with the Google API Services User Data Policy, including the Limited Use requirements.
-
-Specifically:
-
-• We only request the OAuth scopes necessary for the operations you configure in your programs (e.g. reading emails, writing to a spreadsheet).
-• We use Google user data solely to perform the actions you have explicitly configured in your automation programs.
-• We do not transfer Google user data to third parties except as necessary to run your automations (e.g. passing an email body to an AI model you have configured).
-• We do not use Google user data for advertising or to train AI/ML models.
-• We do not allow humans to read your Google user data unless you explicitly request support and consent to access for debugging purposes.
-
-You can revoke Nexflow's access to your Google account at any time by visiting your Google Account permissions page (myaccount.google.com/permissions) or by disconnecting the connection from within Nexflow.`,
-  },
-  {
-    id: "third-party-services",
-    title: "5. Third-Party Services",
-    content: `Nexflow uses the following sub-processors to deliver the service:
-
-• Supabase — database, authentication, and secret storage (EU/US data centers)
-• Railway — Python runtime execution environment
-• Vercel — Next.js web application hosting
-• Anthropic / OpenAI / OpenRouter — AI model providers (data sent only when you configure an agent node that uses these providers; governed by their respective privacy policies)
-• Inngest — trigger and workflow orchestration
-
-Each sub-processor is contractually bound to use your data only to provide the services we have engaged them for.`,
-  },
-  {
-    id: "data-retention",
-    title: "6. Data Retention",
-    content: `• Account data is retained as long as your account is active.
-• Run logs are retained for 90 days by default.
-• OAuth tokens are deleted immediately when you disconnect a connection from Nexflow.
-• When you delete your account, all your programs, run logs, and credentials are permanently deleted within 30 days.
-
-You may request earlier deletion by contacting us (see Section 9).`,
-  },
-  {
-    id: "security",
-    title: "7. Security",
-    content: `We take reasonable technical and organizational measures to protect your data:
-
-• All data in transit is encrypted using TLS 1.2 or higher.
-• OAuth tokens and API keys are stored in Supabase Vault with encryption at rest.
-• Credentials are never returned to your browser — they are fetched server-side only at execution time and discarded immediately after each node runs.
-• Row-Level Security (RLS) policies in our database ensure you can only access your own data.
-• Our internal APIs require authentication and validate ownership before returning any resource.
-
-No system is perfectly secure. If you discover a security vulnerability, please contact us at the address below rather than disclosing it publicly.`,
-  },
-  {
-    id: "your-rights",
-    title: "8. Your Rights",
-    content: `Depending on your jurisdiction, you may have the following rights:
-
-• Access — request a copy of the personal data we hold about you
-• Correction — ask us to correct inaccurate data
-• Deletion — ask us to delete your account and all associated data
-• Portability — request an export of your programs in JSON format
-• Objection — object to certain processing activities
-
-To exercise any of these rights, contact us at the address in Section 9. We will respond within 30 days.`,
-  },
-  {
-    id: "cookies",
-    title: "9. Cookies",
-    content: `Nexflow uses cookies and localStorage strictly for:
-
-• Maintaining your authenticated session (via Supabase Auth)
-• Remembering your UI preferences (theme selection)
-
-We do not use cookies for advertising, cross-site tracking, or analytics beyond basic server logs.`,
-  },
-  {
-    id: "children",
-    title: "10. Children's Privacy",
-    content: `Nexflow is not directed at children under the age of 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, contact us and we will delete it.`,
-  },
-  {
-    id: "changes",
-    title: "11. Changes to This Policy",
-    content: `We may update this policy from time to time. We will notify you of material changes by posting a notice in the Nexflow dashboard or by email. Continued use of the service after changes take effect constitutes acceptance of the updated policy.`,
-  },
-  {
-    id: "contact",
-    title: "12. Contact",
-    content: `For privacy questions, data deletion requests, or to report a security issue, contact us at:
-
-privacy@nexflow.app
-
-We aim to respond to all privacy inquiries within 5 business days.`,
-  },
+  { id: "overview", title: "1. Overview" },
+  { id: "controller", title: "2. Controller" },
+  { id: "categories", title: "3. Data Categories" },
+  { id: "legal-bases", title: "4. Legal Bases" },
+  { id: "core-processors", title: "5. Core Processors" },
+  { id: "connected-services", title: "6. Connected Services" },
+  { id: "model-providers", title: "7. Model Providers" },
+  { id: "transfers", title: "8. International Transfers" },
+  { id: "retention", title: "9. Retention" },
+  { id: "security", title: "10. Security" },
+  { id: "rights", title: "11. Your Rights" },
+  { id: "cookies", title: "12. Cookies and Local Storage" },
+  { id: "contact", title: "13. Contact" },
 ];
 
-export default function PrivacyPage() {
+function TextCard({ item }: { item: TextItem }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card/60 p-5">
+      <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        {item.body}
+      </p>
+    </div>
+  );
+}
+
+function ProcessorCard({ entry }: { entry: ProcessorEntry }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card/60 p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-foreground">
+            {entry.name}
+          </h3>
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
+            {entry.role}
+          </p>
+        </div>
+        <span className="inline-flex rounded-full border border-border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground">
+          {entry.activation}
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+            Purpose
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {entry.purpose}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+            Legal Basis
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {entry.legalBasis}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+            Data Categories
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {entry.categories}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+            Data Location
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {entry.dataLocation}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border/70 bg-background/50 p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+          Transfer Notes
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          {entry.transferNotes}
+        </p>
+        {entry.notes ? (
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            {entry.notes}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export default async function PrivacyPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Ambient background */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-grid-dots opacity-15" />
         <div
-          className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full"
-          style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.07) 0%, transparent 70%)", filter: "blur(80px)" }}
+          className="absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full"
+          style={{
+            background:
+              "radial-gradient(ellipse, rgba(249,115,22,0.07) 0%, transparent 70%)",
+            filter: "blur(80px)",
+          }}
         />
       </div>
 
-      {/* Nav */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto max-w-4xl flex items-center justify-between px-6 h-14">
-          <Link href="/" className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-6 w-6 object-contain" />
-            <span className="font-bold text-sm tracking-tight">Nexflow</span>
-          </Link>
-          <Link href="/" className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors">
-            ← Back to homepage
-          </Link>
-        </div>
-      </header>
+      <LegalPageHeader maxWidthClass="max-w-5xl" />
 
-      <main className="relative mx-auto max-w-4xl px-6 py-16">
-        {/* Header */}
+      <main className="relative mx-auto max-w-5xl px-6 py-16">
         <div className="mb-12">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">Legal</p>
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">Privacy Policy</h1>
-          <p className="text-muted-foreground text-sm">Last updated: {LAST_UPDATED}</p>
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+            Legal
+          </p>
+          <h1 className="mb-4 text-4xl font-black tracking-tight sm:text-5xl">
+            Privacy Policy
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Last updated: {LEGAL_LAST_UPDATED}
+          </p>
         </div>
 
         <div className="flex gap-12">
-          {/* Table of contents — sticky sidebar on large screens */}
-          <aside className="hidden lg:block w-52 shrink-0">
+          <aside className="hidden w-56 shrink-0 lg:block">
             <div className="sticky top-24 space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-3 px-3">Contents</p>
-              {sections.map((s) => (
+              <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                Contents
+              </p>
+              {sections.map((section) => (
                 <a
-                  key={s.id}
-                  href={`#${s.id}`}
-                  className="block rounded-lg px-3 py-1.5 text-xs text-muted-foreground/60 hover:text-foreground hover:bg-accent transition-all duration-150 leading-snug"
+                  key={section.id}
+                  href={`#${section.id}`}
+                  className="block rounded-lg px-3 py-1.5 text-xs leading-snug text-muted-foreground/60 transition-all duration-150 hover:bg-accent hover:text-foreground"
                 >
-                  {s.title}
+                  {section.title}
                 </a>
               ))}
             </div>
           </aside>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0 space-y-10">
-            {sections.map((section) => (
-              <section key={section.id} id={section.id} className="scroll-mt-24">
-                <h2 className="text-lg font-bold mb-4 text-foreground">{section.title}</h2>
+          <div className="min-w-0 flex-1 space-y-10">
+            <section id="overview" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                1. Overview
+              </h2>
+              <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+                <p>
+                  Nexflow is a visual AI automation platform. This policy
+                  explains how we process personal data when you create an
+                  account, configure workflows, connect third-party services,
+                  add model or API credentials, purchase a paid plan, or contact
+                  us about the product.
+                </p>
+                <p>
+                  We do not sell personal data. We also do not load advertising
+                  trackers or non-essential analytics on the current site
+                  experience.
+                </p>
+                <p>
+                  This page separates:
+                </p>
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>
+                    core processors we engage to operate Nexflow itself, and
+                  </li>
+                  <li>
+                    optional connected services and model providers that only
+                    receive data when you explicitly enable them in a workflow.
+                  </li>
+                </ul>
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
 
-                {"subsections" in section && section.subsections ? (
-                  <div className="space-y-5">
-                    {section.subsections.map((sub) => (
-                      <div key={sub.title}>
-                        <h3 className="text-sm font-semibold text-foreground/80 mb-2">{sub.title}</h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{sub.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                    {"content" in section ? section.content : ""}
-                  </p>
-                )}
+            <section id="controller" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                2. Controller
+              </h2>
+              <div className="rounded-2xl border border-border bg-card/60 p-6 text-sm leading-relaxed text-muted-foreground">
+                <p>
+                  The controller for the Nexflow service is{" "}
+                  <span className="font-semibold text-foreground">
+                    {legalIdentity.entityName}
+                  </span>
+                  .
+                </p>
+                <p className="mt-3">
+                  Full provider-identification details, including the current
+                  legal address and VAT information used for the public site, are
+                  published in the{" "}
+                  <Link href="/impressum" className="text-primary hover:underline">
+                    Impressum
+                  </Link>
+                  .
+                </p>
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
 
-                <div className="mt-8 border-t border-border/30" />
-              </section>
-            ))}
+            <section id="categories" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                3. Data Categories
+              </h2>
+              <div className="grid gap-4">
+                {dataCategories.map((item) => (
+                  <TextCard key={item.title} item={item} />
+                ))}
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
 
-            {/* Footer note */}
-            <div className="rounded-2xl border border-border bg-card/60 p-6 text-sm text-muted-foreground leading-relaxed">
-              <p className="font-semibold text-foreground mb-2">Questions about this policy?</p>
-              <p>
-                Email us at{" "}
-                <a href="mailto:privacy@nexflow.app" className="text-primary hover:underline">
-                  privacy@nexflow.app
-                </a>
-                . For your account and program data, visit your{" "}
-                <Link href="/dashboard" className="text-primary hover:underline">
-                  dashboard
-                </Link>
-                .
+            <section id="legal-bases" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                4. Legal Bases
+              </h2>
+              <div className="grid gap-4">
+                {legalBases.map((item) => (
+                  <TextCard key={item.title} item={item} />
+                ))}
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="core-processors" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                5. Core Processors
+              </h2>
+              <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+                These providers operate the Nexflow product itself. They process
+                personal data on our behalf so we can host the application, run
+                workflows, send transactional notifications, and handle billing.
               </p>
-            </div>
+              <div className="grid gap-5">
+                {coreServiceProviders.map((entry) => (
+                  <ProcessorCard key={entry.name} entry={entry} />
+                ))}
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="connected-services" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                6. Connected Services
+              </h2>
+              <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+                These services are only contacted if you connect them and build
+                workflows that use them. Depending on the service and your own
+                agreement with that service, the connected provider may act as an
+                independent controller, a processor for your organization, or
+                both.
+              </p>
+
+              <div className="mb-5 rounded-2xl border border-border bg-card/60 p-5 text-sm leading-relaxed text-muted-foreground">
+                <p className="font-semibold text-foreground">
+                  Google API Services notice
+                </p>
+                <p className="mt-2">
+                  If you connect Google services, Nexflow uses Google user data
+                  only to provide the Google-backed features you configure. We do
+                  not use Google user data for advertising or to train general
+                  AI models. You can revoke Google access in your Google account
+                  permissions or by disconnecting the integration in Nexflow.
+                </p>
+              </div>
+
+              <div className="grid gap-5">
+                {connectedServices.map((entry) => (
+                  <ProcessorCard key={entry.name} entry={entry} />
+                ))}
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="model-providers" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                7. Model Providers
+              </h2>
+              <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+                These providers are optional. Nexflow only sends prompts,
+                workflow context, and selected inputs to them if you add the
+                relevant API key or choose that provider inside a workflow.
+              </p>
+              <div className="grid gap-5">
+                {modelProviders.map((entry) => (
+                  <ProcessorCard key={entry.name} entry={entry} />
+                ))}
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="transfers" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                8. International Transfers
+              </h2>
+              <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+                <p>
+                  Many infrastructure, billing, email, and AI providers used by
+                  or through Nexflow are based in the United States or use global
+                  infrastructure. That means personal data may be transferred
+                  outside the EEA, the UK, or Switzerland.
+                </p>
+                <p>
+                  Where required, these transfers should be covered by provider
+                  DPAs, Standard Contractual Clauses, Data Privacy Framework
+                  participation where applicable, or equivalent safeguards. The
+                  exact transfer path depends on the providers you enable and the
+                  regions configured in those third-party accounts.
+                </p>
+                <p>
+                  From the repository alone we cannot verify every live account
+                  setting. In particular, the active Supabase, Vercel, Railway,
+                  Inngest, and model-provider regional settings still need to be
+                  checked in their respective dashboards.
+                </p>
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="retention" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                9. Retention
+              </h2>
+              <div className="grid gap-4">
+                {retentionItems.map((item) => (
+                  <TextCard key={item.title} item={item} />
+                ))}
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="security" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                10. Security
+              </h2>
+              <div className="rounded-2xl border border-border bg-card/60 p-6 text-sm leading-relaxed text-muted-foreground">
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>Traffic to the product is encrypted in transit with TLS.</li>
+                  <li>
+                    OAuth tokens and API keys are stored through Supabase Vault
+                    references and are not returned to the browser in normal API
+                    responses.
+                  </li>
+                  <li>
+                    Workflow ownership checks and row-level access controls are
+                    used to keep users scoped to their own resources.
+                  </li>
+                  <li>
+                    We minimize sensitive logging in the web layer and continue
+                    tightening deletion and retention flows where the audit found
+                    gaps.
+                  </li>
+                </ul>
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="rights" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                11. Your Rights
+              </h2>
+              <div className="grid gap-4">
+                {rightsItems.map((item) => (
+                  <TextCard key={item.title} item={item} />
+                ))}
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="cookies" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                12. Cookies and Local Storage
+              </h2>
+              <div className="rounded-2xl border border-border bg-card/60 p-6 text-sm leading-relaxed text-muted-foreground">
+                <p>
+                  Nexflow currently uses cookies and local storage only for
+                  essential session handling and interface preferences such as
+                  theme selection. We do not currently load advertising trackers
+                  or non-essential analytics on the site.
+                </p>
+                <p className="mt-3">
+                  Because the current site experience only uses essential
+                  authentication cookies and saved preferences, the site shows an
+                  informational notice rather than an opt-in marketing or
+                  analytics banner.
+                </p>
+              </div>
+              <div className="mt-8 border-t border-border/30" />
+            </section>
+
+            <section id="contact" className="scroll-mt-24">
+              <h2 className="mb-4 text-lg font-bold text-foreground">
+                13. Contact
+              </h2>
+              <div className="rounded-2xl border border-border bg-card/60 p-6 text-sm leading-relaxed text-muted-foreground">
+                <p className="font-semibold text-foreground">
+                  Privacy requests and security issues
+                </p>
+                <p className="mt-2">
+                  Email us at{" "}
+                  <a
+                    href={`mailto:${privacyContactEmail}`}
+                    className="text-primary hover:underline"
+                  >
+                    {privacyContactEmail}
+                  </a>
+                  . For general legal contact details, see the{" "}
+                  <Link href="/impressum" className="text-primary hover:underline">
+                    Impressum
+                  </Link>
+                  .
+                </p>
+              </div>
+            </section>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/40 px-6 py-6 mt-16">
-        <div className="mx-auto max-w-4xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground/50">
-          <span>© {new Date().getFullYear()} Nexflow. All rights reserved.</span>
+      <footer className="mt-16 border-t border-border/40 px-6 py-6">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground/50 sm:flex-row">
+          <span>&copy; {new Date().getFullYear()} Nexflow. All rights reserved.</span>
           <div className="flex items-center gap-5">
-            <Link href="/privacy" className="hover:text-foreground transition-colors font-medium text-muted-foreground/70">Privacy</Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link href="/login" className="hover:text-foreground transition-colors">Sign in</Link>
+            <Link
+              href="/privacy"
+              className="font-medium text-muted-foreground/70 transition-colors hover:text-foreground"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/terms"
+              className="transition-colors hover:text-foreground"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/impressum"
+              className="transition-colors hover:text-foreground"
+            >
+              Impressum
+            </Link>
+            <Link
+              href="/login"
+              className="transition-colors hover:text-foreground"
+            >
+              Sign in
+            </Link>
           </div>
         </div>
       </footer>

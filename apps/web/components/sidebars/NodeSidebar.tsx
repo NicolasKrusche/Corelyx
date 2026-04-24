@@ -21,6 +21,12 @@ import type {
 } from "@flowos/schema";
 import type { ValidationResult, ValidationError, ValidationWarning } from "@/lib/validation";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  OPERATION_PARAM_FIELDS,
+  getMissingRequiredParams,
+  isUnassignedParamValue,
+  type ParamField,
+} from "@/lib/connectors/operation-params";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +37,7 @@ export interface ApiKey {
 }
 
 export interface SidebarConnection {
+  id: string;
   name: string;
   provider: string;
   scopes: string[];
@@ -71,368 +78,6 @@ const CONNECTOR_OPERATIONS: Record<string, string[]> = {
   asana:    ["list_tasks", "get_task", "create_task", "update_task", "complete_task", "list_projects"],
   outlook:  ["list_emails", "read_email", "send_email", "reply_email", "delete_email", "list_folders", "move_email"],
 };
-
-// ─── Structured param schemas per provider+operation ──────────────────────────
-
-type ParamFieldType = "string" | "text" | "number" | "boolean" | "json" | "array";
-
-interface ParamField {
-  key: string;
-  label: string;
-  type: ParamFieldType;
-  placeholder?: string;
-  required?: boolean;
-  hint?: string;
-}
-
-const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>> = {
-  gmail: {
-    list_emails: [
-      { key: "query", label: "Query", type: "string", placeholder: "from:user@example.com is:unread" },
-      { key: "max_results", label: "Max results", type: "number", placeholder: "10" },
-      { key: "label_ids", label: "Label IDs", type: "array", placeholder: "INBOX, UNREAD" },
-    ],
-    list_threads: [
-      { key: "query", label: "Query", type: "string", placeholder: "subject:invoice" },
-      { key: "max_results", label: "Max results", type: "number", placeholder: "10" },
-    ],
-    search: [
-      { key: "query", label: "Search query", type: "string", placeholder: "has:attachment newer_than:7d", required: true },
-      { key: "max_results", label: "Max results", type: "number", placeholder: "20" },
-    ],
-    read_email: [
-      { key: "message_id", label: "Message ID", type: "string", placeholder: "18e3f1a2b3c4d5e6", required: true },
-    ],
-    get_attachment: [
-      { key: "message_id", label: "Message ID", type: "string", required: true },
-      { key: "attachment_id", label: "Attachment ID", type: "string", required: true },
-    ],
-    send_email: [
-      { key: "to", label: "To", type: "string", placeholder: "alice@example.com", required: true },
-      { key: "subject", label: "Subject", type: "string", required: true },
-      { key: "body", label: "Body", type: "text", required: true },
-      { key: "cc", label: "CC", type: "string", placeholder: "bob@example.com" },
-      { key: "bcc", label: "BCC", type: "string" },
-      { key: "is_html", label: "HTML body", type: "boolean" },
-    ],
-    archive_email: [
-      { key: "message_id", label: "Message ID", type: "string", required: true },
-    ],
-    label_email: [
-      { key: "message_id", label: "Message ID", type: "string", required: true },
-      { key: "label_ids", label: "Add labels", type: "array", placeholder: "STARRED, Label_123" },
-      { key: "remove_label_ids", label: "Remove labels", type: "array", placeholder: "UNREAD" },
-    ],
-  },
-  notion: {
-    read_page: [
-      { key: "page_id", label: "Page ID", type: "string", placeholder: "a1b2c3d4-...", required: true },
-    ],
-    create_page: [
-      { key: "parent_id", label: "Parent page/DB ID", type: "string", required: true },
-      { key: "title", label: "Title", type: "string", required: true },
-      { key: "content", label: "Initial content (Markdown)", type: "text" },
-    ],
-    append_to_page: [
-      { key: "page_id", label: "Page ID", type: "string", required: true },
-      { key: "content", label: "Content (Markdown)", type: "text", required: true },
-    ],
-    query_database: [
-      { key: "database_id", label: "Database ID", type: "string", required: true },
-      { key: "filter", label: "Filter", type: "json", hint: "Notion filter object" },
-      { key: "sorts", label: "Sorts", type: "json", hint: "Array of sort objects" },
-      { key: "page_size", label: "Page size", type: "number", placeholder: "100" },
-    ],
-    create_database_entry: [
-      { key: "database_id", label: "Database ID", type: "string", required: true },
-      { key: "properties", label: "Properties", type: "json", required: true, hint: "Notion properties object" },
-    ],
-  },
-  slack: {
-    send_message: [
-      { key: "channel", label: "Channel", type: "string", placeholder: "#general or C123ABC", required: true },
-      { key: "text", label: "Message text", type: "text", required: true },
-      { key: "blocks", label: "Block Kit blocks", type: "json", hint: "Optional rich layout blocks" },
-    ],
-    read_channel: [
-      { key: "channel", label: "Channel ID", type: "string", required: true },
-      { key: "limit", label: "Message limit", type: "number", placeholder: "50" },
-    ],
-    list_channels: [
-      { key: "types", label: "Types", type: "string", placeholder: "public_channel,private_channel" },
-      { key: "limit", label: "Limit", type: "number", placeholder: "100" },
-    ],
-    create_channel: [
-      { key: "name", label: "Channel name", type: "string", placeholder: "my-channel", required: true },
-      { key: "is_private", label: "Private channel", type: "boolean" },
-    ],
-  },
-  github: {
-    create_issue: [
-      { key: "owner", label: "Owner", type: "string", placeholder: "octocat", required: true },
-      { key: "repo", label: "Repository", type: "string", placeholder: "my-repo", required: true },
-      { key: "title", label: "Title", type: "string", required: true },
-      { key: "body", label: "Body", type: "text" },
-      { key: "labels", label: "Labels", type: "array", placeholder: "bug, enhancement" },
-    ],
-    comment_on_issue: [
-      { key: "owner", label: "Owner", type: "string", required: true },
-      { key: "repo", label: "Repository", type: "string", required: true },
-      { key: "issue_number", label: "Issue number", type: "number", required: true },
-      { key: "body", label: "Comment body", type: "text", required: true },
-    ],
-    list_prs: [
-      { key: "owner", label: "Owner", type: "string", required: true },
-      { key: "repo", label: "Repository", type: "string", required: true },
-      { key: "state", label: "State", type: "string", placeholder: "open" },
-    ],
-    get_pr_diff: [
-      { key: "owner", label: "Owner", type: "string", required: true },
-      { key: "repo", label: "Repository", type: "string", required: true },
-      { key: "pull_number", label: "PR number", type: "number", required: true },
-    ],
-    push_file: [
-      { key: "owner", label: "Owner", type: "string", required: true },
-      { key: "repo", label: "Repository", type: "string", required: true },
-      { key: "path", label: "File path", type: "string", placeholder: "src/hello.txt", required: true },
-      { key: "content", label: "File content", type: "text", required: true },
-      { key: "message", label: "Commit message", type: "string", required: true },
-      { key: "branch", label: "Branch", type: "string", placeholder: "main" },
-    ],
-  },
-  sheets: {
-    read_range: [
-      { key: "spreadsheet_id", label: "Spreadsheet ID", type: "string", required: true },
-      { key: "range", label: "Range", type: "string", placeholder: "Sheet1!A1:D100", required: true },
-    ],
-    write_range: [
-      { key: "spreadsheet_id", label: "Spreadsheet ID", type: "string", required: true },
-      { key: "range", label: "Range", type: "string", placeholder: "Sheet1!A1", required: true },
-      { key: "values", label: "Values (2D array)", type: "json", required: true, hint: '[[\"a\",\"b\"],[\"c\",\"d\"]]' },
-    ],
-    append_row: [
-      { key: "spreadsheet_id", label: "Spreadsheet ID", type: "string", required: true },
-      { key: "range", label: "Range / sheet name", type: "string", placeholder: "Sheet1", required: true },
-      { key: "values", label: "Row values", type: "json", required: true, hint: '[[\"val1\",\"val2\"]]' },
-    ],
-    list_sheets: [
-      { key: "spreadsheet_id", label: "Spreadsheet ID", type: "string", required: true },
-    ],
-    create_sheet: [
-      { key: "spreadsheet_id", label: "Spreadsheet ID", type: "string", required: true },
-      { key: "title", label: "Sheet title", type: "string", required: true },
-    ],
-    clear_range: [
-      { key: "spreadsheet_id", label: "Spreadsheet ID", type: "string", required: true },
-      { key: "range", label: "Range", type: "string", placeholder: "Sheet1!A1:Z100", required: true },
-    ],
-  },
-  calendar: {
-    list_events: [
-      { key: "calendar_id", label: "Calendar ID", type: "string", placeholder: "primary" },
-      { key: "time_min", label: "From (ISO 8601)", type: "string", placeholder: "2024-01-01T00:00:00Z" },
-      { key: "time_max", label: "To (ISO 8601)", type: "string" },
-      { key: "max_results", label: "Max results", type: "number", placeholder: "10" },
-    ],
-    get_event: [
-      { key: "event_id", label: "Event ID", type: "string", required: true },
-      { key: "calendar_id", label: "Calendar ID", type: "string", placeholder: "primary" },
-    ],
-    create_event: [
-      { key: "calendar_id", label: "Calendar ID", type: "string", placeholder: "primary" },
-      { key: "summary", label: "Title", type: "string", required: true },
-      { key: "start", label: "Start (ISO 8601)", type: "string", required: true },
-      { key: "end", label: "End (ISO 8601)", type: "string", required: true },
-      { key: "description", label: "Description", type: "text" },
-      { key: "attendees", label: "Attendees", type: "json", hint: '[{"email":"a@b.com"}]' },
-    ],
-    update_event: [
-      { key: "calendar_id", label: "Calendar ID", type: "string", placeholder: "primary" },
-      { key: "event_id", label: "Event ID", type: "string", required: true },
-      { key: "summary", label: "Title", type: "string" },
-      { key: "start", label: "Start (ISO 8601)", type: "string" },
-      { key: "end", label: "End (ISO 8601)", type: "string" },
-    ],
-    delete_event: [
-      { key: "calendar_id", label: "Calendar ID", type: "string", placeholder: "primary" },
-      { key: "event_id", label: "Event ID", type: "string", required: true },
-    ],
-  },
-  docs: {
-    read_document: [
-      { key: "document_id", label: "Document ID", type: "string", required: true },
-    ],
-    create_document: [
-      { key: "title", label: "Title", type: "string", required: true },
-      { key: "content", label: "Initial content", type: "text" },
-    ],
-    append_to_document: [
-      { key: "document_id", label: "Document ID", type: "string", required: true },
-      { key: "content", label: "Content to append", type: "text", required: true },
-    ],
-    replace_text: [
-      { key: "document_id", label: "Document ID", type: "string", required: true },
-      { key: "search_text", label: "Search text", type: "string", required: true },
-      { key: "replacement", label: "Replacement text", type: "string", required: true },
-    ],
-  },
-  drive: {
-    list_files: [
-      { key: "query", label: "Query", type: "string", placeholder: "name contains 'report' and trashed=false" },
-      { key: "page_size", label: "Page size", type: "number", placeholder: "20" },
-    ],
-    get_file_metadata: [
-      { key: "file_id", label: "File ID", type: "string", required: true },
-    ],
-    create_folder: [
-      { key: "name", label: "Folder name", type: "string", required: true },
-      { key: "parent_id", label: "Parent folder ID", type: "string" },
-    ],
-    delete_file: [
-      { key: "file_id", label: "File ID", type: "string", required: true },
-    ],
-    share_file: [
-      { key: "file_id", label: "File ID", type: "string", required: true },
-      { key: "email", label: "Share with (email)", type: "string", required: true },
-      { key: "role", label: "Role", type: "string", placeholder: "writer" },
-    ],
-  },
-  airtable: {
-    list_records: [
-      { key: "base_id", label: "Base ID", type: "string", placeholder: "appXXXXXXXX", required: true },
-      { key: "table_name", label: "Table name", type: "string", required: true },
-      { key: "filter_formula", label: "Filter formula", type: "string", placeholder: 'NOT({Status}="Done")' },
-      { key: "max_records", label: "Max records", type: "number", placeholder: "100" },
-    ],
-    get_record: [
-      { key: "base_id", label: "Base ID", type: "string", required: true },
-      { key: "table_name", label: "Table name", type: "string", required: true },
-      { key: "record_id", label: "Record ID", type: "string", required: true },
-    ],
-    create_record: [
-      { key: "base_id", label: "Base ID", type: "string", required: true },
-      { key: "table_name", label: "Table name", type: "string", required: true },
-      { key: "fields", label: "Fields", type: "json", required: true, hint: '{"Name":"Alice","Status":"Active"}' },
-    ],
-    update_record: [
-      { key: "base_id", label: "Base ID", type: "string", required: true },
-      { key: "table_name", label: "Table name", type: "string", required: true },
-      { key: "record_id", label: "Record ID", type: "string", required: true },
-      { key: "fields", label: "Fields to update", type: "json", required: true },
-    ],
-    delete_record: [
-      { key: "base_id", label: "Base ID", type: "string", required: true },
-      { key: "table_name", label: "Table name", type: "string", required: true },
-      { key: "record_id", label: "Record ID", type: "string", required: true },
-    ],
-  },
-  hubspot: {
-    list_contacts: [
-      { key: "limit", label: "Limit", type: "number", placeholder: "100" },
-      { key: "properties", label: "Properties", type: "array", placeholder: "email, firstname, lastname" },
-      { key: "after", label: "After (cursor)", type: "string" },
-    ],
-    get_contact: [
-      { key: "contact_id", label: "Contact ID", type: "string", required: true },
-    ],
-    create_contact: [
-      { key: "properties", label: "Properties", type: "json", required: true, hint: '{"email":"a@b.com","firstname":"Alice"}' },
-    ],
-    update_contact: [
-      { key: "contact_id", label: "Contact ID", type: "string", required: true },
-      { key: "properties", label: "Properties to update", type: "json", required: true },
-    ],
-    list_deals: [
-      { key: "limit", label: "Limit", type: "number", placeholder: "100" },
-      { key: "after", label: "After (cursor)", type: "string" },
-    ],
-    create_deal: [
-      { key: "properties", label: "Properties", type: "json", required: true, hint: '{"dealname":"Big Deal","amount":"10000"}' },
-    ],
-    update_deal: [
-      { key: "deal_id", label: "Deal ID", type: "string", required: true },
-      { key: "properties", label: "Properties to update", type: "json", required: true },
-    ],
-  },
-  typeform: {
-    list_forms: [
-      { key: "page", label: "Page", type: "number", placeholder: "1" },
-      { key: "page_size", label: "Page size", type: "number", placeholder: "10" },
-    ],
-    get_form: [
-      { key: "form_id", label: "Form ID", type: "string", required: true },
-    ],
-    list_responses: [
-      { key: "form_id", label: "Form ID", type: "string", required: true },
-      { key: "page_size", label: "Page size", type: "number", placeholder: "25" },
-      { key: "since", label: "Since (ISO 8601)", type: "string" },
-      { key: "until", label: "Until (ISO 8601)", type: "string" },
-      { key: "completed", label: "Completed only", type: "boolean" },
-    ],
-  },
-  asana: {
-    list_tasks: [
-      { key: "project_id", label: "Project ID", type: "string", required: true },
-      { key: "assignee", label: "Assignee (email or GID)", type: "string" },
-      { key: "completed_since", label: "Completed since (ISO 8601)", type: "string" },
-    ],
-    get_task: [
-      { key: "task_id", label: "Task GID", type: "string", required: true },
-    ],
-    create_task: [
-      { key: "workspace_id", label: "Workspace GID", type: "string", required: true },
-      { key: "name", label: "Task name", type: "string", required: true },
-      { key: "notes", label: "Notes", type: "text" },
-      { key: "due_on", label: "Due date (YYYY-MM-DD)", type: "string" },
-      { key: "assignee", label: "Assignee (email or GID)", type: "string" },
-      { key: "projects", label: "Project GIDs", type: "array" },
-    ],
-    update_task: [
-      { key: "task_id", label: "Task GID", type: "string", required: true },
-      { key: "name", label: "Name", type: "string" },
-      { key: "notes", label: "Notes", type: "text" },
-      { key: "due_on", label: "Due date (YYYY-MM-DD)", type: "string" },
-      { key: "completed", label: "Completed", type: "boolean" },
-    ],
-    complete_task: [
-      { key: "task_id", label: "Task GID", type: "string", required: true },
-    ],
-    list_projects: [
-      { key: "workspace_id", label: "Workspace GID", type: "string", required: true },
-    ],
-  },
-  outlook: {
-    list_emails: [
-      { key: "folder", label: "Folder", type: "string", placeholder: "Inbox" },
-      { key: "top", label: "Max messages", type: "number", placeholder: "20" },
-      { key: "filter", label: "OData filter", type: "string", placeholder: "isRead eq false" },
-    ],
-    read_email: [
-      { key: "message_id", label: "Message ID", type: "string", required: true },
-    ],
-    send_email: [
-      { key: "to", label: "To (email)", type: "string", required: true },
-      { key: "subject", label: "Subject", type: "string", required: true },
-      { key: "body", label: "Body", type: "text", required: true },
-      { key: "cc", label: "CC", type: "string" },
-      { key: "is_html", label: "HTML body", type: "boolean" },
-    ],
-    reply_email: [
-      { key: "message_id", label: "Message ID", type: "string", required: true },
-      { key: "comment", label: "Reply text", type: "text", required: true },
-    ],
-    delete_email: [
-      { key: "message_id", label: "Message ID", type: "string", required: true },
-    ],
-    list_folders: [],
-    move_email: [
-      { key: "message_id", label: "Message ID", type: "string", required: true },
-      { key: "destination_folder", label: "Destination folder", type: "string", placeholder: "archive", required: true, hint: 'Folder ID or well-known name: inbox, archive, deleteditems, sentitems' },
-    ],
-  },
-};
-
-// ─── Required scopes per provider+operation ───────────────────────────────────
 
 const OPERATION_SCOPES: Record<string, Record<string, string[]>> = {
   gmail: {
@@ -680,18 +325,23 @@ function ValidationSummary({
 
 // ─── Operation params editor ─────────────────────────────────────────────────
 
+const SENTINEL_VALUE = "__USER_ASSIGNED__";
+
 function OperationParamsEditor({
   provider,
   operation,
   params,
+  connectionId,
   onChange,
 }: {
   provider: string;
   operation: string;
   params: Record<string, unknown>;
+  connectionId: string | null;
   onChange: (next: Record<string, unknown>) => void;
 }) {
   const fields = OPERATION_PARAM_FIELDS[provider]?.[operation];
+  const missingRequired = getMissingRequiredParams(provider, operation, params);
 
   // JSON fallback state for JSON-type fields and for unknown operations
   const [jsonFallback, setJsonFallback] = useState(() => JSON.stringify(params, null, 2));
@@ -744,14 +394,36 @@ function OperationParamsEditor({
 
   return (
     <div className="space-y-3">
+      {missingRequired.length > 0 && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+          <span className="font-semibold">
+            {missingRequired.length === 1
+              ? "1 required field needs your input"
+              : `${missingRequired.length} required fields need your input`}
+          </span>
+          <span className="block text-[11px] text-destructive/80 mt-0.5">
+            Fill these before running the program.
+          </span>
+        </div>
+      )}
       {fields.map((field) => {
         const rawVal = params[field.key];
+        const isMissing = missingRequired.includes(field.key);
+        // Hide the sentinel in the input so the user sees an empty, flagged field
+        // instead of the literal placeholder string.
+        const displayVal = isUnassignedParamValue(rawVal) ? "" : rawVal;
         const labelEl = (
           <span>
             {field.label}
             {field.required && <span className="text-destructive ml-0.5">*</span>}
+            {isMissing && (
+              <span className="ml-2 text-[10px] font-semibold text-destructive uppercase tracking-wide">
+                Required
+              </span>
+            )}
           </span>
         );
+        const inputClass = cn(isMissing && "border-destructive focus-visible:ring-destructive");
 
         if (field.type === "boolean") {
           return (
@@ -772,9 +444,9 @@ function OperationParamsEditor({
               <Textarea
                 id={`op-${field.key}`}
                 rows={3}
-                className="text-xs resize-y"
+                className={cn("text-xs resize-y", inputClass)}
                 placeholder={field.placeholder}
-                value={String(rawVal ?? "")}
+                value={String(displayVal ?? "")}
                 onChange={(e) => update(field.key, e.target.value)}
               />
             </FieldGroup>
@@ -788,8 +460,9 @@ function OperationParamsEditor({
               <Input
                 id={`op-${field.key}`}
                 type="number"
+                className={inputClass}
                 placeholder={field.placeholder}
-                value={rawVal !== undefined ? String(rawVal) : ""}
+                value={displayVal !== undefined && displayVal !== "" ? String(displayVal) : ""}
                 onChange={(e) => update(field.key, e.target.value ? Number(e.target.value) : undefined)}
               />
             </FieldGroup>
@@ -797,12 +470,17 @@ function OperationParamsEditor({
         }
 
         if (field.type === "array") {
-          const arrVal = Array.isArray(rawVal) ? (rawVal as string[]).join(", ") : String(rawVal ?? "");
+          const arrVal = Array.isArray(rawVal)
+            ? (rawVal as string[]).join(", ")
+            : isUnassignedParamValue(rawVal)
+            ? ""
+            : String(rawVal ?? "");
           return (
             <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint ?? "Comma-separated"}>
               <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
               <Input
                 id={`op-${field.key}`}
+                className={inputClass}
                 placeholder={field.placeholder ?? "item1, item2"}
                 value={arrVal}
                 onChange={(e) => {
@@ -815,7 +493,7 @@ function OperationParamsEditor({
         }
 
         if (field.type === "json") {
-          const jsonVal = rawVal !== undefined
+          const jsonVal = rawVal !== undefined && !isUnassignedParamValue(rawVal)
             ? (typeof rawVal === "string" ? rawVal : JSON.stringify(rawVal, null, 2))
             : "";
           return (
@@ -825,6 +503,7 @@ function OperationParamsEditor({
               label={labelEl}
               hint={field.hint}
               value={jsonVal}
+              invalid={isMissing}
               onCommit={(v) => {
                 try {
                   update(field.key, v ? JSON.parse(v) : undefined);
@@ -836,14 +515,32 @@ function OperationParamsEditor({
           );
         }
 
+        // Resource picker for Sheets spreadsheet_id
+        if (provider === "sheets" && field.key === "spreadsheet_id" && connectionId) {
+          return (
+            <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint}>
+              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+              <ResourcePicker
+                connectionId={connectionId}
+                resourceType="spreadsheets"
+                value={String(displayVal ?? "")}
+                placeholder="Choose a spreadsheet"
+                invalid={isMissing}
+                onChange={(v) => update(field.key, v || undefined)}
+              />
+            </FieldGroup>
+          );
+        }
+
         // Default: string input
         return (
           <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint}>
             <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
             <Input
               id={`op-${field.key}`}
+              className={inputClass}
               placeholder={field.placeholder}
-              value={String(rawVal ?? "")}
+              value={String(displayVal ?? "")}
               onChange={(e) => update(field.key, e.target.value)}
             />
           </FieldGroup>
@@ -863,12 +560,14 @@ function JsonField({
   hint,
   value,
   onCommit,
+  invalid = false,
 }: {
   fieldKey: string;
   label: React.ReactNode;
   hint?: string;
   value: string;
   onCommit: (v: string) => void;
+  invalid?: boolean;
 }) {
   const [local, setLocal] = useState(value);
   const [err, setErr] = useState(false);
@@ -881,7 +580,7 @@ function JsonField({
       <Textarea
         id={`op-${fieldKey}`}
         rows={3}
-        className={cn("text-xs font-mono resize-y", err && "border-destructive")}
+        className={cn("text-xs font-mono resize-y", (err || invalid) && "border-destructive")}
         value={local}
         placeholder="{}"
         onChange={(e) => { setLocal(e.target.value); setErr(false); }}
@@ -892,6 +591,120 @@ function JsonField({
       />
       {err && <p className="text-xs text-destructive">Invalid JSON</p>}
     </FieldGroup>
+  );
+}
+
+// ─── Resource picker ──────────────────────────────────────────────────────────
+// Dropdown that lists resources from a connection (e.g. spreadsheets the
+// authenticated Google account can see) so users don't have to paste IDs by hand.
+
+type PickerResource = { id: string; name: string };
+
+function ResourcePicker({
+  connectionId,
+  resourceType,
+  value,
+  placeholder,
+  invalid = false,
+  onChange,
+}: {
+  connectionId: string;
+  resourceType: "spreadsheets";
+  value: string;
+  placeholder?: string;
+  invalid?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [resources, setResources] = useState<PickerResource[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [manualEntry, setManualEntry] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/connections/${connectionId}/resources/${resourceType}`)
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `Failed to load ${resourceType}`);
+        }
+        return res.json();
+      })
+      .then((data: { resources: PickerResource[] }) => {
+        if (!cancelled) setResources(data.resources ?? []);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionId, resourceType]);
+
+  const selectedKnown = resources?.some((r) => r.id === value) ?? false;
+  const borderClass = invalid ? "border-destructive focus-visible:ring-destructive" : "";
+
+  if (manualEntry || error || (resources !== null && resources.length === 0)) {
+    return (
+      <div className="space-y-1.5">
+        <Input
+          className={borderClass}
+          placeholder={placeholder ?? "Paste ID"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {error && <p className="text-[11px] text-destructive">{error}. Paste the ID manually.</p>}
+        {!error && resources && resources.length === 0 && (
+          <p className="text-[11px] text-muted-foreground">No {resourceType} found. Paste an ID manually.</p>
+        )}
+        {!error && resources && resources.length > 0 && (
+          <button
+            type="button"
+            className="text-[11px] text-primary hover:underline"
+            onClick={() => setManualEntry(false)}
+          >
+            Pick from list instead
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Select
+        className={borderClass}
+        value={selectedKnown ? value : ""}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={loading || !resources}
+      >
+        <option value="">
+          {loading ? "Loading…" : placeholder ?? "Select…"}
+        </option>
+        {resources?.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name}
+          </option>
+        ))}
+      </Select>
+      {value && !selectedKnown && !loading && (
+        <p className="text-[11px] text-muted-foreground">
+          Current ID <span className="font-mono">{value}</span> not in your list.
+        </p>
+      )}
+      <button
+        type="button"
+        className="text-[11px] text-muted-foreground hover:underline"
+        onClick={() => setManualEntry(true)}
+      >
+        Paste ID manually
+      </button>
+    </div>
   );
 }
 
@@ -1750,6 +1563,9 @@ function ConnectionSidebar({
               provider={selectedProvider}
               operation={oauthConfig.operation}
               params={oauthConfig.operation_params ?? {}}
+              connectionId={
+                availableConnections.find((c) => c.name === nodeConnection)?.id ?? null
+              }
               onChange={(next) => onUpdate({ operation_params: next })}
             />
           </div>
