@@ -155,6 +155,35 @@ export interface Database {
           created_at?: string;
         };
       };
+      oauth_state_nonces: {
+        Row: {
+          flow_id: string;
+          user_id: string;
+          nonce_hash: string;
+          issued_at: string;
+          expires_at: string;
+          consumed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          flow_id: string;
+          user_id: string;
+          nonce_hash: string;
+          issued_at?: string;
+          expires_at: string;
+          consumed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          flow_id?: string;
+          user_id?: string;
+          nonce_hash?: string;
+          issued_at?: string;
+          expires_at?: string;
+          consumed_at?: string | null;
+          created_at?: string;
+        };
+      };
       api_keys: {
         Row: {
           id: string;

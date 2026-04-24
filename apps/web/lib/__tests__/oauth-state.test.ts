@@ -3,6 +3,7 @@ import {
   getOAuthStateCookieName,
   issueOAuthState,
   verifyOAuthState,
+  verifyOAuthStateWithNonceStore,
 } from "../oauth-state";
 
 const ORIGINAL_OAUTH_STATE_SECRET = process.env.OAUTH_STATE_SECRET;
@@ -120,5 +121,53 @@ describe("oauth state", () => {
       ok: false,
       reason: "user_mismatch",
     });
+  });
+
+  it("rejects replay after a server-side nonce is consumed", async () => {
+    process.env.OAUTH_STATE_SECRET = "test-oauth-state-secret";
+
+    const issued = issueOAuthState("user-123", { label: "gmail:primary" });
+    const consumedFlows = new Set<string>();
+    const consumeNonce = vi.fn(
+      async ({
+        flowId,
+        userId,
+        nonce,
+      }: {
+        flowId: string;
+        userId: string;
+        nonce: string;
+      }) => {
+        const key = `${userId}:${flowId}:${nonce}`;
+        if (consumedFlows.has(key)) {
+          return false;
+        }
+
+        consumedFlows.add(key);
+        return true;
+      }
+    );
+
+    await expect(
+      verifyOAuthStateWithNonceStore(
+        issued.state,
+        issued.cookieValue,
+        "user-123",
+        consumeNonce
+      )
+    ).resolves.toMatchObject({ ok: true });
+
+    await expect(
+      verifyOAuthStateWithNonceStore(
+        issued.state,
+        issued.cookieValue,
+        "user-123",
+        consumeNonce
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      reason: "nonce_mismatch",
+    });
+    expect(consumeNonce).toHaveBeenCalledTimes(2);
   });
 });

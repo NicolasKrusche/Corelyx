@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
-import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
+import { applyOAuthStateCookie, issueOAuthStateForRequest } from "@/lib/oauth-state";
 
 const SLACK_SCOPES = [
   "channels:read", "channels:history",
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const label = searchParams.get("label") ?? "slack:primary";
-  const issuedState = issueOAuthState(user.id, { label });
+  const issuedState = await issueOAuthStateForRequest(user.id, { label });
 
   const params = new URLSearchParams({
     client_id: process.env.SLACK_CLIENT_ID!,
