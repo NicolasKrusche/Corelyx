@@ -515,6 +515,11 @@ function SettingsModal({
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  const [dsarType, setDsarType] = useState("access");
+  const [dsarDescription, setDsarDescription] = useState("");
+  const [dsarLoading, setDsarLoading] = useState(false);
+  const [dsarStatus, setDsarStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
   const memberSince = createdAt
     ? new Date(createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
     : "-";
@@ -637,6 +642,30 @@ function SettingsModal({
     }
 
     setCodeLoading(false);
+  }
+
+  async function handleDsarSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setDsarLoading(true);
+    setDsarStatus(null);
+
+    const res = await fetch("/api/user/dsar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ request_type: dsarType, description: dsarDescription.trim() || undefined }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      setDsarStatus({ type: "error", message: body.error ?? "Failed to submit request." });
+      setDsarLoading(false);
+      return;
+    }
+
+    const data = await res.json() as { reference: string };
+    setDsarStatus({ type: "success", message: `Request submitted — reference ${data.reference}. We'll respond within 30 days.` });
+    setDsarDescription("");
+    setDsarLoading(false);
   }
 
   async function handleDeleteAccount(e: React.FormEvent) {
@@ -987,6 +1016,45 @@ function SettingsModal({
                       Terms of Service
                     </Link>
                   </div>
+                </section>
+
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Data subject request</p>
+                  <p className="mt-2 text-sm text-gray-500 leading-relaxed">
+                    Submit a request under GDPR (Art. 15–22). We will respond within 30 days.
+                  </p>
+                  <form onSubmit={handleDsarSubmit} className="mt-4 space-y-3">
+                    <select
+                      value={dsarType}
+                      onChange={(e) => setDsarType(e.target.value)}
+                      className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-400"
+                    >
+                      <option value="access">Right of access — get a copy of your data</option>
+                      <option value="correction">Right to rectification — correct inaccurate data</option>
+                      <option value="erasure">Right to erasure — delete your data</option>
+                      <option value="portability">Right to portability — export your data</option>
+                      <option value="objection">Right to object — object to processing</option>
+                      <option value="restriction">Right to restriction — limit how we use your data</option>
+                      <option value="withdrawal">Withdrawal of consent</option>
+                    </select>
+                    <textarea
+                      value={dsarDescription}
+                      onChange={(e) => setDsarDescription(e.target.value)}
+                      placeholder="Optional: describe your request in more detail"
+                      rows={3}
+                      className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-400 resize-none"
+                    />
+                    {dsarStatus && (
+                      <p className={cn("text-xs", dsarStatus.type === "success" ? "text-green-600" : "text-red-600")}>{dsarStatus.message}</p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={dsarLoading}
+                      className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                    >
+                      {dsarLoading ? "Submitting..." : "Submit request"}
+                    </button>
+                  </form>
                 </section>
               </div>
             )}
