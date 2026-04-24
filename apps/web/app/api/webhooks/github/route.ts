@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
+import { checkAndMark } from "@/lib/webhook-replay-guard";
 
 type GitHubConnectionRow = {
   id: string;
@@ -38,6 +39,11 @@ export async function POST(request: Request) {
 
   if (githubEvent === "ping") {
     return NextResponse.json({ ok: true, ping: true });
+  }
+
+  const deliveryId = request.headers.get("x-github-delivery");
+  if (deliveryId && !checkAndMark(`github:${deliveryId}`)) {
+    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
   }
 
   const url = new URL(request.url);

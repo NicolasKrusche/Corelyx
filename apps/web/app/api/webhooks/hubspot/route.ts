@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
+import { checkAndMark } from "@/lib/webhook-replay-guard";
 
 type HubSpotConnectionRow = {
   id: string;
@@ -70,6 +71,11 @@ export async function POST(request: Request) {
 
   if (events.length === 0) {
     return NextResponse.json({ ok: true, accepted: true, matched_connections: 0 });
+  }
+
+  const primaryEventId = events[0]?.eventId;
+  if (primaryEventId !== undefined && !checkAndMark(`hubspot:${primaryEventId}`)) {
+    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
   }
 
   const portalId = events[0]?.portalId ?? null;

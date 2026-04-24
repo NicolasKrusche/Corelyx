@@ -434,7 +434,7 @@ export async function POST(request: Request) {
   if (!parseOk) {
     const preview = rawText?.slice(0, 2000) ?? "(empty)";
     const tail = rawText && rawText.length > 2000 ? `…[${rawText.length} chars total]` : "";
-    console.error("[genesis] Failed to parse JSON. Raw output:", preview + tail);
+    console.error(`[genesis] Failed to parse JSON. Output length: ${rawText?.length ?? 0}`);
     await logGenesis(
       "error",
       "genesis.invalid_json",
@@ -487,7 +487,6 @@ export async function POST(request: Request) {
   const schemaResult = ProgramSchemaZ.safeParse(parsed_schema);
   if (!schemaResult.success) {
     console.error("[genesis] Schema validation failed:", JSON.stringify(schemaResult.error.flatten(), null, 2));
-    console.error("[genesis] Raw model output:", rawText.slice(0, 2000));
     await logGenesis(
       "error",
       "genesis.schema_validation_failed",

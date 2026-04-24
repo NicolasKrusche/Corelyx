@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
+import { checkAndMark } from "@/lib/webhook-replay-guard";
 
 type AirtableConnectionRow = {
   id: string;
@@ -60,6 +61,10 @@ export async function POST(request: Request) {
 
   const baseId = typeof body.base?.id === "string" ? body.base.id : (typeof body.baseId === "string" ? body.baseId : null);
   const webhookId = typeof body.webhookId === "string" ? body.webhookId : null;
+  const notifTimestamp = typeof body.timestamp === "string" ? body.timestamp : null;
+  if (webhookId && notifTimestamp && !checkAndMark(`airtable:${webhookId}:${notifTimestamp}`)) {
+    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+  }
   const changedTablesById = (body.changedTablesById ?? {}) as Record<string, unknown>;
 
   const url = new URL(request.url);

@@ -2,6 +2,26 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
 
+// Keys that must never be returned to the frontend — these live in metadata
+// because some providers (e.g. Asana) deliver hook secrets there during handshake.
+const METADATA_STRIP_KEYS = new Set([
+  "asana_hook_secret",
+  "webhook_secret",
+  "hook_secret",
+  "signing_secret",
+]);
+
+function stripSensitiveMetadata(
+  metadata: Record<string, unknown> | null
+): Record<string, unknown> | null {
+  if (!metadata) return null;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(metadata)) {
+    if (!METADATA_STRIP_KEYS.has(k)) out[k] = v;
+  }
+  return out;
+}
+
 // GET /api/connections
 export async function GET() {
   const supabase = await createServerClient();
@@ -15,5 +35,10 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) return apiError(error.message, 500);
-  return NextResponse.json(data);
+
+  const sanitized = (data ?? []).map((conn) => ({
+    ...conn,
+    metadata: stripSensitiveMetadata(conn.metadata as Record<string, unknown> | null),
+  }));
+  return NextResponse.json(sanitized);
 }

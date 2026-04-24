@@ -4,7 +4,7 @@ This file tracks **broader safety concerns** (design/operational risks) that may
 
 ---
 
-## 1) Webhook trigger auth is URL-token based only
+## 1) ✅Webhook trigger auth is URL-token based only
 
 **Evidence**
 - `apps/web/app/api/triggers/webhook/[token]/route.ts:8-37`
@@ -23,7 +23,7 @@ This file tracks **broader safety concerns** (design/operational risks) that may
 
 ---
 
-## 2) Shared static runtime secret used across internal service boundaries
+## 2) ✅Shared static runtime secret used across internal service boundaries
 
 **Evidence**
 - Internal routes trust `x-runtime-secret`:
@@ -46,7 +46,7 @@ This file tracks **broader safety concerns** (design/operational risks) that may
 
 ---
 
-## 3) Runtime allows all CORS origins/methods/headers
+## 3) ✅Runtime allows all CORS origins/methods/headers
 
 **Evidence**
 - `apps/runtime/main.py:113-118` (`allow_origins=["*"]`, `allow_methods=["*"]`, `allow_headers=["*"]`)
@@ -63,7 +63,7 @@ This file tracks **broader safety concerns** (design/operational risks) that may
 
 ---
 
-## 4) Inngest endpoint security depends on env correctness
+## 4) ✅Inngest endpoint security depends on env correctness
 
 **Evidence**
 - `apps/web/app/api/inngest/route.ts:10` comment: signing key should be set in production.
@@ -80,54 +80,30 @@ This file tracks **broader safety concerns** (design/operational risks) that may
 
 ---
 
-## 5) Some webhook handlers have limited replay protections
+## 5) ✅ Fixed — Some webhook handlers had limited replay protections
 
-**Evidence**
-- Slack enforces timestamp freshness: `apps/web/app/api/webhooks/slack/route.ts:25-28`
-- Other handlers validate signature but generally do not enforce timestamp/idempotency replay windows (e.g. GitHub/Typeform/HubSpot/Airtable routes).
-
-**Concern**
-- Captured signed requests may be replayed within practical windows if provider replay protections are not explicitly checked server-side.
-
-**Why this matters**
-- Replays can trigger duplicate automation runs and side effects.
-
-**Hardening ideas**
-- Track recent delivery IDs/message IDs and reject duplicates.
-- Enforce provider timestamp windows where available.
+**Fix implemented**
+- New shared `apps/web/lib/webhook-replay-guard.ts` — in-memory `checkAndMark()` keyed by provider-specific delivery ID, 24-hour TTL, auto-prunes at 10 000 entries.
+- **GitHub** (`webhooks/github/route.ts`) — deduplicates by `x-github-delivery` header.
+- **Typeform** (`webhooks/typeform/route.ts`) — deduplicates by `form_response.token`.
+- **HubSpot** (`webhooks/hubspot/route.ts`) — deduplicates by first event's `eventId`.
+- **Airtable** (`webhooks/airtable/route.ts`) — deduplicates by `webhookId + timestamp` pair.
+- All four return `{ ok: true, duplicate: true }` on replay (HTTP 200 so the provider stops retrying).
+- Slack already had a 5-minute timestamp window and was not changed.
 
 ---
 
-## 6) Sensitive operational data may leak through verbose debug logging paths
+## 6) ✅ Fixed — Sensitive operational data leaked through verbose debug logging
 
-**Evidence**
-- `apps/runtime/engine/executor.py:818` logs model response body slice.
-- `apps/web/app/api/genesis/route.ts:437,490` logs raw model output preview.
-
-**Concern**
-- Model outputs can include user data, prompts, or sensitive context that should not be in logs.
-
-**Why this matters**
-- Log aggregation systems often have wider access than primary data stores.
-
-**Hardening ideas**
-- Replace raw payload logging with hashed IDs/structured error metadata.
-- Add centralized redaction policy for model and connector payloads.
+**Fix implemented**
+- `apps/runtime/engine/executor.py:823` — removed `body=resp.text[:800]` from the LLM response log; now logs only status code and model name.
+- `apps/web/app/api/genesis/route.ts:437` — replaced raw-output preview with `Output length: N` (byte count only).
+- `apps/web/app/api/genesis/route.ts:490` — removed the second `console.error` line that echoed raw model output on schema validation failure; the structured Zod error that follows it is sufficient.
 
 ---
 
-## 7) Connection metadata currently used for data that can be secret-adjacent
+## 7) ✅ Fixed — Connection metadata leaked secret-adjacent values to frontend
 
-**Evidence**
-- Asana hook secret persisted in connection metadata: `apps/web/app/api/webhooks/asana/route.ts:58`
-- Connections API returns full metadata to frontend: `apps/web/app/api/connections/route.ts:13`
-
-**Concern**
-- Metadata becomes mixed-trust storage; secret-adjacent values can flow to client-facing APIs.
-
-**Why this matters**
-- Increases exposure surface and makes data-classification boundaries blurry.
-
-**Hardening ideas**
-- Keep webhook secrets and similar values only in Vault/secret store.
-- Introduce metadata allowlist for client responses (explicitly strip sensitive keys).
+**Fix implemented**
+- `apps/web/app/api/connections/route.ts` — `stripSensitiveMetadata()` removes a deny-listed set of keys (`asana_hook_secret`, `webhook_secret`, `hook_secret`, `signing_secret`) before the JSON response is sent to the client. New keys can be added to `METADATA_STRIP_KEYS` without touching call sites.
+- The Asana webhook handler (`webhooks/asana/route.ts`) continues to read the hook secret via the service client (bypasses the frontend API) so verification is unaffected.
