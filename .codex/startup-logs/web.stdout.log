@@ -1,0 +1,15 @@
+
+> @flowos/web@0.0.1 dev C:\NexFlow\apps\web
+> next dev
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 15s
+ ✓ Compiled /middleware in 429ms
+ ✓ Compiled (168 modules)
+ ○ Compiling / ...
+ GET / 200 in 7137ms
+ GET / 200 in 93ms

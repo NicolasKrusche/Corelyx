@@ -7,18 +7,14 @@ This document summarizes repo-backed legal and compliance findings for Nexflow. 
 ## Key Findings
 
 - High: Account deletion is not end-to-end. `apps/web/app/api/settings/account/route.ts` only calls `auth.admin.deleteUser`, while Vault cleanup exists separately in `supabase/migrations/20240002_vault_helpers.sql`. I found no trigger or job that purges a user's stored secrets on account deletion. The privacy claim in `apps/web/app/privacy/page.tsx` that credentials are deleted within 30 days is therefore stronger than the implementation.
-- High: Billing cancellation is not implemented, but product copy says it is. The only Stripe flows I found are checkout in `apps/web/app/api/billing/checkout/route.ts` and webhook sync in `apps/web/app/api/billing/webhook/route.ts`. I found no customer portal or subscription cancel route, while the FAQ in `apps/web/components/pricing/pricing-tiers.tsx` says users can cancel from account settings. Deleting an account also does not appear to touch Stripe.
-- Medium: DSAR portability tooling is still incomplete. The rewritten privacy page no longer overpromises a 90-day retention rule or an export-on-request flow, but I still found no dedicated account-wide DSAR export endpoint that packages profile, programs, runs, approvals, logs, connections metadata, and API key metadata together.
 - Medium: The new `Impressum` page is env-driven and still needs production values. `apps/web/app/impressum/page.tsx` now exists, but the legal name, address, country, and VAT ID come from server environment variables defined in `apps/web/.env.local.example`. Until those are populated in the live deployment, the page is not fully compliant.
-- Medium: Terms are not missing, but they are generic and not German-SaaS-ready. The page exists in `apps/web/app/terms/page.tsx`, yet it uses England and Wales governing law and UK-style liability language. That needs lawyer review for a German-facing commercial site.
-- Medium: DSAR rectification is only partial. Users can edit display name/avatar in `apps/web/app/(app)/profile/page.tsx` and change passwords in `apps/web/app/(app)/settings/settings-client.tsx`, but there is no self-serve email change, no billing/contact data correction flow, and no consolidated DSAR intake/status workflow.
 
 ## DSAR Status
 
-- Access: Partial. Users can already view a lot through profile/settings plus APIs for programs, runs/logs, connections, keys, and approvals.
-- Rectification: Partial. Profile fields and passwords can be changed, but account email, billing/contact data, and a formal correction workflow are missing.
-- Erasure: Partial. Delete program, key, connection, and account exist, but external processor cleanup and Vault secret cleanup do not look complete.
-- Portability: Partial. Program JSON is retrievable/importable, but there is no account-wide export bundle or user-facing DSAR export flow.
+- Access: Mostly met. Users can view their data through profile/settings, APIs, and the full account-wide export at `GET /api/user/export`.
+- Rectification: Mostly met. Profile fields, passwords, and email address can be changed self-serve in `apps/web/app/(app)/settings/settings-client.tsx`. Billing contact data correction is handled via support email (legal@nexflow.app). No formal DSAR correction intake workflow exists yet.
+- Erasure: Partial. Delete program, key, connection, and account exist. Account deletion now cancels Stripe subscriptions. Vault secret cleanup on account deletion is still incomplete, and account deletion does not document cleanup at other external processors (Resend, Inngest, etc.).
+- Portability: Met. `GET /api/user/export` returns a dated JSON bundle covering profile, programs, versions, runs, approvals, logs, connections metadata, and API key metadata. Secrets are excluded.
 - Objection/restriction/withdrawal: Mostly missing. Users can disconnect integrations and delete keys, but there is no dedicated objection/restriction flow or consent registry.
 
 ## Resolved Since Review
@@ -28,6 +24,13 @@ This document summarizes repo-backed legal and compliance findings for Nexflow. 
 - Resolved: `apps/web/app/impressum/page.tsx` now exists, is public, and is linked from the landing page footer, legal footers, robots, sitemap, middleware public routes, and in-app legal settings links.
 - Resolved: `apps/web/app/privacy/page.tsx` has been rewritten into a structured processor inventory with purpose, legal basis, and data-location notes for core processors, optional connected services, and optional model providers.
 - Resolved: The legal-page return navigation is now session-aware. `apps/web/components/legal-page-header.tsx` routes signed-in users from `apps/web/app/privacy/page.tsx`, `apps/web/app/terms/page.tsx`, and `apps/web/app/impressum/page.tsx` back to `/dashboard` instead of always sending them to the public landing page.
+- Resolved: DSAR portability is now met. `apps/web/app/api/user/export/route.ts` exposes `GET /api/user/export`, which packages profile, programs, program versions, runs, approvals, logs, connections metadata, and API key metadata into a dated JSON download. Vault secret IDs are never included.
+- Resolved: DSAR rectification self-serve is now substantially complete. `apps/web/app/(app)/settings/settings-client.tsx` now includes a self-serve email change form (non-OAuth users) with Supabase confirmation flow, and an OAuth-user note. A Data & Privacy settings section links to the data export and provides a billing contact correction path via support email.
+- Resolved: `LEGAL_*` environment variables are now defined in `apps/web/.env.local` (empty placeholders). Populating them in the Vercel production environment will make the Impressum page fully compliant and clear the amber warning banner.
+- Resolved: Billing cancellation is now implemented. `apps/web/app/api/billing/portal/route.ts` exposes `GET /api/billing/portal`, which looks up the authenticated user's Stripe customer by email, creates a Stripe Customer Portal session, and redirects to it. The portal lets users upgrade, downgrade, pause, or cancel their subscription. A "Manage subscription" button appears in the Settings sidebar (Benefits tab) for Pro and Builder users. The FAQ claim in `apps/web/components/pricing/pricing-tiers.tsx` that users can cancel from account settings is now accurate.
+- Resolved: Account deletion now cancels Stripe subscriptions before removing the auth user. `apps/web/app/api/settings/account/route.ts` looks up all Stripe customers by email and cancels active, trialing, past-due, unpaid, and paused subscriptions immediately before calling `auth.admin.deleteUser`. Failure to reach Stripe is non-fatal so the account deletion still completes.
+- Resolved: Pricing display currency updated from GBP (£) to EUR (€) in `apps/web/components/pricing/pricing-tiers.tsx` to match the company's Austrian registration. Note: the underlying Stripe price objects should also be reviewed and updated to EUR currency in the Stripe Dashboard.
+- Resolved: `apps/web/app/terms/page.tsx` has been rewritten for an Austrian company operating internationally. Governing law is now the Republic of Austria (replacing England and Wales). Section 10 caps liability in EUR, excludes liability for slight negligence for B2B, and preserves mandatory KSchG protections (intent, gross negligence, personal injury) for consumers. Section 13 adds consumer rights: 14-day withdrawal right under FAGG, EU Digital Content Directive conformity rights, mandatory EU consumer law carve-out, ODR platform reference, and Austrian Internet Ombudsman notice. Section 14 grants Vienna jurisdiction with an EU consumer residence carve-out. Lawyer review of the full text is still recommended before commercial launch.
 
 ## What Exists Today
 
@@ -49,6 +52,8 @@ This document summarizes repo-backed legal and compliance findings for Nexflow. 
 - Logs surface:
   - `apps/web/app/(app)/logs/logs-client.tsx`
   - `supabase/migrations/20240008_app_logs.sql`
+- DSAR export endpoint: `apps/web/app/api/user/export/route.ts`
+- Email change + Data & Privacy section: `apps/web/app/(app)/settings/settings-client.tsx`
 
 ## Process Gaps
 
@@ -72,9 +77,8 @@ Official sources:
 
 ## Recommended Next Steps
 
-- Populate the production `LEGAL_*` environment variables so the `Impressum` page shows the real legal entity name, address, country, and VAT ID.
+
 - Have counsel review the new privacy inventory, transfer wording, and legal-basis mapping before launch.
-- Add a real DSAR export flow, ideally a single endpoint that packages profile, programs, versions, runs, approvals, logs, connections metadata, and API key metadata.
 - Make account deletion purge Vault secrets and document how external processors such as Stripe should be handled.
 - Fix misleading billing copy until a customer portal or cancel flow exists.
 - Keep the cookie notice aligned with actual tracker usage. If analytics, error monitoring, or advertising cookies are added later, switch to consent-before-load under TDDDG Section 25.

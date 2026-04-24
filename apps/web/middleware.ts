@@ -21,7 +21,7 @@ const PUBLIC_ROUTES = [
   "/sitemap.xml",
 ];
 
-// Internal API routes authenticated by x-runtime-secret — never redirect these to login
+// Internal API routes authenticated by a scoped internal service token never redirect to login
 const INTERNAL_API_PREFIX = "/api/internal/";
 
 export async function middleware(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const { pathname } = request.nextUrl;
 
-  // Internal API routes authenticate via x-runtime-secret — skip session check
+  // Internal API routes authenticate via internal service tokens so session checks are skipped
   if (pathname.startsWith(INTERNAL_API_PREFIX)) {
     return NextResponse.next({ request });
   }

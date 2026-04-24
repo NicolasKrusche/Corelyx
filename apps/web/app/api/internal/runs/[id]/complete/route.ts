@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { sendRunFailureEmail } from "@/lib/email";
-import { headers } from "next/headers";
+import { buildInternalServiceHeaders, requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 
 /**
  * POST /api/internal/runs/[id]/complete
@@ -12,17 +12,13 @@ import { headers } from "next/headers";
  *   2. Checking for inter-program triggers (downstream programs)
  *   3. Firing downstream runs
  *
- * Secured by x-runtime-secret header.
+ * Secured by a scoped internal service token.
  */
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Verify runtime secret
-  const headersList = await headers();
-  const secret = headersList.get("x-runtime-secret");
-  const expectedSecret = process.env.RUNTIME_SECRET;
-  if (!expectedSecret || secret !== expectedSecret) {
+  if (!requestHasValidInternalServiceToken(request.headers, "next:runs:complete")) {
     return apiError("Unauthorized", 401);
   }
 
@@ -87,7 +83,6 @@ export async function POST(
 
       if (matching.length > 0) {
         const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
-        const runtimeSecret = process.env.RUNTIME_SECRET ?? "";
 
         for (const trigger of matching) {
           // Fetch downstream program schema
@@ -166,10 +161,9 @@ export async function POST(
           try {
             const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
               method: "POST",
-              headers: {
+              headers: buildInternalServiceHeaders("runtime:execute", {
                 "Content-Type": "application/json",
-                "x-runtime-secret": runtimeSecret,
-              },
+              }),
               body: JSON.stringify({
                 run_id: runId,
                 program_id: trigger.program_id,

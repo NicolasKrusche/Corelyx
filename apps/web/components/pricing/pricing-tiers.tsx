@@ -4,7 +4,7 @@ import type { BillingInterval, PaidTier } from "@/lib/billing";
 export const TIERS = [
   {
     name: "Free",
-    price: "£0",
+    price: "€0",
     period: "forever",
     description: "For exploring and building your first automations.",
     highlight: false,
@@ -22,7 +22,7 @@ export const TIERS = [
   },
   {
     name: "Pro",
-    price: "£19",
+    price: "€19",
     period: "/ month",
     description: "For teams running automations in production.",
     highlight: true,
@@ -43,7 +43,7 @@ export const TIERS = [
   },
   {
     name: "Builder",
-    price: "£59",
+    price: "€59",
     period: "/ month",
     description: "For power users running high-volume, complex pipelines.",
     highlight: false,

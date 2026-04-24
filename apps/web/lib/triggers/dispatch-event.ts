@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/api";
+import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit } from "@/lib/limits";
 
 type JsonObject = Record<string, unknown>;
@@ -90,7 +91,6 @@ export async function dispatchEventTriggers(
   }
 
   const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
-  const runtimeSecret = process.env.RUNTIME_SECRET ?? "";
   const runIds: string[] = [];
 
   await Promise.all(
@@ -165,10 +165,9 @@ export async function dispatchEventTriggers(
       try {
         const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
           method: "POST",
-          headers: {
+          headers: buildInternalServiceHeaders("runtime:execute", {
             "Content-Type": "application/json",
-            "x-runtime-secret": runtimeSecret,
-          },
+          }),
           body: JSON.stringify({
             run_id: run.id,
             program_id: trigger.program_id,

@@ -160,6 +160,11 @@ function RedeemSection() {
 export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
   const [advanced, setAdvanced] = useAdvancedMode();
 
+  // Email change state
+  const [newEmail, setNewEmail] = useState("");
+  const [emailStatus, setEmailStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -175,6 +180,28 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
   const memberSince = new Date(createdAt).toLocaleDateString("en-GB", {
     day: "numeric", month: "long", year: "numeric",
   });
+
+  async function handleEmailChange(e: React.FormEvent) {
+    e.preventDefault();
+    setEmailStatus(null);
+    if (!newEmail || newEmail === email) {
+      setEmailStatus({ type: "error", message: "Enter a different email address." });
+      return;
+    }
+    setEmailLoading(true);
+    const supabase = createBrowserClient();
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    if (error) {
+      setEmailStatus({ type: "error", message: error.message });
+    } else {
+      setEmailStatus({
+        type: "success",
+        message: `Confirmation sent to ${newEmail}. Click the link in that email to complete the change.`,
+      });
+      setNewEmail("");
+    }
+    setEmailLoading(false);
+  }
 
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
@@ -243,8 +270,8 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       </div>
 
       {/* Account info */}
-      <Section title="Account" description="Your account details. Email cannot be changed.">
-        <Field label="Email address">
+      <Section title="Account" description="Your account details and login settings.">
+        <Field label="Current email address">
           <div className="w-full rounded-lg border border-input bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
             {email}
           </div>
@@ -254,6 +281,35 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             {memberSince}
           </div>
         </Field>
+
+        {/* Email change */}
+        {!isOAuthUser ? (
+          <form onSubmit={handleEmailChange} className="space-y-3 pt-2 border-t border-border/60">
+            <p className="text-xs font-medium text-muted-foreground">Change email address</p>
+            <Field label="New email address">
+              <input
+                type="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/40 transition-all"
+                placeholder="new@example.com"
+              />
+            </Field>
+            {emailStatus && <StatusMessage {...emailStatus} />}
+            <button
+              type="submit"
+              disabled={emailLoading}
+              className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {emailLoading ? "Sending…" : "Send confirmation"}
+            </button>
+          </form>
+        ) : (
+          <p className="text-xs text-muted-foreground pt-2 border-t border-border/60">
+            Your email address is managed by your Google account and cannot be changed here.
+          </p>
+        )}
       </Section>
 
       {/* Appearance / theme */}
@@ -352,6 +408,38 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             }`}
           />
         </button>
+      </Section>
+
+      {/* Data & Privacy */}
+      <Section
+        title="Data & Privacy"
+        description="Download a copy of your personal data or request corrections to billing contact information."
+      >
+        <div className="space-y-3">
+          <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+            <p className="text-sm font-medium">Export your data</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Download a full copy of your account data including programs, runs, logs, connections metadata, and API key metadata. Secrets and tokens are never included.
+            </p>
+            <a
+              href="/api/user/export"
+              download
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              Download data export
+            </a>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+            <p className="text-sm font-medium">Billing contact data</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              To correct billing contact information held by our payment processor, email{" "}
+              <a href="mailto:legal@nexflow.app" className="text-primary hover:underline">
+                legal@nexflow.app
+              </a>{" "}
+              with the details to update.
+            </p>
+          </div>
+        </div>
       </Section>
 
       {/* Legal */}

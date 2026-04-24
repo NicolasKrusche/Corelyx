@@ -817,7 +817,9 @@ export default function ConnectionsPage() {
             {sortedConnections.map((connection, index) => {
               const isPrimary = isPrimaryConnectionName(connection.provider, connection.name);
               const identity = getConnectionIdentity(connection.metadata, connection.name);
+              const hasRealIdentity = identity !== connection.name;
               const testedLabel = formatDate(connection.last_validated_at);
+              const providerLabel = PROVIDER_LABELS[connection.provider] ?? connection.provider;
 
               return (
                 <button
@@ -832,15 +834,18 @@ export default function ConnectionsPage() {
                   <ProviderLogo provider={connection.provider} size={30} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold">{identity}</p>
-                      {isPrimary && <Badge variant="secondary">Primary</Badge>}
+                      <p className="truncate text-sm font-semibold">{providerLabel}</p>
+                      {hasRealIdentity && (
+                        <span className="truncate rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                          {identity}
+                        </span>
+                      )}
                       <Badge variant={connection.is_valid ? "success" : "destructive"}>
                         {connection.is_valid ? "Connected" : "Needs attention"}
                       </Badge>
                     </div>
                     <p className="mt-0.5 truncate text-[11px] text-muted-foreground/70">
-                      {(PROVIDER_LABELS[connection.provider] ?? connection.provider) + " - " + connection.name}
-                      {testedLabel ? ` - tested ${testedLabel}` : ""}
+                      {testedLabel ? `Tested ${testedLabel}` : "Not tested yet"}
                     </p>
                   </div>
                   <span className="shrink-0 text-xs font-medium text-muted-foreground/60">

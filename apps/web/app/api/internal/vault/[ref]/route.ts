@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
+import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { vaultRetrieve } from "@/lib/vault";
 
 // GET /api/internal/vault/[ref]
 // Called by the Python runtime to resolve API key refs.
-// Header: x-runtime-secret: <RUNTIME_SECRET>
+// Header: x-internal-service-token: <scoped signed token>
 // Returns: { value: string }
 // ref is the api_key id (UUID) — looks up vault_secret_id, fetches from Vault
 export async function GET(
   request: Request,
   { params }: { params: { ref: string } }
 ) {
-  // Verify runtime secret
-  const incomingSecret = request.headers.get("x-runtime-secret");
-  const expectedSecret = process.env.RUNTIME_SECRET;
-  if (!expectedSecret || incomingSecret !== expectedSecret) {
+  if (!requestHasValidInternalServiceToken(request.headers, "next:vault")) {
     return apiError("Unauthorized", 401);
   }
 

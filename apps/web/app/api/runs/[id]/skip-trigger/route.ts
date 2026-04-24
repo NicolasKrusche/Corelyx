@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { createServerClient } from "@/lib/supabase/server";
 import type { ProgramSchema } from "@flowos/schema";
 
@@ -109,12 +110,13 @@ export async function POST(
   }
 
   const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
-  const runtimeSecret = process.env.RUNTIME_SECRET ?? "";
 
   try {
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-runtime-secret": runtimeSecret },
+      headers: buildInternalServiceHeaders("runtime:execute", {
+        "Content-Type": "application/json",
+      }),
       body: JSON.stringify({
         run_id: run.id,
         program_id: run.program_id,

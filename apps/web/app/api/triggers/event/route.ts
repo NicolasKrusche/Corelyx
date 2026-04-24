@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
+import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 
 /**
@@ -15,9 +16,7 @@ import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
  * }
  */
 export async function POST(request: Request) {
-  const incomingSecret = request.headers.get("x-runtime-secret");
-  const expectedSecret = process.env.RUNTIME_SECRET;
-  if (!expectedSecret || incomingSecret !== expectedSecret) {
+  if (!requestHasValidInternalServiceToken(request.headers, "next:event-dispatch")) {
     return apiError("Unauthorized", 401);
   }
 

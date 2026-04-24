@@ -49,35 +49,19 @@ This file tracks **concrete, code-level safety/security issues** found during au
 
 ---
 
-## 3) High — Gmail webhook endpoint accepts unauthenticated payloads
+## 3) ✅ Fixed — Gmail webhook endpoint accepts unauthenticated payloads
 
-**Evidence**
-- `apps/web/app/api/webhooks/gmail/route.ts:27-103` parses request JSON and dispatches triggers.
-- No signature/header/JWT verification before processing.
-
-**Cause / explanation**
-- Endpoint trusts message envelope contents (`emailAddress`, `historyId`) without verifying sender authenticity.
-- A forged POST can trigger workflow dispatches and unnecessary downstream API work.
-
-**Suggested resolution**
-- Verify Google Pub/Sub push authenticity (OIDC/JWT verification and audience checks) before payload handling.
-- Add replay/idempotency checks using message ID.
-- Rate-limit and reject malformed/oversized bodies early.
+**Fix implemented**
+- `apps/web/lib/pubsub-auth.ts` — new `verifyGooglePubSubOidc()` utility. Extracts the `Authorization: Bearer` OIDC JWT Google Pub/Sub injects, fetches Google's JWKS (cached 5 min), verifies RSA-SHA256 signature, and validates `iss` / `aud` / `exp` claims.
+- `apps/web/app/api/webhooks/gmail/route.ts` — gate at the top of `POST`: rejects 401 if OIDC token is absent/invalid. Rejects 413 if `Content-Length` exceeds 64 KB. Adds in-memory `messageId` idempotency (24 h TTL, auto-pruned at 2000 entries) to drop Pub/Sub redeliveries without re-dispatching.
+- **Required env var:** `PUBSUB_GMAIL_WEBHOOK_AUDIENCE` must be set to the full webhook URL (e.g. `https://your-app.com/api/webhooks/gmail`). Missing var → 500 / fail-closed.
 
 ---
 
-## 4) High — Sensitive cookie values are logged in middleware
+## 4) ✅ Fixed — Sensitive cookie values are logged in middleware
 
-**Evidence**
-- `apps/web/middleware.ts:69-71` logs user email and cookie names with first 40 chars of values.
-
-**Cause / explanation**
-- Session tokens/cookies can end up in logs/observability sinks, increasing credential leakage risk.
-
-**Suggested resolution**
-- Remove cookie value logging entirely.
-- Keep only minimal metadata (count/names if absolutely required), and redact aggressively.
-- Add centralized log scrubber for auth token patterns.
+**Fix implemented**
+- `apps/web/middleware.ts` — all `console.log` calls that printed user email and cookie value prefixes were removed. The file now contains zero logging statements; only redirect/passthrough logic remains.
 
 ---
 

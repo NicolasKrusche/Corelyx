@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { checkRunLimit } from "@/lib/limits";
@@ -113,7 +114,6 @@ export async function POST(request: Request) {
 
   // Dispatch to Python runtime — if it rejects or is unreachable, fail the run immediately
   const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
-  const runtimeSecret = process.env.RUNTIME_SECRET ?? "";
 
   const markFailed = (msg: string) =>
     serviceClient
@@ -124,10 +124,9 @@ export async function POST(request: Request) {
   try {
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
-      headers: {
+      headers: buildInternalServiceHeaders("runtime:execute", {
         "Content-Type": "application/json",
-        "x-runtime-secret": runtimeSecret,
-      },
+      }),
       body: JSON.stringify({
         run_id: run.id,
         program_id,

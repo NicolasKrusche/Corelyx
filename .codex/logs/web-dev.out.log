@@ -60,3 +60,6 @@
  GET /api/internal/connections/7e53ce15-0afa-4216-b0b5-6a8c2bcdf5e1/token?force_refresh=true 200 in 2427ms
  GET /api/internal/connections/7e53ce15-0afa-4216-b0b5-6a8c2bcdf5e1/token 200 in 2652ms
  GET /api/internal/connections/7e53ce15-0afa-4216-b0b5-6a8c2bcdf5e1/token 200 in 1192ms
+[middleware] path: /programs/36ed8382-fa11-4998-9f3f-7d1c750d9c7f/runs/f28bbaa4-df2f-4a0e-86b4-9d882b18a353 user: demo@nexflow.systems error: null
+[middleware] cookies: bt_vid=378cbb321174aefd3242d5fee039e62f | _y=19cbd11c-3714-4B00-AFC3-9429C2E8951D | _shopify_y=19cbd11c-3714-4B00-AFC3-9429C2E8951D | .AspNetCore.Antiforgery.RbINMQ0u4qU=CfDJ8Ku8OxpNapRMpkrH596UCG_HjVHWsjyX0l50 | sb-fzvmsejkqjbqyavxvirf-auth-token=base64-eyJhY2Nlc3NfdG9rZW4iOiJleUpoYkdja
+[?25h
