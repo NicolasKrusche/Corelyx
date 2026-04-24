@@ -24,6 +24,7 @@ export const legalIdentity = {
   ].filter(Boolean),
   email: readEnv("LEGAL_EMAIL") || "legal@nexflow.app",
   vatId: readEnv("LEGAL_VAT_ID"),
+  companyRegisterNo: readEnv("LEGAL_COMPANY_REGISTER_NO"),
 };
 
 export const privacyContactEmail =
@@ -35,6 +36,7 @@ export const impressumMissingFields = [
   !postalCityLine ? "postal code and city" : null,
   !readEnv("LEGAL_COUNTRY") ? "country" : null,
   !readEnv("LEGAL_VAT_ID") ? "VAT ID / USt-IdNr." : null,
+  !readEnv("LEGAL_COMPANY_REGISTER_NO") ? "company register number (Firmenbuchnummer)" : null,
 ].filter((value): value is string => Boolean(value));
 
 export interface ProcessorEntry {
@@ -377,9 +379,14 @@ export const modelProviders: ProcessorEntry[] = [
 
 export const retentionItems: TextItem[] = [
   {
-    title: "Account, program, connection, and approval records",
+    title: "Account and program data",
     body:
-      "Kept while your account remains active or until you delete the relevant data from the product. Backups and recovery windows may delay final deletion for a limited time.",
+      "Kept for the duration of your contract plus 7 years, as required by applicable tax and accounting law. You may delete your account at any time via account settings.",
+  },
+  {
+    title: "Email and workflow content",
+    body:
+      "Content processed during workflow execution (e.g. email bodies) is used only to perform the automation you configured and is not stored beyond what is necessary for that processing.",
   },
   {
     title: "Encrypted OAuth tokens and API keys",
@@ -389,12 +396,17 @@ export const retentionItems: TextItem[] = [
   {
     title: "Run history and application logs",
     body:
-      "Currently retained until you delete the underlying account or records, unless a shorter product retention rule is introduced later. The repository does not currently enforce a universal 90-day deletion job.",
+      "Log data is retained for 90 days, after which it is deleted. Technical metadata such as IP addresses are anonymised after 7 days.",
   },
   {
     title: "Billing and tax records",
     body:
       "Retained for the periods required by applicable accounting, tax, and anti-fraud obligations.",
+  },
+  {
+    title: "Anonymised usage statistics",
+    body:
+      "Aggregated, non-attributable usage data (no content) may be retained indefinitely for product improvement purposes. You may opt out in your account settings.",
   },
   {
     title: "Provider-side logs",
@@ -405,33 +417,38 @@ export const retentionItems: TextItem[] = [
 
 export const rightsItems: TextItem[] = [
   {
-    title: "Access",
+    title: "Access (Art. 15 GDPR)",
     body:
-      "You can request confirmation of whether we process your personal data and ask for a copy of the data we control.",
+      "You can request confirmation of whether we process your personal data and ask for a copy of the data we control. We will respond within 30 days.",
   },
   {
-    title: "Rectification",
+    title: "Rectification (Art. 16 GDPR)",
     body:
       "You can correct inaccurate account data and ask us to fix or complete information that is wrong or incomplete.",
   },
   {
-    title: "Erasure",
+    title: "Erasure (Art. 17 GDPR)",
     body:
-      "You can delete programs, connections, API keys, and your account, or ask us to help complete deletion where external providers are involved.",
+      "You can delete programs, connections, API keys, and your account directly in the product under Settings > Delete Account, or ask us to help complete deletion where external providers are involved.",
   },
   {
-    title: "Restriction and objection",
+    title: "Restriction and objection (Art. 18 & 21 GDPR)",
     body:
       "You can object to processing based on legitimate interests or ask us to restrict processing where the GDPR permits it.",
   },
   {
-    title: "Portability",
+    title: "Portability (Art. 20 GDPR)",
     body:
-      "You can ask for an export of the personal data we process for contract performance where the GDPR gives you that right.",
+      "You can ask for a machine-readable export of the personal data we process for contract performance where the GDPR gives you that right.",
   },
   {
     title: "Complaint",
     body:
-      "You can contact us first, and you also have the right to complain to a competent supervisory authority.",
+      "You can contact us first at privacy@nexflow.app. You also have the right to complain to the Austrian Data Protection Authority (Datenschutzbehörde): https://www.dsb.gv.at",
+  },
+  {
+    title: "Data Processing Agreement (B2B)",
+    body:
+      "If you process personal data of your own customers or employees through the platform as part of your business, Nexflow acts as your processor (Art. 28 GDPR). A Data Processing Agreement (DPA) is available on request at legal@nexflow.app.",
   },
 ];
