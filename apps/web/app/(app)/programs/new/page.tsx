@@ -210,6 +210,22 @@ function NewProgramPageInner() {
     openrouter: "qwen/qwen3-coder:free",
   };
 
+  // Providers ranked by Genesis suitability (large prompt support, reliability)
+  const PROVIDER_PRIORITY: Record<string, number> = {
+    anthropic: 0,
+    openai: 1,
+    openrouter: 2,
+    mistral: 3,
+    google: 4,
+    groq: 5,
+  };
+
+  function bestKey(keys: ApiKey[]): ApiKey | undefined {
+    return [...keys].sort(
+      (a, b) => (PROVIDER_PRIORITY[a.provider] ?? 99) - (PROVIDER_PRIORITY[b.provider] ?? 99)
+    )[0];
+  }
+
   async function loadApiKeys() {
     setLoadingKeys(true);
     const res = await fetch("/api/keys");
@@ -217,9 +233,10 @@ function NewProgramPageInner() {
       const data: ApiKey[] = await res.json();
       const valid = data.filter((k) => k.is_valid);
       setApiKeys(valid);
-      if (valid.length > 0) {
-        setSelectedKeyId(valid[0].id);
-        setModel(DEFAULT_MODELS[valid[0].provider] ?? "");
+      const best = bestKey(valid);
+      if (best) {
+        setSelectedKeyId(best.id);
+        setModel(DEFAULT_MODELS[best.provider] ?? "");
       }
     }
     setLoadingKeys(false);
@@ -239,8 +256,10 @@ function NewProgramPageInner() {
 
     if (valid.length === 0) return null;
 
-    const keyId = valid[0].id;
-    const modelId = DEFAULT_MODELS[valid[0].provider] ?? "";
+    const best = bestKey(valid);
+    if (!best) return null;
+    const keyId = best.id;
+    const modelId = DEFAULT_MODELS[best.provider] ?? "";
     setSelectedKeyId(keyId);
     setModel(modelId);
 

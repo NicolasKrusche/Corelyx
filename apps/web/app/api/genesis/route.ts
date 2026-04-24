@@ -164,41 +164,77 @@ export async function POST(request: Request) {
     scopes: c.scopes ?? [],
   }));
 
-  // Fetch the selected API key from Vault
+  // Fetch all valid API keys for the user — preferred key first, then sorted by provider suitability
   const serviceClient = createServiceClient();
-  const { data: apiKeyRow, error: keysError } = await serviceClient
+  const { data: allKeyRows, error: keysError } = await serviceClient
     .from("api_keys")
-    .select("vault_secret_id, provider")
-    .eq("id", api_key_id)
+    .select("id, vault_secret_id, provider")
     .eq("user_id", userId)
-    .single();
+    .eq("is_valid", true);
 
-  if (keysError || !apiKeyRow) {
+  if (keysError || !allKeyRows || allKeyRows.length === 0) {
     return loggedApiError(
-      "API key not found. Please select a valid key.",
+      "API key not found. Please add a valid API key.",
       402,
       "genesis.api_key_lookup_failed",
       keysError ? { error: keysError.message } : undefined
     );
   }
 
-  let anthropicApiKey: string;
-  try {
-    anthropicApiKey = await vaultRetrieve(serviceClient, apiKeyRow.vault_secret_id);
-  } catch (err) {
-    return loggedApiError(
-      `Failed to retrieve API key: ${(err as Error).message}`,
-      500,
-      "genesis.api_key_retrieval_failed",
-      { error: errorDetails(err) }
-    );
-  }
+  const KEY_PROVIDER_PRIORITY: Record<string, number> = {
+    anthropic: 0, openai: 1, openrouter: 2, mistral: 3, google: 4, groq: 5,
+  };
+  const KEY_DEFAULT_MODELS: Record<string, string> = {
+    anthropic: "claude-opus-4-6",
+    openai: "gpt-4o",
+    google: "gemini-1.5-pro",
+    groq: "llama-3.3-70b-versatile",
+    mistral: "mistral-large-latest",
+    openrouter: "qwen/qwen3-coder:free",
+  };
 
-  // Call the model — use OpenAI-compatible SDK for OpenRouter/OpenAI/etc, Anthropic SDK for Anthropic
-  const useAnthropicSDK = apiKeyRow.provider === "anthropic";
+  const preferred = allKeyRows.find((k) => k.id === api_key_id);
+  const rest = allKeyRows
+    .filter((k) => k.id !== api_key_id)
+    .sort((a, b) => (KEY_PROVIDER_PRIORITY[a.provider] ?? 99) - (KEY_PROVIDER_PRIORITY[b.provider] ?? 99));
+  const keyCandidates = preferred ? [preferred, ...rest] : rest;
+
+  // Permanent errors — prompt is too large for this model/tier, retrying won't help
+  const isPromptTooLarge = (err: unknown): boolean => {
+    const msg = err instanceof Error ? err.message : String(err);
+    const lowerMsg = msg.toLowerCase();
+    return (
+      lowerMsg.includes("request too large") ||
+      lowerMsg.includes("too large for model") ||
+      (lowerMsg.includes("rate_limit_exceeded") && lowerMsg.includes("token")) ||
+      lowerMsg.includes("context_length_exceeded") ||
+      lowerMsg.includes("maximum context length")
+    );
+  };
+
+  // Key-level errors — the API key itself is unusable; try the next key
+  const isKeyError = (err: unknown): boolean => {
+    const msg = err instanceof Error ? err.message : String(err);
+    const lowerMsg = msg.toLowerCase();
+    return (
+      lowerMsg.includes("credit balance is too low") ||
+      lowerMsg.includes("insufficient credits") ||
+      lowerMsg.includes("exceeded your current quota") ||
+      lowerMsg.includes("insufficient_quota") ||
+      lowerMsg.includes("you've exceeded") ||
+      lowerMsg.includes("billing hard limit") ||
+      lowerMsg.includes("invalid api key") ||
+      lowerMsg.includes("invalid_api_key") ||
+      lowerMsg.includes("incorrect api key") ||
+      lowerMsg.includes("authentication_error") ||
+      lowerMsg.includes("you didn't provide an api key") ||
+      lowerMsg.includes("no api key provided")
+    );
+  };
 
   // Transient provider errors that are safe to retry (OpenRouter 524 timeout, 529 overloaded, etc.)
   const isRetryable = (err: unknown): boolean => {
+    if (isPromptTooLarge(err) || isKeyError(err)) return false;
     const msg = err instanceof Error ? err.message : String(err);
     const lowerMsg = msg.toLowerCase();
     return (
@@ -210,6 +246,7 @@ export async function POST(request: Request) {
       lowerMsg.includes("overloaded") ||
       lowerMsg.includes("rate-limited") ||
       lowerMsg.includes("rate limit") ||
+      lowerMsg.includes("rate_limit_exceeded") ||
       (lowerMsg.includes("model") && lowerMsg.includes("not found")) ||
       lowerMsg.includes("timeout") ||
       msg.includes("ECONNRESET") ||
@@ -220,143 +257,186 @@ export async function POST(request: Request) {
   let rawText = "";
   let lastErr: unknown;
   let modelUsed = model;
-  const modelCandidates = getModelCandidates(apiKeyRow.provider, model);
+  let usedKeyRow: { id: string; vault_secret_id: string; provider: string } | null = null;
+  let usedApiKey = "";
 
-  modelAttemptLoop:
-  for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex++) {
-    const candidateModel = modelCandidates[modelIndex] ?? model;
-    const maxAttempts = candidateModel === model ? PRIMARY_MODEL_ATTEMPTS : FALLBACK_MODEL_ATTEMPTS;
+  keyAttemptLoop:
+  for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex++) {
+    const currentKeyRow = keyCandidates[keyIndex]!;
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        rawText = "";
-
-        if (useAnthropicSDK) {
-          // Stream to keep the connection alive during long generations
-          const anthropic = new Anthropic({ apiKey: anthropicApiKey });
-          const userMessage = isRefinement
-            ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
-            : buildGenesisUserMessage(description, availableConnections);
-          const stream = anthropic.messages.stream({
-            model: candidateModel,
-            max_tokens: 8192,
-            system: GENESIS_SYSTEM_PROMPT,
-            messages: [{ role: "user", content: userMessage }],
-          });
-          const msg = await stream.finalMessage();
-          rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
-        } else {
-        const baseURL = apiKeyRow.provider === "openrouter"
-          ? "https://openrouter.ai/api/v1"
-          : apiKeyRow.provider === "openai"
-            ? "https://api.openai.com/v1"
-            : apiKeyRow.provider === "groq"
-              ? "https://api.groq.com/openai/v1"
-              : apiKeyRow.provider === "mistral"
-                ? "https://api.mistral.ai/v1"
-                : undefined;
-
-        // Use stream: true — prevents Cloudflare 524 timeouts on slow providers by
-        // keeping the connection alive during generation instead of holding one long request.
-        const openai = new OpenAI({ apiKey: anthropicApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
-        const stream = await openai.chat.completions.create({
-          model: candidateModel,
-          max_tokens: 8192,
-          stream: true,
-          messages: [
-            { role: "system", content: GENESIS_SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: isRefinement
-                ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
-                : buildGenesisUserMessage(description, availableConnections),
-            },
-          ],
-        });
-        for await (const chunk of stream) {
-          rawText += chunk.choices[0]?.delta?.content ?? "";
-        }
-      }
-      if (!rawText) throw new Error(`Model returned empty response (model="${candidateModel}" may be unavailable or rate-limited)`);
-      modelUsed = candidateModel;
-      break modelAttemptLoop; // success
+    let currentApiKey: string;
+    try {
+      currentApiKey = await vaultRetrieve(serviceClient, currentKeyRow.vault_secret_id);
     } catch (err) {
-      lastErr = err;
-      const retryable = isRetryable(err);
-      const hasMoreAttempts = retryable && attempt < maxAttempts;
-      const hasFallbackModel = retryable && modelIndex < modelCandidates.length - 1;
+      console.warn(`[genesis] Vault retrieve failed for key ${currentKeyRow.id}:`, (err as Error).message);
+      continue;
+    }
 
-      if (hasMoreAttempts) {
-        await logGenesis(
-          "warning",
-          "genesis.model_retry",
-          "retrying",
-          `Genesis model call failed on attempt ${attempt}; retrying.`,
-          {
-            attempt,
-            max_attempts: maxAttempts,
-            provider: apiKeyRow.provider,
-            requested_model: model,
-            candidate_model: candidateModel,
-            error: errorDetails(err),
-          }
-        );
-        await new Promise((r) => setTimeout(r, attempt * 2000));
-        continue;
-      }
-
-      if (hasFallbackModel) {
-        const nextModel = modelCandidates[modelIndex + 1] ?? "unknown";
-        await logGenesis(
-          "warning",
-          "genesis.model_fallback",
-          "retrying",
-          `Genesis model ${candidateModel} failed; trying fallback model ${nextModel}.`,
-          {
-            attempt,
-            max_attempts: maxAttempts,
-            provider: apiKeyRow.provider,
-            requested_model: model,
-            failed_model: candidateModel,
-            fallback_model: nextModel,
-            attempted_models: modelCandidates.slice(0, modelIndex + 1),
-            error: errorDetails(err),
-          }
-        );
-        break;
-      }
-
-      const errMsg = (err as Error).message ?? String(err);
-      const causeMsg = (err as { cause?: { message?: string } })?.cause?.message;
-      return loggedApiError(
-        `Genesis model call failed: ${causeMsg ?? errMsg}`,
-        502,
-        "genesis.model_failed",
-        {
-          attempt,
-          max_attempts: maxAttempts,
-          provider: apiKeyRow.provider,
-          requested_model: model,
-          candidate_model: candidateModel,
-          attempted_models: modelCandidates.slice(0, modelIndex + 1),
-          error: errorDetails(err),
-        }
+    if (keyIndex > 0) {
+      await logGenesis(
+        "warning",
+        "genesis.key_fallback",
+        "retrying",
+        `Preferred key failed; trying fallback key (provider: ${currentKeyRow.provider}).`,
+        { fallback_provider: currentKeyRow.provider }
       );
     }
+
+    const useAnthropicSDK = currentKeyRow.provider === "anthropic";
+    const currentModel = keyIndex === 0 ? model : (KEY_DEFAULT_MODELS[currentKeyRow.provider] ?? model);
+    const modelCandidates = getModelCandidates(currentKeyRow.provider, currentModel);
+
+    modelAttemptLoop:
+    for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex++) {
+      const candidateModel = modelCandidates[modelIndex] ?? currentModel;
+      const maxAttempts = candidateModel === currentModel ? PRIMARY_MODEL_ATTEMPTS : FALLBACK_MODEL_ATTEMPTS;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          rawText = "";
+
+          if (useAnthropicSDK) {
+            const anthropic = new Anthropic({ apiKey: currentApiKey });
+            const userMessage = isRefinement
+              ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
+              : buildGenesisUserMessage(description, availableConnections);
+            const stream = anthropic.messages.stream({
+              model: candidateModel,
+              max_tokens: 8192,
+              system: GENESIS_SYSTEM_PROMPT,
+              messages: [{ role: "user", content: userMessage }],
+            });
+            const msg = await stream.finalMessage();
+            rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
+          } else {
+            const baseURL = currentKeyRow.provider === "openrouter"
+              ? "https://openrouter.ai/api/v1"
+              : currentKeyRow.provider === "openai"
+                ? "https://api.openai.com/v1"
+                : currentKeyRow.provider === "groq"
+                  ? "https://api.groq.com/openai/v1"
+                  : currentKeyRow.provider === "mistral"
+                    ? "https://api.mistral.ai/v1"
+                    : undefined;
+
+            const openai = new OpenAI({ apiKey: currentApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
+            const stream = await openai.chat.completions.create({
+              model: candidateModel,
+              max_tokens: 8192,
+              stream: true,
+              messages: [
+                { role: "system", content: GENESIS_SYSTEM_PROMPT },
+                {
+                  role: "user",
+                  content: isRefinement
+                    ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
+                    : buildGenesisUserMessage(description, availableConnections),
+                },
+              ],
+            });
+            for await (const chunk of stream) {
+              rawText += chunk.choices[0]?.delta?.content ?? "";
+            }
+          }
+
+          if (!rawText) throw new Error(`Model returned empty response (model="${candidateModel}" may be unavailable or rate-limited)`);
+          modelUsed = candidateModel;
+          usedKeyRow = currentKeyRow;
+          usedApiKey = currentApiKey;
+          break keyAttemptLoop; // success
+        } catch (err) {
+          lastErr = err;
+
+          // Key-level failure — skip remaining models for this key and try next key
+          if (isKeyError(err)) {
+            const errMsg = (err as Error).message ?? String(err);
+            console.warn(`[genesis] Key error for provider=${currentKeyRow.provider}, trying next key:`, errMsg);
+            break modelAttemptLoop;
+          }
+
+          const retryable = isRetryable(err);
+          const hasMoreAttempts = retryable && attempt < maxAttempts;
+          const hasFallbackModel = retryable && modelIndex < modelCandidates.length - 1;
+
+          if (hasMoreAttempts) {
+            await logGenesis(
+              "warning",
+              "genesis.model_retry",
+              "retrying",
+              `Genesis model call failed on attempt ${attempt}; retrying.`,
+              {
+                attempt,
+                max_attempts: maxAttempts,
+                provider: currentKeyRow.provider,
+                requested_model: currentModel,
+                candidate_model: candidateModel,
+                error: errorDetails(err),
+              }
+            );
+            await new Promise((r) => setTimeout(r, attempt * 2000));
+            continue;
+          }
+
+          if (hasFallbackModel) {
+            const nextModel = modelCandidates[modelIndex + 1] ?? "unknown";
+            await logGenesis(
+              "warning",
+              "genesis.model_fallback",
+              "retrying",
+              `Genesis model ${candidateModel} failed; trying fallback model ${nextModel}.`,
+              {
+                provider: currentKeyRow.provider,
+                failed_model: candidateModel,
+                fallback_model: nextModel,
+                error: errorDetails(err),
+              }
+            );
+            break;
+          }
+
+          const errMsg = (err as Error).message ?? String(err);
+          const causeMsg = (err as { cause?: { message?: string } })?.cause?.message;
+          console.error(`[genesis] Model call failed — provider=${currentKeyRow.provider} model=${candidateModel}:`, causeMsg ?? errMsg);
+          if (isPromptTooLarge(err)) {
+            if (keyIndex < keyCandidates.length - 1) break modelAttemptLoop; // try next key
+            return loggedApiError(
+              `The Genesis prompt is too large for all available models. Try adding an Anthropic or OpenAI key.`,
+              422,
+              "genesis.prompt_too_large",
+              { provider: currentKeyRow.provider, model: candidateModel, error: errorDetails(err) }
+            );
+          }
+          return loggedApiError(
+            `Genesis model call failed: ${causeMsg ?? errMsg}`,
+            502,
+            "genesis.model_failed",
+            {
+              provider: currentKeyRow.provider,
+              requested_model: currentModel,
+              candidate_model: candidateModel,
+              error: errorDetails(err),
+            }
+          );
+        }
+      }
+    }
   }
-  }
+
+  // Expose the key row that succeeded (used below for the repair prompt)
+  const apiKeyRow = usedKeyRow ?? keyCandidates[0]!;
+  const useAnthropicSDK = apiKeyRow.provider === "anthropic";
 
   if (!rawText) {
     const lastErrMsg = (lastErr as Error)?.message ?? "empty response";
     const lastCauseMsg = (lastErr as { cause?: { message?: string } })?.cause?.message;
     return loggedApiError(
-      `Genesis model call failed after trying ${modelCandidates.length} model(s): ${lastCauseMsg ?? lastErrMsg}`,
+      `Genesis model call failed after trying all available keys: ${lastCauseMsg ?? lastErrMsg}`,
       502,
       "genesis.model_failed",
       {
         provider: apiKeyRow.provider,
         requested_model: model,
-        attempted_models: modelCandidates,
+        keys_tried: keyCandidates.length,
         error: errorDetails(lastErr),
       }
     );
@@ -394,7 +474,7 @@ export async function POST(request: Request) {
 
         let repairedText = "";
         if (useAnthropicSDK) {
-          const anthropic = new Anthropic({ apiKey: anthropicApiKey });
+          const anthropic = new Anthropic({ apiKey: usedApiKey });
           const repairMsg = await anthropic.messages.create({
             model: modelUsed,
             max_tokens: 8192,
@@ -413,7 +493,7 @@ export async function POST(request: Request) {
                 : apiKeyRow.provider === "mistral"
                   ? "https://api.mistral.ai/v1"
                   : undefined;
-          const openai = new OpenAI({ apiKey: anthropicApiKey, ...(baseURL && { baseURL }), timeout: 120_000 });
+          const openai = new OpenAI({ apiKey: usedApiKey, ...(baseURL && { baseURL }), timeout: 120_000 });
           const repairMsg = await openai.chat.completions.create({
             model: modelUsed,
             max_tokens: 8192,
