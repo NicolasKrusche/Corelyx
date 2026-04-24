@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "The terms that govern your use of the Nexflow platform.",
 };
 
-const LAST_UPDATED = "April 19, 2026";
+const LAST_UPDATED = "April 24, 2026";
 
 const sections = [
   {
@@ -15,14 +15,16 @@ const sections = [
     title: "1. Acceptance of Terms",
     content: `By creating a Nexflow account or using any part of the Nexflow platform ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not access or use the Service.
 
-If you are using the Service on behalf of a company or other legal entity, you represent that you have the authority to bind that entity to these Terms.`,
+If you are using the Service on behalf of a company or other legal entity, you represent that you have the authority to bind that entity to these Terms.
+
+These Terms distinguish between consumers and business customers where required by mandatory law. A "consumer" means a natural person acting for purposes outside their trade, business, or profession within the meaning of the Austrian Konsumentenschutzgesetz (KSchG) and applicable EU consumer law.`,
   },
   {
     id: "description",
     title: "2. Description of Service",
     content: `Nexflow is a visual AI automation platform that allows users to design, configure, and run agent-based automation programs ("Programs") that connect to third-party services. The Service includes the web application, the program execution runtime, and any APIs we make available.
 
-The Service is provided "as is" and may change over time. We reserve the right to modify, suspend, or discontinue any part of the Service with reasonable notice where practical.`,
+The Service may change over time. We reserve the right to modify, suspend, or discontinue any part of the Service with reasonable notice where practical, subject to the notice requirements in Section 12.`,
   },
   {
     id: "accounts",
@@ -91,23 +93,30 @@ You may not copy, modify, reverse engineer, or create derivative works of any pa
   {
     id: "disclaimers",
     title: "9. Disclaimers",
-    content: `THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+    content: `The Service is provided "as is" and "as available". To the extent permitted by applicable law, we make no warranties, express or implied, regarding merchantability, fitness for a particular purpose, or non-infringement.
 
-We do not warrant that:
-- The Service will be uninterrupted, error-free, or fully secure
+In particular, we do not warrant that:
+- The Service will be uninterrupted, error-free, or fully secure at all times
 - AI-generated outputs from your Programs will be accurate or suitable for any particular purpose
 - Third-party services connected through Nexflow will remain available or function as expected
 
-You are responsible for verifying the outputs of any automated Program before acting on them.`,
+You are responsible for verifying the outputs of any automated Program before acting on them.
+
+If you are a consumer, nothing in this section affects your statutory rights under Austrian or applicable EU law, including rights to a conforming digital service under the EU Digital Content Directive (Directive 2019/770 as implemented in Austria).`,
   },
   {
     id: "liability",
     title: "10. Limitation of Liability",
-    content: `TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, NEXFLOW AND ITS OFFICERS, EMPLOYEES, AND CONTRACTORS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF DATA, LOSS OF PROFITS, OR BUSINESS INTERRUPTION, ARISING FROM YOUR USE OF OR INABILITY TO USE THE SERVICE.
+    content: `To the extent permitted by applicable law, our total liability to you for all claims arising from or related to the Service shall not exceed the greater of (a) the amount you paid to Nexflow in the twelve months preceding the claim, or (b) EUR 100.
 
-OUR TOTAL LIABILITY TO YOU FOR ALL CLAIMS ARISING FROM OR RELATED TO THE SERVICE SHALL NOT EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID TO NEXFLOW IN THE TWELVE MONTHS PRECEDING THE CLAIM, OR (B) GBP 100.
+We are not liable for indirect, incidental, or consequential damages — including loss of data, loss of profits, or business interruption — arising from your use of or inability to use the Service, unless caused by our gross negligence or wilful misconduct.
 
-Some jurisdictions do not allow certain liability limitations. In those jurisdictions, our liability is limited to the maximum extent permitted by law.`,
+Mandatory limits under Austrian and EU law that cannot be excluded by agreement always apply. In particular:
+- Liability for damages caused intentionally or by gross negligence cannot be limited or excluded under Austrian law (§ 6 KSchG for consumers; § 879 ABGB generally).
+- Liability for personal injury or death caused by our fault cannot be limited.
+- Statutory consumer rights under applicable EU directives are not affected.
+
+For business customers (non-consumers), liability for slight negligence is excluded to the fullest extent permitted by Austrian commercial law.`,
   },
   {
     id: "termination",
@@ -121,18 +130,39 @@ Sections 7, 9, 10, and 12 of these Terms survive termination.`,
   {
     id: "changes",
     title: "12. Changes to These Terms",
-    content: `We may update these Terms from time to time. For material changes, we will provide at least 14 days' notice by email or by displaying a prominent notice in the dashboard before the changes take effect. Your continued use of the Service after the effective date constitutes acceptance of the updated Terms.
+    content: `We may update these Terms from time to time. For material changes, we will provide at least 30 days' notice by email or by displaying a prominent notice in the dashboard before the changes take effect. Your continued use of the Service after the effective date constitutes acceptance of the updated Terms.
 
-If you disagree with a material change, you may close your account before the effective date.`,
+If you disagree with a material change, you may close your account before the effective date without penalty.
+
+For business customers, a notice period of at least 14 days applies for material changes. Non-material clarifications or corrections may take effect immediately.`,
+  },
+  {
+    id: "consumer-rights",
+    title: "13. Consumer Rights and Dispute Resolution",
+    content: `If you are a consumer within the meaning of Austrian or EU consumer law, the following additional provisions apply.
+
+Right of withdrawal: You have a 14-day right of withdrawal from a new paid subscription, starting from the date of purchase, without giving reasons. To exercise this right, contact us at legal@nexflow.app before the period expires. If you have already actively used the paid features of the Service and expressly consented to the Service commencing before the withdrawal period ended, your right of withdrawal may be lost as permitted by § 18 FAGG (Fern- und Auswärtsgeschäfte-Gesetz) and Article 16(m) of Directive 2011/83/EU.
+
+Statutory conformity rights: You are entitled to a digital service that conforms to what was agreed and is free from defects. If the Service is non-conforming, you may request remedy, a price reduction, or — where remedy is impossible or refused — termination of the contract, in accordance with the Austrian UGB and the EU Digital Content Directive (2019/770).
+
+Mandatory consumer protections: Regardless of the governing law clause in Section 14, mandatory consumer protection rules of your country of residence within the EU or EEA apply where they afford greater protection.
+
+Online Dispute Resolution: The European Commission provides an Online Dispute Resolution platform at https://ec.europa.eu/consumers/odr for resolving disputes relating to online purchases. Our contact address for ODR purposes is legal@nexflow.app. We are not obliged to participate in an alternative dispute resolution procedure, but we are willing to seek an amicable solution in the first instance.
+
+Austrian consumer arbitration: Consumers may also contact the Austrian Internet Ombudsman (www.ombudsmann.at) or the Alternative Dispute Resolution body (AStG) relevant to their situation.`,
   },
   {
     id: "governing-law",
-    title: "13. Governing Law",
-    content: `These Terms are governed by the laws of England and Wales. Any disputes arising from these Terms or your use of the Service shall be subject to the exclusive jurisdiction of the courts of England and Wales.`,
+    title: "14. Governing Law and Jurisdiction",
+    content: `These Terms are governed by the laws of the Republic of Austria, excluding its conflict-of-law rules. The UN Convention on Contracts for the International Sale of Goods (CISG) does not apply.
+
+For disputes arising from these Terms or your use of the Service, the competent courts of Vienna, Austria have jurisdiction.
+
+If you are a consumer resident in the European Union or the European Economic Area, you may also bring proceedings before the courts of your country of habitual residence. The mandatory consumer protection laws of your country of residence apply to the extent they afford greater protection than Austrian law and cannot be derogated from by agreement.`,
   },
   {
     id: "contact",
-    title: "14. Contact",
+    title: "15. Contact",
     content: `For questions about these Terms, contact us at:
 
 legal@nexflow.app

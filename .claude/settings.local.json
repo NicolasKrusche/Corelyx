@@ -229,7 +229,8 @@
       "Bash(grep -n \"zinc\\\\|#[0-9a-f]\\\\{3,6\\\\}\\\\|bg-white\\\\|bg-gray\\\\|text-gray\\\\|border-gray\\\\|bg-\\\\[#\\\\|text-\\\\[#\\\\|border-\\\\[#\" c:/NexFlow/apps/web/app/\\\\\\(app\\\\\\)/api-keys/page.tsx c:/NexFlow/apps/web/app/\\\\\\(auth\\\\\\)/update-password/page.tsx c:/NexFlow/apps/web/app/\\\\\\(app\\\\\\)/browse/page.tsx)",
       "Bash(python -c \"import ast; ast.parse\\(open\\('c:/NexFlow/apps/runtime/db.py'\\).read\\(\\)\\); ast.parse\\(open\\('c:/NexFlow/apps/runtime/engine/executor.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
       "Bash(netstat -ano -p tcp)",
-      "Bash(taskkill //F //PID 31928)"
+      "Bash(taskkill //F //PID 31928)",
+      "Bash(node -e \"const s = require\\('./node_modules/stripe/package.json'\\); console.log\\(s.version\\)\")"
     ]
   }
 }

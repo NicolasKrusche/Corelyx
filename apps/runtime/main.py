@@ -20,6 +20,11 @@ from pydantic import BaseModel
 
 from db import get_active_cron_workflows, get_db, release_run_locks, update_run
 from engine.executor import ExecutionError, ProgramExecutor
+from internal_auth import (
+    INTERNAL_SERVICE_TOKEN_HEADER,
+    build_internal_service_headers,
+    verify_internal_service_token,
+)
 from schema import ProgramSchema, parse_schema
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
@@ -118,9 +123,14 @@ app.add_middleware(
 )
 
 
-def verify_runtime_secret(x_runtime_secret: str = Header(...)) -> None:
-    expected = os.environ.get("RUNTIME_SECRET")
-    if not expected or x_runtime_secret != expected:
+def verify_execute_token(
+    x_internal_service_token: str | None = Header(
+        default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER
+    )
+) -> None:
+    if not x_internal_service_token or not verify_internal_service_token(
+        x_internal_service_token, "runtime:execute"
+    ):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -140,9 +150,11 @@ class ExecuteRequest(BaseModel):
 async def execute_program(
     body: ExecuteRequest,
     background_tasks: BackgroundTasks,
-    x_runtime_secret: str = Header(...),
+    x_internal_service_token: str | None = Header(
+        default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER
+    ),
 ) -> dict[str, str]:
-    verify_runtime_secret(x_runtime_secret)
+    verify_execute_token(x_internal_service_token)
     schema = parse_schema(body.schema)
     background_tasks.add_task(
         _run_program, schema, body.run_id, body.user_id, body.trigger_payload, body.connections
@@ -156,13 +168,12 @@ RUN_TIMEOUT_SECONDS = 600  # 10 minutes max per run
 async def _notify_complete(run_id: str, program_id: str, user_id: str, status: str) -> None:
     """Notify Next.js that a run has finished — fires inter-program triggers."""
     nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000")
-    secret = os.environ.get("RUNTIME_SECRET", "")
     try:
         import httpx
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
                 f"{nextjs_url}/api/internal/runs/{run_id}/complete",
-                headers={"x-runtime-secret": secret, "Content-Type": "application/json"},
+                headers=build_internal_service_headers("next:runs:complete"),
                 json={"program_id": program_id, "user_id": user_id, "status": status},
             )
     except Exception as e:

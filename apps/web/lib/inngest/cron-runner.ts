@@ -2,6 +2,7 @@ import { NonRetriableError } from "inngest";
 import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
+import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit } from "@/lib/limits";
 
 /**
@@ -35,7 +36,6 @@ export const cronRunner = inngest.createFunction(
 
     // ── 2. For each due trigger, dispatch a run ────────────────────────────
     const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
-    const runtimeSecret = process.env.RUNTIME_SECRET ?? "";
 
     let fired = 0;
 
@@ -86,10 +86,9 @@ export const cronRunner = inngest.createFunction(
         try {
           const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
             method: "POST",
-            headers: {
+            headers: buildInternalServiceHeaders("runtime:execute", {
               "Content-Type": "application/json",
-              "x-runtime-secret": runtimeSecret,
-            },
+            }),
             body: JSON.stringify({
               run_id: runId,
               program_id: trigger.program_id,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { getValidOAuthToken } from "@/lib/oauth-token";
+import { verifyGooglePubSubOidc } from "@/lib/pubsub-auth";
 
 type GmailConnectionRow = {
   id: string;
@@ -24,12 +25,55 @@ type GmailPushPayload = {
   historyId?: string;
 };
 
+const MAX_BODY_BYTES = 65_536;
+
+// In-memory idempotency store: messageId → timestamp of first receipt
+const _processedMessages = new Map<string, number>();
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+
+function _isDuplicate(messageId: string): boolean {
+  const seenAt = _processedMessages.get(messageId);
+  if (seenAt !== undefined) {
+    if (Date.now() - seenAt < IDEMPOTENCY_TTL_MS) return true;
+    _processedMessages.delete(messageId);
+  }
+  return false;
+}
+
+function _markSeen(messageId: string): void {
+  _processedMessages.set(messageId, Date.now());
+  if (_processedMessages.size > 2000) {
+    const cutoff = Date.now() - IDEMPOTENCY_TTL_MS;
+    for (const [id, ts] of _processedMessages) {
+      if (ts < cutoff) _processedMessages.delete(id);
+    }
+  }
+}
+
 export async function POST(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_BODY_BYTES) return apiError("Payload too large", 413);
+
+  const audience = process.env.PUBSUB_GMAIL_WEBHOOK_AUDIENCE;
+  if (!audience) {
+    console.error("[gmail-webhook] PUBSUB_GMAIL_WEBHOOK_AUDIENCE not configured");
+    return apiError("Webhook not configured", 500);
+  }
+
+  const isValid = await verifyGooglePubSubOidc(request.headers.get("authorization"), audience);
+  if (!isValid) return apiError("Unauthorized", 401);
+
   let envelope: PubSubEnvelope;
   try {
     envelope = (await request.json()) as PubSubEnvelope;
   } catch {
     return apiError("Invalid JSON body", 400);
+  }
+
+  const messageId = envelope.message?.messageId;
+  if (!messageId) return apiError("Missing Pub/Sub messageId", 400);
+  if (_isDuplicate(messageId)) {
+    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
   }
 
   const encodedData = envelope.message?.data;
@@ -48,6 +92,8 @@ export async function POST(request: Request) {
   if (!emailAddress || !historyId) {
     return apiError("Missing emailAddress/historyId in Gmail push payload", 400);
   }
+
+  _markSeen(messageId);
 
   const db = createServiceClient();
   const { data: rowsRaw, error } = await db

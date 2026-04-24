@@ -35,6 +35,7 @@ from db import (
     get_run_status,
     update_node_execution,
 )
+from internal_auth import build_internal_service_headers
 
 TelemetryPayload = dict[str, int | float]
 
@@ -1376,7 +1377,6 @@ class ProgramExecutor:
 
     async def _fetch_oauth_token(self, connection_id: str, force_refresh: bool = False) -> str:
         """Fetch a valid (auto-refreshed) OAuth access token from Next.js."""
-        secret = os.environ["RUNTIME_SECRET"]
         params = {"force_refresh": "true"} if force_refresh else {}
         endpoint_path = f"/api/internal/connections/{connection_id}/token"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
@@ -1385,7 +1385,7 @@ class ProgramExecutor:
             for idx, endpoint_url in enumerate(endpoint_urls):
                 resp = await client.get(
                     endpoint_url,
-                    headers={"x-runtime-secret": secret},
+                    headers=build_internal_service_headers("next:connections:token"),
                     params=params if params else None,
                 )
                 if resp.is_success:
@@ -1437,7 +1437,6 @@ class ProgramExecutor:
         """Fetch the API key value + provider from the Next.js internal vault endpoint.
         Returns (value, provider).
         """
-        secret = os.environ["RUNTIME_SECRET"]
         endpoint_path = f"/api/internal/vault/{api_key_ref}"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
         attempt_errors: list[str] = []
@@ -1445,7 +1444,7 @@ class ProgramExecutor:
             for idx, endpoint_url in enumerate(endpoint_urls):
                 resp = await client.get(
                     endpoint_url,
-                    headers={"x-runtime-secret": secret},
+                    headers=build_internal_service_headers("next:vault"),
                 )
                 if resp.is_success:
                     try:

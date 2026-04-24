@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
+import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { getValidOAuthToken } from "@/lib/oauth-token";
 
 // GET /api/internal/connections/[id]/token
 // Called by the Python runtime to get a valid (auto-refreshed) OAuth token for a connection.
-// Header: x-runtime-secret: <RUNTIME_SECRET>
+// Header: x-internal-service-token: <scoped signed token>
 // Returns: { access_token: string }
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const incomingSecret = request.headers.get("x-runtime-secret");
-  const expectedSecret = process.env.RUNTIME_SECRET;
-  if (!expectedSecret || incomingSecret !== expectedSecret) {
+  if (!requestHasValidInternalServiceToken(request.headers, "next:connections:token")) {
     return apiError("Unauthorized", 401);
   }
 

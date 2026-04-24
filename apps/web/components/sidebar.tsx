@@ -416,6 +416,7 @@ export function Sidebar({
           displayName={displayName}
           initialDisplayName={initialDisplayName}
           initialAvatarUrl={initialAvatarUrl}
+          tier={tier}
           tierLabel={tierLabel}
           isAdmin={isAdmin}
           isBetaTester={isBetaTester}
@@ -460,6 +461,7 @@ function SettingsModal({
   displayName,
   initialDisplayName,
   initialAvatarUrl,
+  tier,
   tierLabel,
   isAdmin,
   isBetaTester,
@@ -478,6 +480,7 @@ function SettingsModal({
   displayName: string;
   initialDisplayName: string;
   initialAvatarUrl: string;
+  tier: Tier;
   tierLabel: string;
   isAdmin: boolean;
   isBetaTester: boolean;
@@ -941,13 +944,23 @@ function SettingsModal({
                   <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Plan</p>
                     <p className="mt-3 text-sm text-gray-600">Current plan: {tierLabel}. Compare plans or upgrade anytime.</p>
-                    <Link
-                      href="/plan"
-                      onClick={onClose}
-                      className="mt-4 inline-flex rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-                    >
-                      Upgrade plan
-                    </Link>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Link
+                        href="/plan"
+                        onClick={onClose}
+                        className="inline-flex rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                      >
+                        {tier === "free" ? "Upgrade plan" : "Compare plans"}
+                      </Link>
+                      {tier !== "free" && tier !== "unlimited" && (
+                        <a
+                          href="/api/billing/portal"
+                          className="inline-flex rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-black/5"
+                        >
+                          Manage subscription
+                        </a>
+                      )}
+                    </div>
                   </section>
 
                   <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">

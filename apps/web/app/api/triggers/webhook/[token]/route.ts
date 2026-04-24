@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
+import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit } from "@/lib/limits";
+import {
+  WEBHOOK_SIGNATURE_HEADER,
+  WEBHOOK_TIMESTAMP_HEADER,
+  verifyWebhookSignature,
+} from "@/lib/webhook-trigger-auth";
 
 /**
  * POST /api/triggers/webhook/[token]
@@ -14,6 +20,28 @@ export async function POST(
   { params }: { params: { token: string } }
 ) {
   const { token } = params;
+  const rawBody = await request.text().catch(() => "");
+  const signature = request.headers.get(WEBHOOK_SIGNATURE_HEADER);
+  const timestamp = request.headers.get(WEBHOOK_TIMESTAMP_HEADER);
+
+  if (!signature || !timestamp) {
+    return apiError("Not found", 404);
+  }
+
+  try {
+    if (
+      !verifyWebhookSignature({
+        body: rawBody,
+        webhookToken: token,
+        signature,
+        timestamp,
+      })
+    ) {
+      return apiError("Not found", 404);
+    }
+  } catch {
+    return apiError("Webhook signing misconfigured", 500);
+  }
 
   const db = createServiceClient();
 
@@ -45,8 +73,7 @@ export async function POST(
   // Parse incoming payload (optional body)
   let payload: Record<string, unknown> = {};
   try {
-    const text = await request.text();
-    if (text) payload = JSON.parse(text);
+    if (rawBody) payload = JSON.parse(rawBody);
   } catch {
     // Ignore parse errors — payload is best-effort
   }
@@ -129,16 +156,14 @@ export async function POST(
 
   // Dispatch to runtime
   const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
-  const runtimeSecret = process.env.RUNTIME_SECRET ?? "";
   const triggerPayload = { trigger_id: trigger.id, webhook_payload: payload };
 
   try {
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
-      headers: {
+      headers: buildInternalServiceHeaders("runtime:execute", {
         "Content-Type": "application/json",
-        "x-runtime-secret": runtimeSecret,
-      },
+      }),
       body: JSON.stringify({
         run_id: run.id,
         program_id: trigger.program_id,

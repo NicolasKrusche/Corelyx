@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
+import { enrichWebhookTriggerForClient } from "@/lib/webhook-trigger-auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ const ENRICHED_TRIGGER_COLS = "id, program_id, type, config, is_active, webhook_
 // ─── GET /api/programs/[id]/triggers ─────────────────────────────────────────
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   const user = await getAuthUser();
@@ -64,18 +65,16 @@ export async function GET(
   }
 
   const triggers = (data ?? []) as unknown as TriggerRow[];
+  const includeSigningSecret =
+    new URL(request.url).searchParams.get("include_webhook_signing_secret") === "true";
 
-  // Build webhook URLs (server-side, never expose token to unauth parties)
+  // Build webhook metadata server-side and only reveal the signing secret on opt-in reads.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const enriched = triggers.map((t) => ({
-    ...t,
-    webhook_url:
-      t.type === "webhook" && t.webhook_token
-        ? `${appUrl}/api/triggers/webhook/${t.webhook_token}`
-        : null,
-    // Never expose webhook_token directly — use the full URL instead
-    webhook_token: undefined,
-  }));
+  const enriched = triggers.map((trigger) =>
+    enrichWebhookTriggerForClient(trigger, appUrl, {
+      includeSigningSecret,
+    })
+  );
 
   return NextResponse.json({ triggers: enriched });
 }
@@ -169,14 +168,9 @@ export async function POST(
 
   return NextResponse.json(
     {
-      trigger: {
-        ...trigger,
-        webhook_url:
-          trigger.type === "webhook" && trigger.webhook_token
-            ? `${appUrl}/api/triggers/webhook/${trigger.webhook_token}`
-            : null,
-        webhook_token: undefined,
-      },
+      trigger: enrichWebhookTriggerForClient(trigger, appUrl, {
+        includeSigningSecret: true,
+      }),
     },
     { status: 201 }
   );
