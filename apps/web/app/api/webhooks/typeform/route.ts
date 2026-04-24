@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
+import { checkAndMark } from "@/lib/webhook-replay-guard";
 
 type TypeformConnectionRow = {
   id: string;
@@ -54,6 +55,10 @@ export async function POST(request: Request) {
   const formResponse = (body.form_response ?? {}) as Record<string, unknown>;
   const formId =
     typeof formResponse.form_id === "string" ? formResponse.form_id : null;
+  const responseToken = typeof formResponse.token === "string" ? formResponse.token : null;
+  if (responseToken && !checkAndMark(`typeform:${responseToken}`)) {
+    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+  }
 
   const url = new URL(request.url);
   const explicitConnectionId = url.searchParams.get("connection_id");

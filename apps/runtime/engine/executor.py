@@ -820,7 +820,7 @@ class ProgramExecutor:
                     headers=headers,
                     json=body,
                 )
-                print(f"[LLM/anthropic] {resp.status_code} model={cfg.model} body={resp.text[:800]}", flush=True)
+                print(f"[LLM/anthropic] {resp.status_code} model={cfg.model}", flush=True)
                 if not resp.is_success:
                     raise Exception(
                         f"LLM API error {resp.status_code} from {base_url} "
