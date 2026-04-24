@@ -126,6 +126,21 @@
   color: rgba(128, 128, 128, 0.15);
 }
 
+.editor-static-grid {
+  background-color: hsl(var(--background));
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.75) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.75) 1px, transparent 1px);
+  background-position: 0 0;
+  background-size: 20px 20px;
+}
+
+.light .editor-static-grid {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.9) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.9) 1px, transparent 1px);
+}
+
 /* ── Hero node graph drift animations ── */
 @keyframes drift-1 {
   0%, 100% { transform: translate(0px, 0px); }

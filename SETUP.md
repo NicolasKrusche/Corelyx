@@ -38,8 +38,8 @@ Fill in `apps/web/.env.local`:
 | `INTERNAL_SERVICE_AUTH_SECRET_NEXT_VAULT` | Strong random secret shared by runtime and web for Vault secret retrieval |
 | `INTERNAL_SERVICE_AUTH_SECRET_NEXT_EVENT_DISPATCH` | Strong random secret for internal event dispatch calls |
 | `ANTHROPIC_API_KEY` | console.anthropic.com |
-| `GOOGLE_CLIENT_ID` | console.cloud.google.com → OAuth 2.0 Client IDs |
-| `GOOGLE_CLIENT_SECRET` | Same page |
+| `GOOGLE_CLIENT_ID` | console.cloud.google.com → OAuth 2.0 Client IDs. Used for Google sign-in and Google connectors. |
+| `GOOGLE_CLIENT_SECRET` | Same page. Used for Google sign-in and Google connectors. |
 | `PUBSUB_GMAIL_WEBHOOK_AUDIENCE` | The exact Gmail Pub/Sub push endpoint URL configured as the OIDC audience |
 | `PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL` | The service account email configured on the Gmail Pub/Sub push subscription |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` for local dev |
@@ -51,6 +51,7 @@ Fill in `apps/web/.env.local`:
 | `STRIPE_PRICE_BUILDER_YEARLY` | Stripe Price ID for Builder yearly subscription |
 
 For Google OAuth, add these **Authorized redirect URIs**:
+- `http://localhost:3000/auth/callback`
 - `http://localhost:3000/api/connections/oauth/gmail/callback`
 
 For Stripe local webhook forwarding, run this in a separate terminal:

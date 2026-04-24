@@ -1,301 +1,454 @@
 import Link from "next/link";
-import { InteractiveFlowDiagram } from "@/components/landing/interactive-flow-diagram";
-import { ForcedOrangeTheme } from "@/components/forced-orange-theme";
+import {
+  ArrowRight,
+  Cable,
+  Check,
+  CirclePlay,
+  Eye,
+  KeyRound,
+  LockKeyhole,
+  Radio,
+  ShieldCheck,
+} from "lucide-react";
 
-const CONNECTORS = [
-  "Gmail", "Slack", "Notion", "GitHub", "Google Sheets",
-  "Airtable", "HubSpot", "Asana", "Outlook", "Typeform",
-  "Google Docs", "Google Drive",
+const INTEGRATIONS = [
+  "Gmail",
+  "Slack",
+  "Notion",
+  "GitHub",
+  "Google Sheets",
+  "Airtable",
+  "HubSpot",
+  "Asana",
+  "Outlook",
+  "Typeform",
+  "Google Docs",
+  "Google Drive",
 ];
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+const OPERATING_POINTS = [
+  "Prompt-built workflow graphs",
+  "Server-side OAuth and key storage",
+  "Live runs, approvals, and logs",
+];
+
+const WORKFLOW_STEPS = [
+  {
+    label: "Describe",
+    title: "Write the outcome",
+    body: "Start with a plain-language request. Nexflow turns intent into triggers, agent steps, connector calls, and validation checks.",
+  },
+  {
+    label: "Shape",
+    title: "Inspect the graph",
+    body: "Review the generated program in a real editor. Move nodes, swap tools, add approvals, and keep the execution path legible.",
+  },
+  {
+    label: "Run",
+    title: "Operate with control",
+    body: "Launch manually, schedule work, or react to events. Every run leaves an audit trail and can pause for human approval.",
+  },
+];
+
+const CONTROL_FEATURES = [
+  {
+    icon: ShieldCheck,
+    title: "Approval gates",
+    body: "Pause sensitive actions before they touch customer data, external systems, or expensive model calls.",
+  },
+  {
+    icon: LockKeyhole,
+    title: "Secrets stay server-side",
+    body: "OAuth tokens and API keys are routed through protected backend paths instead of being exposed to the browser.",
+  },
+  {
+    icon: Radio,
+    title: "Event-aware automations",
+    body: "Run from webhooks, cron schedules, provider events, manual starts, and program-to-program outputs.",
+  },
+  {
+    icon: Eye,
+    title: "Readable execution",
+    body: "Inspect node status, payloads, failures, logs, and skipped paths without decoding a black-box job queue.",
+  },
+];
 
 export default function LandingPage() {
-  const marqueeItems = [...CONNECTORS, ...CONNECTORS];
-
   return (
-    <div className="light accent-orange min-h-screen bg-[#eceff4] text-foreground overflow-x-hidden">
-      <ForcedOrangeTheme />
+    <main className="min-h-screen overflow-x-hidden bg-[#090909] text-[#f6f0e8]">
+      <SiteHeader />
+      <HeroSection />
+      <OperatingStrip />
+      <WorkflowSection />
+      <ControlSection />
+      <IntegrationsSection />
+      <FinalCta />
+      <SiteFooter />
+    </main>
+  );
+}
 
-      {/* ── Nav ── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/85 backdrop-blur-xl">
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 h-14">
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-6 w-6 object-contain" />
-            <span className="font-bold text-sm tracking-tight">Nexflow</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">How it works</a>
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#integrations" className="hover:text-foreground transition-colors">Integrations</a>
-            <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
-          </nav>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden">Pricing</Link>
-            <Link href="/login" className="hidden sm:inline text-sm text-muted-foreground hover:text-foreground transition-colors">Sign in</Link>
-            <Link href="/signup" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 sm:px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:shadow-[0_0_28px_rgba(249,115,22,0.45)] transition-all duration-200">
-              <span className="hidden sm:inline">Get started free</span>
-              <span className="sm:hidden">Get started</span>
-              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      </header>
+function SiteHeader() {
+  return (
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#090909]/[0.88] backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-7 w-7 object-contain" />
+          <span className="text-base font-semibold text-white">Nexflow</span>
+        </Link>
 
-      {/* ── Hero ── */}
-      <section className="relative flex flex-col items-center text-center px-6 pt-24 pb-12 overflow-hidden min-h-[92vh] justify-center">
-        {/* Dot grid */}
-        <div className="pointer-events-none absolute inset-0 bg-grid-dots opacity-20" />
+        <nav className="hidden items-center gap-7 text-sm text-[#b9b0a6] md:flex">
+          <a href="#workflow" className="transition-colors hover:text-white">Workflow</a>
+          <a href="#control" className="transition-colors hover:text-white">Control</a>
+          <a href="#integrations" className="transition-colors hover:text-white">Integrations</a>
+          <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
+        </nav>
 
-        {/* Edge masks — fade node clusters at viewport edges */}
-        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-52 bg-gradient-to-r from-[#eceff4] to-transparent z-10" />
-        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-52 bg-gradient-to-l from-[#eceff4] to-transparent z-10" />
-
-        {/* Bottom fade */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-[#eceff4] to-transparent" />
-
-        {/* Badge */}
-        <div className="animate-fade-up relative z-10 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/5 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-primary mb-8">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-70" />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
-          </span>
-          12 native integrations · Now in beta
-        </div>
-
-        {/* Headline */}
-        <h1 className="animate-fade-up-delay-1 relative z-10 font-black tracking-tight leading-[1.0] max-w-4xl" style={{ fontSize: "clamp(36px, 6vw, 68px)" }}>
-          Your team just got
-          <br />
-          <span className="bg-gradient-to-br from-orange-300 via-orange-400 to-red-500 bg-clip-text text-transparent">
-            an AI workforce.
-          </span>
-        </h1>
-
-        {/* Subheadline */}
-        <p className="animate-fade-up-delay-2 relative z-10 mt-6 text-lg text-muted-foreground max-w-xl leading-relaxed">
-          Describe an automation in plain English. Nexflow builds the agent graph,
-          connects your tools, and runs it — on autopilot.
-        </p>
-
-        {/* CTAs */}
-        <div className="animate-fade-up-delay-3 relative z-10 mt-9 flex flex-col sm:flex-row items-center gap-3">
-          <Link href="/signup" className="group inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold text-primary-foreground shadow-[0_0_40px_rgba(249,115,22,0.5)] hover:shadow-[0_0_56px_rgba(249,115,22,0.65)] transition-all duration-300">
-            Start for free
-            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200">
-              <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-            </svg>
-          </Link>
-          <Link href="/login" className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/70 backdrop-blur-sm px-8 py-3.5 text-sm font-medium hover:bg-white transition-all duration-200">
+        <div className="flex items-center gap-2">
+          <Link href="/login" className="hidden rounded-md px-3 py-2 text-sm text-[#d5cec4] transition-colors hover:text-white sm:inline-flex">
             Sign in
           </Link>
+          <Link
+            href="/signup"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-[#f05a28] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#ff7040]"
+          >
+            Start free
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section className="relative isolate min-h-[78svh] overflow-hidden px-4 pt-28 sm:px-6 lg:px-8">
+      <HeroScene />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#090909] to-transparent" />
+
+      <div className="relative z-10 mx-auto flex max-w-7xl flex-col justify-center pb-16 pt-8 sm:pt-14 lg:pb-20">
+        <p className="mb-6 max-w-max border-l-2 border-[#f05a28] pl-3 text-sm font-medium text-[#d9d1c6]">
+          AI workflow automation for teams that need agents to run real work.
+        </p>
+
+        <h1 className="max-w-4xl text-5xl font-semibold leading-none text-white sm:text-7xl lg:text-8xl">
+          Nexflow
+        </h1>
+
+        <p className="mt-7 max-w-2xl text-lg leading-8 text-[#d7cfc3]">
+          Build, inspect, and operate agent workflows across your tools. Describe the job, review the graph, then run it with approvals, logs, and protected credentials.
+        </p>
+
+        <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/signup"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#efe8dd]"
+          >
+            Build a program
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-white/[0.18] bg-white/[0.06] px-5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.12]"
+          >
+            <CirclePlay className="h-4 w-4" />
+            Open workspace
+          </Link>
         </div>
 
-        {/* Trust signals */}
-        <div className="animate-fade-up-delay-3 relative z-10 mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground/60">
-          {["Free to start", "No credit card", "2 programs forever free"].map((item, i) => (
-            <span key={item} className="flex items-center gap-1.5">
-              {i > 0 && <span className="w-px h-3 bg-border/80 mr-4" />}
-              <svg viewBox="0 0 12 12" fill="currentColor" className="w-2.5 h-2.5 text-green-500">
-                <path fillRule="evenodd" d="M10.5 2.5a.75.75 0 0 1 .166.913l-4 6a.75.75 0 0 1-1.153.098l-2.5-2.5a.75.75 0 0 1 1.06-1.06l1.89 1.889 3.464-5.196a.75.75 0 0 1 1.073-.144Z" clipRule="evenodd" />
-              </svg>
-              {item}
-            </span>
+        <div className="mt-8 grid max-w-2xl gap-3 text-sm text-[#c9c1b5] sm:grid-cols-3">
+          {OPERATING_POINTS.map((point) => (
+            <div key={point} className="flex items-start gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#75d7a3]" />
+              <span>{point}</span>
+            </div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
 
-        {/* Product diagram */}
-        <div className="animate-fade-up-delay-4 relative z-10 mt-16 w-full max-w-4xl">
-          <div className="absolute inset-x-8 top-6 bottom-0 -z-10 blur-[50px] rounded-full opacity-60"
-            style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.3) 0%, rgba(168,85,247,0.15) 50%, transparent 80%)" }} />
-          <div className="rounded-2xl overflow-hidden border border-border shadow-[0_8px_48px_rgba(0,0,0,0.12)]">
-            <InteractiveFlowDiagram />
+function HeroScene() {
+  return (
+    <div aria-hidden="true" className="absolute inset-0 z-0">
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(115deg, rgba(9,9,9,0.98) 0%, rgba(9,9,9,0.82) 34%, rgba(9,9,9,0.42) 64%, rgba(9,9,9,0.84) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 80px), repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 80px)",
+        }}
+      />
+
+      <div className="absolute right-[-260px] top-20 hidden h-[620px] w-[980px] rotate-[-7deg] lg:block">
+        <div className="absolute inset-0 rounded-lg border border-white/[0.12] bg-[#121212]/[0.88] shadow-[0_34px_120px_rgba(0,0,0,0.55)]" />
+        <div className="absolute left-0 right-0 top-0 flex h-12 items-center gap-2 border-b border-white/10 px-5">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#ff6b47]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#f0c15a]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#6fdc96]" />
+          <span className="ml-4 text-xs text-[#9d9489]">program/run-console</span>
+        </div>
+
+        <div className="absolute left-8 top-20 h-[460px] w-[590px]">
+          <SceneNode className="left-0 top-8" tone="green" title="Gmail trigger" subtitle="new inbound lead" />
+          <SceneNode className="left-[230px] top-0" tone="orange" title="Classify intent" subtitle="model: fast" />
+          <SceneNode className="left-[445px] top-[78px]" tone="blue" title="CRM update" subtitle="HubSpot contact" />
+          <SceneNode className="left-[156px] top-[230px]" tone="pink" title="Approval gate" subtitle="manager review" />
+          <SceneNode className="left-[402px] top-[310px]" tone="green" title="Slack summary" subtitle="#sales-ops" />
+          <DataLine className="left-[128px] top-[72px] w-[132px] rotate-[-12deg]" />
+          <DataLine className="left-[352px] top-[68px] w-[116px] rotate-[28deg]" />
+          <DataLine className="left-[250px] top-[196px] w-[142px] rotate-[33deg]" />
+          <DataLine className="left-[292px] top-[320px] w-[132px] rotate-[14deg]" />
+        </div>
+
+        <div className="absolute right-8 top-20 w-[270px] rounded-lg border border-white/10 bg-[#191716] p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-xs text-[#a99f93]">Run health</span>
+            <span className="rounded bg-[#1f3a2b] px-2 py-1 text-xs text-[#82e6a8]">live</span>
+          </div>
+          <MetricRow label="Nodes complete" value="11 / 14" />
+          <MetricRow label="Approvals waiting" value="1" />
+          <MetricRow label="Avg. runtime" value="18s" />
+        </div>
+
+        <div className="absolute bottom-8 right-8 w-[270px] rounded-lg border border-white/10 bg-[#111111] p-4">
+          <div className="flex items-center gap-2 text-xs text-[#a99f93]">
+            <KeyRound className="h-4 w-4 text-[#f05a28]" />
+            Server-side credential route
+          </div>
+          <div className="mt-4 space-y-2 font-mono text-[11px] text-[#8f877e]">
+            <p>vault.lookup(connection_id)</p>
+            <p>proxy.execute(provider_action)</p>
+            <p>return sanitized_result</p>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* ── Connector marquee ── */}
-      <section id="integrations" className="border-y border-border/40 py-10 overflow-hidden">
-        <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40 mb-7">
-          Connects to your entire stack
-        </p>
-        <div className="relative">
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[#eceff4] to-transparent z-10" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#eceff4] to-transparent z-10" />
-          <div className="flex gap-3 animate-marquee whitespace-nowrap">
-            {marqueeItems.map((name, i) => (
-              <span key={`${name}-${i}`} className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground/70 shrink-0">
-                <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it works ── */}
-      <section id="how-it-works" className="py-20 px-6">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center mb-12">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">How it works</p>
-            <h2 className="text-4xl sm:text-5xl font-black tracking-tight">Three steps.</h2>
-            <p className="text-muted-foreground mt-4 text-base max-w-sm mx-auto">From idea to running automation in under a minute.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                step: "01", title: "Describe",
-                body: 'Type what you want in plain English — "Summarize new GitHub issues and post to Slack."',
-                tag: "TRIGGER", color: "text-orange-400", border: "border-orange-500/20", bg: "bg-orange-500/5",
-              },
-              {
-                step: "02", title: "Design",
-                body: "Nexflow generates a full agent graph. Tune prompts, swap models, rewire connections — visually.",
-                tag: "AGENT", color: "text-purple-400", border: "border-purple-500/20", bg: "bg-purple-500/5",
-              },
-              {
-                step: "03", title: "Deploy",
-                body: "Hit Run. Triggers fire automatically, logs stream live, and approvals pause execution when you need control.",
-                tag: "STEP", color: "text-green-400", border: "border-green-500/20", bg: "bg-green-500/5",
-              },
-            ].map((item) => (
-              <div key={item.step} className={`relative rounded-2xl border ${item.border} ${item.bg} p-7 flex flex-col gap-5`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-foreground/10">{item.step}</span>
-                  <span className={`text-[9px] font-bold tracking-widest font-mono ${item.color} border ${item.border} rounded px-1.5 py-0.5`}>{item.tag}</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold mb-2">{item.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features bento ── */}
-      <section id="features" className="py-20 px-6 border-t border-border/40">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center mb-12">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-3">Features</p>
-            <h2 className="text-4xl sm:text-5xl font-black tracking-tight">Built for production.</h2>
-            <p className="text-muted-foreground mt-4 text-base max-w-sm mx-auto">Everything you need — nothing you don&apos;t.</p>
-          </div>
-
-          {/* Bento grid — 3 columns, alternating wide/narrow */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Row 1: wide + narrow */}
-            <div className="group sm:col-span-2 relative rounded-2xl border border-border bg-card p-8 flex flex-col gap-4 overflow-hidden hover:border-orange-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/6 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-orange-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl border border-orange-500/20 bg-orange-500/8 text-orange-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-                </svg>
-              </div>
-              <div className="relative">
-                <h3 className="font-bold text-base mb-2">AI-Designed Graphs</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">Type a sentence. Nexflow generates a complete, runnable agent graph — nodes, edges, prompts, and connections already wired up.</p>
-              </div>
-            </div>
-
-            <div className="group relative rounded-2xl border border-border bg-card p-8 flex flex-col gap-4 overflow-hidden hover:border-purple-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/6 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl border border-purple-500/20 bg-purple-500/8 text-purple-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                </svg>
-              </div>
-              <div className="relative">
-                <h3 className="font-bold text-base mb-2">Visual Editor</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">Rearrange nodes, tune prompts, swap models, rewire connections — no config files.</p>
-              </div>
-            </div>
-
-            {/* Row 2: narrow + wide */}
-            <div className="group relative rounded-2xl border border-border bg-card p-8 flex flex-col gap-4 overflow-hidden hover:border-yellow-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/6 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl border border-yellow-500/20 bg-yellow-500/8 text-yellow-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                </svg>
-              </div>
-              <div className="relative">
-                <h3 className="font-bold text-base mb-2">Runs on Autopilot</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">Schedule runs, react to webhooks, chain programs — no infrastructure.</p>
-              </div>
-            </div>
-
-            <div className="group sm:col-span-2 relative rounded-2xl border border-border bg-card p-8 flex flex-col gap-4 overflow-hidden hover:border-green-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/6 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-green-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl border border-green-500/20 bg-green-500/8 text-green-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                </svg>
-              </div>
-              <div className="relative">
-                <h3 className="font-bold text-base mb-2">Secrets Stay Secret</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">OAuth tokens and API keys are encrypted in Vault and never returned to the frontend. Every model call routes through a server-side proxy — always.</p>
-              </div>
-            </div>
-
-            {/* Row 3: wide + narrow */}
-            <div className="group sm:col-span-2 relative rounded-2xl border border-border bg-card p-8 flex flex-col gap-4 overflow-hidden hover:border-blue-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/6 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl border border-blue-500/20 bg-blue-500/8 text-blue-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                </svg>
-              </div>
-              <div className="relative">
-                <h3 className="font-bold text-base mb-2">Human-in-the-Loop</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">Pause execution at any node and wait for your sign-off before proceeding. Perfect for high-stakes actions. Get email notifications, approve from anywhere.</p>
-              </div>
-            </div>
-
-            <div className="group relative rounded-2xl border border-border bg-card p-8 flex flex-col gap-4 overflow-hidden hover:border-rose-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
-              <div className="absolute inset-0 bg-gradient-to-br from-rose-500/6 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-rose-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl border border-rose-500/20 bg-rose-500/8 text-rose-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
-                </svg>
-              </div>
-              <div className="relative">
-                <h3 className="font-bold text-base mb-2">Live Visualization</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">Nodes light up in real time. Active edges pulse. Errors surface inline.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="border-t border-border/40 px-6 py-6">
-        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground/50">
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-4 w-4 object-contain opacity-35" />
-            <span>© {new Date().getFullYear()} Nexflow. All rights reserved.</span>
-          </div>
-          <div className="flex items-center gap-5">
-            <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link href="/impressum" className="hover:text-foreground transition-colors">Impressum</Link>
-            <Link href="/login" className="hover:text-foreground transition-colors">Sign in</Link>
-            <Link href="/signup" className="hover:text-foreground transition-colors">Sign up</Link>
-          </div>
-        </div>
-      </footer>
+      <div className="absolute bottom-[-1px] left-0 right-0 h-px bg-white/10" />
     </div>
+  );
+}
+
+function SceneNode({
+  className,
+  tone,
+  title,
+  subtitle,
+}: {
+  className: string;
+  tone: "green" | "orange" | "blue" | "pink";
+  title: string;
+  subtitle: string;
+}) {
+  const tones = {
+    green: "border-[#75d7a3]/[0.35] bg-[#132218] text-[#75d7a3]",
+    orange: "border-[#f05a28]/40 bg-[#271711] text-[#ff8a5f]",
+    blue: "border-[#7fb7ff]/[0.35] bg-[#101b2a] text-[#9dc7ff]",
+    pink: "border-[#f39ac2]/[0.35] bg-[#28141e] text-[#f6a7c7]",
+  };
+
+  return (
+    <div className={`absolute w-40 rounded-lg border p-3 shadow-[0_18px_44px_rgba(0,0,0,0.32)] ${tones[tone]} ${className}`}>
+      <p className="text-sm font-semibold text-white">{title}</p>
+      <p className="mt-1 text-xs opacity-80">{subtitle}</p>
+    </div>
+  );
+}
+
+function DataLine({ className }: { className: string }) {
+  return (
+    <div className={`absolute h-px bg-white/20 ${className}`}>
+      <span className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#f05a28]" />
+    </div>
+  );
+}
+
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="mb-3 flex items-center justify-between border-b border-white/[0.08] pb-3 last:mb-0 last:border-b-0 last:pb-0">
+      <span className="text-xs text-[#8f877e]">{label}</span>
+      <span className="font-mono text-sm text-white">{value}</span>
+    </div>
+  );
+}
+
+function OperatingStrip() {
+  return (
+    <section className="border-y border-white/10 bg-[#10100f] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-4 text-sm text-[#cfc6ba] md:grid-cols-3">
+        {[
+          ["12+", "native connectors"],
+          ["0", "frontend secrets returned"],
+          ["1 graph", "from prompt to production"],
+        ].map(([value, label]) => (
+          <div key={label} className="flex items-baseline justify-between border-white/10 md:border-r md:pr-6 md:last:border-r-0">
+            <span className="text-2xl font-semibold text-white">{value}</span>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WorkflowSection() {
+  return (
+    <section id="workflow" className="bg-[#f3efe7] px-4 py-20 text-[#161412] sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
+          <div>
+            <SectionKicker>Workflow</SectionKicker>
+            <h2 className="mt-4 max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
+              Move from idea to running system without losing the shape of the work.
+            </h2>
+          </div>
+          <p className="max-w-2xl text-lg leading-8 text-[#5d554d]">
+            Nexflow is built around a visual execution graph, so operators can see what was generated, where data moves, and which steps need approval before anything runs.
+          </p>
+        </div>
+
+        <div className="mt-12 grid gap-4 md:grid-cols-3">
+          {WORKFLOW_STEPS.map((step, index) => (
+            <article key={step.label} className="rounded-lg border border-[#d8cfc2] bg-white p-6">
+              <div className="mb-12 flex items-center justify-between">
+                <span className="text-sm font-semibold text-[#f05a28]">{step.label}</span>
+                <span className="font-mono text-sm text-[#8b8175]">{String(index + 1).padStart(2, "0")}</span>
+              </div>
+              <h3 className="text-xl font-semibold">{step.title}</h3>
+              <p className="mt-4 leading-7 text-[#62594f]">{step.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ControlSection() {
+  return (
+    <section id="control" className="bg-[#090909] px-4 py-20 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <SectionKicker dark>Control Plane</SectionKicker>
+            <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
+              A workflow engine that behaves like infrastructure, not a demo.
+            </h2>
+            <p className="mt-6 leading-8 text-[#c9c1b5]">
+              Keep the fast parts fast, put humans on the risky parts, and make every run legible after the fact.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {CONTROL_FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <article key={feature.title} className="rounded-lg border border-white/10 bg-white/[0.045] p-6">
+                  <Icon className="h-5 w-5 text-[#f05a28]" />
+                  <h3 className="mt-6 text-lg font-semibold">{feature.title}</h3>
+                  <p className="mt-3 leading-7 text-[#bcb4aa]">{feature.body}</p>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function IntegrationsSection() {
+  return (
+    <section id="integrations" className="bg-[#151210] px-4 py-20 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+          <div>
+            <SectionKicker dark>Integrations</SectionKicker>
+            <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
+              Your agents can work where your team already works.
+            </h2>
+          </div>
+          <Link
+            href="/signup"
+            className="inline-flex h-11 w-max items-center gap-2 rounded-md border border-white/[0.14] px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+          >
+            Connect tools
+            <Cable className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {INTEGRATIONS.map((name) => (
+            <div key={name} className="rounded-lg border border-white/10 bg-[#0d0d0d] px-4 py-4 text-sm text-[#d8d0c6]">
+              {name}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalCta() {
+  return (
+    <section className="bg-[#f3efe7] px-4 py-20 text-[#151210] sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div>
+          <SectionKicker>Launch</SectionKicker>
+          <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
+            Build the first workflow your team can actually understand.
+          </h2>
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-[#62594f]">
+            Start with a small operational task, inspect the generated graph, then add approvals and connectors as the workflow earns trust.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+          <Link
+            href="/signup"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#151210] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#2a2520]"
+          >
+            Create an account
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/pricing"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[#cfc4b6] px-5 text-sm font-semibold text-[#151210] transition-colors hover:bg-white"
+          >
+            View pricing
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <footer className="border-t border-white/10 bg-[#090909] px-4 py-8 text-sm text-[#a9a096] sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain opacity-80" />
+          <span>© {new Date().getFullYear()} Nexflow</span>
+        </div>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <Link href="/pricing" className="hover:text-white">Pricing</Link>
+          <Link href="/privacy" className="hover:text-white">Privacy</Link>
+          <Link href="/terms" className="hover:text-white">Terms</Link>
+          <Link href="/impressum" className="hover:text-white">Impressum</Link>
+          <Link href="/login" className="hover:text-white">Sign in</Link>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function SectionKicker({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
+  return (
+    <p className={`text-sm font-semibold uppercase ${dark ? "text-[#f05a28]" : "text-[#b9441e]"}`}>
+      {children}
+    </p>
   );
 }

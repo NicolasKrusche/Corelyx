@@ -268,8 +268,6 @@ export function Sidebar({
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
-        <NavItem href="/programs/new" label="New Program" active={pathname === "/programs/new"}
-          icon={<PlusIcon />} isDark={isDark} />
         <NavItem href="/programs/import" label="Import" active={pathname.startsWith("/programs/import")}
           icon={<ImportIcon />} isDark={isDark} />
         <NavItem href="/browse" label="Browse" active={pathname.startsWith("/browse")}
@@ -300,14 +298,6 @@ export function Sidebar({
 
         <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
           icon={<PricingIcon />} isDark={isDark} />
-
-        {isAdmin && (
-          <>
-            <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
-            <NavItem href="/admin/codes" label="Code Manager" active={pathname.startsWith("/admin")}
-              icon={<AdminIcon />} isDark={isDark} />
-          </>
-        )}
       </nav>
 
       <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>
@@ -442,7 +432,8 @@ type AccountSettingsSection =
   | "legal"
   | "danger"
   | "general"
-  | "advanced";
+  | "advanced"
+  | "codeManager";
 
 type AccountSettingsGroup = {
   label: string;
@@ -543,6 +534,7 @@ function SettingsModal({
       items: [
         { id: "general", label: "General", caption: "Theme and preferences", icon: SettingsIcon },
         { id: "advanced", label: "Advanced", caption: "Power-user controls", icon: AdminIcon },
+        ...(isAdmin ? [{ id: "codeManager" as const, label: "Code Manager", caption: "Redemption codes", icon: KeyIcon }] : []),
       ],
     },
   ];
@@ -1155,6 +1147,24 @@ function SettingsModal({
                   <p className="mt-1 text-sm text-gray-600">
                     {advanced ? "Advanced mode is enabled for this workspace." : "Advanced mode is currently turned off."}
                   </p>
+                </section>
+              </div>
+            )}
+
+            {tab === "codeManager" && isAdmin && (
+              <div className="space-y-6">
+                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Code Manager</p>
+                  <p className="mt-3 text-sm text-gray-600">
+                    Manage redemption codes and admin-only access grants from the dedicated code manager.
+                  </p>
+                  <Link
+                    href="/admin/codes"
+                    onClick={onClose}
+                    className="mt-4 inline-flex rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                  >
+                    Open Code Manager
+                  </Link>
                 </section>
               </div>
             )}

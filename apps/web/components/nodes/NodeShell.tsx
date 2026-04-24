@@ -116,7 +116,8 @@ export function NodeShell({
   return (
     <div
       className={cn(
-        "relative rounded-lg bg-card shadow-sm transition-shadow",
+        "relative rounded-lg bg-card text-card-foreground shadow-sm transition-shadow dark:bg-zinc-900/95 dark:text-zinc-50",
+        "dark:[&_.text-muted-foreground]:text-zinc-300",
         "w-[200px] min-h-[80px] px-3 py-2.5",
         "flex flex-col gap-1",
         borderClass,
