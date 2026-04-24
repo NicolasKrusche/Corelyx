@@ -6,6 +6,7 @@ import {
 } from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 
 const OAUTH_STATE_TTL_SECONDS = 10 * 60;
@@ -30,6 +31,8 @@ export type IssuedOAuthState = {
   cookieName: string;
   cookieValue: string;
   maxAge: number;
+  issuedAt: number;
+  expiresAt: number;
 };
 
 export type OAuthStateFailureReason =
@@ -74,6 +77,12 @@ function getOAuthStateSecret() {
 function signOAuthState(encodedPayload: string) {
   return createHmac("sha256", getOAuthStateSecret())
     .update(encodedPayload)
+    .digest("base64url");
+}
+
+function hashOAuthStateNonce(nonce: string) {
+  return createHmac("sha256", getOAuthStateSecret())
+    .update(`oauth-state-nonce:${nonce}`)
     .digest("base64url");
 }
 
@@ -176,7 +185,30 @@ export function issueOAuthState(
     cookieName: getOAuthStateCookieName(flowId),
     cookieValue: nonce,
     maxAge: OAUTH_STATE_TTL_SECONDS,
+    issuedAt,
+    expiresAt,
   };
+}
+
+export async function issueOAuthStateForRequest(
+  userId: string,
+  payload: Record<string, unknown>
+): Promise<IssuedOAuthState> {
+  const issuedState = issueOAuthState(userId, payload);
+  const serviceClient = createServiceClient();
+  const { error } = await serviceClient.from("oauth_state_nonces").insert({
+    flow_id: issuedState.flowId,
+    user_id: userId,
+    nonce_hash: hashOAuthStateNonce(issuedState.cookieValue),
+    issued_at: new Date(issuedState.issuedAt * 1000).toISOString(),
+    expires_at: new Date(issuedState.expiresAt * 1000).toISOString(),
+  } as unknown as never);
+
+  if (error) {
+    throw new Error("Failed to persist OAuth state nonce");
+  }
+
+  return issuedState;
 }
 
 export function peekOAuthStateFlowId(state: string | null | undefined) {
@@ -232,6 +264,68 @@ export function verifyOAuthState(
   };
 }
 
+type OAuthStateNonceConsumer = (input: {
+  flowId: string;
+  userId: string;
+  nonce: string;
+}) => Promise<boolean>;
+
+export async function verifyOAuthStateWithNonceStore(
+  state: string,
+  cookieValue: string | null | undefined,
+  expectedUserId: string,
+  consumeNonce: OAuthStateNonceConsumer
+): Promise<OAuthStateVerificationResult> {
+  const verifiedState = verifyOAuthState(state, cookieValue, expectedUserId);
+  if (!verifiedState.ok) {
+    return verifiedState;
+  }
+
+  const consumed = await consumeNonce({
+    flowId: verifiedState.value.flowId,
+    userId: verifiedState.value.userId,
+    nonce: cookieValue!,
+  });
+  if (!consumed) {
+    return {
+      ok: false,
+      reason: "nonce_mismatch",
+      flowId: verifiedState.value.flowId,
+    };
+  }
+
+  return verifiedState;
+}
+
+async function consumeOAuthStateNonce({
+  flowId,
+  userId,
+  nonce,
+}: {
+  flowId: string;
+  userId: string;
+  nonce: string;
+}) {
+  const serviceClient = createServiceClient();
+  const now = new Date().toISOString();
+  const { data, error } = await serviceClient
+    .from("oauth_state_nonces")
+    .update({ consumed_at: now } as unknown as never)
+    .eq("flow_id", flowId)
+    .eq("user_id", userId)
+    .eq("nonce_hash", hashOAuthStateNonce(nonce))
+    .is("consumed_at", null)
+    .gt("expires_at", now)
+    .select("flow_id")
+    .maybeSingle();
+
+  if (error) {
+    return false;
+  }
+
+  return Boolean(data);
+}
+
 export async function verifyOAuthStateFromRequest(
   state: string
 ): Promise<OAuthStateVerificationResult> {
@@ -250,7 +344,12 @@ export async function verifyOAuthStateFromRequest(
     ? cookieStore.get(getOAuthStateCookieName(flowId))?.value ?? null
     : null;
 
-  return verifyOAuthState(state, cookieValue, user.id);
+  return verifyOAuthStateWithNonceStore(
+    state,
+    cookieValue,
+    user.id,
+    consumeOAuthStateNonce
+  );
 }
 
 export function applyOAuthStateCookie(

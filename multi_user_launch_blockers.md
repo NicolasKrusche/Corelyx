@@ -1,16 +1,20 @@
 # Multi-User Launch Blockers (Current State)
 
-This document lists issues that currently hold the app back from a safe public multi-user launch.
+This document lists issues that currently hold the app back from a safe public multi-user launch, plus recently fixed blockers kept for audit context.
 
 ## Summary
 
-Core user-scoped data model and RLS exist, but there are still **high-risk auth/isolation gaps** that should be addressed before broad launch.
+Core user-scoped data model and RLS exist. The OAuth callback `state` blocker is fixed, but there are still **high-risk auth/isolation gaps** that should be addressed before broad launch.
 
 ---
 
-## 1) Critical — OAuth callback `state` is not tamper-proof
+## 1) Fixed - OAuth callback `state` is tamper-proof
 
-**Evidence**
+**Status**
+- Fixed on 2026-04-24. OAuth `state` is now HMAC-signed, short-lived, bound to the active Supabase session and browser nonce cookie, and backed by a one-time server-side nonce record in `public.oauth_state_nonces`.
+- No longer a launch blocker.
+
+**Previous evidence**
 - `apps/web/lib/oauth-state.ts:3-15` only base64-encodes/decodes JSON (no signature, no one-time nonce verification).
 - Multiple OAuth callbacks trust `userId` parsed from that state, e.g.:
   - `apps/web/app/api/connections/oauth/gmail/callback/route.ts:23-25`
@@ -23,11 +27,11 @@ Core user-scoped data model and RLS exist, but there are still **high-risk auth/
   - `apps/web/app/api/connections/oauth/asana/callback/route.ts:17-19`
   - `apps/web/app/api/connections/oauth/airtable/callback/route.ts:21-30`
 
-**Why this blocks launch**
+**Previous risk**
 - In a public multi-user app, this can enable cross-account connection/token attachment via forged state.
 
-**Suggested fix**
-- Signed state (HMAC/JWT), short TTL, one-time server nonce store, callback/session binding.
+**Implemented fix**
+- Signed state (HMAC), 10-minute TTL, one-time server nonce store, browser cookie nonce binding, and callback/session binding.
 
 ---
 

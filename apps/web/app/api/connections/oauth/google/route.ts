@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
-import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
+import { applyOAuthStateCookie, issueOAuthStateForRequest } from "@/lib/oauth-state";
 
 const SCOPES_BY_SERVICE: Record<string, string[]> = {
   sheets: [
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
   const scopes = SCOPES_BY_SERVICE[service];
   if (!scopes) return apiError("Unknown Google service", 400);
-  const issuedState = issueOAuthState(user.id, { service, label });
+  const issuedState = await issueOAuthStateForRequest(user.id, { service, label });
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
