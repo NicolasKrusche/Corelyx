@@ -20,12 +20,16 @@ import {
   getMissingConnectionIds,
   getModelCandidates,
   getProviderBaseURL,
+  isKeyError,
   isPromptTooLarge,
   isRetryableModelError,
+  KEY_DEFAULT_MODELS,
   mapExecutionMode,
+  sortApiKeyFallbacks,
   toGenesisConnectionList,
   toProgramConnectionLinks,
   uniqueRequestedConnectionIds,
+  type GenesisApiKeyRow,
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
 
@@ -95,31 +99,22 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connections);
 
-  // Resolve API key
+  // Resolve API keys — preferred first, then fallbacks sorted by provider priority
   const serviceClient = createServiceClient();
-  const { data: rawKeyRow } = await serviceClient
+  const { data: allKeyRows, error: keysError } = await serviceClient
     .from("api_keys")
     .select("id, vault_secret_id, provider")
-    .eq("id", api_key_id)
     .eq("user_id", userId)
-    .eq("is_valid", true)
-    .single();
+    .eq("is_valid", true);
 
-  const keyRow = rawKeyRow as unknown as {
-    id: string;
-    vault_secret_id: string;
-    provider: string;
-  } | null;
-
-  if (!keyRow) {
-    return sseErrorResponse("API key not found or is invalid.", "API_KEY_INVALID");
+  const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
+  if (keysError || validKeyRows.length === 0) {
+    return sseErrorResponse("API key not found. Please add a valid API key.", "API_KEY_INVALID");
   }
 
-  let apiKey: string;
-  try {
-    apiKey = await vaultRetrieve(serviceClient, keyRow.vault_secret_id);
-  } catch {
-    return sseErrorResponse("Could not retrieve API key from vault.", "VAULT_RETRIEVE_FAILED");
+  const keyCandidates = sortApiKeyFallbacks(api_key_id, validKeyRows);
+  if (keyCandidates.length === 0) {
+    return sseErrorResponse("Selected API key not found or invalid.", "API_KEY_INVALID");
   }
 
   const encoder = new TextEncoder();
@@ -147,81 +142,95 @@ export async function POST(request: Request) {
 
         const userMessage = buildGenesisUserMessage(description, availableConnections);
 
-        const modelCandidates = getModelCandidates(keyRow.provider, model);
+        keyAttemptLoop:
+        for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
+          const currentKeyRow = keyCandidates[keyIndex]!;
 
-        for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex += 1) {
-          const candidateModel = modelCandidates[modelIndex] ?? model;
-          rawText = "";
-
+          let currentApiKey: string;
           try {
-            if (keyRow.provider === "anthropic") {
-              const anthropic = new Anthropic({ apiKey });
-              const msgStream = anthropic.messages.stream({
-                model: candidateModel,
-                max_tokens: 8192,
-                system: GENESIS_SYSTEM_PROMPT,
-                messages: [{ role: "user", content: userMessage }],
-              });
+            currentApiKey = await vaultRetrieve(serviceClient, currentKeyRow.vault_secret_id);
+          } catch {
+            continue;
+          }
 
-              msgStream.on("text", (textDelta) => {
-                rawText += textDelta;
-                pushChunk(textDelta);
-              });
+          const effectiveModel = keyIndex === 0 ? model : (KEY_DEFAULT_MODELS[currentKeyRow.provider] ?? model);
+          const modelCandidates = getModelCandidates(currentKeyRow.provider, effectiveModel);
 
-              const final = await msgStream.finalMessage();
-              if (!rawText && final.content[0]?.type === "text") {
-                rawText = (final.content[0] as { type: "text"; text: string }).text;
-              }
-            } else {
-              const baseURL = getProviderBaseURL(keyRow.provider);
+          for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex += 1) {
+            const candidateModel = modelCandidates[modelIndex] ?? model;
+            rawText = "";
 
-              const openai = new OpenAI({ apiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
-              const openaiStream = await openai.chat.completions.create({
-                model: candidateModel,
-                max_tokens: 8192,
-                stream: true,
-                messages: [
-                  { role: "system", content: GENESIS_SYSTEM_PROMPT },
-                  { role: "user", content: userMessage },
-                ],
-              });
+            try {
+              if (currentKeyRow.provider === "anthropic") {
+                const anthropic = new Anthropic({ apiKey: currentApiKey });
+                const msgStream = anthropic.messages.stream({
+                  model: candidateModel,
+                  max_tokens: 8192,
+                  system: GENESIS_SYSTEM_PROMPT,
+                  messages: [{ role: "user", content: userMessage }],
+                });
 
-              for await (const chunk of openaiStream) {
-                const piece = chunk.choices[0]?.delta?.content ?? "";
-                if (piece) {
-                  rawText += piece;
-                  pushChunk(piece);
+                msgStream.on("text", (textDelta) => {
+                  rawText += textDelta;
+                  pushChunk(textDelta);
+                });
+
+                const final = await msgStream.finalMessage();
+                if (!rawText && final.content[0]?.type === "text") {
+                  rawText = (final.content[0] as { type: "text"; text: string }).text;
+                }
+              } else {
+                const baseURL = getProviderBaseURL(currentKeyRow.provider);
+                const openai = new OpenAI({ apiKey: currentApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
+                const openaiStream = await openai.chat.completions.create({
+                  model: candidateModel,
+                  max_tokens: 8192,
+                  stream: true,
+                  messages: [
+                    { role: "system", content: GENESIS_SYSTEM_PROMPT },
+                    { role: "user", content: userMessage },
+                  ],
+                });
+
+                for await (const chunk of openaiStream) {
+                  const piece = chunk.choices[0]?.delta?.content ?? "";
+                  if (piece) {
+                    rawText += piece;
+                    pushChunk(piece);
+                  }
                 }
               }
-            }
 
-            if (!rawText) {
-              if (modelIndex < modelCandidates.length - 1) {
+              if (!rawText) {
+                if (modelIndex < modelCandidates.length - 1) {
+                  const nextModel = modelCandidates[modelIndex + 1] ?? "fallback model";
+                  send({ type: "status", message: `Model returned no output; trying ${nextModel}...` });
+                  continue;
+                }
+                throw new Error(`Model returned empty response for ${candidateModel}.`);
+              }
+
+              modelUsed = candidateModel;
+              break keyAttemptLoop;
+            } catch (err) {
+              const canModelFallback =
+                rawText.length === 0 &&
+                modelIndex < modelCandidates.length - 1;
+
+              if (canModelFallback) {
                 const nextModel = modelCandidates[modelIndex + 1] ?? "fallback model";
-                send({ type: "status", message: `Model returned no output; trying ${nextModel}...` });
+                send({ type: "status", message: `Model unavailable; trying ${nextModel}...` });
                 continue;
               }
-              throw new Error(`Model returned empty response for ${candidateModel}.`);
-            }
 
-            modelUsed = candidateModel;
-            break;
-          } catch (err) {
-            const canFallback =
-              rawText.length === 0 &&
-              isRetryableModelError(err) &&
-              modelIndex < modelCandidates.length - 1;
+              const nextKey = keyCandidates[keyIndex + 1];
+              if (rawText.length === 0 && nextKey) {
+                send({ type: "status", message: `Key failed; trying fallback key...` });
+                continue keyAttemptLoop;
+              }
 
-            if (canFallback) {
-              const nextModel = modelCandidates[modelIndex + 1] ?? "fallback model";
-              send({ type: "status", message: `Model unavailable; trying ${nextModel}...` });
-              continue;
+              throw err;
             }
-
-            if (isPromptTooLarge(err)) {
-              throw new Error("The Genesis prompt is too large for the selected model.");
-            }
-            throw err;
           }
         }
 
@@ -270,7 +279,9 @@ export async function POST(request: Request) {
         normalizeSchema(parsedSchema);
         const schemaResult = ProgramSchemaZ.safeParse(parsedSchema);
         if (!schemaResult.success) {
-          throw new Error("Generated schema failed validation. Try refining your description.");
+          const issues = schemaResult.error.issues.slice(0, 3).map(i => `${i.path.join(".")}: ${i.message}`).join(" | ");
+          console.error("[genesis] schema validation failed:", schemaResult.error.flatten());
+          throw new Error(`Schema validation failed: ${issues}`);
         }
         const schema = schemaResult.data;
         const validation = validatePostGenesis(schema as unknown as Parameters<typeof validatePostGenesis>[0], connections);

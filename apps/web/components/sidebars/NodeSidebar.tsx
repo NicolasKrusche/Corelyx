@@ -196,7 +196,7 @@ const CRON_PRESETS: { label: string; expression: string }[] = [
 // ─── Model presets per provider ───────────────────────────────────────────────
 
 const MODEL_PRESETS: Record<string, string[]> = {
-  anthropic:  ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+  anthropic:  ["claude-sonnet-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
   openai:     ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o3-mini"],
   openrouter: [
     "nvidia/nemotron-3-super-120b-a12b:free",
@@ -790,7 +790,7 @@ function AgentSidebar({
             <Input
               id="agent-model"
               list={providerPresets.length > 0 ? datalistId : undefined}
-              placeholder="e.g. claude-opus-4-6"
+              placeholder="e.g. claude-sonnet-4-6"
               value={config.model === "__USER_ASSIGNED__" ? "" : config.model}
               onChange={(e) => onUpdate({ model: e.target.value || "__USER_ASSIGNED__" })}
             />

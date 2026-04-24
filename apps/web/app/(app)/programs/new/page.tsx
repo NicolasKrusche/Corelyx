@@ -224,7 +224,7 @@ function NewProgramPageInner() {
   }, []);
 
   const DEFAULT_MODELS: Record<string, string> = {
-    anthropic: "claude-opus-4-6",
+    anthropic: "claude-sonnet-4-6",
     openai: "gpt-4o",
     google: "gemini-1.5-pro",
     groq: "llama-3.3-70b-versatile",
@@ -900,12 +900,12 @@ function NewProgramPageInner() {
                   <Input
                     id="model"
                     className="mt-1"
-                    placeholder="e.g. claude-opus-4-6 or anthropic/claude-opus-4-6"
+                    placeholder="e.g. claude-sonnet-4-6 or anthropic/claude-sonnet-4-6"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    For OpenRouter use format: <span className="font-mono">anthropic/claude-opus-4-6</span>
+                    For OpenRouter use format: <span className="font-mono">anthropic/claude-sonnet-4-6</span>
                   </p>
                 </div>
               )}
