@@ -1,4 +1,13 @@
-import type { ProgramSchema, Node, Edge, AgentNode, StepNode } from "@flowos/schema";
+import type {
+  ProgramSchema,
+  Node,
+  Edge,
+  AgentNode,
+  StepNode,
+  ConnectionNode,
+  OAuthConnectionConfig,
+} from "@flowos/schema";
+import { getMissingRequiredParams } from "@/lib/connectors/operation-params";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -149,6 +158,27 @@ export function validatePostGenesis(
       warning("WARN_002", node.id, `${node.label} has no system prompt`, "Add a system prompt to define what this agent should do");
   });
 
+  // Connection nodes with an operation set must have all required params filled.
+  // Genesis uses "__USER_ASSIGNED__" as a sentinel for unknown resource IDs.
+  nodes.forEach((node) => {
+    if (node.type !== "connection") return;
+    const connNode = node as ConnectionNode;
+    if (connNode.config.connector_type === "http") return;
+    const config = connNode.config as OAuthConnectionConfig;
+    if (!config.operation) return;
+    const provider = availableConnections.find((c) => c.name === node.connection)?.provider ?? config.provider ?? "";
+    if (!provider) return;
+    const missing = getMissingRequiredParams(provider, config.operation, config.operation_params);
+    if (missing.length > 0) {
+      warning(
+        "WARN_004",
+        node.id,
+        `${node.label} needs ${missing.length === 1 ? "a value" : "values"} for: ${missing.join(", ")}`,
+        "Open this node and fill in the highlighted fields before running"
+      );
+    }
+  });
+
   // ─── WARN_003: multiple write-access nodes sharing the same connection ────
 
   const writeNodesByConnection = new Map<string, string[]>();
@@ -180,13 +210,24 @@ export function validatePostGenesis(
   nodes.forEach((node) => {
     const hasError = errors.some((e) => e.node_id === node.id);
     const hasWarning = warnings.some((w) => w.node_id === node.id);
-    const isUnassigned =
+    const isAgentUnassigned =
       node.type === "agent" &&
       ((node as AgentNode).config.model === "__USER_ASSIGNED__" ||
         (node as AgentNode).config.api_key_ref === "__USER_ASSIGNED__");
+    const isConnectionUnassigned =
+      node.type === "connection" &&
+      (() => {
+        const rawCfg = (node as ConnectionNode).config;
+        if (rawCfg.connector_type === "http") return false;
+        const cfg = rawCfg as OAuthConnectionConfig;
+        if (!cfg.operation) return false;
+        const provider = availableConnections.find((c) => c.name === node.connection)?.provider ?? cfg.provider ?? "";
+        if (!provider) return false;
+        return getMissingRequiredParams(provider, cfg.operation, cfg.operation_params).length > 0;
+      })();
 
     if (hasError) node_states[node.id] = "error";
-    else if (isUnassigned) node_states[node.id] = "unassigned";
+    else if (isAgentUnassigned || isConnectionUnassigned) node_states[node.id] = "unassigned";
     else if (hasWarning) node_states[node.id] = "warning";
     else node_states[node.id] = "valid";
   });
