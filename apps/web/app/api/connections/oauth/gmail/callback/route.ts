@@ -1,6 +1,10 @@
-import { NextResponse } from "next/server";
-import { createServiceClient, apiError } from "@/lib/api";
+import { createServiceClient } from "@/lib/api";
 import { upsertOAuthConnection } from "@/lib/oauth-token";
+import {
+  peekOAuthStateFlowId,
+  redirectWithClearedOAuthState,
+  verifyOAuthStateFromRequest,
+} from "@/lib/oauth-state";
 
 // GET /api/connections/oauth/gmail/callback
 export async function GET(request: Request) {
@@ -8,24 +12,38 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const errorParam = searchParams.get("error");
+  const stateFlowId = peekOAuthStateFlowId(state);
 
   if (errorParam) {
-    return NextResponse.redirect(`${origin}/connections?error=${errorParam}`);
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=${errorParam}`,
+      stateFlowId
+    );
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(`${origin}/connections?error=missing_params`);
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=missing_params`,
+      stateFlowId
+    );
   }
 
-  let userId: string;
-  let label: string;
-  try {
-    const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
-    userId = decoded.userId;
-    label = decoded.label ?? "gmail:primary";
-  } catch {
-    return NextResponse.redirect(`${origin}/connections?error=invalid_state`);
+  const verifiedState = await verifyOAuthStateFromRequest(state);
+  if (!verifiedState.ok) {
+    const errorCode =
+      verifiedState.reason === "session_missing"
+        ? "session_required"
+        : "invalid_state";
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=${errorCode}`,
+      verifiedState.flowId ?? stateFlowId
+    );
   }
+  const { flowId, userId, payload } = verifiedState.value;
+  const label =
+    typeof payload.label === "string" && payload.label.trim()
+      ? payload.label
+      : "gmail:primary";
 
   // Exchange code for tokens
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -42,7 +60,10 @@ export async function GET(request: Request) {
   });
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(`${origin}/connections?error=token_exchange_failed`);
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=token_exchange_failed`,
+      flowId
+    );
   }
 
   const tokens = await tokenRes.json();
@@ -69,8 +90,14 @@ export async function GET(request: Request) {
       metadata: { email: userInfo.email ?? null },
     });
   } catch {
-    return NextResponse.redirect(`${origin}/connections?error=vault_failed`);
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=vault_failed`,
+      flowId
+    );
   }
 
-  return NextResponse.redirect(`${origin}/connections?connected=gmail`);
+  return redirectWithClearedOAuthState(
+    `${origin}/connections?connected=gmail`,
+    flowId
+  );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
+import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
 
 const OUTLOOK_SCOPES = [
   "https://graph.microsoft.com/Mail.Read",
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const label = searchParams.get("label") ?? "outlook:primary";
+  const issuedState = issueOAuthState(user.id, { label });
 
   const params = new URLSearchParams({
     client_id: process.env.MICROSOFT_CLIENT_ID!,
@@ -23,10 +25,11 @@ export async function GET(request: Request) {
     response_type: "code",
     scope: OUTLOOK_SCOPES,
     response_mode: "query",
-    state: Buffer.from(JSON.stringify({ userId: user.id, label })).toString("base64url"),
+    state: issuedState.state,
   });
 
-  return NextResponse.redirect(
+  const response = NextResponse.redirect(
     `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`
   );
+  return applyOAuthStateCookie(response, issuedState);
 }

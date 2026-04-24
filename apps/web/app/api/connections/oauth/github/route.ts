@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
-import { encodeOAuthState } from "@/lib/oauth-state";
+import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
 
 const GITHUB_SCOPES = ["repo", "read:user", "user:email"].join(" ");
 
@@ -25,15 +25,17 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const label = searchParams.get("label") ?? "github:primary";
+  const issuedState = issueOAuthState(user.id, { label });
 
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     scope: GITHUB_SCOPES,
-    state: encodeOAuthState({ userId: user.id, label }),
+    state: issuedState.state,
   });
 
-  return NextResponse.redirect(
+  const response = NextResponse.redirect(
     `https://github.com/login/oauth/authorize?${params.toString()}`
   );
+  return applyOAuthStateCookie(response, issuedState);
 }

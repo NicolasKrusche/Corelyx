@@ -35,6 +35,11 @@ from db import (
     get_run_status,
     update_node_execution,
 )
+from engine.safe_expressions import (
+    SafeExpressionError,
+    evaluate_condition,
+    evaluate_expression,
+)
 from internal_auth import build_internal_service_headers
 
 TelemetryPayload = dict[str, int | float]
@@ -1579,23 +1584,16 @@ class ProgramExecutor:
 
 
 def _safe_eval_transform(expression: str, data: dict) -> Any:
-    """Evaluate a transformation expression in a sandboxed namespace.
+    """Evaluate a transformation expression with the safe AST evaluator.
     Raises ExecutionError on any failure — never silently returns wrong data.
     """
-    namespace: dict[str, Any] = {
-        "data": data,
-        "__builtins__": {
-            "len": len,
-            "str": str,
-            "int": int,
-            "float": float,
-            "list": list,
-            "dict": dict,
-            "bool": bool,
-        },
-    }
     try:
-        return eval(expression, namespace)  # noqa: S307
+        return evaluate_expression(expression, data)
+    except SafeExpressionError as e:
+        raise RuntimeError(
+            f"[TRANSFORM_EVAL_ERROR] Expression '{expression}' uses unsupported syntax: {e}. "
+            f"Available data keys: {list(data.keys())}"
+        ) from e
     except Exception as e:
         raise RuntimeError(
             f"[TRANSFORM_EVAL_ERROR] Expression '{expression}' failed: "
@@ -1604,23 +1602,17 @@ def _safe_eval_transform(expression: str, data: dict) -> Any:
 
 
 def _safe_eval_condition(condition: str, data: dict) -> bool:
-    """Evaluate a boolean condition expression.
+    """Evaluate a boolean condition expression with the safe AST evaluator.
     Raises RuntimeError on any failure — never silently returns False.
     """
-    namespace: dict[str, Any] = {
-        "data": data,
-        "__builtins__": {
-            "len": len,
-            "str": str,
-            "int": int,
-            "float": float,
-            "True": True,
-            "False": False,
-        },
-    }
     try:
-        result = eval(condition, namespace)  # noqa: S307
+        result = evaluate_condition(condition, data)
         return bool(result)
+    except SafeExpressionError as e:
+        raise RuntimeError(
+            f"[CONDITION_EVAL_ERROR] Condition '{condition}' uses unsupported syntax: {e}. "
+            f"Available data keys: {list(data.keys())}"
+        ) from e
     except Exception as e:
         raise RuntimeError(
             f"[CONDITION_EVAL_ERROR] Condition '{condition}' failed: "

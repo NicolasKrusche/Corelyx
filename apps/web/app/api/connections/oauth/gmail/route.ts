@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
+import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
 
 const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const label = searchParams.get("label") ?? "gmail:primary";
+  const issuedState = issueOAuthState(user.id, { label });
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -25,10 +27,11 @@ export async function GET(request: Request) {
     scope: GMAIL_SCOPES,
     access_type: "offline",
     prompt: "consent",
-    state: Buffer.from(JSON.stringify({ userId: user.id, label })).toString("base64url"),
+    state: issuedState.state,
   });
 
-  return NextResponse.redirect(
+  const response = NextResponse.redirect(
     `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
   );
+  return applyOAuthStateCookie(response, issuedState);
 }

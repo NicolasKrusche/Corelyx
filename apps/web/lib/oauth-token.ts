@@ -23,6 +23,12 @@ interface StoredTokens {
   [key: string]: unknown;
 }
 
+type RefreshFailureSummary = {
+  errorCode: string | null;
+  logMessage: string;
+  userMessage: string;
+};
+
 // Provider refresh config: endpoint + how to pass client credentials
 const PROVIDER_REFRESH: Record<string, {
   endpoint: string;
@@ -44,6 +50,43 @@ const PROVIDER_REFRESH: Record<string, {
 
 // Providers with non-expiring tokens — never refresh
 const NON_EXPIRING = new Set(["slack", "notion", "github"]);
+
+export function summarizeRefreshFailure(
+  provider: string,
+  status: number,
+  responseText: string,
+  headers: Headers
+): RefreshFailureSummary {
+  let errorCode: string | null = null;
+
+  try {
+    const parsed = JSON.parse(responseText) as Record<string, unknown>;
+    const code = parsed.error ?? parsed.error_code ?? parsed.code;
+    if (typeof code === "string" && code.trim()) {
+      errorCode = code.trim();
+    }
+  } catch {
+    errorCode = null;
+  }
+
+  const requestId =
+    headers.get("x-request-id") ??
+    headers.get("request-id") ??
+    headers.get("x-correlation-id");
+
+  const details = [
+    `provider=${provider}`,
+    `status=${status}`,
+    errorCode ? `error_code=${errorCode}` : null,
+    requestId ? `request_id=${requestId}` : null,
+  ].filter(Boolean);
+
+  return {
+    errorCode,
+    logMessage: `[oauth-token] refresh failed (${details.join(", ")})`,
+    userMessage: `Token refresh failed for ${provider} (HTTP ${status}${errorCode ? `, error ${errorCode}` : ""}). Please reconnect.`,
+  };
+}
 
 /**
  * Upsert an OAuth connection: store tokens in Vault and create or update the
@@ -274,15 +317,23 @@ export async function getValidOAuthToken(
 
   if (!refreshRes.ok) {
     await supabase.from("connections").update({ is_valid: false }).eq("id", connectionId);
-    console.error(`[oauth-token] refresh failed for ${connection.provider} (HTTP ${refreshRes.status}): ${respText.slice(0, 500)}`);
-    throw new Error(`Token refresh failed for ${connection.provider} (HTTP ${refreshRes.status}): ${respText}`);
+    const summary = summarizeRefreshFailure(
+      connection.provider,
+      refreshRes.status,
+      respText,
+      refreshRes.headers
+    );
+    console.error(summary.logMessage);
+    throw new Error(summary.userMessage);
   }
 
   let refreshed: StoredTokens;
   try {
     refreshed = JSON.parse(respText);
   } catch {
-    throw new Error(`Token refresh for ${connection.provider} returned non-JSON: ${respText.slice(0, 200)}`);
+    throw new Error(
+      `Token refresh for ${connection.provider} returned a non-JSON response.`
+    );
   }
   if (!refreshed.access_token) {
     throw new Error(`Token refresh for ${connection.provider} succeeded but response has no access_token. Keys: ${Object.keys(refreshed).join(", ")}`);

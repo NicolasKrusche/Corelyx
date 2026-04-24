@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
+import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
 
 export async function GET(request: Request) {
   const supabase = await createServerClient();
@@ -9,16 +10,18 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const label = searchParams.get("label") ?? "notion:primary";
+  const issuedState = issueOAuthState(user.id, { label });
 
   const params = new URLSearchParams({
     client_id: process.env.NOTION_CLIENT_ID!,
     redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/connections/oauth/notion/callback`,
     response_type: "code",
     owner: "user",
-    state: Buffer.from(JSON.stringify({ userId: user.id, label })).toString("base64url"),
+    state: issuedState.state,
   });
 
-  return NextResponse.redirect(
+  const response = NextResponse.redirect(
     `https://api.notion.com/v1/oauth/authorize?${params.toString()}`
   );
+  return applyOAuthStateCookie(response, issuedState);
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
 import crypto from "crypto";
+import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
 
 const AIRTABLE_SCOPES = [
   "data.records:read", "data.records:write",
@@ -34,19 +35,20 @@ export async function GET(request: Request) {
   // Airtable requires PKCE
   const codeVerifier = crypto.randomBytes(32).toString("base64url");
   const codeChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
-  const state = Buffer.from(JSON.stringify({ userId: user.id, label, codeVerifier })).toString("base64url");
+  const issuedState = issueOAuthState(user.id, { label, codeVerifier });
 
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: AIRTABLE_SCOPES,
-    state,
+    state: issuedState.state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
   });
 
-  return NextResponse.redirect(
+  const response = NextResponse.redirect(
     `https://airtable.com/oauth2/v1/authorize?${params.toString()}`
   );
+  return applyOAuthStateCookie(response, issuedState);
 }

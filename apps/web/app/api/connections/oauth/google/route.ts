@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
+import { applyOAuthStateCookie, issueOAuthState } from "@/lib/oauth-state";
 
 const SCOPES_BY_SERVICE: Record<string, string[]> = {
   sheets: [
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
 
   const scopes = SCOPES_BY_SERVICE[service];
   if (!scopes) return apiError("Unknown Google service", 400);
+  const issuedState = issueOAuthState(user.id, { service, label });
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -42,10 +44,11 @@ export async function GET(request: Request) {
     scope: scopes.join(" "),
     access_type: "offline",
     prompt: "consent",
-    state: Buffer.from(JSON.stringify({ userId: user.id, service, label })).toString("base64url"),
+    state: issuedState.state,
   });
 
-  return NextResponse.redirect(
+  const response = NextResponse.redirect(
     `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
   );
+  return applyOAuthStateCookie(response, issuedState);
 }
