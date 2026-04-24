@@ -111,8 +111,9 @@ export const coreServiceProviders: ProcessorEntry[] = [
       "Account data, auth identifiers, program definitions, connection metadata, encrypted secret references, approvals, runs, and logs.",
     legalBasis:
       "Art. 6(1)(b) GDPR for product operation; Art. 6(1)(f) GDPR for security, backups, and reliability.",
-    dataLocation:
-      "Project region chosen in Supabase. The configured region for the current project cannot be verified from this repository. Supabase offers EU regions including Frankfurt and multiple non-EU AWS regions.",
+    dataLocation: readEnv("SUPABASE_REGION")
+      ? `Project deployed in the ${readEnv("SUPABASE_REGION")} Supabase region. Supabase offers EU regions including Frankfurt (eu-central-1) and multiple non-EU AWS regions.`
+      : "Project region chosen in Supabase. The configured region for the current project has not been documented in this environment. Supabase offers EU regions including Frankfurt (eu-central-1) and multiple non-EU AWS regions. Set the SUPABASE_REGION environment variable to document the confirmed region.",
     transferNotes:
       "If the project or any subprocessors are outside the EEA, UK, or Switzerland, third-country transfer safeguards such as the Supabase DPA and SCCs should be in place.",
   },
@@ -383,7 +384,7 @@ export const retentionItems: TextItem[] = [
   {
     title: "Encrypted OAuth tokens and API keys",
     body:
-      "Deleted when you remove the corresponding connection or API key. Account-wide deletion automation is still being tightened, so some credential cleanup may require follow-up deletion work or support involvement.",
+      "Deleted when you remove the corresponding connection or API key, or when your account is deleted. Account deletion automatically purges all associated Vault secrets before removing your user record.",
   },
   {
     title: "Run history and application logs",
