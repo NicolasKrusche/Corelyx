@@ -336,10 +336,11 @@ const CATEGORIES: Category[] = [
 
 interface NodePalettePanelProps {
   onAdd: (variant: NodeVariant) => void;
+  onDragStart?: (event: React.DragEvent<HTMLButtonElement>, variant: NodeVariant) => void;
   onClose: () => void;
 }
 
-export function NodePalettePanel({ onAdd, onClose }: NodePalettePanelProps) {
+export function NodePalettePanel({ onAdd, onDragStart, onClose }: NodePalettePanelProps) {
   return (
     <aside
       className={cn(
@@ -388,10 +389,12 @@ export function NodePalettePanel({ onAdd, onClose }: NodePalettePanelProps) {
                   <button
                     key={key}
                     type="button"
+                    draggable={Boolean(onDragStart)}
+                    onDragStart={(event) => onDragStart?.(event, tpl.variant)}
                     onClick={() => { onAdd(tpl.variant); onClose(); }}
                     className={cn(
                       "w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-left",
-                      "hover:bg-accent transition-colors group"
+                      "hover:bg-accent transition-colors group cursor-grab active:cursor-grabbing"
                     )}
                   >
                     {/* Icon badge */}
@@ -425,7 +428,7 @@ export function NodePalettePanel({ onAdd, onClose }: NodePalettePanelProps) {
       {/* Footer hint */}
       <div className="px-3 py-2 border-t border-border shrink-0">
         <p className="text-[10px] text-muted-foreground">
-          Click a node to add it to the canvas
+          Drag a node onto the canvas, or click to add it.
         </p>
       </div>
     </aside>

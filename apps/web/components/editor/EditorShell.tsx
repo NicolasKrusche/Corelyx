@@ -4,7 +4,6 @@ import React, { useReducer, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
-  Background,
   Controls,
   MiniMap,
   applyNodeChanges,
@@ -15,6 +14,7 @@ import {
   type Connection,
   type Node as ReactFlowNode,
   type Edge as ReactFlowEdge,
+  type ReactFlowInstance,
   MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -36,9 +36,9 @@ import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
 import { NodeSidebar } from "@/components/sidebars/NodeSidebar";
 import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
-import type { NodeVariant } from "@/components/editor/NodePalettePanel";
+import type { NodeVariant, TriggerSubtype, StepSubtype } from "@/components/editor/NodePalettePanel";
 
-import type { ProgramSchema, Node as SchemaNode } from "@flowos/schema";
+import type { ProgramSchema, Node as SchemaNode, TriggerConfig, StepConfig } from "@flowos/schema";
 import type { ValidationResult } from "@/lib/validation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { PreFlightCheck } from "@/lib/validation/pre-flight";
+import { useTheme } from "@/components/theme-provider";
 
 // ─── Node execution data (populated from API + Realtime) ─────────────────────
 
@@ -89,7 +90,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
       webhook: "Webhook Trigger", event: "Event Trigger",
       program_output: "Program Output Trigger",
     };
-    const configs: Record<string, unknown> = {
+    const configs: Record<TriggerSubtype, TriggerConfig> = {
       manual:         { trigger_type: "manual" },
       cron:           { trigger_type: "cron", expression: "0 9 * * 1-5", timezone: "UTC" },
       webhook:        { trigger_type: "webhook", endpoint_id: crypto.randomUUID(), method: "POST" },
@@ -101,7 +102,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
       label: labels[variant.subtype] ?? "Trigger",
       description: "",
       position,
-      config: configs[variant.subtype] as SchemaNode["config"],
+      config: configs[variant.subtype],
     };
   }
 
@@ -131,7 +132,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
       delay: "Delay", loop: "Loop", format: "Format",
       parse: "Parse", deduplicate: "Deduplicate", sort: "Sort",
     };
-    const configs: Record<string, unknown> = {
+    const configs: Record<StepSubtype, StepConfig> = {
       transform:   { logic_type: "transform", transformation: "", input_schema: null, output_schema: null },
       filter:      { logic_type: "filter", condition: "", pass_schema: null },
       branch:      { logic_type: "branch", conditions: [], default_branch: "" },
@@ -147,7 +148,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
       label: labels[variant.subtype] ?? "Step",
       description: "",
       position,
-      config: configs[variant.subtype] as SchemaNode["config"],
+      config: configs[variant.subtype],
     };
   }
 
@@ -186,6 +187,47 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
   };
 }
 
+const TRIGGER_SUBTYPES = ["manual", "cron", "webhook", "event", "program_output"] as const;
+const STEP_SUBTYPES = ["transform", "filter", "branch", "delay", "loop", "format", "parse", "deduplicate", "sort"] as const;
+const CONNECTION_SUBTYPES = [
+  "http", "gmail", "notion", "slack", "github", "sheets",
+  "calendar", "docs", "drive", "airtable", "hubspot",
+  "typeform", "asana", "outlook",
+] as const;
+
+function includesString(values: readonly string[], value: unknown): value is string {
+  return typeof value === "string" && values.includes(value);
+}
+
+function isNodeVariant(value: unknown): value is NodeVariant {
+  if (!value || typeof value !== "object") return false;
+
+  const variant = value as { type?: unknown; subtype?: unknown };
+  if (variant.type === "agent") return true;
+  if (variant.type === "trigger") return includesString(TRIGGER_SUBTYPES, variant.subtype);
+  if (variant.type === "step") return includesString(STEP_SUBTYPES, variant.subtype);
+  if (variant.type === "connection") return includesString(CONNECTION_SUBTYPES, variant.subtype);
+  return false;
+}
+
+function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
+  return {
+    id: schemaNode.id,
+    type: schemaNode.type,
+    position: schemaNode.position,
+    data: {
+      label: schemaNode.label,
+      description: schemaNode.description,
+      connection: schemaNode.connection,
+      status: schemaNode.status,
+      config: schemaNode.config,
+      validationState: "valid",
+      errors: [],
+      warnings: [],
+    },
+  };
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface EditorShellProps {
@@ -208,6 +250,24 @@ export function EditorShell({
   allConnections,
 }: EditorShellProps) {
   const router = useRouter();
+  const { base } = useTheme();
+  const isDarkTheme = base === "dark";
+  const minimapNodeColors = React.useMemo<Record<string, string>>(
+    () => isDarkTheme
+      ? {
+          trigger: "#34d399",
+          agent: "#c084fc",
+          step: "#60a5fa",
+          connection: "#cbd5e1",
+        }
+      : {
+          trigger: "#22c55e",
+          agent: "#a855f7",
+          step: "#3b82f6",
+          connection: "#94a3b8",
+        },
+    [isDarkTheme]
+  );
 
   // ── Linked connections (mutable — auto-grows as user picks new ones) ───────
 
@@ -246,6 +306,7 @@ export function EditorShell({
   const [rfEdges, setRfEdges] = React.useState<ReactFlowEdge[]>(() => {
     return toReactFlow(initialSchema, initialValidation).edges;
   });
+  const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
 
   // ── Sync schema → RF nodes/edges when schema changes ─────────────────────
   // We skip the sync when the change originated from RF (to avoid loops).
@@ -590,36 +651,72 @@ export function EditorShell({
 
   // ── Add node from palette ─────────────────────────────────────────────────
 
-  const handleAddNode = useCallback(
-    (variant: NodeVariant) => {
+  const addNodeAtPosition = useCallback(
+    (variant: NodeVariant, position: { x: number; y: number }) => {
       const id = crypto.randomUUID();
-      // Stagger new nodes slightly so rapid additions don't stack
-      const offset = Math.floor(Math.random() * 60) - 30;
-      const position = { x: 380 + offset, y: 200 + offset };
       const schemaNode = makeDefaultNode(variant, id, position);
 
       dispatch({ type: "UPDATE_NODE", nodeId: id, patch: schemaNode });
       dispatch({ type: "SELECT_NODE", nodeId: id });
 
       skipSyncRef.current = true;
-      const rfNode: ReactFlowNode = {
-        id,
-        type: schemaNode.type,
-        position,
-        data: {
-          label: schemaNode.label,
-          description: schemaNode.description,
-          connection: schemaNode.connection,
-          status: schemaNode.status,
-          config: schemaNode.config,
-          validationState: "valid",
-          errors: [],
-          warnings: [],
-        },
-      };
-      setRfNodes((prev) => [...prev, rfNode]);
+      setRfNodes((prev) => [...prev, schemaNodeToReactFlowNode(schemaNode)]);
     },
     []
+  );
+
+  const handleAddNode = useCallback(
+    (variant: NodeVariant) => {
+      // Stagger new nodes slightly so rapid additions don't stack.
+      const offset = Math.floor(Math.random() * 60) - 30;
+      addNodeAtPosition(variant, { x: 380 + offset, y: 200 + offset });
+    },
+    [addNodeAtPosition]
+  );
+
+  const handlePaletteDragStart = useCallback(
+    (event: React.DragEvent<HTMLButtonElement>, variant: NodeVariant) => {
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData("application/x-flowos-node", JSON.stringify(variant));
+    },
+    []
+  );
+
+  const handleCanvasDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const handleCanvasDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+
+      const payload = event.dataTransfer.getData("application/x-flowos-node");
+      if (!payload) return;
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(payload);
+      } catch {
+        return;
+      }
+
+      if (!isNodeVariant(parsed)) return;
+
+      const flowPosition = reactFlowInstanceRef.current?.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      }) ?? {
+        x: event.clientX - event.currentTarget.getBoundingClientRect().left,
+        y: event.clientY - event.currentTarget.getBoundingClientRect().top,
+      };
+
+      addNodeAtPosition(parsed, {
+        x: Math.round(flowPosition.x - 100),
+        y: Math.round(flowPosition.y - 40),
+      });
+    },
+    [addNodeAtPosition]
   );
 
   // ── Sidebar config update ─────────────────────────────────────────────────
@@ -898,6 +995,7 @@ export function EditorShell({
       {showPalette && !isMobile && (
         <NodePalettePanel
           onAdd={handleAddNode}
+          onDragStart={handlePaletteDragStart}
           onClose={() => setShowPalette(false)}
         />
       )}
@@ -914,17 +1012,24 @@ export function EditorShell({
           </div>
         )}
 
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 editor-static-grid" />
+
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          onInit={(instance) => {
+            reactFlowInstanceRef.current = instance;
+          }}
           onNodesChange={isMobile ? undefined : onNodesChange}
           onEdgesChange={isMobile ? undefined : onEdgesChange}
           onConnect={isMobile ? undefined : onConnect}
           onNodeClick={isMobile ? undefined : onNodeClick}
           onEdgeClick={isMobile ? undefined : onEdgeClick}
           onPaneClick={onPaneClick}
+          onDragOver={isMobile ? undefined : handleCanvasDragOver}
+          onDrop={isMobile ? undefined : handleCanvasDrop}
           nodesDraggable={!isMobile}
           nodesConnectable={!isMobile}
           elementsSelectable={!isMobile}
@@ -934,21 +1039,19 @@ export function EditorShell({
             type: "data_flow",
             markerEnd: { type: MarkerType.ArrowClosed },
           }}
-          className="bg-background"
+          className="relative z-10 bg-transparent"
         >
-          <Background color="hsl(var(--border))" gap={20} size={1} />
           <Controls className="!border-border !bg-background !shadow-sm" />
           <MiniMap
-            className="!border-border !bg-background !shadow-sm"
-            nodeColor={(node) => {
-              const typeColors: Record<string, string> = {
-                trigger: "#22c55e",
-                agent: "#a855f7",
-                step: "#3b82f6",
-                connection: "#94a3b8",
-              };
-              return typeColors[node.type ?? ""] ?? "#94a3b8";
+            className="!border-border !bg-background !shadow-sm dark:!border-zinc-700 dark:!bg-zinc-900"
+            style={{
+              backgroundColor: isDarkTheme ? "hsl(var(--card))" : "hsl(var(--background))",
             }}
+            bgColor={isDarkTheme ? "hsl(var(--card))" : "hsl(var(--background))"}
+            nodeStrokeColor={isDarkTheme ? "#f8fafc" : "#ffffff"}
+            nodeStrokeWidth={isDarkTheme ? 2 : 1}
+            nodeColor={(node) => minimapNodeColors[node.type ?? ""] ?? (isDarkTheme ? "#e5e7eb" : "#94a3b8")}
+            maskColor={isDarkTheme ? "rgba(0, 0, 0, 0.35)" : "rgba(255, 255, 255, 0.55)"}
           />
         </ReactFlow>
 
