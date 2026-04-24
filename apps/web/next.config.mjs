@@ -9,6 +9,15 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@xyflow/react",
+      "framer-motion",
+      "@tsparticles/react",
+      "@tsparticles/slim",
+    ],
+  },
 };
 
 export default nextConfig;
