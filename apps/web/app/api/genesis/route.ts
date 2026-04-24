@@ -10,11 +10,26 @@ import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
 import { GENESIS_SYSTEM_PROMPT, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
+import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { ProgramSchemaZ } from "@flowos/schema";
+import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { checkProgramLimit } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
+import {
+  KEY_DEFAULT_MODELS,
+  getMissingConnectionIds,
+  getModelCandidates,
+  getProviderBaseURL,
+  mapExecutionMode,
+  sortApiKeyFallbacks,
+  toGenesisConnectionList,
+  toProgramConnectionLinks,
+  uniqueRequestedConnectionIds,
+  type GenesisApiKeyRow,
+  type GenesisConnectionRow,
+} from "@/lib/genesis/request";
 
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
@@ -26,23 +41,8 @@ const RequestSchema = z.object({
   existing_program_id: z.string().uuid().optional(),
 });
 
-const OPENROUTER_FALLBACK_MODELS = [
-  "qwen/qwen3-coder:free",
-  "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-27b-it:free",
-] as const;
-
 const PRIMARY_MODEL_ATTEMPTS = 2;
 const FALLBACK_MODEL_ATTEMPTS = 1;
-
-function getModelCandidates(provider: string, requestedModel: string): string[] {
-  if (provider !== "openrouter") return [requestedModel];
-
-  return [requestedModel, ...OPENROUTER_FALLBACK_MODELS].filter(
-    (candidate, index, candidates) => Boolean(candidate) && candidates.indexOf(candidate) === index
-  );
-}
 
 // POST /api/genesis — generate a program schema from a description
 export async function POST(request: Request) {
@@ -70,6 +70,7 @@ export async function POST(request: Request) {
   }
 
   const { description, connection_ids, api_key_id, model, existing_schema, refinement, existing_program_id } = parsed.data;
+  const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const isRefinement = !!(existing_schema && refinement && existing_program_id);
   const genesisStartedAt = Date.now();
   const genesisMode = isRefinement ? "refinement" : "generation";
@@ -147,22 +148,33 @@ export async function POST(request: Request) {
     }
   }
 
-  // Resolve the selected connections
-  const { data: connections, error: connError } = await supabase
-    .from("connections")
-    .select("id, name, provider, scopes")
-    .in("id", connection_ids)
-    .eq("user_id", userId);
+  // Resolve selected connections and reject stale/invalid IDs before generation.
+  let connectionRows: GenesisConnectionRow[] = [];
+  if (requestedConnectionIds.length > 0) {
+    const { data: rawConnections, error: connError } = await supabase
+      .from("connections")
+      .select("id, name, provider, scopes")
+      .in("id", requestedConnectionIds)
+      .eq("user_id", userId)
+      .eq("is_valid", true);
 
-  if (connError) {
-    return loggedApiError(connError.message, 500, "genesis.connections_lookup_failed");
+    if (connError) {
+      return loggedApiError(connError.message, 500, "genesis.connections_lookup_failed");
+    }
+
+    connectionRows = (rawConnections ?? []) as unknown as GenesisConnectionRow[];
+    const missingConnectionIds = getMissingConnectionIds(requestedConnectionIds, connectionRows);
+    if (missingConnectionIds.length > 0) {
+      return loggedApiError(
+        "One or more selected connections are unavailable. Refresh the page and choose valid connections.",
+        400,
+        "genesis.connections_invalid",
+        { missing_connection_ids: missingConnectionIds }
+      );
+    }
   }
 
-  const availableConnections = (connections ?? []).map((c) => ({
-    name: c.name,
-    type: c.provider,
-    scopes: c.scopes ?? [],
-  }));
+  const availableConnections = toGenesisConnectionList(connectionRows);
 
   // Fetch all valid API keys for the user — preferred key first, then sorted by provider suitability
   const serviceClient = createServiceClient();
@@ -172,7 +184,8 @@ export async function POST(request: Request) {
     .eq("user_id", userId)
     .eq("is_valid", true);
 
-  if (keysError || !allKeyRows || allKeyRows.length === 0) {
+  const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
+  if (keysError || validKeyRows.length === 0) {
     return loggedApiError(
       "API key not found. Please add a valid API key.",
       402,
@@ -181,23 +194,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const KEY_PROVIDER_PRIORITY: Record<string, number> = {
-    anthropic: 0, openai: 1, openrouter: 2, mistral: 3, google: 4, groq: 5,
-  };
-  const KEY_DEFAULT_MODELS: Record<string, string> = {
-    anthropic: "claude-opus-4-6",
-    openai: "gpt-4o",
-    google: "gemini-1.5-pro",
-    groq: "llama-3.3-70b-versatile",
-    mistral: "mistral-large-latest",
-    openrouter: "qwen/qwen3-coder:free",
-  };
-
-  const preferred = allKeyRows.find((k) => k.id === api_key_id);
-  const rest = allKeyRows
-    .filter((k) => k.id !== api_key_id)
-    .sort((a, b) => (KEY_PROVIDER_PRIORITY[a.provider] ?? 99) - (KEY_PROVIDER_PRIORITY[b.provider] ?? 99));
-  const keyCandidates = preferred ? [preferred, ...rest] : rest;
+  const keyCandidates = sortApiKeyFallbacks(api_key_id, validKeyRows);
+  if (keyCandidates.length === 0) {
+    return loggedApiError(
+      "Selected API key not found or invalid. Refresh the page and choose another key.",
+      402,
+      "genesis.api_key_invalid",
+      { api_key_id }
+    );
+  }
 
   // Permanent errors — prompt is too large for this model/tier, retrying won't help
   const isPromptTooLarge = (err: unknown): boolean => {
@@ -257,7 +262,7 @@ export async function POST(request: Request) {
   let rawText = "";
   let lastErr: unknown;
   let modelUsed = model;
-  let usedKeyRow: { id: string; vault_secret_id: string; provider: string } | null = null;
+  let usedKeyRow: GenesisApiKeyRow | null = null;
   let usedApiKey = "";
 
   keyAttemptLoop:
@@ -309,15 +314,7 @@ export async function POST(request: Request) {
             const msg = await stream.finalMessage();
             rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
           } else {
-            const baseURL = currentKeyRow.provider === "openrouter"
-              ? "https://openrouter.ai/api/v1"
-              : currentKeyRow.provider === "openai"
-                ? "https://api.openai.com/v1"
-                : currentKeyRow.provider === "groq"
-                  ? "https://api.groq.com/openai/v1"
-                  : currentKeyRow.provider === "mistral"
-                    ? "https://api.mistral.ai/v1"
-                    : undefined;
+            const baseURL = getProviderBaseURL(currentKeyRow.provider);
 
             const openai = new OpenAI({ apiKey: currentApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
             const stream = await openai.chat.completions.create({
@@ -484,15 +481,7 @@ export async function POST(request: Request) {
             ? (repairMsg.content[0] as { type: "text"; text: string }).text
             : "";
         } else {
-          const baseURL = apiKeyRow.provider === "openrouter"
-            ? "https://openrouter.ai/api/v1"
-            : apiKeyRow.provider === "openai"
-              ? "https://api.openai.com/v1"
-              : apiKeyRow.provider === "groq"
-                ? "https://api.groq.com/openai/v1"
-                : apiKeyRow.provider === "mistral"
-                  ? "https://api.mistral.ai/v1"
-                  : undefined;
+          const baseURL = getProviderBaseURL(apiKeyRow.provider);
           const openai = new OpenAI({ apiKey: usedApiKey, ...(baseURL && { baseURL }), timeout: 120_000 });
           const repairMsg = await openai.chat.completions.create({
             model: modelUsed,
@@ -589,10 +578,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const schema = schemaResult.data;
+  const schema = schemaResult.data as unknown as ProgramSchema;
 
   // Run post-genesis validation
-  const connectionRows = (connections ?? []) as unknown as { id: string; name: string; provider: string; scopes: string[] | null }[];
   const validation = validatePostGenesis(schema, connectionRows);
 
   // ── Refinement path: update existing program ─────────────────────────────
@@ -623,7 +611,7 @@ export async function POST(request: Request) {
       .update({
         name: schema.program_name,
         schema: schema as unknown as Record<string, unknown>,
-        execution_mode: schema.execution_mode === "approval_required" ? "supervised" : schema.execution_mode,
+        execution_mode: mapExecutionMode(schema.execution_mode),
         schema_version: nextVersion,
         updated_at: now,
       } as unknown as never)
@@ -677,31 +665,40 @@ export async function POST(request: Request) {
   }
 
   // ── New program path ──────────────────────────────────────────────────────
-  const { data: program, error: insertError } = await supabase
+  const { data: rawProgram, error: insertError } = await supabase
     .from("programs")
     .insert({
       user_id: userId,
       name: schema.program_name,
       description,
       schema: schema as unknown as Record<string, unknown>,
-      execution_mode: schema.execution_mode === "approval_required" ? "supervised" : schema.execution_mode,
-    })
+      execution_mode: mapExecutionMode(schema.execution_mode),
+    } as unknown as never)
     .select("id, name, description, execution_mode, is_active, created_at")
     .single();
 
-  if (insertError) {
+  const program = rawProgram as unknown as {
+    id: string;
+    name: string;
+    description: string | null;
+    execution_mode: string;
+    is_active: boolean;
+    created_at: string;
+  } | null;
+
+  if (insertError || !program) {
     return loggedApiError(
-      insertError.message,
+      insertError?.message ?? "Failed to save program",
       500,
       "genesis.program_insert_failed",
-      { error: insertError.message }
+      { error: insertError?.message ?? "unknown" }
     );
   }
 
   // Link connections
-  if (connection_ids.length > 0) {
+  if (connectionRows.length > 0) {
     const { error: connLinkErr } = await supabase.from("program_connections").insert(
-      connection_ids.map((cid) => ({ program_id: program.id, connection_id: cid }))
+      toProgramConnectionLinks(program.id, connectionRows) as unknown as never
     );
     if (connLinkErr) {
       console.error("[genesis] Failed to link connections:", connLinkErr.message);
@@ -710,7 +707,7 @@ export async function POST(request: Request) {
         "genesis.connection_link_failed",
         "warning",
         "Program was generated, but linking selected connections failed.",
-        { error: connLinkErr.message, connection_count: connection_ids.length },
+        { error: connLinkErr.message, connection_count: connectionRows.length },
         program.id
       );
     }
@@ -721,8 +718,8 @@ export async function POST(request: Request) {
     program_id: program.id,
     version: 0,
     schema: schema as unknown as Record<string, unknown>,
-    change_summary: "Genesis — AI-generated from description",
-  });
+    change_summary: "Genesis - AI-generated from description",
+  } as unknown as never);
   if (versionErr) {
     console.error("[genesis] Failed to store version snapshot:", versionErr.message);
     await logGenesis(
@@ -753,260 +750,4 @@ export async function POST(request: Request) {
     program.id
   );
   return NextResponse.json({ program, schema, validation }, { status: 201 });
-}
-
-// ─── JSON extraction ──────────────────────────────────────────────────────
-// Models sometimes wrap the JSON in markdown code fences, prepend explanation
-// text, or append trailing commentary.  This function finds the first complete
-// JSON object in the response regardless of surrounding noise.
-
-function extractJson(raw: string): string {
-  const text = raw.trim();
-
-  // Fast path: starts with { after stripping a code fence
-  const fenceStripped = text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-  if (fenceStripped.startsWith("{")) return fenceStripped;
-
-  // Slower path: find the first { and last } — handles prose before/after the JSON
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start !== -1 && end > start) return text.slice(start, end + 1);
-
-  // Give up — return the stripped text and let JSON.parse throw a useful error
-  return fenceStripped;
-}
-
-// ─── Schema normalization ──────────────────────────────────────────────────
-// Fixes known deviations that non-Anthropic models commonly produce, so that
-// the strict Zod validator doesn't reject otherwise-valid schemas.
-
-const TRIGGER_TYPE_MAP: Record<string, string> = {
-  schedule: "cron",
-  scheduled: "cron",
-  cron_job: "cron",
-  cronjob: "cron",
-  timer: "cron",
-  time: "cron",
-  interval: "cron",
-  http: "webhook",
-  http_webhook: "webhook",
-  incoming_webhook: "webhook",
-};
-
-const DATA_TYPE_MAP: Record<string, string> = {
-  integer: "number",
-  int: "number",
-  float: "number",
-  double: "number",
-  long: "number",
-  decimal: "number",
-  dict: "object",
-  list: "array",
-};
-
-function normalizeDataSchema(schema: unknown): void {
-  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return;
-  const s = schema as Record<string, unknown>;
-  if (typeof s.type === "string" && DATA_TYPE_MAP[s.type]) {
-    s.type = DATA_TYPE_MAP[s.type];
-  }
-  if (s.properties && typeof s.properties === "object") {
-    for (const v of Object.values(s.properties)) normalizeDataSchema(v);
-  }
-  if (s.items) normalizeDataSchema(s.items);
-}
-
-const VALID_NODE_TYPES = new Set(["trigger", "agent", "step", "connection"]);
-
-// Maps unrecognized node type strings to valid ones
-const NODE_TYPE_MAP: Record<string, string> = {
-  action: "connection",
-  connector: "connection",
-  integration: "connection",
-  api: "connection",
-  service: "connection",
-  decision: "step",
-  condition: "step",
-  filter_node: "step",
-  loop: "step",
-  transform_node: "step",
-  branch_node: "step",
-  schedule: "trigger",
-  scheduled: "trigger",
-  cron: "trigger",
-  timer: "trigger",
-  webhook: "trigger",
-  llm: "agent",
-  ai: "agent",
-  model: "agent",
-  assistant: "agent",
-  task: "step",
-  router: "step",
-  switcher: "step",
-  mapper: "step",
-};
-
-function inferNodeType(config: Record<string, unknown>): string | null {
-  if ("trigger_type" in config) return "trigger";
-  if ("logic_type" in config) return "step";
-  if ("model" in config && "system_prompt" in config) return "agent";
-  if ("scope_access" in config || "connector_type" in config) return "connection";
-  return null;
-}
-
-function normalizeSchema(raw: unknown): void {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
-  const schema = raw as Record<string, unknown>;
-
-  // Normalize nodes
-  if (Array.isArray(schema.nodes)) {
-    for (const node of schema.nodes) {
-      if (!node || typeof node !== "object") continue;
-      const n = node as Record<string, unknown>;
-
-      // Fix unrecognized node types
-      if (typeof n.type === "string" && !VALID_NODE_TYPES.has(n.type)) {
-        const mapped = NODE_TYPE_MAP[n.type.toLowerCase()];
-        if (mapped) {
-          n.type = mapped;
-        } else if (n.config && typeof n.config === "object") {
-          const inferred = inferNodeType(n.config as Record<string, unknown>);
-          if (inferred) n.type = inferred;
-        }
-      }
-
-      // Fix trigger config — models often omit trigger_type or use wrong field names
-      if (n.type === "trigger" && n.config && typeof n.config === "object") {
-        const cfg = n.config as Record<string, unknown>;
-
-        // Normalize known trigger_type aliases
-        if (typeof cfg.trigger_type === "string" && TRIGGER_TYPE_MAP[cfg.trigger_type]) {
-          cfg.trigger_type = TRIGGER_TYPE_MAP[cfg.trigger_type];
-        }
-
-        // Infer trigger_type from fields if missing or still wrong
-        const validTriggerTypes = new Set(["cron", "event", "webhook", "manual", "program_output"]);
-        if (!cfg.trigger_type || !validTriggerTypes.has(cfg.trigger_type as string)) {
-          if (cfg.schedule || cfg.expression || cfg.cron || cfg.cron_expression) {
-            cfg.trigger_type = "cron";
-          } else if (cfg.endpoint_id || cfg.url || cfg.path || cfg.webhook_url) {
-            cfg.trigger_type = "webhook";
-          } else if (cfg.source && cfg.event) {
-            cfg.trigger_type = "event";
-          } else if (cfg.source_program_id) {
-            cfg.trigger_type = "program_output";
-          } else {
-            cfg.trigger_type = "manual";
-          }
-        }
-
-        // Normalize cron field names and fill required fields
-        if (cfg.trigger_type === "cron") {
-          if (!cfg.expression) {
-            cfg.expression = cfg.cron_expression ?? cfg.schedule ?? cfg.cron ?? "0 8 * * *";
-          }
-          delete cfg.schedule;
-          delete cfg.cron;
-          delete cfg.cron_expression;
-          if (!cfg.timezone) cfg.timezone = "UTC";
-        }
-
-        // Normalize webhook required fields
-        if (cfg.trigger_type === "webhook") {
-          if (!cfg.endpoint_id) cfg.endpoint_id = crypto.randomUUID();
-          if (!cfg.method) cfg.method = "POST";
-        }
-
-        // Normalize event required fields
-        if (cfg.trigger_type === "event") {
-          if (!cfg.source) cfg.source = "unknown";
-          if (!cfg.event) cfg.event = "trigger";
-          if (!("filter" in cfg)) cfg.filter = null;
-        }
-
-        // Normalize program_output required fields
-        if (cfg.trigger_type === "program_output") {
-          if (!cfg.source_program_id) cfg.source_program_id = "__USER_ASSIGNED__";
-          if (!Array.isArray(cfg.on_status)) cfg.on_status = ["success"];
-        }
-      }
-
-      // Fix DataSchema type fields on agent nodes
-      if (n.type === "agent" && n.config && typeof n.config === "object") {
-        const cfg = n.config as Record<string, unknown>;
-        normalizeDataSchema(cfg.input_schema);
-        normalizeDataSchema(cfg.output_schema);
-      }
-
-      // Fix DataSchema on step nodes; also enforce connection: null (required by schema)
-      if (n.type === "step" && n.config && typeof n.config === "object") {
-        const cfg = n.config as Record<string, unknown>;
-        normalizeDataSchema(cfg.input_schema);
-        normalizeDataSchema(cfg.output_schema);
-        normalizeDataSchema(cfg.pass_schema);
-        n.connection = null;
-      }
-
-      // Normalize connection node config
-      if (n.type === "connection" && n.config && typeof n.config === "object") {
-        const cfg = n.config as Record<string, unknown>;
-        // If model set connector_type to something other than "http", strip it so the
-        // OAuth union branch matches (connector_type is optional there).
-        if (cfg.connector_type && cfg.connector_type !== "http") {
-          delete cfg.connector_type;
-        }
-        // Ensure scope_required is an array (models sometimes emit a string)
-        if (typeof cfg.scope_required === "string") {
-          cfg.scope_required = [cfg.scope_required];
-        } else if (!Array.isArray(cfg.scope_required)) {
-          cfg.scope_required = [];
-        }
-        // Ensure scope_access has a valid value (required by OAuth branch)
-        const validScopeAccess = new Set(["read", "write", "read_write"]);
-        if (!cfg.scope_access || !validScopeAccess.has(cfg.scope_access as string)) {
-          cfg.scope_access = "read_write";
-        }
-        // Strip empty operation/operation_params so optional fields are truly absent
-        if (cfg.operation === "" || cfg.operation === null) delete cfg.operation;
-        if (cfg.operation_params === null || (typeof cfg.operation_params === "object" && Object.keys(cfg.operation_params as object).length === 0)) {
-          delete cfg.operation_params;
-        }
-      }
-
-      // Ensure status is always "idle"
-      if (!n.status) n.status = "idle";
-    }
-  }
-
-  // Normalize top-level triggers array — sync type with the corresponding node's trigger_type
-  if (Array.isArray(schema.triggers) && Array.isArray(schema.nodes)) {
-    for (const trigger of schema.triggers) {
-      if (!trigger || typeof trigger !== "object") continue;
-      const t = trigger as Record<string, unknown>;
-
-      // Try to sync from the node config first (most reliable after node normalization above)
-      const triggerNode = (schema.nodes as Record<string, unknown>[]).find(
-        (n) => n.id === t.node_id && n.type === "trigger"
-      );
-      if (triggerNode?.config && typeof triggerNode.config === "object") {
-        const nodeCfg = triggerNode.config as Record<string, unknown>;
-        if (nodeCfg.trigger_type) {
-          t.type = nodeCfg.trigger_type;
-        }
-      }
-
-      // Fallback: normalize aliases
-      if (typeof t.type === "string" && TRIGGER_TYPE_MAP[t.type]) {
-        t.type = TRIGGER_TYPE_MAP[t.type];
-      }
-
-      // Ensure required fields exist
-      if (!("is_active" in t)) t.is_active = true;
-      if (!("last_fired" in t)) t.last_fired = null;
-      if (!("next_scheduled" in t)) t.next_scheduled = null;
-    }
-  }
 }

@@ -32,6 +32,11 @@ Fill in `apps/web/.env.local`:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same page, "anon public" key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Same page, "service_role" key (keep secret) |
+| `INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE` | Strong random secret shared by web and runtime for `/execute` calls |
+| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_RUNS_COMPLETE` | Strong random secret shared by runtime and web for run completion callbacks |
+| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_CONNECTIONS_TOKEN` | Strong random secret shared by runtime and web for OAuth token retrieval |
+| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_VAULT` | Strong random secret shared by runtime and web for Vault secret retrieval |
+| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_EVENT_DISPATCH` | Strong random secret for internal event dispatch calls |
 | `ANTHROPIC_API_KEY` | console.anthropic.com |
 | `GOOGLE_CLIENT_ID` | console.cloud.google.com → OAuth 2.0 Client IDs |
 | `GOOGLE_CLIENT_SECRET` | Same page |

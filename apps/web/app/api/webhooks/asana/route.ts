@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
+import {
+  retrieveConnectionWebhookSecret,
+  storeConnectionWebhookSecret,
+} from "@/lib/connection-webhook-secrets";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 
 type AsanaConnectionRow = {
@@ -16,6 +20,9 @@ type AsanaEvent = {
   created_at: string;
   user: { gid: string } | null;
 };
+
+const ASANA_HOOK_SECRET_NAME = "hook_secret";
+const LEGACY_ASANA_SECRET_METADATA_KEY = "asana_hook_secret";
 
 /**
  * POST /api/webhooks/asana
@@ -47,18 +54,43 @@ export async function POST(request: Request) {
   // ── Asana handshake ──────────────────────────────────────────────────────────
   const hookSecret = request.headers.get("x-hook-secret");
   if (hookSecret) {
-    // Store the hook secret against this connection so future requests can be verified
     const url = new URL(request.url);
     const connectionId = url.searchParams.get("connection_id");
-    if (connectionId) {
-      const db = createServiceClient();
-      // Store in metadata; non-critical if this fails
+    if (!connectionId) {
+      return apiError("connection_id query param required", 400);
+    }
+
+    const db = createServiceClient();
+    const { data: connRaw } = await db
+      .from("connections")
+      .select("id, metadata")
+      .eq("id", connectionId)
+      .eq("provider", "asana")
+      .eq("is_valid", true)
+      .single();
+
+    if (!connRaw) return apiError("Connection not found", 404);
+    const connection = connRaw as unknown as Pick<AsanaConnectionRow, "id" | "metadata">;
+
+    try {
+      await storeConnectionWebhookSecret(db, {
+        connectionId,
+        provider: "asana",
+        secretName: ASANA_HOOK_SECRET_NAME,
+        secretValue: hookSecret,
+      });
       await db
         .from("connections")
-        .update({ metadata: { asana_hook_secret: hookSecret } } as never)
-        .eq("id", connectionId)
-        .eq("provider", "asana");
+        .update({
+          metadata: removeMetadataKeys(connection.metadata, [
+            LEGACY_ASANA_SECRET_METADATA_KEY,
+          ]),
+        } as never)
+        .eq("id", connectionId);
+    } catch {
+      return apiError("Failed to store hook secret", 500);
     }
+
     return new NextResponse(null, {
       status: 200,
       headers: { "X-Hook-Secret": hookSecret },
@@ -85,10 +117,43 @@ export async function POST(request: Request) {
   if (!connRaw) return apiError("Connection not found", 404);
   const connection = connRaw as unknown as AsanaConnectionRow;
 
-  const storedSecret =
-    typeof connection.metadata?.asana_hook_secret === "string"
-      ? connection.metadata.asana_hook_secret
+  let storedSecret: string | null;
+  try {
+    storedSecret = await retrieveConnectionWebhookSecret(db, {
+      connectionId,
+      provider: "asana",
+      secretName: ASANA_HOOK_SECRET_NAME,
+    });
+  } catch {
+    return apiError("Failed to retrieve hook secret", 500);
+  }
+
+  const legacyStoredSecret =
+    typeof connection.metadata?.[LEGACY_ASANA_SECRET_METADATA_KEY] === "string"
+      ? connection.metadata[LEGACY_ASANA_SECRET_METADATA_KEY]
       : null;
+
+  if (!storedSecret && legacyStoredSecret) {
+    try {
+      await storeConnectionWebhookSecret(db, {
+        connectionId,
+        provider: "asana",
+        secretName: ASANA_HOOK_SECRET_NAME,
+        secretValue: legacyStoredSecret,
+      });
+      await db
+        .from("connections")
+        .update({
+          metadata: removeMetadataKeys(connection.metadata, [
+            LEGACY_ASANA_SECRET_METADATA_KEY,
+          ]),
+        } as never)
+        .eq("id", connectionId);
+      storedSecret = legacyStoredSecret;
+    } catch {
+      return apiError("Failed to migrate hook secret", 500);
+    }
+  }
 
   if (!storedSecret) {
     return apiError("Hook secret not yet stored for this connection", 409);
@@ -182,4 +247,15 @@ function _deriveEventName(event: AsanaEvent): string {
   }
 
   return `${resourceType}.${mappedAction}`;
+}
+
+function removeMetadataKeys(
+  metadata: Record<string, unknown> | null,
+  keys: string[]
+): Record<string, unknown> {
+  const next = { ...(metadata ?? {}) };
+  for (const key of keys) {
+    delete next[key];
+  }
+  return next;
 }

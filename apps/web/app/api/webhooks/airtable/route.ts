@@ -59,7 +59,16 @@ export async function POST(request: Request) {
     return apiError("Invalid JSON body", 400);
   }
 
-  const baseId = typeof body.base?.id === "string" ? body.base.id : (typeof body.baseId === "string" ? body.baseId : null);
+  const base =
+    body.base && typeof body.base === "object" && !Array.isArray(body.base)
+      ? (body.base as Record<string, unknown>)
+      : null;
+  const baseId =
+    typeof base?.id === "string"
+      ? base.id
+      : typeof body.baseId === "string"
+        ? body.baseId
+        : null;
   const webhookId = typeof body.webhookId === "string" ? body.webhookId : null;
   const notifTimestamp = typeof body.timestamp === "string" ? body.timestamp : null;
   if (webhookId && notifTimestamp && !checkAndMark(`airtable:${webhookId}:${notifTimestamp}`)) {

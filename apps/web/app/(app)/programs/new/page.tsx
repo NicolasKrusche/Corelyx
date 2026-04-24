@@ -170,6 +170,26 @@ function NewProgramPageInner() {
   const [importingTemplateId, setImportingTemplateId] = useState<string | null>(null);
   const [inlinePhase, setInlinePhase] = useState<InlinePhase>("idle");
   const [inlineMessages, setInlineMessages] = useState<InlineChatMessage[]>([]);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const connectionsPopoverRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!connectionsOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (connectionsPopoverRef.current && !connectionsPopoverRef.current.contains(e.target as Node)) {
+        setConnectionsOpen(false);
+      }
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConnectionsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [connectionsOpen]);
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -195,7 +215,9 @@ function NewProgramPageInner() {
     fetch("/api/connections")
       .then((r) => r.json())
       .then((data) => {
-        setConnections(data.filter((c: Connection) => c.is_valid));
+        const valid = data.filter((c: Connection) => c.is_valid);
+        setConnections(valid);
+        setSelectedIds(new Set(valid.map((c: Connection) => c.id)));
         setLoadingConnections(false);
       })
       .catch(() => setLoadingConnections(false));
@@ -523,91 +545,27 @@ function NewProgramPageInner() {
       return;
     }
 
-    setInlinePhase("generating");
-    setGenesisError(null);
-    setWasRefined(false);
-    setInlineMessages((prev) => [
-      ...prev,
-      { role: "assistant", text: "Great, generating your program graph now..." },
-    ]);
-    startThinkingProgress({ inline: true });
-    const startedAt = Date.now();
+    const payload = {
+      description,
+      connection_ids: [...selectedIds],
+      api_key_id: selection.keyId,
+      model: selection.modelId,
+    };
 
-    let res: Response;
     try {
-      res = await fetch("/api/genesis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description,
-          connection_ids: [...selectedIds],
-          api_key_id: selection.keyId,
-          model: selection.modelId,
-        }),
-      });
-    } catch (error) {
-      stopThinkingProgress();
-      recordClientGenesisFailure({
-        mode: "generation",
-        description,
-        model: selection.modelId,
-        connectionCount: selectedIds.size,
-        durationMs: Date.now() - startedAt,
-        error,
-      });
+      sessionStorage.setItem("flowos.genesis.pending", JSON.stringify(payload));
+    } catch {
       setInlineMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text: getGenesisErrorMessage(error, "Generation failed before the server returned a response."),
+          text: "Could not start the build — sessionStorage is unavailable in this browser.",
         },
       ]);
-      setInlinePhase("connections");
       return;
     }
 
-    const data = await readJsonSafely(res);
-    stopThinkingProgress();
-
-    if (!res.ok) {
-      recordClientGenesisFailure({
-        mode: "generation",
-        description,
-        model: selection.modelId,
-        connectionCount: selectedIds.size,
-        durationMs: Date.now() - startedAt,
-        responseStatus: res.status,
-        payload: data,
-      });
-      if (data.error) {
-        setGenesisError(data);
-      } else {
-        setGenesisError({ error: "INSUFFICIENT_DESCRIPTION", message: data.error ?? "Unknown error" });
-      }
-      setInlineMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text:
-            typeof data?.message === "string"
-              ? data.message
-              : "Generation failed. Tweak your prompt or connections and try again.",
-        },
-      ]);
-      setInlinePhase("connections");
-      return;
-    }
-
-    setProgramId(data.program.id);
-    setProgramName(data.program.name);
-    setValidationResult(data.validation);
-    setGeneratedSchema(data.schema);
-    setInlinePhase("opening");
-    setInlineMessages((prev) => [
-      ...prev,
-      { role: "assistant", text: `Done. Program "${data.program.name}" is ready. Opening it now...` },
-    ]);
-    router.push(`/programs/${data.program.id}`);
+    router.push("/programs/new/building");
   };
 
   const chatFeed = (
@@ -642,8 +600,6 @@ function NewProgramPageInner() {
 
       {(inlinePhase === "connections" || inlinePhase === "generating" || inlinePhase === "opening") && (
         <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Choose Connections</p>
-
           {loadingConnections ? (
             <p className="text-sm text-muted-foreground">Loading available connections...</p>
           ) : connections.length === 0 ? (
@@ -651,24 +607,61 @@ function NewProgramPageInner() {
               No connections found. You can continue without connections, or add some in Connections.
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {connections.map((conn) => {
-                const selected = selectedIds.has(conn.id);
-                return (
-                  <button
-                    key={conn.id}
-                    type="button"
-                    onClick={() => toggleConnection(conn.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                      selected
-                        ? "border-primary bg-primary/20 text-primary"
-                        : "border-border bg-muted/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
-                    }`}
-                  >
-                    {conn.name}
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Using <span className="font-medium text-foreground">{selectedIds.size}</span> of {connections.length} connections. Genesis will pick what it needs.
+              </p>
+              <div className="relative" ref={connectionsPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => setConnectionsOpen((v) => !v)}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Customize
+                </button>
+                {connectionsOpen && (
+                  <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-lg border border-border bg-popover p-3 shadow-lg">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Connections</p>
+                      <div className="flex gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedIds(new Set(connections.map((c) => c.id)))}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedIds(new Set())}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          None
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto">
+                      {connections.map((conn) => {
+                        const selected = selectedIds.has(conn.id);
+                        return (
+                          <button
+                            key={conn.id}
+                            type="button"
+                            onClick={() => toggleConnection(conn.id)}
+                            className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                              selected
+                                ? "border-primary bg-primary/20 text-primary"
+                                : "border-border bg-muted/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
+                            }`}
+                          >
+                            {conn.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

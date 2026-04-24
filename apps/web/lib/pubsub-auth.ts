@@ -72,7 +72,11 @@ export async function verifyGooglePubSubOidc(
   if (!jwk) return false;
 
   try {
-    const publicKey = createPublicKey({ key: jwk as JsonWebKey, format: "jwk" });
+    const publicKey = createPublicKey(
+      { key: jwk, format: "jwk" } as unknown as Parameters<
+        typeof createPublicKey
+      >[0]
+    );
     const verifier = createVerify("RSA-SHA256");
     verifier.update(`${parts[0]}.${parts[1]}`);
     return verifier.verify(publicKey, parts[2], "base64url");

@@ -16,19 +16,33 @@ type HeaderLike = {
   get(name: string): string | null;
 };
 
-function getInternalServiceSecret(): string {
-  const secret =
-    process.env.INTERNAL_SERVICE_AUTH_SECRET ??
-    process.env.RUNTIME_SECRET ??
-    "";
+function getScopedSecretEnvName(audience: string): string {
+  return `INTERNAL_SERVICE_AUTH_SECRET_${audience
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")}`;
+}
 
-  if (!secret) {
-    throw new Error(
-      "Missing INTERNAL_SERVICE_AUTH_SECRET (or RUNTIME_SECRET fallback) for internal auth"
-    );
-  }
+function allowsSharedSecretFallback(): boolean {
+  return ![
+    process.env.NODE_ENV,
+    process.env.VERCEL_ENV,
+    process.env.APP_ENV,
+    process.env.RUNTIME_ENV,
+  ].some((value) => value === "production");
+}
 
-  return secret;
+function getInternalServiceSecret(audience: string): string {
+  const scopedSecret = process.env[getScopedSecretEnvName(audience)] ?? "";
+  if (scopedSecret) return scopedSecret;
+
+  const sharedSecret =
+    process.env.INTERNAL_SERVICE_AUTH_SECRET ?? process.env.RUNTIME_SECRET ?? "";
+  if (sharedSecret && allowsSharedSecretFallback()) return sharedSecret;
+
+  throw new Error(
+    `Missing scoped internal auth secret ${getScopedSecretEnvName(audience)}`
+  );
 }
 
 function signPayloadSegment(payloadSegment: string, secret: string): string {
@@ -87,7 +101,10 @@ export function createInternalServiceToken(
     } satisfies InternalServiceClaims)
   ).toString("base64url");
 
-  const signature = signPayloadSegment(payloadSegment, getInternalServiceSecret());
+  const signature = signPayloadSegment(
+    payloadSegment,
+    getInternalServiceSecret(audience)
+  );
   return `${payloadSegment}.${signature}`;
 }
 
@@ -112,7 +129,7 @@ export function verifyInternalServiceToken(
 
   const expectedSignature = signPayloadSegment(
     payloadSegment,
-    getInternalServiceSecret()
+    getInternalServiceSecret(audience)
   );
   if (!safeEqual(receivedSignature, expectedSignature)) {
     return false;
