@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
 import { upsertOAuthConnection } from "@/lib/oauth-token";
-import { decodeOAuthState } from "@/lib/oauth-state";
+import {
+  peekOAuthStateFlowId,
+  redirectWithClearedOAuthState,
+  verifyOAuthStateFromRequest,
+} from "@/lib/oauth-state";
 
 function getCallbackUrl() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -17,21 +20,43 @@ export async function GET(request: Request) {
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   const redirectUri = getCallbackUrl();
+  const stateFlowId = peekOAuthStateFlowId(state);
 
-  if (errorParam) return NextResponse.redirect(`${origin}/connections?error=${errorParam}`);
-  if (!code || !state) return NextResponse.redirect(`${origin}/connections?error=missing_params`);
+  if (errorParam) {
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=${errorParam}`,
+      stateFlowId
+    );
+  }
+  if (!code || !state) {
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=missing_params`,
+      stateFlowId
+    );
+  }
   if (!clientId || !clientSecret || !redirectUri) {
-    return NextResponse.redirect(`${origin}/connections?error=missing_github_oauth_config`);
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=missing_github_oauth_config`,
+      stateFlowId
+    );
   }
 
-  let userId: string;
-  let label: string;
-  const decoded = decodeOAuthState<{ userId?: unknown; label?: unknown }>(state);
-  if (!decoded || typeof decoded.userId !== "string") {
-    return NextResponse.redirect(`${origin}/connections?error=invalid_state`);
+  const verifiedState = await verifyOAuthStateFromRequest(state);
+  if (!verifiedState.ok) {
+    const errorCode =
+      verifiedState.reason === "session_missing"
+        ? "session_required"
+        : "invalid_state";
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=${errorCode}`,
+      verifiedState.flowId ?? stateFlowId
+    );
   }
-  userId = decoded.userId;
-  label = typeof decoded.label === "string" ? decoded.label : "github:primary";
+  const { flowId, userId, payload } = verifiedState.value;
+  const label =
+    typeof payload.label === "string" && payload.label.trim()
+      ? payload.label
+      : "github:primary";
 
   const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
@@ -48,10 +73,20 @@ export async function GET(request: Request) {
     cache: "no-store",
   });
 
-  if (!tokenRes.ok) return NextResponse.redirect(`${origin}/connections?error=token_exchange_failed`);
+  if (!tokenRes.ok) {
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=token_exchange_failed`,
+      flowId
+    );
+  }
 
   const tokens = await tokenRes.json();
-  if (tokens.error) return NextResponse.redirect(`${origin}/connections?error=${tokens.error}`);
+  if (tokens.error) {
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=${tokens.error}`,
+      flowId
+    );
+  }
 
   const userRes = await fetch("https://api.github.com/user", {
     headers: {
@@ -78,8 +113,14 @@ export async function GET(request: Request) {
       },
     });
   } catch {
-    return NextResponse.redirect(`${origin}/connections?error=vault_failed`);
+    return redirectWithClearedOAuthState(
+      `${origin}/connections?error=vault_failed`,
+      flowId
+    );
   }
 
-  return NextResponse.redirect(`${origin}/connections?connected=github`);
+  return redirectWithClearedOAuthState(
+    `${origin}/connections?connected=github`,
+    flowId
+  );
 }

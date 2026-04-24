@@ -4,48 +4,24 @@ This file tracks **concrete, code-level safety/security issues** found during au
 
 ---
 
-## 1) Critical — OAuth `state` is not authenticated (account-connection injection risk)
+## 1) ✅ Fixed — OAuth state is signed, browser-bound, and session-verified
 
-**Evidence**
-- `apps/web/lib/oauth-state.ts:3-15` (`encodeOAuthState`/`decodeOAuthState`) only base64-encodes JSON; no signature, no server-side nonce validation.
-- Multiple callbacks trust `userId` from decoded `state` directly:
-  - `apps/web/app/api/connections/oauth/gmail/callback/route.ts:23-25`
-  - `apps/web/app/api/connections/oauth/google/callback/route.ts:38-41`
-  - `apps/web/app/api/connections/oauth/slack/callback/route.ts:17-19`
-  - `apps/web/app/api/connections/oauth/notion/callback/route.ts:17-19`
-  - `apps/web/app/api/connections/oauth/outlook/callback/route.ts:17-19`
-  - `apps/web/app/api/connections/oauth/hubspot/callback/route.ts:17-19`
-  - `apps/web/app/api/connections/oauth/typeform/callback/route.ts:17-19`
-  - `apps/web/app/api/connections/oauth/asana/callback/route.ts:17-19`
-  - `apps/web/app/api/connections/oauth/airtable/callback/route.ts:19-33,45-50`
-  - `apps/web/app/api/connections/oauth/github/callback/route.ts:29-35` (uses helper, but helper is also unsigned)
-
-**Cause / explanation**
-- The callback trust boundary is wrong: identity (`userId`) is accepted from user-controlled query data (`state`) without integrity/authenticity guarantees.
-- An attacker can mint/modify `state` payloads and cause OAuth tokens to be stored against another user ID.
-
-**Suggested resolution**
-- Use tamper-proof state (HMAC/JWT signed with server secret, short TTL).
-- Bind state to server-side nonce/session and verify one-time use.
-- Verify callback against authenticated user session (where possible), not just opaque state payload.
-- Keep PKCE for providers that support it (not just Airtable flow).
+**Fix implemented**
+- `apps/web/lib/oauth-state.ts` now issues HMAC-signed OAuth state envelopes with a short TTL, per-flow nonce, and stable `flowId`.
+- Every OAuth start route now sets an HttpOnly `SameSite=Lax` nonce cookie alongside the signed `state`, including Airtable’s PKCE flow.
+- Every OAuth callback now verifies the signed `state`, checks the browser nonce cookie, requires a live authenticated session, and ensures the session user matches the state user before storing tokens.
+- OAuth state cookies are cleared on callback completion and on callback error paths to reduce replay risk for multi-user deployments.
+- `apps/web/lib/__tests__/oauth-state.test.ts` covers signed round-trips plus tampering, expiry, nonce mismatch, and session/user mismatch rejection.
 
 ---
 
-## 2) High — Runtime uses Python `eval()` on expressions from workflow data
+## 2) ✅ Fixed — Runtime no longer uses Python `eval()` on workflow expressions
 
-**Evidence**
-- `apps/runtime/engine/executor.py:1595` (`eval(expression, namespace)`)
-- `apps/runtime/engine/executor.py:1619` (`eval(condition, namespace)`)
-
-**Cause / explanation**
-- Even with restricted builtins, Python object graph/introspection can still allow unexpected execution paths or sandbox escape patterns.
-- Any user-controlled expression that reaches these paths can become code execution inside runtime process.
-
-**Suggested resolution**
-- Replace `eval` with a safe expression interpreter/AST validator (allowlist of nodes/operators).
-- Strictly reject attribute/magic access and function calls outside explicit allowlist.
-- Add explicit expression complexity limits (depth, length, execution timeout).
+**Fix implemented**
+- `apps/runtime/engine/safe_expressions.py` — new AST-backed evaluator replaces Python `eval()` with an allowlist interpreter for workflow transforms and conditions.
+- `apps/runtime/engine/executor.py` — runtime expression paths now call `evaluate_expression()` / `evaluate_condition()` and reject unsupported syntax instead of executing arbitrary Python.
+- The evaluator explicitly blocks private attribute access, unsupported function calls, and unsupported syntax, while enforcing expression length and AST complexity limits.
+- `apps/runtime/tests/test_safe_expressions.py` — focused tests cover supported workflow syntax plus rejection of unsafe attribute access and oversized expressions.
 
 ---
 
@@ -65,18 +41,13 @@ This file tracks **concrete, code-level safety/security issues** found during au
 
 ---
 
-## 5) High — Potential token leakage via OAuth refresh error logging
+## 5) ✅ Fixed — OAuth refresh failures no longer log raw upstream response bodies
 
-**Evidence**
-- `apps/web/lib/oauth-token.ts:273-279` logs provider refresh response body (`respText.slice(0, 500)`).
-
-**Cause / explanation**
-- OAuth provider error payloads may include sensitive fields, account metadata, or token fragments.
-- Logging raw upstream body can leak secret-adjacent data to log infrastructure.
-
-**Suggested resolution**
-- Log only status code/provider/error code; never raw response bodies from token endpoints.
-- Add provider-specific redaction before logging any external auth payload.
+**Fix implemented**
+- `apps/web/lib/oauth-token.ts` now uses `summarizeRefreshFailure()` to log only sanitized provider, HTTP status, error code, and request-id metadata.
+- Raw OAuth provider response bodies are no longer written to logs or reflected back in thrown errors.
+- Non-JSON refresh failures now return a generic error message instead of including body content.
+- `apps/web/lib/__tests__/oauth-token.test.ts` verifies the sanitized summary keeps useful diagnostics while excluding secret-looking values from logs and user-facing messages.
 
 ---
 
