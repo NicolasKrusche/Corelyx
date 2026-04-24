@@ -2,30 +2,64 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
 
-// Keys that must never be returned to the frontend — these live in metadata
-// because some providers (e.g. Asana) deliver hook secrets there during handshake.
-const METADATA_STRIP_KEYS = new Set([
-  "asana_hook_secret",
-  "webhook_secret",
-  "hook_secret",
-  "signing_secret",
-]);
+const COMMON_METADATA_KEYS = ["email"] as const;
+const METADATA_RESPONSE_KEYS: Record<string, readonly string[]> = {
+  asana: ["email", "name"],
+  calendar: COMMON_METADATA_KEYS,
+  docs: COMMON_METADATA_KEYS,
+  drive: COMMON_METADATA_KEYS,
+  github: ["login", "email", "account_type"],
+  gmail: COMMON_METADATA_KEYS,
+  google: COMMON_METADATA_KEYS,
+  hubspot: ["hub_domain", "user"],
+  notion: ["workspace"],
+  outlook: COMMON_METADATA_KEYS,
+  sheets: COMMON_METADATA_KEYS,
+  slack: ["team"],
+  typeform: ["email", "alias"],
+};
 
-function stripSensitiveMetadata(
+type ConnectionRow = {
+  id: string;
+  name: string;
+  provider: string;
+  auth_type: "oauth" | "api_key";
+  scopes: string[] | null;
+  metadata: Record<string, unknown> | null;
+  is_valid: boolean;
+  last_validated_at: string | null;
+  created_at: string;
+};
+
+function sanitizeMetadataForClient(
+  provider: string,
   metadata: Record<string, unknown> | null
 ): Record<string, unknown> | null {
   if (!metadata) return null;
+  const allowedKeys = METADATA_RESPONSE_KEYS[provider] ?? [];
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(metadata)) {
-    if (!METADATA_STRIP_KEYS.has(k)) out[k] = v;
+
+  for (const key of allowedKeys) {
+    const value = metadata[key];
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      value === null
+    ) {
+      out[key] = value;
+    }
   }
-  return out;
+
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 // GET /api/connections
 export async function GET() {
   const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const { data, error } = await supabase
@@ -36,9 +70,10 @@ export async function GET() {
 
   if (error) return apiError(error.message, 500);
 
-  const sanitized = (data ?? []).map((conn) => ({
+  const rows = (data ?? []) as unknown as ConnectionRow[];
+  const sanitized = rows.map((conn) => ({
     ...conn,
-    metadata: stripSensitiveMetadata(conn.metadata as Record<string, unknown> | null),
+    metadata: sanitizeMetadataForClient(conn.provider, conn.metadata),
   }));
   return NextResponse.json(sanitized);
 }

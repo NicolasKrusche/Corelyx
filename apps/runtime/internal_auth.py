@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import time
 
 INTERNAL_SERVICE_TOKEN_HEADER = "x-internal-service-token"
@@ -14,13 +15,30 @@ _DEFAULT_TOKEN_LIFETIME_SECONDS = 60
 _MAX_TOKEN_LIFETIME_SECONDS = 300
 
 
-def _get_internal_service_secret() -> bytes:
-    secret = os.environ.get("INTERNAL_SERVICE_AUTH_SECRET") or os.environ.get("RUNTIME_SECRET")
-    if not secret:
-        raise RuntimeError(
-            "Missing INTERNAL_SERVICE_AUTH_SECRET (or RUNTIME_SECRET fallback) for internal auth"
-        )
-    return secret.encode("utf-8")
+def _scoped_secret_env_name(audience: str) -> str:
+    normalized = re.sub(r"[^A-Z0-9]+", "_", audience.upper()).strip("_")
+    return f"INTERNAL_SERVICE_AUTH_SECRET_{normalized}"
+
+
+def _allows_shared_secret_fallback() -> bool:
+    return not any(
+        os.environ.get(name) == "production"
+        for name in ("NODE_ENV", "VERCEL_ENV", "APP_ENV", "RUNTIME_ENV")
+    )
+
+
+def _get_internal_service_secret(audience: str) -> bytes:
+    scoped_secret = os.environ.get(_scoped_secret_env_name(audience))
+    if scoped_secret:
+        return scoped_secret.encode("utf-8")
+
+    shared_secret = os.environ.get("INTERNAL_SERVICE_AUTH_SECRET") or os.environ.get("RUNTIME_SECRET")
+    if shared_secret and _allows_shared_secret_fallback():
+        return shared_secret.encode("utf-8")
+
+    raise RuntimeError(
+        f"Missing scoped internal auth secret {_scoped_secret_env_name(audience)}"
+    )
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -57,7 +75,9 @@ def create_internal_service_token(
     payload_segment = _b64url_encode(
         json.dumps(payload, separators=(",", ":")).encode("utf-8")
     )
-    signature = _sign_payload_segment(payload_segment, _get_internal_service_secret())
+    signature = _sign_payload_segment(
+        payload_segment, _get_internal_service_secret(audience)
+    )
     return f"{payload_segment}.{signature}"
 
 
@@ -88,7 +108,7 @@ def verify_internal_service_token(
         return False
 
     expected_signature = _sign_payload_segment(
-        payload_segment, _get_internal_service_secret()
+        payload_segment, _get_internal_service_secret(expected_audience)
     )
     if not hmac.compare_digest(received_signature, expected_signature):
         return False

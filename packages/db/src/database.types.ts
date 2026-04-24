@@ -155,6 +155,35 @@ export interface Database {
           created_at?: string;
         };
       };
+      connection_webhook_secrets: {
+        Row: {
+          id: string;
+          connection_id: string;
+          provider: string;
+          secret_name: string;
+          vault_secret_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          connection_id: string;
+          provider: string;
+          secret_name: string;
+          vault_secret_id: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          connection_id?: string;
+          provider?: string;
+          secret_name?: string;
+          vault_secret_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       oauth_state_nonces: {
         Row: {
           flow_id: string;

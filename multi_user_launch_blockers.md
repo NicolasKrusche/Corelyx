@@ -4,7 +4,7 @@ This document lists issues that currently hold the app back from a safe public m
 
 ## Summary
 
-Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail webhook authenticity, and broad webhook routing blockers are fixed, but there are still **high-risk auth/isolation gaps** that should be addressed before broad launch.
+Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail webhook authenticity, broad webhook routing, metadata secret exposure, and internal API shared-secret blockers are fixed, but there are still launch hardening items that should be addressed before broad launch.
 
 ---
 
@@ -79,25 +79,37 @@ Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail web
 
 ---
 
-## 4) High — Secret-adjacent data is stored in metadata and exposed via connections API
+## 4) Fixed - Secret-adjacent data is not stored in client-visible metadata
 
-**Evidence**
+**Status**
+- Fixed on 2026-04-24. Asana hook secrets are now stored in Supabase Vault with server-only references in `public.connection_webhook_secrets`.
+- Legacy `asana_hook_secret` metadata is migrated into Vault and removed from connection metadata when the next signed Asana delivery is verified.
+- `/api/connections` now returns provider-specific allowlisted metadata fields only, instead of full connection metadata or a denylist-stripped copy.
+- No longer a launch blocker.
+
+**Previous evidence**
 - Asana hook secret persisted in metadata:
   - `apps/web/app/api/webhooks/asana/route.ts:58`
 - Connections API returns full metadata to client:
   - `apps/web/app/api/connections/route.ts:13`
 
-**Why this blocks launch**
+**Previous risk**
 - Metadata is client-visible in normal account flows; secret-adjacent fields should not be exposed.
 
-**Suggested fix**
-- Store hook secrets in Vault (or dedicated secret column not returned to clients), add metadata response allowlist.
+**Implemented fix**
+- Vault-backed hook secret storage with a server-only reference table, plus a provider metadata response allowlist.
 
 ---
 
-## 5) Medium-High — Internal privileged APIs protected by one shared static secret
+## 5) Fixed - Internal privileged APIs use scoped short-lived service tokens
 
-**Evidence**
+**Status**
+- Fixed on 2026-04-24. Internal APIs and runtime calls use short-lived HMAC service tokens with audience-specific verification.
+- Production now requires per-audience secrets such as `INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE`, `INTERNAL_SERVICE_AUTH_SECRET_NEXT_VAULT`, `INTERNAL_SERVICE_AUTH_SECRET_NEXT_CONNECTIONS_TOKEN`, `INTERNAL_SERVICE_AUTH_SECRET_NEXT_RUNS_COMPLETE`, and `INTERNAL_SERVICE_AUTH_SECRET_NEXT_EVENT_DISPATCH`.
+- The old shared `INTERNAL_SERVICE_AUTH_SECRET` / `RUNTIME_SECRET` fallback is limited to non-production environments.
+- No longer a launch blocker.
+
+**Previous evidence**
 - Internal APIs trust `x-runtime-secret`, e.g.:
   - `apps/web/app/api/internal/vault/[ref]/route.ts:15-18`
   - `apps/web/app/api/internal/connections/[id]/token/route.ts:13-17`
@@ -106,11 +118,11 @@ Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail web
 - Runtime also validates same secret:
   - `apps/runtime/main.py:121-124`
 
-**Why this blocks launch**
+**Previous risk**
 - Single secret = large blast radius if leaked; attacker gets broad internal power.
 
-**Suggested fix**
-- Use short-lived signed service tokens with audience/scope; split secrets per capability.
+**Implemented fix**
+- Short-lived signed service tokens with audience/scope and split production secrets per capability.
 
 ---
 

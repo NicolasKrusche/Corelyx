@@ -9,6 +9,14 @@ import {
 
 const originalInternalAuthSecret = process.env.INTERNAL_SERVICE_AUTH_SECRET;
 const originalRuntimeSecret = process.env.RUNTIME_SECRET;
+const originalNodeEnv = process.env.NODE_ENV;
+const scopedRuntimeExecuteSecret =
+  "INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE";
+const scopedRunsCompleteSecret =
+  "INTERNAL_SERVICE_AUTH_SECRET_NEXT_RUNS_COMPLETE";
+const originalScopedRuntimeExecuteSecret =
+  process.env[scopedRuntimeExecuteSecret];
+const originalScopedRunsCompleteSecret = process.env[scopedRunsCompleteSecret];
 
 afterEach(() => {
   if (originalInternalAuthSecret === undefined) {
@@ -21,6 +29,24 @@ afterEach(() => {
     delete process.env.RUNTIME_SECRET;
   } else {
     process.env.RUNTIME_SECRET = originalRuntimeSecret;
+  }
+
+  if (originalNodeEnv === undefined) {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = originalNodeEnv;
+  }
+
+  if (originalScopedRuntimeExecuteSecret === undefined) {
+    delete process.env[scopedRuntimeExecuteSecret];
+  } else {
+    process.env[scopedRuntimeExecuteSecret] = originalScopedRuntimeExecuteSecret;
+  }
+
+  if (originalScopedRunsCompleteSecret === undefined) {
+    delete process.env[scopedRunsCompleteSecret];
+  } else {
+    process.env[scopedRunsCompleteSecret] = originalScopedRunsCompleteSecret;
   }
 });
 
@@ -61,6 +87,34 @@ describe("internal auth", () => {
     expect(
       verifyInternalServiceToken(expiredToken, "runtime:execute", {
         nowMs: 1_400_000,
+      })
+    ).toBe(false);
+  });
+
+  it("requires scoped secrets in production", () => {
+    process.env.NODE_ENV = "production";
+    process.env.INTERNAL_SERVICE_AUTH_SECRET = "shared-secret";
+    delete process.env[scopedRuntimeExecuteSecret];
+
+    expect(() => createInternalServiceToken("runtime:execute")).toThrow(
+      scopedRuntimeExecuteSecret
+    );
+
+    process.env[scopedRuntimeExecuteSecret] = "runtime-execute-secret";
+    process.env[scopedRunsCompleteSecret] = "runs-complete-secret";
+
+    const token = createInternalServiceToken("runtime:execute", {
+      nowMs: 1_000_000,
+      ttlSeconds: 60,
+    });
+    expect(
+      verifyInternalServiceToken(token, "runtime:execute", {
+        nowMs: 1_020_000,
+      })
+    ).toBe(true);
+    expect(
+      verifyInternalServiceToken(token, "next:runs:complete", {
+        nowMs: 1_020_000,
       })
     ).toBe(false);
   });
