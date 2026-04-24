@@ -105,6 +105,22 @@ export default async function ImpressumPage() {
 
           <section className="rounded-2xl border border-border bg-card/60 p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+              Company register
+            </p>
+            <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              {legalIdentity.companyRegisterNo ? (
+                <>
+                  <p>Firmenbuchnummer: {legalIdentity.companyRegisterNo}</p>
+                  <p>Firmenbuchgericht: Handelsgericht Wien</p>
+                </>
+              ) : (
+                <p>Company register number not configured in this environment.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card/60 p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
               VAT identification number
             </p>
             <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
@@ -113,6 +129,26 @@ export default async function ImpressumPage() {
                   ? `USt-IdNr.: ${legalIdentity.vatId}`
                   : "VAT ID / USt-IdNr. not configured in this environment."}
               </p>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card/60 p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+              Regulatory authority
+            </p>
+            <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              <p>
+                Wirtschaftskammer Österreich (WKO) —{" "}
+                <a
+                  href="https://www.wko.at"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  www.wko.at
+                </a>
+              </p>
+              <p className="mt-1">Applicable law: Austrian commercial law (Unternehmensrecht)</p>
             </div>
           </section>
 
