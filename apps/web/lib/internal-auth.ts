@@ -10,6 +10,7 @@ type InternalServiceClaims = {
   aud: string;
   iat: number;
   exp: number;
+  sub?: string;
 };
 
 type HeaderLike = {
@@ -65,6 +66,9 @@ function parseClaims(payloadSegment: string): InternalServiceClaims | null {
     ) {
       return null;
     }
+    if (claims.sub !== undefined && typeof claims.sub !== "string") {
+      return null;
+    }
 
     return claims as InternalServiceClaims;
   } catch {
@@ -83,7 +87,7 @@ function safeEqual(a: string, b: string): boolean {
 
 export function createInternalServiceToken(
   audience: string,
-  options: { ttlSeconds?: number; nowMs?: number } = {}
+  options: { ttlSeconds?: number; nowMs?: number; subject?: string } = {}
 ): string {
   const ttlSeconds = options.ttlSeconds ?? DEFAULT_TOKEN_LIFETIME_SECONDS;
   if (ttlSeconds <= 0 || ttlSeconds > MAX_TOKEN_LIFETIME_SECONDS) {
@@ -93,13 +97,13 @@ export function createInternalServiceToken(
   }
 
   const nowSeconds = Math.floor((options.nowMs ?? Date.now()) / 1000);
-  const payloadSegment = Buffer.from(
-    JSON.stringify({
-      aud: audience,
-      iat: nowSeconds,
-      exp: nowSeconds + ttlSeconds,
-    } satisfies InternalServiceClaims)
-  ).toString("base64url");
+  const claims: InternalServiceClaims = {
+    aud: audience,
+    iat: nowSeconds,
+    exp: nowSeconds + ttlSeconds,
+    ...(options.subject ? { sub: options.subject } : {}),
+  };
+  const payloadSegment = Buffer.from(JSON.stringify(claims)).toString("base64url");
 
   const signature = signPayloadSegment(
     payloadSegment,
@@ -110,10 +114,14 @@ export function createInternalServiceToken(
 
 export function buildInternalServiceHeaders(
   audience: string,
-  init: HeadersInit = {}
+  init: HeadersInit = {},
+  options: { subject?: string } = {}
 ): Headers {
   const headers = new Headers(init);
-  headers.set(INTERNAL_SERVICE_TOKEN_HEADER, createInternalServiceToken(audience));
+  headers.set(
+    INTERNAL_SERVICE_TOKEN_HEADER,
+    createInternalServiceToken(audience, { subject: options.subject })
+  );
   return headers;
 }
 
@@ -121,10 +129,10 @@ export function verifyInternalServiceToken(
   token: string,
   audience: string,
   options: { nowMs?: number } = {}
-): boolean {
+): InternalServiceClaims | null {
   const [payloadSegment, receivedSignature] = token.split(".");
   if (!payloadSegment || !receivedSignature) {
-    return false;
+    return null;
   }
 
   const expectedSignature = signPayloadSegment(
@@ -132,43 +140,50 @@ export function verifyInternalServiceToken(
     getInternalServiceSecret(audience)
   );
   if (!safeEqual(receivedSignature, expectedSignature)) {
-    return false;
+    return null;
   }
 
   const claims = parseClaims(payloadSegment);
   if (!claims || claims.aud !== audience) {
-    return false;
+    return null;
   }
 
   const nowSeconds = Math.floor((options.nowMs ?? Date.now()) / 1000);
   if (claims.exp <= claims.iat) {
-    return false;
+    return null;
   }
   if (claims.exp - claims.iat > MAX_TOKEN_LIFETIME_SECONDS) {
-    return false;
+    return null;
   }
   if (claims.iat - CLOCK_SKEW_SECONDS > nowSeconds) {
-    return false;
+    return null;
   }
   if (claims.exp + CLOCK_SKEW_SECONDS < nowSeconds) {
-    return false;
+    return null;
   }
 
-  return true;
+  return claims;
 }
 
 export function requestHasValidInternalServiceToken(
   headers: HeaderLike,
   audience: string
 ): boolean {
+  return getValidInternalServiceClaims(headers, audience) !== null;
+}
+
+export function getValidInternalServiceClaims(
+  headers: HeaderLike,
+  audience: string
+): InternalServiceClaims | null {
   const token = headers.get(INTERNAL_SERVICE_TOKEN_HEADER);
   if (!token) {
-    return false;
+    return null;
   }
 
   try {
     return verifyInternalServiceToken(token, audience);
   } catch {
-    return false;
+    return null;
   }
 }

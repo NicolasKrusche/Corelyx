@@ -63,12 +63,12 @@ describe("internal auth", () => {
       verifyInternalServiceToken(token, "runtime:execute", {
         nowMs: 1_020_000,
       })
-    ).toBe(true);
+    ).not.toBeNull();
     expect(
       verifyInternalServiceToken(token, "next:vault", {
         nowMs: 1_020_000,
       })
-    ).toBe(false);
+    ).toBeNull();
   });
 
   it("rejects expired tokens and validates request headers", () => {
@@ -88,7 +88,7 @@ describe("internal auth", () => {
       verifyInternalServiceToken(expiredToken, "runtime:execute", {
         nowMs: 1_400_000,
       })
-    ).toBe(false);
+    ).toBeNull();
   });
 
   it("requires scoped secrets in production", () => {
@@ -111,11 +111,35 @@ describe("internal auth", () => {
       verifyInternalServiceToken(token, "runtime:execute", {
         nowMs: 1_020_000,
       })
-    ).toBe(true);
+    ).not.toBeNull();
     expect(
       verifyInternalServiceToken(token, "next:runs:complete", {
         nowMs: 1_020_000,
       })
-    ).toBe(false);
+    ).toBeNull();
+  });
+
+  it("propagates the subject claim and rejects tampering", () => {
+    process.env.INTERNAL_SERVICE_AUTH_SECRET = "internal-auth-test-secret";
+
+    const token = createInternalServiceToken("next:vault", {
+      nowMs: 1_000_000,
+      ttlSeconds: 60,
+      subject: "user-abc",
+    });
+    const claims = verifyInternalServiceToken(token, "next:vault", {
+      nowMs: 1_020_000,
+    });
+    expect(claims?.sub).toBe("user-abc");
+
+    // A token without a subject still verifies (back-compat) but exposes no sub.
+    const anonToken = createInternalServiceToken("next:vault", {
+      nowMs: 1_000_000,
+      ttlSeconds: 60,
+    });
+    const anonClaims = verifyInternalServiceToken(anonToken, "next:vault", {
+      nowMs: 1_020_000,
+    });
+    expect(anonClaims?.sub).toBeUndefined();
   });
 });

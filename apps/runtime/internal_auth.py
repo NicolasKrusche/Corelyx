@@ -7,6 +7,7 @@ import json
 import os
 import re
 import time
+from typing import Any
 
 INTERNAL_SERVICE_TOKEN_HEADER = "x-internal-service-token"
 
@@ -60,6 +61,7 @@ def create_internal_service_token(
     *,
     ttl_seconds: int = _DEFAULT_TOKEN_LIFETIME_SECONDS,
     now_seconds: int | None = None,
+    subject: str | None = None,
 ) -> str:
     if ttl_seconds <= 0 or ttl_seconds > _MAX_TOKEN_LIFETIME_SECONDS:
         raise ValueError(
@@ -67,11 +69,15 @@ def create_internal_service_token(
         )
 
     issued_at = now_seconds if now_seconds is not None else int(time.time())
-    payload = {
+    payload: dict[str, Any] = {
         "aud": audience,
         "iat": issued_at,
         "exp": issued_at + ttl_seconds,
     }
+    if subject is not None:
+        if not isinstance(subject, str) or not subject:
+            raise ValueError("subject must be a non-empty string")
+        payload["sub"] = subject
     payload_segment = _b64url_encode(
         json.dumps(payload, separators=(",", ":")).encode("utf-8")
     )
@@ -85,10 +91,11 @@ def build_internal_service_headers(
     audience: str,
     *,
     ttl_seconds: int = _DEFAULT_TOKEN_LIFETIME_SECONDS,
+    subject: str | None = None,
 ) -> dict[str, str]:
     return {
         INTERNAL_SERVICE_TOKEN_HEADER: create_internal_service_token(
-            audience, ttl_seconds=ttl_seconds
+            audience, ttl_seconds=ttl_seconds, subject=subject
         )
     }
 
@@ -99,45 +106,59 @@ def verify_internal_service_token(
     *,
     now_seconds: int | None = None,
 ) -> bool:
+    return verify_internal_service_token_claims(
+        token, expected_audience, now_seconds=now_seconds
+    ) is not None
+
+
+def verify_internal_service_token_claims(
+    token: str,
+    expected_audience: str,
+    *,
+    now_seconds: int | None = None,
+) -> dict[str, Any] | None:
     try:
         payload_segment, received_signature = token.split(".", 1)
     except ValueError:
-        return False
+        return None
 
     if not payload_segment or not received_signature:
-        return False
+        return None
 
     expected_signature = _sign_payload_segment(
         payload_segment, _get_internal_service_secret(expected_audience)
     )
     if not hmac.compare_digest(received_signature, expected_signature):
-        return False
+        return None
 
     try:
         claims = json.loads(_b64url_decode(payload_segment).decode("utf-8"))
     except Exception:
-        return False
+        return None
 
     if not isinstance(claims, dict):
-        return False
+        return None
 
     audience = claims.get("aud")
     issued_at = claims.get("iat")
     expires_at = claims.get("exp")
+    subject = claims.get("sub")
 
     if audience != expected_audience:
-        return False
+        return None
     if not isinstance(issued_at, int) or not isinstance(expires_at, int):
-        return False
+        return None
+    if subject is not None and not isinstance(subject, str):
+        return None
     if expires_at <= issued_at:
-        return False
+        return None
     if expires_at - issued_at > _MAX_TOKEN_LIFETIME_SECONDS:
-        return False
+        return None
 
     current_time = now_seconds if now_seconds is not None else int(time.time())
     if issued_at - _CLOCK_SKEW_SECONDS > current_time:
-        return False
+        return None
     if expires_at + _CLOCK_SKEW_SECONDS < current_time:
-        return False
+        return None
 
-    return True
+    return claims
