@@ -18,6 +18,11 @@ from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from cors_config import (
+    CORS_ALLOWED_HEADERS,
+    CORS_ALLOWED_METHODS,
+    get_cors_allowed_origins,
+)
 from db import get_active_cron_workflows, get_db, release_run_locks, update_run
 from engine.executor import ExecutionError, ProgramExecutor
 from internal_auth import (
@@ -117,9 +122,10 @@ app = FastAPI(title="FlowOS Runtime", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=get_cors_allowed_origins(),
+    allow_methods=CORS_ALLOWED_METHODS,
+    allow_headers=CORS_ALLOWED_HEADERS,
+    allow_credentials=False,
 )
 
 

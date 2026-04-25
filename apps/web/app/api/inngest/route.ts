@@ -7,7 +7,7 @@ import { approvalTimeout } from "@/lib/inngest/approval-timeout";
 /**
  * Inngest serve endpoint — handles all function registrations + event delivery.
  * In dev, Inngest Dev Server calls this. In prod, Inngest Cloud calls this.
- * Set INNGEST_SIGNING_KEY in production to verify requests.
+ * lib/inngest enforces INNGEST_SIGNING_KEY in production.
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,

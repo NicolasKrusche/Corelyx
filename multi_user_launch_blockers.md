@@ -4,7 +4,7 @@ This document lists issues that currently hold the app back from a safe public m
 
 ## Summary
 
-Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail webhook authenticity, broad webhook routing, metadata secret exposure, and internal API shared-secret blockers are fixed, but there are still launch hardening items that should be addressed before broad launch.
+Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail webhook authenticity, broad webhook routing, metadata secret exposure, internal API shared-secret, runtime CORS, cookie logging, and Inngest signing-key blockers are fixed. No current launch blockers are listed below.
 
 ---
 
@@ -126,42 +126,42 @@ Core user-scoped data model and RLS exist. The OAuth callback `state`, Gmail web
 
 ---
 
-## 6) Medium — Runtime CORS is fully open
+## 6) Fixed - Runtime CORS is restricted
 
-**Evidence**
-- `apps/runtime/main.py:115-117` uses `allow_origins=["*"]`, `allow_methods=["*"]`, `allow_headers=["*"]`.
+**Status**
+- Fixed on 2026-04-25. Runtime CORS now uses `RUNTIME_CORS_ALLOWED_ORIGINS`, inferred web origins, and local-only dev defaults instead of `*`.
+- Production rejects wildcard origins and fails if no allowed origin can be configured.
+- Methods and headers are limited to the runtime API surface: `GET`, `POST`, `content-type`, and `x-internal-service-token`.
+- No longer a launch blocker.
 
-**Why this blocks launch**
-- Not immediately exploitable by itself, but materially increases risk if any internal endpoint/auth check regresses.
-
-**Suggested fix**
-- Restrict origins/headers/methods per environment.
-
----
-
-## 7) Medium — Sensitive cookie values are logged
-
-**Evidence**
-- `apps/web/middleware.ts:71` logs cookie names and first 40 chars of values.
-
-**Why this blocks launch**
-- Session/token leakage risk in centralized logs is unacceptable at multi-user scale.
-
-**Suggested fix**
-- Remove cookie value logging; keep only non-sensitive diagnostics.
+**Implemented fix**
+- Added `apps/runtime/cors_config.py` and wired `apps/runtime/main.py` to its restricted CORS policy.
+- Added focused coverage in `apps/runtime/tests/test_cors_config.py`.
 
 ---
 
-## 8) Medium — Inngest request verification appears optional by configuration
+## 7) Fixed - Sensitive cookie values are not logged
 
-**Evidence**
-- `apps/web/app/api/inngest/route.ts:10` explicitly says signing key should be set in production.
+**Status**
+- Fixed on 2026-04-25. `apps/web/middleware.ts` no longer logs cookie names or values.
+- Verified no cookie value logging patterns remain in `apps/web` or `apps/runtime`.
+- No longer a launch blocker.
 
-**Why this blocks launch**
-- If deployment misses this env, event authenticity guarantees may be weakened.
+**Implemented fix**
+- Removed sensitive diagnostics from middleware in the current tree; auth middleware now performs session checks without logging cookie material.
 
-**Suggested fix**
-- Enforce startup/runtime failure in production when signing key is missing.
+---
+
+## 8) Fixed - Inngest signing key is enforced in production
+
+**Status**
+- Fixed on 2026-04-25. The shared Inngest client now fails in production when `INNGEST_SIGNING_KEY` is missing or blank.
+- `INNGEST_SIGNING_KEY` and optional fallback key values are passed into the Inngest client explicitly.
+- No longer a launch blocker.
+
+**Implemented fix**
+- Added production signing-key enforcement in `apps/web/lib/inngest.ts`.
+- Updated the Inngest route comment and env examples so the production requirement is visible.
 
 ---
 
