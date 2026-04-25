@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import os
 import re
+import socket
 import time
 from urllib.parse import urlsplit
 from typing import Any, Callable
@@ -264,6 +266,79 @@ class ConflictError(ExecutionError):
             f"Resource {resource_id} is locked by another run",
             None,
         )
+
+
+# S13: hard cap on loop iteration count to prevent cost/DoS via attacker-shaped
+# upstream lists. Schemas that legitimately need more iterations should be split.
+MAX_LOOP_ITEMS = 100
+
+
+def _validate_outbound_url(url: str) -> None:
+    """Reject URLs that point at private/loopback/link-local/metadata addresses (S12).
+
+    Resolves the hostname and checks every returned A/AAAA record. Raises
+    ExecutionError("HTTP_FORBIDDEN_URL") on any rejection. http/https only.
+    """
+    parsed = urlsplit(url.strip())
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        raise ExecutionError(
+            "HTTP_FORBIDDEN_URL",
+            f"HTTP connector only supports http/https schemes (got '{scheme}')",
+        )
+
+    host = parsed.hostname or ""
+    if not host:
+        raise ExecutionError(
+            "HTTP_FORBIDDEN_URL", "HTTP connector URL is missing a hostname"
+        )
+
+    # Reject literal IPs in disallowed ranges before the resolver.
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None and not _ip_is_public(literal):
+        raise ExecutionError(
+            "HTTP_FORBIDDEN_URL",
+            f"HTTP connector blocked from connecting to non-public address {host}",
+        )
+
+    # Resolve hostname; reject if any record lands in a disallowed range.
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as exc:
+        raise ExecutionError(
+            "HTTP_FORBIDDEN_URL", f"HTTP connector could not resolve host '{host}': {exc}"
+        ) from exc
+
+    for info in infos:
+        sockaddr = info[4]
+        try:
+            ip = ipaddress.ip_address(sockaddr[0])
+        except (ValueError, IndexError):
+            continue
+        if not _ip_is_public(ip):
+            raise ExecutionError(
+                "HTTP_FORBIDDEN_URL",
+                f"HTTP connector blocked: '{host}' resolves to non-public address {ip}",
+            )
+
+
+def _ip_is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """True only for globally-routable unicast addresses.
+
+    Excludes private (RFC1918), loopback, link-local (incl. 169.254.169.254
+    cloud metadata), multicast, reserved, and unspecified ranges.
+    """
+    return not (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
 
 
 class ProgramExecutor:
@@ -542,6 +617,16 @@ class ProgramExecutor:
         """
         items: list = loop_output.get("__loop_items__", [])
         item_var: str = loop_output.get("item_var", "item")
+
+        # S13: cap iteration count. Items beyond MAX_LOOP_ITEMS are dropped and
+        # the count surfaced via state so users can see the truncation.
+        if len(items) > MAX_LOOP_ITEMS:
+            print(
+                f"[executor] loop {loop_node_id} truncated from {len(items)} "
+                f"to MAX_LOOP_ITEMS={MAX_LOOP_ITEMS}",
+                flush=True,
+            )
+            items = items[:MAX_LOOP_ITEMS]
 
         # Collect all node IDs that are reachable from the loop node (the loop body)
         body_ids: set[str] = set()
@@ -1101,8 +1186,10 @@ class ProgramExecutor:
                         raise ExecutionError(exc.code, exc.message) from exc
                 return {**input_data, **result, "connection_id": connection_id}
 
-            # No operation — surface the token to downstream nodes.
-            return {**input_data, "access_token": access_token, "connection_id": connection_id}
+            # No operation — pass the connection id through so downstream nodes
+            # can resolve their own token via _fetch_oauth_token. The access
+            # token itself is never persisted in node output (S11).
+            return {**input_data, "connection_id": connection_id}
         return input_data
 
     async def _execute_http_connection(
@@ -1113,6 +1200,9 @@ class ProgramExecutor:
     ) -> dict:
         if not cfg.url.strip():
             raise ExecutionError("HTTP_CONFIG_INVALID", "HTTP connector URL is required")
+
+        # S12: enforce SSRF allowlist before making the request.
+        _validate_outbound_url(cfg.url)
 
         method = cfg.method.upper().strip() or "GET"
         params = {
@@ -1170,7 +1260,9 @@ class ProgramExecutor:
         elif method in {"POST", "PUT", "PATCH"} and input_data:
             request_body = {"json": input_data}
 
-        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+        # follow_redirects=False (S12): a 30x to a private host would otherwise
+        # bypass the pre-flight allowlist check.
+        async with httpx.AsyncClient(timeout=timeout_seconds, follow_redirects=False) as client:
             self._record_telemetry(node_id, connector_api_calls=1)
             response = await client.request(
                 method=method,
@@ -1390,7 +1482,9 @@ class ProgramExecutor:
             for idx, endpoint_url in enumerate(endpoint_urls):
                 resp = await client.get(
                     endpoint_url,
-                    headers=build_internal_service_headers("next:connections:token"),
+                    headers=build_internal_service_headers(
+                        "next:connections:token", subject=self.user_id
+                    ),
                     params=params if params else None,
                 )
                 if resp.is_success:
@@ -1449,7 +1543,9 @@ class ProgramExecutor:
             for idx, endpoint_url in enumerate(endpoint_urls):
                 resp = await client.get(
                     endpoint_url,
-                    headers=build_internal_service_headers("next:vault"),
+                    headers=build_internal_service_headers(
+                        "next:vault", subject=self.user_id
+                    ),
                 )
                 if resp.is_success:
                     try:

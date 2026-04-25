@@ -13,6 +13,45 @@ TELEMETRY_COLUMNS = {
     "model_call_count",
 }
 
+# Defense-in-depth (S11/S16): never persist secret-bearing keys in node_executions
+# output payloads or approval contexts, even if upstream code accidentally
+# forwards them. Exact-key match, case-insensitive.
+_REDACTED_KEYS = {
+    "access_token",
+    "refresh_token",
+    "id_token",
+    "api_key",
+    "apikey",
+    "secret",
+    "client_secret",
+    "password",
+    "authorization",
+    "x-api-key",
+}
+_REDACTED_PLACEHOLDER = "[redacted]"
+
+
+def redact_secrets(value: Any, _depth: int = 0) -> Any:
+    """Recursively redact secret-bearing fields from dict/list payloads.
+
+    Bounded recursion (max depth 8) to avoid pathological structures stalling
+    the writer. Non-container values are returned unchanged.
+    """
+    if _depth > 8:
+        return value
+    if isinstance(value, dict):
+        return {
+            k: (
+                _REDACTED_PLACEHOLDER
+                if isinstance(k, str) and k.lower() in _REDACTED_KEYS
+                else redact_secrets(v, _depth + 1)
+            )
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_secrets(item, _depth + 1) for item in value]
+    return value
+
 
 def get_db() -> Client:
     url = os.environ["SUPABASE_URL"]
@@ -116,6 +155,8 @@ async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
 async def update_node_execution(
     db: Client, run_id: str, node_id: str, **kwargs: Any
 ) -> None:
+    if "output_payload" in kwargs:
+        kwargs["output_payload"] = redact_secrets(kwargs["output_payload"])
     result = (
         db.table("node_executions")
         .update(kwargs)
@@ -146,6 +187,7 @@ async def update_node_execution(
 async def create_approval(
     db: Client, node_execution_id: str, user_id: str, context: dict
 ) -> dict:
+    safe_context = redact_secrets(context)
     result = (
         db.table("approvals")
         .insert(
@@ -153,7 +195,7 @@ async def create_approval(
                 "node_execution_id": node_execution_id,
                 "user_id": user_id,
                 "status": "pending",
-                "context": context,
+                "context": safe_context,
             }
         )
         .execute()

@@ -142,14 +142,23 @@ def verify_execute_token(
 
 class ExecuteRequest(BaseModel):
     run_id: str
-    program_id: str
-    user_id: str
-    schema: dict[str, Any]
+    # The remaining fields are accepted for backward compatibility but are NOT
+    # trusted (S15). The runtime loads program_id, user_id, and the schema
+    # from the runs/programs rows keyed by run_id and ignores anything the
+    # caller put in body.{program_id,user_id,schema}.
+    program_id: Optional[str] = None
+    user_id: Optional[str] = None
+    schema: Optional[dict[str, Any]] = None
     trigger_payload: Optional[dict[str, Any]] = None
     triggered_by: str = "manual"
     # Maps connection name → connection UUID; populated by Next.js for manual/event runs.
     # Cron-triggered runs omit this and the executor falls back to a DB lookup.
     connections: dict[str, str] = {}
+
+
+# S15: terminal run states reject re-dispatch. "paused" runs may be resumed,
+# but a separate skip-trigger flow handles that — cold /execute should not.
+_DISPATCHABLE_RUN_STATUSES = {"running", "pending"}
 
 
 @app.post("/execute")
@@ -161,9 +170,47 @@ async def execute_program(
     ),
 ) -> dict[str, str]:
     verify_execute_token(x_internal_service_token)
-    schema = parse_schema(body.schema)
+
+    # S15: load run + program from the DB. The caller-supplied schema/user_id
+    # are ignored — a leaked runtime:execute token can no longer execute
+    # arbitrary code as an arbitrary user.
+    db = get_db()
+    run_lookup = (
+        db.table("runs")
+        .select("id, program_id, status")
+        .eq("id", body.run_id)
+        .limit(1)
+        .execute()
+    )
+    run_rows = run_lookup.data or []
+    if not run_rows:
+        raise HTTPException(status_code=404, detail="Run not found")
+    run_row = run_rows[0]
+    if run_row.get("status") not in _DISPATCHABLE_RUN_STATUSES:
+        raise HTTPException(status_code=409, detail="Run is not dispatchable")
+
+    program_id_db: str = run_row["program_id"]
+    program_lookup = (
+        db.table("programs")
+        .select("id, user_id, schema")
+        .eq("id", program_id_db)
+        .limit(1)
+        .execute()
+    )
+    program_rows = program_lookup.data or []
+    if not program_rows:
+        raise HTTPException(status_code=404, detail="Program not found")
+    program_row = program_rows[0]
+    user_id_db: str = program_row["user_id"]
+    schema = parse_schema(program_row.get("schema") or {})
+
     background_tasks.add_task(
-        _run_program, schema, body.run_id, body.user_id, body.trigger_payload, body.connections
+        _run_program,
+        schema,
+        body.run_id,
+        user_id_db,
+        body.trigger_payload,
+        body.connections,
     )
     return {"status": "started", "run_id": body.run_id}
 
@@ -179,7 +226,9 @@ async def _notify_complete(run_id: str, program_id: str, user_id: str, status: s
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
                 f"{nextjs_url}/api/internal/runs/{run_id}/complete",
-                headers=build_internal_service_headers("next:runs:complete"),
+                headers=build_internal_service_headers(
+                    "next:runs:complete", subject=user_id
+                ),
                 json={"program_id": program_id, "user_id": user_id, "status": status},
             )
     except Exception as e:
