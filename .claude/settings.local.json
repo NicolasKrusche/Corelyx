@@ -230,7 +230,25 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\('c:/NexFlow/apps/runtime/db.py'\\).read\\(\\)\\); ast.parse\\(open\\('c:/NexFlow/apps/runtime/engine/executor.py'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
       "Bash(netstat -ano -p tcp)",
       "Bash(taskkill //F //PID 31928)",
-      "Bash(node -e \"const s = require\\('./node_modules/stripe/package.json'\\); console.log\\(s.version\\)\")"
+      "Bash(node -e \"const s = require\\('./node_modules/stripe/package.json'\\); console.log\\(s.version\\)\")",
+      "Bash(echo \"Dev PID: $!\")",
+      "Bash(venv/Scripts/python.exe -m uvicorn --version)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(tasklist /FI \"PID eq 27612\")",
+      "Bash(tasklist /FI \"PID eq 1612\")",
+      "Bash(echo \"Started PID: $!\")",
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Format-List\")",
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue | Format-List\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 27612 -Force -ErrorAction SilentlyContinue; Stop-Process -Id 29648 -Force -ErrorAction SilentlyContinue; Write-Host 'Done'\")",
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3000,3001 -State Listen -ErrorAction SilentlyContinue | Format-Table LocalPort,OwningProcess\")",
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3002 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess\")",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 30952 -Force -ErrorAction SilentlyContinue; Write-Host 'Killed 3002'\")",
+      "Bash(echo \"New PID: $!\")",
+      "Bash(supabase migration *)",
+      "Bash(npx supabase@latest --version)",
+      "Bash(powershell.exe -Command 'Get-NetTCPConnection -LocalPort 3000,3001 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalPort,OwningProcess | ForEach-Object { $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; Write-Host \"Port $\\($_.LocalPort\\): PID $\\($_.OwningProcess\\) \\($\\($proc.Name\\)\\)\" }')",
+      "Bash(powershell.exe -Command \"Stop-Process -Id 32180,34508 -Force; Write-Host 'killed'\")",
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3000,3001 -State Listen -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count\")"
     ]
   }
 }
