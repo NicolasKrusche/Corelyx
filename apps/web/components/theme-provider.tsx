@@ -7,7 +7,7 @@ export type AccentColor = "orange" | "blue" | "indigo" | "green" | "pink" | "cya
 
 const BASE_THEMES: BaseTheme[] = ["dark", "light"];
 const ACCENT_COLORS: AccentColor[] = ["orange", "blue", "indigo", "green", "pink", "cyan"];
-const FORCED_ORANGE_THEME_ATTRIBUTE = "data-nexflow-forced-orange-theme";
+const FORCED_ORANGE_THEME_ATTRIBUTE = "data-corelyx-forced-orange-theme";
 
 interface ThemeContextValue {
   base: BaseTheme;
@@ -39,8 +39,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const storedBase = localStorage.getItem("nexflow-base") as BaseTheme | null;
-      const storedAccent = localStorage.getItem("nexflow-accent") as AccentColor | null;
+      const storedBase = localStorage.getItem("corelyx-base") as BaseTheme | null;
+      const storedAccent = localStorage.getItem("corelyx-accent") as AccentColor | null;
       const b = storedBase && BASE_THEMES.includes(storedBase) ? storedBase : "light";
       const a = storedAccent && ACCENT_COLORS.includes(storedAccent) ? storedAccent : "blue";
       setBaseState(b);
@@ -52,13 +52,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   function setBase(b: BaseTheme) {
     setBaseState(b);
     applyTheme(b, accent);
-    try { localStorage.setItem("nexflow-base", b); } catch {}
+    try { localStorage.setItem("corelyx-base", b); } catch {}
   }
 
   function setAccent(a: AccentColor) {
     setAccentState(a);
     applyTheme(base, a);
-    try { localStorage.setItem("nexflow-accent", a); } catch {}
+    try { localStorage.setItem("corelyx-accent", a); } catch {}
   }
 
   return (

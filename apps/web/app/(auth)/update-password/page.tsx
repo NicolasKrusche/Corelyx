@@ -49,7 +49,7 @@ export default function UpdatePasswordPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/pictures/logo-no-bg.png"
-              alt="Nexflow"
+              alt="Corelyx"
               className="h-11 w-11 object-contain"
             />
             <div className="text-center">

@@ -4,8 +4,8 @@
  */
 
 const RESEND_API_URL = "https://api.resend.com/emails";
-const FROM = process.env.FROM_EMAIL ?? "Nexflow <noreply@nexflow.app>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.nexflow.app";
+const FROM = process.env.FROM_EMAIL ?? "Corelyx <noreply@corelyx.app>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
 
 interface SendEmailOptions {
   to: string;
@@ -74,7 +74,7 @@ export async function sendApprovalEmail({
           <!-- Header -->
           <tr>
             <td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;">
-              <span style="font-size:18px;font-weight:600;color:#111827;">Nexflow</span>
+              <span style="font-size:18px;font-weight:600;color:#111827;">Corelyx</span>
             </td>
           </tr>
 
@@ -172,7 +172,7 @@ export async function sendRunFailureEmail({
           <!-- Header -->
           <tr>
             <td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;">
-              <span style="font-size:18px;font-weight:600;color:#111827;">Nexflow</span>
+              <span style="font-size:18px;font-weight:600;color:#111827;">Corelyx</span>
             </td>
           </tr>
 
@@ -264,7 +264,7 @@ export async function sendRunLimitWarningEmail({
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
         <tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;">
-          <span style="font-size:18px;font-weight:600;color:#111827;">Nexflow</span>
+          <span style="font-size:18px;font-weight:600;color:#111827;">Corelyx</span>
         </td></tr>
         <tr><td style="padding:32px;">
           <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">Running low on runs</h1>

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
 
-const LEGAL_EMAIL = "legal@nexflow.app";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.nexflow.app";
+const LEGAL_EMAIL = "legal@corelyx.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
   access: "Right of Access (Art. 15 GDPR)",
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     : "";
 
   const apiKey = process.env.RESEND_API_KEY;
-  const FROM = process.env.FROM_EMAIL ?? "Nexflow <noreply@nexflow.app>";
+  const FROM = process.env.FROM_EMAIL ?? "Corelyx <noreply@corelyx.app>";
 
   if (apiKey) {
     // Notify legal team
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
-<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Nexflow — DSAR intake</span></td></tr>
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx — DSAR intake</span></td></tr>
 <tr><td style="padding:32px;">
 <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">New DSAR request</h1>
 <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">A user has submitted a data subject access request. Under GDPR you must respond within <strong>30 days</strong>.</p>
@@ -103,7 +103,7 @@ ${descriptionHtml}
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
-<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Nexflow</span></td></tr>
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx</span></td></tr>
 <tr><td style="padding:32px;">
 <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">We received your request</h1>
 <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
@@ -119,10 +119,10 @@ ${descriptionHtml}
 <p style="margin:0;font-size:14px;color:#374151;">${escapeHtml(submittedAt)}</p>
 </td></tr></table>
 <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
-  If you have questions, reply to this email or contact us at <a href="mailto:legal@nexflow.app" style="color:#111827;">legal@nexflow.app</a>.
+  If you have questions, reply to this email or contact us at <a href="mailto:legal@corelyx.app" style="color:#111827;">legal@corelyx.app</a>.
 </p>
 </td></tr>
-<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Nexflow — ${escapeHtml(reference)}</p></td></tr>
+<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx — ${escapeHtml(reference)}</p></td></tr>
 </table></td></tr></table>
 </body></html>`.trim(),
       }),

@@ -248,7 +248,14 @@
       "Bash(npx supabase@latest --version)",
       "Bash(powershell.exe -Command 'Get-NetTCPConnection -LocalPort 3000,3001 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalPort,OwningProcess | ForEach-Object { $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; Write-Host \"Port $\\($_.LocalPort\\): PID $\\($_.OwningProcess\\) \\($\\($proc.Name\\)\\)\" }')",
       "Bash(powershell.exe -Command \"Stop-Process -Id 32180,34508 -Force; Write-Host 'killed'\")",
-      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3000,3001 -State Listen -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count\")"
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 3000,3001 -State Listen -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count\")",
+      "Bash(find /h/Archon/ARCHON_1 -type f -not -path '*/.codex/*' -not -path '*/.claude/worktrees/*' -not -path '*/.claude/settings*' -not -path '*/node_modules/*' -not -path '*/.git/*' '\\(' -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.py' -o -name '*.html' -o -name '*.md' -o -name '*.txt' -o -name '*.json' -o -name '*.example' -o -name '*.xml' '\\)' -exec grep -li 'nexflow\\\\|NexFlow\\\\|NEXFLOW\\\\|nexFlow' '{}' ';')",
+      "Bash(xargs perl *)",
+      "Bash(python -c \"import rembg; print\\('rembg ok'\\)\")",
+      "Bash(python -c \"from PIL import Image; print\\('PIL ok'\\)\")",
+      "Bash(python -)",
+      "Bash(awk '{print $5}')",
+      "Bash(xargs -r taskkill //PID //F)"
     ]
   }
 }
