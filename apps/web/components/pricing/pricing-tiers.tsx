@@ -35,7 +35,7 @@ export const TIERS = [
     description: "For individuals who need more runs and no program limits.",
     highlight: false,
     features: [
-      { text: "Unlimited programs" },
+      { text: "5 programs" },
       { text: "75 runs / month" },
       { text: "All 12+ connectors" },
       { text: "Bring your own API keys (BYOK)" },
@@ -57,11 +57,11 @@ export const TIERS = [
     badge: "Most popular",
     socialProof: "Used by teams across 30+ countries",
     features: [
+      { text: "Unlimited programs" },
       { text: "Up to 3 team seats" },
       { text: "Human-in-the-loop approvals" },
       { text: "Error prevention (auto)" },
       { text: "500 runs / month — enough for daily automations across your whole team" },
-      { text: "Unlimited programs" },
       { text: "All 12+ connectors" },
       { text: "BYOK + Corelyx model credits" },
       { text: "90-day run history" },
@@ -181,7 +181,7 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
               key={tier.name}
               className={`relative rounded-2xl border p-7 flex flex-col gap-6 ${
                 tier.highlight
-                  ? "border-primary/40 bg-card shadow-[0_0_0_1px_rgba(249,115,22,0.15),0_24px_48px_rgba(0,0,0,0.4)]"
+                  ? "border-primary/40 bg-card shadow-[0_0_0_1px_hsl(var(--primary)/0.2),0_24px_48px_rgba(0,0,0,0.4)]"
                   : "border-border bg-card"
               }`}
             >
@@ -196,7 +196,7 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
                 </div>
               )}
 
-              <div>
+              <div className="xl:min-h-[168px]">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">{tier.name}</p>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-4xl font-black">{displayPrice}</span>
@@ -211,7 +211,7 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
                 <p className="text-sm text-muted-foreground leading-relaxed mt-1">{tier.description}</p>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex min-h-[88px] flex-col gap-2">
                 {cta.style === "disabled" ? (
                   <span className="w-full text-center rounded-xl px-5 py-3 text-sm font-bold border border-border bg-background/50 opacity-50 cursor-default">
                     {displayLabel}
@@ -224,7 +224,7 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
                       type="submit"
                       className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 ${
                         cta.style === "primary"
-                          ? "bg-primary text-primary-foreground shadow-[0_0_28px_rgba(249,115,22,0.4)] hover:shadow-[0_0_40px_rgba(249,115,22,0.55)]"
+                          ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
                           : "border border-border bg-background/50 hover:bg-accent hover:border-border/80"
                       }`}
                     >
@@ -236,7 +236,7 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
                     href={cta.href ?? "/dashboard"}
                     className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 ${
                       cta.style === "primary"
-                        ? "bg-primary text-primary-foreground shadow-[0_0_28px_rgba(249,115,22,0.4)] hover:shadow-[0_0_40px_rgba(249,115,22,0.55)]"
+                        ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
                         : "border border-border bg-background/50 hover:bg-accent hover:border-border/80"
                     }`}
                   >

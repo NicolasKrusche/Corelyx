@@ -22,7 +22,7 @@ export default async function ImpressumPage() {
           className="absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full"
           style={{
             background:
-              "radial-gradient(ellipse, rgba(249,115,22,0.07) 0%, transparent 70%)",
+              "radial-gradient(ellipse, hsl(var(--primary) / 0.07) 0%, transparent 70%)",
             filter: "blur(80px)",
           }}
         />

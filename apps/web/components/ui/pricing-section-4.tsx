@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Sparkles as SparklesComp } from "@/components/ui/sparkles";
 import { TimelineContent } from "@/components/ui/timeline-animation";
 import { VerticalCutReveal } from "@/components/ui/vertical-cut-reveal";
+import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 
 const plans = [
@@ -73,7 +74,7 @@ const plans = [
   },
 ];
 
-const PricingSwitch = ({ onSwitch, accentColor }: { onSwitch: (value: string) => void; accentColor: string }) => {
+const PricingSwitch = ({ onSwitch }: { onSwitch: (value: string) => void }) => {
   const [selected, setSelected] = useState("0");
 
   const handleSwitch = (value: string) => {
@@ -95,12 +96,12 @@ const PricingSwitch = ({ onSwitch, accentColor }: { onSwitch: (value: string) =>
           {selected === "0" && (
             <motion.span
               layoutId="switch"
-              className={cn(
-                "absolute left-0 top-0 h-10 w-full rounded-full border-4 bg-gradient-to-t shadow-sm",
-                accentColor === "orange"
-                  ? "border-orange-600 from-orange-500 to-orange-600 shadow-orange-600"
-                  : "border-blue-600 from-blue-500 to-blue-600 shadow-blue-600"
-              )}
+              className="absolute left-0 top-0 h-10 w-full rounded-full border-[3px]"
+              style={{
+                borderColor: "hsl(var(--primary) / 0.9)",
+                background: "linear-gradient(to top, hsl(var(--primary) / 0.9), hsl(var(--primary)))",
+                boxShadow: "0 0 18px hsl(var(--primary) / 0.45)",
+              }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             />
           )}
@@ -118,12 +119,12 @@ const PricingSwitch = ({ onSwitch, accentColor }: { onSwitch: (value: string) =>
           {selected === "1" && (
             <motion.span
               layoutId="switch"
-              className={cn(
-                "absolute left-0 top-0 h-10 w-full rounded-full border-4 bg-gradient-to-t shadow-sm",
-                accentColor === "orange"
-                  ? "border-orange-600 from-orange-500 to-orange-600 shadow-orange-600"
-                  : "border-blue-600 from-blue-500 to-blue-600 shadow-blue-600"
-              )}
+              className="absolute left-0 top-0 h-10 w-full rounded-full border-[3px]"
+              style={{
+                borderColor: "hsl(var(--primary) / 0.9)",
+                background: "linear-gradient(to top, hsl(var(--primary) / 0.9), hsl(var(--primary)))",
+                boxShadow: "0 0 18px hsl(var(--primary) / 0.45)",
+              }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             />
           )}
@@ -138,15 +139,16 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
   const [isYearly, setIsYearly] = useState(false);
   const pricingRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { base } = useTheme();
 
-  // Orange for logged out, blue for logged in
-  const accentColor = isLoggedIn ? "blue" : "orange";
-  const accentGradient =
-    accentColor === "orange"
-      ? "radial-gradient(circle at center, #ea580c 0%, transparent 70%)"
-      : "radial-gradient(circle at center, #206ce8 0%, transparent 70%)";
-  const accentBorder = accentColor === "orange" ? "#ea580c" : "#3131f5";
-  const accentShadow = accentColor === "orange" ? "shadow-[0px_-13px_300px_0px_#ea580c]" : "shadow-[0px_-13px_300px_0px_#0900ff]";
+  const accentGradient = "radial-gradient(circle at center, hsl(var(--primary)) 0%, transparent 70%)";
+  const cardBg = base === "dark"
+    ? "bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900"
+    : "bg-gradient-to-r from-white via-slate-100 to-white";
+  const cardBorder = base === "dark" ? "border-neutral-800 text-white" : "border-border text-foreground";
+  const buttonOutline = base === "dark"
+    ? "border border-neutral-700 bg-gradient-to-t from-neutral-950 to-neutral-700 text-white shadow-lg shadow-neutral-900"
+    : "border border-border bg-gradient-to-t from-background to-card text-foreground shadow";
 
   const revealVariants = {
     visible: (i: number) => ({
@@ -273,7 +275,7 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
           timelineRef={pricingRef}
           customVariants={revealVariants}
         >
-          <PricingSwitch onSwitch={togglePricingPeriod} accentColor={accentColor} />
+          <PricingSwitch onSwitch={togglePricingPeriod} />
         </TimelineContent>
       </article>
 
@@ -297,26 +299,28 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
           >
             <Card
               className={cn(
-                "relative h-full border-neutral-800 text-white",
+                "relative h-full",
+                cardBorder,
                 plan.popular
                   ? cn(
-                      "z-20 bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900",
-                      accentShadow
+                      "z-20",
+                      cardBg
                     )
-                  : "z-10 bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900"
+                  : cn("z-10", cardBg)
               )}
+              style={plan.popular ? { boxShadow: "0 -13px 200px 0 hsl(var(--primary) / 0.45)" } : undefined}
             >
               <CardHeader className="text-left">
                 <div className="flex justify-between">
                   <h2 className="mb-2 text-3xl">{plan.name}</h2>
                   {plan.popular && (
                     <span
-                      className={cn(
-                        "h-fit rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide",
-                        accentColor === "orange"
-                          ? "border border-orange-500/40 bg-orange-500/10 text-orange-200"
-                          : "border border-blue-500/40 bg-blue-500/10 text-blue-200"
-                      )}
+                      className="h-fit rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide"
+                      style={{
+                        border: "1px solid hsl(var(--primary) / 0.4)",
+                        background: "hsl(var(--primary) / 0.12)",
+                        color: base === "dark" ? "hsl(var(--foreground))" : "hsl(var(--foreground))",
+                      }}
                     >
                       Popular
                     </span>
@@ -344,13 +348,20 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
                   className={cn(
                     "mb-6 inline-flex w-full items-center justify-center rounded-xl p-4 text-xl transition-opacity hover:opacity-90",
                     plan.popular
-                      ? accentColor === "orange"
-                        ? "border border-orange-500 bg-gradient-to-t from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-800"
-                        : "border border-blue-500 bg-gradient-to-t from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-800"
+                      ? "text-primary-foreground"
                       : plan.buttonVariant === "outline"
-                        ? "border border-neutral-800 bg-gradient-to-t from-neutral-950 to-neutral-600 text-white shadow-lg shadow-neutral-900"
+                        ? buttonOutline
                         : ""
                   )}
+                  style={
+                    plan.popular
+                      ? {
+                          border: "1px solid hsl(var(--primary) / 0.75)",
+                          background: "linear-gradient(to top, hsl(var(--primary) / 0.88), hsl(var(--primary)))",
+                          boxShadow: "0 12px 28px hsl(var(--primary) / 0.4)",
+                        }
+                      : undefined
+                  }
                 >
                   {plan.buttonText}
                 </Link>
