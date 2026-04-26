@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
-const STORAGE_KEY = "nexflow-onboarding-dismissed";
+const STORAGE_KEY = "corelyx-onboarding-dismissed";
 
 interface Props {
   hasPrograms: boolean;
@@ -52,7 +52,7 @@ export function OnboardingChecklist({ hasPrograms, hasConnections, hasApiKeys }:
     {
       done: hasPrograms,
       label: "Create your first program",
-      description: "Describe an automation in plain English — Nexflow builds the graph.",
+      description: "Describe an automation in plain English — Corelyx builds the graph.",
       href: "/programs/new",
       cta: "Create program",
     },

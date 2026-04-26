@@ -1,14 +1,14 @@
-# Nexflow
+# Corelyx
 
 Visual Agentic Operating System.
 
-Nexflow lets users describe an automation in natural language, generate a graph-based agent workflow, edit it visually, validate it, and run it with secure server-side credentials.
+Corelyx lets users describe an automation in natural language, generate a graph-based agent workflow, edit it visually, validate it, and run it with secure server-side credentials.
 
 ## Test account
 
 ```
-Email:    demo@nexflow.systems
-Password: Nexflow2025!
+Email:    demo@corelyx.systems
+Password: Corelyx2025!
 ```
 
 Use these credentials at `/login` to access the app without creating an account.
@@ -24,7 +24,7 @@ This is a pnpm + Turborepo monorepo with four main areas:
 
 ## Core architecture
 
-Nexflow is schema-first.
+Corelyx is schema-first.
 
 - The canonical schema is the source of truth.
 - React Flow in the web app is a translation layer for editing.

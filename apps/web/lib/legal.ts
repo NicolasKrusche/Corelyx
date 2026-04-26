@@ -14,7 +14,7 @@ const postalCityLine = combineParts([
 ]);
 
 export const legalIdentity = {
-  entityName: readEnv("LEGAL_ENTITY_NAME") || "Nexflow",
+  entityName: readEnv("LEGAL_ENTITY_NAME") || "Corelyx",
   representative: readEnv("LEGAL_REPRESENTATIVE"),
   addressLines: [
     readEnv("LEGAL_ADDRESS_LINE_1"),
@@ -22,13 +22,13 @@ export const legalIdentity = {
     postalCityLine,
     readEnv("LEGAL_COUNTRY"),
   ].filter(Boolean),
-  email: readEnv("LEGAL_EMAIL") || "legal@nexflow.app",
+  email: readEnv("LEGAL_EMAIL") || "legal@corelyx.app",
   vatId: readEnv("LEGAL_VAT_ID"),
   companyRegisterNo: readEnv("LEGAL_COMPANY_REGISTER_NO"),
 };
 
 export const privacyContactEmail =
-  readEnv("PRIVACY_EMAIL") || "privacy@nexflow.app";
+  readEnv("PRIVACY_EMAIL") || "privacy@corelyx.app";
 
 export const impressumMissingFields = [
   !readEnv("LEGAL_ENTITY_NAME") ? "legal entity name" : null,
@@ -65,7 +65,7 @@ export const dataCategories: TextItem[] = [
   {
     title: "Program and workflow data",
     body:
-      "Program schemas, prompts, node settings, execution modes, approvals, schedules, and version history you create inside Nexflow.",
+      "Program schemas, prompts, node settings, execution modes, approvals, schedules, and version history you create inside Corelyx.",
   },
   {
     title: "Run, approval, and operational data",
@@ -75,7 +75,7 @@ export const dataCategories: TextItem[] = [
   {
     title: "Connection and secret data",
     body:
-      "Connection metadata plus encrypted OAuth tokens and API keys stored through Supabase Vault references so Nexflow can execute the integrations and model calls you configure.",
+      "Connection metadata plus encrypted OAuth tokens and API keys stored through Supabase Vault references so Corelyx can execute the integrations and model calls you configure.",
   },
   {
     title: "Billing and plan data",
@@ -203,13 +203,13 @@ export const connectedServices: ProcessorEntry[] = [
     activation:
       "Only if you sign in with Google or connect a Google service in a workflow",
     purpose:
-      "Authenticate your account and execute the Google actions you explicitly configure in Nexflow.",
+      "Authenticate your account and execute the Google actions you explicitly configure in Corelyx.",
     categories:
       "Google profile data for sign-in, plus the content and metadata from the Google services and scopes you authorize.",
     legalBasis:
       "Art. 6(1)(b) GDPR because the processing is required to provide the login or automation flow you requested.",
     dataLocation:
-      "Provider-managed. Nexflow cannot verify or force a single Google processing region from this repository; actual location depends on your Google account, workspace settings, and Google's infrastructure.",
+      "Provider-managed. Corelyx cannot verify or force a single Google processing region from this repository; actual location depends on your Google account, workspace settings, and Google's infrastructure.",
     transferNotes:
       "Google may process data globally. Check your Google Workspace or Google Cloud terms if you require regional controls.",
   },
@@ -220,7 +220,7 @@ export const connectedServices: ProcessorEntry[] = [
     purpose:
       "Read Slack data or post messages, channels, and webhook events at your direction.",
     categories:
-      "Workspace identifiers, channel metadata, message content, and any payload you instruct Nexflow to send or read.",
+      "Workspace identifiers, channel metadata, message content, and any payload you instruct Corelyx to send or read.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
       "Provider-managed and not verifiable from this repository. Actual storage and processing depend on the connected Slack workspace and Slack's infrastructure.",
@@ -232,7 +232,7 @@ export const connectedServices: ProcessorEntry[] = [
     role: "User-selected connected service / recipient",
     activation: "Only if you connect Notion or send workflow data to Notion",
     purpose:
-      "Read, search, create, or update Notion pages and databases that you choose to expose to Nexflow.",
+      "Read, search, create, or update Notion pages and databases that you choose to expose to Corelyx.",
     categories:
       "Workspace metadata, page content, database rows, titles, rich text, and other objects in the shared Notion workspace.",
     legalBasis: "Art. 6(1)(b) GDPR.",
@@ -267,7 +267,7 @@ export const connectedServices: ProcessorEntry[] = [
     dataLocation:
       "Provider-managed and not verifiable from this repository. Actual location depends on Airtable's infrastructure and any account-level residency features you have.",
     transferNotes:
-      "Consider Airtable a separate recipient of the data you instruct Nexflow to send there.",
+      "Consider Airtable a separate recipient of the data you instruct Corelyx to send there.",
   },
   {
     name: "Asana",
@@ -295,7 +295,7 @@ export const connectedServices: ProcessorEntry[] = [
     dataLocation:
       "Provider-managed and not verifiable from this repository. Actual location depends on the connected HubSpot account and HubSpot's infrastructure.",
     transferNotes:
-      "CRM data often contains third-party personal data; ensure you have an appropriate basis before syncing or enriching it through Nexflow.",
+      "CRM data often contains third-party personal data; ensure you have an appropriate basis before syncing or enriching it through Corelyx.",
   },
   {
     name: "Microsoft / Outlook (Microsoft Graph)",
@@ -309,7 +309,7 @@ export const connectedServices: ProcessorEntry[] = [
     dataLocation:
       "Provider-managed and not verifiable from this repository. Actual location depends on the connected Microsoft tenant and Microsoft's infrastructure.",
     transferNotes:
-      "Regional controls, if any, are determined by your Microsoft tenant rather than Nexflow.",
+      "Regional controls, if any, are determined by your Microsoft tenant rather than Corelyx.",
   },
   {
     name: "Typeform",
@@ -411,7 +411,7 @@ export const retentionItems: TextItem[] = [
   {
     title: "Provider-side logs",
     body:
-      "Third-party services and model providers may keep their own logs under their own retention schedules and contracts, which are outside Nexflow's direct control.",
+      "Third-party services and model providers may keep their own logs under their own retention schedules and contracts, which are outside Corelyx's direct control.",
   },
 ];
 
@@ -444,11 +444,11 @@ export const rightsItems: TextItem[] = [
   {
     title: "Complaint",
     body:
-      "You can contact us first at privacy@nexflow.app. You also have the right to complain to the Austrian Data Protection Authority (Datenschutzbehörde): https://www.dsb.gv.at",
+      "You can contact us first at privacy@corelyx.app. You also have the right to complain to the Austrian Data Protection Authority (Datenschutzbehörde): https://www.dsb.gv.at",
   },
   {
     title: "Data Processing Agreement (B2B)",
     body:
-      "If you process personal data of your own customers or employees through the platform as part of your business, Nexflow acts as your processor (Art. 28 GDPR). A Data Processing Agreement (DPA) is available on request at legal@nexflow.app.",
+      "If you process personal data of your own customers or employees through the platform as part of your business, Corelyx acts as your processor (Art. 28 GDPR). A Data Processing Agreement (DPA) is available on request at legal@corelyx.app.",
   },
 ];

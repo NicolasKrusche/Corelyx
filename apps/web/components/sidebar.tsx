@@ -238,12 +238,12 @@ export function Sidebar({
       <div className={cn("flex h-14 shrink-0 items-center overflow-hidden border-b", footerBorderCls)}>
         <span className="flex h-full w-16 shrink-0 items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-6 w-6 object-contain" />
+          <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-6 w-6 object-contain" />
         </span>
         <span className={cn(
           "whitespace-nowrap text-sm font-bold tracking-tight opacity-0 transition-opacity duration-150 group-hover/side:opacity-100",
           isDark ? "text-white" : "text-gray-900"
-        )}>Nexflow</span>
+        )}>Corelyx</span>
       </div>
 
       <div className="px-3 pt-3">

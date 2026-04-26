@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "nexflow-advanced-mode";
-const EVENT_NAME = "nexflow-advanced-mode-change";
+const STORAGE_KEY = "corelyx-advanced-mode";
+const EVENT_NAME = "corelyx-advanced-mode-change";
 
 export function useAdvancedMode(): [boolean, (v: boolean) => void] {
   const [enabled, setEnabled] = useState(false);

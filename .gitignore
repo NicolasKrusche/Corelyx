@@ -19,6 +19,12 @@ supabase/.temp/
 # Turbo
 .turbo/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 # OS
 .DS_Store
 Thumbs.db

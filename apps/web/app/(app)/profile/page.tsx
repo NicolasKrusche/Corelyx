@@ -31,7 +31,7 @@ export default async function ProfilePage() {
       <div>
         <h1 className="text-3xl font-black tracking-tight">Profile</h1>
         <p className="text-sm text-muted-foreground mt-1.5">
-          How you appear across Nexflow.
+          How you appear across Corelyx.
         </p>
       </div>
 

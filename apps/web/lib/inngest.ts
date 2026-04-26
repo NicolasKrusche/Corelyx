@@ -20,7 +20,7 @@ if (isProductionEnvironment && !signingKey) {
 }
 
 export const inngest = new Inngest({
-  id: "nexflow",
+  id: "corelyx",
   eventKey: process.env.INNGEST_EVENT_KEY,
   signingKey,
   signingKeyFallback,
@@ -28,12 +28,12 @@ export const inngest = new Inngest({
 
 // ─── Event type map ───────────────────────────────────────────────────────────
 
-export type NexflowEvents = {
-  "nexflow/trigger.cron.tick": { data: Record<string, never> };
-  "nexflow/trigger.program.complete": {
+export type CorelyxEvents = {
+  "corelyx/trigger.cron.tick": { data: Record<string, never> };
+  "corelyx/trigger.program.complete": {
     data: { program_id: string; run_id: string; user_id: string };
   };
-  "nexflow/trigger.webhook": {
+  "corelyx/trigger.webhook": {
     data: { trigger_id: string; token: string; payload: Record<string, unknown> };
   };
 };

@@ -3,8 +3,8 @@ import { createServerClient } from "@/lib/supabase/server";
 import PricingSection4 from "@/components/ui/pricing-section-4";
 
 export const metadata: Metadata = {
-  title: "Pricing - Nexflow",
-  description: "Simple pricing for Nexflow AI automation programs.",
+  title: "Pricing - Corelyx",
+  description: "Simple pricing for Corelyx AI automation programs.",
 };
 
 export default async function PricingPage() {

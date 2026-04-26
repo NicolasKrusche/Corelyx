@@ -28,8 +28,8 @@ type ClientLogInput = {
   runId?: string | null;
 };
 
-const STORAGE_KEY = "nexflow:client_logs";
-const CHANGE_EVENT = "nexflow:client_logs_changed";
+const STORAGE_KEY = "corelyx:client_logs";
+const CHANGE_EVENT = "corelyx:client_logs_changed";
 const MAX_LOGS = 100;
 
 function isBrowser() {

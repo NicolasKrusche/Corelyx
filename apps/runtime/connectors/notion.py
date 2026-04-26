@@ -272,7 +272,7 @@ class NotionConnector(IConnector):
         if not pages:
             raise ConnectorError(
                 "NO_ACCESSIBLE_PAGE",
-                f"Cannot create database '{name}': no Notion pages are shared with the Nexflow integration. "
+                f"Cannot create database '{name}': no Notion pages are shared with the Corelyx integration. "
                 "Share at least one page with the integration so it can create the database automatically.",
             )
         parent_id = pages[0]["id"]
@@ -301,7 +301,7 @@ class NotionConnector(IConnector):
         # If unset sentinel, fall back to a sensible default name
         raw_str = str(raw_id).strip()
         if raw_str == "__USER_ASSIGNED__" or not raw_str:
-            raw_str = "Nexflow Tasks"
+            raw_str = "Corelyx Tasks"
         # If it looks like a name (not a UUID or URL), find or create automatically
         if raw_str.startswith("http") or _UUID_RE.fullmatch(raw_str) or _HEX32_RE.fullmatch(raw_str):
             database_id = _extract_database_id(raw_str)
