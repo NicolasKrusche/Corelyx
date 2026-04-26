@@ -14,7 +14,7 @@ import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
-import { checkProgramLimit } from "@/lib/limits";
+import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
 import {
@@ -127,6 +127,17 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "RATE_LIMITED", message: "Too many requests. Please wait a moment and try again." },
       { status: 429 }
+    );
+  }
+
+  // Check genesis AI access (Free tier: 1 use/month)
+  const genesisCheck = await checkGenesisAccess(userId);
+  if (!genesisCheck.allowed) {
+    const upgradeMessage = genesisCheck.upgradeMessage ?? "Genesis AI limit reached.";
+    await logGenesis("warning", "genesis.monthly_limit_reached", "failed", upgradeMessage);
+    return NextResponse.json(
+      { error: "GENESIS_LIMIT_REACHED", message: upgradeMessage },
+      { status: 403 }
     );
   }
 
@@ -661,6 +672,7 @@ export async function POST(request: Request) {
       },
       existing_program_id
     );
+    await incrementGenesisUses(userId);
     return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
   }
 
@@ -749,5 +761,6 @@ export async function POST(request: Request) {
     },
     program.id
   );
+  await incrementGenesisUses(userId);
   return NextResponse.json({ program, schema, validation }, { status: 201 });
 }

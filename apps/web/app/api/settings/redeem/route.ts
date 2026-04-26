@@ -59,11 +59,27 @@ export async function POST(request: Request) {
   let benefitDescription = "";
 
   switch (codeRow.type) {
+    case "plus_lifetime":
+      profileUpdate.tier = "plus";
+      profileUpdate.plan_expires_at = null;
+      benefitDescription = "Solo plan (lifetime)";
+      break;
+
+    case "plus_trial": {
+      const days = (codeRow.value as { days?: number } | null)?.days ?? 30;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + days);
+      profileUpdate.tier = "plus";
+      profileUpdate.plan_expires_at = expiresAt.toISOString();
+      benefitDescription = `Solo plan for ${days} days`;
+      break;
+    }
+
     case "pro_lifetime":
       profileUpdate.tier = "pro";
       profileUpdate.plan_expires_at = null;
       profileUpdate.is_beta_tester = codeRow.label?.toLowerCase().includes("beta") ? true : undefined;
-      benefitDescription = "Pro plan (lifetime)";
+      benefitDescription = "Team plan (lifetime)";
       break;
 
     case "builder_lifetime":

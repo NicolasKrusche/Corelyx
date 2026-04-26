@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
-import { checkRunLimit } from "@/lib/limits";
+import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import {
   WEBHOOK_SIGNATURE_HEADER,
   WEBHOOK_TIMESTAMP_HEADER,
@@ -99,6 +99,15 @@ export async function POST(
 
   if (!program.is_active) {
     return apiError("Program is not active", 409);
+  }
+
+  // Check webhook trigger access (requires Plus or higher)
+  const triggerCheck = await checkTriggerAccess(program.user_id, "webhook");
+  if (!triggerCheck.allowed) {
+    return NextResponse.json(
+      { error: "FEATURE_NOT_AVAILABLE", message: triggerCheck.upgradeMessage },
+      { status: 403 }
+    );
   }
 
   // Check monthly run limit

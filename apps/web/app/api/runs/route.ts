@@ -3,7 +3,7 @@ import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
-import { checkRunLimit } from "@/lib/limits";
+import { checkRunLimit, getRunHistoryDays } from "@/lib/limits";
 import { sendRunLimitWarningEmail } from "@/lib/email";
 import type { ProgramSchema } from "@flowos/schema";
 
@@ -170,6 +170,10 @@ export async function GET(request: Request) {
   if (progError || !program) return apiError("Program not found", 404);
 
   const serviceClient = createServiceClient();
+  const historyDays = await getRunHistoryDays(user.id);
+  const historyWindowStart = historyDays !== null
+    ? new Date(Date.now() - historyDays * 24 * 60 * 60 * 1000).toISOString()
+    : null;
 
   type RunRow = {
     id: string;
@@ -187,12 +191,18 @@ export async function GET(request: Request) {
     created_at: string;
   };
 
-  const { data: runsRaw, error: runsError } = await serviceClient
+  let runsQuery = serviceClient
     .from("runs")
     .select("id, status, triggered_by, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at")
     .eq("program_id", program_id)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
+
+  if (historyWindowStart) {
+    runsQuery = runsQuery.gte("started_at", historyWindowStart);
+  }
+
+  const { data: runsRaw, error: runsError } = await runsQuery;
 
   if (runsError) return apiError(runsError.message, 500);
 

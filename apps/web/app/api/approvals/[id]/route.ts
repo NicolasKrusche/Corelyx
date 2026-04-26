@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { checkHITLAccess } from "@/lib/limits";
 
 // POST /api/approvals/[id]
 // Body: { decision: "approved" | "rejected"; note?: string }
@@ -10,6 +11,14 @@ export async function POST(
 ) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const hitlCheck = await checkHITLAccess(user.id);
+  if (!hitlCheck.allowed) {
+    return NextResponse.json(
+      { error: "FEATURE_NOT_AVAILABLE", message: hitlCheck.upgradeMessage },
+      { status: 403 }
+    );
+  }
 
   const body = await request.json().catch(() => null);
   if (!body || !["approved", "rejected"].includes(body.decision)) {

@@ -11,7 +11,7 @@ import { vaultRetrieve } from "@/lib/vault";
 import { GENESIS_SYSTEM_PROMPT, buildGenesisUserMessage } from "@/lib/genesis/prompt";
 import { ProgramSchemaZ } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
-import { checkProgramLimit } from "@/lib/limits";
+import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
@@ -65,6 +65,12 @@ export async function POST(request: Request) {
   // Rate limit
   if (!rateLimit(`genesis:${userId}`, 10, 60_000)) {
     return sseErrorResponse("Too many requests. Please wait a moment and try again.", "RATE_LIMITED");
+  }
+
+  // Genesis AI monthly limit (Free tier: 1 use/month)
+  const genesisCheck = await checkGenesisAccess(userId);
+  if (!genesisCheck.allowed) {
+    return sseErrorResponse(genesisCheck.upgradeMessage ?? "Genesis AI limit reached.", "GENESIS_LIMIT_REACHED");
   }
 
   // Program limit
@@ -342,6 +348,8 @@ export async function POST(request: Request) {
             validation_warnings: validation.warnings.length,
           },
         });
+
+        await incrementGenesisUses(userId);
 
         send({
           type: "done",

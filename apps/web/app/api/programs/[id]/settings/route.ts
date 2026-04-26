@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
+import { checkConflictDetectionAccess } from "@/lib/limits";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
@@ -23,6 +24,17 @@ export async function PATCH(
   const body = await request.json().catch(() => null);
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
+
+  // Non-queue conflict policies (skip/fail) require Team plan or higher
+  if (parsed.data.conflict_policy && parsed.data.conflict_policy !== "queue") {
+    const conflictCheck = await checkConflictDetectionAccess(user.id);
+    if (!conflictCheck.allowed) {
+      return NextResponse.json(
+        { error: "FEATURE_NOT_AVAILABLE", message: conflictCheck.upgradeMessage },
+        { status: 403 }
+      );
+    }
+  }
 
   const { error } = await supabase
     .from("programs")
