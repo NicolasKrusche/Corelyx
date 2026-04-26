@@ -52,6 +52,20 @@ const config: Config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+        "pulse-ring": {
+          "0%": { transform: "scale(1)", opacity: "0.8" },
+          "100%": { transform: "scale(2.2)", opacity: "0" },
+        },
+      },
+      animation: {
+        marquee: "marquee 28s linear infinite",
+        "pulse-ring": "pulse-ring 1.8s ease-out infinite",
+      },
     },
   },
   plugins: [],

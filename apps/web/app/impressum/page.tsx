@@ -8,9 +8,9 @@ import {
 } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Impressum - Nexflow",
+  title: "Impressum - Corelyx",
   description:
-    "Provider identification and contact information for the Nexflow website.",
+    "Provider identification and contact information for the Corelyx website.",
 };
 
 export default async function ImpressumPage() {
@@ -173,7 +173,7 @@ export default async function ImpressumPage() {
 
       <footer className="mt-16 border-t border-border/40 px-6 py-6">
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground/50 sm:flex-row">
-          <span>&copy; {new Date().getFullYear()} Nexflow. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} Corelyx. All rights reserved.</span>
           <div className="flex items-center gap-5">
             <Link
               href="/privacy"

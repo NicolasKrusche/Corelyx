@@ -58,7 +58,7 @@ const plans = [
     price: 96,
     yearlyPrice: 899,
     buttonText: "Contact sales",
-    href: "mailto:sales@nexflow.systems",
+    href: "mailto:sales@corelyx.systems",
     buttonVariant: "outline" as const,
     includes: [
       "Everything in Business, plus:",
@@ -263,7 +263,7 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
           customVariants={revealVariants}
           className="text-gray-300"
         >
-          Choose the plan that matches how many workflows you want Nexflow to
+          Choose the plan that matches how many workflows you want Corelyx to
           run, monitor, and scale.
         </TimelineContent>
 

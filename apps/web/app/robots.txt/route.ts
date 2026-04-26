@@ -1,5 +1,5 @@
 export function GET() {
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://nexflow.app";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://corelyx.app";
   const body = `User-agent: *
 Allow: /
 Allow: /pricing

@@ -58,7 +58,7 @@ export default function SignupPage() {
               href="/"
               className="absolute left-6 top-6 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground sm:left-10 lg:left-16"
             >
-              Nexflow
+              Corelyx
             </Link>
 
             <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-7 text-center shadow-xl sm:p-8">
@@ -95,7 +95,7 @@ export default function SignupPage() {
             href="/"
             className="absolute left-6 top-6 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground sm:left-10 lg:left-16"
           >
-            Nexflow
+            Corelyx
           </Link>
 
           <div className="w-full max-w-sm">

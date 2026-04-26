@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "nexflow-cookie-notice-dismissed";
-const LEGACY_STORAGE_KEY = "nexflow-consent";
+const STORAGE_KEY = "corelyx-cookie-notice-dismissed";
+const LEGACY_STORAGE_KEY = "corelyx-consent";
 
 export function CookieNotice() {
   const [visible, setVisible] = useState(false);

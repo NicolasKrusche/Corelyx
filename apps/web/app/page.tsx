@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { motion, useInView, useMotionValue, animate } from "framer-motion";
+import { useRef, useEffect, useState } from "react";
 import {
   ArrowRight,
   Cable,
@@ -36,7 +40,7 @@ const WORKFLOW_STEPS = [
   {
     label: "Describe",
     title: "Write the outcome",
-    body: "Start with a plain-language request. Nexflow turns intent into triggers, agent steps, connector calls, and validation checks.",
+    body: "Start with a plain-language request. Corelyx turns intent into triggers, agent steps, connector calls, and validation checks.",
   },
   {
     label: "Shape",
@@ -73,6 +77,73 @@ const CONTROL_FEATURES = [
   },
 ];
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  visible: (i: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] },
+  }),
+};
+
+function Reveal({
+  children,
+  className,
+  i = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  i?: number;
+}) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      initial="hidden"
+      animate={inView ? "visible" : "hidden"}
+      custom={i}
+      variants={fadeUp}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function AnimatedStat({ value, label }: { value: string; label: string }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
+  const num = parseFloat(value.replace(/[^0-9.]/g, ""));
+  const isNumeric = !isNaN(num) && value !== "0";
+  const suffix = value.replace(/[0-9.]/g, "");
+  const count = useMotionValue(0);
+  const [display, setDisplay] = useState(isNumeric ? "0" : value);
+
+  useEffect(() => {
+    if (!inView || !isNumeric) {
+      if (inView) setDisplay(value);
+      return;
+    }
+    const controls = animate(count, num, {
+      duration: 1.4,
+      ease: "easeOut",
+      onUpdate: (v) => setDisplay(Math.round(v) + suffix),
+    });
+    return controls.stop;
+  }, [inView, count, num, isNumeric, suffix, value]);
+
+  return (
+    <div
+      ref={ref}
+      className="flex items-baseline justify-between border-white/10 md:border-r md:pr-6 md:last:border-r-0"
+    >
+      <span className="text-2xl font-semibold text-white">{display}</span>
+      <span className="text-sm text-[#cfc6ba]">{label}</span>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#090909] text-[#f6f0e8]">
@@ -90,12 +161,17 @@ export default function LandingPage() {
 
 function SiteHeader() {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#090909]/[0.88] backdrop-blur-xl">
+    <motion.header
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#090909]/[0.88] backdrop-blur-xl"
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-7 w-7 object-contain" />
-          <span className="text-base font-semibold text-white">Nexflow</span>
+          <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-7 w-7 object-contain" />
+          <span className="text-base font-semibold text-white">Corelyx</span>
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm text-[#b9b0a6] md:flex">
@@ -118,7 +194,7 @@ function SiteHeader() {
           </Link>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 }
 
@@ -129,19 +205,43 @@ function HeroSection() {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#090909] to-transparent" />
 
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col justify-center pb-16 pt-8 sm:pt-14 lg:pb-20">
-        <p className="mb-6 max-w-max border-l-2 border-[#f05a28] pl-3 text-sm font-medium text-[#d9d1c6]">
+        <motion.p
+          initial="hidden"
+          animate="visible"
+          custom={0}
+          variants={fadeUp}
+          className="mb-6 max-w-max border-l-2 border-[#f05a28] pl-3 text-sm font-medium text-[#d9d1c6]"
+        >
           AI workflow automation for teams that need agents to run real work.
-        </p>
+        </motion.p>
 
-        <h1 className="max-w-4xl text-5xl font-semibold leading-none text-white sm:text-7xl lg:text-8xl">
-          Nexflow
-        </h1>
+        <motion.h1
+          initial="hidden"
+          animate="visible"
+          custom={1}
+          variants={fadeUp}
+          className="max-w-4xl text-5xl font-semibold leading-none text-white sm:text-7xl lg:text-8xl"
+        >
+          Corelyx
+        </motion.h1>
 
-        <p className="mt-7 max-w-2xl text-lg leading-8 text-[#d7cfc3]">
+        <motion.p
+          initial="hidden"
+          animate="visible"
+          custom={2}
+          variants={fadeUp}
+          className="mt-7 max-w-2xl text-lg leading-8 text-[#d7cfc3]"
+        >
           Build, inspect, and operate agent workflows across your tools. Describe the job, review the graph, then run it with approvals, logs, and protected credentials.
-        </p>
+        </motion.p>
 
-        <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          custom={3}
+          variants={fadeUp}
+          className="mt-9 flex flex-col gap-3 sm:flex-row"
+        >
           <Link
             href="/signup"
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#efe8dd]"
@@ -156,16 +256,22 @@ function HeroSection() {
             <CirclePlay className="h-4 w-4" />
             Open workspace
           </Link>
-        </div>
+        </motion.div>
 
-        <div className="mt-8 grid max-w-2xl gap-3 text-sm text-[#c9c1b5] sm:grid-cols-3">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          custom={4}
+          variants={fadeUp}
+          className="mt-8 grid max-w-2xl gap-3 text-sm text-[#c9c1b5] sm:grid-cols-3"
+        >
           {OPERATING_POINTS.map((point) => (
             <div key={point} className="flex items-start gap-2">
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#75d7a3]" />
               <span>{point}</span>
             </div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -182,49 +288,82 @@ function HeroScene() {
         }}
       />
 
-      <div className="absolute right-[-260px] top-20 hidden h-[620px] w-[980px] rotate-[-7deg] lg:block">
-        <div className="absolute inset-0 rounded-lg border border-white/[0.12] bg-[#121212]/[0.88] shadow-[0_34px_120px_rgba(0,0,0,0.55)]" />
-        <div className="absolute left-0 right-0 top-0 flex h-12 items-center gap-2 border-b border-white/10 px-5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#ff6b47]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#f0c15a]" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#6fdc96]" />
-          <span className="ml-4 text-xs text-[#9d9489]">program/run-console</span>
-        </div>
-
-        <div className="absolute left-8 top-20 h-[460px] w-[590px]">
-          <SceneNode className="left-0 top-8" tone="green" title="Gmail trigger" subtitle="new inbound lead" />
-          <SceneNode className="left-[230px] top-0" tone="orange" title="Classify intent" subtitle="model: fast" />
-          <SceneNode className="left-[445px] top-[78px]" tone="blue" title="CRM update" subtitle="HubSpot contact" />
-          <SceneNode className="left-[156px] top-[230px]" tone="pink" title="Approval gate" subtitle="manager review" />
-          <SceneNode className="left-[402px] top-[310px]" tone="green" title="Slack summary" subtitle="#sales-ops" />
-          <DataLine className="left-[128px] top-[72px] w-[132px] rotate-[-12deg]" />
-          <DataLine className="left-[352px] top-[68px] w-[116px] rotate-[28deg]" />
-          <DataLine className="left-[250px] top-[196px] w-[142px] rotate-[33deg]" />
-          <DataLine className="left-[292px] top-[320px] w-[132px] rotate-[14deg]" />
-        </div>
-
-        <div className="absolute right-8 top-20 w-[270px] rounded-lg border border-white/10 bg-[#191716] p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <span className="text-xs text-[#a99f93]">Run health</span>
-            <span className="rounded bg-[#1f3a2b] px-2 py-1 text-xs text-[#82e6a8]">live</span>
+      <motion.div
+        initial={{ opacity: 0, x: 60, rotate: -10 }}
+        animate={{ opacity: 1, x: 0, rotate: -7 }}
+        transition={{ duration: 0.9, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="absolute right-[-260px] top-20 hidden h-[620px] w-[980px] lg:block"
+      >
+        <motion.div
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute inset-0"
+        >
+          <div className="absolute inset-0 rounded-lg border border-white/[0.12] bg-[#121212]/[0.88] shadow-[0_34px_120px_rgba(0,0,0,0.55)]" />
+          <div className="absolute left-0 right-0 top-0 flex h-12 items-center gap-2 border-b border-white/10 px-5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff6b47]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#f0c15a]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#6fdc96]" />
+            <span className="ml-4 text-xs text-[#9d9489]">program/run-console</span>
           </div>
-          <MetricRow label="Nodes complete" value="11 / 14" />
-          <MetricRow label="Approvals waiting" value="1" />
-          <MetricRow label="Avg. runtime" value="18s" />
-        </div>
 
-        <div className="absolute bottom-8 right-8 w-[270px] rounded-lg border border-white/10 bg-[#111111] p-4">
-          <div className="flex items-center gap-2 text-xs text-[#a99f93]">
-            <KeyRound className="h-4 w-4 text-[#f05a28]" />
-            Server-side credential route
+          <div className="absolute left-8 top-20 h-[460px] w-[590px]">
+            <SceneNode className="left-0 top-8" tone="green" title="Gmail trigger" subtitle="new inbound lead" floatDelay={0} />
+            <SceneNode className="left-[230px] top-0" tone="orange" title="Classify intent" subtitle="model: fast" floatDelay={0.6} />
+            <SceneNode className="left-[445px] top-[78px]" tone="blue" title="CRM update" subtitle="HubSpot contact" floatDelay={1.2} />
+            <SceneNode className="left-[156px] top-[230px]" tone="pink" title="Approval gate" subtitle="manager review" floatDelay={1.8} />
+            <SceneNode className="left-[402px] top-[310px]" tone="green" title="Slack summary" subtitle="#sales-ops" floatDelay={0.9} />
+            <DataLine className="left-[128px] top-[72px] w-[132px] rotate-[-12deg]" dotDelay={0} />
+            <DataLine className="left-[352px] top-[68px] w-[116px] rotate-[28deg]" dotDelay={0.5} />
+            <DataLine className="left-[250px] top-[196px] w-[142px] rotate-[33deg]" dotDelay={1.0} />
+            <DataLine className="left-[292px] top-[320px] w-[132px] rotate-[14deg]" dotDelay={1.5} />
           </div>
-          <div className="mt-4 space-y-2 font-mono text-[11px] text-[#8f877e]">
-            <p>vault.lookup(connection_id)</p>
-            <p>proxy.execute(provider_action)</p>
-            <p>return sanitized_result</p>
+
+          <div className="absolute right-8 top-20 w-[270px] rounded-lg border border-white/10 bg-[#191716] p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-xs text-[#a99f93]">Run health</span>
+              <span className="rounded bg-[#1f3a2b] px-2 py-1 text-xs text-[#82e6a8] flex items-center gap-1.5">
+                <motion.span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-[#82e6a8]"
+                  animate={{ opacity: [1, 0.3, 1] }}
+                  transition={{ duration: 1.2, repeat: Infinity }}
+                />
+                live
+              </span>
+            </div>
+            <MetricRow label="Nodes complete" value="11 / 14" />
+            <MetricRow label="Approvals waiting" value="1" />
+            <MetricRow label="Avg. runtime" value="18s" />
           </div>
-        </div>
-      </div>
+
+          <div className="absolute bottom-8 right-8 w-[270px] rounded-lg border border-white/10 bg-[#111111] p-4">
+            <div className="flex items-center gap-2 text-xs text-[#a99f93]">
+              <KeyRound className="h-4 w-4 text-[#f05a28]" />
+              Server-side credential route
+            </div>
+            <div className="mt-4 space-y-2 font-mono text-[11px] text-[#8f877e]">
+              <motion.p
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2.4, repeat: Infinity, delay: 0 }}
+              >
+                vault.lookup(connection_id)
+              </motion.p>
+              <motion.p
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2.4, repeat: Infinity, delay: 0.8 }}
+              >
+                proxy.execute(provider_action)
+              </motion.p>
+              <motion.p
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2.4, repeat: Infinity, delay: 1.6 }}
+              >
+                return sanitized_result
+              </motion.p>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
 
       <div className="absolute bottom-[-1px] left-0 right-0 h-px bg-white/10" />
     </div>
@@ -236,11 +375,13 @@ function SceneNode({
   tone,
   title,
   subtitle,
+  floatDelay,
 }: {
   className: string;
   tone: "green" | "orange" | "blue" | "pink";
   title: string;
   subtitle: string;
+  floatDelay: number;
 }) {
   const tones = {
     green: "border-[#75d7a3]/[0.35] bg-[#132218] text-[#75d7a3]",
@@ -250,17 +391,26 @@ function SceneNode({
   };
 
   return (
-    <div className={`absolute w-40 rounded-lg border p-3 shadow-[0_18px_44px_rgba(0,0,0,0.32)] ${tones[tone]} ${className}`}>
+    <motion.div
+      className={`absolute w-40 rounded-lg border p-3 shadow-[0_18px_44px_rgba(0,0,0,0.32)] ${tones[tone]} ${className}`}
+      animate={{ y: [0, -7, 0] }}
+      transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: floatDelay }}
+    >
       <p className="text-sm font-semibold text-white">{title}</p>
       <p className="mt-1 text-xs opacity-80">{subtitle}</p>
-    </div>
+    </motion.div>
   );
 }
 
-function DataLine({ className }: { className: string }) {
+function DataLine({ className, dotDelay }: { className: string; dotDelay: number }) {
   return (
     <div className={`absolute h-px bg-white/20 ${className}`}>
-      <span className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#f05a28]" />
+      <motion.span
+        className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#f05a28]"
+        style={{ left: 0 }}
+        animate={{ left: ["0%", "100%"] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: "linear", delay: dotDelay, repeatDelay: 1 }}
+      />
     </div>
   );
 }
@@ -277,17 +427,10 @@ function MetricRow({ label, value }: { label: string; value: string }) {
 function OperatingStrip() {
   return (
     <section className="border-y border-white/10 bg-[#10100f] px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-4 text-sm text-[#cfc6ba] md:grid-cols-3">
-        {[
-          ["12+", "native connectors"],
-          ["0", "frontend secrets returned"],
-          ["1 graph", "from prompt to production"],
-        ].map(([value, label]) => (
-          <div key={label} className="flex items-baseline justify-between border-white/10 md:border-r md:pr-6 md:last:border-r-0">
-            <span className="text-2xl font-semibold text-white">{value}</span>
-            <span>{label}</span>
-          </div>
-        ))}
+      <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-3">
+        <AnimatedStat value="12+" label="native connectors" />
+        <AnimatedStat value="0" label="frontend secrets returned" />
+        <AnimatedStat value="1 graph" label="from prompt to production" />
       </div>
     </section>
   );
@@ -298,27 +441,31 @@ function WorkflowSection() {
     <section id="workflow" className="bg-[#f3efe7] px-4 py-20 text-[#161412] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
-          <div>
+          <Reveal>
             <SectionKicker>Workflow</SectionKicker>
             <h2 className="mt-4 max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
               Move from idea to running system without losing the shape of the work.
             </h2>
-          </div>
-          <p className="max-w-2xl text-lg leading-8 text-[#5d554d]">
-            Nexflow is built around a visual execution graph, so operators can see what was generated, where data moves, and which steps need approval before anything runs.
-          </p>
+          </Reveal>
+          <Reveal i={1}>
+            <p className="max-w-2xl text-lg leading-8 text-[#5d554d]">
+              Corelyx is built around a visual execution graph, so operators can see what was generated, where data moves, and which steps need approval before anything runs.
+            </p>
+          </Reveal>
         </div>
 
         <div className="mt-12 grid gap-4 md:grid-cols-3">
           {WORKFLOW_STEPS.map((step, index) => (
-            <article key={step.label} className="rounded-lg border border-[#d8cfc2] bg-white p-6">
-              <div className="mb-12 flex items-center justify-between">
-                <span className="text-sm font-semibold text-[#f05a28]">{step.label}</span>
-                <span className="font-mono text-sm text-[#8b8175]">{String(index + 1).padStart(2, "0")}</span>
-              </div>
-              <h3 className="text-xl font-semibold">{step.title}</h3>
-              <p className="mt-4 leading-7 text-[#62594f]">{step.body}</p>
-            </article>
+            <Reveal key={step.label} i={index}>
+              <article className="h-full rounded-lg border border-[#d8cfc2] bg-white p-6 transition-shadow hover:shadow-lg">
+                <div className="mb-12 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-[#f05a28]">{step.label}</span>
+                  <span className="font-mono text-sm text-[#8b8175]">{String(index + 1).padStart(2, "0")}</span>
+                </div>
+                <h3 className="text-xl font-semibold">{step.title}</h3>
+                <p className="mt-4 leading-7 text-[#62594f]">{step.body}</p>
+              </article>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -331,7 +478,7 @@ function ControlSection() {
     <section id="control" className="bg-[#090909] px-4 py-20 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-          <div>
+          <Reveal>
             <SectionKicker dark>Control Plane</SectionKicker>
             <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
               A workflow engine that behaves like infrastructure, not a demo.
@@ -339,17 +486,19 @@ function ControlSection() {
             <p className="mt-6 leading-8 text-[#c9c1b5]">
               Keep the fast parts fast, put humans on the risky parts, and make every run legible after the fact.
             </p>
-          </div>
+          </Reveal>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {CONTROL_FEATURES.map((feature) => {
+            {CONTROL_FEATURES.map((feature, i) => {
               const Icon = feature.icon;
               return (
-                <article key={feature.title} className="rounded-lg border border-white/10 bg-white/[0.045] p-6">
-                  <Icon className="h-5 w-5 text-[#f05a28]" />
-                  <h3 className="mt-6 text-lg font-semibold">{feature.title}</h3>
-                  <p className="mt-3 leading-7 text-[#bcb4aa]">{feature.body}</p>
-                </article>
+                <Reveal key={feature.title} i={i * 0.5}>
+                  <article className="h-full rounded-lg border border-white/10 bg-white/[0.045] p-6 transition-colors hover:bg-white/[0.07]">
+                    <Icon className="h-5 w-5 text-[#f05a28]" />
+                    <h3 className="mt-6 text-lg font-semibold">{feature.title}</h3>
+                    <p className="mt-3 leading-7 text-[#bcb4aa]">{feature.body}</p>
+                  </article>
+                </Reveal>
               );
             })}
           </div>
@@ -360,31 +509,41 @@ function ControlSection() {
 }
 
 function IntegrationsSection() {
+  const doubled = [...INTEGRATIONS, ...INTEGRATIONS];
   return (
     <section id="integrations" className="bg-[#151210] px-4 py-20 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
-          <div>
+          <Reveal>
             <SectionKicker dark>Integrations</SectionKicker>
             <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
               Your agents can work where your team already works.
             </h2>
-          </div>
-          <Link
-            href="/signup"
-            className="inline-flex h-11 w-max items-center gap-2 rounded-md border border-white/[0.14] px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-          >
-            Connect tools
-            <Cable className="h-4 w-4" />
-          </Link>
+          </Reveal>
+          <Reveal i={1}>
+            <Link
+              href="/signup"
+              className="inline-flex h-11 w-max items-center gap-2 rounded-md border border-white/[0.14] px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+            >
+              Connect tools
+              <Cable className="h-4 w-4" />
+            </Link>
+          </Reveal>
         </div>
 
-        <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {INTEGRATIONS.map((name) => (
-            <div key={name} className="rounded-lg border border-white/10 bg-[#0d0d0d] px-4 py-4 text-sm text-[#d8d0c6]">
-              {name}
-            </div>
-          ))}
+        <div className="relative mt-12 overflow-hidden">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[#151210] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[#151210] to-transparent" />
+          <div className="flex animate-marquee gap-3" style={{ width: "max-content" }}>
+            {doubled.map((name, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-white/10 bg-[#0d0d0d] px-5 py-4 text-sm text-[#d8d0c6] whitespace-nowrap"
+              >
+                {name}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -395,7 +554,7 @@ function FinalCta() {
   return (
     <section className="bg-[#f3efe7] px-4 py-20 text-[#151210] sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div>
+        <Reveal>
           <SectionKicker>Launch</SectionKicker>
           <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
             Build the first workflow your team can actually understand.
@@ -403,22 +562,24 @@ function FinalCta() {
           <p className="mt-5 max-w-2xl text-lg leading-8 text-[#62594f]">
             Start with a small operational task, inspect the generated graph, then add approvals and connectors as the workflow earns trust.
           </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-          <Link
-            href="/signup"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#151210] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#2a2520]"
-          >
-            Create an account
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            href="/pricing"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[#cfc4b6] px-5 text-sm font-semibold text-[#151210] transition-colors hover:bg-white"
-          >
-            View pricing
-          </Link>
-        </div>
+        </Reveal>
+        <Reveal i={1}>
+          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+            <Link
+              href="/signup"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#151210] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#2a2520]"
+            >
+              Create an account
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/pricing"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[#cfc4b6] px-5 text-sm font-semibold text-[#151210] transition-colors hover:bg-white"
+            >
+              View pricing
+            </Link>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -431,7 +592,7 @@ function SiteFooter() {
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain opacity-80" />
-          <span>© {new Date().getFullYear()} Nexflow</span>
+          <span>© {new Date().getFullYear()} Corelyx</span>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <Link href="/pricing" className="hover:text-white">Pricing</Link>

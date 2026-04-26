@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 
 export const metadata: Metadata = {
-  title: "Terms of Service - Nexflow",
-  description: "The terms that govern your use of the Nexflow platform.",
+  title: "Terms of Service - Corelyx",
+  description: "The terms that govern your use of the Corelyx platform.",
 };
 
 const LAST_UPDATED = "April 24, 2026";
@@ -13,7 +13,7 @@ const sections = [
   {
     id: "acceptance",
     title: "1. Acceptance of Terms",
-    content: `By creating a Nexflow account or using any part of the Nexflow platform ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not access or use the Service.
+    content: `By creating a Corelyx account or using any part of the Corelyx platform ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not access or use the Service.
 
 If you are using the Service on behalf of a company or other legal entity, you represent that you have the authority to bind that entity to these Terms.
 
@@ -22,7 +22,7 @@ These Terms distinguish between consumers and business customers where required 
   {
     id: "description",
     title: "2. Description of Service",
-    content: `Nexflow is a visual AI automation platform that allows users to design, configure, and run agent-based automation programs ("Programs") that connect to third-party services. The platform enables, among other things:
+    content: `Corelyx is a visual AI automation platform that allows users to design, configure, and run agent-based automation programs ("Programs") that connect to third-party services. The platform enables, among other things:
 
 - Automated processing, categorisation, and sorting of emails
 - Transfer of structured data to external services (e.g. Google Sheets, Notion)
@@ -31,7 +31,7 @@ These Terms distinguish between consumers and business customers where required 
 
 The Service includes the web application, the program execution runtime, and any APIs we make available. The scope of features depends on your subscription plan (Free, Pro, Max).
 
-The AI features are powered by models and APIs from third-party providers, in particular Anthropic Inc. (USA) and Google LLC (USA). Nexflow acts as a reseller of these capacities — we are not the manufacturer of the underlying AI models.
+The AI features are powered by models and APIs from third-party providers, in particular Anthropic Inc. (USA) and Google LLC (USA). Corelyx acts as a reseller of these capacities — we are not the manufacturer of the underlying AI models.
 
 The Service may change over time. We reserve the right to modify, suspend, or discontinue any part of the Service with reasonable notice where practical, subject to the notice requirements in Section 12.`,
   },
@@ -44,7 +44,7 @@ Registration is permitted only for natural persons who have reached the age of 1
 
 One account per person or company is permitted. Multiple accounts require our prior written consent.
 
-You must notify us immediately at legal@nexflow.app if you suspect unauthorized access to your account. We are not liable for any loss or damage arising from your failure to protect your account.`,
+You must notify us immediately at legal@corelyx.app if you suspect unauthorized access to your account. We are not liable for any loss or damage arising from your failure to protect your account.`,
   },
   {
     id: "acceptable-use",
@@ -72,7 +72,7 @@ Because the Service uses the Anthropic API, you are also required to comply with
   {
     id: "plans-and-credits",
     title: "5. Plans, API Credits, and Payment",
-    content: `Subscription plans: Nexflow offers Free, Pro, and Max plans. The Free plan is provided at no cost with limited features and no SLA guarantee. Pro and Max are monthly subscriptions with extended features and priority processing. Current pricing and plan details are published on our pricing page.
+    content: `Subscription plans: Corelyx offers Free, Pro, and Max plans. The Free plan is provided at no cost with limited features and no SLA guarantee. Pro and Max are monthly subscriptions with extended features and priority processing. Current pricing and plan details are published on our pricing page.
 
 API Credits: You may purchase additional API Credits to perform AI requests beyond the quota included in your plan.
 - Credits are charged on consumption and are non-refundable once used.
@@ -88,13 +88,13 @@ Price changes: We may adjust prices with at least 30 days' notice by email. If y
     title: "6. Duration and Termination",
     content: `Subscriptions run on a monthly basis and renew automatically unless cancelled.
 
-You may cancel at any time with effect from the end of the current billing month, via your account settings or by email to legal@nexflow.app.
+You may cancel at any time with effect from the end of the current billing month, via your account settings or by email to legal@corelyx.app.
 
 We may terminate your access immediately for material breach of these Terms, including violations of the acceptable use rules in Section 4, overdue payment beyond 14 days, or abusive use of API Credits. In less urgent cases, we will provide reasonable notice.
 
 Following termination, all your data will be permanently deleted within 60 days. Recovery is not possible after this period.
 
-Consumer right of withdrawal: If you are a consumer, you have a 14-day right of withdrawal from a new paid subscription starting from the date of purchase. To exercise this right, contact us at legal@nexflow.app before the period expires. If you have already actively used the paid features and expressly consented to the Service commencing before the withdrawal period ended, your right of withdrawal may be lost as permitted by § 18 FAGG and Article 16(m) of Directive 2011/83/EU.`,
+Consumer right of withdrawal: If you are a consumer, you have a 14-day right of withdrawal from a new paid subscription starting from the date of purchase. To exercise this right, contact us at legal@corelyx.app before the period expires. If you have already actively used the paid features and expressly consented to the Service commencing before the withdrawal period ended, your right of withdrawal may be lost as permitted by § 18 FAGG and Article 16(m) of Directive 2011/83/EU.`,
   },
   {
     id: "liability",
@@ -107,7 +107,7 @@ Availability: For the Free plan no uptime guarantee is given. For Pro and Max pl
 
 Outages caused by third-party service providers (in particular the Anthropic API, Google APIs, or Stripe) do not give rise to liability on our part.
 
-The Service is provided "as is" and "as available". To the extent permitted by applicable law, we make no warranties, express or implied, regarding merchantability, fitness for a particular purpose, or non-infringement. Third-party services connected through Nexflow may become unavailable or change without notice — we are not responsible for this.
+The Service is provided "as is" and "as available". To the extent permitted by applicable law, we make no warranties, express or implied, regarding merchantability, fitness for a particular purpose, or non-infringement. Third-party services connected through Corelyx may become unavailable or change without notice — we are not responsible for this.
 
 Liability cap: To the extent permitted by applicable law, our total liability to you for all claims arising from or related to the Service shall not exceed the greater of (a) three times your monthly subscription amount in the month the damage occurs, or (b) EUR 500.
 
@@ -128,19 +128,19 @@ If you are a consumer, nothing in this section affects your statutory rights und
 
 The Service allows you to connect additional third-party accounts (such as Gmail, Slack, GitHub, Notion, and others) and to provide API keys for AI model providers. By doing so:
 
-- You confirm you have the right to grant Nexflow the access you are configuring
-- You are solely responsible for ensuring your use of third-party services through Nexflow complies with those services' terms and policies
-- You acknowledge that Nexflow acts as your agent when accessing third-party services on your behalf; any actions taken by your Programs are your responsibility
+- You confirm you have the right to grant Corelyx the access you are configuring
+- You are solely responsible for ensuring your use of third-party services through Corelyx complies with those services' terms and policies
+- You acknowledge that Corelyx acts as your agent when accessing third-party services on your behalf; any actions taken by your Programs are your responsibility
 - You are responsible for any costs incurred with third-party providers as a result of your Programs running
 
 Their own privacy policies apply to data processed by these providers. By using the Service, you consent to data being transferred to these providers to the extent necessary to perform the automation you have configured.
 
-Nexflow stores your credentials encrypted in Supabase Vault and accesses them only to execute your Programs. See our Privacy Policy for more detail.`,
+Corelyx stores your credentials encrypted in Supabase Vault and accesses them only to execute your Programs. See our Privacy Policy for more detail.`,
   },
   {
     id: "content",
     title: "9. Your Content and Outputs",
-    content: `You retain ownership of the Programs, prompts, and configurations you create in Nexflow ("Your Content"). By using the Service, you grant Nexflow a limited, non-exclusive license to store and execute Your Content solely for the purpose of providing the Service to you.
+    content: `You retain ownership of the Programs, prompts, and configurations you create in Corelyx ("Your Content"). By using the Service, you grant Corelyx a limited, non-exclusive license to store and execute Your Content solely for the purpose of providing the Service to you.
 
 All outputs generated by the platform (categorisations, database entries, summaries, etc.) belong to you. We make no claim over this content.
 
@@ -153,7 +153,7 @@ We do not claim any ownership over data that flows through your Programs from th
   {
     id: "ip",
     title: "10. Intellectual Property",
-    content: `The Nexflow platform, including its software, design, trademarks, and documentation, is owned by Nexflow and protected by applicable intellectual property laws. These Terms do not grant you any rights in our intellectual property beyond the limited right to use the Service as described herein.
+    content: `The Corelyx platform, including its software, design, trademarks, and documentation, is owned by Corelyx and protected by applicable intellectual property laws. These Terms do not grant you any rights in our intellectual property beyond the limited right to use the Service as described herein.
 
 You may not copy, modify, reverse engineer, or create derivative works of any part of the Service.`,
   },
@@ -175,7 +175,7 @@ Statutory conformity rights: You are entitled to a digital service that conforms
 
 Mandatory consumer protections: Regardless of the governing law clause in Section 13, mandatory consumer protection rules of your country of residence within the EU or EEA apply where they afford greater protection.
 
-Online Dispute Resolution: The European Commission provides an Online Dispute Resolution platform at https://ec.europa.eu/consumers/odr for resolving disputes relating to online purchases. Our contact address for ODR purposes is legal@nexflow.app. We are not obliged to participate in an alternative dispute resolution procedure, but we are willing to seek an amicable solution in the first instance.
+Online Dispute Resolution: The European Commission provides an Online Dispute Resolution platform at https://ec.europa.eu/consumers/odr for resolving disputes relating to online purchases. Our contact address for ODR purposes is legal@corelyx.app. We are not obliged to participate in an alternative dispute resolution procedure, but we are willing to seek an amicable solution in the first instance.
 
 Austrian consumer arbitration: Consumers may also contact the Austrian Internet Ombudsman (www.ombudsmann.at) or the Alternative Dispute Resolution body (AStG) relevant to their situation.`,
   },
@@ -198,9 +198,9 @@ If you are a consumer resident in the European Union or the European Economic Ar
     title: "15. Contact",
     content: `For questions about these Terms, contact us at:
 
-legal@nexflow.app
+legal@corelyx.app
 
-For privacy-related matters, see our Privacy Policy or email privacy@nexflow.app.`,
+For privacy-related matters, see our Privacy Policy or email privacy@corelyx.app.`,
   },
 ];
 
@@ -281,10 +281,10 @@ export default async function TermsPage() {
                 , which explains how we collect and handle your data. Questions?
                 Email{" "}
                 <a
-                  href="mailto:legal@nexflow.app"
+                  href="mailto:legal@corelyx.app"
                   className="text-primary hover:underline"
                 >
-                  legal@nexflow.app
+                  legal@corelyx.app
                 </a>
                 .
               </p>
@@ -295,7 +295,7 @@ export default async function TermsPage() {
 
       <footer className="mt-16 border-t border-border/40 px-6 py-6">
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground/50 sm:flex-row">
-          <span>(c) {new Date().getFullYear()} Nexflow. All rights reserved.</span>
+          <span>(c) {new Date().getFullYear()} Corelyx. All rights reserved.</span>
           <div className="flex items-center gap-5">
             <Link
               href="/privacy"

@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
           {/* Logo + heading */}
           <div className="flex flex-col items-center gap-4 mb-8">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pictures/logo-no-bg.png" alt="Nexflow" className="h-11 w-11 object-contain" />
+            <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-11 w-11 object-contain" />
             <div className="text-center">
               {done ? (
                 <>

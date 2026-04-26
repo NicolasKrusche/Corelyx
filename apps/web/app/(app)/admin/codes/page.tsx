@@ -4,7 +4,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { AdminCodesClient } from "./admin-codes-client";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Code Manager — Nexflow Admin" };
+export const metadata: Metadata = { title: "Code Manager — Corelyx Admin" };
 
 export default async function AdminCodesPage() {
   const supabase = await createServerClient();

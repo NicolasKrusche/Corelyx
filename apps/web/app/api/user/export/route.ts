@@ -175,7 +175,7 @@ export async function GET() {
     api_keys: (apiKeysRes.data ?? []) as unknown as ApiKeyRow[],
   };
 
-  const filename = `nexflow-export-${new Date().toISOString().slice(0, 10)}.json`;
+  const filename = `corelyx-export-${new Date().toISOString().slice(0, 10)}.json`;
 
   return new Response(JSON.stringify(bundle, null, 2), {
     headers: {
