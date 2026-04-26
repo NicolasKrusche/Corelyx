@@ -15,7 +15,7 @@ type NodeData = {
 const H = 78;
 
 const COLORS = {
-  trigger: { stroke: "#f97316", fill: "#ffffff",  text: "#ea6a00", header: "rgba(249,115,22,0.07)" },
+  trigger: { stroke: "#f97316", fill: "#ffffff",  text: "#ea6a00", header: "hsl(var(--primary) / 0.07)" },
   agent:   { stroke: "#a855f7", fill: "#ffffff",  text: "#8b3ec9", header: "rgba(168,85,247,0.07)" },
   step:    { stroke: "#10b981", fill: "#ffffff",  text: "#0a8f63", header: "rgba(16,185,129,0.07)" },
 };

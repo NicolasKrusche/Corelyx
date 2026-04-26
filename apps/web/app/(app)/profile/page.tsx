@@ -37,8 +37,11 @@ export default async function ProfilePage() {
 
       <div className="rounded-xl border border-border bg-card p-6 space-y-6">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-xl font-bold text-foreground border border-border shrink-0">
-            {(profile?.display_name || user.email || "?").charAt(0).toUpperCase()}
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-xl font-bold text-foreground border border-border shrink-0"
+            style={profile?.avatar_url ? { backgroundImage: `url(${profile.avatar_url})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+          >
+            {!profile?.avatar_url && (profile?.display_name || user.email || "?").charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">

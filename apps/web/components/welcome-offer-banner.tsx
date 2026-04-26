@@ -42,7 +42,7 @@ export function WelcomeOfferBanner({ createdAt, tier }: Props) {
   const expiry = formatExpiry(createdAt);
 
   return (
-    <div className="relative mb-6 rounded-2xl border border-primary/30 bg-primary/5 px-6 py-5 shadow-[0_0_0_1px_rgba(249,115,22,0.1),0_8px_32px_rgba(249,115,22,0.08)]">
+    <div className="relative mb-6 rounded-2xl border border-primary/30 bg-primary/5 px-6 py-5 shadow-[0_0_0_1px_hsl(var(--primary)/0.12),0_8px_32px_hsl(var(--primary)/0.1)]">
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent rounded-t-2xl" />
 
       <button
@@ -74,7 +74,7 @@ export function WelcomeOfferBanner({ createdAt, tier }: Props) {
             <input type="hidden" name="welcome_offer" value="true" />
             <button
               type="submit"
-              className="whitespace-nowrap rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-[0_0_20px_rgba(249,115,22,0.35)] hover:shadow-[0_0_32px_rgba(249,115,22,0.5)] transition-all duration-200"
+              className="whitespace-nowrap rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.35)] hover:shadow-[0_0_32px_hsl(var(--primary)/0.5)] transition-all duration-200"
             >
               Claim 61% off — Start Solo
             </button>

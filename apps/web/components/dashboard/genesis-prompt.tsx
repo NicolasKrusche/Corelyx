@@ -32,7 +32,7 @@ export function GenesisPrompt() {
       <div
         className="absolute inset-0 transition-opacity duration-500"
         style={{
-          background: "radial-gradient(ellipse 70% 90% at 50% 130%, rgba(249,115,22,0.1) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 70% 90% at 50% 130%, hsl(var(--primary) / 0.1) 0%, transparent 70%)",
           opacity: focused ? 1 : 0.5,
         }}
       />
@@ -55,7 +55,7 @@ export function GenesisPrompt() {
           />
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:shadow-[0_0_30px_rgba(249,115,22,0.45)] hover:opacity-95 transition-all duration-200 shrink-0 whitespace-nowrap"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.45)] hover:opacity-95 transition-all duration-200 shrink-0 whitespace-nowrap"
           >
             Generate
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">

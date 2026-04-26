@@ -121,6 +121,10 @@ export function Sidebar({
   const searchParams = useSearchParams();
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [failedRuns, setFailedRuns] = useState(0);
+  const [runUsageCurrent, setRunUsageCurrent] = useState(0);
+  const [runUsageTotal, setRunUsageTotal] = useState<number | null>(null);
+  const [genesisUsageCurrent, setGenesisUsageCurrent] = useState(0);
+  const [genesisUsageTotal, setGenesisUsageTotal] = useState<number | null>(null);
   const [advanced, setAdvanced] = useAdvancedMode();
   const { base, accent, setBase, setAccent } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -141,6 +145,12 @@ export function Sidebar({
 
   const tierLabel = TIER_CONFIG[tier].label;
   const initials = displayName.slice(0, 1).toUpperCase();
+  const runUsageRatio = runUsageTotal ? runUsageCurrent / runUsageTotal : 0;
+  const runUsagePercent = runUsageTotal ? Math.min(100, Math.round(runUsageRatio * 100)) : 0;
+  const runWarningAt80 = runUsageTotal !== null && runUsageRatio >= 0.8 && runUsageRatio < 1;
+  const runLimitReached = runUsageTotal !== null && runUsageRatio >= 1;
+  const genesisUsageRatio = genesisUsageTotal ? genesisUsageCurrent / genesisUsageTotal : 0;
+  const genesisUsagePercent = genesisUsageTotal ? Math.min(100, Math.round(genesisUsageRatio * 100)) : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -190,6 +200,36 @@ export function Sidebar({
   }, [pathname]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function fetchUsage() {
+      try {
+        const res = await fetch("/api/entitlements");
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          usage?: {
+            runs?: { current?: number; total?: number | null };
+            genesis?: { usesThisMonth?: number; maxUses?: number | null };
+          };
+        };
+
+        if (cancelled) return;
+        setRunUsageCurrent(data.usage?.runs?.current ?? 0);
+        setRunUsageTotal(data.usage?.runs?.total ?? null);
+        setGenesisUsageCurrent(data.usage?.genesis?.usesThisMonth ?? 0);
+        setGenesisUsageTotal(data.usage?.genesis?.maxUses ?? null);
+      } catch {
+        // keep existing fallback values
+      }
+    }
+
+    void fetchUsage();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (!menuRef.current) return;
       if (menuRef.current.contains(event.target as Node)) return;
@@ -228,6 +268,7 @@ export function Sidebar({
         isDark ? "text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)]" : "text-gray-900",
         borderCls
       )}
+      onMouseLeave={() => setMenuOpen(false)}
       style={{
         background: `linear-gradient(to bottom, ${palette.from}, ${palette.via}, ${palette.to})`,
         ["--sb-bar" as string]: palette.activeBar,
@@ -313,13 +354,24 @@ export function Sidebar({
               isDark ? "bg-white/5" : "bg-black/5"
             )}>
               <div className="flex items-center justify-between text-[12px] font-medium">
-                <span>Monthly steps</span>
-                <span>0 / 200</span>
+                <span>Monthly runs</span>
+                <span>{runUsageTotal === null ? "Unlimited" : `${runUsageCurrent} / ${runUsageTotal}`}</span>
               </div>
               <div className={cn("mt-2 h-1.5 rounded-full", isDark ? "bg-blue-200/20" : "bg-black/10")}>
-                <div className="h-full w-0 rounded-full" style={{ backgroundColor: palette.btnBg }} />
+                <div
+                  className={cn(
+                    "h-full rounded-full",
+                    runLimitReached ? "bg-destructive" : runWarningAt80 ? "bg-yellow-500" : ""
+                  )}
+                  style={{
+                    width: runUsageTotal === null ? "100%" : `${runUsagePercent}%`,
+                    backgroundColor: runLimitReached || runWarningAt80 ? undefined : palette.btnBg,
+                  }}
+                />
               </div>
-              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets on May 7</p>
+              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>
+                {runLimitReached ? "Run limit reached this month" : runWarningAt80 ? "Warning: 80% of run quota used" : "Resets monthly"}
+              </p>
             </div>
 
             <div className={cn(
@@ -328,12 +380,18 @@ export function Sidebar({
             )}>
               <div className="flex items-center justify-between text-[12px] font-medium">
                 <span>Monthly AI credits</span>
-                <span>0 / 500</span>
+                <span>{genesisUsageTotal === null ? "Unlimited" : `${genesisUsageCurrent} / ${genesisUsageTotal}`}</span>
               </div>
               <div className={cn("mt-2 h-1.5 rounded-full", isDark ? "bg-blue-200/20" : "bg-black/10")}>
-                <div className="h-full w-0 rounded-full" style={{ backgroundColor: "#9f7aea" }} />
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: genesisUsageTotal === null ? "100%" : `${genesisUsagePercent}%`,
+                    backgroundColor: "hsl(var(--primary))",
+                  }}
+                />
               </div>
-              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets on May 7</p>
+              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets monthly</p>
             </div>
           </div>
         </div>
@@ -342,7 +400,7 @@ export function Sidebar({
           {menuOpen && (
             <div className={cn(
               "absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 rounded-xl border p-1.5 shadow-xl",
-              isDark ? "border-white/10 bg-white text-gray-900" : "border-black/10 bg-white text-gray-900"
+              "border-border bg-popover text-popover-foreground"
             )}>
               <button
                 type="button"
@@ -350,7 +408,7 @@ export function Sidebar({
                   setMenuOpen(false);
                   setSettingsOpen(true);
                 }}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-black/5"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent"
               >
                 <SettingsIcon />
                 <span>Settings</span>
@@ -358,7 +416,7 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-black/5"
+                className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent"
               >
                 <LogOutIcon />
                 <span>Sign out</span>
@@ -375,11 +433,14 @@ export function Sidebar({
             )}
           >
             <div className="flex h-full w-12 shrink-0 items-center justify-center">
-              <div className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold",
-                isDark ? "border-white/15 bg-white/10 text-blue-100" : "border-black/10 bg-black/5 text-gray-700"
-              )}>
-                {initials}
+              <div
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold",
+                  isDark ? "border-white/15 bg-white/10 text-blue-100" : "border-black/10 bg-black/5 text-gray-700"
+                )}
+                style={initialAvatarUrl ? { backgroundImage: `url(${initialAvatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+              >
+                {!initialAvatarUrl && initials}
               </div>
             </div>
             <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">
@@ -442,6 +503,7 @@ type AccountSettingsGroup = {
     label: string;
     caption: string;
     icon: React.ComponentType;
+    hidden?: boolean;
   }>;
 };
 
@@ -489,6 +551,7 @@ function SettingsModal({
 
   const [formDisplayName, setFormDisplayName] = useState(initialDisplayName);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [avatarFileName, setAvatarFileName] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileStatus, setProfileStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -501,6 +564,10 @@ function SettingsModal({
   const [code, setCode] = useState("");
   const [codeLoading, setCodeLoading] = useState(false);
   const [codeStatus, setCodeStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [redeemUnlockClicks, setRedeemUnlockClicks] = useState(0);
+
+  const [unsubscribeLoading, setUnsubscribeLoading] = useState(false);
+  const [unsubscribeStatus, setUnsubscribeStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -517,6 +584,13 @@ function SettingsModal({
 
   const identityName = (formDisplayName.trim() || displayName.trim() || email.trim() || "User");
   const identityInitial = identityName.slice(0, 1).toUpperCase();
+  const redeemUnlocked = redeemUnlockClicks >= 5;
+  const hasPaidSubscription = tier !== "free" && tier !== "unlimited";
+  const panelClass = "rounded-2xl border border-border bg-card p-5 shadow-sm";
+  const subPanelClass = "rounded-2xl border border-border bg-secondary/35 p-5";
+  const fieldClass = "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none ring-0 focus:border-primary";
+  const primaryBtnClass = "rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40";
+  const neutralBtnClass = "inline-flex rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent";
   const settingsGroups: AccountSettingsGroup[] = [
     {
       label: "Personal",
@@ -524,8 +598,8 @@ function SettingsModal({
         { id: "account", label: "Account", caption: "Overview and access", icon: UserIcon },
         { id: "profile", label: "Profile", caption: "Display name and avatar", icon: BrowseIcon },
         { id: "security", label: "Security", caption: "Password and sign-in", icon: KeyIcon },
-        { id: "benefits", label: "Benefits", caption: "Codes and plan", icon: PricingIcon },
-        { id: "legal", label: "Legal", caption: "Privacy and terms", icon: LogsIcon },
+        { id: "benefits", label: "Plan", caption: "Subscription and access", icon: PricingIcon },
+        { id: "legal", label: "Legal", caption: "Privacy and terms", icon: LogsIcon, hidden: true },
         { id: "danger", label: "Danger zone", caption: "Delete this account", icon: CloseIcon },
       ],
     },
@@ -539,6 +613,48 @@ function SettingsModal({
     },
   ];
   const activeTabMeta = settingsGroups.flatMap((group) => group.items).find((item) => item.id === tab) ?? settingsGroups[0].items[0];
+
+  async function handleAvatarUpload(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setProfileStatus({ type: "error", message: "Please choose an image file." });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileStatus({ type: "error", message: "Image too large. Use a file up to 2MB." });
+      return;
+    }
+
+    const supabase = createBrowserClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setProfileStatus({ type: "error", message: "Not signed in." });
+      return;
+    }
+
+    const extension = (file.name.split(".").pop() ?? "png").toLowerCase();
+    const safeExtension = /^[a-z0-9]+$/.test(extension) ? extension : "png";
+    const objectPath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${safeExtension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(objectPath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      setProfileStatus({ type: "error", message: uploadError.message });
+      return;
+    }
+
+    const { data } = supabase.storage.from("avatars").getPublicUrl(objectPath);
+
+    setAvatarUrl(data.publicUrl);
+    setAvatarFileName(file.name);
+    setProfileStatus({ type: "success", message: "Image uploaded. Save changes to apply it." });
+  }
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -636,6 +752,24 @@ function SettingsModal({
     setCodeLoading(false);
   }
 
+  async function handleUnsubscribe() {
+    setUnsubscribeStatus(null);
+    setUnsubscribeLoading(true);
+
+    const res = await fetch("/api/billing/unsubscribe", { method: "POST" });
+    const body = await res.json().catch(() => ({})) as { unsubscribed?: number; message?: string; error?: string };
+
+    if (!res.ok) {
+      setUnsubscribeStatus({ type: "error", message: body.error ?? "Failed to unsubscribe." });
+      setUnsubscribeLoading(false);
+      return;
+    }
+
+    setUnsubscribeStatus({ type: "success", message: body.message ?? "Subscription cancelled." });
+    setUnsubscribeLoading(false);
+    router.refresh();
+  }
+
   async function handleDsarSubmit(e: React.FormEvent) {
     e.preventDefault();
     setDsarLoading(true);
@@ -681,18 +815,26 @@ function SettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/35 p-4">
-      <div className="flex h-[88vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl">
-        <aside className="flex h-full w-64 shrink-0 flex-col border-r border-black/10 bg-black/[0.03]">
-          <div className="border-b border-black/10 p-4">
-            <div className="rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm">
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/35 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="flex h-[88vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-secondary/30">
+          <div className="border-b border-border p-4">
+            <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-900 text-lg font-semibold text-white">
-                  {identityInitial}
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground"
+                  style={avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                >
+                  {!avatarUrl && identityInitial}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900">{identityName}</p>
-                  <p className="truncate text-xs text-gray-500">{email || "-"}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{identityName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{email || "-"}</p>
                 </div>
               </div>
             </div>
@@ -701,11 +843,11 @@ function SettingsModal({
           <div className="flex-1 overflow-y-auto px-3 py-4">
             {settingsGroups.map((group) => (
               <div key={group.label} className="mb-5 last:mb-0">
-                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {group.label}
                 </p>
                 <div className="space-y-1">
-                  {group.items.map((item) => {
+                  {group.items.filter((item) => !item.hidden).map((item) => {
                     const Icon = item.icon;
                     const active = tab === item.id;
                     const dangerItem = item.id === "danger";
@@ -719,11 +861,15 @@ function SettingsModal({
                           "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
                           active
                             ? dangerItem
-                              ? "bg-red-50 text-red-700 shadow-sm ring-1 ring-red-200"
-                              : "bg-white text-gray-900 shadow-sm ring-1 ring-black/10"
+                              ? base === "dark"
+                                ? "bg-red-500/15 text-red-300 shadow-sm ring-1 ring-red-500/35"
+                                : "bg-red-50 text-red-700 shadow-sm ring-1 ring-red-200"
+                              : "bg-primary/12 text-foreground shadow-sm ring-1 ring-primary/30"
                             : dangerItem
-                              ? "text-red-600 hover:bg-red-50 hover:text-red-700"
-                              : "text-gray-600 hover:bg-white/80 hover:text-gray-900"
+                              ? base === "dark"
+                                ? "text-red-300 hover:bg-red-500/10 hover:text-red-200"
+                                : "text-red-600 hover:bg-red-50 hover:text-red-700"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
                         )}
                       >
                         <span className="mt-0.5 shrink-0">
@@ -734,7 +880,7 @@ function SettingsModal({
                           <span
                             className={cn(
                               "block truncate text-xs",
-                              active ? (dangerItem ? "text-red-600/80" : "text-gray-500") : dangerItem ? "text-red-500/80" : "text-gray-500"
+                              active ? (dangerItem ? "text-red-600/80" : "text-muted-foreground") : dangerItem ? "text-red-500/80" : "text-muted-foreground"
                             )}
                           >
                             {item.caption}
@@ -748,11 +894,11 @@ function SettingsModal({
             ))}
           </div>
 
-          <div className="border-t border-black/10 p-4">
+          <div className="border-t border-border p-4">
             <button
               type="button"
               onClick={onClose}
-              className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-black/5"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
               Close settings
             </button>
@@ -760,13 +906,13 @@ function SettingsModal({
         </aside>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="border-b border-black/10 bg-gradient-to-br from-black/[0.04] via-white to-white px-6 py-5">
+          <div className="border-b border-border bg-gradient-to-br from-primary/15 via-card to-secondary px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">{activeTabMeta.label}</h2>
-                <p className="mt-1 max-w-2xl text-sm text-gray-500">{activeTabMeta.caption}</p>
+                <h2 className="text-xl font-semibold text-foreground">{activeTabMeta.label}</h2>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{activeTabMeta.caption}</p>
               </div>
-              <button type="button" onClick={onClose} className="rounded-md p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-900" aria-label="Close settings">
+              <button type="button" onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close settings">
                 <CloseIcon className="h-4 w-4" />
               </button>
             </div>
@@ -775,47 +921,48 @@ function SettingsModal({
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {tab === "account" && (
               <div className="space-y-6">
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                <section className={panelClass}>
                   <div className="flex flex-wrap items-start gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900 text-xl font-semibold text-white">
-                      {identityInitial}
+                    <div
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-semibold text-primary-foreground"
+                      style={avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                    >
+                      {!avatarUrl && identityInitial}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-lg font-semibold text-gray-900">{identityName}</p>
-                      <p className="truncate text-sm text-gray-500">{email || "-"}</p>
+                      <p className="truncate text-lg font-semibold text-foreground">{identityName}</p>
+                      <p className="truncate text-sm text-muted-foreground">{email || "-"}</p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">{tierLabel}</span>
-                        {isAdmin && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Admin</span>}
-                        {isBetaTester && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Beta</span>}
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">{tierLabel}</span>
+                        {isAdmin && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Admin</span>}
+                        {isBetaTester && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Beta</span>}
                       </div>
                     </div>
                   </div>
                 </section>
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
-                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Account details</p>
+                  <section className={panelClass}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Account details</p>
                     <div className="mt-4 grid grid-cols-[120px_1fr] gap-x-4 gap-y-3 text-sm">
-                      <span className="text-gray-500">Email</span>
-                      <span className="break-all font-mono text-xs text-gray-700">{email || "-"}</span>
-                      <span className="text-gray-500">User ID</span>
-                      <span className="break-all font-mono text-xs text-gray-700">{userId || "-"}</span>
-                      <span className="text-gray-500">Joined</span>
-                      <span className="font-mono text-xs text-gray-700">{memberSince}</span>
+                      <span className="text-muted-foreground">Email</span>
+                      <span className="break-all font-mono text-xs text-foreground">{email || "-"}</span>
+                      <span className="text-muted-foreground">Joined</span>
+                      <span className="font-mono text-xs text-foreground">{memberSince}</span>
                     </div>
                   </section>
 
-                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Workspace status</p>
+                  <section className={panelClass}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Workspace status</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">{tierLabel}</span>
-                      {isAdmin && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Admin</span>}
-                      {isBetaTester && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Beta</span>}
+                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">{tierLabel}</span>
+                      {isAdmin && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Admin</span>}
+                      {isBetaTester && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Beta</span>}
                     </div>
-                    <div className="mt-5 border-t border-black/10 pt-4">
-                      <p className="text-sm font-medium text-gray-900">Skill level</p>
-                      <p className="mt-1 text-sm text-gray-700">AI Agent Builder</p>
-                      <p className="text-xs text-gray-500">Skill level 0</p>
+                    <div className="mt-5 border-t border-border pt-4">
+                      <p className="text-sm font-medium text-foreground">Skill level</p>
+                      <p className="mt-1 text-sm text-foreground">AI Agent Builder</p>
+                      <p className="text-xs text-muted-foreground">Skill level 0</p>
                     </div>
                   </section>
                 </div>
@@ -824,41 +971,66 @@ function SettingsModal({
 
             {tab === "profile" && (
               <div className="space-y-6">
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+                <section className={panelClass}>
                   <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-900 text-xl font-semibold text-white">
-                      {identityInitial}
+                    <div
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-semibold text-primary-foreground"
+                      style={avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                    >
+                      {!avatarUrl && identityInitial}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{identityName}</p>
-                      <p className="text-sm text-gray-500">Choose how your account appears in the workspace.</p>
+                      <p className="text-sm font-semibold text-foreground">{identityName}</p>
+                      <p className="text-sm text-muted-foreground">Choose how your account appears in the workspace.</p>
                     </div>
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Profile</p>
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Profile</p>
                   <form onSubmit={handleSaveProfile} className="mt-4 space-y-4">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-gray-600">Display name</label>
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Display name</label>
                       <input
                         type="text"
                         value={formDisplayName}
                         onChange={(e) => setFormDisplayName(e.target.value)}
                         maxLength={60}
-                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        className={fieldClass}
                         placeholder="Your name"
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-gray-600">Avatar URL</label>
-                      <input
-                        type="text"
-                        value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
-                        placeholder="https://..."
-                      />
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Profile photo</label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className={cn(neutralBtnClass, "cursor-pointer")}>
+                          Upload image
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              void handleAvatarUpload(e.target.files?.[0] ?? null);
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                        {avatarUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAvatarUrl("");
+                              setAvatarFileName("");
+                            }}
+                            className={neutralBtnClass}
+                          >
+                            Remove image
+                          </button>
+                        )}
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {avatarFileName ? `Selected: ${avatarFileName}` : "PNG/JPG up to 2MB"}
+                      </p>
                     </div>
                     {profileStatus && (
                       <p className={cn("text-xs", profileStatus.type === "success" ? "text-green-600" : "text-red-600")}>{profileStatus.message}</p>
@@ -866,7 +1038,7 @@ function SettingsModal({
                     <button
                       type="submit"
                       disabled={profileSaving}
-                      className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                      className={primaryBtnClass}
                     >
                       {profileSaving ? "Saving..." : "Save changes"}
                     </button>
@@ -878,15 +1050,15 @@ function SettingsModal({
             {tab === "security" && (
               <div className="space-y-6">
                 {!isOAuthUser ? (
-                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Password</p>
+                  <section className={panelClass}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Password</p>
                     <form onSubmit={handlePasswordChange} className="mt-4 space-y-3">
                       <input
                         type="password"
                         required
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        className={fieldClass}
                         placeholder="Current password"
                       />
                       <input
@@ -894,7 +1066,7 @@ function SettingsModal({
                         required
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        className={fieldClass}
                         placeholder="New password"
                       />
                       <input
@@ -902,7 +1074,7 @@ function SettingsModal({
                         required
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-gray-400"
+                        className={fieldClass}
                         placeholder="Confirm new password"
                       />
                       {passwordStatus && (
@@ -911,24 +1083,24 @@ function SettingsModal({
                       <button
                         type="submit"
                         disabled={passwordLoading}
-                        className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                        className={primaryBtnClass}
                       >
                         {passwordLoading ? "Updating..." : "Update password"}
                       </button>
                     </form>
                   </section>
                 ) : (
-                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Password</p>
-                    <p className="mt-3 text-sm text-gray-600">
+                  <section className={panelClass}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Password</p>
+                    <p className="mt-3 text-sm text-muted-foreground">
                       You signed in with Google. Password login is not available for your account.
                     </p>
                   </section>
                 )}
 
-                <section className="rounded-2xl border border-black/10 bg-black/[0.02] p-5">
-                  <p className="text-sm font-medium text-gray-900">Security note</p>
-                  <p className="mt-1 text-sm text-gray-600">
+                <section className={subPanelClass}>
+                  <p className="text-sm font-medium text-foreground">Security note</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Use a strong password you do not reuse elsewhere, and rotate it if you suspect it has been exposed.
                   </p>
                 </section>
@@ -937,59 +1109,52 @@ function SettingsModal({
 
             {tab === "benefits" && (
               <div className="space-y-6">
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Redeem a code</p>
-                  <form onSubmit={handleRedeem} className="mt-4 flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      className="flex-1 rounded-xl border border-black/10 px-3 py-2.5 text-sm uppercase tracking-wider text-gray-900 outline-none ring-0 focus:border-gray-400"
-                      placeholder="ENTER CODE"
-                    />
-                    <button
-                      type="submit"
-                      disabled={codeLoading || code.length < 3}
-                      className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
-                    >
-                      {codeLoading ? "..." : "Redeem"}
-                    </button>
-                  </form>
-                  {codeStatus && (
-                    <p className={cn("mt-2 text-xs", codeStatus.type === "success" ? "text-green-600" : "text-red-600")}>{codeStatus.message}</p>
-                  )}
-                </section>
-
                 <div className="grid gap-4 xl:grid-cols-2">
-                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Plan</p>
-                    <p className="mt-3 text-sm text-gray-600">Current plan: {tierLabel}. Compare plans or upgrade anytime.</p>
+                  <section className={panelClass}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Plan</p>
+                    <p className="mt-3 text-sm text-muted-foreground">Current plan: {tierLabel}. Compare plans or upgrade anytime.</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Link
                         href="/plan"
                         onClick={onClose}
-                        className="inline-flex rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                        className={cn(primaryBtnClass, "inline-flex")}
                       >
                         {tier === "free" ? "Upgrade plan" : "Compare plans"}
                       </Link>
-                      {tier !== "free" && tier !== "unlimited" && (
+                      {hasPaidSubscription && (
                         <a
                           href="/api/billing/portal"
-                          className="inline-flex rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-black/5"
+                          className={neutralBtnClass}
                         >
                           Manage subscription
                         </a>
                       )}
                     </div>
+                    {hasPaidSubscription && (
+                      <div className="mt-4 border-t border-border pt-4">
+                        <button
+                          type="button"
+                          onClick={() => { void handleUnsubscribe(); }}
+                          disabled={unsubscribeLoading}
+                          className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                        >
+                          {unsubscribeLoading ? "Unsubscribing..." : "Unsubscribe"}
+                        </button>
+                        {unsubscribeStatus && (
+                          <p className={cn("mt-2 text-xs", unsubscribeStatus.type === "success" ? "text-green-600" : "text-red-600")}>
+                            {unsubscribeStatus.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </section>
 
-                  <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Current access</p>
+                  <section className={panelClass}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Current access</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">{tierLabel}</span>
-                      {isAdmin && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Admin</span>}
-                      {isBetaTester && <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-700">Beta</span>}
+                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">{tierLabel}</span>
+                      {isAdmin && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Admin</span>}
+                      {isBetaTester && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Beta</span>}
                     </div>
                   </section>
                 </div>
@@ -998,28 +1163,28 @@ function SettingsModal({
 
             {tab === "legal" && (
               <div className="space-y-6">
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Legal</p>
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Legal</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <Link href="/privacy" onClick={onClose} className="rounded-xl border border-black/10 px-3 py-3 text-sm text-gray-700 transition-colors hover:bg-black/5">
+                    <Link href="/privacy" onClick={onClose} className="rounded-xl border border-border px-3 py-3 text-sm text-foreground transition-colors hover:bg-accent">
                       Privacy Policy
                     </Link>
-                    <Link href="/terms" onClick={onClose} className="rounded-xl border border-black/10 px-3 py-3 text-sm text-gray-700 transition-colors hover:bg-black/5">
+                    <Link href="/terms" onClick={onClose} className="rounded-xl border border-border px-3 py-3 text-sm text-foreground transition-colors hover:bg-accent">
                       Terms of Service
                     </Link>
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Data subject request</p>
-                  <p className="mt-2 text-sm text-gray-500 leading-relaxed">
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Data subject request</p>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                     Submit a request under GDPR (Art. 15–22). We will respond within 30 days.
                   </p>
                   <form onSubmit={handleDsarSubmit} className="mt-4 space-y-3">
                     <select
                       value={dsarType}
                       onChange={(e) => setDsarType(e.target.value)}
-                      className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-400"
+                      className={fieldClass}
                     >
                       <option value="access">Right of access — get a copy of your data</option>
                       <option value="correction">Right to rectification — correct inaccurate data</option>
@@ -1034,7 +1199,7 @@ function SettingsModal({
                       onChange={(e) => setDsarDescription(e.target.value)}
                       placeholder="Optional: describe your request in more detail"
                       rows={3}
-                      className="w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-gray-400 resize-none"
+                      className={cn(fieldClass, "resize-none")}
                     />
                     {dsarStatus && (
                       <p className={cn("text-xs", dsarStatus.type === "success" ? "text-green-600" : "text-red-600")}>{dsarStatus.message}</p>
@@ -1042,7 +1207,7 @@ function SettingsModal({
                     <button
                       type="submit"
                       disabled={dsarLoading}
-                      className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                      className={primaryBtnClass}
                     >
                       {dsarLoading ? "Submitting..." : "Submit request"}
                     </button>
@@ -1055,7 +1220,7 @@ function SettingsModal({
               <div className="space-y-6">
                 <section className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-600">Danger zone</p>
-                  <p className="mt-3 text-sm text-gray-700">
+                  <p className="mt-3 text-sm text-foreground">
                     Delete your account and all associated programs, runs, connections, and credentials. This cannot be undone.
                   </p>
                   <form onSubmit={handleDeleteAccount} className="mt-4 space-y-3">
@@ -1063,7 +1228,7 @@ function SettingsModal({
                       type="text"
                       value={deleteConfirm}
                       onChange={(e) => setDeleteConfirm(e.target.value)}
-                      className="w-full rounded-xl border border-red-200 px-3 py-2.5 text-sm text-gray-900 outline-none ring-0 focus:border-red-400"
+                      className="w-full rounded-xl border border-red-300/70 bg-background px-3 py-2.5 text-sm text-foreground outline-none ring-0 focus:border-red-500"
                       placeholder='Type "delete my account"'
                       autoComplete="off"
                     />
@@ -1084,8 +1249,8 @@ function SettingsModal({
 
             {tab === "general" && (
               <div className="space-y-6">
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Theme mode</p>
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Theme mode</p>
                   <div className="mt-4 flex gap-2">
                     {(["dark", "light"] as BaseTheme[]).map((option) => (
                       <button
@@ -1094,7 +1259,7 @@ function SettingsModal({
                         onClick={() => onBaseChange(option)}
                         className={cn(
                           "rounded-xl border px-3 py-2 text-xs font-medium capitalize",
-                          base === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
+                          base === option ? "border-primary bg-primary text-primary-foreground" : "border-border text-foreground hover:bg-accent"
                         )}
                       >
                         {option}
@@ -1103,8 +1268,8 @@ function SettingsModal({
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Accent</p>
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Accent</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {(["orange", "blue", "indigo", "green", "pink", "cyan"] as AccentColor[]).map((option) => (
                       <button
@@ -1113,7 +1278,7 @@ function SettingsModal({
                         onClick={() => onAccentChange(option)}
                         className={cn(
                           "rounded-xl border px-3 py-2 text-xs capitalize",
-                          accent === option ? "border-gray-900 bg-gray-900 text-white" : "border-black/15 text-gray-700 hover:bg-black/5"
+                          accent === option ? "border-primary bg-primary text-primary-foreground" : "border-border text-foreground hover:bg-accent"
                         )}
                       >
                         {option}
@@ -1126,42 +1291,84 @@ function SettingsModal({
 
             {tab === "advanced" && (
               <div className="space-y-6">
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Advanced mode</p>
-                  <label className="mt-4 flex items-center gap-3 rounded-xl border border-black/10 px-4 py-3 text-sm text-gray-800">
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Advanced mode</p>
+                  <label className="mt-4 flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-sm text-foreground">
                     <input
                       type="checkbox"
                       checked={advanced}
                       onChange={(e) => onAdvancedChange(e.target.checked)}
-                      className="h-4 w-4 rounded border-black/20"
+                      className="h-4 w-4 rounded border-border"
                     />
                     <span>Enable advanced mode</span>
                   </label>
-                  <p className="mt-3 text-sm text-gray-600">
+                  <p className="mt-3 text-sm text-muted-foreground">
                     Show extra controls and power-user options throughout the app.
                   </p>
                 </section>
 
-                <section className="rounded-2xl border border-black/10 bg-black/[0.02] p-5">
-                  <p className="text-sm font-medium text-gray-900">Current status</p>
-                  <p className="mt-1 text-sm text-gray-600">
+                <section className={subPanelClass}>
+                  <p className="text-sm font-medium text-foreground">Current status</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {advanced ? "Advanced mode is enabled for this workspace." : "Advanced mode is currently turned off."}
                   </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTab("legal")}
+                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      Legal and privacy tools
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRedeemUnlockClicks((v) => Math.min(5, v + 1))}
+                      className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground"
+                    >
+                      build info
+                    </button>
+                  </div>
                 </section>
+
+                {redeemUnlocked && (
+                  <section className={panelClass}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Code redemption</p>
+                    <form onSubmit={handleRedeem} className="mt-4 flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        className={cn(fieldClass, "flex-1 uppercase tracking-wider")}
+                        placeholder="ENTER CODE"
+                      />
+                      <button
+                        type="submit"
+                        disabled={codeLoading || code.length < 3}
+                        className={primaryBtnClass}
+                      >
+                        {codeLoading ? "..." : "Redeem"}
+                      </button>
+                    </form>
+                    {codeStatus && (
+                      <p className={cn("mt-2 text-xs", codeStatus.type === "success" ? "text-green-600" : "text-red-600")}>{codeStatus.message}</p>
+                    )}
+                  </section>
+                )}
               </div>
             )}
 
             {tab === "codeManager" && isAdmin && (
               <div className="space-y-6">
-                <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Code Manager</p>
-                  <p className="mt-3 text-sm text-gray-600">
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Code Manager</p>
+                  <p className="mt-3 text-sm text-muted-foreground">
                     Manage redemption codes and admin-only access grants from the dedicated code manager.
                   </p>
                   <Link
                     href="/admin/codes"
                     onClick={onClose}
-                    className="mt-4 inline-flex rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                    className={cn(primaryBtnClass, "mt-4 inline-flex")}
                   >
                     Open Code Manager
                   </Link>

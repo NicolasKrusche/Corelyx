@@ -60,13 +60,6 @@ export default async function PricingPage() {
 
       <PricingTiers ctas={ctas} />
 
-      <p className="text-xs text-muted-foreground/50">
-        Have a promo or beta code?{" "}
-        <Link href="/plan?settings=1" className="text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
-          Redeem it in Settings.
-        </Link>
-      </p>
-
       {/* FAQ */}
       <div className="border-t border-border/40 pt-10">
         <div className="mb-8">
