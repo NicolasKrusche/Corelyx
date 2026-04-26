@@ -20,6 +20,9 @@ export default async function PricingPage() {
     .single();
   const currentTier = (profile?.tier ?? "free") as string;
 
+  const tierOrder = ["free", "plus", "pro", "builder"];
+  const currentTierIndex = tierOrder.indexOf(currentTier);
+
   const ctas = [
     {
       label: currentTier === "free" ? "Current plan" : "Downgrade",
@@ -27,13 +30,21 @@ export default async function PricingPage() {
       style: (currentTier === "free" ? "disabled" : "border") as "disabled" | "border",
     },
     {
-      label: currentTier === "pro" ? "Current plan" : "Upgrade",
-      checkout: { tier: "pro", interval: "month" as const },
+      label: currentTier === "plus" ? "Current plan" : currentTierIndex > 1 ? "Downgrade" : "Start for €9.90",
+      labelYear: currentTier === "plus" || currentTierIndex > 1 ? undefined : "Start for €6.90/mo",
+      checkout: currentTier !== "plus" && currentTierIndex <= 1 ? { tier: "plus" as const, interval: "month" as const } : undefined,
+      href: currentTier === "plus" || currentTierIndex > 1 ? "/dashboard" : undefined,
+      style: (currentTier === "plus" ? "disabled" : "border") as "disabled" | "border",
+    },
+    {
+      label: currentTier === "pro" ? "Current plan" : currentTierIndex > 2 ? "Downgrade" : "Start with Team",
+      checkout: currentTier !== "pro" && currentTierIndex <= 2 ? { tier: "pro" as const, interval: "month" as const } : undefined,
+      href: currentTier === "pro" || currentTierIndex > 2 ? "/dashboard" : undefined,
       style: (currentTier === "pro" ? "disabled" : "primary") as "disabled" | "primary",
     },
     {
-      label: currentTier === "builder" ? "Current plan" : "Upgrade",
-      checkout: { tier: "builder", interval: "month" as const },
+      label: currentTier === "builder" ? "Current plan" : "Contact sales",
+      href: currentTier === "builder" ? "/dashboard" : "mailto:sales@corelyx.app",
       style: (currentTier === "builder" ? "disabled" : "border") as "disabled" | "border",
     },
   ];
@@ -44,7 +55,7 @@ export default async function PricingPage() {
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-2">Pricing</p>
         <h1 className="text-3xl font-black tracking-tight">Simple, honest pricing.</h1>
-        <p className="text-muted-foreground text-sm mt-1">Start free. No credit card required. Upgrade when your automations need more.</p>
+        <p className="text-muted-foreground text-sm mt-1">Start free. No credit card required. Upgrade when the limits hurt.</p>
       </div>
 
       <PricingTiers ctas={ctas} />

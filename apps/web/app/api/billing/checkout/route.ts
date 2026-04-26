@@ -42,21 +42,39 @@ export async function POST(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
   let rawTier: string | null = null;
   let rawInterval: string | null = null;
+  let rawWelcomeOffer: string | null = null;
 
   if (contentType.includes("application/json")) {
-    const body = (await request.json().catch(() => null)) as { tier?: string; interval?: string } | null;
+    const body = (await request.json().catch(() => null)) as { tier?: string; interval?: string; welcome_offer?: string } | null;
     rawTier = body?.tier ?? null;
     rawInterval = body?.interval ?? null;
+    rawWelcomeOffer = body?.welcome_offer ?? null;
   } else {
     const form = await request.formData();
     rawTier = readString(form.get("tier"));
     rawInterval = readString(form.get("interval"));
+    rawWelcomeOffer = readString(form.get("welcome_offer"));
   }
 
   const parsed = parseInput(rawTier, rawInterval);
   if (!parsed) return apiError("Invalid billing selection.", 400);
 
   const { tier, interval } = parsed;
+
+  // Validate welcome offer eligibility server-side
+  const isWelcomeOffer = rawWelcomeOffer === "true" && tier === "plus" && interval === "month";
+  let welcomeCouponId: string | null = null;
+  if (isWelcomeOffer) {
+    const { data: profile } = await supabase.from("profiles").select("tier, created_at").eq("id", user.id).single();
+    const tierNow = (profile as { tier?: string } | null)?.tier ?? "free";
+    const createdAt = (profile as { created_at?: string } | null)?.created_at ?? "";
+    const withinWindow = createdAt
+      ? Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
+      : false;
+    if (tierNow === "free" && withinWindow) {
+      welcomeCouponId = process.env.STRIPE_WELCOME_COUPON_ID ?? null;
+    }
+  }
 
   let priceId: string;
   try {
@@ -74,7 +92,9 @@ export async function POST(request: Request) {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${baseUrl}/plan?checkout=success`,
     cancel_url: `${baseUrl}/plan?checkout=cancelled`,
-    allow_promotion_codes: true,
+    ...(welcomeCouponId
+      ? { discounts: [{ coupon: welcomeCouponId }] }
+      : { allow_promotion_codes: true }),
     client_reference_id: user.id,
     metadata: {
       user_id: user.id,
