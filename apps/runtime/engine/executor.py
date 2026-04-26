@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import os
 import re
+import socket
 import time
 from urllib.parse import urlsplit
 from typing import Any, Callable
@@ -1109,6 +1111,51 @@ class ProgramExecutor:
             return {**input_data, "access_token": access_token, "connection_id": connection_id}
         return input_data
 
+    @staticmethod
+    def _validate_http_url(url: str) -> None:
+        """Block SSRF: reject non-http(s) schemes and private/link-local destinations."""
+        _BLOCKED_NETWORKS = [
+            ipaddress.ip_network("127.0.0.0/8"),
+            ipaddress.ip_network("::1/128"),
+            ipaddress.ip_network("169.254.0.0/16"),   # link-local / cloud metadata
+            ipaddress.ip_network("10.0.0.0/8"),
+            ipaddress.ip_network("172.16.0.0/12"),
+            ipaddress.ip_network("192.168.0.0/16"),
+            ipaddress.ip_network("fc00::/7"),          # IPv6 ULA
+            ipaddress.ip_network("0.0.0.0/8"),
+        ]
+
+        parsed = urlsplit(url)
+
+        if parsed.scheme not in ("http", "https"):
+            raise ExecutionError(
+                "HTTP_CONFIG_INVALID",
+                f"URL scheme '{parsed.scheme}' is not allowed; use http or https",
+            )
+
+        hostname = parsed.hostname
+        if not hostname:
+            raise ExecutionError("HTTP_CONFIG_INVALID", "URL must include a valid hostname")
+
+        # Resolve hostname to IP(s) and block private ranges
+        try:
+            infos = socket.getaddrinfo(hostname, None)
+        except socket.gaierror as exc:
+            raise ExecutionError("HTTP_CONFIG_INVALID", f"Cannot resolve hostname '{hostname}': {exc}") from exc
+
+        for info in infos:
+            addr_str = info[4][0]
+            try:
+                addr = ipaddress.ip_address(addr_str)
+            except ValueError:
+                continue
+            for net in _BLOCKED_NETWORKS:
+                if addr in net:
+                    raise ExecutionError(
+                        "HTTP_CONFIG_INVALID",
+                        "Requests to private or internal network addresses are not allowed",
+                    )
+
     async def _execute_http_connection(
         self,
         cfg: HttpConnectionConfig,
@@ -1117,6 +1164,8 @@ class ProgramExecutor:
     ) -> dict:
         if not cfg.url.strip():
             raise ExecutionError("HTTP_CONFIG_INVALID", "HTTP connector URL is required")
+
+        self._validate_http_url(cfg.url.strip())
 
         method = cfg.method.upper().strip() or "GET"
         params = {
