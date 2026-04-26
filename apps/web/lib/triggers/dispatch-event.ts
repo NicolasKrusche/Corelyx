@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
-import { checkRunLimit } from "@/lib/limits";
+import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 
 type JsonObject = Record<string, unknown>;
 
@@ -107,6 +107,9 @@ export async function dispatchEventTriggers(
 
       if (input.user_id && program.user_id !== input.user_id) return;
       if (allowedProgramIds && !allowedProgramIds.has(program.id)) return;
+
+      const triggerAccessCheck = await checkTriggerAccess(program.user_id, "event");
+      if (!triggerAccessCheck.allowed) return;
 
       const runLimitCheck = await checkRunLimit(program.user_id);
       if (!runLimitCheck.allowed) return;

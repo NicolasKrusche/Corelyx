@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { vaultStore } from "@/lib/vault";
+import { checkBYOKAccess } from "@/lib/limits";
 
 const CreateKeySchema = z.object({
   name: z.string().min(1).max(100),
@@ -31,6 +33,14 @@ export async function POST(request: Request) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const byokCheck = await checkBYOKAccess(user.id);
+  if (!byokCheck.allowed) {
+    return NextResponse.json(
+      { error: "FEATURE_NOT_AVAILABLE", message: byokCheck.upgradeMessage },
+      { status: 403 }
+    );
+  }
 
   const body = await request.json().catch(() => null);
   const parsed = CreateKeySchema.safeParse(body);
