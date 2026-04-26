@@ -84,12 +84,13 @@ function NavItem({
 
 // ─── Main sidebar ─────────────────────────────────────────────────────────────
 
-type Tier = "free" | "pro" | "builder" | "unlimited";
+type Tier = "free" | "plus" | "pro" | "builder" | "unlimited";
 
 const TIER_CONFIG: Record<Tier, { label: string; className: string }> = {
   free:      { label: "Free",      className: "bg-white/10 text-blue-100 border-white/15" },
-  pro:       { label: "Pro",       className: "bg-violet-500/20 text-violet-100 border-violet-400/30" },
-  builder:   { label: "Builder",   className: "bg-blue-500/25 text-blue-100 border-blue-300/30" },
+  plus:      { label: "Solo",      className: "bg-emerald-500/20 text-emerald-100 border-emerald-400/30" },
+  pro:       { label: "Team",      className: "bg-violet-500/20 text-violet-100 border-violet-400/30" },
+  builder:   { label: "Scale",     className: "bg-blue-500/25 text-blue-100 border-blue-300/30" },
   unlimited: { label: "Unlimited", className: "bg-amber-500/20 text-amber-100 border-amber-300/30" },
 };
 
@@ -400,7 +401,8 @@ export function Sidebar({
           {menuOpen && (
             <div className={cn(
               "absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 rounded-xl border p-1.5 shadow-xl",
-              "border-border bg-popover text-popover-foreground"
+              "border-border bg-popover text-popover-foreground",
+              "hidden group-hover/side:block"
             )}>
               <button
                 type="button"
@@ -432,16 +434,30 @@ export function Sidebar({
               isDark ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-black/10 bg-black/5 hover:bg-black/10"
             )}
           >
-            <div className="flex h-full w-12 shrink-0 items-center justify-center">
+            <div className="relative flex h-full w-12 shrink-0 items-center justify-center">
               <div
                 className={cn(
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold",
+                  "relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border text-[11px] font-semibold",
                   isDark ? "border-white/15 bg-white/10 text-blue-100" : "border-black/10 bg-black/5 text-gray-700"
                 )}
-                style={initialAvatarUrl ? { backgroundImage: `url(${initialAvatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
               >
-                {!initialAvatarUrl && initials}
+                <span>{initials}</span>
+                {initialAvatarUrl && (
+                  <img
+                    src={initialAvatarUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                )}
               </div>
+              {(runWarningAt80 || runLimitReached) && (
+                <span className={cn(
+                  "absolute bottom-2 right-1.5 h-2 w-2 rounded-full border",
+                  isDark ? "border-[rgba(0,0,0,0.4)]" : "border-white/60",
+                  runLimitReached ? "bg-red-500" : "bg-yellow-400"
+                )} />
+              )}
             </div>
             <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">
               <p className="truncate text-[13px] font-semibold leading-4">{displayName}</p>
@@ -826,11 +842,16 @@ function SettingsModal({
           <div className="border-b border-border p-4">
             <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground"
-                  style={avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
-                >
-                  {!avatarUrl && identityInitial}
+                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-lg font-semibold text-primary-foreground">
+                  <span>{identityInitial}</span>
+                  {avatarUrl && (
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{identityName}</p>
@@ -923,11 +944,11 @@ function SettingsModal({
               <div className="space-y-6">
                 <section className={panelClass}>
                   <div className="flex flex-wrap items-start gap-4">
-                    <div
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-semibold text-primary-foreground"
-                      style={avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
-                    >
-                      {!avatarUrl && identityInitial}
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary text-xl font-semibold text-primary-foreground">
+                      <span>{identityInitial}</span>
+                      {avatarUrl && (
+                        <img src={avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-lg font-semibold text-foreground">{identityName}</p>
@@ -973,11 +994,11 @@ function SettingsModal({
               <div className="space-y-6">
                 <section className={panelClass}>
                   <div className="flex items-center gap-4">
-                    <div
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-semibold text-primary-foreground"
-                      style={avatarUrl ? { backgroundImage: `url(${avatarUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
-                    >
-                      {!avatarUrl && identityInitial}
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary text-xl font-semibold text-primary-foreground">
+                      <span>{identityInitial}</span>
+                      {avatarUrl && (
+                        <img src={avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">{identityName}</p>

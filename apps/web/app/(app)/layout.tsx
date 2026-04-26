@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar
         isAdmin={isAdminEmail(user.email)}
         email={user.email ?? ""}
-        tier={(isAdminEmail(user.email) ? "unlimited" : (profile?.tier ?? "free")) as "free" | "pro" | "builder" | "unlimited"}
+        tier={(isAdminEmail(user.email) ? "unlimited" : (profile?.tier ?? "free")) as "free" | "plus" | "pro" | "builder" | "unlimited"}
         planExpiresAt={profile?.plan_expires_at ?? null}
         isBetaTester={profile?.is_beta_tester ?? false}
         userId={user.id}
