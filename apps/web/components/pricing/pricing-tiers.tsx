@@ -31,7 +31,7 @@ export const TIERS = [
       { text: "Unlimited programs" },
       { text: "500 runs / month" },
       { text: "All 12+ connectors" },
-      { text: "BYOK + Nexflow model credits" },
+      { text: "BYOK + Corelyx model credits" },
       { text: "90-day run history" },
       { text: "Human-in-the-loop approvals" },
       { text: "Conflict detection" },
@@ -65,11 +65,11 @@ export const FAQ = [
   },
   {
     q: "What is BYOK?",
-    a: "Bring Your Own Key. You add your own Anthropic, OpenAI, or OpenRouter API key, and model costs go directly to your provider account. Nexflow never marks up model usage.",
+    a: "Bring Your Own Key. You add your own Anthropic, OpenAI, or OpenRouter API key, and model costs go directly to your provider account. Corelyx never marks up model usage.",
   },
   {
     q: "Can I use my own API keys on paid plans?",
-    a: "Yes — BYOK works on all plans. Pro and Builder also include optional Nexflow model credits as a convenience top-up.",
+    a: "Yes — BYOK works on all plans. Pro and Builder also include optional Corelyx model credits as a convenience top-up.",
   },
   {
     q: "What happens if I exceed my run limit?",

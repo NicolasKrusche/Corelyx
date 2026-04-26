@@ -3,7 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Settings — Nexflow",
+  title: "Settings — Corelyx",
 };
 
 export default async function SettingsPage() {

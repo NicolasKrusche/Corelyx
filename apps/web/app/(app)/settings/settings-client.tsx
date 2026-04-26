@@ -433,8 +433,8 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             <p className="text-sm font-medium">Billing contact data</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
               To correct billing contact information held by our payment processor, email{" "}
-              <a href="mailto:legal@nexflow.app" className="text-primary hover:underline">
-                legal@nexflow.app
+              <a href="mailto:legal@corelyx.app" className="text-primary hover:underline">
+                legal@corelyx.app
               </a>{" "}
               with the details to update.
             </p>

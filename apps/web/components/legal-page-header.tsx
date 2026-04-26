@@ -48,10 +48,10 @@ export async function LegalPageHeader({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/pictures/logo-no-bg.png"
-            alt="Nexflow"
+            alt="Corelyx"
             className="h-6 w-6 object-contain"
           />
-          <span className="text-sm font-bold tracking-tight">Nexflow</span>
+          <span className="text-sm font-bold tracking-tight">Corelyx</span>
         </Link>
         <Link
           href={href}

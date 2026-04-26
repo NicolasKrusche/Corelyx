@@ -17,9 +17,9 @@ import {
 } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - Nexflow",
+  title: "Privacy Policy - Corelyx",
   description:
-    "How Nexflow processes personal data, including its processor inventory, legal bases, and data transfer notes.",
+    "How Corelyx processes personal data, including its processor inventory, legal bases, and data transfer notes.",
 };
 
 const sections = [
@@ -173,7 +173,7 @@ export default async function PrivacyPage() {
               </h2>
               <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
                 <p>
-                  Nexflow is a visual AI automation platform. This policy
+                  Corelyx is a visual AI automation platform. This policy
                   explains how we process personal data when you create an
                   account, configure workflows, connect third-party services,
                   add model or API credentials, purchase a paid plan, or contact
@@ -189,7 +189,7 @@ export default async function PrivacyPage() {
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    core processors we engage to operate Nexflow itself, and
+                    core processors we engage to operate Corelyx itself, and
                   </li>
                   <li>
                     optional connected services and model providers that only
@@ -206,7 +206,7 @@ export default async function PrivacyPage() {
               </h2>
               <div className="rounded-2xl border border-border bg-card/60 p-6 text-sm leading-relaxed text-muted-foreground">
                 <p>
-                  The controller for the Nexflow service is{" "}
+                  The controller for the Corelyx service is{" "}
                   <span className="font-semibold text-foreground">
                     {legalIdentity.entityName}
                   </span>
@@ -254,7 +254,7 @@ export default async function PrivacyPage() {
                 5. Core Processors
               </h2>
               <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-                These providers operate the Nexflow product itself. They process
+                These providers operate the Corelyx product itself. They process
                 personal data on our behalf so we can host the application, run
                 workflows, send transactional notifications, and handle billing.
               </p>
@@ -283,11 +283,11 @@ export default async function PrivacyPage() {
                   Google API Services notice
                 </p>
                 <p className="mt-2">
-                  If you connect Google services, Nexflow uses Google user data
+                  If you connect Google services, Corelyx uses Google user data
                   only to provide the Google-backed features you configure. We do
                   not use Google user data for advertising or to train general
                   AI models. You can revoke Google access in your Google account
-                  permissions or by disconnecting the integration in Nexflow.
+                  permissions or by disconnecting the integration in Corelyx.
                 </p>
               </div>
 
@@ -304,7 +304,7 @@ export default async function PrivacyPage() {
                 7. Model Providers
               </h2>
               <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-                These providers are optional. Nexflow only sends prompts,
+                These providers are optional. Corelyx only sends prompts,
                 workflow context, and selected inputs to them if you add the
                 relevant API key or choose that provider inside a workflow.
               </p>
@@ -323,7 +323,7 @@ export default async function PrivacyPage() {
               <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
                 <p>
                   Many infrastructure, billing, email, and AI providers used by
-                  or through Nexflow are based in the United States or use global
+                  or through Corelyx are based in the United States or use global
                   infrastructure. That means personal data may be transferred
                   outside the EEA, the UK, or Switzerland.
                 </p>
@@ -400,7 +400,7 @@ export default async function PrivacyPage() {
               </h2>
               <div className="rounded-2xl border border-border bg-card/60 p-6 text-sm leading-relaxed text-muted-foreground">
                 <p>
-                  Nexflow currently uses cookies and local storage only for
+                  Corelyx currently uses cookies and local storage only for
                   essential session handling and interface preferences such as
                   theme selection. We do not currently load advertising trackers
                   or non-essential analytics on the site.
@@ -445,7 +445,7 @@ export default async function PrivacyPage() {
 
       <footer className="mt-16 border-t border-border/40 px-6 py-6">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground/50 sm:flex-row">
-          <span>&copy; {new Date().getFullYear()} Nexflow. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} Corelyx. All rights reserved.</span>
           <div className="flex items-center gap-5">
             <Link
               href="/privacy"
