@@ -6,7 +6,7 @@
 import { createServiceClient } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
 
-type Tier = "free" | "pro" | "builder" | "unlimited";
+type Tier = "free" | "plus" | "pro" | "builder" | "unlimited";
 
 interface TierLimits {
   maxPrograms: number | null;  // null = unlimited
@@ -15,6 +15,7 @@ interface TierLimits {
 
 const TIER_LIMITS: Record<Tier, TierLimits> = {
   free:      { maxPrograms: 2,    runsPerMonth: 50   },
+  plus:      { maxPrograms: null, runsPerMonth: 75   },
   pro:       { maxPrograms: null, runsPerMonth: 500  },
   builder:   { maxPrograms: null, runsPerMonth: 2000 },
   unlimited: { maxPrograms: null, runsPerMonth: null },
@@ -159,7 +160,9 @@ export async function checkRunLimit(userId: string): Promise<LimitCheckResult> {
       reason: `Monthly run limit reached (${current}/${totalAllowed} on ${profile.tier} plan)`,
       upgradeMessage:
         profile.tier === "free"
-          ? `You've used all ${totalAllowed} runs this month on the Free plan. Upgrade to Pro for 500 runs/month.`
+          ? `You've used all ${totalAllowed} runs this month on the Free plan. Upgrade to Plus for 150 runs/month.`
+          : profile.tier === "plus"
+          ? `You've used all ${totalAllowed} runs this month on the Solo plan. Upgrade to Team for 500 runs/month.`
           : `You've used all ${totalAllowed} runs this month on the ${profile.tier} plan. Upgrade for more.`,
     };
   }
