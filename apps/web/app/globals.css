@@ -141,6 +141,36 @@
     linear-gradient(to bottom, hsl(var(--border) / 0.9) 1px, transparent 1px);
 }
 
+/* React Flow built-in controls need explicit theming for button internals. */
+.react-flow__controls,
+.react-flow__minimap {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--background));
+}
+
+.react-flow__controls-button {
+  border-bottom-color: hsl(var(--border));
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.react-flow__controls-button:hover {
+  background-color: hsl(var(--accent));
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom-color: transparent;
+}
+
+.dark .react-flow__controls,
+.dark .react-flow__minimap {
+  background-color: hsl(var(--card));
+}
+
+.dark .react-flow__controls-button {
+  background-color: hsl(var(--card));
+}
+
 /* ── Hero node graph drift animations ── */
 @keyframes drift-1 {
   0%, 100% { transform: translate(0px, 0px); }

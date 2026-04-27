@@ -601,24 +601,28 @@ function NewProgramPageInner() {
   };
 
   const chatFeed = (
-    <div className="space-y-3 rounded-2xl border border-border bg-card/80 p-4 backdrop-blur-sm shadow-sm">
+    <div className="space-y-3 rounded-2xl border border-border/50 bg-background/55 p-4 backdrop-blur-md shadow-sm">
       {inlineMessages.length === 0 ? (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Describe your program and click Build now, or skip AI and open a blank workflow in the editor.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
+            <button
+              type="button"
               disabled={isCreatingScratch}
               onClick={() => { void handleCreateBlankProgram(); }}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isCreatingScratch ? "Opening editor..." : "Start from scratch"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => router.push("/programs/import")}>
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/programs/import")}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
+            >
               Import program
-            </Button>
+            </button>
           </div>
           {scratchCreateError && (
             <p className="text-xs text-red-300">{scratchCreateError}</p>
