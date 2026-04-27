@@ -271,6 +271,40 @@ class ConflictError(ExecutionError):
 # S13: hard cap on loop iteration count to prevent cost/DoS via attacker-shaped
 # upstream lists. Schemas that legitimately need more iterations should be split.
 MAX_LOOP_ITEMS = 100
+LLM_REQUEST_TIMEOUT_SECONDS = 120.0
+LLM_TEMPERATURE = 0
+
+_LLM_CLIENT: httpx.AsyncClient | None = None
+
+
+def _get_llm_client() -> httpx.AsyncClient:
+    """Shared client keeps provider TLS connections warm during multi-agent runs."""
+    global _LLM_CLIENT
+    if _LLM_CLIENT is None or _LLM_CLIENT.is_closed:
+        _LLM_CLIENT = httpx.AsyncClient(
+            timeout=LLM_REQUEST_TIMEOUT_SECONDS,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50),
+        )
+    return _LLM_CLIENT
+
+
+async def close_llm_client() -> None:
+    global _LLM_CLIENT
+    if _LLM_CLIENT is not None and not _LLM_CLIENT.is_closed:
+        await _LLM_CLIENT.aclose()
+    _LLM_CLIENT = None
+
+
+def _supports_openai_json_mode(provider: str, base_url: str, litellm_url: str | None) -> bool:
+    return (
+        litellm_url is None
+        and provider == "openai"
+        and "api.openai.com" in base_url
+    )
+
+
+def _should_request_json_object(cfg: AgentConfig) -> bool:
+    return bool(cfg.output_schema) or "json" in (cfg.system_prompt or "").lower()
 
 
 def _validate_outbound_url(url: str) -> None:
@@ -903,64 +937,69 @@ class ProgramExecutor:
             body: dict = {
                 "model": cfg.model,
                 "max_tokens": 4096,
+                "temperature": LLM_TEMPERATURE,
                 "messages": [
                     {"role": "user", "content": f"<external_data>\n{json.dumps(input_data)}\n</external_data>"}
                 ],
             }
             body["system"] = _system
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.post(
-                    f"{base_url}/messages",
-                    headers=headers,
-                    json=body,
+            client = _get_llm_client()
+            resp = await client.post(
+                f"{base_url}/messages",
+                headers=headers,
+                json=body,
+            )
+            print(f"[LLM/anthropic] {resp.status_code} model={cfg.model}", flush=True)
+            if not resp.is_success:
+                raise Exception(
+                    f"LLM API error {resp.status_code} from {base_url} "
+                    f"(model={cfg.model}): {resp.text[:500]}"
                 )
-                print(f"[LLM/anthropic] {resp.status_code} model={cfg.model}", flush=True)
-                if not resp.is_success:
-                    raise Exception(
-                        f"LLM API error {resp.status_code} from {base_url} "
-                        f"(model={cfg.model}): {resp.text[:500]}"
-                    )
-                try:
-                    data = resp.json()
-                except Exception as parse_err:
-                    raise Exception(f"LLM returned non-JSON response (model={cfg.model}): {resp.text[:300]}") from parse_err
-                content_list = data.get("content") or []
-                if not content_list:
-                    raise Exception(f"LLM returned empty content (model={cfg.model}). Full response: {resp.text[:500]}")
-                first = content_list[0]
-                if not isinstance(first, dict) or "text" not in first:
-                    raise Exception(f"LLM content[0] has unexpected shape (model={cfg.model}): {first}")
-                content = first["text"]
+            try:
+                data = resp.json()
+            except Exception as parse_err:
+                raise Exception(f"LLM returned non-JSON response (model={cfg.model}): {resp.text[:300]}") from parse_err
+            content_list = data.get("content") or []
+            if not content_list:
+                raise Exception(f"LLM returned empty content (model={cfg.model}). Full response: {resp.text[:500]}")
+            first = content_list[0]
+            if not isinstance(first, dict) or "text" not in first:
+                raise Exception(f"LLM content[0] has unexpected shape (model={cfg.model}): {first}")
+            content = first["text"]
         else:
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.post(
-                    f"{base_url}/chat/completions",
-                    headers=headers,
-                    json={
-                        "model": cfg.model,
-                        "max_tokens": 4096,
-                        "messages": [
-                            {"role": "system", "content": _system},
-                            {"role": "user", "content": f"<external_data>\n{json.dumps(input_data)}\n</external_data>"},
-                        ],
-                    },
+            request_body: dict[str, Any] = {
+                "model": cfg.model,
+                "max_tokens": 4096,
+                "messages": [
+                    {"role": "system", "content": _system},
+                    {"role": "user", "content": f"<external_data>\n{json.dumps(input_data)}\n</external_data>"},
+                ],
+            }
+            if _should_request_json_object(cfg) and _supports_openai_json_mode(provider, base_url, litellm_url):
+                request_body["response_format"] = {"type": "json_object"}
+
+            client = _get_llm_client()
+            resp = await client.post(
+                f"{base_url}/chat/completions",
+                headers=headers,
+                json=request_body,
+            )
+            if not resp.is_success:
+                raise Exception(
+                    f"LLM API error {resp.status_code} from {base_url} "
+                    f"(model={cfg.model}): {resp.text[:500]}"
                 )
-                if not resp.is_success:
-                    raise Exception(
-                        f"LLM API error {resp.status_code} from {base_url} "
-                        f"(model={cfg.model}): {resp.text[:500]}"
-                    )
-                try:
-                    data = resp.json()
-                except Exception as parse_err:
-                    raise Exception(f"LLM returned non-JSON response (model={cfg.model}): {resp.text[:300]}") from parse_err
-                choices = data.get("choices") or []
-                if not choices:
-                    raise Exception(f"LLM returned no choices (model={cfg.model}). Full response: {resp.text[:500]}")
-                message = choices[0].get("message") or {}
-                content = message.get("content") or ""
-                if content is None:
-                    raise Exception(f"LLM message.content is null (model={cfg.model}). Full response: {resp.text[:500]}")
+            try:
+                data = resp.json()
+            except Exception as parse_err:
+                raise Exception(f"LLM returned non-JSON response (model={cfg.model}): {resp.text[:300]}") from parse_err
+            choices = data.get("choices") or []
+            if not choices:
+                raise Exception(f"LLM returned no choices (model={cfg.model}). Full response: {resp.text[:500]}")
+            message = choices[0].get("message") or {}
+            content = message.get("content") or ""
+            if content is None:
+                raise Exception(f"LLM message.content is null (model={cfg.model}). Full response: {resp.text[:500]}")
 
         prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(data)
         reported_cost = _extract_reported_cost_usd(data)

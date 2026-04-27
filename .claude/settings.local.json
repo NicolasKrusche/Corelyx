@@ -255,7 +255,8 @@
       "Bash(python -c \"from PIL import Image; print\\('PIL ok'\\)\")",
       "Bash(python -)",
       "Bash(awk '{print $5}')",
-      "Bash(xargs -r taskkill //PID //F)"
+      "Bash(xargs -r taskkill //PID //F)",
+      "Bash(pnpm --filter web tsc --noEmit)"
     ]
   }
 }

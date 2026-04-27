@@ -18,12 +18,15 @@ import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/l
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
 import {
+  GENESIS_MAX_TOKENS,
+  GENESIS_TEMPERATURE,
   KEY_DEFAULT_MODELS,
   getMissingConnectionIds,
   getModelCandidates,
   getProviderBaseURL,
   mapExecutionMode,
   sortApiKeyFallbacks,
+  supportsOpenAiJsonMode,
   toGenesisConnectionList,
   toProgramConnectionLinks,
   uniqueRequestedConnectionIds,
@@ -275,6 +278,9 @@ export async function POST(request: Request) {
   let modelUsed = model;
   let usedKeyRow: GenesisApiKeyRow | null = null;
   let usedApiKey = "";
+  const userMessage = isRefinement
+    ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
+    : buildGenesisUserMessage(description, availableConnections);
 
   keyAttemptLoop:
   for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex++) {
@@ -301,6 +307,11 @@ export async function POST(request: Request) {
     const useAnthropicSDK = currentKeyRow.provider === "anthropic";
     const currentModel = keyIndex === 0 ? model : (KEY_DEFAULT_MODELS[currentKeyRow.provider] ?? model);
     const modelCandidates = getModelCandidates(currentKeyRow.provider, currentModel);
+    const baseURL = getProviderBaseURL(currentKeyRow.provider);
+    const openai = useAnthropicSDK
+      ? null
+      : new OpenAI({ apiKey: currentApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
+    const anthropic = useAnthropicSDK ? new Anthropic({ apiKey: currentApiKey }) : null;
 
     modelAttemptLoop:
     for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex++) {
@@ -311,40 +322,28 @@ export async function POST(request: Request) {
         try {
           rawText = "";
 
-          if (useAnthropicSDK) {
-            const anthropic = new Anthropic({ apiKey: currentApiKey });
-            const userMessage = isRefinement
-              ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
-              : buildGenesisUserMessage(description, availableConnections);
-            const stream = anthropic.messages.stream({
+          if (anthropic) {
+            const msg = await anthropic.messages.create({
               model: candidateModel,
-              max_tokens: 8192,
+              max_tokens: GENESIS_MAX_TOKENS,
+              temperature: GENESIS_TEMPERATURE,
               system: GENESIS_SYSTEM_PROMPT,
               messages: [{ role: "user", content: userMessage }],
             });
-            const msg = await stream.finalMessage();
             rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
-          } else {
-            const baseURL = getProviderBaseURL(currentKeyRow.provider);
-
-            const openai = new OpenAI({ apiKey: currentApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
-            const stream = await openai.chat.completions.create({
+          } else if (openai) {
+            const completion = await openai.chat.completions.create({
               model: candidateModel,
-              max_tokens: 8192,
-              stream: true,
+              max_tokens: GENESIS_MAX_TOKENS,
+              ...(supportsOpenAiJsonMode(currentKeyRow.provider, baseURL) && {
+                response_format: { type: "json_object" as const },
+              }),
               messages: [
                 { role: "system", content: GENESIS_SYSTEM_PROMPT },
-                {
-                  role: "user",
-                  content: isRefinement
-                    ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
-                    : buildGenesisUserMessage(description, availableConnections),
-                },
+                { role: "user", content: userMessage },
               ],
             });
-            for await (const chunk of stream) {
-              rawText += chunk.choices[0]?.delta?.content ?? "";
-            }
+            rawText = completion.choices[0]?.message?.content ?? "";
           }
 
           if (!rawText) throw new Error(`Model returned empty response (model="${candidateModel}" may be unavailable or rate-limited)`);
@@ -485,7 +484,8 @@ export async function POST(request: Request) {
           const anthropic = new Anthropic({ apiKey: usedApiKey });
           const repairMsg = await anthropic.messages.create({
             model: modelUsed,
-            max_tokens: 8192,
+            max_tokens: GENESIS_MAX_TOKENS,
+            temperature: GENESIS_TEMPERATURE,
             messages: [{ role: "user", content: repairPrompt }],
           });
           repairedText = repairMsg.content[0]?.type === "text"
@@ -496,7 +496,10 @@ export async function POST(request: Request) {
           const openai = new OpenAI({ apiKey: usedApiKey, ...(baseURL && { baseURL }), timeout: 120_000 });
           const repairMsg = await openai.chat.completions.create({
             model: modelUsed,
-            max_tokens: 8192,
+            max_tokens: GENESIS_MAX_TOKENS,
+            ...(supportsOpenAiJsonMode(apiKeyRow.provider, baseURL) && {
+              response_format: { type: "json_object" as const },
+            }),
             messages: [{ role: "user", content: repairPrompt }],
           });
           repairedText = repairMsg.choices[0]?.message?.content ?? "";
