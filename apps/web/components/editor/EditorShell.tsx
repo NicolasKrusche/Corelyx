@@ -1017,6 +1017,7 @@ export function EditorShell({
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}
+          colorMode={isDarkTheme ? "dark" : "light"}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onInit={(instance) => {
