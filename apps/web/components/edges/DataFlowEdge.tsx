@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BaseEdge, EdgeLabelRenderer, getBezierPath } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@xyflow/react";
 import type { EdgeProps } from "@xyflow/react";
 
 export function DataFlowEdge({
@@ -16,24 +16,34 @@ export function DataFlowEdge({
   markerEnd,
   selected,
 }: EdgeProps) {
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 12,
   });
 
   return (
     <>
+      <path
+        d={edgePath}
+        fill="none"
+        stroke={selected ? "#3b82f6" : "#60a5fa"}
+        strokeWidth={selected ? 12 : 8}
+        strokeOpacity={selected ? 0.22 : 0.13}
+        strokeLinecap="round"
+      />
       <BaseEdge
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
         style={{
           stroke: selected ? "#3b82f6" : "#60a5fa",
-          strokeWidth: selected ? 2.5 : 1.5,
+          strokeWidth: selected ? 2.5 : 2,
+          strokeLinecap: "round",
         }}
       />
       {label && (
