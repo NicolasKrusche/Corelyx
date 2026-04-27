@@ -61,6 +61,61 @@ Expected response:
 - Web and runtime stop when their terminal is closed.
 - To stop manually, press `Ctrl+C` in each terminal.
 
+---
+
+## Laptop Startup Guide (`C:\NexFlow`)
+
+Use these steps when the repo is located at `C:\NexFlow`.
+
+### 1. Open terminal in repo root
+
+```powershell
+cd /d C:\NexFlow
+```
+
+### 2. Start web app (terminal 1)
+
+```powershell
+cd /d C:\NexFlow
+pnpm --filter @flowos/web dev
+```
+
+Quick check:
+
+```powershell
+Invoke-WebRequest http://localhost:3000 -UseBasicParsing | Select-Object StatusCode
+```
+
+Expected: `200`
+
+### 3. Start runtime API (terminal 2)
+
+If needed, activate the virtual environment first:
+
+```powershell
+cd /d C:\NexFlow
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& C:\NexFlow\.venv\Scripts\Activate.ps1)
+```
+
+Then start runtime:
+
+```powershell
+cd /d C:\NexFlow\apps\runtime
+..\..\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002
+```
+
+Quick check:
+
+```powershell
+Invoke-WebRequest http://127.0.0.1:8002/health -UseBasicParsing | Select-Object -ExpandProperty Content
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
 ## Notes from this environment
 
 - `apps/runtime/package.json` uses a cross-shell fallback in `dev` that can fail on Windows PowerShell.

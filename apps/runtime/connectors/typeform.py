@@ -16,7 +16,7 @@ class TypeformConnector(IConnector):
     supported_operations = [
         "list_forms",
         "get_form",
-        "list_responses",
+        "get_responses",
     ]
 
     async def execute(
@@ -32,7 +32,7 @@ class TypeformConnector(IConnector):
                     return await self._list_forms(client, headers, params)
                 case "get_form":
                     return await self._get_form(client, headers, params)
-                case "list_responses":
+                case "list_responses" | "get_responses":
                     return await self._get_responses(client, headers, params)
                 case _:
                     raise ConnectorError(

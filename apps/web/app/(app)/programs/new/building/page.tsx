@@ -364,7 +364,7 @@ function BuildingCanvas() {
 
 function relayout(nodes: ReactFlowNode[], edges: ReactFlowEdge[]): ReactFlowNode[] {
   if (nodes.length === 0) return nodes;
-  return applyDagreLayout(nodes, edges, "LR");
+  return applyDagreLayout(nodes, edges, "TB");
 }
 
 function Spinner() {

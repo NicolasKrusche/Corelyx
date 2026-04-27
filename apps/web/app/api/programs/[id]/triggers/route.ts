@@ -3,6 +3,8 @@ import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 expor
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { enrichWebhookTriggerForClient } from "@/lib/webhook-trigger-auth";
+import { checkTriggerAccess } from "@/lib/limits";
+import type { TriggerType } from "@/lib/entitlements";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,6 +110,15 @@ export async function POST(
   const validTypes = ["manual", "cron", "webhook", "event", "program"];
   if (!validTypes.includes(type)) {
     return apiError(`Invalid type. Must be one of: ${validTypes.join(", ")}`, 400);
+  }
+
+  // Check trigger type entitlement before creating
+  const triggerAccessCheck = await checkTriggerAccess(user.id, type as TriggerType);
+  if (!triggerAccessCheck.allowed) {
+    return NextResponse.json(
+      { error: "FEATURE_NOT_AVAILABLE", message: triggerAccessCheck.upgradeMessage },
+      { status: 403 }
+    );
   }
 
   // Validate cron expression if provided

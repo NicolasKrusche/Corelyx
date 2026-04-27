@@ -1,6 +1,8 @@
 """Google Drive native connector."""
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
 
 import httpx
@@ -16,8 +18,10 @@ class DriveConnector(IConnector):
     provider = "drive"
     supported_operations = [
         "list_files",
-        "get_file_metadata",
+        "get_file",
+        "upload_file",
         "create_folder",
+        "move_file",
         "share_file",
         "delete_file",
     ]
@@ -29,14 +33,18 @@ class DriveConnector(IConnector):
         access_token: str,
     ) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {access_token}"}
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             match operation:
                 case "list_files":
                     return await self._list_files(client, headers, params)
-                case "get_file_metadata":
+                case "get_file" | "get_file_metadata":
                     return await self._get_file(client, headers, params)
+                case "upload_file":
+                    return await self._upload_file(client, headers, params)
                 case "create_folder":
                     return await self._create_folder(client, headers, params)
+                case "move_file":
+                    return await self._move_file(client, headers, params)
                 case "share_file":
                     return await self._share_file(client, headers, params)
                 case "delete_file":
@@ -105,6 +113,86 @@ class DriveConnector(IConnector):
         _raise_for_status(r, "create_folder")
         data = r.json()
         return {"folder_id": data.get("id"), "name": data.get("name")}
+
+    async def _upload_file(
+        self, client: httpx.AsyncClient, headers: dict, params: dict
+    ) -> dict:
+        name = params.get("name")
+        content_base64 = params.get("content_base64")
+        mime_type = params.get("mime_type", "application/octet-stream")
+        parent_id = params.get("parent_id")
+        if not name or not content_base64:
+            raise ConnectorError(
+                "MISSING_PARAM", "upload_file requires 'name' and 'content_base64'"
+            )
+        try:
+            file_bytes = base64.b64decode(content_base64)
+        except Exception as exc:
+            raise ConnectorError(
+                "INVALID_PARAM", f"upload_file: content_base64 is not valid base64 — {exc}"
+            ) from exc
+
+        metadata: dict[str, Any] = {"name": name}
+        if parent_id:
+            metadata["parents"] = [parent_id]
+
+        boundary = "nexflow_drive_boundary"
+        meta_part = (
+            f"--{boundary}\r\n"
+            f"Content-Type: application/json; charset=UTF-8\r\n\r\n"
+            f"{json.dumps(metadata)}\r\n"
+            f"--{boundary}\r\n"
+            f"Content-Type: {mime_type}\r\n\r\n"
+        ).encode()
+        body = meta_part + file_bytes + f"\r\n--{boundary}--".encode()
+
+        r = await request_with_rate_limit(
+            client, "POST", f"{_UPLOAD_BASE}/files",
+            headers={
+                **headers,
+                "Content-Type": f"multipart/related; boundary={boundary}",
+            },
+            params={"uploadType": "multipart", "fields": "id,name,webViewLink"},
+            content=body,
+        )
+        _raise_for_status(r, "upload_file")
+        data = r.json()
+        return {
+            "file_id": data.get("id"),
+            "name": data.get("name"),
+            "web_view_link": data.get("webViewLink"),
+        }
+
+    async def _move_file(
+        self, client: httpx.AsyncClient, headers: dict, params: dict
+    ) -> dict:
+        file_id = params.get("file_id")
+        folder_id = params.get("folder_id")
+        if not file_id or not folder_id:
+            raise ConnectorError(
+                "MISSING_PARAM", "move_file requires 'file_id' and 'folder_id'"
+            )
+        # Fetch current parents so we can remove them after adding the new one
+        r = await request_with_rate_limit(
+            client, "GET", f"{_BASE}/files/{file_id}",
+            headers=headers,
+            params={"fields": "parents,name"},
+        )
+        _raise_for_status(r, "move_file")
+        info = r.json()
+        old_parents = ",".join(info.get("parents", []))
+        r = await request_with_rate_limit(
+            client, "PATCH", f"{_BASE}/files/{file_id}",
+            headers={**headers, "Content-Type": "application/json"},
+            params={
+                "addParents": folder_id,
+                "removeParents": old_parents,
+                "fields": "id,name",
+            },
+            content=b"{}",
+        )
+        _raise_for_status(r, "move_file")
+        return {"file_id": file_id, "name": info.get("name"), "moved": True}
 
     async def _share_file(
         self, client: httpx.AsyncClient, headers: dict, params: dict
