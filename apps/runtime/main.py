@@ -24,7 +24,7 @@ from cors_config import (
     get_cors_allowed_origins,
 )
 from db import get_active_cron_workflows, get_db, release_run_locks, update_run
-from engine.executor import ExecutionError, ProgramExecutor
+from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
 from internal_auth import (
     INTERNAL_SERVICE_TOKEN_HEADER,
     build_internal_service_headers,
@@ -115,6 +115,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         print(f"[runtime] Warning: could not load cron workflows: {e}")
     scheduler.start()
     yield
+    await close_llm_client()
     scheduler.shutdown(wait=False)
 
 

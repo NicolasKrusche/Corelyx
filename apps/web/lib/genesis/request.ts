@@ -14,9 +14,9 @@ export type GenesisApiKeyRow = {
 };
 
 export const OPENROUTER_FALLBACK_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-coder:free",
   "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
   "google/gemma-3-27b-it:free",
 ] as const;
 
@@ -37,6 +37,9 @@ export const KEY_DEFAULT_MODELS: Record<string, string> = {
   mistral: "mistral-large-latest",
   openrouter: "qwen/qwen3-coder:free",
 };
+
+export const GENESIS_MAX_TOKENS = 8192;
+export const GENESIS_TEMPERATURE = 0;
 
 export function uniqueRequestedConnectionIds(connectionIds: string[]): string[] {
   return [...new Set(connectionIds)];
@@ -98,6 +101,10 @@ export function getProviderBaseURL(provider: string): string | undefined {
         : provider === "mistral"
           ? "https://api.mistral.ai/v1"
           : undefined;
+}
+
+export function supportsOpenAiJsonMode(provider: string, baseURL?: string): boolean {
+  return provider === "openai" && (!baseURL || baseURL.includes("api.openai.com"));
 }
 
 export function mapExecutionMode(

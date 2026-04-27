@@ -17,6 +17,8 @@ import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import {
+  GENESIS_MAX_TOKENS,
+  GENESIS_TEMPERATURE,
   getMissingConnectionIds,
   getModelCandidates,
   getProviderBaseURL,
@@ -26,6 +28,7 @@ import {
   KEY_DEFAULT_MODELS,
   mapExecutionMode,
   sortApiKeyFallbacks,
+  supportsOpenAiJsonMode,
   toGenesisConnectionList,
   toProgramConnectionLinks,
   uniqueRequestedConnectionIds,
@@ -171,7 +174,8 @@ export async function POST(request: Request) {
                 const anthropic = new Anthropic({ apiKey: currentApiKey });
                 const msgStream = anthropic.messages.stream({
                   model: candidateModel,
-                  max_tokens: 8192,
+                  max_tokens: GENESIS_MAX_TOKENS,
+                  temperature: GENESIS_TEMPERATURE,
                   system: GENESIS_SYSTEM_PROMPT,
                   messages: [{ role: "user", content: userMessage }],
                 });
@@ -190,8 +194,11 @@ export async function POST(request: Request) {
                 const openai = new OpenAI({ apiKey: currentApiKey, ...(baseURL && { baseURL }), timeout: 240_000 });
                 const openaiStream = await openai.chat.completions.create({
                   model: candidateModel,
-                  max_tokens: 8192,
+                  max_tokens: GENESIS_MAX_TOKENS,
                   stream: true,
+                  ...(supportsOpenAiJsonMode(currentKeyRow.provider, baseURL) && {
+                    response_format: { type: "json_object" as const },
+                  }),
                   messages: [
                     { role: "system", content: GENESIS_SYSTEM_PROMPT },
                     { role: "user", content: userMessage },
