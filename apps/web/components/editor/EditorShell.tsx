@@ -1039,6 +1039,11 @@ export function EditorShell({
             type: "data_flow",
             markerEnd: { type: MarkerType.ArrowClosed },
           }}
+          connectionLineStyle={{
+            stroke: "#60a5fa",
+            strokeWidth: 2,
+            opacity: 0.75,
+          }}
           className="relative z-10 bg-transparent"
         >
           <Controls className="!border-border !bg-background !shadow-sm" />

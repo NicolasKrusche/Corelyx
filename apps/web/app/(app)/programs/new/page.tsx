@@ -171,6 +171,8 @@ function NewProgramPageInner() {
   const [inlinePhase, setInlinePhase] = useState<InlinePhase>("idle");
   const [inlineMessages, setInlineMessages] = useState<InlineChatMessage[]>([]);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const [isCreatingScratch, setIsCreatingScratch] = useState(false);
+  const [scratchCreateError, setScratchCreateError] = useState<string | null>(null);
   const connectionsPopoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -513,6 +515,36 @@ function NewProgramPageInner() {
     }
   }
 
+  async function handleCreateBlankProgram() {
+    setScratchCreateError(null);
+    setIsCreatingScratch(true);
+    setInlinePhase("opening");
+
+    let res: Response;
+    try {
+      res = await fetch("/api/programs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "blank" }),
+      });
+    } catch (error) {
+      setScratchCreateError(getGenesisErrorMessage(error, "Failed to create a blank program."));
+      setInlinePhase("idle");
+      setIsCreatingScratch(false);
+      return;
+    }
+
+    const data = await readJsonSafely(res);
+    if (!res.ok) {
+      setScratchCreateError(getGenesisErrorMessage(data, "Failed to create a blank program."));
+      setInlinePhase("idle");
+      setIsCreatingScratch(false);
+      return;
+    }
+
+    router.push(`/programs/${data.program.id}/editor`);
+  }
+
   const errorCount = validationResult?.errors.length ?? 0;
   const warningCount = validationResult?.warnings.length ?? 0;
 
@@ -571,9 +603,27 @@ function NewProgramPageInner() {
   const chatFeed = (
     <div className="space-y-3 rounded-2xl border border-border bg-card/80 p-4 backdrop-blur-sm shadow-sm">
       {inlineMessages.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Describe your program and click Build now. I will think through it here before generating.
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Describe your program and click Build now, or skip AI and open a blank workflow in the editor.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isCreatingScratch}
+              onClick={() => { void handleCreateBlankProgram(); }}
+            >
+              {isCreatingScratch ? "Opening editor..." : "Start from scratch"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => router.push("/programs/import")}>
+              Import program
+            </Button>
+          </div>
+          {scratchCreateError && (
+            <p className="text-xs text-red-300">{scratchCreateError}</p>
+          )}
+        </div>
       ) : (
         <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
           {inlineMessages.map((message, index) => (
@@ -666,8 +716,20 @@ function NewProgramPageInner() {
           )}
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button size="sm" disabled={inlinePhase === "generating" || inlinePhase === "opening"} onClick={handleInlineGenerate}>
+            <Button
+              size="sm"
+              disabled={inlinePhase === "generating" || inlinePhase === "opening" || isCreatingScratch}
+              onClick={handleInlineGenerate}
+            >
               {inlinePhase === "generating" || inlinePhase === "opening" ? "Generating..." : "Generate Program"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={inlinePhase === "generating" || inlinePhase === "opening" || isCreatingScratch}
+              onClick={() => { void handleCreateBlankProgram(); }}
+            >
+              {isCreatingScratch ? "Opening editor..." : "Start from scratch"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => router.push("/connections")}>
               Manage Connections
@@ -681,6 +743,9 @@ function NewProgramPageInner() {
 
           {genesisError?.message && (
             <p className="text-xs text-red-300">{genesisError.message}</p>
+          )}
+          {scratchCreateError && (
+            <p className="text-xs text-red-300">{scratchCreateError}</p>
           )}
         </div>
       )}

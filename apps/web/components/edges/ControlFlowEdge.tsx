@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BaseEdge, EdgeLabelRenderer, getBezierPath } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@xyflow/react";
 import type { EdgeProps } from "@xyflow/react";
 
 export function ControlFlowEdge({
@@ -16,25 +16,35 @@ export function ControlFlowEdge({
   markerEnd,
   selected,
 }: EdgeProps) {
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 12,
   });
 
   return (
     <>
+      <path
+        d={edgePath}
+        fill="none"
+        stroke={selected ? "#64748b" : "#94a3b8"}
+        strokeWidth={selected ? 12 : 8}
+        strokeOpacity={selected ? 0.2 : 0.11}
+        strokeLinecap="round"
+      />
       <BaseEdge
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
         style={{
           stroke: selected ? "#64748b" : "#94a3b8",
-          strokeWidth: selected ? 2.5 : 1.5,
+          strokeWidth: selected ? 2.5 : 2,
           strokeDasharray: "6 3",
+          strokeLinecap: "round",
         }}
       />
       {label && (
