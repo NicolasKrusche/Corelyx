@@ -17,7 +17,7 @@ class DocsConnector(IConnector):
     supported_operations = [
         "read_document",
         "create_document",
-        "append_to_document",
+        "append_text",
         "replace_text",
     ]
 
@@ -37,7 +37,7 @@ class DocsConnector(IConnector):
                     return await self._read_document(client, headers, params)
                 case "create_document":
                     return await self._create_document(client, headers, params)
-                case "append_to_document":
+                case "append_to_document" | "append_text":
                     return await self._append_text(client, headers, params)
                 case "replace_text":
                     return await self._replace_text(client, headers, params)

@@ -285,6 +285,13 @@ export function EditorShell({
   const [showHistory, setShowHistory] = React.useState(false);
   const [showPalette, setShowPalette] = React.useState(false);
 
+  // ── AI edit state ─────────────────────────────────────────────────────────
+
+  const [showAiEdit, setShowAiEdit] = React.useState(false);
+  const [aiEditPrompt, setAiEditPrompt] = React.useState("");
+  const [aiEditLoading, setAiEditLoading] = React.useState(false);
+  const [aiEditError, setAiEditError] = React.useState<string | null>(null);
+
   // ── Clipboard for copy/paste ──────────────────────────────────────────────
 
   const clipboardRef = useRef<SchemaNode | null>(null);
@@ -842,6 +849,74 @@ export function EditorShell({
     }
   }, []);
 
+  // ── AI edit submit ────────────────────────────────────────────────────────
+
+  const PROVIDER_PRIORITY: Record<string, number> = {
+    anthropic: 0, openai: 1, openrouter: 2, mistral: 3, google: 4, groq: 5,
+  };
+  const DEFAULT_MODELS: Record<string, string> = {
+    anthropic: "claude-sonnet-4-6",
+    openai: "gpt-4o",
+    google: "gemini-1.5-pro",
+    groq: "llama-3.3-70b-versatile",
+    mistral: "mistral-large-latest",
+    openrouter: "qwen/qwen3-coder:free",
+  };
+
+  const handleAiEditSubmit = useCallback(async () => {
+    const prompt = aiEditPrompt.trim();
+    if (!prompt) return;
+
+    const bestKey = [...apiKeys].sort(
+      (a, b) => (PROVIDER_PRIORITY[a.provider] ?? 99) - (PROVIDER_PRIORITY[b.provider] ?? 99)
+    )[0];
+
+    if (!bestKey) {
+      setAiEditError("No API key found. Add one in API Keys settings first.");
+      return;
+    }
+
+    const model = DEFAULT_MODELS[bestKey.provider] ?? "claude-sonnet-4-6";
+    setAiEditLoading(true);
+    setAiEditError(null);
+
+    try {
+      const res = await fetch("/api/genesis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: state.schema.program_name,
+          connection_ids: linkedConnections.map((c) => c.id),
+          api_key_id: bestKey.id,
+          model,
+          existing_schema: state.schema,
+          refinement: prompt,
+          existing_program_id: programId,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const msg =
+          (data as { message?: string } | null)?.message ??
+          (data as { error?: string } | null)?.error ??
+          "Edit failed. Please try again.";
+        setAiEditError(msg);
+        return;
+      }
+
+      dispatch({ type: "RESTORE_VERSION", schema: (data as { schema: ProgramSchema }).schema });
+      setShowAiEdit(false);
+      setAiEditPrompt("");
+    } catch {
+      setAiEditError("Could not reach the server. Check your connection.");
+    } finally {
+      setAiEditLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiEditPrompt, apiKeys, linkedConnections, programId, state.schema]);
+
   // ── Run ───────────────────────────────────────────────────────────────────
 
   const [isRunning, setIsRunning] = React.useState(false);
@@ -988,6 +1063,10 @@ export function EditorShell({
             setShowPalette(false);
           }
         }}
+        onAiEdit={() => {
+          setAiEditError(null);
+          setShowAiEdit(true);
+        }}
         onTestWebhook={hasWebhookTrigger ? () => setShowWebhookTest(true) : undefined}
       />
 
@@ -1133,6 +1212,76 @@ export function EditorShell({
               disabled={!webhookPayloadValid || isRunning}
             >
               {isRunning ? "Starting…" : "Send test"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI edit dialog */}
+      <Dialog open={showAiEdit} onOpenChange={(open) => { if (!open) { setShowAiEdit(false); setAiEditError(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4 text-purple-500">
+                <path d="M8 2l1.5 3L13 6.5 9.5 8 8 11.5 6.5 8 3 6.5 6.5 5z" strokeLinejoin="round" />
+                <path d="M12 10l.75 1.5L14 12l-1.25.5L12 14l-.75-1.5L10 12l1.25-.5z" strokeLinejoin="round" />
+              </svg>
+              Edit with AI
+            </DialogTitle>
+            <DialogDescription>
+              Describe the change you want. Genesis will update the program while preserving what stays the same. This counts toward your Genesis AI usage.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Textarea
+              rows={5}
+              className="text-sm resize-none"
+              placeholder={`e.g. "Add a Slack notification step after the Gmail node" or "Replace the cron trigger with a webhook trigger"`}
+              value={aiEditPrompt}
+              onChange={(e) => setAiEditPrompt(e.target.value)}
+              disabled={aiEditLoading}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiEditLoading && aiEditPrompt.trim()) {
+                  e.preventDefault();
+                  void handleAiEditSubmit();
+                }
+              }}
+            />
+            {apiKeys.length === 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                No API key found. Add one in{" "}
+                <a href="/api-keys" className="underline font-medium" onClick={() => setShowAiEdit(false)}>
+                  API Keys
+                </a>{" "}
+                before using Edit with AI.
+              </p>
+            )}
+            {aiEditError && (
+              <p className="text-xs text-destructive">{aiEditError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAiEdit(false); setAiEditError(null); }} disabled={aiEditLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleAiEditSubmit()}
+              disabled={aiEditLoading || !aiEditPrompt.trim() || apiKeys.length === 0}
+              className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {aiEditLoading ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Editing…
+                </>
+              ) : (
+                "Apply edit"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

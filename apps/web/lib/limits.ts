@@ -252,7 +252,7 @@ export async function checkGenesisAccess(userId: string): Promise<
     return {
       allowed: false,
       reason: `Genesis AI limit reached (${usesThisMonth}/${ent.genesisUsesPerMonth} this month on Free plan)`,
-      upgradeMessage: `You've used your ${ent.genesisUsesPerMonth} Genesis AI use this month on the Free plan. Upgrade to Solo for unlimited Genesis.`,
+      upgradeMessage: `You've used all ${ent.genesisUsesPerMonth} Genesis AI uses this month on the Free plan. Upgrade to Solo for unlimited Genesis.`,
       usesThisMonth,
       maxUses: ent.genesisUsesPerMonth,
     };

@@ -100,6 +100,7 @@ SHEETS:
   write_range: params={spreadsheet_id,range,values:[[...]](all REQUIRED)} → output:{updated_cells}
   append_row: params={spreadsheet_id,range,values:[...](all REQUIRED)} → output:{updated_range}
   list_sheets: params={spreadsheet_id(REQUIRED)} → output:{sheets:[{title,sheet_id}]}
+  create_sheet: params={spreadsheet_id(REQUIRED),title?,index?} → output:{sheet_id,title}
   clear_range: params={spreadsheet_id,range(both REQUIRED)}
 
 GOOGLE CALENDAR (provider: google_calendar):
@@ -121,6 +122,8 @@ GOOGLE DRIVE (provider: google_drive):
   list_files: params={query?,folder_id?,mime_type?,max_results?} → output:{files:[{id,name,mimeType,size,modifiedTime,webViewLink}]}
     mime_type examples: "application/vnd.google-apps.spreadsheet", "application/pdf", "application/vnd.google-apps.document"
   get_file: params={file_id(REQUIRED)} → output:{id,name,mimeType,size,modifiedTime,webViewLink,description}
+  upload_file: params={name(REQUIRED),content_base64(REQUIRED),mime_type?,parent_id?} → output:{file_id,name,web_view_link}
+    Use to save any file (e.g. email attachment) to Drive. content_base64 comes from gmail get_attachment output field "data_base64".
   create_folder: params={name(REQUIRED),parent_id?} → output:{folder_id,name}
   move_file: params={file_id(REQUIRED),folder_id(REQUIRED)} → output:{file_id,name,moved:true}
   delete_file: params={file_id(REQUIRED)} → output:{file_id,deleted:true}
@@ -163,6 +166,7 @@ OUTLOOK (provider: outlook):
   read_email: params={message_id(REQUIRED)} → output:{id,subject,from,to,cc,received_at,body,body_type,is_read}
   send_email: params={to(REQUIRED),subject(REQUIRED),body?,body_type:"Text|HTML",cc?} → output:{sent:true,subject}
   reply_email: params={message_id(REQUIRED),body?} → output:{replied:true,message_id}
+  delete_email: params={message_id(REQUIRED)} → output:{message_id,deleted:true}
   list_folders: params={} → output:{folders:[{id,name,total_items,unread_items}]}
   move_email: params={message_id(REQUIRED),destination_folder(REQUIRED)} → output:{message_id,moved:true}
     destination_folder: folder ID or well-known name e.g. "archive", "deleteditems"

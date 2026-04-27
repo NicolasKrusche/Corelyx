@@ -27,6 +27,7 @@ interface EditorToolbarProps {
   showPalette: boolean;
   onTogglePalette: () => void;
   onHistory: () => void;
+  onAiEdit: () => void;
   /** Present only when the trigger is a webhook — shows the Test button. */
   onTestWebhook?: () => void;
 }
@@ -112,6 +113,7 @@ export function EditorToolbar({
   showPalette,
   onTogglePalette,
   onHistory,
+  onAiEdit,
   onTestWebhook,
 }: EditorToolbarProps) {
   const hasErrors = validationResult && !validationResult.valid;
@@ -225,6 +227,21 @@ export function EditorToolbar({
       >
         <HistoryIcon />
         History
+      </Button>
+
+      {/* Edit with AI */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onAiEdit}
+        className="gap-1.5 border-purple-500/40 text-purple-600 hover:text-purple-700 hover:bg-purple-50 hover:border-purple-500/60 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-950/30"
+        title="Edit this program with AI"
+      >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
+          <path d="M8 2l1.5 3L13 6.5 9.5 8 8 11.5 6.5 8 3 6.5 6.5 5z" strokeLinejoin="round" />
+          <path d="M12 10l.75 1.5L14 12l-1.25.5L12 14l-.75-1.5L10 12l1.25-.5z" strokeLinejoin="round" />
+        </svg>
+        Edit with AI
       </Button>
 
       {/* Spacer pushes remaining buttons to the right */}

@@ -17,7 +17,7 @@ export const TIERS = [
       { text: "All 12+ connectors" },
       { text: "7-day run history" },
       { text: "Visual editor only" },
-      { text: "1 Genesis AI use / month" },
+      { text: "3 Genesis AI uses / month" },
       { text: "Manual & cron triggers" },
       { text: "Community support" },
     ],
