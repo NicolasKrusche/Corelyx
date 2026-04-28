@@ -2,22 +2,35 @@ import { createServiceClient } from "@/lib/api";
 import {
   deriveNodeSummary,
   filterPremadeBrowsePrograms,
+  getBrowseUseCount,
   type BrowseProgram,
 } from "@/lib/browse-programs";
 import { BrowseClient } from "./browse-client";
 
+const INITIAL_BROWSE_LIMIT = 15;
+
 export default async function BrowsePage() {
   const db = createServiceClient();
+  const premadePrograms = filterPremadeBrowsePrograms({});
+  const filterTags = [...new Set(premadePrograms.flatMap((program) => program.tags))].sort();
+  const dbLimit = Math.max(0, INITIAL_BROWSE_LIMIT - premadePrograms.length);
 
-  const { data, count } = await db
+  let query = db
     .from("programs")
     .select(
       "id, name, description, tags, fork_count, published_at, public_author_name, schema, schema_version",
       { count: "exact" }
     )
     .eq("is_public", true)
-    .order("published_at", { ascending: false })
-    .range(0, 47);
+    .order("published_at", { ascending: false });
+
+  if (dbLimit > 0) {
+    query = query.range(0, dbLimit - 1);
+  } else {
+    query = query.limit(0);
+  }
+
+  const { data, count } = await query;
 
   const publishedPrograms: BrowseProgram[] = ((data ?? []) as unknown as Array<{
     id: string;
@@ -34,14 +47,19 @@ export default async function BrowsePage() {
     name: p.name,
     description: p.description,
     tags: p.tags ?? [],
-    fork_count: p.fork_count ?? 0,
+    fork_count: getBrowseUseCount(p),
     published_at: p.published_at,
     public_author_name: p.public_author_name,
     schema_version: p.schema_version,
     node_summary: deriveNodeSummary(p.schema),
   }));
-  const premadePrograms = filterPremadeBrowsePrograms({});
-  const programs = [...premadePrograms, ...publishedPrograms];
+  const programs = [...premadePrograms, ...publishedPrograms].slice(0, INITIAL_BROWSE_LIMIT);
 
-  return <BrowseClient initialPrograms={programs} initialTotal={premadePrograms.length + (count ?? 0)} />;
+  return (
+    <BrowseClient
+      initialPrograms={programs}
+      initialTotal={premadePrograms.length + (count ?? 0)}
+      filterTags={filterTags}
+    />
+  );
 }

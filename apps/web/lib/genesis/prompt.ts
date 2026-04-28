@@ -94,6 +94,11 @@ GITHUB:
   list_prs: params={owner,repo(REQUIRED),state:"open|closed|all"} → output:{pull_requests:[...]}
   get_pr_diff: params={owner,repo,pr_number(all REQUIRED)} → output:{diff,files_changed,additions,deletions}
   push_file: params={owner,repo,path,content,message(all REQUIRED),branch?}
+  ⚠ Repo cloning / building / running CI / merging branches are not first-class operations. Map them per CAPABILITY-GAP RULES:
+    - "edit/add a file" or "push code" → push_file (one or more nodes, one per file)
+    - "open/close PR", "merge PR", "create branch", "tag release" → HTTP connection node calling the GitHub REST API (auth_type:"bearer", auth_value:"__USER_ASSIGNED__", url e.g. "https://api.github.com/repos/{{owner}}/{{repo}}/pulls")
+    - "build/test/deploy" → agent node whose system_prompt describes what the user must wire up (e.g. a GitHub Actions workflow), then continue the graph with the GitHub ops that ARE available
+    Never refuse because cloning/building isn't listed.
 
 SHEETS:
   read_range: params={spreadsheet_id,range(both REQUIRED)} → output:{values:[[row],...]}
@@ -171,6 +176,110 @@ OUTLOOK (provider: outlook):
   move_email: params={message_id(REQUIRED),destination_folder(REQUIRED)} → output:{message_id,moved:true}
     destination_folder: folder ID or well-known name e.g. "archive", "deleteditems"
 
+GAP REFERENCE — common asks not covered by the operations above and how to bridge them. Apply CAPABILITY-GAP RULES; never refuse. For HTTP fallback against OAuth providers, set auth_type:"bearer", auth_value:"__USER_ASSIGNED__".
+
+  GMAIL gaps:
+    mark read / unread → label_email with remove_label_ids:["UNREAD"] (read) or add_label_ids:["UNREAD"] (unread)
+    star / mark important → label_email with STARRED / IMPORTANT
+    forward an email → read_email + send_email composing forwarded body
+    permanently delete (not archive) → HTTP POST https://gmail.googleapis.com/gmail/v1/users/me/messages/{id}/trash
+    create draft → HTTP POST https://gmail.googleapis.com/gmail/v1/users/me/drafts
+    list / manage labels → HTTP /gmail/v1/users/me/labels
+    save attachment to Drive → get_attachment then drive upload_file with content_base64 from data_base64
+
+  NOTION gaps:
+    update database row property → HTTP PATCH https://api.notion.com/v1/pages/{page_id} body:{properties:{...}} headers must include "Notion-Version":"2022-06-28"
+    archive / restore page → HTTP PATCH /v1/pages/{id} body:{archived:true|false}
+    delete block / update block → HTTP DELETE or PATCH /v1/blocks/{id}
+    workspace search → HTTP POST /v1/search body:{query,filter}
+    list users → HTTP GET /v1/users
+
+  SLACK gaps:
+    update message → HTTP POST https://slack.com/api/chat.update body:{channel,ts,text}
+    delete message → HTTP POST https://slack.com/api/chat.delete body:{channel,ts}
+    react with emoji → HTTP POST https://slack.com/api/reactions.add body:{channel,timestamp,name}
+    upload file → HTTP POST https://slack.com/api/files.upload (multipart) — for text/links prefer send_message instead
+    DM a user → HTTP POST https://slack.com/api/conversations.open body:{users:"Uxxx"} → take returned channel.id → send_message
+    list users → HTTP GET https://slack.com/api/users.list
+    schedule future message → HTTP POST https://slack.com/api/chat.scheduleMessage body:{channel,text,post_at}
+    pin / unpin → HTTP POST pins.add | pins.remove
+
+  GITHUB gaps: (also called out in the GITHUB section above)
+    open / merge / close PR → HTTP /repos/{owner}/{repo}/pulls (POST/PATCH/PUT-merge)
+    create / delete branch → HTTP /repos/{owner}/{repo}/git/refs (POST/DELETE)
+    create release → HTTP POST /repos/{owner}/{repo}/releases
+    trigger workflow / CI → HTTP POST /repos/{owner}/{repo}/actions/workflows/{id}/dispatches body:{ref,inputs}
+    create repo → HTTP POST https://api.github.com/user/repos
+    review PR / approve → HTTP POST /repos/{owner}/{repo}/pulls/{n}/reviews body:{event:"APPROVE|REQUEST_CHANGES|COMMENT",body}
+    repo clone / build / deploy → not callable from a single HTTP node; emit an agent node describing the GitHub Actions workflow the user must add, then continue with push_file / workflow_dispatch
+
+  SHEETS gaps:
+    delete row / column → HTTP POST https://sheets.googleapis.com/v4/spreadsheets/{id}:batchUpdate body:{requests:[{deleteDimension:{range:{sheetId,dimension:"ROWS",startIndex,endIndex}}}]}
+    create new spreadsheet (file, not tab) → HTTP POST https://sheets.googleapis.com/v4/spreadsheets body:{properties:{title}}
+    formatting / conditional formatting → HTTP batchUpdate with repeatCell / addConditionalFormatRule requests
+    share → HTTP POST https://www.googleapis.com/drive/v3/files/{spreadsheet_id}/permissions body:{role,type,emailAddress}
+
+  GOOGLE CALENDAR gaps:
+    list calendars (not events) → HTTP GET https://www.googleapis.com/calendar/v3/users/me/calendarList
+    free / busy lookup → HTTP POST https://www.googleapis.com/calendar/v3/freeBusy body:{timeMin,timeMax,items:[{id:"primary"}]}
+    accept / decline invite → update_event then patch the relevant attendee responseStatus
+    add/remove conference link → update_event with conferenceData via HTTP PATCH /calendars/{cid}/events/{eid}?conferenceDataVersion=1
+
+  GOOGLE DOCS gaps:
+    rich edits — insert image / table / heading / styled run → HTTP POST https://docs.googleapis.com/v1/documents/{id}:batchUpdate body:{requests:[{insertText|updateTextStyle|insertInlineImage|insertTable,...}]}
+    export as PDF / DOCX → HTTP GET https://www.googleapis.com/drive/v3/files/{id}/export?mimeType=application/pdf (or appropriate MIME)
+    share document → HTTP POST https://www.googleapis.com/drive/v3/files/{id}/permissions
+    comments → HTTP /drive/v3/files/{id}/comments
+
+  GOOGLE DRIVE gaps:
+    download file content (binary) → HTTP GET https://www.googleapis.com/drive/v3/files/{id}?alt=media (set parse_response:false)
+    copy file → HTTP POST https://www.googleapis.com/drive/v3/files/{id}/copy
+    export Google Doc / Sheet / Slides → HTTP GET /drive/v3/files/{id}/export?mimeType=...
+    permissions / sharing → HTTP /drive/v3/files/{id}/permissions (POST/GET/DELETE)
+    rename → HTTP PATCH /drive/v3/files/{id} body:{name}
+
+  AIRTABLE gaps:
+    list bases / list tables (schema discovery) → HTTP GET https://api.airtable.com/v0/meta/bases and /v0/meta/bases/{baseId}/tables
+    batch create up to 10 records → HTTP POST https://api.airtable.com/v0/{baseId}/{table} body:{records:[{fields:{...}},...]}
+    upsert by key → HTTP PATCH /v0/{baseId}/{table} body:{performUpsert:{fieldsToMergeOn:[...]},records:[...]}
+    bulk update / bulk delete → HTTP PATCH or DELETE /v0/{baseId}/{table}?records[]=...
+
+  HUBSPOT gaps:
+    delete contact / deal → HTTP DELETE https://api.hubapi.com/crm/v3/objects/contacts/{id} (or /deals/{id})
+    search contacts / deals / etc. with filters → HTTP POST https://api.hubapi.com/crm/v3/objects/{type}/search body:{filterGroups,sorts?,query?,properties?}
+    companies → HTTP /crm/v3/objects/companies (list/get/create/update/delete)
+    tickets → HTTP /crm/v3/objects/tickets
+    notes / engagements / tasks → HTTP /crm/v3/objects/notes (or /tasks, /calls, /emails)
+    associate objects (link contact↔deal) → HTTP PUT /crm/v3/objects/{fromType}/{fromId}/associations/default/{toType}/{toId}
+    list / send marketing emails → HTTP /marketing/v3/emails
+
+  ASANA gaps:
+    delete task → HTTP DELETE https://app.asana.com/api/1.0/tasks/{gid}
+    add comment to task → HTTP POST https://app.asana.com/api/1.0/tasks/{gid}/stories body:{data:{text}}
+    add attachment to task → HTTP POST /api/1.0/tasks/{gid}/attachments (multipart)
+    sections (list, add task to section) → HTTP /api/1.0/sections, POST /api/1.0/sections/{gid}/addTask
+    tags → HTTP /api/1.0/tags, POST /api/1.0/tasks/{gid}/addTag
+    add followers → HTTP POST /api/1.0/tasks/{gid}/addFollowers
+    create / list workspaces → HTTP /api/1.0/workspaces
+
+  TYPEFORM gaps:
+    create / update / delete form → HTTP /forms (POST/PUT/DELETE) — definitions are large; use an agent node to assemble the JSON if user describes a form
+    delete responses → HTTP DELETE https://api.typeform.com/forms/{id}/responses?included_response_ids=...
+    webhooks → HTTP /forms/{id}/webhooks/{tag} (PUT to register, DELETE to remove)
+
+  OUTLOOK gaps:
+    mark read / unread → HTTP PATCH https://graph.microsoft.com/v1.0/me/messages/{id} body:{"isRead":true} (or false)
+    forward → HTTP POST /v1.0/me/messages/{id}/forward body:{comment,toRecipients:[{emailAddress:{address}}]}
+    create draft → HTTP POST /v1.0/me/messages
+    flag / categorize → HTTP PATCH /v1.0/me/messages/{id} body:{categories:[...],flag:{flagStatus:"flagged"}}
+    rules → HTTP /v1.0/me/mailFolders/inbox/messageRules
+    calendar (Outlook calendar) → HTTP /v1.0/me/events (separate from Google Calendar)
+    contacts → HTTP /v1.0/me/contacts
+
+  GENERIC (no listed provider matches at all):
+    Use connector_type:"http" against the third-party REST API. Pick the simplest auth_type that fits ("bearer", "api_key_header", "api_key_query", "basic", or "none" for fully public). Set auth_value:"__USER_ASSIGNED__" if a credential is required.
+    If the user describes shell-level work (cloning, compiling, running scripts, accessing local files), wrap the description in an agent node — the runtime cannot exec shell commands; the agent node tells the user what to wire up externally and the rest of the graph handles what IS automatable.
+
 COMPLETE EXAMPLE — 3-node program (cron → fetch emails → send Slack summary):
 {
   "version":"1.0","program_id":"__GENERATED__","program_name":"Daily Email Digest to Slack",
@@ -221,11 +330,21 @@ AMBIGUITY RULES — resolve, don't reject:
   Missing resource IDs → "__USER_ASSIGNED__". Missing schedule → "0 8 * * *". Missing webhook method → POST.
   Missing model/key → "__USER_ASSIGNED__" sentinels. Unclear criteria → reasonable assumption in agent prompt.
 
+CAPABILITY-GAP RULES — always generate, never refuse:
+  If the user requests something not directly covered by the listed operations, you MUST still produce a valid program. Choose, in this order:
+    1. The closest available operation in the same provider, possibly combined with other listed ops (e.g. "mark email as read" → gmail label_email with remove_label_ids:["UNREAD"]; "forward an email" → read_email + send_email composing the forwarded body; "save an attachment to Drive" → gmail get_attachment + drive upload_file).
+    2. An HTTP connection node (connector_type:"http") calling the provider's REST API directly. Use the base URLs in GAP REFERENCE below. Caveat: HTTP nodes do NOT auto-inject the OAuth token from a connection — set auth_type:"bearer" and auth_value:"__USER_ASSIGNED__" so the user supplies a personal access token / API key. For Google providers, this typically means an OAuth access token the user pastes; this is acceptable but flag it briefly in the node description.
+    3. An agent node that explains what the user must do manually for any step that genuinely cannot be automated with available capabilities — describe the gap in the agent's system_prompt, do not abort.
+  Missing operations are NEVER a reason to emit an error object. Operations not in the reference list (e.g. repo cloning, building, deploying, file system access) are gaps to bridge with the strategies above, not blockers.
+
 CONNECTIONS: "connection" field must exactly match the provided connection name. Never invent names.
 
-ERRORS (use sparingly, only when truly impossible to generate):
+ERRORS (last resort — only these two cases, only these two formats):
   {"error":"INSUFFICIENT_DESCRIPTION","message":"<what structural info is missing>"}
+    Use only when the description is so vague no trigger or action can be inferred (e.g. "do something useful").
   {"error":"MISSING_CONNECTIONS","missing":["provider"],"message":"<explanation>"}
+    Use only when an OAuth provider is required AND no equivalent HTTP fallback is possible AND no connection of that provider was supplied.
+  Do NOT invent other error codes. Do NOT emit an error because an operation is missing — apply the CAPABILITY-GAP RULES instead.
 Do NOT output any other format. Do NOT wrap in markdown.`;
 
 export function buildRefinementUserMessage(

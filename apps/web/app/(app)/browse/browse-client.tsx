@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const INITIAL_PAGE_SIZE = 15;
+const NEXT_PAGE_SIZE = 6;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,28 +81,52 @@ const PROVIDER_ALIASES: Record<string, string> = {
 export function BrowseClient({
   initialPrograms,
   initialTotal,
+  filterTags,
 }: {
   initialPrograms: PublicProgram[];
   initialTotal: number;
+  filterTags: string[];
 }) {
   const router = useRouter();
   const [programs, setPrograms] = useState<PublicProgram[]>(initialPrograms);
   const [total, setTotal] = useState(initialTotal);
   const [loading, setLoading] = useState(false);
-  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialPrograms.length < initialTotal);
+  const [selectedApp, setSelectedApp] = useState<string | null>(null);
+  const [selectedUseCase, setSelectedUseCase] = useState<string | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState("");
   const [q, setQ] = useState("");
   const [forking, setForking] = useState<string | null>(null);
   const [forked, setForked] = useState<Record<string, string>>({}); // id → new program id
   const [forkError, setForkError] = useState<string | null>(null); // fix: inline error surface for fork failures
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const buildBrowseParams = useCallback((offset: number, limit: number, searchQ = q) => {
+    const activeTags = [selectedApp, selectedUseCase].filter(Boolean) as string[];
+    const params = new URLSearchParams({
+      offset: String(offset),
+      limit: String(limit),
+    });
+
+    if (activeTags.length > 0) params.set("tags", activeTags.join(","));
+    if (searchQ.trim()) params.set("q", searchQ.trim());
+
+    return params;
+  }, [q, selectedApp, selectedUseCase]);
 
   // Only re-fetch when filters are actually set — initial data comes from server
   useEffect(() => {
-    if (!q && !activeTag) {
+    const activeTags = [selectedApp, selectedUseCase].filter(Boolean) as string[];
+
+    if (!q && activeTags.length === 0) {
       setPrograms(initialPrograms);
       setTotal(initialTotal);
+      setHasMore(initialPrograms.length < initialTotal);
       setLoading(false);
+      setLoadingMore(false);
       return;
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -107,9 +135,8 @@ export function BrowseClient({
 
     const doFetch = (searchQ: string) => {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (activeTag) params.set("tag", activeTag);
-      if (searchQ) params.set("q", searchQ);
+      setLoadingMore(false);
+      const params = buildBrowseParams(0, INITIAL_PAGE_SIZE, searchQ);
 
       fetch(`/api/browse?${params.toString()}`)
         .then((res) => {
@@ -117,9 +144,18 @@ export function BrowseClient({
           return res.json() as Promise<{ programs: PublicProgram[]; total: number }>;
         })
         .then((data) => {
-          if (!cancelled) { setPrograms(data.programs); setTotal(data.total); }
+          if (!cancelled) {
+            setPrograms(data.programs);
+            setTotal(data.total);
+            setHasMore(data.programs.length < data.total);
+          }
         })
-        .catch(() => { if (!cancelled) setPrograms([]); })
+        .catch(() => {
+          if (!cancelled) {
+            setPrograms([]);
+            setHasMore(false);
+          }
+        })
         .finally(() => { if (!cancelled) setLoading(false); });
     };
 
@@ -133,10 +169,74 @@ export function BrowseClient({
       cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [q, activeTag, initialPrograms, initialTotal]);
+  }, [q, selectedApp, selectedUseCase, initialPrograms, initialTotal, buildBrowseParams]);
 
-  // Collect all unique tags across loaded programs for the filter bar
-  const allTags = [...new Set(programs.flatMap((p) => p.tags))].sort();
+  const loadNextPage = useCallback(async () => {
+    if (loading || loadingMore || selectedProgramId || !hasMore || programs.length >= total) return;
+
+    setLoadingMore(true);
+    try {
+      const params = buildBrowseParams(programs.length, NEXT_PAGE_SIZE);
+      const res = await fetch(`/api/browse?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to load more");
+      const data = (await res.json()) as { programs: PublicProgram[]; total: number };
+
+      let nextLength = programs.length;
+      setPrograms((prev) => {
+        const seen = new Set(prev.map((program) => program.id));
+        const nextPrograms = data.programs.filter((program) => !seen.has(program.id));
+        const next = [...prev, ...nextPrograms];
+        nextLength = next.length;
+        return next;
+      });
+      setTotal(data.total);
+      setHasMore(nextLength < data.total);
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [buildBrowseParams, hasMore, loading, loadingMore, programs.length, selectedProgramId, total]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !hasMore || loading || loadingMore || selectedProgramId) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadNextPage();
+        }
+      },
+      { rootMargin: "420px 0px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, loadNextPage, selectedProgramId]);
+
+  // Keep filter menus compact while still allowing direct program selection.
+  const filterPool = [...initialPrograms, ...programs];
+  const allTags = [...new Set([...filterTags, ...filterPool.flatMap((p) => p.tags)])].sort();
+  const appTags = allTags.filter((tag) => PROVIDER_LABELS[tag]);
+  const useCaseTags = allTags.filter((tag) => !PROVIDER_LABELS[tag]);
+  const tagCounts = new Map<string, number>();
+  for (const program of filterPool) {
+    for (const tag of program.tags) {
+      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+    }
+  }
+  const programOptions = [...new Map(filterPool.map((program) => [program.id, program])).values()]
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const popularAppTags = [...appTags]
+    .sort((a, b) => (tagCounts.get(b) ?? 0) - (tagCounts.get(a) ?? 0))
+    .slice(0, 8);
+  const selectedProgram = programOptions.find((program) => program.id === selectedProgramId);
+  const searchValue = selectedProgram ? selectedProgram.name : q;
+  const visiblePrograms = selectedProgramId
+    ? programs.filter((program) => program.id === selectedProgramId)
+    : programs;
+  const isFiltered = Boolean(q || selectedApp || selectedUseCase || selectedProgramId);
 
   async function handleFork(programId: string) {
     // fix: give user a visible response on every outcome — navigate on success, show inline error on failure
@@ -165,7 +265,11 @@ export function BrowseClient({
       <div>
         <h1 className="text-2xl font-semibold">Browse</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {total > 0 ? `${total} program${total !== 1 ? "s" : ""} available` : "Community-published automation programs"}
+          {isFiltered
+            ? `${visiblePrograms.length} of ${total} program${total !== 1 ? "s" : ""} shown`
+            : total > 0
+              ? `${total} program${total !== 1 ? "s" : ""} available`
+              : "Community-published automation programs"}
           {" - use one to start from a working blueprint."}
         </p>
       </div>
@@ -184,36 +288,125 @@ export function BrowseClient({
       )}
 
       {/* Search + filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Input
-          placeholder="Search programs..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="sm:max-w-xs"
-        />
-        {allTags.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              onClick={() => setActiveTag(null)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
-                activeTag === null
-                  ? "bg-foreground text-background border-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground"
-              }`}
+      <div className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Find a starting point</p>
+            <p className="text-xs text-muted-foreground">
+              Search by name, pick an app, or narrow by the job you want done.
+            </p>
+          </div>
+          {isFiltered && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 self-start sm:self-auto"
+              onClick={() => {
+                setQ("");
+                setSelectedApp(null);
+                setSelectedUseCase(null);
+                setSelectedProgramId("");
+              }}
             >
-              All
-            </button>
-            {allTags.map((tag) => (
+              <X className="h-3.5 w-3.5" />
+              Clear filters
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(260px,1fr)_minmax(180px,240px)_minmax(180px,240px)]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+            <Input
+              list="browse-program-options"
+              placeholder="Search or choose a specific program..."
+              value={searchValue}
+              className="pl-9"
+              onChange={(e) => {
+                const value = e.target.value;
+                const exactProgram = programOptions.find(
+                  (program) => program.name.toLowerCase() === value.toLowerCase()
+                );
+
+                if (exactProgram) {
+                  setSelectedProgramId(exactProgram.id);
+                  setQ("");
+                  setSelectedApp(null);
+                  setSelectedUseCase(null);
+                  return;
+                }
+
+                setSelectedProgramId("");
+                setQ(value);
+              }}
+            />
+            <datalist id="browse-program-options">
+              {programOptions.map((program) => (
+                <option key={program.id} value={program.name} />
+              ))}
+            </datalist>
+          </div>
+
+          <label className="space-y-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">App</span>
+            <select
+              value={selectedApp ?? ""}
+              onChange={(e) => {
+                setSelectedApp(e.target.value || null);
+                setSelectedProgramId("");
+              }}
+              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Filter by app"
+            >
+              <option value="">All apps</option>
+              {appTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {PROVIDER_LABELS[tag] ?? tag}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Use case</span>
+            <select
+              value={selectedUseCase ?? ""}
+              onChange={(e) => {
+                setSelectedUseCase(e.target.value || null);
+                setSelectedProgramId("");
+              }}
+              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label="Filter by use case"
+            >
+              <option value="">All use cases</option>
+              {useCaseTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {humanizeTag(tag)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {popularAppTags.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-medium text-muted-foreground">Popular apps</span>
+            {popularAppTags.map((tag) => (
               <button
+                type="button"
                 key={tag}
-                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
-                  activeTag === tag
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setSelectedApp(selectedApp === tag ? null : tag);
+                  setSelectedProgramId("");
+                }}
+                className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  selectedApp === tag
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {tag}
+                <ProviderLogo provider={tag} size="sm" />
+                <span>{PROVIDER_LABELS[tag] ?? tag}</span>
               </button>
             ))}
           </div>
@@ -231,34 +424,52 @@ export function BrowseClient({
             </div>
           ))}
         </div>
-      ) : programs.length === 0 ? (
+      ) : visiblePrograms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="text-muted-foreground text-sm">
-            {q || activeTag ? "No programs match your search." : "No programs have been published yet."}
+            {isFiltered ? "No programs match your filters." : "No programs have been published yet."}
           </p>
-          {(q || activeTag) && (
+          {isFiltered && (
             <Button
               variant="ghost"
               size="sm"
               className="mt-2"
-              onClick={() => { setQ(""); setActiveTag(null); }}
+              onClick={() => {
+                setQ("");
+                setSelectedApp(null);
+                setSelectedUseCase(null);
+                setSelectedProgramId("");
+              }}
             >
               Clear filters
             </Button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {programs.map((program) => (
-            <ProgramCard
-              key={program.id}
-              program={program}
-              onFork={handleFork}
-              forking={forking === program.id}
-              forkedId={forked[program.id]}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {visiblePrograms.map((program) => (
+              <ProgramCard
+                key={program.id}
+                program={program}
+                onFork={handleFork}
+                forking={forking === program.id}
+                forkedId={forked[program.id]}
+              />
+            ))}
+          </div>
+          {!selectedProgramId && (
+            <div ref={loadMoreRef} className="flex justify-center py-4">
+              {loadingMore ? (
+                <span className="text-xs text-muted-foreground">Loading more programs...</span>
+              ) : hasMore ? (
+                <span className="text-xs text-muted-foreground">Scroll for more</span>
+              ) : visiblePrograms.length > 0 ? (
+                <span className="text-xs text-muted-foreground">You&apos;ve reached the end.</span>
+              ) : null}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -322,7 +533,7 @@ function ProgramCard({
           )}
           <p className="flex items-center gap-1">
             <UseIcon className="w-3 h-3" />
-            {program.fork_count} use{program.fork_count !== 1 ? "s" : ""}
+            {formatUseCount(program.fork_count)} users
           </p>
         </div>
 
@@ -363,13 +574,15 @@ function ConnectionLogoStack({ providers }: { providers: string[] }) {
   );
 }
 
-function ProviderLogo({ provider }: { provider: string }) {
+function ProviderLogo({ provider, size = "md" }: { provider: string; size?: "sm" | "md" }) {
   const [failed, setFailed] = useState(false);
   const iconUrl = PROVIDER_ICON_URL[provider];
   const label = PROVIDER_LABELS[provider] ?? provider;
+  const wrapperSize = size === "sm" ? "h-6 w-6" : "h-7 w-7";
+  const imageSize = size === "sm" ? "h-4 w-4" : "h-5 w-5";
 
   return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-background shadow-sm">
+    <span className={`flex ${wrapperSize} shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-background shadow-sm`}>
       {iconUrl && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -377,7 +590,7 @@ function ProviderLogo({ provider }: { provider: string }) {
           alt={label}
           width={20}
           height={20}
-          className="h-5 w-5 object-contain"
+          className={`${imageSize} object-contain`}
           onError={() => setFailed(true)}
         />
       ) : (
@@ -387,6 +600,21 @@ function ProviderLogo({ provider }: { provider: string }) {
       )}
     </span>
   );
+}
+
+function formatUseCount(count: number): string {
+  if (count >= 1000) {
+    return `${Math.floor(count / 1000)}k+`;
+  }
+
+  return `${Math.max(100, Math.ceil(count / 100) * 100)}+`;
+}
+
+function humanizeTag(tag: string): string {
+  return tag
+    .split(/[-_]/g)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function normalizeProvider(provider: string): string {

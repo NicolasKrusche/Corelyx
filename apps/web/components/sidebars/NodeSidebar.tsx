@@ -231,16 +231,18 @@ function FieldGroup({
   hint,
   children,
 }: {
-  label: string;
+  label?: React.ReactNode;
   htmlFor?: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1">
-      <Label htmlFor={htmlFor} className="text-xs">
-        {label}
-      </Label>
+      {label && (
+        <Label htmlFor={htmlFor} className="text-xs">
+          {label}
+        </Label>
+      )}
       {children}
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
@@ -327,6 +329,95 @@ function ValidationSummary({
 
 const SENTINEL_VALUE = "__USER_ASSIGNED__";
 
+type ResourceFieldConfig = {
+  resourceType: string;
+  placeholder: string;
+  queryParamKeys?: string[];
+  waitForKey?: string;
+  waitForLabel?: string;
+};
+
+const RESOURCE_FIELD_CONFIG: Record<string, Record<string, ResourceFieldConfig>> = {
+  airtable: {
+    base_id: { resourceType: "airtable-bases", placeholder: "Choose an Airtable base" },
+    table_name: {
+      resourceType: "airtable-tables",
+      placeholder: "Choose a table",
+      queryParamKeys: ["base_id"],
+      waitForKey: "base_id",
+      waitForLabel: "base",
+    },
+  },
+  asana: {
+    workspace_id: { resourceType: "asana-workspaces", placeholder: "Choose a workspace" },
+    project_id: {
+      resourceType: "asana-projects",
+      placeholder: "Choose a project",
+      queryParamKeys: ["workspace_id"],
+    },
+  },
+  calendar: {
+    calendar_id: { resourceType: "calendars", placeholder: "Choose a calendar" },
+  },
+  docs: {
+    document_id: { resourceType: "documents", placeholder: "Choose a Google Doc" },
+  },
+  drive: {
+    file_id: { resourceType: "drive-files", placeholder: "Choose a Drive file" },
+    parent_id: { resourceType: "drive-folders", placeholder: "Choose a parent folder" },
+  },
+  github: {
+    repo: { resourceType: "github-repos", placeholder: "Choose a repository" },
+  },
+  hubspot: {
+    contact_id: { resourceType: "hubspot-contacts", placeholder: "Choose a contact" },
+    deal_id: { resourceType: "hubspot-deals", placeholder: "Choose a deal" },
+  },
+  notion: {
+    database_id: { resourceType: "notion-databases", placeholder: "Choose a database" },
+    page_id: { resourceType: "notion-pages", placeholder: "Choose a page" },
+    parent_id: { resourceType: "notion-parents", placeholder: "Choose a parent page or database" },
+  },
+  outlook: {
+    folder: { resourceType: "outlook-folders", placeholder: "Choose a mail folder" },
+    destination_folder: { resourceType: "outlook-folders", placeholder: "Choose destination folder" },
+  },
+  sheets: {
+    spreadsheet_id: { resourceType: "spreadsheets", placeholder: "Choose a spreadsheet" },
+  },
+  slack: {
+    channel: { resourceType: "slack-channels", placeholder: "Choose a channel" },
+  },
+  typeform: {
+    form_id: { resourceType: "typeform-forms", placeholder: "Choose a form" },
+  },
+};
+
+function getResourceFieldConfig(provider: string, key: string): ResourceFieldConfig | undefined {
+  return RESOURCE_FIELD_CONFIG[provider]?.[key];
+}
+
+function getResourcePickerValue(provider: string, key: string, value: unknown, params: Record<string, unknown>): string {
+  if (provider === "github" && key === "repo" && typeof params.owner === "string" && typeof value === "string") {
+    return `${params.owner}/${value}`;
+  }
+
+  return String(value ?? "");
+}
+
+function buildResourceQuery(config: ResourceFieldConfig, params: Record<string, unknown>): Record<string, string> {
+  const query: Record<string, string> = {};
+
+  for (const key of config.queryParamKeys ?? []) {
+    const value = params[key];
+    if (typeof value === "string" && value.trim() && value !== SENTINEL_VALUE) {
+      query[key] = value.trim();
+    }
+  }
+
+  return query;
+}
+
 function OperationParamsEditor({
   provider,
   operation,
@@ -390,6 +481,16 @@ function OperationParamsEditor({
       next[key] = value;
     }
     onChange(next);
+  }
+
+  function updateResourceValue(key: string, value: string) {
+    if (provider === "github" && key === "repo" && value.includes("/")) {
+      const [owner, repo] = value.split("/");
+      onChange({ ...params, owner, repo });
+      return;
+    }
+
+    update(key, value || undefined);
   }
 
   return (
@@ -515,18 +616,63 @@ function OperationParamsEditor({
           );
         }
 
-        // Resource picker for Sheets spreadsheet_id
-        if (provider === "sheets" && field.key === "spreadsheet_id" && connectionId) {
+        const resourceConfig = getResourceFieldConfig(provider, field.key);
+        const waitingForValue = resourceConfig?.waitForKey ? params[resourceConfig.waitForKey] : undefined;
+        const isWaitingForParent =
+          resourceConfig?.waitForKey &&
+          (typeof waitingForValue !== "string" || !waitingForValue.trim() || waitingForValue === SENTINEL_VALUE);
+
+        if (resourceConfig && connectionId && !isWaitingForParent) {
+          const pickerValue = getResourcePickerValue(provider, field.key, displayVal, params);
           return (
             <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint}>
               <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
               <ResourcePicker
                 connectionId={connectionId}
-                resourceType="spreadsheets"
-                value={String(displayVal ?? "")}
-                placeholder="Choose a spreadsheet"
+                resourceType={resourceConfig.resourceType}
+                query={buildResourceQuery(resourceConfig, params)}
+                value={pickerValue}
+                placeholder={resourceConfig.placeholder}
                 invalid={isMissing}
-                onChange={(v) => update(field.key, v || undefined)}
+                onChange={(v) => updateResourceValue(field.key, v)}
+              />
+            </FieldGroup>
+          );
+        }
+
+        if (resourceConfig && !connectionId) {
+          return (
+            <FieldGroup
+              key={field.key}
+              htmlFor={`op-${field.key}`}
+              hint="Choose a connection above to load saved options, or paste a value manually."
+            >
+              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+              <Input
+                id={`op-${field.key}`}
+                className={inputClass}
+                placeholder={field.placeholder ?? resourceConfig.placeholder}
+                value={String(displayVal ?? "")}
+                onChange={(e) => update(field.key, e.target.value)}
+              />
+            </FieldGroup>
+          );
+        }
+
+        if (resourceConfig && isWaitingForParent) {
+          return (
+            <FieldGroup
+              key={field.key}
+              htmlFor={`op-${field.key}`}
+              hint={`Choose a ${resourceConfig.waitForLabel ?? resourceConfig.waitForKey} first, or paste a value manually.`}
+            >
+              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+              <Input
+                id={`op-${field.key}`}
+                className={inputClass}
+                placeholder={field.placeholder ?? resourceConfig.placeholder}
+                value={String(displayVal ?? "")}
+                onChange={(e) => update(field.key, e.target.value)}
               />
             </FieldGroup>
           );
@@ -603,13 +749,15 @@ type PickerResource = { id: string; name: string };
 function ResourcePicker({
   connectionId,
   resourceType,
+  query = {},
   value,
   placeholder,
   invalid = false,
   onChange,
 }: {
   connectionId: string;
-  resourceType: "spreadsheets";
+  resourceType: string;
+  query?: Record<string, string>;
   value: string;
   placeholder?: string;
   invalid?: boolean;
@@ -619,12 +767,14 @@ function ResourcePicker({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [manualEntry, setManualEntry] = useState(false);
+  const queryKey = JSON.stringify(query);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/connections/${connectionId}/resources/${resourceType}`)
+    const qs = new URLSearchParams(query).toString();
+    fetch(`/api/connections/${connectionId}/resources/${resourceType}${qs ? `?${qs}` : ""}`)
       .then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -644,7 +794,7 @@ function ResourcePicker({
     return () => {
       cancelled = true;
     };
-  }, [connectionId, resourceType]);
+  }, [connectionId, resourceType, queryKey]);
 
   const selectedKnown = resources?.some((r) => r.id === value) ?? false;
   const borderClass = invalid ? "border-destructive focus-visible:ring-destructive" : "";
@@ -1472,6 +1622,7 @@ function ConnectionSidebar({
 
   if (!isHttpConnectionConfig(config)) {
     const oauthConfig = config as {
+      provider?: string;
       scope_access: "read" | "write" | "read_write";
       scope_required: string[];
       operation?: string;
