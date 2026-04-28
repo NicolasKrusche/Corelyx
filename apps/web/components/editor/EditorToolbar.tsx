@@ -14,6 +14,7 @@ interface EditorToolbarProps {
   programName: string;
   isDirty: boolean;
   isSaving: boolean;
+  isValidating: boolean;
   isRunning: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -21,7 +22,7 @@ interface EditorToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onSave: () => void;
-  onValidate: () => void;
+  onValidate: () => void | Promise<void>;
   onRun: () => void;
   onBack: () => void;
   showPalette: boolean;
@@ -100,6 +101,7 @@ export function EditorToolbar({
   programName,
   isDirty,
   isSaving,
+  isValidating,
   isRunning,
   canUndo,
   canRedo,
@@ -252,11 +254,12 @@ export function EditorToolbar({
         variant="outline"
         size="sm"
         onClick={onValidate}
+        disabled={isValidating}
         className="gap-1.5"
-        title="Validate schema"
+        title="Validate schema and pre-flight requirements"
       >
         <ValidateIcon />
-        Validate
+        {isValidating ? "Validating..." : "Validate"}
         {validationResult && (
           <span
             className={cn(

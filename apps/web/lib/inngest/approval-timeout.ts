@@ -1,15 +1,20 @@
 import { NonRetriableError } from "inngest";
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
+import { writeAppLog } from "@/lib/app-logs";
 
 const DEFAULT_TIMEOUT_HOURS = 24;
 
 type PendingApproval = {
   id: string;
+  user_id: string;
   node_execution_id: string;
   created_at: string;
   context: {
     timeout_hours?: number;
+    node_label?: string;
+    program_id?: string;
+    [k: string]: unknown;
   } | null;
 };
 
@@ -31,7 +36,7 @@ export const approvalTimeout = inngest.createFunction(
     const pending = await step.run("fetch-pending", async () => {
       const { data, error } = await db
         .from("approvals")
-        .select("id, node_execution_id, created_at, context")
+        .select("id, user_id, node_execution_id, created_at, context")
         .eq("status", "pending")
         .order("created_at", { ascending: true })
         .limit(200);
@@ -79,6 +84,37 @@ export const approvalTimeout = inngest.createFunction(
           .from("node_executions")
           .update({ status: "failed", error_message: "Approval timed out." } as never)
           .eq("id", approval.node_execution_id);
+
+        // Immutable audit-log entry mirroring the manual-decision path. AI Act
+        // Art. 14 requires that auto-rejections from missed deadlines are also
+        // attributable in the audit trail — not silently dropped.
+        const programIdFromContext =
+          approval.context && typeof approval.context.program_id === "string"
+            ? approval.context.program_id
+            : null;
+        const nodeLabel =
+          approval.context && typeof approval.context.node_label === "string"
+            ? approval.context.node_label
+            : "unknown";
+        await writeAppLog(db, {
+          userId: approval.user_id,
+          level: "warning",
+          source: "Approvals",
+          event: "approval.auto_rejected_timeout",
+          status: "rejected",
+          message: `Approval auto-rejected (timeout elapsed) for node "${nodeLabel}".`,
+          programId: programIdFromContext,
+          durationMs: new Date(now_iso).getTime() - new Date(approval.created_at).getTime(),
+          details: {
+            approval_id: approval.id,
+            node_execution_id: approval.node_execution_id,
+            decided_by: "system:approval-timeout-enforcer",
+            decided_at: now_iso,
+            requested_at: approval.created_at,
+            timeout_hours: approval.context?.timeout_hours ?? DEFAULT_TIMEOUT_HOURS,
+            context_at_decision: approval.context,
+          },
+        });
 
         count++;
         logger.info(`Expired approval ${approval.id} (timeout elapsed)`);

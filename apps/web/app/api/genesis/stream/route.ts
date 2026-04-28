@@ -16,6 +16,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
+import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
   const { description, connection_ids, api_key_id, model } = parsed.data;
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const startedAt = Date.now();
+  const sanitizedDescription = sanitizeTextForLlm(description);
 
   // Rate limit
   if (!rateLimit(`genesis:${userId}`, 10, 60_000)) {
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
       try {
         send({ type: "status", message: "Contacting model..." });
 
-        const userMessage = buildGenesisUserMessage(description, availableConnections);
+        const userMessage = buildGenesisUserMessage(sanitizedDescription.value, availableConnections);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
@@ -353,6 +355,8 @@ export async function POST(request: Request) {
             edge_count: schema.edges.length,
             validation_errors: validation.errors.length,
             validation_warnings: validation.warnings.length,
+            pii_redacted: sanitizedDescription.redacted,
+            pii_redactions: sanitizedDescription.redactions,
           },
         });
 
@@ -377,8 +381,10 @@ export async function POST(request: Request) {
           details: {
             requested_model: model,
             model_used: modelUsed,
-            description: truncateForLog(description, 1000),
-            raw_preview: truncateForLog(rawText, 2000),
+            description: truncateForLog(sanitizedDescription.value, 1000),
+            raw_preview: truncateForLog(sanitizeTextForLlm(rawText).value, 2000),
+            pii_redacted: hasPiiRedactions(sanitizedDescription.redactions),
+            pii_redactions: sanitizedDescription.redactions,
           },
         });
         send({ type: "error", message });

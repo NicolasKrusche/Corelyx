@@ -8,6 +8,7 @@ export function GET() {
     { url: `${APP_URL}/privacy`, priority: "0.5", changefreq: "yearly"  },
     { url: `${APP_URL}/terms`,   priority: "0.5", changefreq: "yearly"  },
     { url: `${APP_URL}/impressum`, priority: "0.5", changefreq: "yearly"  },
+    { url: `${APP_URL}/subprocessors`, priority: "0.5", changefreq: "monthly"  },
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

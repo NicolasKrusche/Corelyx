@@ -508,6 +508,7 @@ type AccountSettingsSection =
   | "security"
   | "benefits"
   | "legal"
+  | "compliance"
   | "danger"
   | "general"
   | "advanced"
@@ -625,6 +626,7 @@ function SettingsModal({
       items: [
         { id: "general", label: "General", caption: "Theme and preferences", icon: SettingsIcon },
         { id: "advanced", label: "Advanced", caption: "Power-user controls", icon: AdminIcon },
+        { id: "compliance", label: "EU Compliance", caption: "GDPR and legal docs", icon: LogsIcon },
         ...(isAdmin ? [{ id: "codeManager" as const, label: "Code Manager", caption: "Redemption codes", icon: KeyIcon }] : []),
       ],
     },
@@ -774,10 +776,10 @@ function SettingsModal({
     setDsarLoading(true);
     setDsarStatus(null);
 
-    const res = await fetch("/api/user/dsar", {
+    const res = await fetch("/api/user/data-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ request_type: dsarType, description: dsarDescription.trim() || undefined }),
+      body: JSON.stringify({ request_type: dsarType, details: dsarDescription.trim() || undefined }),
     });
 
     if (!res.ok) {
@@ -787,9 +789,20 @@ function SettingsModal({
       return;
     }
 
-    const data = await res.json() as { reference: string };
-    setDsarStatus({ type: "success", message: `Request submitted — reference ${data.reference}. We'll respond within 30 days.` });
+    const data = await res.json() as { request?: { id?: string; due_at?: string } };
+    const dueDate = data.request?.due_at
+      ? new Date(data.request.due_at).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : "within 30 days";
+    setDsarStatus({
+      type: "success",
+      message: `Request submitted. Reference ${data.request?.id ?? "created"}. We will respond by ${dueDate}.`,
+    });
     setDsarDescription("");
+    setDsarType("access");
     setDsarLoading(false);
   }
 
@@ -1176,6 +1189,9 @@ function SettingsModal({
                     <Link href="/terms" onClick={onClose} className="rounded-xl border border-border px-3 py-3 text-sm text-foreground transition-colors hover:bg-accent">
                       Terms of Service
                     </Link>
+                    <Link href="/subprocessors" onClick={onClose} className="rounded-xl border border-border px-3 py-3 text-sm text-foreground transition-colors hover:bg-accent">
+                      Subprocessors
+                    </Link>
                   </div>
                 </section>
 
@@ -1191,7 +1207,7 @@ function SettingsModal({
                       className={fieldClass}
                     >
                       <option value="access">Right of access — get a copy of your data</option>
-                      <option value="correction">Right to rectification — correct inaccurate data</option>
+                      <option value="rectification">Right to rectification — correct inaccurate data</option>
                       <option value="erasure">Right to erasure — delete your data</option>
                       <option value="portability">Right to portability — export your data</option>
                       <option value="objection">Right to object — object to processing</option>
@@ -1288,6 +1304,41 @@ function SettingsModal({
                         {option}
                       </button>
                     ))}
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {tab === "compliance" && (
+              <div className="space-y-6">
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">EU Compliance</p>
+                  <p className="mt-3 text-sm text-foreground">
+                    This workspace is configured to comply with EU regulations, including GDPR data protection standards, strict data residency requirements, and sub-processor tracking.
+                  </p>
+                </section>
+
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">GDPR & Data Protection</p>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                    Under the General Data Protection Regulation (GDPR), you have the right to access, rectify, port, and delete your personal data.
+                  </p>
+                  <div className="mt-4 flex flex-col gap-2">
+                    <a href="https://gdpr-info.eu/" target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline underline-offset-2">
+                      Read more about the GDPR standard
+                    </a>
+                  </div>
+                </section>
+
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Legal requests</p>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                    Submit a data subject request from Settings. Requests are timestamped, tracked, and due within the GDPR 30-day response window.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Link href="/settings#data-rights" className={primaryBtnClass}>
+                      Open data rights
+                    </Link>
                   </div>
                 </section>
               </div>

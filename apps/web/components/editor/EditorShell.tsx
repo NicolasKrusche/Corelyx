@@ -231,6 +231,19 @@ function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+function makePreFlightErrorCheck(
+  label: string,
+  message: string,
+  fixSuggestion: string
+): PreFlightCheck {
+  return {
+    code: "PRE_001",
+    label,
+    status: "fail",
+    failures: [{ node_id: null, message, fix_suggestion: fixSuggestion }],
+  };
+}
+
 interface EditorShellProps {
   programId: string;
   initialSchema: ProgramSchema;
@@ -293,6 +306,20 @@ export function EditorShell({
   const [aiEditLoading, setAiEditLoading] = React.useState(false);
   const [aiEditError, setAiEditError] = React.useState<string | null>(null);
 
+  const [isValidating, setIsValidating] = React.useState(false);
+  const [validationNotice, setValidationNotice] = React.useState<string | null>(null);
+  const [preFlightChecks, setPreFlightChecks] = React.useState<PreFlightCheck[] | null>(null);
+
+  useEffect(() => {
+    if (!validationNotice) return;
+
+    const timer = setTimeout(() => {
+      setValidationNotice(null);
+    }, 4500);
+
+    return () => clearTimeout(timer);
+  }, [validationNotice]);
+
   // ── Clipboard for copy/paste ──────────────────────────────────────────────
 
   const clipboardRef = useRef<SchemaNode | null>(null);
@@ -354,7 +381,7 @@ export function EditorShell({
   // ── Save function ─────────────────────────────────────────────────────────
 
   const performSave = useCallback(
-    async (schema: ProgramSchema) => {
+    async (schema: ProgramSchema): Promise<boolean> => {
       dispatch({ type: "SET_SAVING", saving: true });
       try {
         const res = await fetch(`/api/programs/${programId}`, {
@@ -364,11 +391,14 @@ export function EditorShell({
         });
         if (res.ok) {
           dispatch({ type: "MARK_SAVED" });
+          return true;
         } else {
           dispatch({ type: "SET_SAVING", saving: false });
+          return false;
         }
       } catch {
         dispatch({ type: "SET_SAVING", saving: false });
+        return false;
       }
     },
     [programId]
@@ -376,10 +406,118 @@ export function EditorShell({
 
   // ── Validate ──────────────────────────────────────────────────────────────
 
-  const handleValidate = useCallback(() => {
-    const result = validatePostGenesis(state.schema, linkedConnections);
-    dispatch({ type: "SET_VALIDATION", result });
-  }, [state.schema, linkedConnections]);
+  const handleValidate = useCallback(async () => {
+    setIsValidating(true);
+    setValidationNotice(null);
+    setPreFlightChecks(null);
+
+    try {
+      const result = validatePostGenesis(state.schema, linkedConnections);
+      dispatch({ type: "SET_VALIDATION", result });
+
+      const firstNodeIssue =
+        result.errors.find((error) => error.node_id)?.node_id ??
+        result.warnings.find((warning) => warning.node_id)?.node_id;
+
+      if (firstNodeIssue) {
+        dispatch({ type: "SELECT_NODE", nodeId: firstNodeIssue });
+      }
+
+      if (!result.valid) {
+        const issueCount = result.errors.length;
+        setValidationNotice(
+          `Found ${issueCount} validation issue${issueCount === 1 ? "" : "s"}.`
+        );
+        setPreFlightChecks([
+          {
+            code: "PRE_005",
+            label: "Schema validation",
+            status: "fail",
+            failures: result.errors.map((error) => ({
+              node_id: error.node_id,
+              message: error.message,
+              fix_suggestion: error.fix_suggestion,
+            })),
+          },
+        ]);
+        return;
+      }
+
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+
+      if (state.isDirty) {
+        const saved = await performSave(state.schema);
+        if (!saved) {
+          setValidationNotice("Validation could not finish because saving failed.");
+          setPreFlightChecks([
+            makePreFlightErrorCheck(
+              "Save failed",
+              "Could not save the latest editor changes before validation.",
+              "Check your connection and try Validate again."
+            ),
+          ]);
+          return;
+        }
+      }
+
+      const res = await fetch(`/api/programs/${programId}/preflight`, {
+        method: "POST",
+      });
+      const body = (await res.json().catch(() => null)) as {
+        result?: ValidationResult;
+        checks?: PreFlightCheck[];
+        error?: string;
+      } | null;
+
+      if (!res.ok) {
+        const message = body?.error ?? "Could not complete validation.";
+        setValidationNotice("Validation could not finish.");
+        setPreFlightChecks([
+          makePreFlightErrorCheck(
+            "Validation error",
+            message,
+            "Save the program, check your connection, and try again."
+          ),
+        ]);
+        return;
+      }
+
+      if (body?.result) {
+        dispatch({ type: "SET_VALIDATION", result: body.result });
+      }
+
+      const checks = body?.checks ?? [];
+      const failedChecks = checks.filter((check) => check.status === "fail");
+      if (failedChecks.length > 0) {
+        setPreFlightChecks(checks);
+        setValidationNotice(
+          `Pre-flight found ${failedChecks.length} issue${failedChecks.length === 1 ? "" : "s"}.`
+        );
+        return;
+      }
+
+      const warningCount = body?.result?.warnings.length ?? result.warnings.length;
+      setValidationNotice(
+        warningCount > 0
+          ? `Validation passed with ${warningCount} warning${warningCount === 1 ? "" : "s"}.`
+          : "Validation passed. Ready to run."
+      );
+    } catch {
+      setValidationNotice("Validation could not finish.");
+      setPreFlightChecks([
+        makePreFlightErrorCheck(
+          "Connection error",
+          "Could not reach the validation service.",
+          "Check your connection and try again."
+        ),
+      ]);
+    } finally {
+      setIsValidating(false);
+    }
+  }, [linkedConnections, performSave, programId, state.isDirty, state.schema]);
 
   // Re-validate whenever linkedConnections grows (e.g. after auto-linking)
   useEffect(() => {
@@ -921,8 +1059,6 @@ export function EditorShell({
   // ── Run ───────────────────────────────────────────────────────────────────
 
   const [isRunning, setIsRunning] = React.useState(false);
-  const [preFlightChecks, setPreFlightChecks] = React.useState<PreFlightCheck[] | null>(null);
-
   const handleRun = useCallback(async () => {
     if (state.validationResult && !state.validationResult.valid) return;
     setIsRunning(true);
@@ -1042,6 +1178,7 @@ export function EditorShell({
         programName={state.schema.program_name}
         isDirty={state.isDirty}
         isSaving={state.isSaving}
+        isValidating={isValidating}
         canUndo={canUndo}
         canRedo={canRedo}
         validationResult={state.validationResult}
@@ -1105,6 +1242,19 @@ export function EditorShell({
         {isMobile && (
           <div className="absolute inset-x-0 top-0 z-20 bg-amber-50 dark:bg-amber-950/50 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-xs text-amber-800 dark:text-amber-300 text-center">
             The visual editor is read-only on mobile. Open on desktop to edit.
+          </div>
+        )}
+
+        {validationNotice && (
+          <div className="absolute left-1/2 top-4 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-background/95 px-4 py-2 text-sm font-medium text-foreground shadow-lg backdrop-blur">
+            <span>{validationNotice}</span>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setValidationNotice(null)}
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
@@ -1239,7 +1389,7 @@ export function EditorShell({
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
-              <span>⚠</span> Pre-flight check failed
+              <span>⚠</span> Validation needs attention
             </DialogTitle>
             <p className="text-sm text-muted-foreground">Fix the following issues before running this program.</p>
           </DialogHeader>

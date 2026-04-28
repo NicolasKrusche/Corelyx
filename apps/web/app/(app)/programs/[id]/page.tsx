@@ -15,12 +15,25 @@ import { createServiceClient } from "@/lib/api";
 type SchemaNode = { id: string; label: string; description: string; type: string };
 
 function parseSchema(raw: Json) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { nodes: [], edges: [], triggers: [] };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { nodes: [], edges: [], triggers: [], genesisModel: null };
+  }
   const schema = raw as Record<string, Json>;
   const nodes = Array.isArray(schema.nodes) ? (schema.nodes as unknown as SchemaNode[]) : [];
   const edges = Array.isArray(schema.edges) ? schema.edges : [];
   const triggers = Array.isArray(schema.triggers) ? schema.triggers : [];
-  return { nodes, edges, triggers };
+  const metadata = schema.metadata && typeof schema.metadata === "object" && !Array.isArray(schema.metadata)
+    ? (schema.metadata as Record<string, Json>)
+    : null;
+  const genesisModel = metadata && typeof metadata.genesis_model === "string" ? metadata.genesis_model : null;
+  return { nodes, edges, triggers, genesisModel };
+}
+
+// EU AI Act Art. 50 transparency: AI-generated outputs must be labeled as such.
+// "manual" = user built from scratch; "template" = imported from gallery; anything else = LLM Genesis.
+function isAiGenerated(genesisModel: string | null): boolean {
+  if (!genesisModel) return false;
+  return genesisModel !== "manual" && genesisModel !== "template";
 }
 
 export default async function ProgramPage({ params }: { params: { id: string } }) {
@@ -47,7 +60,8 @@ export default async function ProgramPage({ params }: { params: { id: string } }
     public_author_name: string | null;
   };
   const program = data as ProgramRow;
-  const { nodes, edges, triggers } = parseSchema(program.schema);
+  const { nodes, edges, triggers, genesisModel } = parseSchema(program.schema);
+  const aiGenerated = isAiGenerated(genesisModel);
 
   // Fetch active trigger count from DB
   const serviceClient = createServiceClient();
@@ -112,6 +126,11 @@ export default async function ProgramPage({ params }: { params: { id: string } }
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          {aiGenerated && (
+            <Badge variant="outline" className="border-violet-500/40 text-violet-700 dark:text-violet-300">
+              AI-generated
+            </Badge>
+          )}
           <Badge variant={program.is_active ? "success" : "secondary"}>
             {program.is_active ? "Active" : "Inactive"}
           </Badge>
@@ -125,6 +144,22 @@ export default async function ProgramPage({ params }: { params: { id: string } }
           <DeleteProgramButton programId={program.id} programName={program.name} />
         </div>
       </div>
+
+      {/* AI-generated review notice — EU AI Act Art. 14 (human oversight) + Art. 50 (AI transparency). */}
+      {aiGenerated && !program.is_active && (
+        <div className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-4 py-3 text-sm text-violet-800 dark:text-violet-200 flex items-start gap-2">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true">
+            <path fillRule="evenodd" d="M2.5 10a7.5 7.5 0 1115 0 7.5 7.5 0 01-15 0zm7.5-4a1 1 0 011 1v3.5a1 1 0 11-2 0V7a1 1 0 011-1zm0 7.25a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
+          </svg>
+          <span>
+            <strong>Corelyx generated this workflow from your description.</strong>{" "}
+            Review every node, parameter, and connection before activating it. AI output can be incorrect or incomplete.
+            {genesisModel && genesisModel !== "manual" && genesisModel !== "template" && (
+              <span className="text-xs opacity-80"> · model: <span className="font-mono">{genesisModel}</span></span>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Conflict warning */}
       {conflictingProgramCount > 0 && (

@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { checkHITLAccess } from "@/lib/limits";
+import { writeAppLog } from "@/lib/app-logs";
 
 // POST /api/approvals/[id]
 // Body: { decision: "approved" | "rejected"; note?: string }
-// Updates approval status and node_execution accordingly
+// Updates approval status and node_execution accordingly.
+//
+// Compliance: every decision (approved | rejected) is also written to app_logs as
+// an immutable audit record per EU AI Act Art. 14 / GDPR Art. 32 ("audit log of
+// all admin actions"). The approvals row itself is mutable (status flips, decision_note
+// can be edited via DB), so the app_logs entry is the durable trail of who decided
+// what, when, and what context was visible at decision time.
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
@@ -30,17 +37,19 @@ export async function POST(
 
   const serviceClient = createServiceClient();
 
-  // Fetch approval to verify ownership and get node_execution_id
+  // Fetch approval to verify ownership and capture decision-time context snapshot
   type ApprovalRow = {
     id: string;
     user_id: string;
     status: string;
     node_execution_id: string;
+    context: Record<string, unknown> | null;
+    created_at: string;
   };
 
   const { data: approvalRaw, error: fetchError } = await serviceClient
     .from("approvals")
-    .select("id, user_id, status, node_execution_id")
+    .select("id, user_id, status, node_execution_id, context, created_at")
     .eq("id", approvalId)
     .single();
 
@@ -75,6 +84,40 @@ export async function POST(
     .eq("id", approval.node_execution_id);
 
   if (updateExecError) return apiError(updateExecError.message, 500);
+
+  // Immutable audit-log entry. Captures who decided, when, what they saw at
+  // decision time (the context snapshot stored when the approval was requested),
+  // and the resulting node_execution state. This is the AI Act Art. 14 /
+  // GDPR Art. 32 audit trail — distinct from the mutable approvals row.
+  const programIdFromContext =
+    approval.context && typeof approval.context["program_id"] === "string"
+      ? (approval.context["program_id"] as string)
+      : null;
+  await writeAppLog(serviceClient, {
+    userId: user.id,
+    level: decision === "approved" ? "info" : "warning",
+    source: "Approvals",
+    event: `approval.${decision}`,
+    status: decision,
+    message: `Approval ${decision} for node "${
+      approval.context && typeof approval.context["node_label"] === "string"
+        ? (approval.context["node_label"] as string)
+        : "unknown"
+    }".`,
+    programId: programIdFromContext,
+    durationMs: new Date(now).getTime() - new Date(approval.created_at).getTime(),
+    details: {
+      approval_id: approvalId,
+      node_execution_id: approval.node_execution_id,
+      decided_by: user.id,
+      decided_at: now,
+      requested_at: approval.created_at,
+      decision_note: note ?? null,
+      // Snapshot of what the approver saw at decision time.
+      // input is the upstream-node payload visible in the approval card.
+      context_at_decision: approval.context,
+    },
+  });
 
   return NextResponse.json({ success: true, decision });
 }
