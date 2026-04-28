@@ -142,6 +142,7 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
   const { base } = useTheme();
 
   const accentGradient = "radial-gradient(circle at center, hsl(var(--primary)) 0%, transparent 70%)";
+  const accentBorder = "hsl(var(--primary) / 0.15)";
   const cardBg = base === "dark"
     ? "bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900"
     : "bg-gradient-to-r from-white via-slate-100 to-white";
