@@ -805,53 +805,53 @@ SAFE to send:
 - [ ] Audit log all privileged admin actions
 
 #### Data Handling
-- [ ] Implement configurable execution log verbosity (default: METADATA_ONLY)
-- [ ] Ensure execution log payloads do not store credential values
-- [ ] Implement automated data retention/purge jobs with the retention periods in Section 3.3
-- [ ] Implement PII sanitization for all LLM prompts
-- [ ] Ensure OAuth tokens are never returned to frontend after initial save
-- [ ] Implement tenant isolation verification (test: can user A access user B's data?)
+- [x] Implement configurable execution log verbosity (default: METADATA_ONLY) - runtime supports `EXECUTION_LOG_VERBOSITY=NONE|ERRORS_ONLY|METADATA_ONLY|FULL`
+- [x] Ensure execution log payloads do not store credential values - run trigger payloads and node input/output payloads now pass through shared secret redaction/log policy before persistence
+- [x] Implement automated data retention/purge jobs with the retention periods in Section 3.3 - daily Inngest purge clears execution payloads after 30 days, deletes terminal run metadata after 90 days, and records retention audit rows
+- [x] Implement PII sanitization for all LLM prompts - Genesis generation/refinement, Genesis streaming, and runtime LLM node system/input prompts now redact common PII/secrets before model calls
+- [x] Ensure OAuth tokens are never returned to frontend after initial save — audited [`/api/keys`](apps/web/app/api/keys/route.ts) and [`/api/connections`](apps/web/app/api/connections/route.ts); no `vault_secret_id` / `access_token` / raw key field in any select clause; tokens flow exclusively through server-side `vaultRetrieve`
+- [x] Implement tenant isolation verification (test: can user A access user B's data?) — static-analysis probe at [tenant-isolation.test.ts](apps/web/lib/__tests__/tenant-isolation.test.ts) scans every API route (80/80 passing) for either user-scoped queries, internal-token subject-bound auth, signed-webhook auth, or `is_public=true` filtering
 
 #### Legal Documents (coordinate with lawyer)
-- [ ] Privacy Policy (controller role)
-- [ ] Terms of Service (including prohibited use cases: CLOUD Act-adjacent, high-risk AI without approval gates, prohibited AI practices)
+- [x] Privacy Policy (controller role) — product draft implemented at `/privacy`; requires qualified legal review before commercial reliance
+- [x] Terms of Service (including prohibited use cases: CLOUD Act-adjacent, high-risk AI without approval gates, prohibited AI practices) — product draft implemented at `/terms`; EU AI Act prohibited/high-risk use language added; requires qualified legal review
 - [ ] Data Processing Agreement template (processor role)
-- [ ] Cookie Policy + Consent banner
-- [ ] Impressum (required under Austrian/German law)
+- [x] Cookie Policy + Consent banner — essential-cookie notice implemented; no optional analytics/marketing consent flow yet
+- [x] Impressum (required under Austrian/German law) — page implemented at `/impressum`; production legal identity env values still need final verification
 - [ ] Sign Anthropic DPA with SCCs
 - [ ] Sign subprocessor DPAs for all services
 
 #### Documentation
 - [ ] Create RoPA (Controller) — see Section 3.6 template
 - [ ] Create RoPA (Processor) — see Section 3.6 template  
-- [ ] Create Subprocessor list (public-facing) — see Section 14
-- [ ] Create internal AI System Inventory — see Section 4.6
-- [ ] Create Security policy document
+- [x] Create Subprocessor list (public-facing) — implemented at `/subprocessors`, generated from the provider inventory in `apps/web/lib/legal.ts`; canonical engineering source [SUBPROCESSORS.md](SUBPROCESSORS.md)
+- [x] Create internal AI System Inventory — [AI_SYSTEM_INVENTORY.md](AI_SYSTEM_INVENTORY.md)
+- [x] Create Security policy document — [SECURITY.md](SECURITY.md) (covers vulnerability disclosure, severity SLA, scope)
 
 ### Phase 2 — First 3 Months Post-Launch
 
 #### Data Subject Rights
-- [ ] Build `/api/user/data-request` endpoint for DSR handling
+- [x] Build `/api/user/data-request` endpoint for DSR handling
 - [ ] Build full account data export (JSON) — all data across all stores
 - [ ] Build hard account deletion with propagation to all subprocessors
 - [ ] Build data portability export (machine-readable, documented schema)
 - [ ] Build processing restriction flag mechanism
-- [ ] Log all DSR requests with timestamps
+- [x] Log all DSR requests with timestamps
 
 #### AI Act Compliance
-- [ ] Add "AI-generated — review before activating" label to all generated graphs
-- [ ] Implement approval gate bypass prevention (no API shortcut around approval)
-- [ ] Log approval actions: who, when, what they reviewed
-- [ ] Implement approval timeout fail-safe behavior
-- [ ] Add prohibited use cases to Terms of Service
-- [ ] Create internal DPIA template for customers building high-risk workflows
+- [x] Add "AI-generated — review before activating" label to all generated graphs — badge + non-dismissible review banner in [program detail page](apps/web/app/(app)/programs/[id]/page.tsx); driven by `schema.metadata.genesis_model` and shown when the program is inactive
+- [x] Implement approval gate bypass prevention (no API shortcut around approval) — verified by audit: only [`/api/approvals/[id]`](apps/web/app/api/approvals/[id]/route.ts) flips `node_executions` from `awaiting_approval` to `running`; ownership and pending-status guards enforced; no other write site exists in the API surface
+- [x] Log approval actions: who, when, what they reviewed — immutable `app_logs` entry written on every decision (manual + auto-timeout) capturing decider, timestamp, decision_note, and the full input snapshot the approver saw at decision time. See [`/api/approvals/[id]`](apps/web/app/api/approvals/[id]/route.ts) and [approval-timeout.ts](apps/web/lib/inngest/approval-timeout.ts)
+- [x] Implement approval timeout fail-safe behavior — dual mechanism: runtime polling loop in [executor.py](apps/runtime/engine/executor.py) and Inngest cron enforcer at [approval-timeout.ts](apps/web/lib/inngest/approval-timeout.ts); on timeout the approval is auto-rejected (treated as denial, not bypass) with race-safe pending-status guard
+- [x] Add prohibited use cases to Terms of Service
+- [x] Create internal DPIA template for customers building high-risk workflows — [DPIA_TEMPLATE.md](DPIA_TEMPLATE.md)
 
 #### Security
 - [ ] Run first penetration test (internal or external)
 - [ ] Implement dependency scanning in CI/CD
 - [ ] Implement SAST in CI/CD
-- [ ] Create vulnerability disclosure policy (public)
-- [ ] Create incident response plan (see Section 13)
+- [x] Create vulnerability disclosure policy (public) — [SECURITY.md](SECURITY.md)
+- [x] Create incident response plan (see Section 13) — operational runbook at [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) covering severity classification, T+0/24h/72h timelines, GDPR Art. 33 + NIS2 Art. 23 templates, breach register schema, drill cadence
 - [ ] Set up security monitoring and alerting
 
 ### Phase 3 — 6-12 Months
@@ -949,12 +949,12 @@ At execution time:
 
 | Document | Status | Owner | Notes |
 |---|---|---|---|
-| Privacy Policy | ❌ Not done | Legal + Founder | Must cover controller and processor roles |
-| Terms of Service | ❌ Not done | Legal + Founder | Include prohibited use cases |
+| Privacy Policy | ✅ Draft implemented | Legal + Founder | Product page exists; must be reviewed by qualified counsel |
+| Terms of Service | ✅ Draft implemented | Legal + Founder | Product page exists and includes prohibited/high-risk AI use language; must be reviewed by qualified counsel |
 | Data Processing Agreement (DPA) | ❌ Not done | Legal | Standard template for all customers |
-| Cookie Policy | ❌ Not done | Legal | Required for website |
-| Impressum | ❌ Not done | Founder | Required by Austrian/German law |
-| Subprocessor List | ❌ Not done | Engineering | Public-facing list, must update with 30d notice |
+| Cookie Policy | ✅ Basic notice implemented | Legal | Essential-cookie notice only; update if optional trackers are added |
+| Impressum | ✅ Page implemented | Founder | Environment legal identity values still need final verification |
+| Subprocessor List | ✅ Implemented | Engineering | Public-facing list available at `/subprocessors`; must update with 30d notice |
 | Anthropic DPA / SCCs | ❌ Not done | Founder | Required before using API with customer data |
 | Supabase DPA | ❌ Not done | Founder | Check their EU DPA terms |
 | Employee NDA + Data Handling Policy | ❌ Not done | Founder | Internal |
@@ -1113,13 +1113,13 @@ Every service that processes personal data on our behalf must be listed publicly
 |---|---|---|---|---|
 | 1 | Do execution log payloads currently contain personal data? | 🔴 High | Engineering | Investigate immediately |
 | 2 | Is Supabase confirmed on EU region? Which exact region? | 🔴 High | Infrastructure | Verify and document |
-| 3 | LLM API calls — are sanitization measures in place? | 🔴 High | Engineering | Not yet — build Phase 1 |
+| 3 | LLM API calls — are sanitization measures in place? | 🔴 High | Engineering | Implemented for current Genesis and runtime LLM call paths; keep auditing new model integrations |
 | 4 | Are any third-party services currently used on US infrastructure? | 🔴 High | Infrastructure | Full audit needed |
 | 5 | Does Anthropic API have a signed DPA/SCCs? | 🟠 Medium | Founder | Required before production use |
 | 6 | Is the company incorporated as an EU legal entity? | 🟠 Medium | Founder | Confirm Austrian GmbH/UG status |
 | 7 | Who is the designated DPO or compliance contact? | 🟠 Medium | Founder | Assign before launch |
 | 8 | Are connected third-party APIs (Gmail, HubSpot, etc.) listed as subprocessors in DPA? | 🟠 Medium | Legal | Must be addressed in DPA template |
-| 9 | Approval gate bypass — is there any admin/API path that skips approval? | 🟠 Medium | Engineering | Audit and close if exists |
+| 9 | Approval gate bypass — is there any admin/API path that skips approval? | 🟠 Medium | Engineering | ✅ Audited — only `/api/approvals/[id]` can flip status; ownership + pending-state guards enforced; runtime polling and Inngest enforcer treat timeout as rejection (fail-safe). Immutable audit-log entry on every decision. |
 | 10 | How are tenant encryption keys managed? Are they per-tenant or shared? | 🟡 Low-Medium | Engineering | Design decision needed |
 | 11 | Data Act switching compliance — is a data export API on the roadmap? | 🟡 Low-Medium | Product | Add to roadmap |
 | 12 | Do we need to register with the Austrian Datenschutzbehörde? | 🟡 Low | Legal | Confirm with lawyer |

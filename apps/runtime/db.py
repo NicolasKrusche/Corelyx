@@ -13,6 +13,11 @@ TELEMETRY_COLUMNS = {
     "model_call_count",
 }
 
+EXECUTION_LOG_VERBOSITY_MODES = {"NONE", "ERRORS_ONLY", "METADATA_ONLY", "FULL"}
+DEFAULT_EXECUTION_LOG_VERBOSITY = "METADATA_ONLY"
+MAX_METADATA_DEPTH = 4
+MAX_METADATA_KEYS = 20
+
 # Defense-in-depth (S11/S16): never persist secret-bearing keys in node_executions
 # output payloads or approval contexts, even if upstream code accidentally
 # forwards them. Exact-key match, case-insensitive.
@@ -26,9 +31,54 @@ _REDACTED_KEYS = {
     "client_secret",
     "password",
     "authorization",
+    "auth_value",
+    "bearer",
+    "cookie",
+    "credential",
+    "credentials",
+    "private_key",
+    "set-cookie",
+    "webhook_token",
     "x-api-key",
 }
 _REDACTED_PLACEHOLDER = "[redacted]"
+_REDACTED_KEY_PLACEHOLDER = "[redacted_key]"
+
+
+def _normalise_secret_key(key: str) -> str:
+    return key.lower().replace("-", "_").replace(" ", "_")
+
+
+def is_secret_key(key: str) -> bool:
+    normalised = _normalise_secret_key(key)
+    if normalised in _REDACTED_KEYS:
+        return True
+    return any(
+        marker in normalised
+        for marker in (
+            "access_token",
+            "refresh_token",
+            "id_token",
+            "api_key",
+            "apikey",
+            "auth_token",
+            "authorization",
+            "client_secret",
+            "credential",
+            "password",
+            "private_key",
+            "secret",
+            "session_token",
+            "webhook_token",
+        )
+    )
+
+
+def get_execution_log_verbosity() -> str:
+    mode = os.environ.get("EXECUTION_LOG_VERBOSITY", DEFAULT_EXECUTION_LOG_VERBOSITY).strip().upper()
+    if mode not in EXECUTION_LOG_VERBOSITY_MODES:
+        return DEFAULT_EXECUTION_LOG_VERBOSITY
+    return mode
 
 
 def redact_secrets(value: Any, _depth: int = 0) -> Any:
@@ -43,7 +93,7 @@ def redact_secrets(value: Any, _depth: int = 0) -> Any:
         return {
             k: (
                 _REDACTED_PLACEHOLDER
-                if isinstance(k, str) and k.lower() in _REDACTED_KEYS
+                if isinstance(k, str) and is_secret_key(k)
                 else redact_secrets(v, _depth + 1)
             )
             for k, v in value.items()
@@ -51,6 +101,71 @@ def redact_secrets(value: Any, _depth: int = 0) -> Any:
     if isinstance(value, list):
         return [redact_secrets(item, _depth + 1) for item in value]
     return value
+
+
+def _safe_metadata_key(key: Any) -> str:
+    if not isinstance(key, str):
+        return str(key)
+    return _REDACTED_KEY_PLACEHOLDER if is_secret_key(key) else key
+
+
+def summarize_payload_metadata(value: Any, _depth: int = 0) -> Any:
+    if _depth > MAX_METADATA_DEPTH:
+        return {"type": type(value).__name__, "truncated": True}
+
+    if isinstance(value, dict):
+        items = list(value.items())
+        fields: dict[str, Any] = {}
+        for key, item in items[:MAX_METADATA_KEYS]:
+            safe_key = _safe_metadata_key(key)
+            if safe_key == _REDACTED_KEY_PLACEHOLDER:
+                fields[safe_key] = {"type": "redacted", "redacted": True}
+            else:
+                fields[safe_key] = summarize_payload_metadata(item, _depth + 1)
+        return {
+            "_log_payload": "metadata_only",
+            "type": "object",
+            "key_count": len(items),
+            "keys": [_safe_metadata_key(key) for key, _ in items[:MAX_METADATA_KEYS]],
+            "truncated_keys": max(0, len(items) - MAX_METADATA_KEYS),
+            "fields": fields,
+        }
+
+    if isinstance(value, list):
+        return {
+            "_log_payload": "metadata_only",
+            "type": "array",
+            "length": len(value),
+            "items": [summarize_payload_metadata(item, _depth + 1) for item in value[:5]],
+            "truncated_items": max(0, len(value) - 5),
+        }
+
+    if isinstance(value, str):
+        return {"_log_payload": "metadata_only", "type": "string", "length": len(value)}
+
+    if value is None:
+        return None
+
+    return {"_log_payload": "metadata_only", "type": type(value).__name__}
+
+
+def apply_execution_log_policy(
+    value: Any,
+    *,
+    status: str | None = None,
+    verbosity: str | None = None,
+) -> Any:
+    mode = (verbosity or get_execution_log_verbosity()).strip().upper()
+    if mode not in EXECUTION_LOG_VERBOSITY_MODES:
+        mode = DEFAULT_EXECUTION_LOG_VERBOSITY
+
+    if mode == "NONE":
+        return None
+    if mode == "ERRORS_ONLY" and status != "failed":
+        return None
+    if mode in {"ERRORS_ONLY", "METADATA_ONLY"}:
+        return summarize_payload_metadata(value)
+    return redact_secrets(value)
 
 
 def get_db() -> Client:
@@ -67,13 +182,14 @@ async def create_run(
     trigger_payload: Optional[dict],
 ) -> dict:
     """Insert into runs table, return the row."""
+    safe_trigger_payload = apply_execution_log_policy(trigger_payload)
     result = (
         db.table("runs")
         .insert(
             {
                 "program_id": program_id,
                 "triggered_by": triggered_by,
-                "trigger_payload": trigger_payload,
+                "trigger_payload": safe_trigger_payload,
                 "status": "running",
                 "started_at": "now()",
             }
@@ -155,8 +271,13 @@ async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
 async def update_node_execution(
     db: Client, run_id: str, node_id: str, **kwargs: Any
 ) -> None:
+    status = kwargs.get("status")
+    if not isinstance(status, str):
+        status = None
+    if "input_payload" in kwargs:
+        kwargs["input_payload"] = apply_execution_log_policy(kwargs["input_payload"], status=status)
     if "output_payload" in kwargs:
-        kwargs["output_payload"] = redact_secrets(kwargs["output_payload"])
+        kwargs["output_payload"] = apply_execution_log_policy(kwargs["output_payload"], status=status)
     result = (
         db.table("node_executions")
         .update(kwargs)

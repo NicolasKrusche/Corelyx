@@ -155,6 +155,88 @@ export interface Database {
           created_at?: string;
         };
       };
+      data_retention_audit: {
+        Row: {
+          id: string;
+          job_name: string;
+          cleared_run_payloads: number;
+          cleared_node_input_payloads: number;
+          cleared_node_output_payloads: number;
+          deleted_runs: number;
+          deleted_audit_rows: number;
+          details: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_name: string;
+          cleared_run_payloads?: number;
+          cleared_node_input_payloads?: number;
+          cleared_node_output_payloads?: number;
+          deleted_runs?: number;
+          deleted_audit_rows?: number;
+          details?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          job_name?: string;
+          cleared_run_payloads?: number;
+          cleared_node_input_payloads?: number;
+          cleared_node_output_payloads?: number;
+          deleted_runs?: number;
+          deleted_audit_rows?: number;
+          details?: Json | null;
+          created_at?: string;
+        };
+      };
+      data_subject_requests: {
+        Row: {
+          id: string;
+          user_id: string;
+          org_id: string | null;
+          request_type: "access" | "rectification" | "erasure" | "restriction" | "portability" | "objection" | "withdrawal";
+          status: "submitted" | "in_review" | "waiting_on_user" | "completed" | "rejected";
+          requester_email: string | null;
+          details: string | null;
+          response_summary: string | null;
+          submitted_at: string;
+          due_at: string;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          org_id?: string | null;
+          request_type: "access" | "rectification" | "erasure" | "restriction" | "portability" | "objection" | "withdrawal";
+          status?: "submitted" | "in_review" | "waiting_on_user" | "completed" | "rejected";
+          requester_email?: string | null;
+          details?: string | null;
+          response_summary?: string | null;
+          submitted_at?: string;
+          due_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          org_id?: string | null;
+          request_type?: "access" | "rectification" | "erasure" | "restriction" | "portability" | "objection" | "withdrawal";
+          status?: "submitted" | "in_review" | "waiting_on_user" | "completed" | "rejected";
+          requester_email?: string | null;
+          details?: string | null;
+          response_summary?: string | null;
+          submitted_at?: string;
+          due_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       connection_webhook_secrets: {
         Row: {
           id: string;
@@ -647,7 +729,16 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      purge_expired_operational_data: {
+        Args: {
+          p_payload_retention?: string;
+          p_run_retention?: string;
+          p_audit_retention?: string;
+        };
+        Returns: Json;
+      };
+    };
     Enums: Record<string, never>;
   };
 }

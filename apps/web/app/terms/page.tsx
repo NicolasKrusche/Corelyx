@@ -58,6 +58,8 @@ You must notify us immediately at legal@corelyx.app if you suspect unauthorized 
 - Scrape, crawl, or harvest data from third-party services in violation of their terms
 - Send unsolicited bulk communications (spam) via the automation features
 - Process personal data of third parties without their consent or a lawful basis
+- Use AI features for prohibited practices under the EU AI Act, including social scoring, unlawful biometric identification, subliminal manipulation, predictive policing, or workplace emotion recognition
+- Use AI features for high-risk decisions in employment, education, credit, insurance, healthcare, law enforcement, migration, critical infrastructure, or public services unless you have completed the required legal assessment and configured appropriate human oversight
 - Impersonate any person or entity
 - Engage in any activity that places unreasonable load on our infrastructure
 - Circumvent or attempt to circumvent any usage limits, rate limits, or access controls

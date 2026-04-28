@@ -5,13 +5,41 @@ import { isAdminEmail } from "@/lib/admin";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
 import { ensureAvatarBucket } from "@/lib/avatar-storage";
 
+type AppLayoutUser = {
+  id: string;
+  email?: string | null;
+  created_at: string;
+  identities?: Array<{ provider?: string | null }>;
+};
+
+type AppLayoutProfile = {
+  tier: "free" | "plus" | "pro" | "builder" | "unlimited";
+  plan_expires_at: string | null;
+  is_beta_tester: boolean;
+  display_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+};
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  const allowMockUser =
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_ALLOW_MOCK_USER === "true";
+
+  if (!user && !allowMockUser) redirect("/login");
+
+  const appUser: AppLayoutUser =
+    user ?? {
+      id: "00000000-0000-0000-0000-000000000001",
+      email: "test@test.com",
+      created_at: new Date().toISOString(),
+      identities: [],
+    };
 
   try {
     await ensureAvatarBucket();
@@ -19,24 +47,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     console.warn("[app] Could not ensure avatar bucket:", error);
   }
 
-  const { data: profile } = await supabase
+  const { data: profileRaw } = await supabase
     .from("profiles")
     .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at")
-    .eq("id", user.id)
+    .eq("id", appUser.id)
     .single();
+  const profile = profileRaw as AppLayoutProfile | null;
 
-  const isOAuthUser = !user.identities?.some((i) => i.provider === "email");
+  const isOAuthUser = !appUser.identities?.some((i) => i.provider === "email");
 
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
-        isAdmin={isAdminEmail(user.email)}
-        email={user.email ?? ""}
-        tier={(isAdminEmail(user.email) ? "unlimited" : (profile?.tier ?? "free")) as "free" | "plus" | "pro" | "builder" | "unlimited"}
+        isAdmin={isAdminEmail(appUser.email ?? undefined)}
+        email={appUser.email ?? ""}
+        tier={(isAdminEmail(appUser.email ?? undefined) ? "unlimited" : (profile?.tier ?? "free")) as "free" | "plus" | "pro" | "builder" | "unlimited"}
         planExpiresAt={profile?.plan_expires_at ?? null}
         isBetaTester={profile?.is_beta_tester ?? false}
-        userId={user.id}
-        createdAt={profile?.created_at ?? user.created_at}
+        userId={appUser.id}
+        createdAt={profile?.created_at ?? appUser.created_at}
         initialDisplayName={profile?.display_name ?? ""}
         initialAvatarUrl={profile?.avatar_url ?? ""}
         isOAuthUser={isOAuthUser}
@@ -45,7 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="app-bg-gradient pointer-events-none fixed inset-0 -z-10 bg-background" />
         <div className="mx-auto w-full max-w-[1180px]">
           <WelcomeOfferBanner
-            createdAt={profile?.created_at ?? user.created_at}
+            createdAt={profile?.created_at ?? appUser.created_at}
             tier={profile?.tier ?? "free"}
           />
           {children}

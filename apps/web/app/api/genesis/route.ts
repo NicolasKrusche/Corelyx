@@ -11,6 +11,12 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
 import { GENESIS_SYSTEM_PROMPT, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
+import {
+  hasPiiRedactions,
+  mergePiiRedactions,
+  sanitizeTextForLlm,
+  sanitizeValueForLlm,
+} from "@/lib/privacy/pii";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
@@ -75,6 +81,14 @@ export async function POST(request: Request) {
   const { description, connection_ids, api_key_id, model, existing_schema, refinement, existing_program_id } = parsed.data;
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const isRefinement = !!(existing_schema && refinement && existing_program_id);
+  const sanitizedDescription = sanitizeTextForLlm(description);
+  const sanitizedRefinement = refinement ? sanitizeTextForLlm(refinement) : null;
+  const sanitizedExistingSchema = existing_schema === undefined ? null : sanitizeValueForLlm(existing_schema);
+  const piiRedactions = mergePiiRedactions(
+    sanitizedDescription.redactions,
+    sanitizedRefinement?.redactions,
+    sanitizedExistingSchema?.redactions
+  );
   const genesisStartedAt = Date.now();
   const genesisMode = isRefinement ? "refinement" : "generation";
   const baseLogDetails = {
@@ -82,8 +96,10 @@ export async function POST(request: Request) {
     model,
     connection_count: connection_ids.length,
     existing_program_id: existing_program_id ?? null,
-    description: truncateForLog(description, 1000),
-    refinement: refinement ? truncateForLog(refinement, 1000) : null,
+    description: truncateForLog(sanitizedDescription.value, 1000),
+    refinement: sanitizedRefinement ? truncateForLog(sanitizedRefinement.value, 1000) : null,
+    pii_redacted: hasPiiRedactions(piiRedactions),
+    pii_redactions: piiRedactions,
   };
 
   async function logGenesis(
@@ -279,8 +295,8 @@ export async function POST(request: Request) {
   let usedKeyRow: GenesisApiKeyRow | null = null;
   let usedApiKey = "";
   const userMessage = isRefinement
-    ? buildRefinementUserMessage(existing_schema, refinement!, availableConnections)
-    : buildGenesisUserMessage(description, availableConnections);
+    ? buildRefinementUserMessage(sanitizedExistingSchema?.value, sanitizedRefinement!.value, availableConnections)
+    : buildGenesisUserMessage(sanitizedDescription.value, availableConnections);
 
   keyAttemptLoop:
   for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex++) {
@@ -579,7 +595,7 @@ export async function POST(request: Request) {
         requested_model: model,
         model_used: modelUsed,
         validation: schemaResult.error.flatten(),
-        raw_preview: truncateForLog(rawText, 2000),
+        raw_preview: truncateForLog(sanitizeTextForLlm(rawText).value, 2000),
       }
     );
     return NextResponse.json(
