@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
+import { filterPremadeBrowsePrograms } from "@/lib/browse-programs";
 
 /**
  * GET /api/browse
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
   const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
   const db = createServiceClient();
+  const premadePrograms = filterPremadeBrowsePrograms({ tag, q });
 
   let query = db
     .from("programs")
@@ -58,7 +60,7 @@ export async function GET(request: Request) {
     schema_version: number;
   };
 
-  const programs = ((data ?? []) as unknown as ProgramRow[]).map((p) => ({
+  const publishedPrograms = ((data ?? []) as unknown as ProgramRow[]).map((p) => ({
     id: p.id,
     name: p.name,
     description: p.description,
@@ -70,8 +72,12 @@ export async function GET(request: Request) {
     // Derive node summary from schema without returning the full schema
     node_summary: deriveNodeSummary(p.schema),
   }));
+  const programs = [...premadePrograms, ...publishedPrograms];
 
-  return NextResponse.json({ programs, total: count ?? 0 });
+  return NextResponse.json({
+    programs,
+    total: premadePrograms.length + (count ?? 0),
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -98,10 +104,12 @@ function deriveNodeSummary(schema: unknown): NodeSummary {
     if (node.type === "connection" && node.connection && typeof node.connection === "string") {
       // Derive the provider from the connection name heuristic (e.g. "My Gmail" → "Gmail")
       const config = node.config as Record<string, unknown> | undefined;
-      if (config?.connector_type && typeof config.connector_type === "string") {
+      if (typeof config?.provider === "string") {
+        connections.add(config.provider);
+      } else if (config?.connector_type && typeof config.connector_type === "string") {
         connections.add(config.connector_type);
       } else if (node.connection) {
-        connections.add(node.connection as string);
+        connections.add((node.connection as string).split(":")[0].toLowerCase());
       }
     }
   }

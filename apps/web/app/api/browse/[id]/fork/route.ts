@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
+import { findPremadeBrowseProgram } from "@/lib/browse-programs";
 
 /**
  * POST /api/browse/[id]/fork
@@ -24,18 +25,32 @@ export async function POST(
 
   const db = createServiceClient();
 
-  // Fetch the public program (RLS allows reading is_public = true)
-  const { data: sourceRaw, error: sourceError } = await db
-    .from("programs")
-    .select("id, name, description, schema, is_public")
-    .eq("id", params.id)
-    .eq("is_public", true)
-    .single();
-
-  if (sourceError || !sourceRaw) return apiError("Program not found or not public", 404);
-
   type SourceRow = { id: string; name: string; description: string | null; schema: unknown; is_public: boolean };
-  const source = sourceRaw as unknown as SourceRow;
+  const premade = findPremadeBrowseProgram(params.id);
+  let source: SourceRow | null = null;
+  let shouldIncrementForkCount = false;
+
+  if (premade?.schema) {
+    source = {
+      id: premade.id,
+      name: premade.name,
+      description: premade.description,
+      schema: premade.schema,
+      is_public: true,
+    };
+  } else {
+    // Fetch the public program (RLS allows reading is_public = true)
+    const { data: sourceRaw, error: sourceError } = await db
+      .from("programs")
+      .select("id, name, description, schema, is_public")
+      .eq("id", params.id)
+      .eq("is_public", true)
+      .single();
+
+    if (sourceError || !sourceRaw) return apiError("Program not found or not public", 404);
+    source = sourceRaw as unknown as SourceRow;
+    shouldIncrementForkCount = true;
+  }
 
   // Validate the schema (should always be valid, but be defensive)
   const schemaResult = ProgramSchemaZ.safeParse(source.schema);
@@ -46,7 +61,7 @@ export async function POST(
   const schema = schemaResult.data as unknown as ProgramSchema;
   const now = new Date().toISOString();
 
-  const forkedName = `${source.name} (fork)`;
+  const forkedName = source.name;
   const forkedSchema: ProgramSchema = {
     ...schema,
     program_name: forkedName,
@@ -85,7 +100,7 @@ export async function POST(
     .select("id, name, description, execution_mode, is_active, schema_version, created_at")
     .single();
 
-  if (insertError || !newProgRaw) return apiError("Failed to fork program", 500);
+  if (insertError || !newProgRaw) return apiError("Failed to use program", 500);
 
   const newProg = newProgRaw as unknown as { id: string; name: string };
 
@@ -101,11 +116,16 @@ export async function POST(
     program_id: newProg.id,
     version: 0,
     schema: forkedSchema as unknown as Record<string, unknown>,
-    change_summary: `Forked from public program "${source.name}" (${source.id})`,
+    change_summary: `Created from browse program "${source.name}" (${source.id})`,
   } as unknown as never);
 
   // Increment fork_count on the source (best-effort via RPC)
-  await db.rpc("increment_fork_count", { program_id: params.id }).catch(() => {});
+  if (shouldIncrementForkCount) {
+    const rpcClient = db as unknown as {
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
+    };
+    await rpcClient.rpc("increment_fork_count", { program_id: params.id }).catch(() => {});
+  }
 
   const linkedNames = new Set(matchedConnections.map((c) => c.name));
   const missingNames = referencedNames.filter((n) => !linkedNames.has(n));
