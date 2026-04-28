@@ -25,18 +25,6 @@ interface Model {
   badge?: string
 }
 
-function FigmaIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox='0 0 24 24' fill='none'>
-      <path d='M8 24C10.208 24 12 22.208 12 20V16H8C5.792 16 4 17.792 4 20C4 22.208 5.792 24 8 24Z' fill='currentColor' />
-      <path d='M4 12C4 9.792 5.792 8 8 8H12V16H8C5.792 16 4 14.208 4 12Z' fill='currentColor' />
-      <path d='M4 4C4 1.792 5.792 0 8 0H12V8H8C5.792 8 4 6.208 4 4Z' fill='currentColor' />
-      <path d='M12 0H16C18.208 0 20 1.792 20 4C20 6.208 18.208 8 16 8H12V0Z' fill='currentColor' />
-      <path d='M20 12C20 14.208 18.208 16 16 16C13.792 16 12 14.208 12 12C12 9.792 13.792 8 16 8C18.208 8 20 9.792 20 12Z' fill='currentColor' />
-    </svg>
-  )
-}
-
 const models: Model[] = [
   {
     id: 'sonnet-4.5',
@@ -373,11 +361,11 @@ function AnnouncementBadge({ text, href = '#' }: { text: string; href?: string }
 function ImportButtons({ onImport }: { onImport?: (source: string) => void }) {
   return (
     <div className='flex items-center justify-center gap-4'>
-      <span className='text-sm text-muted-foreground'>or import from</span>
+      <span className='text-sm text-muted-foreground'>or start from</span>
       <div className='flex gap-2'>
         {[
-          { id: 'figma', name: 'Figma', icon: <FigmaIcon className='size-4' /> },
-          { id: 'github', name: 'GitHub', icon: <GitBranch className='size-4' /> },
+          { id: 'browse', name: 'Browse', icon: <GitBranch className='size-4' /> },
+          { id: 'json', name: 'Import JSON', icon: <FileCode className='size-4' /> },
         ].map((option) => (
           <button
             key={option.id}

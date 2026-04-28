@@ -2,10 +2,11 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Search, Plus, Workflow, Sparkles, Clock3 } from "lucide-react";
+import { Plus, Workflow, Sparkles, Clock3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
+import { DashboardSearch } from "@/components/dashboard/dashboard-search";
 import { GenesisPrompt } from "@/components/dashboard/genesis-prompt";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { getRunUsage } from "@/lib/limits";
@@ -69,10 +70,27 @@ const STATUS_BG: Record<string, string> = {
   pending: "bg-muted/60 text-muted-foreground",
 };
 
-export default async function DashboardPage() {
+function matchesQuery(values: Array<string | null | undefined>, query: string): boolean {
+  if (!query) return true;
+  const haystack = values.filter(Boolean).join(" ").toLowerCase();
+  return haystack.includes(query);
+}
+
+function getSearchQuery(searchParams?: { q?: string | string[] }): string {
+  const q = searchParams?.q;
+  return (Array.isArray(q) ? q[0] : q ?? "").trim();
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { q?: string | string[] };
+}) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const searchQuery = getSearchQuery(searchParams);
+  const normalizedQuery = searchQuery.toLowerCase();
 
   const [programsResult, connectionsResult, apiKeysResult, runUsage] = await Promise.all([
     supabase
@@ -111,22 +129,36 @@ export default async function DashboardPage() {
 
   const activePrograms = programs.filter((p) => p.is_active).length;
   const displayName = user.email?.split("@")[0] ?? "there";
-  const featuredPrograms = programs.slice(0, 2);
+  const filteredPrograms = programs.filter((program) =>
+    matchesQuery(
+      [
+        program.name,
+        program.description,
+        program.execution_mode,
+        program.is_active ? "active" : "inactive",
+      ],
+      normalizedQuery
+    )
+  );
+  const filteredRecentRuns = recentRuns.filter((run) =>
+    matchesQuery(
+      [
+        run.programs?.name,
+        run.status,
+        run.triggered_by,
+        run.id,
+      ],
+      normalizedQuery
+    )
+  );
+  const featuredPrograms = (searchQuery ? filteredPrograms : programs).slice(0, 2);
   const initials = displayName.slice(0, 1).toUpperCase();
 
   return (
     <div className="space-y-6 text-foreground">
       <section className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm backdrop-blur-sm sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full max-w-xl">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
-            <input
-              type="text"
-              aria-label="Search"
-              placeholder="Search programs, runs, connections"
-              className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
-            />
-          </div>
+          <DashboardSearch initialValue={searchQuery} />
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
               <Link href="/programs/import">Import</Link>
@@ -156,9 +188,11 @@ export default async function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {featuredPrograms.length === 0 ? (
           <div className="md:col-span-2 rounded-2xl border border-dashed border-border bg-card/60 p-6">
-            <p className="text-sm font-semibold">No agents yet</p>
+            <p className="text-sm font-semibold">{searchQuery ? "No matching workflows" : "No agents yet"}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Create your first automation to populate this workspace board.
+              {searchQuery
+                ? "Try searching by workflow name, description, status, or trigger."
+                : "Create your first automation to populate this workspace board."}
             </p>
           </div>
         ) : (
@@ -246,16 +280,18 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
           <div className="lg:col-span-3">
-            {programs.length === 0 ? (
+            {filteredPrograms.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border p-12 text-center">
-                <p className="text-sm text-muted-foreground">No workflows match your selected filters.</p>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery ? "No workflows match your search." : "No workflows match your selected filters."}
+                </p>
                 <Button asChild size="sm" className="mt-4">
                   <Link href="/programs/new">Create a new workflow</Link>
                 </Button>
               </div>
             ) : (
               <div className="overflow-hidden rounded-xl border border-border divide-y divide-border/60">
-                {programs.map((p) => (
+                {filteredPrograms.map((p) => (
                   <div key={p.id} className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-accent/40">
                     <div className={`h-8 w-1 shrink-0 rounded-full ${p.is_active ? "bg-green-500/70 group-hover:bg-green-500" : "bg-muted-foreground/20"}`} />
 
@@ -285,14 +321,18 @@ export default async function DashboardPage() {
               <h3 className="text-sm font-semibold">Recent runs</h3>
             </div>
 
-            {recentRuns.length === 0 ? (
+            {filteredRecentRuns.length === 0 ? (
               <div className="rounded-xl border border-border bg-card/70 p-8 text-center">
-                <p className="text-xs font-medium text-muted-foreground">No runs yet</p>
-                <p className="mt-1 text-xs text-muted-foreground/60">Open a workflow and click Run.</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  {searchQuery ? "No runs match your search" : "No runs yet"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground/60">
+                  {searchQuery ? "Try a workflow name, status, or trigger." : "Open a workflow and click Run."}
+                </p>
               </div>
             ) : (
               <div className="overflow-hidden rounded-xl border border-border bg-card/70 divide-y divide-border/60">
-                {recentRuns.map((run) => (
+                {filteredRecentRuns.map((run) => (
                   <Link
                     key={run.id}
                     href={`/programs/${run.program_id}/runs/${run.id}`}

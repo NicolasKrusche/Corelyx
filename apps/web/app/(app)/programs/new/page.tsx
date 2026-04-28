@@ -618,10 +618,17 @@ function NewProgramPageInner() {
             </button>
             <button
               type="button"
-              onClick={() => router.push("/programs/import")}
+              onClick={() => router.push("/browse")}
               className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
             >
               Browse
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/programs/import")}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
+            >
+              Import JSON
             </button>
           </div>
           {scratchCreateError && (
@@ -771,8 +778,8 @@ function NewProgramPageInner() {
           onSend={(message) => {
             void runInlineBuild(message);
           }}
-          onImport={() => {
-            router.push("/programs/import");
+          onImport={(source) => {
+            router.push(source === "browse" ? "/browse" : "/programs/import");
           }}
         />
       </div>

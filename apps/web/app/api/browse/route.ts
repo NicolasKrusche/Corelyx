@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
-import { filterPremadeBrowsePrograms } from "@/lib/browse-programs";
+import {
+  deriveNodeSummary,
+  filterPremadeBrowsePrograms,
+  getBrowseUseCount,
+} from "@/lib/browse-programs";
 
 /**
  * GET /api/browse
@@ -18,12 +22,20 @@ import { filterPremadeBrowsePrograms } from "@/lib/browse-programs";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const tag    = searchParams.get("tag") ?? undefined;
+  const tags   = (searchParams.get("tags") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   const q      = searchParams.get("q")?.trim() ?? undefined;
-  const limit  = Math.min(parseInt(searchParams.get("limit") ?? "48", 10), 96);
-  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+  const limit  = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "6", 10), 1), 96);
+  const offset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10), 0);
 
   const db = createServiceClient();
-  const premadePrograms = filterPremadeBrowsePrograms({ tag, q });
+  const activeTags = tags.length > 0 ? tags : tag ? [tag] : [];
+  const premadePrograms = filterPremadeBrowsePrograms({ tags: activeTags, q });
+  const premadeSlice = premadePrograms.slice(offset, offset + limit);
+  const remainingLimit = limit - premadeSlice.length;
+  const dbOffset = Math.max(0, offset - premadePrograms.length);
 
   let query = db
     .from("programs")
@@ -32,16 +44,21 @@ export async function GET(request: Request) {
       { count: "exact" }
     )
     .eq("is_public", true)
-    .order("published_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order("published_at", { ascending: false });
 
-  if (tag) {
-    query = query.contains("tags", [tag]);
+  if (activeTags.length > 0) {
+    query = query.contains("tags", activeTags);
   }
 
   if (q) {
     // ilike on name OR description
     query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
+  }
+
+  if (remainingLimit > 0) {
+    query = query.range(dbOffset, dbOffset + remainingLimit - 1);
+  } else {
+    query = query.limit(0);
   }
 
   const { data, error, count } = await query;
@@ -65,58 +82,17 @@ export async function GET(request: Request) {
     name: p.name,
     description: p.description,
     tags: p.tags ?? [],
-    fork_count: p.fork_count ?? 0,
+    fork_count: getBrowseUseCount(p),
     published_at: p.published_at,
     public_author_name: p.public_author_name,
     schema_version: p.schema_version,
     // Derive node summary from schema without returning the full schema
     node_summary: deriveNodeSummary(p.schema),
   }));
-  const programs = [...premadePrograms, ...publishedPrograms];
+  const programs = [...premadeSlice, ...publishedPrograms];
 
   return NextResponse.json({
     programs,
     total: premadePrograms.length + (count ?? 0),
   });
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-type NodeSummary = {
-  total: number;
-  connections_needed: string[]; // unique provider/connection type names
-  has_ai: boolean;
-};
-
-function deriveNodeSummary(schema: unknown): NodeSummary {
-  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
-    return { total: 0, connections_needed: [], has_ai: false };
-  }
-
-  const s = schema as Record<string, unknown>;
-  const nodes = Array.isArray(s.nodes) ? (s.nodes as Record<string, unknown>[]) : [];
-
-  const connections = new Set<string>();
-  let hasAi = false;
-
-  for (const node of nodes) {
-    if (node.type === "agent") hasAi = true;
-    if (node.type === "connection" && node.connection && typeof node.connection === "string") {
-      // Derive the provider from the connection name heuristic (e.g. "My Gmail" → "Gmail")
-      const config = node.config as Record<string, unknown> | undefined;
-      if (typeof config?.provider === "string") {
-        connections.add(config.provider);
-      } else if (config?.connector_type && typeof config.connector_type === "string") {
-        connections.add(config.connector_type);
-      } else if (node.connection) {
-        connections.add((node.connection as string).split(":")[0].toLowerCase());
-      }
-    }
-  }
-
-  return {
-    total: nodes.length,
-    connections_needed: [...connections],
-    has_ai: hasAi,
-  };
 }
