@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
 import { DashboardSearch } from "@/components/dashboard/dashboard-search";
-import { GenesisPrompt } from "@/components/dashboard/genesis-prompt";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { getRunUsage } from "@/lib/limits";
 
@@ -361,7 +360,6 @@ export default async function DashboardPage({
         hasApiKeys={apiKeyCount > 0}
       />
 
-      <GenesisPrompt />
     </div>
   );
 }

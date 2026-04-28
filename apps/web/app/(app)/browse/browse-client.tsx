@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useId } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -314,14 +314,14 @@ export function BrowseClient({
           )}
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(260px,1fr)_minmax(180px,240px)_minmax(180px,240px)]">
-          <div className="relative">
+        <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+          <div className="relative flex-1 min-w-0">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
             <Input
               list="browse-program-options"
               placeholder="Search or choose a specific program..."
               value={searchValue}
-              className="pl-9"
+              className="pl-9 h-10"
               onChange={(e) => {
                 const value = e.target.value;
                 const exactProgram = programOptions.find(
@@ -347,45 +347,23 @@ export function BrowseClient({
             </datalist>
           </div>
 
-          <label className="space-y-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">App</span>
-            <select
-              value={selectedApp ?? ""}
-              onChange={(e) => {
-                setSelectedApp(e.target.value || null);
-                setSelectedProgramId("");
-              }}
-              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Filter by app"
-            >
-              <option value="">All apps</option>
-              {appTags.map((tag) => (
-                <option key={tag} value={tag}>
-                  {PROVIDER_LABELS[tag] ?? tag}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterSelect
+            value={selectedApp ?? ""}
+            placeholder="All apps"
+            options={appTags.map((tag) => ({ value: tag, label: PROVIDER_LABELS[tag] ?? tag }))}
+            onChange={(v) => { setSelectedApp(v || null); setSelectedProgramId(""); }}
+            className="w-full sm:w-48 shrink-0"
+            aria-label="Filter by app"
+          />
 
-          <label className="space-y-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Use case</span>
-            <select
-              value={selectedUseCase ?? ""}
-              onChange={(e) => {
-                setSelectedUseCase(e.target.value || null);
-                setSelectedProgramId("");
-              }}
-              className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-              aria-label="Filter by use case"
-            >
-              <option value="">All use cases</option>
-              {useCaseTags.map((tag) => (
-                <option key={tag} value={tag}>
-                  {humanizeTag(tag)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterSelect
+            value={selectedUseCase ?? ""}
+            placeholder="All use cases"
+            options={useCaseTags.map((tag) => ({ value: tag, label: humanizeTag(tag) }))}
+            onChange={(v) => { setSelectedUseCase(v || null); setSelectedProgramId(""); }}
+            className="w-full sm:w-52 shrink-0"
+            aria-label="Filter by use case"
+          />
         </div>
 
         {popularAppTags.length > 0 && (
@@ -465,7 +443,7 @@ export function BrowseClient({
               ) : hasMore ? (
                 <span className="text-xs text-muted-foreground">Scroll for more</span>
               ) : visiblePrograms.length > 0 ? (
-                <span className="text-xs text-muted-foreground">You&apos;ve reached the end.</span>
+                <span className="text-xs text-muted-foreground">You have reached the end</span>
               ) : null}
             </div>
           )}
@@ -625,6 +603,94 @@ function normalizeProvider(provider: string): string {
     .replace(/[\s-]+/g, "_");
 
   return PROVIDER_ALIASES[key] ?? key;
+}
+
+// ─── FilterSelect ─────────────────────────────────────────────────────────────
+
+function FilterSelect({
+  value,
+  placeholder,
+  options,
+  onChange,
+  className,
+  "aria-label": ariaLabel,
+}: {
+  value: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? placeholder;
+  const isActive = Boolean(value);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className={`relative ${className ?? ""}`}>
+      <button
+        type="button"
+        id={id}
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={`flex h-10 w-full items-center justify-between gap-2 rounded-lg border px-3 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
+          isActive
+            ? "border-primary/50 bg-primary/5 text-foreground"
+            : "border-input bg-background text-muted-foreground hover:text-foreground hover:border-border/80"
+        }`}
+      >
+        <span className={`truncate ${isActive ? "font-medium text-foreground" : ""}`}>
+          {selectedLabel}
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+          <ul role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto py-1">
+            <li
+              role="option"
+              aria-selected={value === ""}
+              onClick={() => { onChange(""); setOpen(false); }}
+              className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-accent ${
+                value === "" ? "font-medium text-foreground" : "text-muted-foreground"
+              }`}
+            >
+              <span className={`mr-auto`}>{placeholder}</span>
+              {value === "" && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+            </li>
+            {options.length > 0 && <li className="mx-3 my-1 border-t border-border/60" />}
+            {options.map((opt) => (
+              <li
+                key={opt.value}
+                role="option"
+                aria-selected={value === opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-accent ${
+                  value === opt.value ? "font-medium text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                <span className="mr-auto">{opt.label}</span>
+                {value === opt.value && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function UseIcon({ className }: { className?: string }) {

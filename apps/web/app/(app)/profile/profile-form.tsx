@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { uploadAvatar } from "@/lib/avatar-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,34 +44,17 @@ export function ProfileForm({
       return;
     }
 
-    const supabase = createBrowserClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setMessage({ kind: "error", text: "Not signed in." });
-      return;
-    }
-
-    const extension = (file.name.split(".").pop() ?? "png").toLowerCase();
-    const safeExtension = /^[a-z0-9]+$/.test(extension) ? extension : "png";
-    const objectPath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${safeExtension}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(objectPath, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
+    try {
+      const { publicUrl, fileName } = await uploadAvatar(file);
+      setAvatarUrl(publicUrl);
+      setAvatarFileName(fileName);
+      setMessage({ kind: "ok", text: "Image uploaded. Save changes to apply it." });
+    } catch (error) {
+      setMessage({
+        kind: "error",
+        text: error instanceof Error ? error.message : "Failed to upload image.",
       });
-
-    if (uploadError) {
-      setMessage({ kind: "error", text: uploadError.message });
-      return;
     }
-
-    const { data } = supabase.storage.from("avatars").getPublicUrl(objectPath);
-    setAvatarUrl(data.publicUrl);
-    setAvatarFileName(file.name);
-    setMessage({ kind: "ok", text: "Image uploaded. Save changes to apply it." });
   }
 
   async function handleSubmit(e: React.FormEvent) {
