@@ -55,7 +55,6 @@ export async function POST(request: Request) {
 
   const action = typeof body.action === "string" ? body.action : null;
   const eventName = action ? `${githubEvent}.${action}` : githubEvent;
-  const deliveryId = request.headers.get("x-github-delivery");
 
   await Promise.all(
     connectionIds.map((connection) =>

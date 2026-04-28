@@ -171,7 +171,7 @@ function SiteHeader() {
           <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-7 w-7 object-contain" />
           <span className="text-base font-semibold text-white">Corelyx</span>
           <span className="hidden rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[#b9b0a6] sm:inline">
-            🇦🇹 Made in Austria
+            <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-4 w-auto mr-1" /> Made in Austria
           </span>
         </Link>
 
@@ -429,7 +429,7 @@ function MetricRow({ label, value }: { label: string; value: string }) {
 }
 
 const TRUST_ITEMS = [
-  { flag: "🇦🇹", text: "Hosted in Austria" },
+  { flag: <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-4 w-auto" />, text: "Made in Austria" },
   { flag: "🔒", text: "GDPR-native" },
   { flag: "⚖️", text: "EU AI Act ready" },
   { flag: "🚫", text: "No US data transfers" },
@@ -646,7 +646,7 @@ function FinalCta() {
           <div className="mt-6 flex flex-wrap gap-4 text-sm text-[#8b7b6a]">
             <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#6abf8a]" /> Free to start</span>
             <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#6abf8a]" /> DPA included</span>
-            <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#6abf8a]" /> Hosted in Austria 🇦🇹</span>
+            <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#6abf8a]" /> Made in Austria <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-4 w-auto" /></span>
           </div>
         </Reveal>
         <Reveal i={1}>
@@ -681,7 +681,7 @@ function SiteFooter() {
             <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain opacity-80" />
             <span>© {new Date().getFullYear()} Corelyx</span>
           </div>
-          <p className="text-xs text-[#6a6259]">🇦🇹 Made in Austria · Hosted in Austria &amp; Frankfurt · GDPR-native infrastructure</p>
+          <p className="text-xs text-[#6a6259]"><img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-3 w-auto mr-1" /> Made in Austria · Hosted in Frankfurt · GDPR-native infrastructure</p>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           <Link href="/pricing" className="hover:text-white">Pricing</Link>

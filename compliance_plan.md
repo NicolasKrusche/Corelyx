@@ -1158,6 +1158,118 @@ Every service that processes personal data on our behalf must be listed publicly
 | **RTO** | Recovery Time Objective — how quickly systems must be restored after failure |
 | **RPO** | Recovery Point Objective — maximum acceptable data loss after failure |
 
+
+Under the EU AI Act, “high-risk AI” is not a vague label—it’s explicitly defined in Annex III of the law. These are the domains where AI systems are considered to pose significant risks to health, safety, or fundamental rights.
+
+Here is the complete list of high-risk domains as defined by the regulation:
+
+1) Biometric identification and categorisation of natural persons
+
+AI used to:
+
+Identify people via face recognition, fingerprints, iris scans, etc.
+Categorize individuals based on biometric data
+
+Examples:
+
+Real-time facial recognition systems
+Emotion recognition systems (in many contexts)
+2) Management and operation of critical infrastructure
+
+AI that affects essential services such as:
+
+Electricity grids
+Water supply
+Traffic control systems
+
+Risk: failures can endanger public safety at scale.
+
+3) Education and vocational training
+
+AI used to:
+
+Evaluate exams
+Grade students
+Determine access to education programs
+
+Examples:
+
+Automated grading systems
+Admission decision tools
+4) Employment, workers management, and access to self-employment
+
+One of the most relevant for automation tools.
+
+AI used for:
+
+Hiring and recruitment (CV screening, candidate ranking)
+Performance monitoring
+Promotion or termination decisions
+5) Access to and enjoyment of essential private services and public services
+
+This includes AI used in decisions about:
+
+Credit scoring (loans, mortgages)
+Insurance pricing
+Welfare benefits
+Public services access
+6) Law enforcement
+
+AI used by authorities for:
+
+Predictive policing
+Risk assessments of individuals
+Evidence analysis
+
+(Some uses are restricted or banned entirely.)
+
+7) Migration, asylum, and border control management
+
+AI used to:
+
+Assess visa or asylum applications
+Detect deception in interviews
+Manage border security risks
+8) Administration of justice and democratic processes
+
+AI influencing:
+
+Judicial decisions or legal interpretation
+Jury assistance tools
+Election-related systems (e.g., influencing voting behavior in certain ways)
+Important nuance most people miss
+
+There are actually two pathways to “high-risk”:
+
+A) Annex III domains (listed above)
+
+→ Most commonly discussed
+
+B) AI used as a safety component in regulated products
+
+Examples:
+
+Medical devices
+Cars / autonomous driving systems
+Machinery
+
+These are also automatically high-risk if covered by EU product safety laws.
+
+What “high-risk” triggers (practically)
+
+If your AI system falls into one of these domains, you must implement:
+
+Risk management system
+Data governance and quality controls
+Technical documentation
+Logging and traceability
+Human oversight mechanisms
+Robustness, accuracy, and cybersecurity measures
+Bottom line
+These 8 categories are the official, exhaustive high-risk domains
+Not all AI automation falls into them
+But if your tool touches any of these areas, it moves into strict regulatory territory
+
 ---
 
 *This document should be reviewed and updated whenever: regulations are updated, new services are onboarded, product features change data handling, or after any security incident. Target review cadence: quarterly.*
