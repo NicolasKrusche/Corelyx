@@ -27,6 +27,51 @@ type PublicProgram = {
   node_summary: NodeSummary;
 };
 
+const PROVIDER_LABELS: Record<string, string> = {
+  airtable: "Airtable",
+  asana: "Asana",
+  calendar: "Google Calendar",
+  docs: "Google Docs",
+  drive: "Google Drive",
+  github: "GitHub",
+  gmail: "Gmail",
+  hubspot: "HubSpot",
+  notion: "Notion",
+  outlook: "Outlook",
+  sheets: "Google Sheets",
+  slack: "Slack",
+  typeform: "Typeform",
+};
+
+const PROVIDER_ICON_URL: Record<string, string> = {
+  airtable: "https://www.google.com/s2/favicons?domain=airtable.com&sz=64",
+  asana: "https://www.google.com/s2/favicons?domain=app.asana.com&sz=64",
+  calendar: "https://commons.wikimedia.org/wiki/Special:FilePath/Google_Calendar_icon_(2020).svg",
+  docs: "https://upload.wikimedia.org/wikipedia/commons/6/66/Google_Docs_2020_Logo.svg",
+  drive: "https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg",
+  github: "https://commons.wikimedia.org/wiki/Special:FilePath/GitHub_Invertocat_Logo.svg",
+  gmail: "https://commons.wikimedia.org/wiki/Special:FilePath/Gmail_icon_(2020).svg",
+  hubspot: "https://upload.wikimedia.org/wikipedia/commons/3/3f/HubSpot_Logo.svg",
+  notion: "https://www.google.com/s2/favicons?domain=notion.so&sz=64",
+  outlook: "https://upload.wikimedia.org/wikipedia/commons/4/45/Microsoft_Office_Outlook_%282018%E2%80%932024%29.svg",
+  sheets: "https://upload.wikimedia.org/wikipedia/commons/a/ae/Google_Sheets_2020_Logo.svg",
+  slack: "https://commons.wikimedia.org/wiki/Special:FilePath/Slack_icon_2019.svg",
+  typeform: "https://www.google.com/s2/favicons?domain=typeform.com&sz=64",
+};
+
+const PROVIDER_ALIASES: Record<string, string> = {
+  google_calendar: "calendar",
+  google_docs: "docs",
+  google_drive: "drive",
+  google_sheets: "sheets",
+  googlecalendar: "calendar",
+  googledocs: "docs",
+  googledrive: "drive",
+  googlesheets: "sheets",
+  microsoft_outlook: "outlook",
+  outlook_mail: "outlook",
+};
+
 // ─── Browse page ──────────────────────────────────────────────────────────────
 
 export function BrowseClient({
@@ -50,7 +95,12 @@ export function BrowseClient({
 
   // Only re-fetch when filters are actually set — initial data comes from server
   useEffect(() => {
-    if (!q && !activeTag) return;
+    if (!q && !activeTag) {
+      setPrograms(initialPrograms);
+      setTotal(initialTotal);
+      setLoading(false);
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     let cancelled = false;
@@ -83,7 +133,7 @@ export function BrowseClient({
       cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [q, activeTag]);
+  }, [q, activeTag, initialPrograms, initialTotal]);
 
   // Collect all unique tags across loaded programs for the filter bar
   const allTags = [...new Set(programs.flatMap((p) => p.tags))].sort();
@@ -96,14 +146,14 @@ export function BrowseClient({
       const res = await fetch(`/api/browse/${programId}/fork`, { method: "POST" });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setForkError(body.error ?? "Failed to fork program");
+        setForkError(body.error ?? "Failed to use program");
         return;
       }
       const data = (await res.json()) as { program: { id: string } };
       setForked((prev) => ({ ...prev, [programId]: data.program.id }));
       router.push(`/programs/${data.program.id}`);
     } catch {
-      setForkError("Failed to fork program — check your network and try again.");
+      setForkError("Failed to use program. Check your network and try again.");
     } finally {
       setForking(null);
     }
@@ -115,8 +165,8 @@ export function BrowseClient({
       <div>
         <h1 className="text-2xl font-semibold">Browse</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {total > 0 ? `${total} published program${total !== 1 ? "s" : ""}` : "Community-published automation programs"}
-          {" — fork one to start from a working blueprint."}
+          {total > 0 ? `${total} program${total !== 1 ? "s" : ""} available` : "Community-published automation programs"}
+          {" - use one to start from a working blueprint."}
         </p>
       </div>
 
@@ -251,20 +301,17 @@ function ProgramCard({
       )}
 
       {/* Node summary */}
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>{summary.total} node{summary.total !== 1 ? "s" : ""}</span>
-        {summary.has_ai && (
-          <span className="inline-flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-            AI
-          </span>
-        )}
-        {summary.connections_needed.length > 0 && (
-          <span className="truncate">
-            needs: {summary.connections_needed.slice(0, 2).join(", ")}
-            {summary.connections_needed.length > 2 && ` +${summary.connections_needed.length - 2}`}
-          </span>
-        )}
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-3">
+          <span>{summary.total} node{summary.total !== 1 ? "s" : ""}</span>
+          {summary.has_ai && (
+            <span className="inline-flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+              AI
+            </span>
+          )}
+        </div>
+        <ConnectionLogoStack providers={summary.connections_needed} />
       </div>
 
       {/* Footer */}
@@ -274,14 +321,14 @@ function ProgramCard({
             <p>by {program.public_author_name}</p>
           )}
           <p className="flex items-center gap-1">
-            <ForkIcon className="w-3 h-3" />
-            {program.fork_count} fork{program.fork_count !== 1 ? "s" : ""}
+            <UseIcon className="w-3 h-3" />
+            {program.fork_count} use{program.fork_count !== 1 ? "s" : ""}
           </p>
         </div>
 
         {forkedId ? (
           <Button asChild size="sm" variant="outline" className="text-xs h-7">
-            <Link href={`/programs/${forkedId}`}>Open fork →</Link>
+            <Link href={`/programs/${forkedId}`}>Open program</Link>
           </Button>
         ) : (
           <Button
@@ -291,7 +338,7 @@ function ProgramCard({
             onClick={() => onFork(program.id)}
             disabled={forking}
           >
-            {forking ? "Forking…" : "Fork"}
+            {forking ? "Using..." : "Use now"}
           </Button>
         )}
       </div>
@@ -301,10 +348,62 @@ function ProgramCard({
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function ForkIcon({ className }: { className?: string }) {
+function ConnectionLogoStack({ providers }: { providers: string[] }) {
+  const normalized = [...new Set(providers.map(normalizeProvider).filter(Boolean))];
+  if (normalized.length === 0) return null;
+
+  const label = normalized.map((provider) => PROVIDER_LABELS[provider] ?? provider).join(", ");
+
   return (
-    <svg className={className} viewBox="0 0 16 16" fill="currentColor">
-      <path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878zm3.75 7.378a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zm3-8.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0z" />
+    <div className="flex shrink-0 -space-x-2" aria-label={`Connections: ${label}`} title={label}>
+      {normalized.map((provider) => (
+        <ProviderLogo key={provider} provider={provider} />
+      ))}
+    </div>
+  );
+}
+
+function ProviderLogo({ provider }: { provider: string }) {
+  const [failed, setFailed] = useState(false);
+  const iconUrl = PROVIDER_ICON_URL[provider];
+  const label = PROVIDER_LABELS[provider] ?? provider;
+
+  return (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-card bg-background shadow-sm">
+      {iconUrl && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={iconUrl}
+          alt={label}
+          width={20}
+          height={20}
+          className="h-5 w-5 object-contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="text-[9px] font-bold uppercase text-muted-foreground">
+          {label.slice(0, 2)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function normalizeProvider(provider: string): string {
+  const key = provider
+    .trim()
+    .toLowerCase()
+    .split(":")[0]
+    .replace(/[\s-]+/g, "_");
+
+  return PROVIDER_ALIASES[key] ?? key;
+}
+
+function UseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M3 8h9" strokeLinecap="round" />
+      <path d="M8.5 4.5 12 8l-3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
