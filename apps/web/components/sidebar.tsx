@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { uploadAvatar } from "@/lib/avatar-upload";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 
@@ -641,35 +642,17 @@ function SettingsModal({
       return;
     }
 
-    const supabase = createBrowserClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setProfileStatus({ type: "error", message: "Not signed in." });
-      return;
-    }
-
-    const extension = (file.name.split(".").pop() ?? "png").toLowerCase();
-    const safeExtension = /^[a-z0-9]+$/.test(extension) ? extension : "png";
-    const objectPath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${safeExtension}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(objectPath, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
+    try {
+      const { publicUrl, fileName } = await uploadAvatar(file);
+      setAvatarUrl(publicUrl);
+      setAvatarFileName(fileName);
+      setProfileStatus({ type: "success", message: "Image uploaded. Save changes to apply it." });
+    } catch (error) {
+      setProfileStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "Failed to upload image.",
       });
-
-    if (uploadError) {
-      setProfileStatus({ type: "error", message: uploadError.message });
-      return;
     }
-
-    const { data } = supabase.storage.from("avatars").getPublicUrl(objectPath);
-
-    setAvatarUrl(data.publicUrl);
-    setAvatarFileName(file.name);
-    setProfileStatus({ type: "success", message: "Image uploaded. Save changes to apply it." });
   }
 
   async function handleSaveProfile(e: React.FormEvent) {

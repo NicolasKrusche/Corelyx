@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
 import { isAdminEmail } from "@/lib/admin";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
+import { ensureAvatarBucket } from "@/lib/avatar-storage";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerClient();
@@ -11,6 +12,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+
+  try {
+    await ensureAvatarBucket();
+  } catch (error) {
+    console.warn("[app] Could not ensure avatar bucket:", error);
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
