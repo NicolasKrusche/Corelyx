@@ -179,6 +179,7 @@ function SiteHeader() {
           <a href="#workflow" className="transition-colors hover:text-white">Workflow</a>
           <a href="#compliance" className="transition-colors hover:text-white">Compliance</a>
           <a href="#integrations" className="transition-colors hover:text-white">Integrations</a>
+          <Link href="/security" className="transition-colors hover:text-white">Security</Link>
           <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
         </nav>
 
@@ -570,11 +571,28 @@ function ComplianceSection() {
               </p>
             </div>
             <Link
-              href="/signup"
+              href="/security"
               className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-[#151210] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2a2520]"
             >
               Read the security model
               <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </Reveal>
+
+        <Reveal i={1.2}>
+          <div className="mt-5 flex flex-wrap gap-3 text-sm">
+            <Link href="/dpa" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
+              Data Processing Agreement
+            </Link>
+            <Link href="/subprocessors" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
+              Subprocessor Registry
+            </Link>
+            <Link href="/dpia-template" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
+              DPIA Template
+            </Link>
+            <Link href="/data-export-schema" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
+              Data Export Schema
             </Link>
           </div>
         </Reveal>
@@ -688,6 +706,10 @@ function SiteFooter() {
           <Link href="/privacy" className="hover:text-white">Privacy</Link>
           <Link href="/terms" className="hover:text-white">Terms</Link>
           <Link href="/dpa" className="hover:text-white">DPA</Link>
+          <Link href="/subprocessors" className="hover:text-white">Subprocessors</Link>
+          <Link href="/security" className="hover:text-white">Security</Link>
+          <Link href="/dpia-template" className="hover:text-white">DPIA</Link>
+          <Link href="/data-export-schema" className="hover:text-white">Export schema</Link>
           <Link href="/impressum" className="hover:text-white">Impressum</Link>
           <Link href="/login" className="hover:text-white">Sign in</Link>
         </div>

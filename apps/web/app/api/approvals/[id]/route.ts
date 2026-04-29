@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { checkHITLAccess } from "@/lib/limits";
 import { writeAppLog } from "@/lib/app-logs";
+import { ensureProcessingAllowed } from "@/lib/compliance";
 
 // POST /api/approvals/[id]
 // Body: { decision: "approved" | "rejected"; note?: string }
@@ -36,6 +37,11 @@ export async function POST(
   const { id: approvalId } = params;
 
   const serviceClient = createServiceClient();
+
+  if (decision === "approved") {
+    const processingRestriction = await ensureProcessingAllowed(user.id, serviceClient);
+    if (processingRestriction) return processingRestriction;
+  }
 
   // Fetch approval to verify ownership and capture decision-time context snapshot
   type ApprovalRow = {

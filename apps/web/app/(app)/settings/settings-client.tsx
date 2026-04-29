@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
+import { EuComplianceCenter } from "@/components/eu-compliance-center";
 
 const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
   { id: "orange", label: "Orange", color: "#f97316" },
@@ -154,105 +155,6 @@ function RedeemSection() {
       </form>
       {status && <StatusMessage {...status} />}
     </Section>
-  );
-}
-
-const DATA_REQUEST_TYPES = [
-  { value: "access", label: "Access - get a copy of my data" },
-  { value: "rectification", label: "Rectification - correct inaccurate data" },
-  { value: "erasure", label: "Erasure - delete personal data" },
-  { value: "restriction", label: "Restriction - limit processing" },
-  { value: "portability", label: "Portability - machine-readable export" },
-  { value: "objection", label: "Objection - object to processing" },
-  { value: "withdrawal", label: "Withdrawal - withdraw consent" },
-] as const;
-
-type DataRequestType = (typeof DATA_REQUEST_TYPES)[number]["value"];
-
-function DataSubjectRequestSection() {
-  const [requestType, setRequestType] = useState<DataRequestType>("access");
-  const [details, setDetails] = useState("");
-  const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setStatus(null);
-
-    const res = await fetch("/api/user/data-request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ request_type: requestType, details }),
-    });
-
-    const body = await res.json().catch(() => null) as { error?: string; request?: { due_at?: string } } | null;
-
-    if (!res.ok) {
-      setStatus({ type: "error", message: body?.error ?? "Could not submit the request." });
-    } else {
-      const dueDate = body?.request?.due_at
-        ? new Date(body.request.due_at).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
-        : "within 30 days";
-      setStatus({
-        type: "success",
-        message: `Request submitted. We will respond by ${dueDate}.`,
-      });
-      setDetails("");
-      setRequestType("access");
-    }
-
-    setLoading(false);
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-4 space-y-4">
-      <div className="space-y-1">
-        <p className="text-sm font-medium">Submit a data subject request</p>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Use this form to exercise GDPR rights such as access, correction, deletion, restriction, portability, or objection. Each request is timestamped and tracked for the 30-day response window.
-        </p>
-      </div>
-
-      <Field label="Request type">
-        <select
-          value={requestType}
-          onChange={(e) => setRequestType(e.target.value as DataRequestType)}
-          className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/40 transition-all"
-        >
-          {DATA_REQUEST_TYPES.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <Field label="Details">
-        <textarea
-          rows={4}
-          value={details}
-          onChange={(e) => setDetails(e.target.value)}
-          maxLength={4000}
-          className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/40 transition-all"
-          placeholder="Tell us what you need. Do not include passwords, API keys, or sensitive secrets."
-        />
-      </Field>
-
-      {status && <StatusMessage {...status} />}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        {loading ? "Submitting..." : "Submit request"}
-      </button>
-    </form>
   );
 }
 
@@ -527,6 +429,12 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             >
               Download data export
             </a>
+            <Link
+              href="/data-export-schema"
+              className="ml-3 inline-flex text-xs font-medium text-primary hover:underline underline-offset-2"
+            >
+              View export schema
+            </Link>
           </div>
           <div className="rounded-lg border border-border bg-card p-4 space-y-1">
             <p className="text-sm font-medium">Billing contact data</p>
@@ -542,27 +450,8 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       </Section>
 
       <div id="data-rights">
-        <Section
-          title="EU Compliance"
-          description="GDPR data rights, legal references, and request tracking."
-        >
-          <div className="space-y-3">
-            <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-              <p className="text-sm font-medium">GDPR & Data Protection</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Under the General Data Protection Regulation (GDPR), you have the right to access, rectify, port, and delete your personal data.
-              </p>
-              <a
-                href="https://gdpr-info.eu/"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-flex text-xs font-medium text-primary hover:underline underline-offset-2"
-              >
-                Read more about the GDPR standard
-              </a>
-            </div>
-            <DataSubjectRequestSection />
-          </div>
+        <Section title="EU Compliance" description="GDPR rights, legal references, request tracking, and audit evidence.">
+          <EuComplianceCenter />
         </Section>
       </div>
 
@@ -605,16 +494,44 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
           </Link>
+          <Link
+            href="/dpa"
+            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+          >
+            <span className="font-medium">Data Processing Agreement</span>
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
+              <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+            </svg>
+          </Link>
+          <Link
+            href="/security"
+            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+          >
+            <span className="font-medium">Security Policy</span>
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
+              <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+            </svg>
+          </Link>
+          <Link
+            href="/dpia-template"
+            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+          >
+            <span className="font-medium">DPIA Template</span>
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
+              <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+            </svg>
+          </Link>
         </div>
       </Section>
 
       {/* Danger zone */}
-      <Section
-        title="Danger zone"
-        description="Permanently delete your account and all associated programs, runs, connections, and credentials. This cannot be undone."
-      >
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 space-y-4">
-          <form onSubmit={handleDeleteAccount} className="space-y-4">
+      <div id="danger-zone">
+        <Section
+          title="Danger zone"
+          description="Permanently delete your account and all associated programs, runs, connections, and credentials. This cannot be undone."
+        >
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 space-y-4">
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
             <Field label={`Type "delete my account" to confirm`}>
               <input
                 type="text"
@@ -635,9 +552,10 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             >
               {deleteLoading ? "Deleting…" : "Delete my account"}
             </button>
-          </form>
-        </div>
-      </Section>
+            </form>
+          </div>
+        </Section>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { sendRunFailureEmail } from "@/lib/email";
 import { buildInternalServiceHeaders, requestHasValidInternalServiceToken } from "@/lib/internal-auth";
+import { getProcessingRestriction } from "@/lib/compliance";
 
 /**
  * POST /api/internal/runs/[id]/complete
@@ -103,6 +104,9 @@ export async function POST(
             conflict_policy: string;
           };
           const prog = downProgram as unknown as DownProgramRow;
+
+          const restriction = await getProcessingRestriction(prog.user_id, db);
+          if (restriction.restricted) continue;
 
           // Check conflict policy
           const { data: activeRuns } = await db

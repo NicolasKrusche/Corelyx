@@ -24,6 +24,7 @@ type DataSubjectRequestRow = {
   request_type: DataSubjectRequestType;
   status: "submitted" | "in_review" | "waiting_on_user" | "completed" | "rejected";
   details: string | null;
+  response_summary: string | null;
   submitted_at: string;
   due_at: string;
   completed_at: string | null;
@@ -47,12 +48,19 @@ type DataSubjectRequestTable = {
   };
 };
 
+type ProfileTable = {
+  update(values: Record<string, unknown>): {
+    eq(column: "id", value: string): PromiseLike<{ error: DbError | null }>;
+  };
+};
+
 type AppLogTable = {
   insert(values: Record<string, unknown>): PromiseLike<{ error: DbError | null }>;
 };
 
 type ComplianceClient = {
   from(table: "data_subject_requests"): DataSubjectRequestTable;
+  from(table: "profiles"): ProfileTable;
   from(table: "app_logs"): AppLogTable;
 };
 
@@ -75,7 +83,7 @@ export async function GET() {
   const service = createServiceClient() as unknown as ComplianceClient;
   const { data, error } = await service
     .from("data_subject_requests")
-    .select("id, request_type, status, details, submitted_at, due_at, completed_at")
+    .select("id, request_type, status, details, response_summary, submitted_at, due_at, completed_at")
     .eq("user_id", user.id)
     .order("submitted_at", { ascending: false });
 
@@ -109,11 +117,25 @@ export async function POST(request: Request) {
       requester_email: user.email ?? null,
       details,
     })
-    .select("id, request_type, status, details, submitted_at, due_at, completed_at")
+    .select("id, request_type, status, details, response_summary, submitted_at, due_at, completed_at")
     .single();
 
   if (error) return apiError(error.message, 500);
   if (!data) return apiError("Data request could not be created.", 500);
+
+  if (requestType === "restriction") {
+    const restrictedAt = new Date().toISOString();
+    const { error: restrictionError } = await service
+      .from("profiles")
+      .update({
+        processing_restricted: true,
+        processing_restricted_at: restrictedAt,
+        processing_restriction_reason: details ?? "GDPR Art. 18 restriction request submitted by user.",
+      })
+      .eq("id", user.id);
+
+    if (restrictionError) return apiError(restrictionError.message, 500);
+  }
 
   try {
     await service.from("app_logs").insert({
@@ -127,6 +149,7 @@ export async function POST(request: Request) {
         request_id: data.id,
         request_type: requestType,
         due_at: data.due_at,
+        processing_restricted: requestType === "restriction",
       },
     });
   } catch (error) {

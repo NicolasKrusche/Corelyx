@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { createServerClient } from "@/lib/supabase/server";
+import { ensureProcessingAllowed } from "@/lib/compliance";
 import type { ProgramSchema } from "@flowos/schema";
 
 // POST /api/runs/[id]/skip-trigger — mark the trigger node as completed so the runtime proceeds
@@ -14,6 +15,9 @@ export async function POST(
 
   const serviceClient = createServiceClient();
   const supabase = await createServerClient();
+
+  const processingRestriction = await ensureProcessingAllowed(user.id, serviceClient);
+  if (processingRestriction) return processingRestriction;
 
   // Fetch run + verify ownership via program
   const { data: runRaw, error: runError } = await serviceClient

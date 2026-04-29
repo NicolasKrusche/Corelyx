@@ -23,6 +23,7 @@ import { validatePostGenesis } from "@/lib/validation";
 import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
+import { ensureProcessingAllowed } from "@/lib/compliance";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -59,6 +60,9 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
   const userId = user.id;
+
+  const processingRestriction = await ensureProcessingAllowed(userId);
+  if (processingRestriction) return processingRestriction;
 
   const body = await request.json().catch(() => null);
   const parsed = RequestSchema.safeParse(body);
