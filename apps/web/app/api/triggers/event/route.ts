@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
 import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
+import { readBoundedJsonBody } from "@/lib/request-body";
 
 /**
  * POST /api/triggers/event
@@ -27,11 +28,9 @@ export async function POST(request: Request) {
     connection_id?: string;
     user_id?: string;
   };
-  try {
-    body = await request.json();
-  } catch {
-    return apiError("Invalid JSON body", 400);
-  }
+  const boundedBody = await readBoundedJsonBody<typeof body>(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  body = boundedBody.value;
 
   const { source, event, payload = {}, connection_id, user_id } = body;
   if (!source || !event) return apiError("source and event are required", 400);

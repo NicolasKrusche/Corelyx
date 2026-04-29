@@ -33,7 +33,7 @@ function signJwt(payloadOverrides: Record<string, unknown> = {}) {
 
 describe("pubsub auth", () => {
   beforeEach(() => {
-    const jwk = publicKey.export({ format: "jwk" }) as JsonWebKey & {
+    const jwk = publicKey.export({ format: "jwk" }) as unknown as JsonWebKey & {
       kid: string;
       use: string;
       alg: string;

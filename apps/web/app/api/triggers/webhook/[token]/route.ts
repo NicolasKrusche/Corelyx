@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
+import { readBoundedTextBody } from "@/lib/request-body";
+import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import {
   WEBHOOK_SIGNATURE_HEADER,
   WEBHOOK_TIMESTAMP_HEADER,
@@ -18,10 +21,13 @@ import {
  */
 export async function POST(
   request: Request,
-  { params }: { params: { token: string } }
+  { params: routeParams }: { params: Promise<{ token: string }> }
 ) {
+  const params = await routeParams;
   const { token } = params;
-  const rawBody = await request.text().catch(() => "");
+  const boundedBody = await readBoundedTextBody(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  const rawBody = boundedBody.text;
   const signature = request.headers.get(WEBHOOK_SIGNATURE_HEADER);
   const timestamp = request.headers.get(WEBHOOK_TIMESTAMP_HEADER);
 
@@ -42,6 +48,18 @@ export async function POST(
     }
   } catch {
     return apiError("Webhook signing misconfigured", 500);
+  }
+
+  const deliveryId = createHash("sha256")
+    .update(`${token}:${timestamp}:${signature}`)
+    .digest("hex");
+  try {
+    const firstDelivery = await markWebhookDelivery("custom-webhook", deliveryId);
+    if (!firstDelivery) {
+      return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+    }
+  } catch {
+    return apiError("Failed to record webhook delivery", 500);
   }
 
   const db = createServiceClient();
@@ -84,13 +102,14 @@ export async function POST(
     id: string;
     schema: unknown;
     user_id: string;
+    workspace_id: string;
     execution_mode: string;
     is_active: boolean;
   };
 
   const { data: programRaw, error: programError } = await db
     .from("programs")
-    .select("id, schema, user_id, execution_mode, is_active")
+    .select("id, schema, user_id, workspace_id, execution_mode, is_active")
     .eq("id", trigger.program_id)
     .single();
 
@@ -115,7 +134,7 @@ export async function POST(
   }
 
   // Check webhook trigger access (requires Plus or higher)
-  const triggerCheck = await checkTriggerAccess(program.user_id, "webhook");
+  const triggerCheck = await checkTriggerAccess(program.user_id, "webhook", program.workspace_id);
   if (!triggerCheck.allowed) {
     return NextResponse.json(
       { error: "FEATURE_NOT_AVAILABLE", message: triggerCheck.upgradeMessage },
@@ -124,7 +143,7 @@ export async function POST(
   }
 
   // Check monthly run limit
-  const runLimitCheck = await checkRunLimit(program.user_id);
+  const runLimitCheck = await checkRunLimit(program.user_id, program.workspace_id);
   if (!runLimitCheck.allowed) {
     return NextResponse.json({ error: "Run limit reached for this account" }, { status: 429 });
   }
@@ -159,7 +178,7 @@ export async function POST(
   // Update trigger last_fired_at
   await db
     .from("triggers")
-    .update({ last_fired_at: new Date().toISOString() })
+    .update({ last_fired_at: new Date().toISOString() } as never)
     .eq("id", trigger.id);
 
   // Fetch connection name→id map for this program
@@ -200,14 +219,14 @@ export async function POST(
     if (!runtimeRes.ok) {
       await db
         .from("runs")
-        .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() })
+        .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() } as never)
         .eq("id", run.id);
       return NextResponse.json({ error: "Runtime failed to accept the run" }, { status: 502 });
     }
   } catch {
     await db
       .from("runs")
-      .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() })
+      .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
       .eq("id", run.id);
     return NextResponse.json({ error: "Runtime is unreachable" }, { status: 503 });
   }

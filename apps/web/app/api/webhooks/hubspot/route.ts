@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
-import { checkAndMark } from "@/lib/webhook-replay-guard";
+import { readBoundedTextBody } from "@/lib/request-body";
+import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 
 type HubSpotConnectionRow = {
   id: string;
@@ -45,7 +46,9 @@ export async function POST(request: Request) {
     return apiError("Missing HUBSPOT_CLIENT_SECRET", 500);
   }
 
-  const rawBody = await request.text();
+  const boundedBody = await readBoundedTextBody(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  const rawBody = boundedBody.text;
   const receivedSignature = request.headers.get("x-hubspot-signature");
   if (!receivedSignature) return apiError("Missing X-HubSpot-Signature header", 401);
 
@@ -74,8 +77,15 @@ export async function POST(request: Request) {
   }
 
   const primaryEventId = events[0]?.eventId;
-  if (primaryEventId !== undefined && !checkAndMark(`hubspot:${primaryEventId}`)) {
-    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+  if (primaryEventId !== undefined) {
+    try {
+      const firstDelivery = await markWebhookDelivery("hubspot", String(primaryEventId));
+      if (!firstDelivery) {
+        return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+      }
+    } catch {
+      return apiError("Failed to record webhook delivery", 500);
+    }
   }
 
   const portalId = events[0]?.portalId ?? null;

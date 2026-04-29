@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
-import { checkAndMark } from "@/lib/webhook-replay-guard";
+import { readBoundedTextBody } from "@/lib/request-body";
+import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 
 type TypeformConnectionRow = {
   id: string;
@@ -29,7 +30,9 @@ export async function POST(request: Request) {
     return apiError("Missing TYPEFORM_WEBHOOK_SECRET", 500);
   }
 
-  const rawBody = await request.text();
+  const boundedBody = await readBoundedTextBody(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  const rawBody = boundedBody.text;
   const receivedSignature = request.headers.get("typeform-signature");
   if (!receivedSignature) return apiError("Missing Typeform-Signature header", 401);
 
@@ -56,8 +59,15 @@ export async function POST(request: Request) {
   const formId =
     typeof formResponse.form_id === "string" ? formResponse.form_id : null;
   const responseToken = typeof formResponse.token === "string" ? formResponse.token : null;
-  if (responseToken && !checkAndMark(`typeform:${responseToken}`)) {
-    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+  if (responseToken) {
+    try {
+      const firstDelivery = await markWebhookDelivery("typeform", responseToken);
+      if (!firstDelivery) {
+        return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+      }
+    } catch {
+      return apiError("Failed to record webhook delivery", 500);
+    }
   }
 
   const url = new URL(request.url);

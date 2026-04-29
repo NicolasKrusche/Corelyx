@@ -2,27 +2,31 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { getValidOAuthToken } from "@/lib/oauth-token";
+import { getWorkspaceRole } from "@/lib/workspaces";
 
 // GET /api/connections/:id/resources/:type
 // Lists selectable resources for the authenticated connection so the editor can
 // show dropdowns instead of asking users to paste IDs by hand.
 export async function GET(
   request: Request,
-  { params }: { params: { id: string; type: string } }
+  { params: routeParams }: { params: Promise<{ id: string; type: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const { data: rowRaw, error: fetchError } = await supabase
     .from("connections")
-    .select("provider")
+    .select("provider, workspace_id")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
-  const row = rowRaw as { provider: string } | null;
+  const row = rowRaw as { provider: string; workspace_id: string } | null;
   if (fetchError || !row) return apiError("Connection not found", 404);
+
+  const role = await getWorkspaceRole(row.workspace_id, user.id);
+  if (!role) return apiError("Connection not found", 404);
 
   const serviceClient = createServiceClient();
   let accessToken: string;

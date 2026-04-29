@@ -1,4 +1,4 @@
-import { NonRetriableError } from "inngest";
+import { NonRetriableError, cron } from "inngest";
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
 import { sendApprovalEmail } from "@/lib/email";
@@ -29,8 +29,7 @@ type UserRow = { email: string };
  * sends an email to the owning user, then stamps notified_at so it won't fire again.
  */
 export const approvalNotifier = inngest.createFunction(
-  { id: "approval-notifier", name: "Approval Email Notifier" },
-  { cron: "* * * * *" },
+  { id: "approval-notifier", name: "Approval Email Notifier", triggers: cron("* * * * *") },
   async ({ step, logger }) => {
     const db = createServiceClient();
 

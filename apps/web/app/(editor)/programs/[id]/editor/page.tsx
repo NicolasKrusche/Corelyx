@@ -9,8 +9,9 @@ import { normalizeProgramDraft, validateProgramDraft } from "@/lib/workflow/norm
 export default async function EditorPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -27,7 +28,7 @@ export default async function EditorPage({
   const { data: rawProgram, error: programError } = await supabase
     .from("programs")
     .select("id, name, schema")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", user.id)
     .single();
 

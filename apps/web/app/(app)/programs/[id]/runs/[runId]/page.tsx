@@ -148,8 +148,9 @@ function StatusBadge({ status }: { status: string }) {
 export default async function RunLogPage({
   params,
 }: {
-  params: { id: string; runId: string };
+  params: Promise<{ id: string; runId: string }>;
 }) {
+  const { id, runId } = await params;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -162,7 +163,7 @@ export default async function RunLogPage({
   const { data: runRaw, error: runError } = await serviceClient
     .from("runs")
     .select("*")
-    .eq("id", params.runId)
+    .eq("id", runId)
     .single();
 
   if (runError || !runRaw) notFound();
@@ -191,7 +192,7 @@ export default async function RunLogPage({
   const { data: execsRaw } = await serviceClient
     .from("node_executions")
     .select("*")
-    .eq("run_id", params.runId)
+    .eq("run_id", runId)
     .order("created_at", { ascending: true });
 
   const initialExecs = (execsRaw ?? []).map(normalizeNodeExecutionRow);
@@ -211,14 +212,14 @@ export default async function RunLogPage({
       <div>
         <p className="text-sm text-muted-foreground mb-1">
           <a
-            href={`/programs/${params.id}`}
+            href={`/programs/${id}`}
             className="hover:underline"
           >
             {prog.name}
           </a>
           {" / "}
           <a
-            href={`/programs/${params.id}/runs`}
+            href={`/programs/${id}/runs`}
             className="hover:underline"
           >
             Runs
@@ -293,7 +294,7 @@ export default async function RunLogPage({
 
       {/* Live node execution timeline */}
       <RunLogLive
-        runId={params.runId}
+        runId={runId}
         initialExecs={initialExecs}
         nodeMap={nodeMap}
         edges={schema.edges}

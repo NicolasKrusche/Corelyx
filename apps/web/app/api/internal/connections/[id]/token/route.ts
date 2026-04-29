@@ -12,8 +12,9 @@ import { getValidOAuthToken } from "@/lib/oauth-token";
 // connection's user_id must match. Bounds blast radius of a leaked token.
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const claims = getValidInternalServiceClaims(
     request.headers,
     "next:connections:token"

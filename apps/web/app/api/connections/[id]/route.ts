@@ -5,6 +5,7 @@ import { createServiceClient, apiError } from "@/lib/api";
 import { vaultDelete } from "@/lib/vault";
 import { getValidOAuthToken } from "@/lib/oauth-token";
 import { getPrimaryConnectionName } from "@/lib/connection-utils";
+import { canContributeToWorkspace, getWorkspaceRole } from "@/lib/workspaces";
 
 type AppSupabaseClient = Awaited<ReturnType<typeof createServerClient>>;
 type ProgramRecord = {
@@ -13,25 +14,43 @@ type ProgramRecord = {
   schema_version: number | null;
 };
 
-// DELETE /api/connections/:id
+async function loadConnectionForUser(
+  supabase: AppSupabaseClient,
+  connectionId: string,
+  userId: string,
+  columns: string,
+  level: "view" | "write"
+) {
+  const { data, error } = await supabase
+    .from("connections")
+    .select(`${columns}, workspace_id`)
+    .eq("id", connectionId)
+    .single();
+
+  if (error || !data) return { error: apiError("Connection not found", 404) };
+  const row = data as Record<string, unknown> & { workspace_id: string };
+
+  const role = await getWorkspaceRole(row.workspace_id, userId);
+  if (!role) return { error: apiError("Connection not found", 404) };
+  if (level === "write" && !canContributeToWorkspace(role)) {
+    return { error: apiError("Viewers cannot modify connections.", 403) };
+  }
+  return { row, workspaceId: row.workspace_id, role };
+}
+
+// DELETE /api/connections/:id — workspace contributor.
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
-  const userId = user.id;
 
-  const { data: rowRaw, error: fetchError } = await supabase
-    .from("connections")
-    .select("vault_secret_id")
-    .eq("id", params.id)
-    .eq("user_id", userId)
-    .single();
-
-  const row = rowRaw as { vault_secret_id: string } | null;
-  if (fetchError || !row) return apiError("Connection not found", 404);
+  const result = await loadConnectionForUser(supabase, params.id, user.id, "vault_secret_id", "write");
+  if ("error" in result) return result.error;
+  const row = result.row as unknown as { vault_secret_id: string };
 
   // Delete from Vault first. If this fails, do not remove DB row (avoid orphaned secret state).
   try {
@@ -49,25 +68,19 @@ export async function DELETE(
   return new NextResponse(null, { status: 204 });
 }
 
-// POST /api/connections/:id — live ping (test connection validity)
+// POST /api/connections/:id — live ping (any workspace member).
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
-  const userId = user.id;
 
-  const { data: rowRaw, error: fetchError } = await supabase
-    .from("connections")
-    .select("provider")
-    .eq("id", params.id)
-    .eq("user_id", userId)
-    .single();
-
-  const row = rowRaw as { provider: string } | null;
-  if (fetchError || !row) return apiError("Connection not found", 404);
+  const result = await loadConnectionForUser(supabase, params.id, user.id, "provider", "view");
+  if ("error" in result) return result.error;
+  const row = result.row as unknown as { provider: string };
 
   const serviceClient = createServiceClient();
   let accessToken: string;
@@ -92,29 +105,30 @@ export async function POST(
   return NextResponse.json({ is_valid: isValid });
 }
 
-// PATCH /api/connections/:id — connection settings actions
+// PATCH /api/connections/:id — connection settings actions (contributor).
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
-  const userId = user.id;
 
   const body = await request.json().catch(() => null) as { action?: string } | null;
   if (body?.action !== "set_primary") return apiError("Invalid action", 400);
 
-  const { data: targetRaw, error: targetError } = await supabase
-    .from("connections")
-    .select("id, name, provider")
-    .eq("id", params.id)
-    .eq("user_id", userId)
-    .single();
+  const targetResult = await loadConnectionForUser(
+    supabase,
+    params.id,
+    user.id,
+    "id, name, provider",
+    "write"
+  );
+  if ("error" in targetResult) return targetResult.error;
+  const target = targetResult.row as unknown as { id: string; name: string; provider: string };
+  const workspaceId = targetResult.workspaceId;
 
-  if (targetError || !targetRaw) return apiError("Connection not found", 404);
-
-  const target = targetRaw as { id: string; name: string; provider: string };
   const primaryName = getPrimaryConnectionName(target.provider);
   if (target.name === primaryName) {
     return NextResponse.json({ ok: true, already_primary: true });
@@ -123,7 +137,7 @@ export async function PATCH(
   const { data: providerRowsRaw, error: providerError } = await supabase
     .from("connections")
     .select("id, name, provider")
-    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .eq("provider", target.provider);
 
   if (providerError) return apiError(providerError.message, 500);
@@ -138,24 +152,21 @@ export async function PATCH(
     await supabase
       .from("connections")
       .update({ name: targetOldName, updated_at: now } as unknown as never)
-      .eq("id", target.id)
-      .eq("user_id", userId);
+      .eq("id", target.id);
 
     if (!currentPrimary) return;
 
     await supabase
       .from("connections")
       .update({ name: primaryName, updated_at: now } as unknown as never)
-      .eq("id", currentPrimary.id)
-      .eq("user_id", userId);
+      .eq("id", currentPrimary.id);
   }
 
   if (currentPrimary && tempName) {
     const { error: tempError } = await supabase
       .from("connections")
       .update({ name: tempName, updated_at: now } as unknown as never)
-      .eq("id", currentPrimary.id)
-      .eq("user_id", userId);
+      .eq("id", currentPrimary.id);
 
     if (tempError) return apiError(tempError.message, 500);
   }
@@ -163,8 +174,7 @@ export async function PATCH(
   const { error: targetUpdateError } = await supabase
     .from("connections")
     .update({ name: primaryName, updated_at: now } as unknown as never)
-    .eq("id", target.id)
-    .eq("user_id", userId);
+    .eq("id", target.id);
 
   if (targetUpdateError) {
     await restoreConnectionNames();
@@ -175,8 +185,7 @@ export async function PATCH(
     const { error: primaryUpdateError } = await supabase
       .from("connections")
       .update({ name: targetOldName, updated_at: now } as unknown as never)
-      .eq("id", currentPrimary.id)
-      .eq("user_id", userId);
+      .eq("id", currentPrimary.id);
 
     if (primaryUpdateError) {
       await restoreConnectionNames();
@@ -186,7 +195,7 @@ export async function PATCH(
 
   try {
     await migrateProgramsForPrimarySwitch(supabase, {
-      userId,
+      workspaceId,
       provider: target.provider,
       oldName: targetOldName,
       primaryName,
@@ -282,7 +291,7 @@ async function pingProvider(provider: string, accessToken: string): Promise<bool
 async function migrateProgramsForPrimarySwitch(
   supabase: AppSupabaseClient,
   params: {
-    userId: string;
+    workspaceId: string;
     provider: string;
     oldName: string;
     primaryName: string;
@@ -293,7 +302,7 @@ async function migrateProgramsForPrimarySwitch(
   const { data: programsRaw, error: programsError } = await supabase
     .from("programs")
     .select("id, schema, schema_version")
-    .eq("user_id", params.userId);
+    .eq("workspace_id", params.workspaceId);
 
   if (programsError) {
     throw new Error(programsError.message);
@@ -323,8 +332,7 @@ async function migrateProgramsForPrimarySwitch(
         schema_version: nextVersion,
         updated_at: params.changedAt,
       } as unknown as never)
-      .eq("id", program.id)
-      .eq("user_id", params.userId);
+      .eq("id", program.id);
 
     if (updateError) {
       throw new Error(updateError.message);

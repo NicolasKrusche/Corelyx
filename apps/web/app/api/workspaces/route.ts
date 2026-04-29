@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { canManageWorkspace, type WorkspaceRole } from "@/lib/workspaces";
+import { checkWorkspaceLimit } from "@/lib/limits";
 
 const CreateWorkspaceSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -177,6 +178,13 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
   const service = createServiceClient() as LooseServiceClient;
+  const limitCheck = await checkWorkspaceLimit(user.id);
+  if (!limitCheck.allowed) {
+    return NextResponse.json(
+      { error: "WORKSPACE_LIMIT_REACHED", message: limitCheck.upgradeMessage ?? limitCheck.reason },
+      { status: 403 }
+    );
+  }
 
   const { data: workspace, error } = await service
     .from("workspaces")

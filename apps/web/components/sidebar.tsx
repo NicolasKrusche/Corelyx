@@ -87,6 +87,11 @@ function NavItem({
 // ─── Main sidebar ─────────────────────────────────────────────────────────────
 
 type Tier = "free" | "plus" | "pro" | "builder" | "unlimited";
+type SidebarWorkspace = {
+  id: string;
+  name: string;
+  role: string;
+};
 
 const TIER_CONFIG: Record<Tier, { label: string; className: string }> = {
   free:      { label: "Free",      className: "bg-white/10 text-blue-100 border-white/15" },
@@ -132,7 +137,12 @@ export function Sidebar({
   const { base, accent, setBase, setAccent } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [workspaces, setWorkspaces] = useState<SidebarWorkspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
 
   const palette = SIDEBAR_PALETTE[base][accent];
   const isDark = base === "dark";
@@ -154,6 +164,7 @@ export function Sidebar({
   const runLimitReached = runUsageTotal !== null && runUsageRatio >= 1;
   const genesisUsageRatio = genesisUsageTotal ? genesisUsageCurrent / genesisUsageTotal : 0;
   const genesisUsagePercent = genesisUsageTotal ? Math.min(100, Math.round(genesisUsageRatio * 100)) : 0;
+  const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,6 +215,51 @@ export function Sidebar({
 
   useEffect(() => {
     let cancelled = false;
+    async function fetchWorkspaces() {
+      try {
+        const res = await fetch("/api/workspaces", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          active_workspace_id?: string | null;
+          workspaces?: SidebarWorkspace[];
+        };
+        if (cancelled) return;
+        setWorkspaces(data.workspaces ?? []);
+        setActiveWorkspaceId(data.active_workspace_id ?? null);
+      } catch {
+        // Keep sidebar usable without workspace metadata.
+      }
+    }
+    void fetchWorkspaces();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  async function switchWorkspace(workspaceId: string) {
+    if (workspaceId === activeWorkspaceId || switchingWorkspace) return;
+    setSwitchingWorkspace(true);
+    setWorkspaceMenuOpen(false);
+    try {
+      const res = await fetch("/api/workspaces", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "switch", workspace_id: workspaceId }),
+      });
+      if (res.ok) {
+        setActiveWorkspaceId(workspaceId);
+        router.refresh();
+        if (pathname.startsWith("/programs/") || pathname.startsWith("/runs")) {
+          router.push("/dashboard");
+        }
+      }
+    } finally {
+      setSwitchingWorkspace(false);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
 
     async function fetchUsage() {
       try {
@@ -247,6 +303,27 @@ export function Sidebar({
   }, [menuOpen]);
 
   useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!workspaceMenuRef.current) return;
+      if (workspaceMenuRef.current.contains(event.target as Node)) return;
+      setWorkspaceMenuOpen(false);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setWorkspaceMenuOpen(false);
+    }
+
+    if (workspaceMenuOpen) {
+      window.addEventListener("mousedown", handlePointerDown);
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [workspaceMenuOpen]);
+
+  useEffect(() => {
     if (searchParams.get("settings") === "1") {
       setMenuOpen(false);
       setSettingsOpen(true);
@@ -271,7 +348,10 @@ export function Sidebar({
         isDark ? "text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)]" : "text-gray-900",
         borderCls
       )}
-      onMouseLeave={() => setMenuOpen(false)}
+      onMouseLeave={() => {
+        setMenuOpen(false);
+        setWorkspaceMenuOpen(false);
+      }}
       style={{
         background: `linear-gradient(to bottom, ${palette.from}, ${palette.via}, ${palette.to})`,
         ["--sb-bar" as string]: palette.activeBar,
@@ -291,6 +371,79 @@ export function Sidebar({
       </div>
 
       <div className="px-3 pt-3">
+        <div ref={workspaceMenuRef} className="relative mb-2">
+          <button
+            type="button"
+            aria-label="Active workspace"
+            aria-expanded={workspaceMenuOpen}
+            disabled={switchingWorkspace || workspaces.length === 0}
+            onClick={() => setWorkspaceMenuOpen((open) => !open)}
+            className={cn(
+              "flex h-10 w-full items-center overflow-hidden rounded-lg border text-sm shadow-sm transition-colors",
+              isDark
+                ? "border-white/10 bg-white/10 text-white hover:bg-white/15"
+                : "border-black/10 bg-white/60 text-gray-900 hover:bg-white"
+            )}
+          >
+            <span className="flex h-full w-10 shrink-0 items-center justify-center"><WorkspaceIcon /></span>
+            <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-xs font-semibold opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">
+              {activeWorkspace?.name ?? "Workspace"}
+            </span>
+            <span className={cn(
+              "mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-all duration-150 group-hover/side:opacity-100",
+              workspaceMenuOpen && "rotate-180",
+              isDark ? "text-blue-100/80" : "text-gray-500"
+            )}>
+              <ChevronDownIcon />
+            </span>
+          </button>
+
+          {workspaceMenuOpen && (
+            <div
+              className={cn(
+                "absolute left-0 top-11 z-50 w-[208px] overflow-hidden rounded-xl border p-1.5 shadow-2xl backdrop-blur-xl",
+                isDark
+                  ? "border-white/10 bg-slate-950/95 text-white shadow-black/40"
+                  : "border-black/10 bg-white/95 text-gray-900 shadow-black/15"
+              )}
+            >
+              <div className={cn("px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-widest", isDark ? "text-blue-100/50" : "text-gray-500")}>
+                Switch workspace
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {workspaces.map((workspace) => {
+                  const selected = workspace.id === activeWorkspaceId;
+                  return (
+                    <button
+                      key={workspace.id}
+                      type="button"
+                      onClick={() => { void switchWorkspace(workspace.id); }}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                        selected
+                          ? isDark
+                            ? "bg-white/14 text-white"
+                            : "bg-black/8 text-gray-950"
+                          : isDark
+                            ? "text-blue-100/80 hover:bg-white/8 hover:text-white"
+                            : "text-gray-600 hover:bg-black/5 hover:text-gray-950"
+                      )}
+                    >
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: selected ? palette.activeBar : "transparent", boxShadow: selected ? `0 0 0 3px ${palette.activeBar}22` : undefined }}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+                      <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] capitalize", isDark ? "bg-white/8 text-blue-100/70" : "bg-black/5 text-gray-500")}>
+                        {workspace.role}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
         <Link
           href="/programs/new"
           title="Create new"

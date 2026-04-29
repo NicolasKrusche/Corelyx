@@ -18,7 +18,7 @@ export async function vaultStore(
     p_secret: secret,
     p_name: name,
     p_description: description ?? null,
-  });
+  } as never);
   if (error) throw new Error(`Vault store failed: ${error.message}`);
   return data as string;
 }
@@ -30,7 +30,7 @@ export async function vaultStore(
 export async function vaultRetrieve(supabase: Client, vaultSecretId: string): Promise<string> {
   const { data, error } = await supabase.rpc("vault_retrieve_secret", {
     p_secret_id: vaultSecretId,
-  });
+  } as never);
   if (error) throw new Error(`Vault retrieve failed: ${error.message}`);
   return data as string;
 }
@@ -41,6 +41,6 @@ export async function vaultRetrieve(supabase: Client, vaultSecretId: string): Pr
 export async function vaultDelete(supabase: Client, vaultSecretId: string): Promise<void> {
   const { error } = await supabase.rpc("vault_delete_secret", {
     p_secret_id: vaultSecretId,
-  });
+  } as never);
   if (error) throw new Error(`Vault delete failed: ${error.message}`);
 }

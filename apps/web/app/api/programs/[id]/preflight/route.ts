@@ -4,29 +4,34 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
+import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
 
 // POST /api/programs/[id]/preflight — run pre-flight checks before execution
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Fetch the program schema
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canRun(access)) return apiError("You cannot run preflight for this program.", 403);
+
   const { data: program, error: progError } = await supabase
     .from("programs")
     .select("id, schema")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) return apiError("Program not found", 404);
 
-  const executableSchema = ProgramSchemaZ.safeParse(program.schema);
+  const programRow = program as unknown as { schema: unknown };
+  const executableSchema = ProgramSchemaZ.safeParse(programRow.schema);
   if (!executableSchema.success) {
     return NextResponse.json(
       {
@@ -74,7 +79,7 @@ export async function POST(
     .select("connection_id")
     .eq("program_id", params.id);
 
-  const connectionIds = (linkedConns ?? []).map((r) => r.connection_id);
+  const connectionIds = ((linkedConns ?? []) as Array<{ connection_id: string }>).map((r) => r.connection_id);
 
   let connections: Array<{
     id: string;
@@ -89,15 +94,14 @@ export async function POST(
       .from("connections")
       .select("id, name, provider, scopes, is_valid")
       .in("id", connectionIds)
-      .eq("user_id", user.id);
+      .eq("workspace_id", access!.workspaceId);
     connections = (data ?? []) as typeof connections;
   }
 
-  // Fetch the user's API keys (for PRE_002 — assigned key validity)
   const { data: apiKeys } = await serviceClient
     .from("api_keys")
     .select("id, name, provider, is_valid")
-    .eq("user_id", user.id);
+    .eq("workspace_id", access!.workspaceId);
 
   const { result, checks } = await validatePreFlight(
     schema,

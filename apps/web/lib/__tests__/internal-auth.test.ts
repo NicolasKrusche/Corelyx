@@ -17,6 +17,7 @@ const scopedRunsCompleteSecret =
 const originalScopedRuntimeExecuteSecret =
   process.env[scopedRuntimeExecuteSecret];
 const originalScopedRunsCompleteSecret = process.env[scopedRunsCompleteSecret];
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 afterEach(() => {
   if (originalInternalAuthSecret === undefined) {
@@ -32,9 +33,9 @@ afterEach(() => {
   }
 
   if (originalNodeEnv === undefined) {
-    delete process.env.NODE_ENV;
+    delete mutableEnv.NODE_ENV;
   } else {
-    process.env.NODE_ENV = originalNodeEnv;
+    mutableEnv.NODE_ENV = originalNodeEnv;
   }
 
   if (originalScopedRuntimeExecuteSecret === undefined) {
@@ -92,7 +93,7 @@ describe("internal auth", () => {
   });
 
   it("requires scoped secrets in production", () => {
-    process.env.NODE_ENV = "production";
+    mutableEnv.NODE_ENV = "production";
     process.env.INTERNAL_SERVICE_AUTH_SECRET = "shared-secret";
     delete process.env[scopedRuntimeExecuteSecret];
 

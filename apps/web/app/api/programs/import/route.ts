@@ -11,6 +11,7 @@ import {
   normalizeProgramDraft,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
+import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 
 const ImportProgramBodyZ = z.object({
   json: z.string().optional(),
@@ -65,7 +66,13 @@ export async function POST(request: Request) {
   const parsed = ImportProgramBodyZ.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  const limitCheck = await checkProgramLimit(user.id);
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return apiError("No active workspace", 400);
+  if (!canContributeToWorkspace(ws.role)) {
+    return apiError("Viewers cannot import programs.", 403);
+  }
+
+  const limitCheck = await checkProgramLimit(user.id, ws.workspaceId);
   if (!limitCheck.allowed) {
     return NextResponse.json(
       { error: "PROGRAM_LIMIT_REACHED", message: limitCheck.upgradeMessage },
@@ -124,7 +131,7 @@ export async function POST(request: Request) {
     const { data: connectionsRaw, error: connError } = await supabase
       .from("connections")
       .select("id, name, provider, scopes")
-      .eq("user_id", user.id)
+      .eq("workspace_id", ws.workspaceId)
       .in("name", referencedConnectionNames);
 
     if (connError) return apiError(connError.message, 500);
@@ -137,6 +144,7 @@ export async function POST(request: Request) {
     .from("programs")
     .insert({
       user_id: user.id,
+      workspace_id: ws.workspaceId,
       name: finalName,
       description: finalDescription || null,
       schema: normalizedSchema as unknown as Record<string, unknown>,

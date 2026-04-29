@@ -23,6 +23,7 @@ import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
 import { ensureProcessingAllowed } from "@/lib/compliance";
+import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -81,14 +82,22 @@ export async function POST(request: Request) {
     return sseErrorResponse("Too many requests. Please wait a moment and try again.", "RATE_LIMITED");
   }
 
-  // Genesis AI monthly limit (Free tier: 1 use/month)
-  const genesisCheck = await checkGenesisAccess(userId);
+  // Active workspace
+  const ws = await getActiveWorkspace(userId);
+  if (!ws) return sseErrorResponse("No active workspace", "NO_WORKSPACE");
+  if (!canContributeToWorkspace(ws.role)) {
+    return sseErrorResponse("Viewers cannot generate programs.", "FORBIDDEN");
+  }
+  const workspaceId = ws.workspaceId;
+
+  // Genesis AI monthly limit
+  const genesisCheck = await checkGenesisAccess(userId, workspaceId);
   if (!genesisCheck.allowed) {
     return sseErrorResponse(genesisCheck.upgradeMessage ?? "Genesis AI limit reached.", "GENESIS_LIMIT_REACHED");
   }
 
   // Program limit
-  const limitCheck = await checkProgramLimit(userId);
+  const limitCheck = await checkProgramLimit(userId, workspaceId);
   if (!limitCheck.allowed) {
     return sseErrorResponse(limitCheck.upgradeMessage ?? "Program limit reached.", "PROGRAM_LIMIT_REACHED");
   }
@@ -100,7 +109,7 @@ export async function POST(request: Request) {
       .from("connections")
       .select("id, name, provider, scopes")
       .in("id", requestedConnectionIds)
-      .eq("user_id", userId)
+      .eq("workspace_id", workspaceId)
       .eq("is_valid", true);
 
     if (connError) {
@@ -124,7 +133,7 @@ export async function POST(request: Request) {
   const { data: allKeyRows, error: keysError } = await serviceClient
     .from("api_keys")
     .select("id, vault_secret_id, provider")
-    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .eq("is_valid", true);
 
   const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
@@ -317,6 +326,7 @@ export async function POST(request: Request) {
           .from("programs")
           .insert({
             user_id: userId,
+            workspace_id: workspaceId,
             name: schema.program_name,
             description,
             schema: schema as unknown as Record<string, unknown>,
@@ -370,7 +380,7 @@ export async function POST(request: Request) {
           },
         });
 
-        await incrementGenesisUses(userId);
+        await incrementGenesisUses(userId, workspaceId);
 
         send({
           type: "done",

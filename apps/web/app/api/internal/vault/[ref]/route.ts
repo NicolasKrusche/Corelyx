@@ -14,8 +14,9 @@ import { vaultRetrieve } from "@/lib/vault";
 // of a leaked or misused internal-service token to a single user.
 export async function GET(
   request: Request,
-  { params }: { params: { ref: string } }
+  { params: routeParams }: { params: Promise<{ ref: string }> }
 ) {
+  const params = await routeParams;
   const claims = getValidInternalServiceClaims(request.headers, "next:vault");
   if (!claims) {
     return apiError("Unauthorized", 401);

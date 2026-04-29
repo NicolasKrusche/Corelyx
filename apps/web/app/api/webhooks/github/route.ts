@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
-import { checkAndMark } from "@/lib/webhook-replay-guard";
+import { readBoundedTextBody } from "@/lib/request-body";
+import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 
 type GitHubConnectionRow = {
   id: string;
@@ -16,7 +17,9 @@ export async function POST(request: Request) {
     return apiError("Missing GITHUB_WEBHOOK_SECRET", 500);
   }
 
-  const rawBody = await request.text();
+  const boundedBody = await readBoundedTextBody(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  const rawBody = boundedBody.text;
   const receivedSignature = request.headers.get("x-hub-signature-256");
   if (!receivedSignature) return apiError("Missing GitHub signature", 401);
 
@@ -42,8 +45,15 @@ export async function POST(request: Request) {
   }
 
   const deliveryId = request.headers.get("x-github-delivery");
-  if (deliveryId && !checkAndMark(`github:${deliveryId}`)) {
-    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+  if (deliveryId) {
+    try {
+      const firstDelivery = await markWebhookDelivery("github", deliveryId);
+      if (!firstDelivery) {
+        return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+      }
+    } catch {
+      return apiError("Failed to record webhook delivery", 500);
+    }
   }
 
   const url = new URL(request.url);

@@ -18,7 +18,7 @@ export default async function PricingPage() {
     .select("tier")
     .eq("id", user.id)
     .single();
-  const currentTier = (profile?.tier ?? "free") as string;
+  const currentTier = ((profile as { tier?: string } | null)?.tier ?? "free") as string;
 
   const tierOrder = ["free", "plus", "pro", "builder"];
   const currentTierIndex = tierOrder.indexOf(currentTier);

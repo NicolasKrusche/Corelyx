@@ -16,6 +16,7 @@ type ProgramRow = {
   id: string;
   schema: unknown;
   user_id: string;
+  workspace_id: string;
   execution_mode: string;
   is_active: boolean;
   conflict_policy: string | null;
@@ -98,7 +99,7 @@ export async function dispatchEventTriggers(
     matching.map(async (trigger) => {
       const { data: programRaw } = await db
         .from("programs")
-        .select("id, schema, user_id, execution_mode, is_active, conflict_policy")
+        .select("id, schema, user_id, workspace_id, execution_mode, is_active, conflict_policy")
         .eq("id", trigger.program_id)
         .single();
 
@@ -112,10 +113,10 @@ export async function dispatchEventTriggers(
       const restriction = await getProcessingRestriction(program.user_id, db);
       if (restriction.restricted) return;
 
-      const triggerAccessCheck = await checkTriggerAccess(program.user_id, "event");
+      const triggerAccessCheck = await checkTriggerAccess(program.user_id, "event", program.workspace_id);
       if (!triggerAccessCheck.allowed) return;
 
-      const runLimitCheck = await checkRunLimit(program.user_id);
+      const runLimitCheck = await checkRunLimit(program.user_id, program.workspace_id);
       if (!runLimitCheck.allowed) return;
 
       const conflict = await _checkAndAcquireSlot(db, program.id, program.conflict_policy);
@@ -189,14 +190,14 @@ export async function dispatchEventTriggers(
         if (!runtimeRes.ok) {
           await db
             .from("runs")
-            .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() })
+            .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() } as never)
             .eq("id", run.id);
           return;
         }
       } catch {
         await db
           .from("runs")
-          .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() })
+          .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
           .eq("id", run.id);
         return;
       }

@@ -5,19 +5,9 @@ import { Inngest } from "inngest";
  * INNGEST_EVENT_KEY is optional in dev (Inngest Dev Server auto-connects).
  * INNGEST_SIGNING_KEY is required in production.
  */
-const productionEnvNames = ["NODE_ENV", "VERCEL_ENV", "APP_ENV"] as const;
-const isProductionEnvironment = productionEnvNames.some(
-  (name) => process.env[name] === "production"
-);
 const signingKey = process.env.INNGEST_SIGNING_KEY?.trim() || undefined;
 const signingKeyFallback =
   process.env.INNGEST_SIGNING_KEY_FALLBACK?.trim() || undefined;
-
-if (isProductionEnvironment && !signingKey) {
-  throw new Error(
-    "INNGEST_SIGNING_KEY is required in production for Inngest request verification"
-  );
-}
 
 export const inngest = new Inngest({
   id: "corelyx",

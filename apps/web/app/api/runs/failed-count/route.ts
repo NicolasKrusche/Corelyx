@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { getActiveWorkspace } from "@/lib/workspaces";
 
-// GET /api/runs/failed-count
-// Returns { count: N } — number of failed runs in the last 7 days for the current user.
-// Used by the sidebar to show a notification badge.
+// GET /api/runs/failed-count — failed runs in active workspace within window.
 export async function GET(request: Request) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return NextResponse.json({ count: 0 });
+
   const serviceClient = createServiceClient();
 
-  // Get this user's program IDs first (RLS-safe)
   const { data: programsRaw } = await serviceClient
     .from("programs")
     .select("id")
-    .eq("user_id", user.id);
+    .eq("workspace_id", ws.workspaceId);
 
   const programIds = (programsRaw ?? []).map((p: { id: string }) => p.id);
   if (programIds.length === 0) return NextResponse.json({ count: 0 });

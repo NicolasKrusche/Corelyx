@@ -15,7 +15,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { error } = await service
     .from("redemption_codes")
-    .update({ is_active: false })
+    .update({ is_active: false } as never)
     .eq("id", id);
 
   if (error) return apiError(error.message, 500);

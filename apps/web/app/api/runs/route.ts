@@ -8,6 +8,7 @@ import { sendRunLimitWarningEmail } from "@/lib/email";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
+import { canRun, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 
 // POST /api/runs — create a run and dispatch to runtime
 export async function POST(request: Request) {
@@ -24,18 +25,21 @@ export async function POST(request: Request) {
   }
   const { program_id } = body as { program_id: string };
 
-  // Fetch program schema + verify ownership
+  const access = await getProgramAccess(program_id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canRun(access)) return apiError("You do not have permission to run this program.", 403);
+
   const { data: program, error: progError } = await supabase
     .from("programs")
-    .select("id, schema, user_id")
+    .select("id, schema, user_id, workspace_id")
     .eq("id", program_id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) return apiError("Program not found", 404);
 
   // Check monthly run limit
-  const runLimitCheck = await checkRunLimit(user.id);
+  const programWorkspaceId = (program as unknown as { workspace_id: string }).workspace_id;
+  const runLimitCheck = await checkRunLimit(user.id, programWorkspaceId);
   if (!runLimitCheck.allowed) {
     return NextResponse.json(
       { error: "RUN_LIMIT_REACHED", message: runLimitCheck.upgradeMessage },
@@ -93,7 +97,7 @@ export async function POST(request: Request) {
       .from("connections")
       .select("id, name, provider, scopes, is_valid")
       .in("id", connectionIds)
-      .eq("user_id", user.id);
+      .eq("workspace_id", programWorkspaceId);
     connections = (data ?? []) as ConnectionRow[];
   }
 
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
   const { data: apiKeysRaw } = await serviceClient
     .from("api_keys")
     .select("id, name, provider, is_valid")
-    .eq("user_id", user.id);
+    .eq("workspace_id", programWorkspaceId);
   const apiKeys = (apiKeysRaw ?? []) as ApiKeyRow[];
 
   const runnableSchema = executableSchema.data as unknown as ProgramSchema;
@@ -181,19 +185,12 @@ export async function GET(request: Request) {
   const program_id = searchParams.get("program_id");
   if (!program_id) return apiError("Missing program_id", 400);
 
-  // Verify program ownership first
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", program_id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (progError || !program) return apiError("Program not found", 404);
+  const access = await getProgramAccess(program_id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
 
   const serviceClient = createServiceClient();
-  const historyDays = await getRunHistoryDays(user.id);
+  const ws = await getActiveWorkspace(user.id);
+  const historyDays = await getRunHistoryDays(user.id, ws?.workspaceId ?? null);
   const historyWindowStart = historyDays !== null
     ? new Date(Date.now() - historyDays * 24 * 60 * 60 * 1000).toISOString()
     : null;

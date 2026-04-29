@@ -9,6 +9,7 @@ import { DeleteProgramButton } from "@/components/programs/delete-program-button
 import { DashboardSearch } from "@/components/dashboard/dashboard-search";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { getRunUsage } from "@/lib/limits";
+import { getActiveWorkspace } from "@/lib/workspaces";
 
 type Program = {
   id: string;
@@ -30,6 +31,11 @@ type RecentRun = {
   completed_at: string | null;
   created_at: string;
   programs: { name: string } | null;
+};
+
+type WorkspaceRow = {
+  id: string;
+  name: string;
 };
 
 function timeAgo(iso: string): string {
@@ -83,31 +89,39 @@ function getSearchQuery(searchParams?: { q?: string | string[] }): string {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: { q?: string | string[] };
+  searchParams?: Promise<{ q?: string | string[] }>;
 }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  const searchQuery = getSearchQuery(searchParams);
+  const searchQuery = getSearchQuery(await searchParams);
   const normalizedQuery = searchQuery.toLowerCase();
+  const activeWorkspace = await getActiveWorkspace(user.id);
+  if (!activeWorkspace) redirect("/workspaces");
 
-  const [programsResult, connectionsResult, apiKeysResult, runUsage] = await Promise.all([
+  const [workspaceResult, programsResult, connectionsResult, apiKeysResult, runUsage] = await Promise.all([
+    supabase
+      .from("workspaces")
+      .select("id, name")
+      .eq("id", activeWorkspace.workspaceId)
+      .single(),
     supabase
       .from("programs")
       .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, updated_at")
-      .eq("user_id", user.id)
+      .eq("workspace_id", activeWorkspace.workspaceId)
       .order("updated_at", { ascending: false }),
     supabase
       .from("connections")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
+      .eq("workspace_id", activeWorkspace.workspaceId),
     supabase
       .from("api_keys")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
-    getRunUsage(user.id),
+      .eq("workspace_id", activeWorkspace.workspaceId),
+    getRunUsage(user.id, activeWorkspace.workspaceId),
   ]);
 
+  const workspace = (workspaceResult.data ?? null) as WorkspaceRow | null;
   const programs = (programsResult.data ?? []) as Program[];
   const connectionCount = connectionsResult.count ?? 0;
   const apiKeyCount = apiKeysResult.count ?? 0;
@@ -176,7 +190,7 @@ export default async function DashboardPage({
             {initials}
           </span>
           <p className="font-medium">
-            {displayName}&apos;s workspace
+            {workspace?.name ?? `${displayName}'s workspace`}
             <span className="ml-2 text-xs font-normal text-muted-foreground">
               Good {getGreeting()}.
             </span>

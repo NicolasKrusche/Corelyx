@@ -1,4 +1,4 @@
-import { NonRetriableError } from "inngest";
+import { NonRetriableError, cron } from "inngest";
 import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
@@ -11,8 +11,7 @@ import { getProcessingRestriction } from "@/lib/compliance";
  * due to fire, dispatches a run for each, then updates next_run_at.
  */
 export const cronRunner = inngest.createFunction(
-  { id: "cron-runner", name: "Cron Trigger Runner" },
-  { cron: "* * * * *" }, // Every minute
+  { id: "cron-runner", name: "Cron Trigger Runner", triggers: cron("* * * * *") },
   async ({ step, logger }) => {
     const db = createServiceClient();
 
@@ -45,7 +44,7 @@ export const cronRunner = inngest.createFunction(
         // Fetch program schema + user_id
         const { data: program, error: progErr } = await db
           .from("programs")
-          .select("id, schema, user_id, execution_mode")
+          .select("id, schema, user_id, workspace_id, execution_mode")
           .eq("id", trigger.program_id)
           .eq("is_active", true)
           .single();
@@ -57,13 +56,14 @@ export const cronRunner = inngest.createFunction(
 
         // Check monthly run limit before firing
         const userId = (program as Record<string, unknown>).user_id as string;
+        const workspaceId = (program as Record<string, unknown>).workspace_id as string | undefined;
         const restriction = await getProcessingRestriction(userId, db);
         if (restriction.restricted) {
           logger.warn(`Skipping cron trigger ${trigger.id}: processing restricted for user ${userId}`);
           return;
         }
 
-        const limitCheck = await checkRunLimit(userId);
+        const limitCheck = await checkRunLimit(userId, workspaceId ?? null);
         if (!limitCheck.allowed) {
           logger.warn(`Skipping cron trigger ${trigger.id}: run limit reached for user ${userId}`);
           return;
@@ -110,7 +110,7 @@ export const cronRunner = inngest.createFunction(
             logger.error(`Runtime rejected cron run ${runId} (${runtimeRes.status})`);
             await db
               .from("runs")
-              .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() })
+              .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() } as never)
               .eq("id", runId);
             return;
           }
@@ -118,7 +118,7 @@ export const cronRunner = inngest.createFunction(
           logger.error(`Runtime unreachable for cron run ${runId}`);
           await db
             .from("runs")
-            .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() })
+            .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
             .eq("id", runId);
           return;
         }
@@ -144,7 +144,7 @@ export const cronRunner = inngest.createFunction(
           .update({
             last_fired_at: new Date().toISOString(),
             next_run_at: nextRun,
-          })
+          } as never)
           .eq("id", trigger.id);
       });
     }

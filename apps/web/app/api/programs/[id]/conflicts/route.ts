@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { createServerClient } from "@/lib/supabase/server";
+import { canView, getProgramAccess } from "@/lib/workspaces";
 
 /**
  * GET /api/programs/[id]/conflicts
@@ -10,22 +10,22 @@ import { createServerClient } from "@/lib/supabase/server";
  */
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Verify ownership
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+
+  const serviceClient = createServiceClient();
+  const { data: program, error: progError } = await serviceClient
     .from("programs")
     .select("id, conflict_policy")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
   if (progError || !program) return apiError("Program not found", 404);
-
-  const serviceClient = createServiceClient();
 
   // Get connections linked to this program
   const { data: myConns } = await serviceClient
@@ -57,12 +57,12 @@ export async function GET(
     ...new Set((sharedLinks as unknown as SharedLink[]).map((r) => r.program_id)),
   ];
 
-  // Fetch those programs (only those owned by the same user)
-  const { data: conflictingPrograms } = await supabase
+  // Fetch those programs in the same workspace.
+  const { data: conflictingPrograms } = await serviceClient
     .from("programs")
     .select("id, name, is_active, execution_mode")
     .in("id", conflictingProgramIds)
-    .eq("user_id", user.id);
+    .eq("workspace_id", access!.workspaceId);
 
   // Build conflict map: program → shared connection names
   const { data: connNames } = await serviceClient

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomInt } from "crypto";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
@@ -19,7 +20,7 @@ const CreateCodeSchema = z.object({
 
 function generateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusable chars
-  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return Array.from({ length: 16 }, () => chars[randomInt(chars.length)]).join("");
 }
 
 // GET /api/admin/codes — list all codes with usage stats
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       max_uses: max_uses ?? null,
       expires_at: expires_at ?? null,
       created_by: user.id,
-    })
+    } as never)
     .select()
     .single();
 

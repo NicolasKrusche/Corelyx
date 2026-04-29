@@ -2,42 +2,50 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
-import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import {
   getDraftValidationMessage,
   normalizeProgramDraft,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
-// GET /api/programs/:id — full schema
+// GET /api/programs/:id — full schema (any program member with view rights).
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
 
   const { data, error } = await supabase
     .from("programs")
     .select("*")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
   if (error || !data) return apiError("Program not found", 404);
-  return NextResponse.json(data);
+  return NextResponse.json({ ...(data as Record<string, unknown>), access: access?.effective ?? null });
 }
 
-// PATCH /api/programs/:id — save updated schema from the visual editor
+// PATCH /api/programs/:id — save updated schema (editor only).
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("You do not have permission to edit this program.", 403);
 
   const body = await request.json().catch(() => null);
   if (!body) return apiError("Invalid body", 400);
@@ -53,15 +61,12 @@ export async function PATCH(
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  // Verify ownership and get current version number
-  // Cast through unknown to handle Supabase's generated `never` types
   type ExistingRow = { id: string; schema_version: number | null };
 
   const { data: rawExisting, error: fetchError } = await supabase
     .from("programs")
     .select("id, schema_version")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
   if (fetchError || !rawExisting) return apiError("Program not found", 404);
@@ -72,8 +77,6 @@ export async function PATCH(
   const schema = rawSchema === undefined
     ? undefined
     : normalizeProgramDraft(rawSchema, { program_id: params.id });
-
-  // ── If schema was provided, validate it ────────────────────────────────────
 
   let validationResult = null;
   if (schema) {
@@ -94,9 +97,6 @@ export async function PATCH(
   const now = new Date().toISOString();
   const nextVersion = (existing.schema_version ?? 0) + 1;
 
-  // ── Update program row ─────────────────────────────────────────────────────
-  // Build update payload and cast to satisfy Supabase's strict type checker
-
   const updatePayload = {
     ...metaPatch,
     updated_at: now,
@@ -112,16 +112,12 @@ export async function PATCH(
 
   const { data: updatedProgram, error: updateError } = await supabase
     .from("programs")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update(updatePayload as unknown as never)
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .select("id, name, description, execution_mode, is_active, schema_version, updated_at")
     .single();
 
   if (updateError) return apiError(updateError.message, 500);
-
-  // ── Insert version snapshot (only when schema was saved) ──────────────────
 
   if (schema) {
     await supabase
@@ -132,7 +128,6 @@ export async function PATCH(
         schema: schema as unknown,
         change_summary: "Saved from visual editor",
       } as unknown as never);
-    // Ignore version insert errors — non-fatal
   }
 
   return NextResponse.json({
@@ -141,20 +136,24 @@ export async function PATCH(
   });
 }
 
-// DELETE /api/programs/:id
+// DELETE /api/programs/:id — editor only.
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("You do not have permission to delete this program.", 403);
+
   const { error } = await supabase
     .from("programs")
     .delete()
-    .eq("id", params.id)
-    .eq("user_id", user.id);
+    .eq("id", params.id);
 
   if (error) return apiError(error.message, 500);
   return new NextResponse(null, { status: 204 });

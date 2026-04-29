@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 /**
  * POST /api/programs/[id]/publish
@@ -21,8 +22,9 @@ import { createServerClient } from "@/lib/supabase/server";
  */
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
@@ -58,14 +60,16 @@ export async function POST(
     authorName = public_author_name.trim().slice(0, 64) || null;
   }
 
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can publish.", 403);
+
   const db = createServiceClient();
 
-  // Verify ownership
   const { data: program, error: progError } = await db
     .from("programs")
     .select("id, schema, is_public")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) return apiError("Program not found", 404);
@@ -87,7 +91,8 @@ export async function POST(
   }
 
   // Sanitize schema — replace user-specific credential refs with sentinel values
-  const sanitizedSchema = sanitizeSchemaForPublish(program.schema as Record<string, unknown>);
+  const programRow = program as unknown as { schema: Record<string, unknown> };
+  const sanitizedSchema = sanitizeSchemaForPublish(programRow.schema);
 
   const now = new Date().toISOString();
 
