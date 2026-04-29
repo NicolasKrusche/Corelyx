@@ -4,6 +4,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { getValidOAuthToken } from "@/lib/oauth-token";
 import { signWebhookToken } from "@/lib/webhooks/signed-token";
+import { canContributeToWorkspace, getWorkspaceRole } from "@/lib/workspaces";
 
 type ConnectionRow = {
   id: string;
@@ -14,8 +15,9 @@ type ConnectionRow = {
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -24,13 +26,18 @@ export async function POST(
 
   const { data: rowRaw, error } = await supabase
     .from("connections")
-    .select("id, user_id, provider, metadata")
+    .select("id, user_id, provider, metadata, workspace_id")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
   if (error || !rowRaw) return apiError("Connection not found", 404);
-  const connection = rowRaw as unknown as ConnectionRow;
+  const connection = rowRaw as unknown as ConnectionRow & { workspace_id: string };
+
+  const role = await getWorkspaceRole(connection.workspace_id, user.id);
+  if (!role) return apiError("Connection not found", 404);
+  if (!canContributeToWorkspace(role)) {
+    return apiError("Viewers cannot configure connection watches.", 403);
+  }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const db = createServiceClient();

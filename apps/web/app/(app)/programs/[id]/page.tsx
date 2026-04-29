@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RunPanel } from "./run-panel";
 import { ExecutionControls } from "./execution-controls";
 import { PublishPanel } from "./publish-panel";
+import { SharePanel } from "./share-panel";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
 import type { Json } from "@flowos/db";
 import { createServiceClient } from "@/lib/api";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 type SchemaNode = { id: string; label: string; description: string; type: string };
 
@@ -36,28 +38,42 @@ function isAiGenerated(genesisModel: string | null): boolean {
   return genesisModel !== "manual" && genesisModel !== "template";
 }
 
-export default async function ProgramPage({ params }: { params: { id: string } }) {
+export default async function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return redirect("/login");
 
+  const access = await getProgramAccess(id, user.id);
+  if (!canView(access)) return notFound();
+  const userCanEdit = canEdit(access);
+
   const { data, error } = await supabase
     .from("programs")
-    .select("id, name, description, execution_mode, conflict_policy, is_active, schema, schema_version, last_run_at, updated_at, is_public, tags, fork_count, published_at, public_author_name")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
+    .select("id, name, description, execution_mode, conflict_policy, is_active, schema, schema_version, last_run_at, updated_at, is_public, tags, fork_count, published_at, public_author_name, visibility, workspace_id")
+    .eq("id", id)
     .single();
 
   if (error || !data) return notFound();
 
-  type ProgramRow = typeof data & {
-    schema: Json;
+  type ProgramRow = {
+    id: string;
+    name: string;
+    description: string | null;
+    execution_mode: string;
     conflict_policy: string;
+    is_active: boolean;
+    schema: Json;
+    schema_version: number | null;
+    last_run_at: string | null;
+    updated_at: string | null;
     is_public: boolean;
     tags: string[];
     fork_count: number;
     published_at: string | null;
     public_author_name: string | null;
+    visibility: string;
+    workspace_id: string;
   };
   const program = data as ProgramRow;
   const { nodes, edges, triggers, genesisModel } = parseSchema(program.schema);
@@ -68,7 +84,7 @@ export default async function ProgramPage({ params }: { params: { id: string } }
   const { data: triggerRows } = await serviceClient
     .from("triggers")
     .select("id, type, is_active")
-    .eq("program_id", params.id);
+    .eq("program_id", id);
 
   const dbTriggerCount = (triggerRows ?? []).length;
   const activeTriggerCount = (triggerRows ?? []).filter(
@@ -79,7 +95,7 @@ export default async function ProgramPage({ params }: { params: { id: string } }
   const { data: linkedConns } = await serviceClient
     .from("program_connections")
     .select("connection_id")
-    .eq("program_id", params.id);
+    .eq("program_id", id);
 
   const connectionIds = (linkedConns ?? []).map(
     (r: { connection_id: string }) => r.connection_id
@@ -90,7 +106,7 @@ export default async function ProgramPage({ params }: { params: { id: string } }
       .from("program_connections")
       .select("program_id")
       .in("connection_id", connectionIds)
-      .neq("program_id", params.id);
+      .neq("program_id", id);
     const uniq = new Set((sharedLinks ?? []).map((r: { program_id: string }) => r.program_id));
     conflictingProgramCount = uniq.size;
   }
@@ -99,7 +115,7 @@ export default async function ProgramPage({ params }: { params: { id: string } }
   const { count: successfulRunCount } = await serviceClient
     .from("runs")
     .select("id", { count: "exact", head: true })
-    .eq("program_id", params.id)
+    .eq("program_id", id)
     .eq("status", "completed");
 
   const NODE_BADGE: Record<string, "default" | "secondary" | "outline"> = {
@@ -135,13 +151,17 @@ export default async function ProgramPage({ params }: { params: { id: string } }
             {program.is_active ? "Active" : "Inactive"}
           </Badge>
           <Badge variant="outline" className="capitalize">{program.execution_mode}</Badge>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/programs/${program.id}/settings`}>Settings</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href={`/programs/${program.id}/editor`}>Open Editor</Link>
-          </Button>
-          <DeleteProgramButton programId={program.id} programName={program.name} />
+          {userCanEdit && (
+            <>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/programs/${program.id}/settings`}>Settings</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href={`/programs/${program.id}/editor`}>Open Editor</Link>
+              </Button>
+              <DeleteProgramButton programId={program.id} programName={program.name} />
+            </>
+          )}
         </div>
       </div>
 
@@ -171,7 +191,7 @@ export default async function ProgramPage({ params }: { params: { id: string } }
             {conflictingProgramCount} other program{conflictingProgramCount > 1 ? "s" : ""} share connections with this program.
             {" "}
             <Link
-              href={`/programs/${params.id}/conflicts`}
+              href={`/programs/${id}/conflicts`}
               className="underline underline-offset-2"
             >
               View conflicts
@@ -190,7 +210,7 @@ export default async function ProgramPage({ params }: { params: { id: string } }
             label: "Triggers",
             value: dbTriggerCount,
             sub: activeTriggerCount > 0 ? `${activeTriggerCount} active` : undefined,
-            href: `/programs/${params.id}/triggers`,
+            href: `/programs/${id}/triggers`,
           },
           { label: "Schema v", value: program.schema_version ?? 1 },
         ].map(({ label, value, sub, href }) => (
@@ -222,14 +242,14 @@ export default async function ProgramPage({ params }: { params: { id: string } }
       {/* Quick nav */}
       <div className="flex gap-2 flex-wrap">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/programs/${params.id}/runs`}>View Run History</Link>
+          <Link href={`/programs/${id}/runs`}>View Run History</Link>
         </Button>
         <Button asChild variant="outline" size="sm">
-          <Link href={`/programs/${params.id}/triggers`}>Manage Triggers</Link>
+          <Link href={`/programs/${id}/triggers`}>Manage Triggers</Link>
         </Button>
         {conflictingProgramCount > 0 && (
           <Button asChild variant="outline" size="sm">
-            <Link href={`/programs/${params.id}/conflicts`}>Conflict Settings</Link>
+            <Link href={`/programs/${id}/conflicts`}>Conflict Settings</Link>
           </Button>
         )}
       </div>
@@ -259,27 +279,33 @@ export default async function ProgramPage({ params }: { params: { id: string } }
       </Card>
 
       {/* Execution controls (mode switcher + conflict policy) */}
-      <ExecutionControls
-        programId={program.id}
-        executionMode={program.execution_mode ?? "supervised"}
-        conflictPolicy={program.conflict_policy ?? "queue"}
-      />
+      {userCanEdit && (
+        <ExecutionControls
+          programId={program.id}
+          executionMode={program.execution_mode ?? "supervised"}
+          conflictPolicy={program.conflict_policy ?? "queue"}
+        />
+      )}
+
+      <SharePanel programId={program.id} />
 
       {/* Run panel */}
       <RunPanel programId={program.id} />
 
       {/* Publish panel */}
-      <PublishPanel
-        programId={program.id}
-        initialState={{
-          is_public: program.is_public ?? false,
-          tags: program.tags ?? [],
-          fork_count: program.fork_count ?? 0,
-          published_at: program.published_at ?? null,
-          public_author_name: program.public_author_name ?? null,
-        }}
-        hasSuccessfulRun={(successfulRunCount ?? 0) > 0}
-      />
+      {userCanEdit && (
+        <PublishPanel
+          programId={program.id}
+          initialState={{
+            is_public: program.is_public ?? false,
+            tags: program.tags ?? [],
+            fork_count: program.fork_count ?? 0,
+            published_at: program.published_at ?? null,
+            public_author_name: program.public_author_name ?? null,
+          }}
+          hasSuccessfulRun={(successfulRunCount ?? 0) > 0}
+        />
+      )}
 
       {/* Raw schema */}
       <details>

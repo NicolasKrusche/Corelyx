@@ -4,6 +4,7 @@ import { ProgramSchemaZ, type ProgramSchema, type AgentNode } from "@flowos/sche
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { getDefaultModelForProvider, validatePreFlight } from "@/lib/validation/pre-flight";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 const remediationSchema = z.discriminatedUnion("type", [
   z.object({
@@ -23,13 +24,18 @@ const requestSchema = z.object({
 // POST /api/programs/[id]/preflight/fix - apply one safe remediation and re-run pre-flight
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can apply fixes.", 403);
 
   const body = await request.json().catch(() => null);
   const parsedBody = requestSchema.safeParse(body);
@@ -39,7 +45,6 @@ export async function POST(
     .from("programs")
     .select("id, schema, schema_version")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
   if (programError || !programRow) return apiError("Program not found", 404);
@@ -84,7 +89,7 @@ export async function POST(
     const { data: validKeysRaw } = await serviceClient
       .from("api_keys")
       .select("id, name, provider, is_valid")
-      .eq("user_id", user.id)
+      .eq("workspace_id", access!.workspaceId)
       .eq("is_valid", true);
 
     type ValidKey = { id: string; name: string; provider: string; is_valid: boolean };
@@ -145,8 +150,7 @@ export async function POST(
       schema_version: nextVersion,
       updated_at: now,
     } as unknown as never)
-    .eq("id", params.id)
-    .eq("user_id", user.id);
+    .eq("id", params.id);
 
   if (updateError) return apiError(updateError.message, 500);
 
@@ -181,7 +185,7 @@ export async function POST(
       .from("connections")
       .select("id, name, provider, scopes, is_valid")
       .in("id", connectionIds)
-      .eq("user_id", user.id);
+      .eq("workspace_id", access!.workspaceId);
 
     connections = (connRows ?? []) as typeof connections;
   }
@@ -189,7 +193,7 @@ export async function POST(
   const { data: apiKeysRaw } = await serviceClient
     .from("api_keys")
     .select("id, name, provider, is_valid")
-    .eq("user_id", user.id);
+    .eq("workspace_id", access!.workspaceId);
 
   const { result, checks } = await validatePreFlight(
     nextSchema,

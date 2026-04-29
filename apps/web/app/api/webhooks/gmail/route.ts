@@ -4,6 +4,7 @@ import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { getValidOAuthToken } from "@/lib/oauth-token";
 import { verifyGooglePubSubOidc } from "@/lib/pubsub-auth";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
+import { readBoundedJsonBody } from "@/lib/request-body";
 
 type GmailConnectionRow = {
   id: string;
@@ -26,12 +27,7 @@ type GmailPushPayload = {
   historyId?: string;
 };
 
-const MAX_BODY_BYTES = 65_536;
-
 export async function POST(request: Request) {
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (contentLength > MAX_BODY_BYTES) return apiError("Payload too large", 413);
-
   const audience = process.env.PUBSUB_GMAIL_WEBHOOK_AUDIENCE;
   if (!audience) {
     console.error("[gmail-webhook] PUBSUB_GMAIL_WEBHOOK_AUDIENCE not configured");
@@ -51,11 +47,9 @@ export async function POST(request: Request) {
   if (!isValid) return apiError("Unauthorized", 401);
 
   let envelope: PubSubEnvelope;
-  try {
-    envelope = (await request.json()) as PubSubEnvelope;
-  } catch {
-    return apiError("Invalid JSON body", 400);
-  }
+  const boundedBody = await readBoundedJsonBody<PubSubEnvelope>(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  envelope = boundedBody.value;
 
   const messageId = envelope.message?.messageId;
   if (!messageId) return apiError("Missing Pub/Sub messageId", 400);

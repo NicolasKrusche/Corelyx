@@ -89,7 +89,7 @@ export default async function ApprovalsPage() {
       {approvals.length === 0 ? (
         <div className="rounded-lg border border-border p-8 text-center">
           <p className="text-sm text-muted-foreground">
-            No pending approvals. You're all caught up.
+            No pending approvals. You&apos;re all caught up.
           </p>
         </div>
       ) : (

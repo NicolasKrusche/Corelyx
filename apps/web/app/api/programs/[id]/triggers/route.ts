@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { createServerClient } from "@/lib/supabase/server";
 import { enrichWebhookTriggerForClient } from "@/lib/webhook-trigger-auth";
 import { checkTriggerAccess } from "@/lib/limits";
 import type { TriggerType } from "@/lib/entitlements";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,20 +28,14 @@ const ENRICHED_TRIGGER_COLS = "id, program_id, type, config, is_active, webhook_
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Verify ownership
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
-    .single();
-  if (progError || !program) return apiError("Program not found", 404);
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
 
   const serviceClient = createServiceClient();
 
@@ -85,20 +79,15 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Verify ownership
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
-    .single();
-  if (progError || !program) return apiError("Program not found", 404);
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can manage triggers.", 403);
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body.type !== "string") {
@@ -113,7 +102,7 @@ export async function POST(
   }
 
   // Check trigger type entitlement before creating
-  const triggerAccessCheck = await checkTriggerAccess(user.id, type as TriggerType);
+  const triggerAccessCheck = await checkTriggerAccess(user.id, type as TriggerType, access!.workspaceId);
   if (!triggerAccessCheck.allowed) {
     return NextResponse.json(
       { error: "FEATURE_NOT_AVAILABLE", message: triggerAccessCheck.upgradeMessage },
@@ -158,8 +147,9 @@ export async function POST(
       .insert(insertPayload as never)
       .select(ENRICHED_TRIGGER_COLS)
       .single();
-    if (!enriched.error && enriched.data) {
-      trigger = enriched.data as unknown as TriggerRow;
+    const enrichedData = enriched.data as unknown as TriggerRow | null;
+    if (!enriched.error && enrichedData) {
+      trigger = enrichedData;
     } else {
       // Retry with base columns — row may have already inserted on previous attempt? No: PostgREST INSERT+SELECT is one statement.
       const fallback = await serviceClient
@@ -167,12 +157,13 @@ export async function POST(
         .insert(insertPayload as never)
         .select(BASE_TRIGGER_COLS)
         .single();
-      if (fallback.error || !fallback.data) {
+      const fallbackData = fallback.data as unknown as TriggerRow | null;
+      if (fallback.error || !fallbackData) {
         const msg = fallback.error?.message ?? enriched.error?.message ?? "unknown DB error";
         console.error("[/api/programs/[id]/triggers] insert failed:", msg);
         return apiError(`Failed to create trigger: ${msg}`, 500);
       }
-      trigger = fallback.data as unknown as TriggerRow;
+      trigger = fallbackData;
     }
   }
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

@@ -1,25 +1,24 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
-import { createServerClient } from "@/lib/supabase/server";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import type { ProgramSchema } from "@flowos/schema";
+import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
 
 // POST /api/runs/[id]/skip-trigger — mark the trigger node as completed so the runtime proceeds
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const serviceClient = createServiceClient();
-  const supabase = await createServerClient();
 
   const processingRestriction = await ensureProcessingAllowed(user.id, serviceClient);
   if (processingRestriction) return processingRestriction;
 
-  // Fetch run + verify ownership via program
   const { data: runRaw, error: runError } = await serviceClient
     .from("runs")
     .select("id, program_id, status")
@@ -30,11 +29,14 @@ export async function POST(
 
   const run = runRaw as { id: string; program_id: string; status: string };
 
-  const { data: program, error: progError } = await supabase
+  const access = await getProgramAccess(run.program_id, user.id);
+  if (!canView(access)) return apiError("Not found", 404);
+  if (!canRun(access)) return apiError("You do not have permission to advance this run.", 403);
+
+  const { data: program, error: progError } = await serviceClient
     .from("programs")
     .select("id, schema")
     .eq("id", run.program_id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) return apiError("Not found", 404);
@@ -74,7 +76,7 @@ export async function POST(
         status: "completed",
         output_payload: { skipped: true, reason: "user_manual_skip" },
         completed_at: now,
-      })
+      } as never)
       .eq("id", existingRow.id);
   } else {
     await serviceClient.from("node_executions").insert({
@@ -109,7 +111,7 @@ export async function POST(
       .from("connections")
       .select("id, name")
       .in("id", connectionIds)
-      .eq("user_id", user.id);
+      .eq("workspace_id", access!.workspaceId);
     connections = (data ?? []) as ConnectionRow[];
   }
 

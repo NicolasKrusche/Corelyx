@@ -10,6 +10,25 @@ The most urgent issues are credential exposure in tracked local tooling files/lo
 
 The next highest risks are runtime-side **SSRF in the HTTP connector (S12)**, **unbounded loop iteration DoS (S13)**, the **internal-trust amplification in `/api/internal/*` endpoints (S14)**, public webhook denial-of-service/replay gaps, disabled build-time safety checks, and weak redemption-code controls. Several medium-severity hardening items are also worth fixing before a multi-user launch.
 
+## 2026-04-29 Current Pass Notes
+
+This pass focused on the website shell, workspace switcher, and recently-changed workspace routes.
+
+New/updated observations:
+- The sidebar workspace switcher used the browser-native `<select>`, which visually escaped the app theme and exposed unreadable OS dropdown styling in the collapsed/expanded sidebar. This is a UX consistency issue rather than a direct security issue; it has been replaced with a themed in-app menu.
+- The previous `next/headers` client-bundle issue was caused by client components importing server-backed workspace helpers. Shared role labels/types now live in `apps/web/lib/workspace-types.ts`; browser components should import from that file, not `apps/web/lib/workspaces.ts`.
+- S8 was still open: `apps/web/next.config.mjs` had no security headers. A baseline set is now configured: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and a conservative CSP for `base-uri`, `object-src`, `frame-ancestors`, and `form-action`.
+- S6 was partially open: admin redemption codes were generated with `Math.random()` and only 8 characters. New generated codes now use `crypto.randomInt` and 16 non-confusable characters.
+- S6 remains partially open: redemption is still not fully atomic at the database level, but `/api/settings/redeem` now has per-user/per-IP throttling and generic failure responses to reduce enumeration value.
+- S2 is fixed for the Node production dependency graph: `next` is upgraded to `15.5.15`, `postcss` resolves to `>=8.5.12`, `protobufjs` is pinned to `7.5.5`, and `pnpm audit --prod` reports no known vulnerabilities.
+- S3 and S4 are fixed for the reviewed webhook routes: public webhook/custom-trigger ingestion uses a shared 64 KB streaming body cap, and provider delivery ids are recorded in `public.webhook_deliveries` for persistent dedupe.
+- S5 is fixed: production builds no longer ignore TypeScript or ESLint failures. The Next 15 route context migration was completed and `pnpm --filter @flowos/web build` succeeds.
+
+Previously listed items that now appear partially fixed in code:
+- S12: `apps/runtime/engine/executor.py` now contains explicit private/internal network rejection for HTTP connector URLs.
+- S13: `apps/runtime/engine/executor.py` now contains `MAX_LOOP_ITEMS = 100` and truncates oversized loop inputs.
+- S14: `apps/web/lib/internal-auth.ts`, `apps/runtime/internal_auth.py`, `apps/web/app/api/internal/vault/[ref]/route.ts`, and `apps/web/app/api/internal/connections/[id]/token/route.ts` now support/enforce subject-bound internal tokens for secret retrieval.
+
 ## Critical
 
 ### S1. Tracked local logs/settings contain credential material
@@ -29,6 +48,8 @@ Recommended fix:
 
 ### S2. Production dependencies contain critical and high advisories
 
+Status: fixed in current pass.
+
 Evidence:
 - `pnpm audit --prod` reported 19 production vulnerabilities: 2 critical, 6 high, 9 moderate, and 2 low.
 - `apps/web/package.json:34` pins `next` to `14.2.3`; the audit reports multiple Next.js advisories, including middleware authorization bypass, authorization bypass, cache poisoning, SSRF/redirect handling, request smuggling, image optimization, and Server Components denial-of-service issues.
@@ -42,6 +63,12 @@ Recommended fix:
 - Upgrade or override transitive `protobufjs` to `>=7.5.5`.
 - Ensure `postcss` resolves to `>=8.5.10`.
 - Re-run `pnpm audit --prod` and record the clean result or any accepted residual risk.
+
+Current remediation:
+- `apps/web/package.json` now uses `next@15.5.15` and `eslint-config-next@15.5.15`.
+- `postcss` is upgraded to `^8.5.12`; root `pnpm.overrides` also enforces `postcss@^8.5.12`.
+- Root `pnpm.overrides` enforces `protobufjs@7.5.5`.
+- `pnpm audit --prod` reports no known vulnerabilities.
 
 ### S11. OAuth access tokens leak into persisted node output
 
@@ -61,6 +88,8 @@ Recommended fix:
 
 ### S3. Public webhook routes read request bodies without a shared size limit
 
+Status: fixed in current pass.
+
 Evidence:
 - `apps/web/app/api/triggers/webhook/[token]/route.ts:23` reads `await request.text()`.
 - `apps/web/app/api/webhooks/typeform/route.ts:32`, `slack/route.ts:18`, `github/route.ts:19`, `hubspot/route.ts:48`, `airtable/route.ts:39`, and `asana/route.ts:52` read the raw body directly.
@@ -74,7 +103,13 @@ Recommended fix:
 - Enforce a streaming/read cap rather than relying only on the header.
 - Apply the helper to all webhook and custom trigger routes.
 
+Current remediation:
+- Added `apps/web/lib/request-body.ts` with bounded text/JSON body readers.
+- Applied the shared 64 KB cap to GitHub, Slack, Typeform, HubSpot, Airtable, Asana, Gmail, custom webhook triggers, and internal event trigger ingestion.
+
 ### S4. Webhook replay protection is incomplete and process-local
+
+Status: fixed in current pass.
 
 Evidence:
 - `apps/web/lib/webhook-replay-guard.ts:1` uses an in-memory `Map`, so replay state is lost on restart and is not shared across instances.
@@ -90,7 +125,13 @@ Recommended fix:
 - Store provider name, delivery/event id, digest, first-seen time, and processing status.
 - Treat duplicate delivery ids as idempotent success after signature verification.
 
+Current remediation:
+- Replaced process-local replay checks with persistent `markWebhookDelivery` calls for GitHub delivery ids, Slack event ids, Typeform response tokens, HubSpot event ids, Airtable webhook/timestamp ids, Asana derived event ids, Gmail Pub/Sub message ids, and custom webhook signature/timestamp hashes.
+- Duplicate deliveries return idempotent success after authentication/signature verification.
+
 ### S5. Production builds ignore TypeScript and ESLint failures
+
+Status: fixed in current pass.
 
 Evidence:
 - `apps/web/next.config.mjs:4` sets `typescript.ignoreBuildErrors: true`.
@@ -103,6 +144,11 @@ Recommended fix:
 - Re-enable TypeScript and ESLint enforcement for production builds.
 - Fix existing type/lint failures before enabling the gates.
 - Keep route-level security code in the checked build path.
+
+Current remediation:
+- Removed `typescript.ignoreBuildErrors` and `eslint.ignoreDuringBuilds` from `apps/web/next.config.mjs`.
+- Fixed blocking type/lint failures and completed the Next 15 route context updates.
+- `pnpm --filter @flowos/web lint`, `pnpm --filter @flowos/web type-check`, and `pnpm --filter @flowos/web build` now complete successfully.
 
 ### S6. Redemption codes are weakly generated, not rate-limited, and redeemed non-atomically
 

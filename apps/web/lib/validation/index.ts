@@ -51,7 +51,8 @@ export function validatePostGenesis(
 ): ValidationResult {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
-  const { nodes, edges } = schema;
+  const nodes = schema.nodes as Node[];
+  const edges = schema.edges as Edge[];
 
   const nodeIds = nodes.map((n) => n.id);
   const availableConnectionNames = availableConnections.map((c) => c.name);
@@ -113,8 +114,9 @@ export function validatePostGenesis(
   });
 
   nodes.forEach((node) => {
-    if (node.type === "step" && node.connection !== null)
-      error("ERR_009", node.id, `Step node ${node.label} cannot connect to an external app`, "Step nodes are for logic only. Use an agent node to interact with apps");
+    const maybeStep = node as unknown as { id: string; label: string; type?: string; connection?: string | null };
+    if (maybeStep.type === "step" && maybeStep.connection != null)
+      error("ERR_009", maybeStep.id, `Step node ${maybeStep.label} cannot connect to an external app`, "Step nodes are for logic only. Use an agent node to interact with apps");
   });
 
   // ─── Data Flow ─────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { apiError } from "@/lib/api";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 // ─── GET /api/programs/:id/versions ──────────────────────────────────────────
 // Returns all version snapshots for this program, newest first.
@@ -12,23 +13,17 @@ import { validatePostGenesis } from "@/lib/validation";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Verify ownership
-  const { data: program, error: programError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (programError || !program) return apiError("Program not found", 404);
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
 
   // Fetch version rows — newest first, omit full schema column
   const { data: versions, error: versionsError } = await supabase
@@ -48,8 +43,9 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -65,14 +61,16 @@ export async function POST(
 
   const { version: targetVersion } = parsed.data;
 
-  // Verify ownership and get current version number
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can roll back versions.", 403);
+
   type ExistingRow = { id: string; schema_version: number | null };
 
   const { data: rawExisting, error: fetchError } = await supabase
     .from("programs")
     .select("id, schema_version")
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .single();
 
   if (fetchError || !rawExisting) return apiError("Program not found", 404);
@@ -115,10 +113,8 @@ export async function POST(
 
   const { data: updatedProgram, error: updateError } = await supabase
     .from("programs")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update(updatePayload as unknown as never)
     .eq("id", params.id)
-    .eq("user_id", user.id)
     .select("id, name, description, execution_mode, is_active, schema_version, updated_at")
     .single();
 

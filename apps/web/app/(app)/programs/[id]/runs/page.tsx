@@ -56,8 +56,9 @@ function StatusBadge({ status }: { status: string }) {
 export default async function RunsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -68,7 +69,7 @@ export default async function RunsPage({
   const { data: program, error: progError } = await supabase
     .from("programs")
     .select("id, name")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", user.id)
     .single();
 
@@ -82,7 +83,7 @@ export default async function RunsPage({
     .select(
       "id, status, triggered_by, started_at, completed_at, error_message, created_at"
     )
-    .eq("program_id", params.id)
+    .eq("program_id", id)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -92,7 +93,7 @@ export default async function RunsPage({
     <div className="max-w-4xl space-y-6">
       <div>
         <p className="text-sm text-muted-foreground mb-1">
-          <Link href={`/programs/${params.id}`} className="hover:underline">
+          <Link href={`/programs/${id}`} className="hover:underline">
             {prog.name}
           </Link>
         </p>
@@ -110,7 +111,7 @@ export default async function RunsPage({
           {runs.map((run) => (
             <Link
               key={run.id}
-              href={`/programs/${params.id}/runs/${run.id}`}
+              href={`/programs/${id}/runs/${run.id}`}
               className="flex items-center justify-between px-4 py-3 hover:bg-accent transition-colors"
             >
               <div className="flex items-center gap-3">

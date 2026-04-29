@@ -19,8 +19,9 @@ type TriggerRow = {
 export default async function TriggersPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -31,7 +32,7 @@ export default async function TriggersPage({
   const { data: program, error: progError } = await supabase
     .from("programs")
     .select("id, name")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", user.id)
     .single();
 
@@ -48,7 +49,7 @@ export default async function TriggersPage({
     .select(
       "id, program_id, type, config, is_active, webhook_token, next_run_at, last_fired_at, created_at"
     )
-    .eq("program_id", params.id)
+    .eq("program_id", id)
     .order("created_at", { ascending: false });
 
   type RawTrigger = TriggerRow & { webhook_token?: string };
@@ -67,7 +68,7 @@ export default async function TriggersPage({
     <div className="max-w-3xl space-y-6">
       <div>
         <p className="text-sm text-muted-foreground mb-1">
-          <Link href={`/programs/${params.id}`} className="hover:underline">
+          <Link href={`/programs/${id}`} className="hover:underline">
             {prog.name}
           </Link>
         </p>
@@ -78,7 +79,7 @@ export default async function TriggersPage({
       </div>
 
       <TriggerManager
-        programId={params.id}
+        programId={id}
         initialTriggers={triggers}
       />
     </div>

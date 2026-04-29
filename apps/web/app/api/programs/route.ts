@@ -5,30 +5,35 @@ import { apiError } from "@/lib/api";
 import { checkProgramLimit } from "@/lib/limits";
 import { buildBlankProgramSchema } from "@/lib/programs/blank-schema";
 import { validatePostGenesis } from "@/lib/validation";
+import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 
 const CreateProgramBodyZ = z.object({
   mode: z.literal("blank").default("blank"),
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().max(5000).optional(),
+  workspace_id: z.string().uuid().optional(),
 });
 
-// GET /api/programs
+// GET /api/programs — list programs in the active workspace.
 export async function GET() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return apiError("No active workspace", 400);
+
   const { data, error } = await supabase
     .from("programs")
-    .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, created_at, updated_at")
-    .eq("user_id", user.id)
+    .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, visibility, workspace_id, user_id, created_at, updated_at")
+    .eq("workspace_id", ws.workspaceId)
     .order("updated_at", { ascending: false });
 
   if (error) return apiError(error.message, 500);
   return NextResponse.json(data);
 }
 
-// POST /api/programs
+// POST /api/programs — create a program in the active workspace.
 export async function POST(request: Request) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -38,7 +43,13 @@ export async function POST(request: Request) {
   const parsed = CreateProgramBodyZ.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  const limitCheck = await checkProgramLimit(user.id);
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return apiError("No active workspace", 400);
+  if (!canContributeToWorkspace(ws.role)) {
+    return apiError("Viewers cannot create programs.", 403);
+  }
+
+  const limitCheck = await checkProgramLimit(user.id, ws.workspaceId);
   if (!limitCheck.allowed) {
     return NextResponse.json(
       { error: "PROGRAM_LIMIT_REACHED", message: limitCheck.upgradeMessage },
@@ -61,6 +72,7 @@ export async function POST(request: Request) {
     .insert({
       id: programId,
       user_id: user.id,
+      workspace_id: ws.workspaceId,
       name: schema.program_name,
       description: description || null,
       schema: schema as unknown as Record<string, unknown>,
@@ -68,7 +80,7 @@ export async function POST(request: Request) {
       is_active: false,
       updated_at: now,
     } as unknown as never)
-    .select("id, name, description, execution_mode, is_active, schema_version, created_at, updated_at")
+    .select("id, name, description, execution_mode, is_active, schema_version, visibility, workspace_id, user_id, created_at, updated_at")
     .single();
 
   if (insertError || !programRaw) {

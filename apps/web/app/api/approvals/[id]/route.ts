@@ -15,8 +15,9 @@ import { ensureProcessingAllowed } from "@/lib/compliance";
 // what, when, and what context was visible at decision time.
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 

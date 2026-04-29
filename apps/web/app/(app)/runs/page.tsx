@@ -67,7 +67,7 @@ function StatusBadge({ status }: { status: string }) {
 export default async function RunsPage({
   searchParams,
 }: {
-  searchParams: { status?: string };
+  searchParams: Promise<{ status?: string }>;
 }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -81,6 +81,8 @@ export default async function RunsPage({
   const programIds = (programsRaw ?? []).map((p: { id: string }) => p.id);
   const serviceClient = createServiceClient();
 
+  const resolvedSearchParams = await searchParams;
+
   let query = serviceClient
     .from("runs")
     .select("id, program_id, status, triggered_by, started_at, completed_at, error_message, created_at, programs(name)")
@@ -88,8 +90,8 @@ export default async function RunsPage({
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (searchParams.status) {
-    query = query.eq("status", searchParams.status);
+  if (resolvedSearchParams.status) {
+    query = query.eq("status", resolvedSearchParams.status);
   }
 
   const { data: runsRaw } = await query;
@@ -125,7 +127,7 @@ export default async function RunsPage({
               key={label}
               href={value ? `/runs?status=${value}` : "/runs"}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                (searchParams.status ?? "") === value
+                (resolvedSearchParams.status ?? "") === value
                   ? "bg-accent text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -144,13 +146,13 @@ export default async function RunsPage({
             </svg>
           </div>
           <p className="text-sm font-medium mb-1">
-            {searchParams.status ? `No ${searchParams.status} runs` : "No runs yet"}
+            {resolvedSearchParams.status ? `No ${resolvedSearchParams.status} runs` : "No runs yet"}
           </p>
           <p className="text-xs text-muted-foreground/60">Open a program and click Run to get started.</p>
         </div>
       ) : (
         <div className="space-y-6">
-          {active.length > 0 && !searchParams.status && (
+          {active.length > 0 && !resolvedSearchParams.status && (
             <section className="space-y-2">
               <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
                 Active · {active.length}
@@ -159,12 +161,12 @@ export default async function RunsPage({
             </section>
           )}
           <section className="space-y-2">
-            {active.length > 0 && !searchParams.status && (
+            {active.length > 0 && !resolvedSearchParams.status && (
               <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
                 History · {completed.length}
               </h2>
             )}
-            <RunList runs={searchParams.status ? runs : completed} />
+            <RunList runs={resolvedSearchParams.status ? runs : completed} />
           </section>
         </div>
       )}

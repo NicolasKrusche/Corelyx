@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
 import { checkConflictDetectionAccess } from "@/lib/limits";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 const UpdateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
@@ -21,13 +22,17 @@ export async function PATCH(
   if (!user) return apiError("Unauthorized", 401);
 
   const { id } = await params;
+
+  const access = await getProgramAccess(id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("You do not have permission to edit this program.", 403);
+
   const body = await request.json().catch(() => null);
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  // Non-queue conflict policies (skip/fail) require Team plan or higher
   if (parsed.data.conflict_policy && parsed.data.conflict_policy !== "queue") {
-    const conflictCheck = await checkConflictDetectionAccess(user.id);
+    const conflictCheck = await checkConflictDetectionAccess(user.id, access!.workspaceId);
     if (!conflictCheck.allowed) {
       return NextResponse.json(
         { error: "FEATURE_NOT_AVAILABLE", message: conflictCheck.upgradeMessage },
@@ -38,9 +43,8 @@ export async function PATCH(
 
   const { error } = await supabase
     .from("programs")
-    .update({ ...parsed.data, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .update({ ...parsed.data, updated_at: new Date().toISOString() } as never)
+    .eq("id", id);
 
   if (error) return apiError(error.message, 500);
   return NextResponse.json({ ok: true });

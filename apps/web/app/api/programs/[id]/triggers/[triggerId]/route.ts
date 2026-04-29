@@ -1,30 +1,25 @@
 import { NextResponse } from "next/server";
 import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { createServerClient } from "@/lib/supabase/server";
 import {
   enrichWebhookTriggerForClient,
   rotateWebhookToken,
 } from "@/lib/webhook-trigger-auth";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 // ─── PATCH /api/programs/[id]/triggers/[triggerId] — toggle or update ────────
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string; triggerId: string } }
+  { params: routeParams }: { params: Promise<{ id: string; triggerId: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Verify program ownership
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
-    .single();
-  if (progError || !program) return apiError("Program not found", 404);
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can manage triggers.", 403);
 
   const body = await request.json().catch(() => ({}));
 
@@ -89,10 +84,11 @@ export async function PATCH(
     .select(ENRICHED_COLS)
     .single();
 
-  if (!enriched.error && enriched.data) {
+  const enrichedData = enriched.data as unknown as { type: string; webhook_token?: string | null } | null;
+  if (!enriched.error && enrichedData) {
     return NextResponse.json({
       trigger: enrichWebhookTriggerForClient(
-        enriched.data as { type: string; webhook_token?: string | null },
+        enrichedData,
         appUrl,
         { includeSigningSecret }
       ),
@@ -113,7 +109,8 @@ export async function PATCH(
     .select(BASE_COLS)
     .single();
 
-  if (fallback.error || !fallback.data) {
+  const fallbackData = fallback.data as unknown as { type: string; webhook_token?: string | null } | null;
+  if (fallback.error || !fallbackData) {
     const msg = fallback.error?.message ?? enriched.error?.message ?? "Trigger not found or update failed";
     console.error("[/api/programs/[id]/triggers/[triggerId]] update failed:", msg);
     return apiError(msg, 404);
@@ -121,7 +118,7 @@ export async function PATCH(
 
   return NextResponse.json({
     trigger: enrichWebhookTriggerForClient(
-      fallback.data as { type: string; webhook_token?: string | null },
+      fallbackData,
       appUrl,
       { includeSigningSecret }
     ),
@@ -132,20 +129,15 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string; triggerId: string } }
+  { params: routeParams }: { params: Promise<{ id: string; triggerId: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Verify program ownership
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
-    .single();
-  if (progError || !program) return apiError("Program not found", 404);
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can delete triggers.", 403);
 
   const serviceClient = createServiceClient();
   const { error } = await serviceClient

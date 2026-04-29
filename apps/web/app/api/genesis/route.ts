@@ -29,6 +29,7 @@ import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/l
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
+import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -158,8 +159,24 @@ export async function POST(request: Request) {
     );
   }
 
-  // Check genesis AI access (Free tier: 1 use/month)
-  const genesisCheck = await checkGenesisAccess(userId);
+  // Resolve workspace context before plan/usage checks.
+  let workspaceId: string | null = null;
+  if (existing_program_id) {
+    const access = await getProgramAccess(existing_program_id, userId);
+    if (!canView(access)) return loggedApiError("Program not found", 404, "genesis.program_not_found");
+    if (!canEdit(access)) return loggedApiError("Only program editors can refine.", 403, "genesis.forbidden");
+    workspaceId = access!.workspaceId;
+  } else {
+    const ws = await getActiveWorkspace(userId);
+    if (!ws) return loggedApiError("No active workspace", 400, "genesis.no_workspace");
+    if (!canContributeToWorkspace(ws.role)) {
+      return loggedApiError("Viewers cannot generate programs.", 403, "genesis.forbidden");
+    }
+    workspaceId = ws.workspaceId;
+  }
+
+  // Check genesis AI access against the workspace plan.
+  const genesisCheck = await checkGenesisAccess(userId, workspaceId);
   if (!genesisCheck.allowed) {
     const upgradeMessage = genesisCheck.upgradeMessage ?? "Genesis AI limit reached.";
     await logGenesis("warning", "genesis.monthly_limit_reached", "failed", upgradeMessage);
@@ -171,7 +188,7 @@ export async function POST(request: Request) {
 
   // Check program limit before generating (skip for refinements — no new program created)
   if (!isRefinement) {
-    const limitCheck = await checkProgramLimit(userId);
+    const limitCheck = await checkProgramLimit(userId, workspaceId);
     if (!limitCheck.allowed) {
       const upgradeMessage = limitCheck.upgradeMessage ?? "Program limit reached.";
       await logGenesis(
@@ -187,6 +204,8 @@ export async function POST(request: Request) {
     }
   }
 
+  // Resolve workspace context — refinement uses program's workspace, new generation
+  // uses the active workspace.
   // Resolve selected connections and reject stale/invalid IDs before generation.
   let connectionRows: GenesisConnectionRow[] = [];
   if (requestedConnectionIds.length > 0) {
@@ -194,7 +213,7 @@ export async function POST(request: Request) {
       .from("connections")
       .select("id, name, provider, scopes")
       .in("id", requestedConnectionIds)
-      .eq("user_id", userId)
+      .eq("workspace_id", workspaceId)
       .eq("is_valid", true);
 
     if (connError) {
@@ -220,7 +239,7 @@ export async function POST(request: Request) {
   const { data: allKeyRows, error: keysError } = await serviceClient
     .from("api_keys")
     .select("id, vault_secret_id, provider")
-    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .eq("is_valid", true);
 
   const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
@@ -627,12 +646,10 @@ export async function POST(request: Request) {
 
   // ── Refinement path: update existing program ─────────────────────────────
   if (isRefinement) {
-    // Verify ownership and get current version
     const { data: rawExisting, error: fetchError } = await supabase
       .from("programs")
       .select("id, schema_version")
       .eq("id", existing_program_id!)
-      .eq("user_id", userId)
       .single();
 
     if (fetchError || !rawExisting) {
@@ -658,7 +675,6 @@ export async function POST(request: Request) {
         updated_at: now,
       } as unknown as never)
       .eq("id", existing_program_id!)
-      .eq("user_id", userId)
       .select("id, name, description, execution_mode, is_active, created_at")
       .single();
 
@@ -703,7 +719,7 @@ export async function POST(request: Request) {
       },
       existing_program_id
     );
-    await incrementGenesisUses(userId);
+    await incrementGenesisUses(userId, workspaceId);
     return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
   }
 
@@ -712,6 +728,7 @@ export async function POST(request: Request) {
     .from("programs")
     .insert({
       user_id: userId,
+      workspace_id: workspaceId,
       name: schema.program_name,
       description,
       schema: schema as unknown as Record<string, unknown>,
@@ -792,6 +809,6 @@ export async function POST(request: Request) {
     },
     program.id
   );
-  await incrementGenesisUses(userId);
+  await incrementGenesisUses(userId, workspaceId);
   return NextResponse.json({ program, schema, validation }, { status: 201 });
 }

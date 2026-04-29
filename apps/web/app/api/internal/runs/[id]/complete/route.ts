@@ -17,8 +17,9 @@ import { getProcessingRestriction } from "@/lib/compliance";
  */
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   if (!requestHasValidInternalServiceToken(request.headers, "next:runs:complete")) {
     return apiError("Unauthorized", 401);
   }
@@ -182,14 +183,14 @@ export async function POST(
             if (!runtimeRes.ok) {
               await db
                 .from("runs")
-                .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() })
+                .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() } as never)
                 .eq("id", runId);
               continue;
             }
           } catch {
             await db
               .from("runs")
-              .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() })
+              .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
               .eq("id", runId);
             continue;
           }
@@ -197,7 +198,7 @@ export async function POST(
           // Update trigger last_fired_at
           await db
             .from("triggers")
-            .update({ last_fired_at: new Date().toISOString() })
+            .update({ last_fired_at: new Date().toISOString() } as never)
             .eq("id", trigger.id);
         }
       }

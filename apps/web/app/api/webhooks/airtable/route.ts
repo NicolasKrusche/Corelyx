@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
-import { checkAndMark } from "@/lib/webhook-replay-guard";
+import { readBoundedTextBody } from "@/lib/request-body";
+import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 
 type AirtableConnectionRow = {
   id: string;
@@ -36,7 +37,9 @@ export async function POST(request: Request) {
     return apiError("Missing AIRTABLE_WEBHOOK_MAC_SECRET", 500);
   }
 
-  const rawBody = await request.text();
+  const boundedBody = await readBoundedTextBody(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  const rawBody = boundedBody.text;
   const receivedMac = request.headers.get("x-airtable-content-mac");
   if (!receivedMac) return apiError("Missing X-Airtable-Content-MAC header", 401);
 
@@ -71,8 +74,15 @@ export async function POST(request: Request) {
         : null;
   const webhookId = typeof body.webhookId === "string" ? body.webhookId : null;
   const notifTimestamp = typeof body.timestamp === "string" ? body.timestamp : null;
-  if (webhookId && notifTimestamp && !checkAndMark(`airtable:${webhookId}:${notifTimestamp}`)) {
-    return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+  if (webhookId && notifTimestamp) {
+    try {
+      const firstDelivery = await markWebhookDelivery("airtable", `${webhookId}:${notifTimestamp}`);
+      if (!firstDelivery) {
+        return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+      }
+    } catch {
+      return apiError("Failed to record webhook delivery", 500);
+    }
   }
   const changedTablesById = (body.changedTablesById ?? {}) as Record<string, unknown>;
 

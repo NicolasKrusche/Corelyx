@@ -5,6 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { vaultStore } from "@/lib/vault";
 import { checkBYOKAccess } from "@/lib/limits";
+import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 
 const CreateKeySchema = z.object({
   name: z.string().min(1).max(100),
@@ -12,29 +13,38 @@ const CreateKeySchema = z.object({
   key: z.string().min(10),
 });
 
-// GET /api/keys — list user's API keys (no secret values)
+// GET /api/keys — list api keys in active workspace (no secret values).
 export async function GET() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return apiError("No active workspace", 400);
+
   const { data, error } = await supabase
     .from("api_keys")
-    .select("id, name, provider, is_valid, last_validated_at, created_at")
-    .eq("user_id", user.id)
+    .select("id, name, provider, is_valid, last_validated_at, created_at, user_id, workspace_id")
+    .eq("workspace_id", ws.workspaceId)
     .order("created_at", { ascending: false });
 
   if (error) return apiError(error.message, 500);
   return NextResponse.json(data);
 }
 
-// POST /api/keys — add a new API key (stores value in Vault)
+// POST /api/keys — add a new API key (workspace contributor).
 export async function POST(request: Request) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  const byokCheck = await checkBYOKAccess(user.id);
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return apiError("No active workspace", 400);
+  if (!canContributeToWorkspace(ws.role)) {
+    return apiError("Viewers cannot add API keys.", 403);
+  }
+
+  const byokCheck = await checkBYOKAccess(user.id, ws.workspaceId);
   if (!byokCheck.allowed) {
     return NextResponse.json(
       { error: "FEATURE_NOT_AVAILABLE", message: byokCheck.upgradeMessage },
@@ -54,8 +64,8 @@ export async function POST(request: Request) {
     vaultId = await vaultStore(
       serviceClient,
       key,
-      `apikey:${user.id}:${provider}:${name}`,
-      `API key for ${provider} — user ${user.id}`
+      `apikey:${ws.workspaceId}:${provider}:${name}`,
+      `API key for ${provider} — workspace ${ws.workspaceId}`
     );
   } catch (err) {
     return apiError(`Failed to store key securely: ${(err as Error).message}`, 500);
@@ -65,11 +75,12 @@ export async function POST(request: Request) {
     .from("api_keys")
     .insert({
       user_id: user.id,
+      workspace_id: ws.workspaceId,
       name,
       provider,
       vault_secret_id: vaultId,
-    })
-    .select("id, name, provider, is_valid, last_validated_at, created_at")
+    } as never)
+    .select("id, name, provider, is_valid, last_validated_at, created_at, user_id, workspace_id")
     .single();
 
   if (error) return apiError(error.message, 500);

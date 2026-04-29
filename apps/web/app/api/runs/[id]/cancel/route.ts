@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { createServerClient } from "@/lib/supabase/server";
+import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
 
 /**
  * POST /api/runs/[id]/cancel
@@ -10,8 +10,9 @@ import { createServerClient } from "@/lib/supabase/server";
  */
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
@@ -28,16 +29,9 @@ export async function POST(
   if (runError || !runRaw) return apiError("Run not found", 404);
   const run = runRaw as unknown as RunRow;
 
-  // Verify program ownership
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", run.program_id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (progError || !program) return apiError("Not found", 404);
+  const access = await getProgramAccess(run.program_id, user.id);
+  if (!canView(access)) return apiError("Run not found", 404);
+  if (!canRun(access)) return apiError("You do not have permission to cancel this run.", 403);
 
   // Only cancel runs that are still in-flight
   if (!["running", "paused", "pending"].includes(run.status)) {
@@ -54,7 +48,7 @@ export async function POST(
       status: "cancelled",
       completed_at: new Date().toISOString(),
       error_message: "Cancelled by user",
-    })
+    } as never)
     .eq("id", params.id);
 
   if (updateError) return apiError("Failed to cancel run", 500);

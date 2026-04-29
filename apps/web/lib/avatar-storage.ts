@@ -5,7 +5,7 @@ const AVATAR_BUCKET_OPTIONS = {
   public: true,
   fileSizeLimit: 2 * 1024 * 1024,
   allowedMimeTypes: ["image/png", "image/jpeg", "image/webp", "image/gif"],
-} as const;
+};
 
 let ensureAvatarBucketPromise: Promise<void> | null = null;
 

@@ -5,6 +5,7 @@ import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { findPremadeBrowseProgram } from "@/lib/browse-programs";
+import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 
 /**
  * POST /api/browse/[id]/fork
@@ -17,11 +18,18 @@ import { findPremadeBrowseProgram } from "@/lib/browse-programs";
  */
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return apiError("No active workspace", 400);
+  if (!canContributeToWorkspace(ws.role)) {
+    return apiError("Viewers cannot fork programs.", 403);
+  }
 
   const db = createServiceClient();
 
@@ -78,7 +86,7 @@ export async function POST(
     const { data: connsRaw } = await supabase
       .from("connections")
       .select("id, name, provider, scopes")
-      .eq("user_id", user.id)
+      .eq("workspace_id", ws.workspaceId)
       .in("name", referencedNames);
     matchedConnections = (connsRaw ?? []) as unknown as ConnectionRow[];
   }
@@ -90,6 +98,7 @@ export async function POST(
     .from("programs")
     .insert({
       user_id: user.id,
+      workspace_id: ws.workspaceId,
       name: forkedName,
       description: source.description ?? null,
       schema: forkedSchema as unknown as Record<string, unknown>,

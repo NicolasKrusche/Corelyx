@@ -6,6 +6,7 @@ import {
 	EmptyHeader,
 	EmptyTitle,
 } from "@/components/ui/empty";
+import Link from "next/link";
 import { HomeIcon, CompassIcon } from "lucide-react";
 
 export function NotFound() {
@@ -17,27 +18,27 @@ export function NotFound() {
 						404
 					</EmptyTitle>
 					<EmptyDescription className="-mt-8 text-nowrap text-foreground/80">
-						The page you're looking for might have been <br />
-						moved or doesn't exist.
+						The page you&apos;re looking for might have been <br />
+						moved or doesn&apos;t exist.
 					</EmptyDescription>
 				</EmptyHeader>
 				<EmptyContent>
 					<div className="flex gap-2">
 						<Button asChild>
-							<a href="/">
+							<Link href="/">
 								<HomeIcon
 								className="size-4 mr-2" data-icon="inline-start" />
 								Go Home
-							</a>
+							</Link>
 						</Button>
 
 						<Button asChild variant="outline">
-							<a href="/dashboard">
+							<Link href="/dashboard">
 								<CompassIcon 
 								className="size-4 mr-2" 
 								data-icon="inline-start" />{" "}
 								Explore
-							</a>
+							</Link>
 						</Button>
 					</div>
 				</EmptyContent>

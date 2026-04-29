@@ -1,4 +1,4 @@
-import { NonRetriableError } from "inngest";
+import { NonRetriableError, cron } from "inngest";
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
@@ -28,8 +28,7 @@ type PendingApproval = {
  * executor). Falls back to DEFAULT_TIMEOUT_HOURS (24h) for older approvals.
  */
 export const approvalTimeout = inngest.createFunction(
-  { id: "approval-timeout", name: "Approval Timeout Enforcer" },
-  { cron: "* * * * *" },
+  { id: "approval-timeout", name: "Approval Timeout Enforcer", triggers: cron("* * * * *") },
   async ({ step, logger }) => {
     const db = createServiceClient();
 
@@ -48,7 +47,7 @@ export const approvalTimeout = inngest.createFunction(
     if (pending.length === 0) return { expired: 0 };
 
     const now = Date.now();
-    const expired = pending.filter((approval) => {
+    const expired = pending.filter((approval: PendingApproval) => {
       const timeoutHours = approval.context?.timeout_hours ?? DEFAULT_TIMEOUT_HOURS;
       const createdAt = new Date(approval.created_at).getTime();
       const expiresAt = createdAt + timeoutHours * 60 * 60 * 1000;

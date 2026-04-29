@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { createServerClient } from "@/lib/supabase/server";
+import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
 /**
  * PATCH /api/programs/[id]/execution-mode
@@ -9,20 +9,15 @@ import { createServerClient } from "@/lib/supabase/server";
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // Verify ownership
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
-    .from("programs")
-    .select("id")
-    .eq("id", params.id)
-    .eq("user_id", user.id)
-    .single();
-  if (progError || !program) return apiError("Program not found", 404);
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("You do not have permission to edit this program.", 403);
 
   const body = await request.json().catch(() => ({}));
 

@@ -12,8 +12,9 @@ type ConflictEntry = {
 export default async function ConflictsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -23,7 +24,7 @@ export default async function ConflictsPage({
   const { data: program, error: progError } = await supabase
     .from("programs")
     .select("id, name, conflict_policy")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", user.id)
     .single();
 
@@ -38,7 +39,7 @@ export default async function ConflictsPage({
   const { data: linkedConns } = await serviceClient
     .from("program_connections")
     .select("connection_id")
-    .eq("program_id", params.id);
+    .eq("program_id", id);
 
   const connectionIds = (linkedConns ?? []).map(
     (r: { connection_id: string }) => r.connection_id
@@ -50,7 +51,7 @@ export default async function ConflictsPage({
       .from("program_connections")
       .select("program_id, connection_id")
       .in("connection_id", connectionIds)
-      .neq("program_id", params.id);
+      .neq("program_id", id);
 
     const conflictingProgramIds = [
       ...new Set(
@@ -103,7 +104,7 @@ export default async function ConflictsPage({
     <div className="max-w-3xl space-y-6">
       <div>
         <p className="text-sm text-muted-foreground mb-1">
-          <Link href={`/programs/${params.id}`} className="hover:underline">
+          <Link href={`/programs/${id}`} className="hover:underline">
             {prog.name}
           </Link>
         </p>
@@ -114,7 +115,7 @@ export default async function ConflictsPage({
       </div>
 
       <ConflictResolutionPanel
-        programId={params.id}
+        programId={id}
         conflictPolicy={prog.conflict_policy}
         conflicts={conflicts}
       />

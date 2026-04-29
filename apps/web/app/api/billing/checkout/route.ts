@@ -9,6 +9,7 @@ import {
   type PaidTier,
 } from "@/lib/billing";
 import { getStripeClient } from "@/lib/stripe";
+import { getActiveWorkspace } from "@/lib/workspaces";
 
 function readString(value: FormDataEntryValue | string | null | undefined): string | null {
   if (typeof value === "string") return value;
@@ -60,14 +61,20 @@ export async function POST(request: Request) {
   if (!parsed) return apiError("Invalid billing selection.", 400);
 
   const { tier, interval } = parsed;
+  const activeWorkspace = await getActiveWorkspace(user.id);
+  if (!activeWorkspace) return apiError("No active workspace.", 400);
 
   // Validate welcome offer eligibility server-side
   const isWelcomeOffer = rawWelcomeOffer === "true" && tier === "plus" && interval === "month";
   let welcomeCouponId: string | null = null;
   if (isWelcomeOffer) {
-    const { data: profile } = await supabase.from("profiles").select("tier, created_at").eq("id", user.id).single();
-    const tierNow = (profile as { tier?: string } | null)?.tier ?? "free";
-    const createdAt = (profile as { created_at?: string } | null)?.created_at ?? "";
+    const { data: workspace } = await supabase
+      .from("workspaces")
+      .select("tier, created_at")
+      .eq("id", activeWorkspace.workspaceId)
+      .single();
+    const tierNow = (workspace as { tier?: string } | null)?.tier ?? "free";
+    const createdAt = (workspace as { created_at?: string } | null)?.created_at ?? "";
     const withinWindow = createdAt
       ? Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
       : false;
@@ -98,12 +105,14 @@ export async function POST(request: Request) {
     client_reference_id: user.id,
     metadata: {
       user_id: user.id,
+      workspace_id: activeWorkspace.workspaceId,
       requested_tier: tier,
       requested_interval: interval,
     },
     subscription_data: {
       metadata: {
         user_id: user.id,
+        workspace_id: activeWorkspace.workspaceId,
         tier,
         interval,
       },

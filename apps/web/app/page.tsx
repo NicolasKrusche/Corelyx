@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, type Variants } from "framer-motion";
 import { useRef } from "react";
 import {
   ArrowRight,
@@ -107,12 +107,12 @@ const COMPLIANCE_CARDS = [
   },
 ];
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 28 },
   visible: (i: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.55, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.55, delay: i * 0.1, ease: "easeOut" },
   }),
 };
 
@@ -535,7 +535,7 @@ function ComplianceSection() {
               GDPR-compliant by architecture, not by checkbox.
             </h2>
             <p className="max-w-2xl text-lg leading-8 text-[#5d554d]">
-              Zapier, Make, and n8n were built for speed in a US context. Corelyx was designed from day one for the EU's data sovereignty requirements — so your legal team doesn't have to audit every automation you ship.
+              Zapier, Make, and n8n were built for speed in a US context. Corelyx was designed from day one for the EU&apos;s data sovereignty requirements — so your legal team doesn&apos;t have to audit every automation you ship.
             </p>
           </div>
         </Reveal>
@@ -567,7 +567,7 @@ function ComplianceSection() {
             <div className="flex-1">
               <p className="text-sm font-semibold">Zero data exposure — GDPR Article 32 compliant</p>
               <p className="mt-0.5 text-sm text-[#62594f]">
-                API keys and OAuth tokens are never returned to the frontend. All credential access goes through <span className="font-mono text-xs bg-[#f3efe7] px-1.5 py-0.5 rounded">getValidToken()</span> — a server-side route within EU jurisdiction. Your data doesn't touch our margins.
+                API keys and OAuth tokens are never returned to the frontend. All credential access goes through <span className="font-mono text-xs bg-[#f3efe7] px-1.5 py-0.5 rounded">getValidToken()</span> — a server-side route within EU jurisdiction. Your data doesn&apos;t touch our margins.
               </p>
             </div>
             <Link

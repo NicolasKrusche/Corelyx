@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { createServerClient } from "@/lib/supabase/server";
+import { canView, getProgramAccess } from "@/lib/workspaces";
 
 // GET /api/runs/[id]
 // Returns run row + node_executions for that run, ordered by created_at
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
@@ -46,13 +47,13 @@ export async function GET(
 
   const run = runRaw as unknown as RunRow;
 
-  // Verify the program belongs to the current user
-  const supabase = await createServerClient();
-  const { data: program, error: progError } = await supabase
+  const access = await getProgramAccess(run.program_id, user.id);
+  if (!canView(access)) return apiError("Run not found", 404);
+
+  const { data: program, error: progError } = await serviceClient
     .from("programs")
     .select("id, name, schema")
     .eq("id", run.program_id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) return apiError("Run not found", 404);

@@ -145,7 +145,7 @@ export async function upsertOAuthConnection(
         metadata: params.metadata,
         is_valid: true,
         last_validated_at: new Date().toISOString(),
-      })
+      } as never)
       .eq("id", primary.id);
     if (error) throw new Error(`DB update failed: ${error.message}`);
   } else {
@@ -159,7 +159,7 @@ export async function upsertOAuthConnection(
       metadata: params.metadata,
       is_valid: true,
       last_validated_at: new Date().toISOString(),
-    });
+    } as never);
     if (error) throw new Error(`DB insert failed: ${error.message}`);
   }
 }
@@ -225,7 +225,7 @@ async function rotateVaultTokens(
       vault_secret_id: newVaultId,
       is_valid: true,
       last_validated_at: new Date().toISOString(),
-    })
+    } as never)
     .eq("id", connectionId);
 
   return newVaultId;
@@ -281,7 +281,7 @@ export async function getValidOAuthToken(
     // Can't refresh — mark connection invalid
     await supabase
       .from("connections")
-      .update({ is_valid: false })
+      .update({ is_valid: false } as never)
       .eq("id", connectionId);
     throw new Error(`Connection ${connection.provider} token is expired and has no refresh token. Please reconnect.`);
   }
@@ -316,7 +316,7 @@ export async function getValidOAuthToken(
   const respText = await refreshRes.text();
 
   if (!refreshRes.ok) {
-    await supabase.from("connections").update({ is_valid: false }).eq("id", connectionId);
+    await supabase.from("connections").update({ is_valid: false } as never).eq("id", connectionId);
     const summary = summarizeRefreshFailure(
       connection.provider,
       refreshRes.status,

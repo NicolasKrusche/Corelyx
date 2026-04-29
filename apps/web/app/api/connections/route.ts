@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
+import { getActiveWorkspace } from "@/lib/workspaces";
 
 const COMMON_METADATA_KEYS = ["email"] as const;
 const METADATA_RESPONSE_KEYS: Record<string, readonly string[]> = {
@@ -54,7 +55,7 @@ function sanitizeMetadataForClient(
   return Object.keys(out).length > 0 ? out : null;
 }
 
-// GET /api/connections
+// GET /api/connections — connections in the active workspace.
 export async function GET() {
   const supabase = await createServerClient();
   const {
@@ -62,10 +63,13 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
+  const ws = await getActiveWorkspace(user.id);
+  if (!ws) return apiError("No active workspace", 400);
+
   const { data, error } = await supabase
     .from("connections")
-    .select("id, name, provider, auth_type, scopes, metadata, is_valid, last_validated_at, created_at")
-    .eq("user_id", user.id)
+    .select("id, name, provider, auth_type, scopes, metadata, is_valid, last_validated_at, created_at, user_id, workspace_id")
+    .eq("workspace_id", ws.workspaceId)
     .order("created_at", { ascending: false });
 
   if (error) return apiError(error.message, 500);

@@ -1,14 +1,20 @@
 /** @type {import('next').NextConfig} */
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=()",
+  },
+  {
+    key: "Content-Security-Policy",
+    value: "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+  },
+];
+
 const nextConfig = {
   transpilePackages: ["@flowos/schema", "@flowos/db"],
-  typescript: {
-    // Type errors will be fixed once we run `supabase gen types` against a real project.
-    // Remove this flag after first DB connection.
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   experimental: {
     optimizePackageImports: [
       "lucide-react",
@@ -17,6 +23,14 @@ const nextConfig = {
       "@tsparticles/react",
       "@tsparticles/slim",
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders,
+      },
+    ];
   },
 };
 

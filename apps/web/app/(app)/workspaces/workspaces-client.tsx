@@ -8,7 +8,7 @@ import {
   canAssignWorkspaceRole,
   canManageWorkspace,
   type WorkspaceRole,
-} from "@/lib/workspaces";
+} from "@/lib/workspace-types";
 
 type Workspace = {
   id: string;

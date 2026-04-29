@@ -33,6 +33,7 @@ export interface PlanEntitlements {
 
   // Collaboration
   maxTeamSeats: number | null;
+  maxWorkspaces: number | null;
 
   // Model credits (operational signal, not code-enforced)
   modelCreditsIncluded: boolean;
@@ -50,6 +51,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: false,
     priorityExecution: false,
     maxTeamSeats: 1,
+    maxWorkspaces: 1,
     modelCreditsIncluded: false,
   },
   plus: {
@@ -63,6 +65,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: false,
     priorityExecution: false,
     maxTeamSeats: 1,
+    maxWorkspaces: 1,
     modelCreditsIncluded: false,
   },
   pro: {
@@ -76,6 +79,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: true,
     priorityExecution: false,
     maxTeamSeats: 3,
+    maxWorkspaces: 3,
     modelCreditsIncluded: true,
   },
   builder: {
@@ -89,6 +93,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: true,
     priorityExecution: true,
     maxTeamSeats: null,
+    maxWorkspaces: null,
     modelCreditsIncluded: true,
   },
   unlimited: {
@@ -102,6 +107,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: true,
     priorityExecution: true,
     maxTeamSeats: null,
+    maxWorkspaces: null,
     modelCreditsIncluded: true,
   },
 };

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
+import { readBoundedTextBody } from "@/lib/request-body";
+import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import {
   retrieveConnectionWebhookSecret,
   storeConnectionWebhookSecret,
@@ -49,7 +51,9 @@ const LEGACY_ASANA_SECRET_METADATA_KEY = "asana_hook_secret";
  *   (format: "<resource_type>.<action>")
  */
 export async function POST(request: Request) {
-  const rawBody = await request.text();
+  const boundedBody = await readBoundedTextBody(request);
+  if (!boundedBody.ok) return boundedBody.response;
+  const rawBody = boundedBody.text;
 
   // ── Asana handshake ──────────────────────────────────────────────────────────
   const hookSecret = request.headers.get("x-hook-secret");
@@ -182,6 +186,21 @@ export async function POST(request: Request) {
   const events = body.events ?? [];
   if (events.length === 0) {
     return NextResponse.json({ ok: true, accepted: true, fired: 0 });
+  }
+
+  const firstEvent = events[0];
+  const deliveryId = firstEvent
+    ? `${connectionId}:${firstEvent.created_at}:${firstEvent.resource?.gid ?? "unknown"}:${firstEvent.action}`
+    : null;
+  if (deliveryId) {
+    try {
+      const firstDelivery = await markWebhookDelivery("asana", deliveryId);
+      if (!firstDelivery) {
+        return NextResponse.json({ ok: true, accepted: true, duplicate: true });
+      }
+    } catch {
+      return apiError("Failed to record webhook delivery", 500);
+    }
   }
 
   // Group by derived event name and dispatch each group

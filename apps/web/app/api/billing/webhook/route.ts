@@ -17,25 +17,48 @@ function getWebhookSecret(): string {
   return secret;
 }
 
-async function applySubscriptionToProfile(subscription: Stripe.Subscription) {
+async function applySubscriptionToWorkspace(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.user_id;
-  if (!userId) return;
+  const workspaceId = subscription.metadata?.workspace_id;
+  if (!userId && !workspaceId) return;
 
   const status = subscription.status;
   const priceId = subscription.items.data[0]?.price?.id ?? "";
   const mappedTier = getTierFromPriceId(priceId);
   const isActive = ACTIVE_SUB_STATUSES.has(status);
+  const currentPeriodEnd =
+    (subscription as Stripe.Subscription & { current_period_end?: number | null })
+      .current_period_end ?? null;
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : "id" in subscription.customer
+        ? subscription.customer.id
+        : null;
 
   const tier = isActive && mappedTier ? mappedTier : "free";
   const planExpiresAt =
-    isActive && subscription.current_period_end
-      ? new Date(subscription.current_period_end * 1000).toISOString()
+    isActive && currentPeriodEnd
+      ? new Date(currentPeriodEnd * 1000).toISOString()
       : null;
 
   const service = createServiceClient();
+  if (workspaceId) {
+    await service
+      .from("workspaces")
+      .update({
+        tier,
+        plan_expires_at: planExpiresAt,
+        stripe_subscription_id: subscription.id,
+        stripe_customer_id: customerId,
+      } as never)
+      .eq("id", workspaceId);
+    return;
+  }
+
   await service
     .from("profiles")
-    .update({ tier, plan_expires_at: planExpiresAt })
+    .update({ tier, plan_expires_at: planExpiresAt } as never)
     .eq("id", userId);
 }
 
@@ -68,6 +91,7 @@ export async function POST(request: Request) {
         await stripe.subscriptions.update(session.subscription, {
           metadata: {
             user_id: session.client_reference_id,
+            workspace_id: session.metadata?.workspace_id ?? "",
           },
         });
       }
@@ -78,7 +102,7 @@ export async function POST(request: Request) {
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription;
-      await applySubscriptionToProfile(subscription);
+      await applySubscriptionToWorkspace(subscription);
       break;
     }
 

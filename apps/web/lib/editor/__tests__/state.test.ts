@@ -15,7 +15,7 @@ const baseSchema: ProgramSchema = {
   version_history: [],
   metadata: {
     description: "",
-    genesis_model: null,
+    genesis_model: "",
     genesis_timestamp: "2026-04-29T00:00:00.000Z",
     tags: [],
     is_active: false,

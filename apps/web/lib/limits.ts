@@ -11,10 +11,12 @@ import {
   type Tier,
   type TriggerType,
 } from "@/lib/entitlements";
+import { getActiveWorkspace } from "@/lib/workspaces";
 
 // ─── Internal profile fetch ───────────────────────────────────────────────────
 
-interface UserProfile {
+interface BillingScope {
+  workspaceId: string | null;
   tier: Tier;
   bonus_runs: number;
   is_beta_tester: boolean;
@@ -22,48 +24,74 @@ interface UserProfile {
   genesis_month_reset_at: string | null;
 }
 
-async function getUserProfile(userId: string): Promise<UserProfile> {
+async function resolveWorkspaceId(userId: string, workspaceId?: string | null): Promise<string | null> {
+  if (workspaceId) return workspaceId;
+  return (await getActiveWorkspace(userId))?.workspaceId ?? null;
+}
+
+async function getBillingScope(userId: string, workspaceId?: string | null): Promise<BillingScope> {
   const serviceClient = createServiceClient();
-  const [{ data: profileData }, { data: authData }] = await Promise.all([
+  const resolvedWorkspaceId = await resolveWorkspaceId(userId, workspaceId);
+  const [{ data: profileData }, { data: workspaceData }, { data: authData }] = await Promise.all([
     serviceClient
       .from("profiles")
       .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at")
       .eq("id", userId)
       .single(),
+    resolvedWorkspaceId
+      ? serviceClient
+          .from("workspaces")
+          .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at")
+          .eq("id", resolvedWorkspaceId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     serviceClient.auth.admin.getUserById(userId),
   ]);
 
+  const billingData = (workspaceData ?? profileData) as {
+    tier?: string;
+    bonus_runs?: number;
+    is_beta_tester?: boolean;
+    genesis_uses_this_month?: number;
+    genesis_month_reset_at?: string | null;
+  } | null;
+
   const tier: Tier = isAdminEmail(authData?.user?.email)
     ? "unlimited"
-    : parseTier((profileData as { tier?: string } | null)?.tier);
+    : parseTier(billingData?.tier);
 
   return {
+    workspaceId: resolvedWorkspaceId,
     tier,
-    bonus_runs: (profileData as { bonus_runs?: number } | null)?.bonus_runs ?? 0,
-    is_beta_tester: (profileData as { is_beta_tester?: boolean } | null)?.is_beta_tester ?? false,
-    genesis_uses_this_month: (profileData as { genesis_uses_this_month?: number } | null)?.genesis_uses_this_month ?? 0,
-    genesis_month_reset_at: (profileData as { genesis_month_reset_at?: string | null } | null)?.genesis_month_reset_at ?? null,
+    bonus_runs: billingData?.bonus_runs ?? 0,
+    is_beta_tester: billingData?.is_beta_tester ?? false,
+    genesis_uses_this_month: billingData?.genesis_uses_this_month ?? 0,
+    genesis_month_reset_at: billingData?.genesis_month_reset_at ?? null,
   };
 }
 
-/** Count programs owned by a user. */
-async function countPrograms(userId: string): Promise<number> {
+/** Count programs in a workspace. */
+async function countPrograms(userId: string, workspaceId?: string | null): Promise<number> {
   const serviceClient = createServiceClient();
-  const { count } = await serviceClient
+  const resolvedWorkspaceId = await resolveWorkspaceId(userId, workspaceId);
+  let query = serviceClient
     .from("programs")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
+    .select("id", { count: "exact", head: true });
+  query = resolvedWorkspaceId ? query.eq("workspace_id", resolvedWorkspaceId) : query.eq("user_id", userId);
+  const { count } = await query;
   return count ?? 0;
 }
 
-/** Count runs started in the current calendar month across all user programs. */
-async function countMonthlyRuns(userId: string): Promise<number> {
+/** Count runs started in the current calendar month across workspace programs. */
+async function countMonthlyRuns(userId: string, workspaceId?: string | null): Promise<number> {
   const serviceClient = createServiceClient();
+  const resolvedWorkspaceId = await resolveWorkspaceId(userId, workspaceId);
 
-  const { data: programRows } = await serviceClient
+  let programQuery = serviceClient
     .from("programs")
-    .select("id")
-    .eq("user_id", userId);
+    .select("id");
+  programQuery = resolvedWorkspaceId ? programQuery.eq("workspace_id", resolvedWorkspaceId) : programQuery.eq("user_id", userId);
+  const { data: programRows } = await programQuery;
 
   if (!programRows || programRows.length === 0) return 0;
 
@@ -108,14 +136,14 @@ export interface LimitCheckResult {
 
 // ─── Quantitative limits ──────────────────────────────────────────────────────
 
-export async function getRunUsage(userId: string): Promise<{
+export async function getRunUsage(userId: string, workspaceId?: string | null): Promise<{
   current: number;
   total: number | null;
   tier: Tier;
 }> {
-  const profile = await getUserProfile(userId);
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
-  const current = await countMonthlyRuns(userId);
+  const current = await countMonthlyRuns(userId, profile.workspaceId);
   const total =
     ent.runsPerMonth === null
       ? null
@@ -123,13 +151,13 @@ export async function getRunUsage(userId: string): Promise<{
   return { current, total, tier: profile.tier };
 }
 
-export async function checkProgramLimit(userId: string): Promise<LimitCheckResult> {
-  const profile = await getUserProfile(userId);
+export async function checkProgramLimit(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
   if (ent.maxPrograms === null) return { allowed: true };
 
-  const current = await countPrograms(userId);
+  const current = await countPrograms(userId, profile.workspaceId);
   if (current >= ent.maxPrograms) {
     return {
       allowed: false,
@@ -141,14 +169,14 @@ export async function checkProgramLimit(userId: string): Promise<LimitCheckResul
   return { allowed: true };
 }
 
-export async function checkRunLimit(userId: string): Promise<LimitCheckResult> {
-  const profile = await getUserProfile(userId);
+export async function checkRunLimit(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
   if (ent.runsPerMonth === null) return { allowed: true };
 
   const totalAllowed = ent.runsPerMonth + (profile.bonus_runs ?? 0);
-  const current = await countMonthlyRuns(userId);
+  const current = await countMonthlyRuns(userId, profile.workspaceId);
 
   if (current >= totalAllowed) {
     const upgradeMessage =
@@ -176,9 +204,10 @@ export async function checkRunLimit(userId: string): Promise<LimitCheckResult> {
 
 export async function checkTriggerAccess(
   userId: string,
-  triggerType: TriggerType
+  triggerType: TriggerType,
+  workspaceId?: string | null
 ): Promise<LimitCheckResult> {
-  const profile = await getUserProfile(userId);
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
   if (ent.triggers[triggerType]) return { allowed: true };
@@ -194,8 +223,8 @@ export async function checkTriggerAccess(
   };
 }
 
-export async function checkHITLAccess(userId: string): Promise<LimitCheckResult> {
-  const profile = await getUserProfile(userId);
+export async function checkHITLAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
   if (ent.hitlApprovals) return { allowed: true };
@@ -207,8 +236,8 @@ export async function checkHITLAccess(userId: string): Promise<LimitCheckResult>
   };
 }
 
-export async function checkConflictDetectionAccess(userId: string): Promise<LimitCheckResult> {
-  const profile = await getUserProfile(userId);
+export async function checkConflictDetectionAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
   if (ent.conflictDetection) return { allowed: true };
@@ -220,8 +249,8 @@ export async function checkConflictDetectionAccess(userId: string): Promise<Limi
   };
 }
 
-export async function checkBYOKAccess(userId: string): Promise<LimitCheckResult> {
-  const profile = await getUserProfile(userId);
+export async function checkBYOKAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
   if (ent.byok) return { allowed: true };
@@ -234,10 +263,10 @@ export async function checkBYOKAccess(userId: string): Promise<LimitCheckResult>
 }
 
 /** Check genesis access and return current usage stats. */
-export async function checkGenesisAccess(userId: string): Promise<
+export async function checkGenesisAccess(userId: string, workspaceId?: string | null): Promise<
   LimitCheckResult & { usesThisMonth: number; maxUses: number | null }
 > {
-  const profile = await getUserProfile(userId);
+  const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
   if (ent.genesisUsesPerMonth === null) {
@@ -262,12 +291,16 @@ export async function checkGenesisAccess(userId: string): Promise<
 }
 
 /** Atomically increment genesis uses after a successful genesis call. */
-export async function incrementGenesisUses(userId: string): Promise<void> {
+export async function incrementGenesisUses(userId: string, workspaceId?: string | null): Promise<void> {
   const serviceClient = createServiceClient();
+  const resolvedWorkspaceId = await resolveWorkspaceId(userId, workspaceId);
+  const table = resolvedWorkspaceId ? "workspaces" : "profiles";
+  const idColumn = resolvedWorkspaceId ? "id" : "id";
+  const idValue = resolvedWorkspaceId ?? userId;
   const { data: profileData } = await serviceClient
-    .from("profiles")
+    .from(table)
     .select("genesis_uses_this_month, genesis_month_reset_at")
-    .eq("id", userId)
+    .eq(idColumn, idValue)
     .single();
 
   const resetAt = (profileData as { genesis_month_reset_at?: string | null } | null)?.genesis_month_reset_at ?? null;
@@ -276,16 +309,37 @@ export async function incrementGenesisUses(userId: string): Promise<void> {
     : 0;
 
   await serviceClient
-    .from("profiles")
+    .from(table)
     .update({
       genesis_uses_this_month: currentUses + 1,
       genesis_month_reset_at: new Date().toISOString(),
     } as never)
-    .eq("id", userId);
+    .eq(idColumn, idValue);
 }
 
 /** Return how many days of run history this user is entitled to (null = unlimited). */
-export async function getRunHistoryDays(userId: string): Promise<number | null> {
-  const profile = await getUserProfile(userId);
+export async function getRunHistoryDays(userId: string, workspaceId?: string | null): Promise<number | null> {
+  const profile = await getBillingScope(userId, workspaceId);
   return getEntitlements(profile.tier).runHistoryDays;
+}
+
+export async function checkWorkspaceLimit(userId: string): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId);
+  const ent = getEntitlements(profile.tier);
+  if (ent.maxWorkspaces === null) return { allowed: true };
+
+  const serviceClient = createServiceClient();
+  const { count } = await serviceClient
+    .from("workspaces")
+    .select("id", { count: "exact", head: true })
+    .eq("created_by", userId);
+  const current = count ?? 0;
+  if (current >= ent.maxWorkspaces) {
+    return {
+      allowed: false,
+      reason: `Workspace limit reached (${current}/${ent.maxWorkspaces} on ${profile.tier} plan)`,
+      upgradeMessage: "Your current plan only allows one workspace. Upgrade to Team or higher to create more workspaces.",
+    };
+  }
+  return { allowed: true };
 }

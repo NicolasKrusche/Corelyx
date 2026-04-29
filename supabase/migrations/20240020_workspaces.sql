@@ -1,6 +1,32 @@
 -- Workspace and membership model.
 -- Workspaces provide a shared account container with per-person roles.
 
+-- Harden this migration for environments that did not apply the initial
+-- profile migration cleanly before workspace migrations.
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  org_id        UUID,
+  display_name  TEXT,
+  avatar_url    TEXT,
+  tier          TEXT DEFAULT 'free',
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS org_id UUID,
+  ADD COLUMN IF NOT EXISTS display_name TEXT,
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free',
+  ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS bonus_runs INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS is_beta_tester BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS genesis_uses_this_month INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS genesis_month_reset_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS processing_restricted BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS processing_restricted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS processing_restriction_reason TEXT;
+
 CREATE TABLE IF NOT EXISTS public.workspaces (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
