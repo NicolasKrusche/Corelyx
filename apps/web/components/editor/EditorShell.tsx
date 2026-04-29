@@ -20,7 +20,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { editorReducer, initialEditorState } from "@/lib/editor/state";
-import { toReactFlow, fromReactFlow } from "@/lib/schema";
+import { toReactFlow } from "@/lib/schema";
 import { applyDagreLayout, needsLayout } from "@/lib/schema/layout";
 import { validatePostGenesis } from "@/lib/validation";
 
@@ -215,6 +215,8 @@ function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
   return {
     id: schemaNode.id,
     type: schemaNode.type,
+    draggable: true,
+    selectable: true,
     position: schemaNode.position,
     data: {
       label: schemaNode.label,
@@ -252,6 +254,11 @@ interface EditorShellProps {
   linkedConnections: { id: string; name: string; provider: string; scopes: string[] }[];
   allConnections: { id: string; name: string; provider: string; scopes: string[] }[];
 }
+
+type EditorContextMenu =
+  | { kind: "node"; nodeId: string; x: number; y: number }
+  | { kind: "pane"; x: number; y: number; flowPosition: { x: number; y: number } }
+  | null;
 
 // ─── EditorShell ──────────────────────────────────────────────────────────────
 
@@ -299,6 +306,19 @@ export function EditorShell({
   const [showHistory, setShowHistory] = React.useState(false);
   const [showPalette, setShowPalette] = React.useState(false);
   const [showAiEdit, setShowAiEdit] = React.useState(false);
+  const [contextMenu, setContextMenu] = React.useState<EditorContextMenu>(null);
+  const [contextAddPosition, setContextAddPosition] = React.useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-editor-context-menu]")) return;
+      setContextMenu(null);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [contextMenu]);
 
   // ── AI edit state ─────────────────────────────────────────────────────────
 
@@ -389,14 +409,51 @@ export function EditorShell({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ schema }),
         });
+        const body = await res.json().catch(() => null) as {
+          validation?: ValidationResult;
+          error?: string;
+          message?: string;
+        } | null;
+
         if (res.ok) {
+          if (body?.validation) {
+            dispatch({ type: "SET_VALIDATION", result: body.validation });
+            const issueCount = body.validation.errors.length + body.validation.warnings.length;
+            setValidationNotice(
+              issueCount > 0
+                ? `Draft saved with ${issueCount} validation warning${issueCount === 1 ? "" : "s"}.`
+                : "Draft saved."
+            );
+          } else {
+            setValidationNotice("Draft saved.");
+          }
           dispatch({ type: "MARK_SAVED" });
           return true;
         } else {
+          const message =
+            body?.message ??
+            body?.error ??
+            "Could not save the draft.";
+          setValidationNotice(message);
+          setPreFlightChecks([
+            makePreFlightErrorCheck(
+              "Save failed",
+              message,
+              "Review the draft and try Save again."
+            ),
+          ]);
           dispatch({ type: "SET_SAVING", saving: false });
           return false;
         }
       } catch {
+        setValidationNotice("Could not reach the server while saving.");
+        setPreFlightChecks([
+          makePreFlightErrorCheck(
+            "Save failed",
+            "Could not reach the server while saving.",
+            "Check your connection and try Save again."
+          ),
+        ]);
         dispatch({ type: "SET_SAVING", saving: false });
         return false;
       }
@@ -526,6 +583,28 @@ export function EditorShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedConnections]);
 
+  const duplicateNode = useCallback(
+    (nodeId: string, position?: { x: number; y: number }) => {
+      const src = state.schema.nodes.find((node) => node.id === nodeId);
+      if (!src) return;
+
+      const newId = crypto.randomUUID();
+      const newNode: SchemaNode = {
+        ...src,
+        id: newId,
+        label: `${src.label} (copy)`,
+        position: position ?? { x: src.position.x + 40, y: src.position.y + 40 },
+        status: "idle",
+      } as SchemaNode;
+
+      dispatch({ type: "UPDATE_NODE", nodeId: newId, patch: newNode });
+      dispatch({ type: "SELECT_NODE", nodeId: newId });
+      skipSyncRef.current = true;
+      setRfNodes((prev) => [...prev, schemaNodeToReactFlowNode(newNode)]);
+    },
+    [state.schema.nodes]
+  );
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -562,41 +641,13 @@ export function EditorShell({
       // Paste: Cmd+V
       if (meta && e.key === "v") {
         if (clipboardRef.current) {
-          const src = clipboardRef.current;
-          const newId = crypto.randomUUID();
-          const newNode: SchemaNode = {
-            ...src,
-            id: newId,
-            label: src.label + " (copy)",
-            position: { x: src.position.x + 40, y: src.position.y + 40 },
-            status: "idle",
-          } as SchemaNode;
-          dispatch({ type: "UPDATE_NODE", nodeId: newId, patch: newNode });
-          skipSyncRef.current = true;
-          setRfNodes((prev) => [
-            ...prev,
-            {
-              id: newId,
-              type: newNode.type,
-              position: newNode.position,
-              data: {
-                label: newNode.label,
-                description: newNode.description,
-                connection: newNode.connection,
-                status: newNode.status,
-                config: newNode.config,
-                validationState: "valid",
-                errors: [],
-                warnings: [],
-              },
-            },
-          ]);
-          dispatch({ type: "SELECT_NODE", nodeId: newId });
+          duplicateNode(clipboardRef.current.id);
         }
         return;
       }
 
       if (e.key === "Escape") {
+        setContextMenu(null);
         dispatch({ type: "SELECT_NODE", nodeId: null });
         dispatch({ type: "SELECT_EDGE", edgeId: null });
         return;
@@ -625,6 +676,7 @@ export function EditorShell({
   }, [
     state.selectedNodeId,
     state.selectedEdgeId,
+    duplicateNode,
     performSave,
   ]);
 
@@ -778,6 +830,7 @@ export function EditorShell({
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: ReactFlowNode) => {
+      setContextMenu(null);
       dispatch({ type: "SELECT_NODE", nodeId: node.id });
     },
     []
@@ -785,15 +838,48 @@ export function EditorShell({
 
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: ReactFlowEdge) => {
+      setContextMenu(null);
       dispatch({ type: "SELECT_EDGE", edgeId: edge.id });
     },
     []
   );
 
   const onPaneClick = useCallback(() => {
+    setContextMenu(null);
     dispatch({ type: "SELECT_NODE", nodeId: null });
     dispatch({ type: "SELECT_EDGE", edgeId: null });
   }, []);
+
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: ReactFlowNode) => {
+      event.preventDefault();
+      dispatch({ type: "SELECT_NODE", nodeId: node.id });
+      setContextMenu({ kind: "node", nodeId: node.id, x: event.clientX, y: event.clientY });
+    },
+    []
+  );
+
+  const onPaneContextMenu = useCallback(
+    (event: globalThis.MouseEvent | React.MouseEvent<Element, globalThis.MouseEvent>) => {
+      event.preventDefault();
+      const flowPosition = reactFlowInstanceRef.current?.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      }) ?? { x: event.clientX, y: event.clientY };
+      dispatch({ type: "SELECT_NODE", nodeId: null });
+      dispatch({ type: "SELECT_EDGE", edgeId: null });
+      setContextMenu({
+        kind: "pane",
+        x: event.clientX,
+        y: event.clientY,
+        flowPosition: {
+          x: Math.round(flowPosition.x),
+          y: Math.round(flowPosition.y),
+        },
+      });
+    },
+    []
+  );
 
   // ── Add node from palette ─────────────────────────────────────────────────
 
@@ -813,11 +899,18 @@ export function EditorShell({
 
   const handleAddNode = useCallback(
     (variant: NodeVariant) => {
+      if (contextAddPosition) {
+        addNodeAtPosition(variant, contextAddPosition);
+        setContextAddPosition(null);
+        setShowPalette(false);
+        return;
+      }
+
       // Stagger new nodes slightly so rapid additions don't stack.
       const offset = Math.floor(Math.random() * 60) - 30;
       addNodeAtPosition(variant, { x: 380 + offset, y: 200 + offset });
     },
-    [addNodeAtPosition]
+    [addNodeAtPosition, contextAddPosition]
   );
 
   const handlePaletteDragStart = useCallback(
@@ -1045,7 +1138,17 @@ export function EditorShell({
         return;
       }
 
-      dispatch({ type: "RESTORE_VERSION", schema: (data as { schema: ProgramSchema }).schema });
+      const payload = data as { schema?: ProgramSchema; validation?: ValidationResult };
+      if (!payload.schema) {
+        setAiEditError("The AI response did not include a workflow schema.");
+        return;
+      }
+
+      dispatch({ type: "RESTORE_VERSION", schema: payload.schema });
+      if (payload.validation) {
+        dispatch({ type: "SET_VALIDATION", result: payload.validation });
+      }
+      setValidationNotice("AI edit applied. Review and save the draft.");
       setShowAiEdit(false);
       setAiEditPrompt("");
     } catch {
@@ -1060,31 +1163,67 @@ export function EditorShell({
 
   const [isRunning, setIsRunning] = React.useState(false);
   const handleRun = useCallback(async () => {
-    if (state.validationResult && !state.validationResult.valid) return;
     setIsRunning(true);
+    setValidationNotice(null);
+    setPreFlightChecks(null);
+
     try {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+
+      if (state.isDirty) {
+        const saved = await performSave(state.schema);
+        if (!saved) {
+          setValidationNotice("Run was not started because the draft could not be saved.");
+          return;
+        }
+      }
+
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ program_id: programId }),
       });
+      const body = await res.json().catch(() => null) as {
+        run_id?: string;
+        status?: string;
+        error?: string;
+        message?: string;
+        checks?: PreFlightCheck[];
+      } | null;
+
+      if (body?.run_id) {
+        setValidationNotice(
+          body.status === "failed"
+            ? `Run record created, but execution failed: ${body.error ?? "Runtime dispatch failed."}`
+            : "Run started."
+        );
+        setLastRunId(body.run_id);
+        router.push(`/programs/${programId}/runs/${body.run_id}`);
+        return;
+      }
+
       if (res.ok) {
-        const { run_id } = await res.json();
-        router.push(`/programs/${programId}/runs/${run_id}`);
+        setValidationNotice("Run started, but the server did not return a run id.");
       } else {
-        const body = await res.json().catch(() => null);
         if (body?.checks) {
           setPreFlightChecks(body.checks as PreFlightCheck[]);
+          setValidationNotice("Run is blocked by pre-flight validation.");
         } else {
+          const message = body?.message ?? body?.error ?? "Failed to start run";
+          setValidationNotice(message);
           setPreFlightChecks([{
             code: "PRE_001",
             label: "Error",
             status: "fail",
-            failures: [{ node_id: null, message: body?.error ?? "Failed to start run", fix_suggestion: "" }],
+            failures: [{ node_id: null, message, fix_suggestion: "" }],
           }]);
         }
       }
     } catch {
+      setValidationNotice("Could not reach the server to start the run.");
       setPreFlightChecks([{
         code: "PRE_001",
         label: "Connection error",
@@ -1094,7 +1233,7 @@ export function EditorShell({
     } finally {
       setIsRunning(false);
     }
-  }, [state.validationResult, programId, router]);
+  }, [performSave, programId, router, state.isDirty, state.schema]);
 
   // ── Test webhook ──────────────────────────────────────────────────────────
 
@@ -1188,6 +1327,7 @@ export function EditorShell({
         onSave={() => performSave(state.schema)}
         onValidate={handleValidate}
         onRun={handleRun}
+        onRename={(name) => dispatch({ type: "UPDATE_PROGRAM_NAME", name })}
         onBack={handleBack}
         showPalette={showPalette}
         onTogglePalette={() => {
@@ -1274,7 +1414,10 @@ export function EditorShell({
           onConnect={isMobile ? undefined : onConnect}
           onNodeClick={isMobile ? undefined : onNodeClick}
           onEdgeClick={isMobile ? undefined : onEdgeClick}
+          onNodeContextMenu={isMobile ? undefined : onNodeContextMenu}
+          onPaneContextMenu={isMobile ? undefined : onPaneContextMenu}
           onPaneClick={onPaneClick}
+          onMoveStart={() => setContextMenu(null)}
           onDragOver={isMobile ? undefined : handleCanvasDragOver}
           onDrop={isMobile ? undefined : handleCanvasDrop}
           nodesDraggable={!isMobile}
@@ -1308,6 +1451,112 @@ export function EditorShell({
         </ReactFlow>
 
         {/* Node sidebar — slides in from right (hidden when history panel is open) */}
+        {contextMenu && !isMobile && (
+          <div
+            data-editor-context-menu
+            role="menu"
+            className="fixed z-50 w-44 overflow-hidden rounded-md border border-border bg-popover p-1 text-sm text-popover-foreground shadow-lg"
+            style={{
+              left: typeof window === "undefined" ? contextMenu.x : Math.min(contextMenu.x, window.innerWidth - 190),
+              top: typeof window === "undefined" ? contextMenu.y : Math.min(contextMenu.y, window.innerHeight - 220),
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            {contextMenu.kind === "node" ? (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
+                  onClick={() => {
+                    dispatch({ type: "SELECT_NODE", nodeId: contextMenu.nodeId });
+                    setContextMenu(null);
+                  }}
+                >
+                  Configure
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
+                  onClick={() => {
+                    duplicateNode(contextMenu.nodeId);
+                    setContextMenu(null);
+                  }}
+                >
+                  Duplicate
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(contextMenu.nodeId);
+                    setValidationNotice("Node id copied.");
+                    setContextMenu(null);
+                  }}
+                >
+                  Copy node id
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    const nodeId = contextMenu.nodeId;
+                    dispatch({ type: "REMOVE_NODE", nodeId });
+                    skipSyncRef.current = true;
+                    setRfNodes((prev) => prev.filter((node) => node.id !== nodeId));
+                    setRfEdges((prev) => prev.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+                    setContextMenu(null);
+                  }}
+                >
+                  Delete
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
+                  onClick={() => {
+                    setContextAddPosition(contextMenu.flowPosition);
+                    setShowPalette(true);
+                    setShowAiEdit(false);
+                    setContextMenu(null);
+                  }}
+                >
+                  Add node
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
+                  onClick={() => {
+                    reactFlowInstanceRef.current?.fitView({ padding: 0.15 });
+                    setContextMenu(null);
+                  }}
+                >
+                  Fit view
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
+                  onClick={() => {
+                    dispatch({ type: "SELECT_NODE", nodeId: null });
+                    dispatch({ type: "SELECT_EDGE", edgeId: null });
+                    setContextMenu(null);
+                  }}
+                >
+                  Clear selection
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {state.selectedNodeId && !isMobile && !showHistory && (
           <NodeSidebar
             nodeId={state.selectedNodeId}

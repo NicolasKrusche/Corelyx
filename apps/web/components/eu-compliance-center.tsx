@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const DATA_REQUEST_TYPES = [
   { value: "access", article: "Art. 15", label: "Access", help: "Receive a copy of account and workflow data held by Corelyx." },
   { value: "rectification", article: "Art. 16", label: "Rectification", help: "Ask us to correct inaccurate or incomplete personal data." },
-  { value: "erasure", article: "Art. 17", label: "Erasure", help: "Request deletion of personal data where legally applicable." },
+  { value: "erasure", article: "Art. 17", label: "Erasure", help: "Queue a reviewed erasure request. Immediate account deletion still requires Settings > Danger zone after sign-in verification." },
   { value: "restriction", article: "Art. 18", label: "Restriction", help: "Pause new processing while a request is reviewed." },
   { value: "portability", article: "Art. 20", label: "Portability", help: "Use the machine-readable JSON export for switching or reuse." },
   { value: "objection", article: "Art. 21", label: "Objection", help: "Object to processing based on legitimate interests." },
@@ -220,6 +220,11 @@ export function EuComplianceCenter({
               ))}
             </select>
             <p className="mt-1.5 text-xs text-muted-foreground">{selectedRequestHelp(requestType)}</p>
+            {requestType === "erasure" && (
+              <p className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                Submitting this request does not delete the account by itself. To immediately erase your Corelyx account, use Settings &gt; Danger zone &gt; Delete my account.
+              </p>
+            )}
           </div>
 
           <div>

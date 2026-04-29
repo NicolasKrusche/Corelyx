@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
-import { EuComplianceCenter } from "@/components/eu-compliance-center";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
   { id: "orange", label: "Orange", color: "#f97316" },
@@ -450,10 +450,35 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       </Section>
 
       <div id="data-rights">
-        <Section title="EU Compliance" description="GDPR rights, legal references, request tracking, and audit evidence.">
-          <EuComplianceCenter />
+        <Section title="EU Compliance" description="GDPR rights, request tracking, policies, and audit evidence — accessible from a dedicated page.">
+          <div className="space-y-3">
+            <Link
+              href="/compliance"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Open EU Compliance Center
+            </Link>
+            <div className="rounded-lg border border-border bg-secondary/35 p-4">
+              <p className="text-sm font-medium text-foreground">Regulatory reference</p>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                GDPR rights and deadlines are based on Articles 7 and 15-22, including the standard one-month response period under Article 12.
+              </p>
+              <a
+                href="https://gdpr-info.eu/"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex text-xs font-medium text-primary hover:underline underline-offset-2"
+              >
+                Read the GDPR text
+              </a>
+            </div>
+          </div>
         </Section>
       </div>
+
+      <Section title="Language" description="Choose a display language or auto-translate the site to your device language.">
+        <LanguageSwitcher />
+      </Section>
 
       {/* Legal */}
       <Section title="Legal" description="Review our policies at any time.">

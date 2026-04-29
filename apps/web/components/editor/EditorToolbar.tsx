@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ interface EditorToolbarProps {
   onSave: () => void;
   onValidate: () => void | Promise<void>;
   onRun: () => void;
+  onRename: (name: string) => void;
   onBack: () => void;
   showPalette: boolean;
   onTogglePalette: () => void;
@@ -111,6 +112,7 @@ export function EditorToolbar({
   onSave,
   onValidate,
   onRun,
+  onRename,
   onBack,
   showPalette,
   onTogglePalette,
@@ -121,6 +123,20 @@ export function EditorToolbar({
   const hasErrors = validationResult && !validationResult.valid;
   const isValid = validationResult?.valid === true;
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [draftName, setDraftName] = useState(programName);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const skipBlurCommitRef = useRef(false);
+
+  useEffect(() => {
+    if (!isRenaming) setDraftName(programName);
+  }, [isRenaming, programName]);
+
+  useEffect(() => {
+    if (!isRenaming) return;
+    renameInputRef.current?.focus();
+    renameInputRef.current?.select();
+  }, [isRenaming]);
 
   function handleBack() {
     if (isDirty) {
@@ -128,6 +144,23 @@ export function EditorToolbar({
     } else {
       onBack();
     }
+  }
+
+  function commitRename() {
+    if (skipBlurCommitRef.current) {
+      skipBlurCommitRef.current = false;
+      return;
+    }
+    const nextName = draftName.trim() || "Untitled program";
+    setDraftName(nextName);
+    setIsRenaming(false);
+    onRename(nextName);
+  }
+
+  function cancelRename() {
+    skipBlurCommitRef.current = true;
+    setDraftName(programName);
+    setIsRenaming(false);
   }
 
   return (
@@ -160,9 +193,30 @@ export function EditorToolbar({
 
       {/* Program name + save status */}
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm font-semibold text-foreground truncate max-w-[200px]">
-          {programName}
-        </span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") commitRename();
+              if (event.key === "Escape") cancelRename();
+            }}
+            className="h-8 max-w-[260px] rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground outline-none ring-2 ring-transparent focus:ring-ring"
+            aria-label="Program name"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsRenaming(true)}
+            onDoubleClick={() => setIsRenaming(true)}
+            className="max-w-[220px] truncate rounded px-1 text-left text-sm font-semibold text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            title="Rename program"
+          >
+            {programName}
+          </button>
+        )}
         <span
           className={cn(
             "text-[10px] font-medium shrink-0",
@@ -310,16 +364,16 @@ export function EditorToolbar({
         <Button
           size="sm"
           onClick={onRun}
-          disabled={hasErrors === true || isRunning}
+          disabled={isRunning}
           className={cn(
             "gap-1.5",
             isValid
               ? "bg-green-600 hover:bg-green-700 text-white"
               : hasErrors
-              ? "bg-green-600/40 text-white cursor-not-allowed"
+              ? "bg-green-600 hover:bg-green-700 text-white"
               : "bg-green-600 hover:bg-green-700 text-white"
           )}
-          title={hasErrors ? "Fix validation errors before running" : "Run program"}
+          title={hasErrors ? "Run will show validation issues if the workflow is not executable" : "Run program"}
         >
           <RunIcon />
           {isRunning ? "Starting…" : "Run"}
@@ -327,7 +381,7 @@ export function EditorToolbar({
         {hasErrors && (
           <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50">
             <div className="rounded-md bg-popover border border-border shadow-md px-3 py-2 text-xs text-foreground whitespace-nowrap">
-              Fix {validationResult?.errors.length} error{validationResult?.errors.length !== 1 ? "s" : ""} before running
+              Run will show {validationResult?.errors.length} blocking issue{validationResult?.errors.length !== 1 ? "s" : ""}
             </div>
           </div>
         )}

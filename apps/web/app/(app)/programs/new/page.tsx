@@ -564,6 +564,48 @@ function NewProgramPageInner() {
     setInlinePhase("connections");
   };
 
+  const runInlinePlan = async (message: string) => {
+    const trimmedMessage = message.trim();
+    if (trimmedMessage.length < 10) return;
+
+    setDescription(trimmedMessage);
+    setInlineMessages([{ role: "user", text: trimmedMessage }]);
+    setInlinePhase("thinking");
+
+    await new Promise((resolve) => setTimeout(resolve, 450));
+
+    const lower = trimmedMessage.toLowerCase();
+    const trigger =
+      lower.includes("webhook") ? "Webhook trigger" :
+      lower.includes("email") || lower.includes("gmail") ? "Email trigger" :
+      lower.includes("schedule") || lower.includes("daily") || lower.includes("morning") ? "Scheduled trigger" :
+      "Manual or app event trigger";
+    const actions = [
+      lower.includes("slack") ? "send a Slack update" : null,
+      lower.includes("notion") ? "write structured data to Notion" : null,
+      lower.includes("sheet") ? "append rows to a spreadsheet" : null,
+      lower.includes("github") ? "create or update GitHub work items" : null,
+    ].filter(Boolean);
+
+    appendInlineAssistantMessage(
+      [
+        "Plan",
+        `1. Start with a ${trigger.toLowerCase()} that captures the initial payload.`,
+        "2. Add a transform step to normalize the incoming data into fields the rest of the workflow can trust.",
+        actions.length > 0
+          ? `3. Add action nodes to ${actions.join(" and ")}.`
+          : "3. Add the app/action nodes needed for the external side effects.",
+        "4. Add validation and error-handling branches for missing or malformed data.",
+        "5. Generate the draft, review validation warnings, then run once with a sample payload.",
+      ].join("\n")
+    );
+    setInlinePhase("connections");
+  };
+
+  const navigateImportSource = (source: string) => {
+    router.push(source === "browse" ? "/browse" : "/programs/import");
+  };
+
   const handleInlineGenerate = async () => {
     const selection = await ensureModelSelection();
     if (!selection) {
@@ -618,14 +660,14 @@ function NewProgramPageInner() {
             </button>
             <button
               type="button"
-              onClick={() => router.push("/browse")}
+              onClick={() => navigateImportSource("browse")}
               className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
             >
               Browse
             </button>
             <button
               type="button"
-              onClick={() => router.push("/programs/import")}
+              onClick={() => navigateImportSource("json")}
               className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
             >
               Import JSON
@@ -640,7 +682,7 @@ function NewProgramPageInner() {
           {inlineMessages.map((message, index) => (
             <div
               key={`${message.role}-${index}`}
-              className={`max-w-[92%] rounded-xl px-3 py-2 text-sm animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+              className={`max-w-[92%] whitespace-pre-wrap rounded-xl px-3 py-2 text-sm animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                 message.role === "user"
                   ? "ml-auto bg-primary/20 text-primary"
                   : "bg-muted/60 text-foreground"
@@ -778,9 +820,10 @@ function NewProgramPageInner() {
           onSend={(message) => {
             void runInlineBuild(message);
           }}
-          onImport={(source) => {
-            router.push(source === "browse" ? "/browse" : "/programs/import");
+          onPlan={(message) => {
+            void runInlinePlan(message);
           }}
+          onImport={navigateImportSource}
         />
       </div>
     );

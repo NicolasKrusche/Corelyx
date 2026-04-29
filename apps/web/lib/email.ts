@@ -332,6 +332,210 @@ export async function sendRunLimitWarningEmail({
   });
 }
 
+// ─── Data subject request notifications ────────────────────────────────────
+
+interface DsrEmailUserOptions {
+  to: string;
+  reference: string;
+  typeLabel: string;
+  submittedAt: string;
+  dueAt: string;
+  details?: string | null;
+  autoFulfilled?: { summary: string; downloadUrl?: string } | null;
+}
+
+export async function sendDsrConfirmationEmail({
+  to,
+  reference,
+  typeLabel,
+  submittedAt,
+  dueAt,
+  details,
+  autoFulfilled,
+}: DsrEmailUserOptions): Promise<void> {
+  const submittedFmt = new Date(submittedAt).toUTCString();
+  const dueFmt = new Date(dueAt).toUTCString();
+  const fulfilledBlock = autoFulfilled ? `
+    <div style="border:1px solid #d1fae5;background:#ecfdf5;border-radius:6px;padding:16px;margin:0 0 24px;">
+      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#065f46;">Auto-fulfilled</p>
+      <p style="margin:0;font-size:13px;color:#047857;line-height:1.5;">${escapeHtml(autoFulfilled.summary)}</p>
+      ${autoFulfilled.downloadUrl ? `<p style="margin:10px 0 0;"><a href="${autoFulfilled.downloadUrl}" style="color:#065f46;font-weight:600;">Download your data</a></p>` : ""}
+    </div>` : "";
+  const detailsBlock = details ? `
+    <p style="margin:12px 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Your message</p>
+    <p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(details)}</p>` : "";
+
+  await sendEmail({
+    to,
+    subject: `We received your data request — ${reference}`,
+    html: `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx</span></td></tr>
+<tr><td style="padding:32px;">
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">We received your request</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
+We've recorded your data subject request and will respond within <strong>30 days</strong> as required by Article 12 GDPR. Keep this email as confirmation.
+</p>
+${fulfilledBlock}
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;border-radius:6px;margin-bottom:24px;">
+<tr><td style="padding:16px 20px;">
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Reference</p>
+<p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Type</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(typeLabel)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Submitted</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(submittedFmt)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Response due by</p>
+<p style="margin:0;font-size:14px;color:#374151;">${escapeHtml(dueFmt)}</p>
+${detailsBlock}
+</td></tr></table>
+<p style="margin:0;font-size:13px;color:#6b7280;line-height:1.5;">
+Questions? Reply to this email or contact <a href="mailto:legal@corelyx.app" style="color:#111827;">legal@corelyx.app</a>.
+</p>
+</td></tr>
+<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx — ${escapeHtml(reference)}</p></td></tr>
+</table></td></tr></table>
+</body></html>`.trim(),
+  });
+}
+
+interface DsrEmailLegalOptions {
+  to: string;
+  reference: string;
+  typeLabel: string;
+  requestType: string;
+  userEmail: string;
+  userId: string;
+  submittedAt: string;
+  dueAt: string;
+  details?: string | null;
+  autoFulfilled: boolean;
+}
+
+export async function sendDsrLegalNotificationEmail({
+  to,
+  reference,
+  typeLabel,
+  requestType,
+  userEmail,
+  userId,
+  submittedAt,
+  dueAt,
+  details,
+  autoFulfilled,
+}: DsrEmailLegalOptions): Promise<void> {
+  const submittedFmt = new Date(submittedAt).toUTCString();
+  const dueFmt = new Date(dueAt).toUTCString();
+  const detailsBlock = details ? `
+    <p style="margin:12px 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Details</p>
+    <p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(details)}</p>` : "";
+  const statusLine = autoFulfilled
+    ? `<span style="display:inline-block;background:#d1fae5;color:#065f46;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;">Auto-fulfilled</span>`
+    : `<span style="display:inline-block;background:#fef3c7;color:#92400e;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;">Manual review required</span>`;
+
+  await sendEmail({
+    to,
+    subject: `[DSR ${autoFulfilled ? "auto" : "manual"}] ${typeLabel} — ${reference}`,
+    html: `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx — DSR intake</span></td></tr>
+<tr><td style="padding:32px;">
+<p style="margin:0 0 12px;">${statusLine}</p>
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">New data subject request</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
+You must respond within <strong>30 days</strong> per Article 12 GDPR. Reference: <strong>${escapeHtml(reference)}</strong>.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;border-radius:6px;margin-bottom:24px;">
+<tr><td style="padding:16px 20px;">
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Type</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(typeLabel)} <span style="color:#9ca3af;">(${escapeHtml(requestType)})</span></p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">User</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(userEmail)}<br/><span style="font-family:monospace;color:#6b7280;font-size:12px;">${escapeHtml(userId)}</span></p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Submitted</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(submittedFmt)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Due by</p>
+<p style="margin:0;font-size:14px;color:#374151;">${escapeHtml(dueFmt)}</p>
+${detailsBlock}
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Internal DSR notification — ${escapeHtml(reference)}</p></td></tr>
+</table></td></tr></table>
+</body></html>`.trim(),
+  });
+}
+
+interface DsrResponseEmailOptions {
+  to: string;
+  reference: string;
+  typeLabel: string;
+  status: "completed" | "rejected" | "waiting_on_user";
+  responseSummary: string;
+}
+
+export async function sendDsrResponseEmail({
+  to,
+  reference,
+  typeLabel,
+  status,
+  responseSummary,
+}: DsrResponseEmailOptions): Promise<void> {
+  const headline =
+    status === "completed"
+      ? "Your data request is complete"
+      : status === "rejected"
+        ? "Your data request was reviewed"
+        : "Action required on your data request";
+  const intro =
+    status === "completed"
+      ? "We've completed the request you submitted. Details below."
+      : status === "rejected"
+        ? "After review, we are unable to action this request as submitted. Reasoning below."
+        : "We need additional information from you before we can proceed.";
+  const subject =
+    status === "completed"
+      ? `Resolved — ${typeLabel} (${reference})`
+      : status === "rejected"
+        ? `Update on your data request — ${reference}`
+        : `Action needed — ${reference}`;
+
+  await sendEmail({
+    to,
+    subject,
+    html: `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx</span></td></tr>
+<tr><td style="padding:32px;">
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">${escapeHtml(headline)}</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">${escapeHtml(intro)}</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;border-radius:6px;margin-bottom:24px;">
+<tr><td style="padding:16px 20px;">
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Reference</p>
+<p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Request</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(typeLabel)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Response</p>
+<p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(responseSummary)}</p>
+</td></tr></table>
+<p style="margin:0;font-size:13px;color:#6b7280;line-height:1.5;">If anything is unclear, reply to this email or contact <a href="mailto:legal@corelyx.app" style="color:#111827;">legal@corelyx.app</a>.</p>
+</td></tr>
+<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx — ${escapeHtml(reference)}</p></td></tr>
+</table></td></tr></table>
+</body></html>`.trim(),
+  });
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")

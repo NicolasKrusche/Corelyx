@@ -32,6 +32,7 @@ export type EditorAction =
   | { type: "SET_VALIDATION"; result: ValidationResult }
   | { type: "SET_SAVING"; saving: boolean }
   | { type: "MARK_SAVED" }
+  | { type: "UPDATE_PROGRAM_NAME"; name: string }
   | { type: "UNDO" }
   | { type: "REDO" }
   | { type: "SYNC_FROM_RF"; schema: ProgramSchema }
@@ -173,6 +174,23 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
 
     case "MARK_SAVED":
       return { ...state, isDirty: false, isSaving: false };
+
+    case "UPDATE_PROGRAM_NAME": {
+      const name = action.name.trim() || "Untitled program";
+      if (name === state.schema.program_name) return state;
+      const { past, future } = pushPast(state.past, state.schema);
+      return {
+        ...state,
+        schema: {
+          ...state.schema,
+          program_name: name,
+          updated_at: new Date().toISOString(),
+        },
+        isDirty: true,
+        past,
+        future,
+      };
+    }
 
     // ── Undo ────────────────────────────────────────────────────────────────
 

@@ -20,6 +20,11 @@ import {
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
+import {
+  getDraftValidationMessage,
+  normalizeProgramDraft,
+  validateProgramDraft,
+} from "@/lib/workflow/normalize";
 import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
@@ -584,35 +589,38 @@ export async function POST(request: Request) {
     (parsed_schema as Record<string, unknown>).program_id = crypto.randomUUID();
   }
 
-  // Normalize common model deviations before strict Zod validation
+  // Normalize common model deviations before validation
   normalizeSchema(parsed_schema);
+  parsed_schema = normalizeProgramDraft(parsed_schema, isRefinement && existing_schema ? existing_schema as Partial<ProgramSchema> : undefined);
 
-  const schemaResult = ProgramSchemaZ.safeParse(parsed_schema);
-  if (!schemaResult.success) {
-    console.error("[genesis] Schema validation failed:", JSON.stringify(schemaResult.error.flatten(), null, 2));
+  const draftResult = validateProgramDraft(parsed_schema);
+  if (!draftResult.success) {
+    const message = getDraftValidationMessage(draftResult.error);
+    console.error("[genesis] Draft validation failed:", JSON.stringify(draftResult.error.flatten(), null, 2));
     await logGenesis(
       "error",
-      "genesis.schema_validation_failed",
+      "genesis.draft_validation_failed",
       "failed",
-      "Generated schema failed validation.",
+      message,
       {
         requested_model: model,
         model_used: modelUsed,
-        validation: schemaResult.error.flatten(),
+        validation: draftResult.error.flatten(),
         raw_preview: truncateForLog(sanitizeTextForLlm(rawText).value, 2000),
       }
     );
     return NextResponse.json(
       {
-        error: "SCHEMA_VALIDATION_FAILED",
-        details: schemaResult.error.flatten(),
-        raw: parsed_schema,
+        error: "AI_EDIT_INVALID_GRAPH",
+        message,
+        details: draftResult.error.flatten(),
       },
       { status: 422 }
     );
   }
 
-  const schema = schemaResult.data as unknown as ProgramSchema;
+  const schemaResult = ProgramSchemaZ.safeParse(parsed_schema);
+  const schema = (schemaResult.success ? schemaResult.data : draftResult.data) as unknown as ProgramSchema;
 
   // Run post-genesis validation
   const validation = validatePostGenesis(schema, connectionRows);

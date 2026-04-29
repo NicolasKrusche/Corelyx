@@ -2,6 +2,8 @@ import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 
 type ProgramRow = {
   id: string;
+  user_id: string;
+  org_id: string | null;
   name: string;
   description: string | null;
   schema: unknown;
@@ -10,6 +12,36 @@ type ProgramRow = {
   conflict_policy: string | null;
   schema_version: number | null;
   last_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type WorkspaceRow = {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type WorkspaceMembershipRow = {
+  workspace_id: string;
+  user_id: string;
+  role: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type WorkspaceInvitationRow = {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role: string;
+  invited_by: string | null;
+  accepted_by: string | null;
+  accepted_at: string | null;
+  revoked_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -44,7 +76,9 @@ type RunRow = {
   id: string;
   program_id: string;
   triggered_by: string;
+  trigger_payload: unknown;
   status: string;
+  execution_mode: string | null;
   started_at: string | null;
   completed_at: string | null;
   error_message: string | null;
@@ -80,6 +114,7 @@ type NodeExecutionRow = {
 type ApprovalRow = {
   id: string;
   node_execution_id: string;
+  user_id: string;
   status: string;
   context: unknown;
   decision_note: string | null;
@@ -103,6 +138,7 @@ type LogRow = {
 
 type ConnectionRow = {
   id: string;
+  org_id: string | null;
   name: string;
   provider: string;
   auth_type: string;
@@ -125,6 +161,7 @@ type ConnectionWebhookSecretRow = {
 
 type ApiKeyRow = {
   id: string;
+  org_id: string | null;
   name: string;
   provider: string;
   is_valid: boolean;
@@ -170,6 +207,10 @@ type RedemptionRow = {
 
 type DbError = { message: string };
 
+type LooseServiceClient = ReturnType<typeof createServiceClient> & {
+  from(table: string): any;
+};
+
 type AppLogTable = {
   insert(values: Record<string, unknown>): PromiseLike<{ error: DbError | null }>;
 };
@@ -184,7 +225,7 @@ export async function GET() {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  const db = createServiceClient();
+  const db = createServiceClient() as LooseServiceClient;
 
   const auth_profile = {
     id: user.id,
@@ -204,7 +245,7 @@ export async function GET() {
     db
       .from("programs")
       .select(
-        "id, name, description, schema, execution_mode, is_active, conflict_policy, schema_version, last_run_at, created_at, updated_at"
+        "id, user_id, org_id, name, description, schema, execution_mode, is_active, conflict_policy, schema_version, last_run_at, created_at, updated_at"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
@@ -228,6 +269,33 @@ export async function GET() {
   const account_profile = (profileRes.data ?? null) as unknown;
   const programs = (programsRes.data ?? []) as unknown as ProgramRow[];
   const programIds = programs.map((program) => program.id);
+
+  const { data: membershipsRaw } = await db
+    .from("workspace_memberships")
+    .select("workspace_id, user_id, role, created_by, created_at, updated_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+  const workspace_memberships = (membershipsRaw ?? []) as unknown as WorkspaceMembershipRow[];
+  const workspaceIds = workspace_memberships.map((membership) => membership.workspace_id);
+
+  let workspaces: WorkspaceRow[] = [];
+  let workspace_invitations: WorkspaceInvitationRow[] = [];
+  if (workspaceIds.length > 0) {
+    const [workspacesRes, invitationsRes] = await Promise.all([
+      db
+        .from("workspaces")
+        .select("id, name, created_by, created_at, updated_at")
+        .in("id", workspaceIds)
+        .order("created_at", { ascending: false }),
+      db
+        .from("workspace_invitations")
+        .select("id, workspace_id, email, role, invited_by, accepted_by, accepted_at, revoked_at, created_at, updated_at")
+        .in("workspace_id", workspaceIds)
+        .order("created_at", { ascending: false }),
+    ]);
+    workspaces = (workspacesRes.data ?? []) as unknown as WorkspaceRow[];
+    workspace_invitations = (invitationsRes.data ?? []) as unknown as WorkspaceInvitationRow[];
+  }
 
   let program_connections: ProgramConnectionRow[] = [];
   let program_versions: VersionRow[] = [];
@@ -253,7 +321,7 @@ export async function GET() {
       db
         .from("runs")
         .select(
-          "id, program_id, triggered_by, status, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
+          "id, program_id, triggered_by, trigger_payload, status, execution_mode, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
         )
         .in("program_id", programIds)
         .order("created_at", { ascending: false }),
@@ -281,7 +349,7 @@ export async function GET() {
   const [approvalsRes, logsRes, connectionsRes, apiKeysRes] = await Promise.all([
     db
       .from("approvals")
-      .select("id, node_execution_id, status, context, decision_note, decided_at, created_at")
+      .select("id, node_execution_id, user_id, status, context, decision_note, decided_at, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     db
@@ -294,13 +362,13 @@ export async function GET() {
     db
       .from("connections")
       .select(
-        "id, name, provider, auth_type, scopes, metadata, is_valid, last_validated_at, created_at, updated_at"
+        "id, org_id, name, provider, auth_type, scopes, metadata, is_valid, last_validated_at, created_at, updated_at"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     db
       .from("api_keys")
-      .select("id, name, provider, is_valid, last_validated_at, created_at")
+      .select("id, org_id, name, provider, is_valid, last_validated_at, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
   ]);
@@ -320,7 +388,7 @@ export async function GET() {
   const bundle = {
     export_metadata: {
       exported_at: new Date().toISOString(),
-      schema_version: 2,
+      schema_version: 4,
       schema_document: "/data-export-schema",
       account_id: user.id,
       format: "application/json",
@@ -335,6 +403,9 @@ export async function GET() {
     auth_profile,
     account_profile,
     usage: (usageRes.data ?? []) as unknown as UsageRow[],
+    workspaces,
+    workspace_memberships,
+    workspace_invitations,
     data_subject_requests: (dataRequestsRes.data ?? []) as unknown as DataSubjectRequestRow[],
     redemptions: (redemptionsRes.data ?? []) as unknown as RedemptionRow[],
     programs,
@@ -362,7 +433,7 @@ export async function GET() {
       status: "completed",
       message: "User downloaded GDPR account data export.",
       details: {
-        schema_version: 2,
+        schema_version: 4,
         schema_document: "/data-export-schema",
         exported_sections: Object.keys(bundle).filter((key) => key !== "export_metadata"),
       },
@@ -376,7 +447,7 @@ export async function GET() {
     headers: {
       "Content-Type": "application/json",
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "X-Corelyx-Export-Schema-Version": "2",
+      "X-Corelyx-Export-Schema-Version": "4",
     },
   });
 }

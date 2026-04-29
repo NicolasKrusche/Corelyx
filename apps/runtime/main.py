@@ -23,7 +23,13 @@ from cors_config import (
     CORS_ALLOWED_METHODS,
     get_cors_allowed_origins,
 )
-from db import get_active_cron_workflows, get_db, release_run_locks, update_run
+from db import (
+    get_active_cron_workflows,
+    get_db,
+    is_processing_restricted,
+    release_run_locks,
+    update_run,
+)
 from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
 from internal_auth import (
     INTERNAL_SERVICE_TOKEN_HEADER,
@@ -72,6 +78,16 @@ async def trigger_workflow(workflow_id: str) -> None:
     )
     run_id = run_result.data[0]["id"]
     user_id = program_data.get("user_id", "")
+    if user_id and is_processing_restricted(db, user_id):
+        await update_run(
+            db,
+            run_id,
+            status="failed",
+            error_message="Processing is restricted for this account.",
+            completed_at="now()",
+        )
+        await _notify_complete(run_id, workflow_id, user_id, "failed")
+        return
     final_status = "failed"
     error_message: str | None = None
     executor: ProgramExecutor | None = None
@@ -203,6 +219,11 @@ async def execute_program(
         raise HTTPException(status_code=404, detail="Program not found")
     program_row = program_rows[0]
     user_id_db: str = program_row["user_id"]
+    if is_processing_restricted(db, user_id_db):
+        raise HTTPException(
+            status_code=423,
+            detail="Processing is restricted for this account.",
+        )
     schema = parse_schema(program_row.get("schema") or {})
 
     background_tasks.add_task(

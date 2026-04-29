@@ -8,7 +8,7 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
-import { EuComplianceCenter } from "@/components/eu-compliance-center";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 // ─── Sidebar palette ──────────────────────────────────────────────────────────
 
@@ -308,6 +308,8 @@ export function Sidebar({
         {/* Dashboard */}
         <NavItem href="/dashboard" label="Home" active={pathname === "/dashboard"}
           icon={<GridIcon />} isDark={isDark} />
+        <NavItem href="/workspaces" label="Workspaces" active={pathname.startsWith("/workspaces")}
+          icon={<WorkspaceIcon />} isDark={isDark} />
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
@@ -510,6 +512,7 @@ type AccountSettingsSection =
   | "benefits"
   | "legal"
   | "compliance"
+  | "language"
   | "danger"
   | "general"
   | "advanced"
@@ -626,9 +629,10 @@ function SettingsModal({
       label: "Workspace",
       items: [
         { id: "general", label: "General", caption: "Theme and preferences", icon: SettingsIcon },
+        { id: "language", label: "Language", caption: "Translation and locale", icon: GlobeIcon },
         { id: "advanced", label: "Advanced", caption: "Power-user controls", icon: AdminIcon },
         { id: "compliance", label: "EU Compliance", caption: "GDPR and legal docs", icon: LogsIcon },
-        ...(isAdmin ? [{ id: "codeManager" as const, label: "Code Manager", caption: "Redemption codes", icon: KeyIcon }] : []),
+        ...(isAdmin ? [{ id: "codeManager" as const, label: "Admin Tools", caption: "Codes and DSR queue", icon: KeyIcon }] : []),
       ],
     },
   ];
@@ -1215,6 +1219,11 @@ function SettingsModal({
                       <option value="restriction">Right to restriction — limit how we use your data</option>
                       <option value="withdrawal">Withdrawal of consent</option>
                     </select>
+                    {dsarType === "erasure" && (
+                      <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                        Submitting an erasure request opens a reviewed request. Immediate account deletion still requires Danger zone after sign-in verification.
+                      </p>
+                    )}
                     <textarea
                       value={dsarDescription}
                       onChange={(e) => setDsarDescription(e.target.value)}
@@ -1311,7 +1320,52 @@ function SettingsModal({
             )}
 
             {tab === "compliance" && (
-              <EuComplianceCenter variant="compact" onNavigate={onClose} />
+              <div className="space-y-6">
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">EU Compliance</p>
+                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                    Submit GDPR data subject requests, download policies, view audit evidence, and exercise privacy rights from the dedicated compliance page.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link
+                      href="/compliance"
+                      onClick={onClose}
+                      className={cn(primaryBtnClass, "inline-flex")}
+                    >
+                      Open EU Compliance Center
+                    </Link>
+                  </div>
+                </section>
+
+                <section className={subPanelClass}>
+                  <p className="text-sm font-medium text-foreground">Regulatory reference</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    GDPR rights and deadlines are based on Articles 7 and 15-22, including the standard one-month response period under Article 12.
+                  </p>
+                  <a
+                    href="https://gdpr-info.eu/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex text-sm font-medium text-primary hover:underline underline-offset-2"
+                  >
+                    Read the GDPR text
+                  </a>
+                </section>
+              </div>
+            )}
+
+            {tab === "language" && (
+              <div className="space-y-6">
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Language</p>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                    Pick a display language for the entire site, or let us auto-detect your device language on first visit.
+                  </p>
+                  <div className="mt-4">
+                    <LanguageSwitcher />
+                  </div>
+                </section>
+              </div>
             )}
 
             {tab === "advanced" && (
@@ -1386,17 +1440,26 @@ function SettingsModal({
             {tab === "codeManager" && isAdmin && (
               <div className="space-y-6">
                 <section className={panelClass}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Code Manager</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Admin Tools</p>
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Manage redemption codes and admin-only access grants from the dedicated code manager.
+                    Manage redemption codes, admin-only access grants, and GDPR data subject request fulfillment.
                   </p>
-                  <Link
-                    href="/admin/codes"
-                    onClick={onClose}
-                    className={cn(primaryBtnClass, "mt-4 inline-flex")}
-                  >
-                    Open Code Manager
-                  </Link>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link
+                      href="/admin/codes"
+                      onClick={onClose}
+                      className={cn(primaryBtnClass, "inline-flex")}
+                    >
+                      Open Code Manager
+                    </Link>
+                    <Link
+                      href="/admin/dsr"
+                      onClick={onClose}
+                      className={neutralBtnClass}
+                    >
+                      Open DSR Queue
+                    </Link>
+                  </div>
                 </section>
               </div>
             )}
@@ -1474,6 +1537,13 @@ function BrowseIcon() {
     </svg>
   );
 }
+function WorkspaceIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 20.25V5.75A1.75 1.75 0 0 1 6.25 4h7.5a1.75 1.75 0 0 1 1.75 1.75v14.5m-11 0h15m-11-12h1.5m-1.5 3.5h1.5m-1.5 3.5h1.5m4-7h1.5m-1.5 3.5h1.5m-1.5 3.5h1.5" />
+    </svg>
+  );
+}
 function AdminIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -1499,6 +1569,13 @@ function UserIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0" />
+    </svg>
+  );
+}
+function GlobeIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3 7.5 7.03 7.5 12s2.015 9 4.5 9Zm-9-9h18" />
     </svg>
   );
 }

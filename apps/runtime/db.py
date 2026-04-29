@@ -174,6 +174,20 @@ def get_db() -> Client:
     return create_client(url, key)
 
 
+def is_processing_restricted(db: Client, user_id: str) -> bool:
+    result = (
+        db.table("profiles")
+        .select("processing_restricted")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+    rows = result.data or []
+    if not rows:
+        return False
+    return rows[0].get("processing_restricted") is True
+
+
 async def create_run(
     db: Client,
     program_id: str,

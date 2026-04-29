@@ -15,6 +15,8 @@ execution_mode: "autonomous"=fully automated, "approval_required"=agent has requ
 UNIVERSAL NODE FIELDS (all required):
   id: unique string ("n1","n2",…), type: "trigger"|"agent"|"step"|"connection", label: 3-5 words, description: one sentence, connection: matching app name or null, config: {…}, position: {x,y}, status: "idle"
 
+CANONICAL OUTPUT: Every generated or refined workflow must include the complete top-level schema above, every required node field, every required config default for that node type, and every edge as {"id","from","to","type","data_mapping","condition","label"}. Do not output aliases like source/target, webhook/transform node types, or partial patch objects.
+
 POSITIONS: trigger at x:100 y:200. Each next node x+=320. Branches: y±220.
 GRAPH RULES: exactly 1 trigger, max 12 nodes, no isolated nodes, every non-trigger needs an incoming edge.
 
@@ -372,7 +374,7 @@ export function buildRefinementUserMessage(
     "",
     `Available connections:\n${connectionList}`,
     "",
-    "Return the complete updated program schema as a single JSON object. Preserve all nodes and edges that don't need to change. Only modify what the refinement request requires. Output only the raw JSON object — no explanation, no markdown, no code fences.",
+    "Return the complete canonical updated program schema as a single JSON object, not a patch. Preserve all nodes and edges that don't need to change. Only modify what the refinement request requires. Include every required top-level field, node field, config default, trigger entry, and edge field. Output only the raw JSON object — no explanation, no markdown, no code fences.",
   ].join("\n");
 }
 

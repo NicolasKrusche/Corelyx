@@ -275,3 +275,66 @@ export const ProgramSchemaZ = z.object({
 
 export type ProgramSchemaInput = z.input<typeof ProgramSchemaZ>;
 export type ProgramSchemaOutput = z.output<typeof ProgramSchemaZ>;
+
+// ─── DRAFT PROGRAM SCHEMA ───────────────────────────────────────────────────
+// Persistence-level validation for partially-built workflows. This keeps the
+// canonical top-level shape and graph references safe while allowing incomplete
+// node config values that are not runnable yet.
+
+export const DraftNodeZ = NodeBaseZ.extend({
+  type: z.enum(["trigger", "agent", "step", "connection"]),
+  connection: z.string().nullable(),
+  config: z.record(z.unknown()),
+});
+
+export const DraftEdgeZ = EdgeZ;
+
+export const ProgramDraftSchemaZ = z
+  .object({
+    version: z.literal("1.0"),
+    program_id: z.string().min(1),
+    program_name: z.string().min(1),
+    created_at: z.string().min(1),
+    updated_at: z.string().min(1),
+    execution_mode: z.enum(["autonomous", "approval_required", "supervised"]),
+    nodes: z.array(DraftNodeZ),
+    edges: z.array(DraftEdgeZ),
+    triggers: z.array(TriggerZ),
+    version_history: z.array(z.unknown()),
+    metadata: ProgramMetadataZ,
+  })
+  .superRefine((schema, ctx) => {
+    const nodeIds = new Set(schema.nodes.map((node) => node.id));
+    for (const edge of schema.edges) {
+      if (!nodeIds.has(edge.from)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", edge.id, "from"],
+          message: `Edge ${edge.id} references missing source node ${edge.from}`,
+        });
+      }
+      if (!nodeIds.has(edge.to)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["edges", edge.id, "to"],
+          message: `Edge ${edge.id} references missing target node ${edge.to}`,
+        });
+      }
+    }
+
+    const triggerNodeIds = new Set(
+      schema.nodes.filter((node) => node.type === "trigger").map((node) => node.id)
+    );
+    for (const trigger of schema.triggers) {
+      if (!triggerNodeIds.has(trigger.node_id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["triggers", trigger.node_id],
+          message: `Trigger index references missing trigger node ${trigger.node_id}`,
+        });
+      }
+    }
+  });
+
+export type ProgramDraftSchemaInput = z.input<typeof ProgramDraftSchemaZ>;
+export type ProgramDraftSchemaOutput = z.output<typeof ProgramDraftSchemaZ>;
