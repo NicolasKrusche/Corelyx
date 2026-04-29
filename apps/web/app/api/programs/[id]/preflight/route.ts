@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
+import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 
 // POST /api/programs/[id]/preflight — run pre-flight checks before execution
@@ -25,7 +26,44 @@ export async function POST(
 
   if (progError || !program) return apiError("Program not found", 404);
 
-  const schema = program.schema as unknown as ProgramSchema;
+  const executableSchema = ProgramSchemaZ.safeParse(program.schema);
+  if (!executableSchema.success) {
+    return NextResponse.json(
+      {
+        result: {
+          valid: false,
+          errors: [
+            {
+              code: "PRE_DRAFT",
+              severity: "blocking",
+              node_id: null,
+              edge_id: null,
+              message: "This workflow is saved as a draft but is not ready to run.",
+              fix_suggestion: "Complete required node fields before validating or running.",
+            },
+          ],
+          warnings: [],
+          node_states: {},
+        },
+        checks: [
+          {
+            code: "PRE_004",
+            label: "Draft completeness",
+            status: "fail",
+            failures: [
+              {
+                node_id: null,
+                message: "This workflow is saved as a draft but is not ready to run.",
+                fix_suggestion: "Complete required node fields before validating or running.",
+              },
+            ],
+          },
+        ],
+      },
+      { status: 200 }
+    );
+  }
+  const schema = executableSchema.data as unknown as ProgramSchema;
 
   // Use service client to bypass RLS for Vault-adjacent reads
   const serviceClient = createServiceClient();

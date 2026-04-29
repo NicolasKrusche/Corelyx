@@ -1,10 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { EditorShell } from "@/components/editor/EditorShell";
 import type { ApiKey } from "@/components/sidebars/NodeSidebar";
+import { normalizeProgramDraft, validateProgramDraft } from "@/lib/workflow/normalize";
 
 export default async function EditorPage({
   params,
@@ -37,7 +37,11 @@ export default async function EditorPage({
 
   // ── Parse and validate schema ─────────────────────────────────────────────
 
-  const schemaParse = ProgramSchemaZ.safeParse(program.schema);
+  const normalizedSchema = normalizeProgramDraft(program.schema, {
+    program_id: program.id,
+    program_name: program.name,
+  });
+  const schemaParse = validateProgramDraft(normalizedSchema);
   if (!schemaParse.success) {
     // Schema is corrupted or not yet generated
     return (
@@ -54,9 +58,6 @@ export default async function EditorPage({
     );
   }
 
-  // Cast through unknown to reconcile Zod output type with ProgramSchema.
-  // The discrepancy is in DataSchema.properties (Record<string,unknown> vs
-  // {[key:string]:DataSchema}) — at runtime they are identical.
   const parsedSchema = schemaParse.data as unknown as ProgramSchema;
 
   // ── Fetch API keys (id, name, provider only — no vault_secret_id) ─────────

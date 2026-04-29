@@ -57,6 +57,8 @@ export function toReactFlow(
     return {
       id: node.id,
       type: node.type,
+      draggable: true,
+      selectable: true,
       position: { x: node.position.x, y: node.position.y },
       data: {
         label: node.label,

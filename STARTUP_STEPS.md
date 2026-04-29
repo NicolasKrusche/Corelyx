@@ -8,6 +8,7 @@ This is the exact flow used to start:
 
 ```powershell
 cd /d n:\ai
+pnpm --filter @flowos/web dev
 ```
 
 ## 2. Start the web app (Next.js on port 3000)

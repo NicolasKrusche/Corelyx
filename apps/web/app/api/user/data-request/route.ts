@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { sendDsrConfirmationEmail, sendDsrLegalNotificationEmail } from "@/lib/email";
 
 const REQUEST_TYPES = [
   "access",
@@ -12,6 +13,19 @@ const REQUEST_TYPES = [
 ] as const;
 
 type DataSubjectRequestType = (typeof REQUEST_TYPES)[number];
+
+const REQUEST_TYPE_LABELS: Record<DataSubjectRequestType, string> = {
+  access: "Right of Access (Art. 15 GDPR)",
+  rectification: "Right to Rectification (Art. 16 GDPR)",
+  erasure: "Right to Erasure (Art. 17 GDPR)",
+  restriction: "Right to Restriction of Processing (Art. 18 GDPR)",
+  portability: "Right to Data Portability (Art. 20 GDPR)",
+  objection: "Right to Object (Art. 21 GDPR)",
+  withdrawal: "Withdrawal of Consent (Art. 7(3) GDPR)",
+};
+
+const LEGAL_EMAIL = process.env.LEGAL_NOTIFY_EMAIL ?? "legal@corelyx.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
 
 type DataRequestBody = {
   request_type?: unknown;
@@ -44,6 +58,13 @@ type DataSubjectRequestTable = {
   insert(values: Record<string, unknown>): {
     select(columns: string): {
       single(): PromiseLike<{ data: DataSubjectRequestRow | null; error: DbError | null }>;
+    };
+  };
+  update(values: Record<string, unknown>): {
+    eq(column: "id", value: string): {
+      select(columns: string): {
+        single(): PromiseLike<{ data: DataSubjectRequestRow | null; error: DbError | null }>;
+      };
     };
   };
 };
@@ -94,7 +115,7 @@ export async function GET() {
   });
 }
 
-// POST /api/user/data-request - create and timestamp a DSR request.
+// POST /api/user/data-request - create, fulfill or queue a DSR.
 export async function POST(request: Request) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
@@ -109,7 +130,7 @@ export async function POST(request: Request) {
   const service = createServiceClient() as unknown as ComplianceClient;
   const details = normalizeDetails(body?.details);
 
-  const { data, error } = await service
+  const { data: inserted, error } = await service
     .from("data_subject_requests")
     .insert({
       user_id: user.id,
@@ -121,7 +142,13 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return apiError(error.message, 500);
-  if (!data) return apiError("Data request could not be created.", 500);
+  if (!inserted) return apiError("Data request could not be created.", 500);
+
+  let record: DataSubjectRequestRow = inserted;
+
+  // Side-effects per request type.
+  let autoFulfillSummary: string | null = null;
+  let autoDownloadUrl: string | undefined;
 
   if (requestType === "restriction") {
     const restrictedAt = new Date().toISOString();
@@ -135,29 +162,130 @@ export async function POST(request: Request) {
       .eq("id", user.id);
 
     if (restrictionError) return apiError(restrictionError.message, 500);
+
+    autoFulfillSummary =
+      "Your account has been flagged for processing restriction. Automated runs and triggers are paused while we review.";
+
+    const reviewed = await markInReview(service, record.id, autoFulfillSummary);
+    if (reviewed) record = reviewed;
   }
 
+  if (requestType === "access" || requestType === "portability") {
+    autoDownloadUrl = `${APP_URL}/api/user/export`;
+    autoFulfillSummary =
+      requestType === "portability"
+        ? "Your portable data export (JSON) is available immediately via your account."
+        : "Your data export (JSON) is available immediately via your account.";
+
+    const summary = `${autoFulfillSummary} Endpoint: ${autoDownloadUrl}`;
+    const completed = await markCompleted(service, record.id, summary);
+    if (completed) record = completed;
+  }
+
+  if (requestType === "withdrawal") {
+    autoFulfillSummary =
+      "Marketing-related cookies and analytics consent have been cleared. Essential authentication cookies remain because they are strictly necessary.";
+    const completed = await markCompleted(service, record.id, autoFulfillSummary);
+    if (completed) record = completed;
+  }
+
+  // Audit log (best-effort).
   try {
     await service.from("app_logs").insert({
       user_id: user.id,
       level: "info",
       source: "compliance",
       event: "data_subject_request.submitted",
-      status: "submitted",
+      status: record.status,
       message: `Data subject request submitted: ${requestType}`,
       details: {
-        request_id: data.id,
+        request_id: record.id,
         request_type: requestType,
-        due_at: data.due_at,
+        due_at: record.due_at,
+        auto_fulfilled: Boolean(autoFulfillSummary),
         processing_restricted: requestType === "restriction",
       },
     });
-  } catch (error) {
-    console.warn("[compliance] failed to write DSR app log:", error);
+  } catch (logError) {
+    console.warn("[compliance] failed to write DSR app log:", logError);
   }
 
-  return NextResponse.json(
-    { request: data as DataSubjectRequestRow },
-    { status: 201 }
-  );
+  // Email notifications (best-effort — never block the response).
+  const typeLabel = REQUEST_TYPE_LABELS[requestType];
+  const reference = record.id;
+
+  if (user.email) {
+    void sendDsrConfirmationEmail({
+      to: user.email,
+      reference,
+      typeLabel,
+      submittedAt: record.submitted_at,
+      dueAt: record.due_at,
+      details: record.details,
+      autoFulfilled: autoFulfillSummary
+        ? { summary: autoFulfillSummary, downloadUrl: autoDownloadUrl }
+        : null,
+    }).catch((err) => console.warn("[compliance] user confirmation email failed:", err));
+  }
+
+  void sendDsrLegalNotificationEmail({
+    to: LEGAL_EMAIL,
+    reference,
+    typeLabel,
+    requestType,
+    userEmail: user.email ?? "(no email on record)",
+    userId: user.id,
+    submittedAt: record.submitted_at,
+    dueAt: record.due_at,
+    details: record.details,
+    autoFulfilled: Boolean(autoFulfillSummary),
+  }).catch((err) => console.warn("[compliance] legal notification email failed:", err));
+
+  return NextResponse.json({ request: record }, { status: 201 });
+}
+
+async function markCompleted(
+  service: ComplianceClient,
+  id: string,
+  responseSummary: string
+): Promise<DataSubjectRequestRow | null> {
+  const { data, error } = await service
+    .from("data_subject_requests")
+    .update({
+      status: "completed",
+      response_summary: responseSummary,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("id, request_type, status, details, response_summary, submitted_at, due_at, completed_at")
+    .single();
+
+  if (error || !data) {
+    console.warn("[compliance] failed to mark request completed:", error?.message);
+    return null;
+  }
+  return data;
+}
+
+async function markInReview(
+  service: ComplianceClient,
+  id: string,
+  responseSummary: string
+): Promise<DataSubjectRequestRow | null> {
+  const { data, error } = await service
+    .from("data_subject_requests")
+    .update({
+      status: "in_review",
+      response_summary: responseSummary,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("id, request_type, status, details, response_summary, submitted_at, due_at, completed_at")
+    .single();
+
+  if (error || !data) {
+    console.warn("[compliance] failed to mark request in review:", error?.message);
+    return null;
+  }
+  return data;
 }

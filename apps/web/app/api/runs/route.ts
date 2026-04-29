@@ -6,6 +6,7 @@ import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { checkRunLimit, getRunHistoryDays } from "@/lib/limits";
 import { sendRunLimitWarningEmail } from "@/lib/email";
 import { ensureProcessingAllowed } from "@/lib/compliance";
+import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 
 // POST /api/runs — create a run and dispatch to runtime
@@ -54,6 +55,17 @@ export async function POST(request: Request) {
   type ProgramRow = { id: string; schema: unknown; user_id: string };
   const prog = program as unknown as ProgramRow;
   const schema = prog.schema as unknown as ProgramSchema;
+  const executableSchema = ProgramSchemaZ.safeParse(schema);
+  if (!executableSchema.success) {
+    return NextResponse.json(
+      {
+        error: "WORKFLOW_NOT_RUNNABLE",
+        message: "This workflow is saved as a draft but is not ready to run. Complete the highlighted node settings first.",
+        details: executableSchema.error.flatten(),
+      },
+      { status: 422 }
+    );
+  }
 
   // Run PRE_004 sentinel check using service client for key/connection lookups
   const serviceClient = createServiceClient();
@@ -92,7 +104,8 @@ export async function POST(request: Request) {
     .eq("user_id", user.id);
   const apiKeys = (apiKeysRaw ?? []) as ApiKeyRow[];
 
-  const { result, checks } = await validatePreFlight(schema, connections, apiKeys);
+  const runnableSchema = executableSchema.data as unknown as ProgramSchema;
+  const { result, checks } = await validatePreFlight(runnableSchema, connections, apiKeys);
   if (!result.valid) {
     return NextResponse.json({ error: "Pre-flight checks failed", checks }, { status: 422 });
   }
@@ -122,7 +135,7 @@ export async function POST(request: Request) {
   const markFailed = (msg: string) =>
     serviceClient
       .from("runs")
-      .update({ status: "failed", error_message: msg, completed_at: new Date().toISOString() })
+      .update({ status: "failed", error_message: msg, completed_at: new Date().toISOString() } as unknown as never)
       .eq("id", run.id);
 
   try {
@@ -135,7 +148,7 @@ export async function POST(request: Request) {
         run_id: run.id,
         program_id,
         user_id: user.id,
-        schema,
+        schema: runnableSchema,
         triggered_by: "manual",
         connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
       }),
@@ -143,11 +156,17 @@ export async function POST(request: Request) {
     });
     if (!runtimeRes.ok) {
       await markFailed(`Runtime rejected execution (${runtimeRes.status})`);
-      return apiError("Runtime failed to accept the run", 502);
+      return NextResponse.json(
+        { run_id: run.id, status: "failed", error: "Runtime failed to accept the run" },
+        { status: 502 }
+      );
     }
   } catch {
     await markFailed("Runtime is unreachable — is the runtime service running?");
-    return apiError("Runtime is unreachable", 503);
+    return NextResponse.json(
+      { run_id: run.id, status: "failed", error: "Runtime is unreachable" },
+      { status: 503 }
+    );
   }
 
   return NextResponse.json({ run_id: run.id, status: "running" });

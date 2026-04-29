@@ -22,6 +22,12 @@ const LOGIC_TYPE_LABEL: Record<StepConfig["logic_type"], string> = {
   transform: "Transform",
   filter: "Filter",
   branch: "Branch",
+  delay: "Delay",
+  loop: "Loop",
+  format: "Format",
+  parse: "Parse",
+  deduplicate: "Deduplicate",
+  sort: "Sort",
 };
 
 export function StepNode({ data, selected }: NodeProps) {

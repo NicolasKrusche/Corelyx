@@ -11,6 +11,11 @@ import { vaultRetrieve } from "@/lib/vault";
 import { GENESIS_SYSTEM_PROMPT, buildGenesisUserMessage } from "@/lib/genesis/prompt";
 import { ProgramSchemaZ } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
+import {
+  getDraftValidationMessage,
+  normalizeProgramDraft,
+  validateProgramDraft,
+} from "@/lib/workflow/normalize";
 import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
@@ -296,13 +301,14 @@ export async function POST(request: Request) {
         }
 
         normalizeSchema(parsedSchema);
-        const schemaResult = ProgramSchemaZ.safeParse(parsedSchema);
-        if (!schemaResult.success) {
-          const issues = schemaResult.error.issues.slice(0, 3).map(i => `${i.path.join(".")}: ${i.message}`).join(" | ");
-          console.error("[genesis] schema validation failed:", schemaResult.error.flatten());
-          throw new Error(`Schema validation failed: ${issues}`);
+        parsedSchema = normalizeProgramDraft(parsedSchema);
+        const draftResult = validateProgramDraft(parsedSchema);
+        if (!draftResult.success) {
+          console.error("[genesis] draft validation failed:", draftResult.error.flatten());
+          throw new Error(`Workflow draft validation failed: ${getDraftValidationMessage(draftResult.error)}`);
         }
-        const schema = schemaResult.data;
+        const schemaResult = ProgramSchemaZ.safeParse(parsedSchema);
+        const schema = schemaResult.success ? schemaResult.data : draftResult.data;
         const validation = validatePostGenesis(schema as unknown as Parameters<typeof validatePostGenesis>[0], connections);
 
         send({ type: "status", message: "Saving program..." });

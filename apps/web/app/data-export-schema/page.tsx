@@ -12,19 +12,22 @@ const sections = [
   ["auth_profile", "Supabase Auth profile fields exposed to the user, including email and sign-in timestamps."],
   ["account_profile", "Corelyx profile fields such as display name, avatar URL, plan tier, entitlement counters, and processing restriction state."],
   ["usage", "Monthly usage counters associated with the account."],
+  ["workspaces", "Workspace containers the account belongs to, including names and creation metadata."],
+  ["workspace_memberships", "The account's workspace memberships and rank assignments."],
+  ["workspace_invitations", "Workspace invitations visible to the account's workspaces, including invited email and rank."],
   ["data_subject_requests", "GDPR request history, status, due dates, and response summaries."],
   ["redemptions", "Redeemed plan or credit benefits. Raw redemption codes are excluded."],
-  ["programs", "User workflow definitions and settings."],
+  ["programs", "User workflow definitions, owner/org identifiers, and workflow settings."],
   ["program_connections", "Links between workflows and saved connections."],
   ["program_versions", "Saved workflow schema versions."],
   ["triggers", "Trigger configuration and scheduling metadata. Webhook trigger tokens are excluded."],
-  ["runs", "Workflow run metadata, status, timing, error, token, cost, and connector-call counters."],
+  ["runs", "Workflow run metadata, trigger payload, execution mode, status, timing, error, token, cost, and connector-call counters."],
   ["node_executions", "Per-node execution records, including retained input/output payloads where still available under retention policy."],
-  ["approvals", "Human approval records and decision metadata."],
+  ["approvals", "Human approval records, requester account ID, context, and decision metadata."],
   ["logs", "Application audit and operational logs scoped to the account."],
-  ["connections", "Connection metadata such as provider, scopes, validation state, and non-secret provider metadata."],
+  ["connections", "Connection metadata such as org ID, provider, scopes, validation state, and non-secret provider metadata."],
   ["connection_webhook_secrets", "Non-secret webhook secret metadata. Vault secret IDs are excluded."],
-  ["api_keys", "API key metadata such as provider, display name, validation state, and creation time. Raw keys and Vault secret IDs are excluded."],
+  ["api_keys", "API key metadata such as org ID, provider, display name, validation state, and creation time. Raw keys and Vault secret IDs are excluded."],
 ] as const;
 
 const topLevelShape = `{
@@ -32,6 +35,9 @@ const topLevelShape = `{
   "auth_profile": {},
   "account_profile": {},
   "usage": [],
+  "workspaces": [],
+  "workspace_memberships": [],
+  "workspace_invitations": [],
   "data_subject_requests": [],
   "redemptions": [],
   "programs": [],
@@ -61,7 +67,7 @@ export default async function DataExportSchemaPage() {
             Data Export Schema
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            Version 2 JSON schema for the GDPR Articles 15 and 20 export returned by <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">GET /api/user/export</code>.
+            Version 4 JSON schema for the GDPR Articles 15 and 20 export returned by <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">GET /api/user/export</code>.
           </p>
         </div>
 

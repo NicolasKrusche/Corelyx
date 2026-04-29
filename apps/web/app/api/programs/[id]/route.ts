@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
-import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
+import {
+  getDraftValidationMessage,
+  normalizeProgramDraft,
+  validateProgramDraft,
+} from "@/lib/workflow/normalize";
 
 // GET /api/programs/:id — full schema
 export async function GET(
@@ -39,7 +43,7 @@ export async function PATCH(
   if (!body) return apiError("Invalid body", 400);
 
   const bodySchema = z.object({
-    schema: ProgramSchemaZ.optional(),
+    schema: z.unknown().optional(),
     name: z.string().min(1).optional(),
     description: z.string().optional(),
     is_active: z.boolean().optional(),
@@ -65,15 +69,25 @@ export async function PATCH(
   const existing = rawExisting as unknown as ExistingRow;
   const { schema: rawSchema, ...metaPatch } = parsed.data;
 
-  // Cast Zod output to ProgramSchema — the type discrepancy is in DataSchema.properties
-  // (Zod output: Record<string,unknown>, ProgramSchema: {[key:string]:DataSchema})
-  // which are structurally identical at runtime.
-  const schema = rawSchema as unknown as ProgramSchema | undefined;
+  const schema = rawSchema === undefined
+    ? undefined
+    : normalizeProgramDraft(rawSchema, { program_id: params.id });
 
   // ── If schema was provided, validate it ────────────────────────────────────
 
   let validationResult = null;
   if (schema) {
+    const draftResult = validateProgramDraft(schema);
+    if (!draftResult.success) {
+      return NextResponse.json(
+        {
+          error: "DRAFT_VALIDATION_FAILED",
+          message: getDraftValidationMessage(draftResult.error),
+          details: draftResult.error.flatten(),
+        },
+        { status: 422 }
+      );
+    }
     validationResult = validatePostGenesis(schema, []);
   }
 
@@ -86,7 +100,14 @@ export async function PATCH(
   const updatePayload = {
     ...metaPatch,
     updated_at: now,
-    ...(schema ? { schema: schema as unknown, schema_version: nextVersion } : {}),
+    ...(schema
+      ? {
+          name: schema.program_name,
+          schema: schema as unknown,
+          schema_version: nextVersion,
+          execution_mode: schema.execution_mode === "approval_required" ? "supervised" : schema.execution_mode,
+        }
+      : {}),
   };
 
   const { data: updatedProgram, error: updateError } = await supabase

@@ -6,6 +6,11 @@ import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { checkProgramLimit } from "@/lib/limits";
+import {
+  getDraftValidationMessage,
+  normalizeProgramDraft,
+  validateProgramDraft,
+} from "@/lib/workflow/normalize";
 
 const ImportProgramBodyZ = z.object({
   json: z.string().optional(),
@@ -81,17 +86,22 @@ export async function POST(request: Request) {
     }
   }
 
-  const schemaCandidate = extractSchemaCandidate(parsedJson);
-  const schemaResult = ProgramSchemaZ.safeParse(schemaCandidate);
-  if (!schemaResult.success) {
+  const schemaCandidate = normalizeProgramDraft(extractSchemaCandidate(parsedJson));
+  const draftResult = validateProgramDraft(schemaCandidate);
+  if (!draftResult.success) {
     return NextResponse.json(
-      { error: "Imported JSON is not a valid ProgramSchema", details: schemaResult.error.flatten() },
+      {
+        error: "Imported JSON is not a valid workflow draft",
+        message: getDraftValidationMessage(draftResult.error),
+        details: draftResult.error.flatten(),
+      },
       { status: 422 }
     );
   }
 
   // Cast through unknown to bridge DataSchema typing variance between zod output and shared interface.
-  const schema = schemaResult.data as unknown as ProgramSchema;
+  const strictResult = ProgramSchemaZ.safeParse(schemaCandidate);
+  const schema = (strictResult.success ? strictResult.data : draftResult.data) as unknown as ProgramSchema;
   const now = new Date().toISOString();
 
   const finalName = parsed.data.name?.trim() || schema.program_name;

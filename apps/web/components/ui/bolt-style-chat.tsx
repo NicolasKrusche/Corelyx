@@ -79,6 +79,7 @@ function ModelSelector({
   return (
     <div className='relative'>
       <button
+        type='button'
         onClick={() => setIsOpen(!isOpen)}
         className='flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground active:scale-95'
       >
@@ -98,6 +99,7 @@ function ModelSelector({
               {models.map((model) => (
                 <button
                   key={model.id}
+                  type='button'
                   onClick={() => handleSelect(model)}
                   className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
                     selected.id === model.id
@@ -138,11 +140,13 @@ function ModelSelector({
 
 function ChatInput({
   onSend,
+  onPlan,
   placeholder = 'What do you want to build?',
   initialMessage = '',
   disabled = false,
 }: {
   onSend?: (message: string) => void
+  onPlan?: (message: string) => void
   placeholder?: string
   initialMessage?: string
   disabled?: boolean
@@ -163,6 +167,12 @@ function ChatInput({
     if (message.trim()) {
       onSend?.(message)
       setMessage('')
+    }
+  }
+
+  const handlePlan = () => {
+    if (message.trim()) {
+      onPlan?.(message)
     }
   }
 
@@ -194,6 +204,7 @@ function ChatInput({
           <div className='flex items-center gap-1'>
             <div className='relative'>
               <button
+                type='button'
                 onClick={() => setShowAttachMenu(!showAttachMenu)}
                 className='flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground active:scale-95'
               >
@@ -212,6 +223,7 @@ function ChatInput({
                       ].map((item, i) => (
                         <button
                           key={i}
+                          type='button'
                           className='flex w-full items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all duration-150 hover:bg-accent/50 hover:text-foreground'
                         >
                           {item.icon}
@@ -229,12 +241,18 @@ function ChatInput({
           <div className='flex-1' />
 
           <div className='flex items-center gap-2'>
-            <button className='flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-muted-foreground/70 transition-all duration-200 hover:bg-accent/50 hover:text-foreground'>
+            <button
+              type='button'
+              onClick={handlePlan}
+              disabled={!message.trim() || disabled}
+              className='flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-muted-foreground/70 transition-all duration-200 hover:bg-accent/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40'
+            >
               <Lightbulb className='size-4' />
               <span className='hidden sm:inline'>Plan</span>
             </button>
 
             <button
+              type='button'
               onClick={handleSubmit}
               disabled={!message.trim() || disabled}
               className='flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all duration-200 hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40'
@@ -369,6 +387,7 @@ function ImportButtons({ onImport }: { onImport?: (source: string) => void }) {
         ].map((option) => (
           <button
             key={option.id}
+            type='button'
             onClick={() => onImport?.(option.id)}
             className='flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95'
           >
@@ -392,6 +411,7 @@ interface BoltChatProps {
   inputDisabled?: boolean
   hideHero?: boolean
   onSend?: (message: string) => void
+  onPlan?: (message: string) => void
   onImport?: (source: string) => void
 }
 
@@ -406,6 +426,7 @@ export function BoltStyleChat({
   inputDisabled = false,
   hideHero = false,
   onSend,
+  onPlan,
   onImport,
 }: BoltChatProps) {
   return (
@@ -448,6 +469,7 @@ export function BoltStyleChat({
             initialMessage={initialMessage}
             disabled={inputDisabled}
             onSend={onSend}
+            onPlan={onPlan}
           />
         </div>
 

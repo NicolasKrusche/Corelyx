@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { CookieNotice } from "@/components/consent-banner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageBootstrap, LanguagePrompt } from "@/components/language-switcher";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -66,7 +67,9 @@ export default function RootLayout({
       </head>
       <body className="font-sans">
         <ThemeProvider>
+          <LanguageBootstrap />
           {children}
+          <LanguagePrompt />
           <CookieNotice />
         </ThemeProvider>
       </body>

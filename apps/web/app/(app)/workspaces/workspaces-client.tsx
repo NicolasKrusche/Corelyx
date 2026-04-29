@@ -1,0 +1,601 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Building2, Check, Crown, Shield, UserPlus, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  WORKSPACE_ROLE_LABELS,
+  canAssignWorkspaceRole,
+  canManageWorkspace,
+  type WorkspaceRole,
+} from "@/lib/workspaces";
+
+type Workspace = {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  role: WorkspaceRole;
+  member_count: number;
+};
+
+type Member = {
+  workspace_id: string;
+  user_id: string;
+  role: WorkspaceRole;
+  created_at: string;
+  updated_at: string;
+  email: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
+type Invitation = {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role: Exclude<WorkspaceRole, "owner">;
+  created_at: string;
+};
+
+type MembersResponse = {
+  actor_role: WorkspaceRole;
+  members: Member[];
+  invitations: Invitation[];
+};
+
+const ROLE_OPTIONS: WorkspaceRole[] = ["owner", "admin", "member", "viewer"];
+const INVITE_ROLE_OPTIONS: Exclude<WorkspaceRole, "owner">[] = ["admin", "member", "viewer"];
+
+function roleClass(role: WorkspaceRole) {
+  switch (role) {
+    case "owner":
+      return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    case "admin":
+      return "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300";
+    case "member":
+      return "border-green-500/25 bg-green-500/10 text-green-700 dark:text-green-300";
+    default:
+      return "border-border bg-secondary text-muted-foreground";
+  }
+}
+
+function initials(member: Member) {
+  const label = member.display_name || member.email || "Member";
+  return label.slice(0, 1).toUpperCase();
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function WorkspacesClient() {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  const [membersState, setMembersState] = useState<MembersResponse | null>(null);
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [renameValue, setRenameValue] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<Exclude<WorkspaceRole, "owner">>("member");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const selectedWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? workspaces[0] ?? null,
+    [selectedWorkspaceId, workspaces]
+  );
+
+  const actorRole = membersState?.actor_role ?? selectedWorkspace?.role ?? "viewer";
+  const canManage = canManageWorkspace(actorRole);
+
+  const loadWorkspaces = useCallback(async () => {
+    setLoadingWorkspaces(true);
+    const res = await fetch("/api/workspaces", { cache: "no-store" });
+    const body = await res.json().catch(() => null) as {
+      workspaces?: Workspace[];
+      active_workspace_id?: string | null;
+      error?: string;
+    } | null;
+
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not load workspaces." });
+      setLoadingWorkspaces(false);
+      return;
+    }
+
+    const nextWorkspaces = body?.workspaces ?? [];
+    setWorkspaces(nextWorkspaces);
+    setActiveWorkspaceId(body?.active_workspace_id ?? null);
+    setSelectedWorkspaceId((current) =>
+      current && nextWorkspaces.some((workspace) => workspace.id === current)
+        ? current
+        : body?.active_workspace_id ?? nextWorkspaces[0]?.id ?? null
+    );
+    setLoadingWorkspaces(false);
+  }, []);
+
+  const loadMembers = useCallback(async (workspaceId: string) => {
+    setLoadingMembers(true);
+    const res = await fetch(`/api/workspaces/${workspaceId}/members`, { cache: "no-store" });
+    const body = await res.json().catch(() => null) as MembersResponse & { error?: string } | null;
+
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not load workspace members." });
+      setMembersState(null);
+      setLoadingMembers(false);
+      return;
+    }
+
+    setMembersState({
+      actor_role: body!.actor_role,
+      members: body!.members ?? [],
+      invitations: body!.invitations ?? [],
+    });
+    setLoadingMembers(false);
+  }, []);
+
+  useEffect(() => {
+    void loadWorkspaces();
+  }, [loadWorkspaces]);
+
+  useEffect(() => {
+    if (!selectedWorkspace) {
+      setMembersState(null);
+      setRenameValue("");
+      return;
+    }
+    setRenameValue(selectedWorkspace.name);
+    void loadMembers(selectedWorkspace.id);
+  }, [selectedWorkspace, loadMembers]);
+
+  async function createWorkspace(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage(null);
+    setBusy("create");
+
+    const res = await fetch("/api/workspaces", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: workspaceName }),
+    });
+    const body = await res.json().catch(() => null) as { workspace?: Workspace; error?: string } | null;
+
+    if (!res.ok || !body?.workspace) {
+      setMessage({ type: "error", text: body?.error ?? "Could not create workspace." });
+      setBusy(null);
+      return;
+    }
+
+    setWorkspaceName("");
+    setMessage({ type: "success", text: "Workspace created." });
+    await loadWorkspaces();
+    setSelectedWorkspaceId(body.workspace.id);
+    setBusy(null);
+  }
+
+  async function switchWorkspace(workspaceId: string) {
+    setBusy(`switch:${workspaceId}`);
+    const res = await fetch("/api/workspaces", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "switch", workspace_id: workspaceId }),
+    });
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not switch workspace." });
+    } else {
+      setActiveWorkspaceId(workspaceId);
+      setMessage({ type: "success", text: "Active workspace updated." });
+    }
+    setBusy(null);
+  }
+
+  async function renameWorkspace(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedWorkspace) return;
+    setBusy("rename");
+
+    const res = await fetch("/api/workspaces", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "rename",
+        workspace_id: selectedWorkspace.id,
+        name: renameValue,
+      }),
+    });
+    const body = await res.json().catch(() => null) as { workspace?: Workspace; error?: string } | null;
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not rename workspace." });
+    } else {
+      setWorkspaces((current) =>
+        current.map((workspace) =>
+          workspace.id === selectedWorkspace.id
+            ? { ...workspace, name: body?.workspace?.name ?? renameValue }
+            : workspace
+        )
+      );
+      setMessage({ type: "success", text: "Workspace renamed." });
+    }
+    setBusy(null);
+  }
+
+  async function addPerson(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedWorkspace) return;
+    setBusy("invite");
+
+    const res = await fetch(`/api/workspaces/${selectedWorkspace.id}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+    });
+    const body = await res.json().catch(() => null) as {
+      member?: Member;
+      invitation?: Invitation;
+      error?: string;
+    } | null;
+
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not add this person." });
+      setBusy(null);
+      return;
+    }
+
+    setInviteEmail("");
+    setInviteRole("member");
+    setMessage({
+      type: "success",
+      text: body?.member ? "Member added." : "Invitation saved for this email.",
+    });
+    await loadMembers(selectedWorkspace.id);
+    await loadWorkspaces();
+    setBusy(null);
+  }
+
+  async function updateRole(member: Member, role: WorkspaceRole) {
+    if (!selectedWorkspace || member.role === role) return;
+    setBusy(`role:${member.user_id}`);
+
+    const res = await fetch(`/api/workspaces/${selectedWorkspace.id}/members`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: member.user_id, role }),
+    });
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not update role." });
+    } else {
+      setMessage({ type: "success", text: "Role updated." });
+      await loadMembers(selectedWorkspace.id);
+    }
+    setBusy(null);
+  }
+
+  async function removeMember(member: Member) {
+    if (!selectedWorkspace) return;
+    setBusy(`remove:${member.user_id}`);
+
+    const res = await fetch(`/api/workspaces/${selectedWorkspace.id}/members?user_id=${encodeURIComponent(member.user_id)}`, {
+      method: "DELETE",
+    });
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not remove member." });
+    } else {
+      setMessage({ type: "success", text: "Member removed." });
+      await loadMembers(selectedWorkspace.id);
+      await loadWorkspaces();
+    }
+    setBusy(null);
+  }
+
+  async function revokeInvitation(invitation: Invitation) {
+    if (!selectedWorkspace) return;
+    setBusy(`invite:${invitation.id}`);
+
+    const res = await fetch(`/api/workspaces/${selectedWorkspace.id}/members?invitation_id=${encodeURIComponent(invitation.id)}`, {
+      method: "DELETE",
+    });
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not revoke invitation." });
+    } else {
+      setMessage({ type: "success", text: "Invitation revoked." });
+      await loadMembers(selectedWorkspace.id);
+    }
+    setBusy(null);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Workspace</p>
+          <h1 className="text-3xl font-black tracking-tight">Workspaces & People</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+            Create separate workspaces and assign each person a rank: Owner, Admin, Member, or Viewer.
+          </p>
+        </div>
+
+        <form onSubmit={createWorkspace} className="flex w-full gap-2 sm:max-w-md">
+          <input
+            value={workspaceName}
+            onChange={(e) => setWorkspaceName(e.target.value)}
+            placeholder="New workspace name"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+          <button
+            type="submit"
+            disabled={busy === "create" || workspaceName.trim().length === 0}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {busy === "create" ? "Creating..." : "Create"}
+          </button>
+        </form>
+      </div>
+
+      {message && (
+        <p
+          className={cn(
+            "rounded-lg border px-3 py-2 text-sm",
+            message.type === "success"
+              ? "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-300"
+              : "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300"
+          )}
+        >
+          {message.text}
+        </p>
+      )}
+
+      <div className="grid gap-5 lg:grid-cols-[310px_minmax(0,1fr)]">
+        <aside className="space-y-3">
+          {loadingWorkspaces && workspaces.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+              Loading workspaces...
+            </div>
+          ) : workspaces.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/60 p-5 text-sm text-muted-foreground">
+              No workspaces yet.
+            </div>
+          ) : (
+            workspaces.map((workspace) => {
+              const selected = selectedWorkspace?.id === workspace.id;
+              const active = activeWorkspaceId === workspace.id;
+              return (
+                <button
+                  key={workspace.id}
+                  type="button"
+                  onClick={() => setSelectedWorkspaceId(workspace.id)}
+                  className={cn(
+                    "w-full rounded-xl border bg-card p-4 text-left transition-colors hover:bg-accent",
+                    selected ? "border-primary/50" : "border-border"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Building2 className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-foreground">{workspace.name}</span>
+                        {active && <Check className="h-3.5 w-3.5 shrink-0 text-green-500" />}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {workspace.member_count} {workspace.member_count === 1 ? "person" : "people"}
+                      </span>
+                    </span>
+                  </div>
+                  <span className={cn("mt-3 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium", roleClass(workspace.role))}>
+                    {WORKSPACE_ROLE_LABELS[workspace.role]}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </aside>
+
+        <main className="min-w-0 space-y-5">
+          {!selectedWorkspace ? (
+            <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+              Select or create a workspace to manage people.
+            </div>
+          ) : (
+            <>
+              <section className="rounded-xl border border-border bg-card p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-xl font-bold tracking-tight">{selectedWorkspace.name}</h2>
+                      <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", roleClass(actorRole))}>
+                        {WORKSPACE_ROLE_LABELS[actorRole]}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Created {formatDate(selectedWorkspace.created_at)}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => switchWorkspace(selectedWorkspace.id)}
+                    disabled={activeWorkspaceId === selectedWorkspace.id || busy === `switch:${selectedWorkspace.id}`}
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+                  >
+                    {activeWorkspaceId === selectedWorkspace.id ? "Active workspace" : "Set active"}
+                  </button>
+                </div>
+
+                {canManage && (
+                  <form onSubmit={renameWorkspace} className="mt-5 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    />
+                    <button
+                      type="submit"
+                      disabled={busy === "rename" || renameValue.trim().length === 0}
+                      className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+                    >
+                      {busy === "rename" ? "Saving..." : "Rename"}
+                    </button>
+                  </form>
+                )}
+              </section>
+
+              {canManage && (
+                <section className="rounded-xl border border-border bg-card p-5">
+                  <div className="mb-4 flex items-center gap-2">
+                    <UserPlus className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">Add people</h3>
+                  </div>
+                  <form onSubmit={addPerson} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_auto]">
+                    <input
+                      type="email"
+                      required
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    />
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as Exclude<WorkspaceRole, "owner">)}
+                      className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    >
+                      {INVITE_ROLE_OPTIONS.map((role) => (
+                        <option key={role} value={role}>{WORKSPACE_ROLE_LABELS[role]}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={busy === "invite"}
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                    >
+                      {busy === "invite" ? "Adding..." : "Add"}
+                    </button>
+                  </form>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Existing users are added immediately. New emails are kept as pending invitations.
+                  </p>
+                </section>
+              )}
+
+              <section className="rounded-xl border border-border bg-card">
+                <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+                  <Users className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">People</h3>
+                </div>
+
+                {loadingMembers ? (
+                  <p className="p-5 text-sm text-muted-foreground">Loading people...</p>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {(membersState?.members ?? []).map((member) => (
+                      <div key={member.user_id} className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <div
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-sm font-bold"
+                            style={member.avatar_url ? { backgroundImage: `url(${member.avatar_url})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                          >
+                            {!member.avatar_url && initials(member)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">
+                              {member.display_name || member.email || member.user_id}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">{member.email ?? member.user_id}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                          {canManage ? (
+                            <select
+                              value={member.role}
+                              disabled={
+                                busy === `role:${member.user_id}` ||
+                                !canAssignWorkspaceRole(actorRole, member.role)
+                              }
+                              onChange={(e) => updateRole(member, e.target.value as WorkspaceRole)}
+                              className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary disabled:opacity-50"
+                            >
+                              {ROLE_OPTIONS.map((role) => (
+                                <option
+                                  key={role}
+                                  value={role}
+                                  disabled={!canAssignWorkspaceRole(actorRole, role)}
+                                >
+                                  {WORKSPACE_ROLE_LABELS[role]}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", roleClass(member.role))}>
+                              {WORKSPACE_ROLE_LABELS[member.role]}
+                            </span>
+                          )}
+
+                          {member.role === "owner" ? <Crown className="h-4 w-4 text-amber-500" /> : <Shield className="h-4 w-4 text-muted-foreground" />}
+
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => removeMember(member)}
+                              disabled={busy === `remove:${member.user_id}`}
+                              className="rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {(membersState?.invitations?.length ?? 0) > 0 && (
+                <section className="rounded-xl border border-border bg-card">
+                  <div className="border-b border-border px-5 py-4">
+                    <h3 className="text-sm font-semibold">Pending invitations</h3>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {membersState!.invitations.map((invitation) => (
+                      <div key={invitation.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{invitation.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Invited as {WORKSPACE_ROLE_LABELS[invitation.role]} on {formatDate(invitation.created_at)}
+                          </p>
+                        </div>
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => revokeInvitation(invitation)}
+                            disabled={busy === `invite:${invitation.id}`}
+                            className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
