@@ -4,6 +4,7 @@ import { cronRunner } from "@/lib/inngest/cron-runner";
 import { approvalNotifier } from "@/lib/inngest/approval-notifier";
 import { approvalTimeout } from "@/lib/inngest/approval-timeout";
 import { dataRetentionPurge } from "@/lib/inngest/data-retention";
+import { securityMonitor } from "@/lib/inngest/security-monitor";
 
 /**
  * Inngest serve endpoint — handles all function registrations + event delivery.
@@ -12,5 +13,5 @@ import { dataRetentionPurge } from "@/lib/inngest/data-retention";
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [cronRunner, approvalNotifier, approvalTimeout, dataRetentionPurge],
+  functions: [cronRunner, approvalNotifier, approvalTimeout, dataRetentionPurge, securityMonitor],
 });

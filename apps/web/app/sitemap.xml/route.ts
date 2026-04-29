@@ -9,6 +9,10 @@ export function GET() {
     { url: `${APP_URL}/terms`,   priority: "0.5", changefreq: "yearly"  },
     { url: `${APP_URL}/impressum`, priority: "0.5", changefreq: "yearly"  },
     { url: `${APP_URL}/subprocessors`, priority: "0.5", changefreq: "monthly"  },
+    { url: `${APP_URL}/dpa`, priority: "0.5", changefreq: "yearly"  },
+    { url: `${APP_URL}/security`, priority: "0.5", changefreq: "yearly"  },
+    { url: `${APP_URL}/dpia-template`, priority: "0.4", changefreq: "yearly"  },
+    { url: `${APP_URL}/data-export-schema`, priority: "0.4", changefreq: "yearly"  },
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
+import { writeAppLog } from "@/lib/app-logs";
 
 // GET /api/admin/users/search?q=email — search users by email for the admin code UI
 export async function GET(request: Request) {
@@ -23,6 +25,20 @@ export async function GET(request: Request) {
     .filter((u) => u.email?.toLowerCase().includes(q.toLowerCase()))
     .slice(0, 8)
     .map((u) => ({ id: u.id, email: u.email, created_at: u.created_at }));
+
+  await writeAppLog(service, {
+    userId: user.id,
+    level: "info",
+    source: "Admin",
+    event: "admin.user_search.performed",
+    status: "completed",
+    message: "Admin searched users.",
+    details: {
+      query_sha256: createHash("sha256").update(q.toLowerCase()).digest("hex"),
+      query_length: q.length,
+      result_count: matches.length,
+    },
+  });
 
   return NextResponse.json({ users: matches });
 }

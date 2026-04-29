@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
+import { writeAppLog } from "@/lib/app-logs";
 
 const CODE_TYPES = ["pro_lifetime", "builder_lifetime", "unlimited", "pro_trial", "run_credits"] as const;
 
@@ -71,6 +72,23 @@ export async function POST(request: Request) {
     if (error.code === "23505") return apiError("A code with that text already exists.", 409);
     return apiError(error.message, 500);
   }
+
+  await writeAppLog(service, {
+    userId: user.id,
+    level: "warning",
+    source: "Admin",
+    event: "admin.redemption_code.created",
+    status: "completed",
+    message: "Admin created a redemption code.",
+    details: {
+      code_id: (data as { id?: string } | null)?.id ?? null,
+      type,
+      label: label || null,
+      locked_to_email: locked_to_email || null,
+      max_uses: max_uses ?? null,
+      expires_at: expires_at ?? null,
+    },
+  });
 
   return NextResponse.json({ code: data }, { status: 201 });
 }

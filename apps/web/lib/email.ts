@@ -38,6 +38,45 @@ async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<void>
 
 // ─── Approval notification ─────────────────────────────────────────────────
 
+export async function sendSecurityAlertEmail({
+  to,
+  subject,
+  summary,
+  items,
+}: {
+  to: string;
+  subject: string;
+  summary: string;
+  items: Array<{ title: string; body: string }>;
+}): Promise<void> {
+  await sendEmail({
+    to,
+    subject,
+    html: `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+<tr><td align="center">
+<table width="640" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx security alert</span></td></tr>
+<tr><td style="padding:32px;">
+<p style="margin:0 0 20px;font-size:14px;color:#374151;line-height:1.5;">${escapeHtml(summary)}</p>
+${items.map((item) => `
+<div style="border:1px solid #e5e7eb;border-radius:6px;padding:14px 16px;margin-bottom:12px;">
+<p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#111827;">${escapeHtml(item.title)}</p>
+<p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5;white-space:pre-wrap;">${escapeHtml(item.body)}</p>
+</div>`).join("")}
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`.trim(),
+  });
+}
+
 interface ApprovalEmailOptions {
   to: string;
   nodeLabel: string;

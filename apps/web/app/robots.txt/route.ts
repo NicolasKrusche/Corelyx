@@ -7,6 +7,10 @@ Allow: /privacy
 Allow: /terms
 Allow: /impressum
 Allow: /subprocessors
+Allow: /dpa
+Allow: /security
+Allow: /dpia-template
+Allow: /data-export-schema
 Disallow: /dashboard
 Disallow: /programs
 Disallow: /runs

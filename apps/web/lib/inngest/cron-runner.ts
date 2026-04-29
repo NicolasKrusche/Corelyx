@@ -4,6 +4,7 @@ import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit } from "@/lib/limits";
+import { getProcessingRestriction } from "@/lib/compliance";
 
 /**
  * Inngest function: runs every minute, finds all active cron triggers that are
@@ -56,6 +57,12 @@ export const cronRunner = inngest.createFunction(
 
         // Check monthly run limit before firing
         const userId = (program as Record<string, unknown>).user_id as string;
+        const restriction = await getProcessingRestriction(userId, db);
+        if (restriction.restricted) {
+          logger.warn(`Skipping cron trigger ${trigger.id}: processing restricted for user ${userId}`);
+          return;
+        }
+
         const limitCheck = await checkRunLimit(userId);
         if (!limitCheck.allowed) {
           logger.warn(`Skipping cron trigger ${trigger.id}: run limit reached for user ${userId}`);

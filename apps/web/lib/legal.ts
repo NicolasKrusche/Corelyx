@@ -449,6 +449,6 @@ export const rightsItems: TextItem[] = [
   {
     title: "Data Processing Agreement (B2B)",
     body:
-      "If you process personal data of your own customers or employees through the platform as part of your business, Corelyx acts as your processor (Art. 28 GDPR). A Data Processing Agreement (DPA) is available on request at legal@corelyx.app.",
+      "If you process personal data of your own customers or employees through the platform as part of your business, Corelyx acts as your processor (Art. 28 GDPR). A Data Processing Agreement (DPA) is available at /dpa and can be requested for signature at legal@corelyx.app.",
   },
 ];

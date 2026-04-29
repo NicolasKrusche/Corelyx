@@ -8,6 +8,7 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
+import { EuComplianceCenter } from "@/components/eu-compliance-center";
 
 // ─── Sidebar palette ──────────────────────────────────────────────────────────
 
@@ -1310,38 +1311,7 @@ function SettingsModal({
             )}
 
             {tab === "compliance" && (
-              <div className="space-y-6">
-                <section className={panelClass}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">EU Compliance</p>
-                  <p className="mt-3 text-sm text-foreground">
-                    This workspace is configured to comply with EU regulations, including GDPR data protection standards, strict data residency requirements, and sub-processor tracking.
-                  </p>
-                </section>
-
-                <section className={panelClass}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">GDPR & Data Protection</p>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    Under the General Data Protection Regulation (GDPR), you have the right to access, rectify, port, and delete your personal data.
-                  </p>
-                  <div className="mt-4 flex flex-col gap-2">
-                    <a href="https://gdpr-info.eu/" target="_blank" rel="noreferrer" className="text-sm font-medium text-primary hover:underline underline-offset-2">
-                      Read more about the GDPR standard
-                    </a>
-                  </div>
-                </section>
-
-                <section className={panelClass}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Legal requests</p>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    Submit a data subject request from Settings. Requests are timestamped, tracked, and due within the GDPR 30-day response window.
-                  </p>
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Link href="/settings#data-rights" className={primaryBtnClass}>
-                      Open data rights
-                    </Link>
-                  </div>
-                </section>
-              </div>
+              <EuComplianceCenter variant="compact" onNavigate={onClose} />
             )}
 
             {tab === "advanced" && (

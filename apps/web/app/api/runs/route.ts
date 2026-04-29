@@ -5,6 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { checkRunLimit, getRunHistoryDays } from "@/lib/limits";
 import { sendRunLimitWarningEmail } from "@/lib/email";
+import { ensureProcessingAllowed } from "@/lib/compliance";
 import type { ProgramSchema } from "@flowos/schema";
 
 // POST /api/runs — create a run and dispatch to runtime
@@ -12,6 +13,9 @@ export async function POST(request: Request) {
   const supabase = await createServerClient();
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const processingRestriction = await ensureProcessingAllowed(user.id);
+  if (processingRestriction) return processingRestriction;
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body.program_id !== "string") {

@@ -17,6 +17,7 @@ import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
+import { ensureProcessingAllowed } from "@/lib/compliance";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -57,6 +58,9 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
   const userId = user.id;
+
+  const processingRestriction = await ensureProcessingAllowed(userId);
+  if (processingRestriction) return processingRestriction;
 
   const body = await request.json().catch(() => null);
   const parsed = RequestSchema.safeParse(body);

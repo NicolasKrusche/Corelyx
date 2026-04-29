@@ -802,7 +802,7 @@ SAFE to send:
 - [ ] Make MFA available (and default-on) for all users
 - [ ] Implement session expiry (24h idle, 7d absolute)
 - [ ] Implement RBAC — users cannot access other organizations' data
-- [ ] Audit log all privileged admin actions
+- [x] Audit log all privileged admin actions — admin code creation/deactivation and admin user search now write `app_logs` audit entries without exposing raw redemption codes or search text
 
 #### Data Handling
 - [x] Implement configurable execution log verbosity (default: METADATA_ONLY) - runtime supports `EXECUTION_LOG_VERBOSITY=NONE|ERRORS_ONLY|METADATA_ONLY|FULL`
@@ -815,27 +815,27 @@ SAFE to send:
 #### Legal Documents (coordinate with lawyer)
 - [x] Privacy Policy (controller role) — product draft implemented at `/privacy`; requires qualified legal review before commercial reliance
 - [x] Terms of Service (including prohibited use cases: CLOUD Act-adjacent, high-risk AI without approval gates, prohibited AI practices) — product draft implemented at `/terms`; EU AI Act prohibited/high-risk use language added; requires qualified legal review
-- [ ] Data Processing Agreement template (processor role)
+- [x] Data Processing Agreement template (processor role) — customer-accessible draft implemented directly in the product at `/dpa`; requires qualified Austrian/EU legal review before signature or commercial reliance
 - [x] Cookie Policy + Consent banner — essential-cookie notice implemented; no optional analytics/marketing consent flow yet
 - [x] Impressum (required under Austrian/German law) — page implemented at `/impressum`; production legal identity env values still need final verification
 - [ ] Sign Anthropic DPA with SCCs
 - [ ] Sign subprocessor DPAs for all services
 
 #### Documentation
-- [ ] Create RoPA (Controller) — see Section 3.6 template
-- [ ] Create RoPA (Processor) — see Section 3.6 template  
+- [x] Create RoPA (Controller) — internal draft controller record added at [ROPA_CONTROLLER.md](ROPA_CONTROLLER.md); this is an audit/legal artifact, not a customer-facing page; requires qualified legal review and final company/DPO details
+- [x] Create RoPA (Processor) — internal draft processor record added at [ROPA_PROCESSOR.md](ROPA_PROCESSOR.md); this is an audit/legal artifact, not a customer-facing page; requires qualified legal review and final company/DPO details
 - [x] Create Subprocessor list (public-facing) — implemented at `/subprocessors`, generated from the provider inventory in `apps/web/lib/legal.ts`; canonical engineering source [SUBPROCESSORS.md](SUBPROCESSORS.md)
 - [x] Create internal AI System Inventory — [AI_SYSTEM_INVENTORY.md](AI_SYSTEM_INVENTORY.md)
-- [x] Create Security policy document — [SECURITY.md](SECURITY.md) (covers vulnerability disclosure, severity SLA, scope)
+- [x] Create Security policy document — public product page at `/security` covers vulnerability disclosure, severity SLA, and scope
 
 ### Phase 2 — First 3 Months Post-Launch
 
 #### Data Subject Rights
 - [x] Build `/api/user/data-request` endpoint for DSR handling
-- [ ] Build full account data export (JSON) — all data across all stores
-- [ ] Build hard account deletion with propagation to all subprocessors
-- [ ] Build data portability export (machine-readable, documented schema)
-- [ ] Build processing restriction flag mechanism
+- [x] Build full account data export (JSON) — expanded [`/api/user/export`](apps/web/app/api/user/export/route.ts) to include auth/profile fields, usage, DSR history, redemptions, workflows, versions, triggers, program-connection links, runs, node executions, approvals, logs, connection metadata, webhook-secret metadata, and API-key metadata while excluding raw secrets/tokens
+- [x] Build hard account deletion with propagation to all subprocessors — Settings deletion now cancels active Stripe subscriptions, removes the Resend audience contact where configured, purges stored Vault secrets, deletes the Supabase auth user to cascade owned DB records, and writes a pseudonymous deletion receipt to `account_deletion_audit` via [20240019_account_deletion_audit.sql](supabase/migrations/20240019_account_deletion_audit.sql)
+- [x] Build data portability export (machine-readable, documented schema) — export now returns schema version 2 JSON with `X-Corelyx-Export-Schema-Version`; schema is implemented directly in the product at `/data-export-schema` and linked from Settings → Data & Privacy
+- [x] Build processing restriction flag mechanism — `profiles.processing_restricted` state added in [20240018_processing_restriction.sql](supabase/migrations/20240018_processing_restriction.sql); `/api/user/data-request` sets it immediately for GDPR Art. 18 restriction requests; manual runs, Genesis generation/streaming, approval continuations, trigger skipping, and webhook/event/cron/program-trigger dispatch now refuse new processing while the flag is active
 - [x] Log all DSR requests with timestamps
 
 #### AI Act Compliance
@@ -844,15 +844,15 @@ SAFE to send:
 - [x] Log approval actions: who, when, what they reviewed — immutable `app_logs` entry written on every decision (manual + auto-timeout) capturing decider, timestamp, decision_note, and the full input snapshot the approver saw at decision time. See [`/api/approvals/[id]`](apps/web/app/api/approvals/[id]/route.ts) and [approval-timeout.ts](apps/web/lib/inngest/approval-timeout.ts)
 - [x] Implement approval timeout fail-safe behavior — dual mechanism: runtime polling loop in [executor.py](apps/runtime/engine/executor.py) and Inngest cron enforcer at [approval-timeout.ts](apps/web/lib/inngest/approval-timeout.ts); on timeout the approval is auto-rejected (treated as denial, not bypass) with race-safe pending-status guard
 - [x] Add prohibited use cases to Terms of Service
-- [x] Create internal DPIA template for customers building high-risk workflows — [DPIA_TEMPLATE.md](DPIA_TEMPLATE.md)
+- [x] Create DPIA template for customers building high-risk workflows — customer-accessible template implemented directly in the product at `/dpia-template`
 
 #### Security
 - [ ] Run first penetration test (internal or external)
-- [ ] Implement dependency scanning in CI/CD
-- [ ] Implement SAST in CI/CD
-- [x] Create vulnerability disclosure policy (public) — [SECURITY.md](SECURITY.md)
+- [x] Implement dependency scanning in CI/CD — GitHub Actions security workflow added at [.github/workflows/security.yml](.github/workflows/security.yml), running `pnpm audit --audit-level high` and `pip-audit` for the Python runtime
+- [x] Implement SAST in CI/CD — GitHub Actions security workflow added at [.github/workflows/security.yml](.github/workflows/security.yml), running Semgrep `p/ci` static analysis across the repository
+- [x] Create vulnerability disclosure policy (public) — customer/researcher-accessible policy implemented directly in the product at `/security`
 - [x] Create incident response plan (see Section 13) — operational runbook at [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) covering severity classification, T+0/24h/72h timelines, GDPR Art. 33 + NIS2 Art. 23 templates, breach register schema, drill cadence
-- [ ] Set up security monitoring and alerting
+- [x] Set up security monitoring and alerting — scheduled Inngest monitor scans recent warning/error `app_logs` plus failed account deletion audit rows every 15 minutes and emails `SECURITY_ALERT_EMAIL` / `SECURITY_EMAIL` / `security@corelyx.app`
 
 ### Phase 3 — 6-12 Months
 
@@ -863,7 +863,7 @@ SAFE to send:
 #### Advanced Compliance
 - [ ] Evaluate EU-hosted LLM for graph generation
 - [ ] Implement full DPIA process for customer workflows with high-risk use cases
-- [ ] Build compliance dashboard for customers (audit logs, GDPR controls visible)
+- [x] Build compliance dashboard for customers (audit logs, GDPR controls visible) — Settings → EU Compliance now exposes customer-facing policies, DPA, subprocessor registry, security policy, DPIA template, export schema, data export download, in-place DSR submission/history, account deletion access, and audit logs from the sidebar hub and full Settings page
 - [ ] Evaluate NIS2 formal assessment
 
 ---
@@ -951,7 +951,7 @@ At execution time:
 |---|---|---|---|
 | Privacy Policy | ✅ Draft implemented | Legal + Founder | Product page exists; must be reviewed by qualified counsel |
 | Terms of Service | ✅ Draft implemented | Legal + Founder | Product page exists and includes prohibited/high-risk AI use language; must be reviewed by qualified counsel |
-| Data Processing Agreement (DPA) | ❌ Not done | Legal | Standard template for all customers |
+| Data Processing Agreement (DPA) | ✅ Draft implemented | Legal | Customer-accessible draft available at `/dpa`; must be reviewed by qualified counsel before signature/commercial reliance |
 | Cookie Policy | ✅ Basic notice implemented | Legal | Essential-cookie notice only; update if optional trackers are added |
 | Impressum | ✅ Page implemented | Founder | Environment legal identity values still need final verification |
 | Subprocessor List | ✅ Implemented | Engineering | Public-facing list available at `/subprocessors`; must update with 30d notice |
@@ -962,17 +962,17 @@ At execution time:
 ### 12.2 DPA Key Clauses Checklist
 
 When your lawyer drafts the DPA, ensure it includes:
-- [ ] Subject matter, duration, nature, purpose of processing
-- [ ] Types of personal data and categories of data subjects
-- [ ] Full list of subprocessors (by reference to public subprocessor page)
-- [ ] 30-day advance notice for subprocessor changes
-- [ ] Processing only on documented customer instructions
-- [ ] Obligation to notify customer of breach within 24 hours (to give them time to meet their 72h GDPR obligation)
-- [ ] Data deletion/return within 30 days of contract end
-- [ ] Right of customer to audit (or accept third-party audit reports)
-- [ ] Compliance with Article 32 security requirements
-- [ ] EU data residency guarantee
-- [ ] Standard Contractual Clauses for any transfers outside EU (e.g. LLM APIs)
+- [x] Subject matter, duration, nature, purpose of processing — included directly on `/dpa`
+- [x] Types of personal data and categories of data subjects — included directly on `/dpa`
+- [x] Full list of subprocessors (by reference to public subprocessor page) — included directly on `/dpa`
+- [x] 30-day advance notice for subprocessor changes — included directly on `/dpa`
+- [x] Processing only on documented customer instructions — included directly on `/dpa`
+- [x] Obligation to notify customer of breach within 24 hours (to give them time to meet their 72h GDPR obligation) — included directly on `/dpa`
+- [x] Data deletion/return within 30 days of contract end — included directly on `/dpa`
+- [x] Right of customer to audit (or accept third-party audit reports) — included directly on `/dpa`
+- [x] Compliance with Article 32 security requirements — included directly on `/dpa`
+- [x] EU data residency guarantee — included directly on `/dpa`
+- [x] Standard Contractual Clauses for any transfers outside EU (e.g. LLM APIs) — included directly on `/dpa`
 
 ---
 
@@ -1121,7 +1121,7 @@ Every service that processes personal data on our behalf must be listed publicly
 | 8 | Are connected third-party APIs (Gmail, HubSpot, etc.) listed as subprocessors in DPA? | 🟠 Medium | Legal | Must be addressed in DPA template |
 | 9 | Approval gate bypass — is there any admin/API path that skips approval? | 🟠 Medium | Engineering | ✅ Audited — only `/api/approvals/[id]` can flip status; ownership + pending-state guards enforced; runtime polling and Inngest enforcer treat timeout as rejection (fail-safe). Immutable audit-log entry on every decision. |
 | 10 | How are tenant encryption keys managed? Are they per-tenant or shared? | 🟡 Low-Medium | Engineering | Design decision needed |
-| 11 | Data Act switching compliance — is a data export API on the roadmap? | 🟡 Low-Medium | Product | Add to roadmap |
+| 11 | Data Act switching compliance — is a data export API on the roadmap? | 🟡 Low-Medium | Product | Implemented: machine-readable account export at `/api/user/export` with public schema at `/data-export-schema`; continue validating scope against customer switching requirements |
 | 12 | Do we need to register with the Austrian Datenschutzbehörde? | 🟡 Low | Legal | Confirm with lawyer |
 
 ---

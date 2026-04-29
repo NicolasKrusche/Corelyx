@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
+import { getProcessingRestriction } from "@/lib/compliance";
 import {
   WEBHOOK_SIGNATURE_HEADER,
   WEBHOOK_TIMESTAMP_HEADER,
@@ -99,6 +100,18 @@ export async function POST(
 
   if (!program.is_active) {
     return apiError("Program is not active", 409);
+  }
+
+  const restriction = await getProcessingRestriction(program.user_id, db);
+  if (restriction.restricted) {
+    return NextResponse.json(
+      {
+        error: "PROCESSING_RESTRICTED",
+        message: "Processing is restricted for this account while a GDPR restriction request is open.",
+        restricted_at: restriction.restrictedAt,
+      },
+      { status: 423 }
+    );
   }
 
   // Check webhook trigger access (requires Plus or higher)

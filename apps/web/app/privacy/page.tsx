@@ -460,6 +460,18 @@ export default async function PrivacyPage() {
               Terms
             </Link>
             <Link
+              href="/dpa"
+              className="transition-colors hover:text-foreground"
+            >
+              DPA
+            </Link>
+            <Link
+              href="/security"
+              className="transition-colors hover:text-foreground"
+            >
+              Security
+            </Link>
+            <Link
               href="/impressum"
               className="transition-colors hover:text-foreground"
             >
