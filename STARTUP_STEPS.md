@@ -98,7 +98,7 @@ cd /d C:\NexFlow
 (Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& C:\NexFlow\.venv\Scripts\Activate.ps1)
 ```
 
-Then start runtime:
+Then start runtime:lol
 
 ```powershell
 cd /d C:\NexFlow\apps\runtime
