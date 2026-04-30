@@ -17,9 +17,16 @@ export function buildContentSecurityPolicy(nonce: string) {
     "wss://*.supabase.co",
   ].filter(Boolean);
 
+  // Next.js development mode uses eval-source-map which wraps modules in eval().
+  // We allow unsafe-eval only in development so buttons and interactivity work.
+  const isDev = process.env.NODE_ENV === "development";
+  const scriptSrc = isDev
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`
+    : `script-src 'self' 'nonce-${nonce}'`;
+
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
