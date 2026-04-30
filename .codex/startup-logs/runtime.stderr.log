@@ -1,6 +1,0 @@
-C:\NexFlow\apps\runtime\main.py:137: UserWarning: Field name "schema" in "ExecuteRequest" shadows an attribute in parent "BaseModel"
-  class ExecuteRequest(BaseModel):
-INFO:     Started server process [25084]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8002 (Press CTRL+C to quit)
