@@ -171,20 +171,25 @@ export async function dispatchEventTriggers(
       }
 
       try {
+        const runtimeBody = JSON.stringify({
+          run_id: run.id,
+          program_id: trigger.program_id,
+          user_id: program.user_id,
+          schema: program.schema,
+          triggered_by: triggeredBy,
+          trigger_payload: triggerPayload,
+          connections: connectionNameToId,
+        });
         const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
           method: "POST",
           headers: buildInternalServiceHeaders("runtime:execute", {
             "Content-Type": "application/json",
+          }, {
+            method: "POST",
+            path: "/execute",
+            body: runtimeBody,
           }),
-          body: JSON.stringify({
-            run_id: run.id,
-            program_id: trigger.program_id,
-            user_id: program.user_id,
-            schema: program.schema,
-            triggered_by: triggeredBy,
-            trigger_payload: triggerPayload,
-            connections: connectionNameToId,
-          }),
+          body: runtimeBody,
           cache: "no-store",
         });
         if (!runtimeRes.ok) {

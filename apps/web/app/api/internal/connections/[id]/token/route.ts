@@ -17,7 +17,11 @@ export async function GET(
   const params = await routeParams;
   const claims = getValidInternalServiceClaims(
     request.headers,
-    "next:connections:token"
+    "next:connections:token",
+    {
+      method: "GET",
+      path: new URL(request.url).pathname,
+    }
   );
   if (!claims) {
     return apiError("Unauthorized", 401);

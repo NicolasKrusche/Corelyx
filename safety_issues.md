@@ -12,18 +12,18 @@ Status: fixed.
 
 The sidebar workspace switcher no longer uses the browser-native select UI. It now uses a themed menu that follows the sidebar palette and keeps role labels readable.
 
-### SI-2. Missing baseline browser security headers
+### SI-2. Missing browser security headers
 
-Status: partially fixed.
+Status: fixed.
 
-`apps/web/next.config.mjs` now sets:
+`apps/web/middleware.ts` now applies security headers through `apps/web/lib/security-headers.ts`, including:
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()`
-- `Content-Security-Policy: base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'`
+- A nonce-backed `Content-Security-Policy` with `default-src`, `script-src`, `style-src`, `img-src`, `font-src`, `connect-src`, `base-uri`, `object-src`, `frame-ancestors`, `form-action`, and `upgrade-insecure-requests`.
 
-Remaining work: add a fuller CSP with `script-src`, `style-src`, `connect-src`, and nonces/hashes after auditing all required external origins and the inline theme boot script.
+The inline theme boot script in `apps/web/app/layout.tsx` receives the middleware nonce.
 
 ### SI-3. Weak generated redemption codes
 
@@ -31,13 +31,11 @@ Status: fixed for newly generated codes.
 
 `apps/web/app/api/admin/codes/route.ts` now uses `crypto.randomInt` and generates 16-character non-confusable codes instead of 8 characters from `Math.random()`.
 
-### SI-4. Redemption endpoint was useful for code enumeration
+### SI-4. Redemption endpoint was useful for code enumeration and race-prone redemption
 
-Status: partially fixed.
+Status: fixed.
 
-`apps/web/app/api/settings/redeem/route.ts` now rate-limits attempts per user and per forwarded IP, and returns a generic failure for invalid, expired, exhausted, locked, or already-used codes.
-
-Remaining work: move redemption into a database transaction/RPC that locks the code row, checks usage, applies the workspace benefit, records redemption, and increments usage atomically.
+`apps/web/app/api/settings/redeem/route.ts` now rate-limits attempts per user and per forwarded IP, returns generic failure responses for invalid redemption attempts, and delegates redemption to `redeem_code_atomic(...)`. That database RPC locks the code row, checks usage constraints, applies the workspace benefit, records redemption, and increments usage atomically.
 
 ### SI-5. Production builds still ignore TypeScript and ESLint failures
 
@@ -62,3 +60,7 @@ Public webhook and trigger ingestion routes now use `apps/web/lib/request-body.t
 ## Still Open
 
 No items remain open in this actionable file. Residual broader risks and hardening opportunities remain tracked in `safety_concerns.md`.
+
+## 2026-04-30 Follow-up
+
+The remaining `safety_concerns.md` code-level items have been remediated in the working tree. Remaining tasks are operational: rotate any exposed credentials, purge git history if local logs/settings were pushed, apply the new Supabase hardening migration, and audit old execution rows for historical token leakage.

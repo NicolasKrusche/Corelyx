@@ -91,19 +91,24 @@ export const cronRunner = inngest.createFunction(
         // Dispatch to Python runtime
         const runId = (run as { id: string }).id;
         try {
+          const runtimeBody = JSON.stringify({
+            run_id: runId,
+            program_id: trigger.program_id,
+            user_id: (program as Record<string, unknown>).user_id,
+            schema: (program as Record<string, unknown>).schema,
+            triggered_by: "cron",
+            trigger_payload: { trigger_id: trigger.id },
+          });
           const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
             method: "POST",
             headers: buildInternalServiceHeaders("runtime:execute", {
               "Content-Type": "application/json",
+            }, {
+              method: "POST",
+              path: "/execute",
+              body: runtimeBody,
             }),
-            body: JSON.stringify({
-              run_id: runId,
-              program_id: trigger.program_id,
-              user_id: (program as Record<string, unknown>).user_id,
-              schema: (program as Record<string, unknown>).schema,
-              triggered_by: "cron",
-              trigger_payload: { trigger_id: trigger.id },
-            }),
+            body: runtimeBody,
             cache: "no-store",
           });
           if (!runtimeRes.ok) {

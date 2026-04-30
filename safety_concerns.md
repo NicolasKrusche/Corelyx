@@ -6,9 +6,9 @@ Scope: static review of the repository code and tracked files, plus `pnpm audit 
 
 ## Executive Summary
 
-The most urgent issues are credential exposure in tracked local tooling files/logs, critical production dependency advisories, and **OAuth access-token leakage from the runtime executor into persisted program output (S11)**. Rotate any exposed credentials, remove those files from git history if this repo has been pushed/shared, upgrade vulnerable dependencies, and patch the executor before any further multi-user activity.
+The most urgent code-level issues from the original review have been remediated in the current working tree. Remaining security work is operational: rotate any credentials that were ever exposed, purge sensitive blobs from git history if this repo has been pushed/shared, and apply the new Supabase migration in deployed environments.
 
-The next highest risks are runtime-side **SSRF in the HTTP connector (S12)**, **unbounded loop iteration DoS (S13)**, the **internal-trust amplification in `/api/internal/*` endpoints (S14)**, public webhook denial-of-service/replay gaps, disabled build-time safety checks, and weak redemption-code controls. Several medium-severity hardening items are also worth fixing before a multi-user launch.
+The remaining residual risks are deployment hygiene and monitoring: confirm production has the required dedicated secrets, confirm the database RPC migration is applied, and audit/purge historical rows or git history that may contain old secrets.
 
 ## 2026-04-29 Current Pass Notes
 
@@ -17,21 +17,50 @@ This pass focused on the website shell, workspace switcher, and recently-changed
 New/updated observations:
 - The sidebar workspace switcher used the browser-native `<select>`, which visually escaped the app theme and exposed unreadable OS dropdown styling in the collapsed/expanded sidebar. This is a UX consistency issue rather than a direct security issue; it has been replaced with a themed in-app menu.
 - The previous `next/headers` client-bundle issue was caused by client components importing server-backed workspace helpers. Shared role labels/types now live in `apps/web/lib/workspace-types.ts`; browser components should import from that file, not `apps/web/lib/workspaces.ts`.
-- S8 was still open: `apps/web/next.config.mjs` had no security headers. A baseline set is now configured: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and a conservative CSP for `base-uri`, `object-src`, `frame-ancestors`, and `form-action`.
+- S8 was still open in this pass: `apps/web/next.config.mjs` had no security headers. A baseline set was added here and later replaced by the full nonce-backed CSP described in the 2026-04-30 full remediation pass.
 - S6 was partially open: admin redemption codes were generated with `Math.random()` and only 8 characters. New generated codes now use `crypto.randomInt` and 16 non-confusable characters.
-- S6 remains partially open: redemption is still not fully atomic at the database level, but `/api/settings/redeem` now has per-user/per-IP throttling and generic failure responses to reduce enumeration value.
+- S6 was still partially open after this pass because redemption was not fully atomic at the database level. It is fixed by the `redeem_code_atomic(...)` RPC described in the 2026-04-30 full remediation pass.
 - S2 is fixed for the Node production dependency graph: `next` is upgraded to `15.5.15`, `postcss` resolves to `>=8.5.12`, `protobufjs` is pinned to `7.5.5`, and `pnpm audit --prod` reports no known vulnerabilities.
 - S3 and S4 are fixed for the reviewed webhook routes: public webhook/custom-trigger ingestion uses a shared 64 KB streaming body cap, and provider delivery ids are recorded in `public.webhook_deliveries` for persistent dedupe.
 - S5 is fixed: production builds no longer ignore TypeScript or ESLint failures. The Next 15 route context migration was completed and `pnpm --filter @flowos/web build` succeeds.
 
-Previously listed items that now appear partially fixed in code:
+Earlier observations from this pass, superseded by later full fixes:
 - S12: `apps/runtime/engine/executor.py` now contains explicit private/internal network rejection for HTTP connector URLs.
-- S13: `apps/runtime/engine/executor.py` now contains `MAX_LOOP_ITEMS = 100` and truncates oversized loop inputs.
+- S13: `apps/runtime/engine/executor.py` now contains `MAX_LOOP_ITEMS = 100`; oversized loop inputs now fail with `LOOP_LIMIT_EXCEEDED`.
 - S14: `apps/web/lib/internal-auth.ts`, `apps/runtime/internal_auth.py`, `apps/web/app/api/internal/vault/[ref]/route.ts`, and `apps/web/app/api/internal/connections/[id]/token/route.ts` now support/enforce subject-bound internal tokens for secret retrieval.
+
+## 2026-04-30 Current Pass Notes
+
+This pass focused on the runtime executor and schema parser.
+
+New/updated observations:
+- S11 is fixed in runtime code: OAuth connection nodes no longer return raw `access_token` values, `node_executions` payload writes pass through the execution log policy, and the redaction layer now also catches common token-like strings such as bearer tokens, GitHub tokens, Slack tokens, Google `ya29` tokens, and JWTs. Historical `node_executions` rows still need an operational audit/purge if real tokens were previously stored.
+- S12 is fixed for the runtime HTTP connector: outbound URLs are restricted to `http`/`https`, hostnames are resolved before the request, non-public IP ranges are blocked, and redirects are disabled.
+- S13 is fixed for per-loop DoS control: loop nodes now fail with `LOOP_LIMIT_EXCEEDED` when resolved input exceeds `MAX_LOOP_ITEMS = 100` instead of silently running or truncating oversized loops.
+- S15 is fixed in the reviewed runtime dispatch path: `/execute` now treats caller-supplied schema/user/program fields as backward-compatible but untrusted, loads run/program/schema/user data from the database by `run_id`, rejects terminal runs, and checks processing restriction before execution.
+- S16 is fixed for secret leakage into approval context: approval context inserts use the same redaction defense-in-depth, including token-like string redaction.
+- S17 is fixed: HTTP connector failures no longer persist or surface the external response body preview in `error_message`.
+- S19 is fixed for the reviewed schema parser: retry attempts, retry backoff base, HTTP timeout, and approval timeout are bounded and invalid values are rejected at parse time.
+
+## 2026-04-30 Full Remediation Pass Notes
+
+This pass addressed the remaining open/partially fixed items.
+
+New/updated observations:
+- S1 is fixed in the working tree: tracked `.codex/` logs and `.claude/` local tooling state were removed from the git index, and `.gitignore` now ignores those paths. Credential rotation and git-history purging remain operational tasks if these files were ever shared.
+- S6 is fixed in code and schema: redemption now calls `redeem_code_atomic(...)`, a database RPC that locks the code row, checks all redemption constraints, updates the active workspace benefit, inserts the redemption, and increments `uses_count` in one transaction.
+- S7 is fixed: OAuth state and custom webhook signing require dedicated `OAUTH_STATE_SECRET` / `WEBHOOK_SIGNING_SECRET` in production; broad-secret fallbacks are development-only.
+- S8 is fixed: security headers now include a nonce-backed CSP applied from middleware, and the inline theme boot script receives that nonce.
+- S9 is fixed for the reviewed app paths: rate limiting is backed by the `check_rate_limit(...)` database RPC in production, with local fallback only outside production, and public webhook/provider endpoints now have per-IP buckets.
+- S10 is fixed for the reviewed surfaces: `apiError` returns generic 5xx messages, app logs redact secret-bearing fields and token-like strings, and Genesis no longer stores user prompt/refinement text or raw model previews in app logs/client errors.
+- S18 is fixed: internal-service tokens default to 30 seconds and can be bound to method, path, and body hash; runtime execute dispatch and runtime-to-Next internal calls now use those bindings.
+- S20 is fixed: approval waits subscribe to Supabase Realtime for approval updates and only use infrequent bounded fallback checks for cancellation/compatibility.
 
 ## Critical
 
 ### S1. Tracked local logs/settings contain credential material
+
+Status: fixed in the working tree; credential rotation/history purge remains operational.
 
 Evidence:
 - `.claude/settings.local.json:104` contains a command with service-role authorization material.
@@ -45,6 +74,10 @@ Recommended fix:
 - Remove tracked `.codex/` logs and `.claude/settings.local.json` from the repository and, if this repo has been pushed/shared, purge them from git history.
 - Add `.codex/`, `.claude/settings.local.json`, and other local tooling logs/settings to `.gitignore`.
 - Keep ignored env files out of git and avoid pasting their contents into issue trackers, logs, or PRs.
+
+Current remediation:
+- `.codex/` and `.claude/` local tooling paths were removed from the git index and added to `.gitignore`.
+- Remaining operational work: rotate any exposed credentials and purge git history if these files were pushed/shared.
 
 ### S2. Production dependencies contain critical and high advisories
 
@@ -72,6 +105,8 @@ Current remediation:
 
 ### S11. OAuth access tokens leak into persisted node output
 
+Status: fixed in runtime code; historical data cleanup remains operational.
+
 Evidence:
 - `apps/runtime/engine/executor.py:1105` returns the raw `access_token` from a connection node when the schema sets no operation: `return {**input_data, "access_token": access_token, "connection_id": connection_id}`.
 - That output is later persisted into `node_executions.output_payload` via `update_node_execution(...)` (e.g., `apps/runtime/engine/executor.py:625`), making the plaintext token retrievable from the database for the lifetime of the row.
@@ -83,6 +118,12 @@ Recommended fix:
 - Stop returning `access_token` in node output. If a downstream node needs token access, fetch it through the existing `_fetch_oauth_token` path keyed by `connection_id`.
 - Audit `node_executions.output_payload` for previously-stored tokens and purge them.
 - Add a redaction pass before any payload is written to the DB that drops keys named `access_token`, `refresh_token`, `api_key`, `secret`, or matching common token regexes.
+
+Current remediation:
+- `apps/runtime/engine/executor.py` now returns only `connection_id` for no-operation OAuth connection nodes and uses `_fetch_oauth_token` for native connector operations.
+- `apps/runtime/db.py` applies the execution log policy before persisting `node_executions.input_payload` and `node_executions.output_payload`.
+- `apps/runtime/db.py` redacts secret-bearing keys and common token-like strings, including bearer tokens, GitHub tokens, Slack tokens, Google `ya29` tokens, and JWTs.
+- Remaining operational work: audit/purge old `node_executions` rows if this code previously ran with real OAuth tokens.
 
 ## High
 
@@ -152,6 +193,8 @@ Current remediation:
 
 ### S6. Redemption codes are weakly generated, not rate-limited, and redeemed non-atomically
 
+Status: fixed.
+
 Evidence:
 - `apps/web/app/api/admin/codes/route.ts:19` generates 8-character codes with `Math.random()`.
 - `apps/web/app/api/settings/redeem/route.ts:10` accepts redemption attempts from authenticated users without an endpoint rate limit.
@@ -167,7 +210,14 @@ Recommended fix:
 - Return a generic failure for invalid, expired, locked, already-used, and exhausted codes.
 - Move redemption into a single database RPC/transaction that locks the code row, checks limits, inserts redemption, increments usage, and updates the profile atomically.
 
+Current remediation:
+- Generated codes use `crypto.randomInt` and 16 non-confusable characters.
+- `/api/settings/redeem` applies per-user and per-IP rate limits and generic failures.
+- `supabase/migrations/20240023_safety_hardening.sql` adds `redeem_code_atomic(...)`, which locks the code row and atomically applies the workspace benefit, inserts the redemption, and increments usage.
+
 ### S12. HTTP connector has no SSRF protection on user-controlled URL
+
+Status: fixed.
 
 Evidence:
 - `apps/runtime/engine/executor.py:1108-1189` (`_execute_http_connection`) takes `cfg.url` directly from the program schema and passes it to `httpx.AsyncClient.request(...)` after only checking that it is non-empty (line 1114).
@@ -182,7 +232,12 @@ Recommended fix:
 - Disable HTTP redirects, or follow only to allowed hosts.
 - Optionally route the connector through an outbound proxy that enforces the same allowlist.
 
+Current remediation:
+- `apps/runtime/engine/executor.py` validates HTTP connector URLs before dispatch, blocks non-`http`/`https` schemes, rejects literal or resolved non-public IP addresses, and disables redirects for connector requests.
+
 ### S13. Loop nodes execute an unbounded number of iterations
+
+Status: fixed for per-loop execution.
 
 Evidence:
 - `apps/runtime/engine/executor.py:578` iterates `for idx, item in enumerate(items):` with no cap on `len(items)`.
@@ -196,7 +251,12 @@ Recommended fix:
 - Cap total node-executions per run (e.g., `MAX_LOOP_ITEMS * MAX_NODES`).
 - Surface a clear `LOOP_LIMIT_EXCEEDED` error so users can split their workflow.
 
+Current remediation:
+- `apps/runtime/engine/executor.py` enforces `MAX_LOOP_ITEMS = 100` and raises `LOOP_LIMIT_EXCEEDED` when resolved loop input exceeds that cap.
+
 ### S14. Internal trust boundary lets any runtime caller resolve any user's secrets
+
+Status: fixed for reviewed secret-resolution endpoints.
 
 Evidence:
 - `apps/web/app/api/internal/vault/[ref]/route.ts:11` accepts a request with audience `next:vault` and returns the plaintext API-key value for any `api_keys.id` (UUID), without checking which user owns the row.
@@ -210,9 +270,14 @@ Recommended fix:
 - In `vault/[ref]` and `connections/[id]/token` routes, require the claimed `user_id` to match `api_keys.user_id` / `connections.user_id` before responding.
 - Bind the token's `iat`/`exp` window to the run dispatch so a stolen token cannot be replayed long after the run finished.
 
+Current remediation:
+- Internal service tokens support subject binding, and the reviewed vault/token routes require the token subject to match the owning `api_keys.user_id` or `connections.user_id` before returning secrets.
+
 ## Medium
 
 ### S15. Runtime `/execute` trusts caller-supplied schema, run_id, and user_id
+
+Status: fixed.
 
 Evidence:
 - `apps/runtime/main.py:155-168` accepts `body.schema`, `body.run_id`, `body.program_id`, and `body.user_id` as-supplied after only verifying the internal service token.
@@ -226,7 +291,13 @@ Recommended fix:
 - Verify `runs.program_id == programs.id` and `runs.user_id == programs.user_id` before execution.
 - Reject if the run is already in a terminal state.
 
+Current remediation:
+- `apps/runtime/main.py` accepts legacy request fields for compatibility but ignores caller-supplied `schema`, `program_id`, and `user_id`.
+- The runtime loads the run and program rows by `run_id`, uses the DB-owned program schema/user id, rejects non-dispatchable terminal states, and checks account processing restriction before starting execution.
+
 ### S16. Step-approval context stores upstream `input_data` verbatim
+
+Status: fixed for secret leakage.
 
 Evidence:
 - `apps/runtime/engine/executor.py:1232-1244` calls `create_approval(..., {"input": input_data, ...})`, storing the full input dict on the approvals row.
@@ -240,7 +311,12 @@ Recommended fix:
 - Or run the same `access_token`/`api_key` redaction described in S11 before insert.
 - Add a TTL/cleanup job on `approvals.context` for completed approvals.
 
+Current remediation:
+- `apps/runtime/db.py` redacts approval context before insert, including secret-bearing keys and common token-like strings. A stricter allowlist and TTL cleanup remain defense-in-depth opportunities.
+
 ### S17. HTTP connector error messages embed the external response body
+
+Status: fixed.
 
 Evidence:
 - `apps/runtime/engine/executor.py:1184-1188` raises `ExecutionError("HTTP_REQUEST_FAILED", f"... returned {status}: {body_preview}")` where `body_preview = response.text[:500]`.
@@ -252,7 +328,12 @@ Recommended fix:
 - Strip the body preview from the user-facing error; keep status code and method/url only.
 - If the body is needed for debugging, write it to a separate operator-only log with redaction and retention.
 
+Current remediation:
+- `apps/runtime/engine/executor.py` now raises `HTTP_REQUEST_FAILED` with only method, URL, and status code; the external response body preview is no longer persisted to node execution errors.
+
 ### S18. Internal token has no per-request payload, enabling replay window abuse
+
+Status: fixed.
 
 Evidence:
 - `apps/web/lib/internal-auth.ts:84-108` issues tokens whose payload is `{aud, iat, exp}` only.
@@ -266,7 +347,14 @@ Recommended fix:
 - Drop default lifetime to ~30 s; raise it only for known long-running calls.
 - Where mutual TLS is feasible (Railway ↔ Vercel internal), prefer it over signed-bearer tokens.
 
+Current remediation:
+- `apps/web/lib/internal-auth.ts` and `apps/runtime/internal_auth.py` default to 30-second tokens and support method, path, and body-hash claims.
+- `/execute` requires a POST `/execute` token bound to the exact request body.
+- Runtime calls back to Next.js internal endpoints with method/path binding, and run-completion callbacks also bind the body hash.
+
 ### S19. Schema-supplied numeric config fields are cast without bounds checks
+
+Status: fixed for reviewed numeric fields.
 
 Evidence:
 - `apps/runtime/schema.py:113-198` parses node configs by directly casting input values: `int(data.get("max_attempts", 1))`, `float(data.get("retry_delay_seconds", 0))`, etc.
@@ -277,7 +365,12 @@ Impact: another DoS vector and a way to silently park runs against `RUN_TIMEOUT_
 Recommended fix:
 - Validate sensible ranges in `schema.py` (e.g., `1 ≤ max_attempts ≤ 10`, `0 ≤ retry_delay_seconds ≤ 60`) and reject programs that exceed them.
 
+Current remediation:
+- `apps/runtime/schema.py` now rejects out-of-range retry attempts, retry backoff base seconds, HTTP timeout seconds, and approval timeout hours.
+
 ### S20. Approval flow polls the database every 5 s instead of using Realtime
+
+Status: fixed.
 
 Evidence:
 - `apps/runtime/engine/executor.py:1257-1270` sleeps 5 s and re-queries the `approvals` table in a `while time.time() < deadline` loop.
@@ -288,7 +381,12 @@ Impact: not directly exploitable, but every long-running approval (default 24 h)
 Recommended fix:
 - Switch the wait loop to a Supabase Realtime subscription on `approvals` keyed by `node_execution_id`, with a `RUN_TIMEOUT_SECONDS`-bounded fallback timer.
 
+Current remediation:
+- `apps/runtime/engine/executor.py` subscribes to Supabase Realtime approval updates keyed by `node_execution_id`, with infrequent bounded fallback checks for cancellation and compatibility.
+
 ### S7. Public signing contexts fall back to broad internal secrets
+
+Status: fixed.
 
 Evidence:
 - `apps/web/lib/oauth-state.ts:62` allows OAuth state signing to fall back to `INTERNAL_SERVICE_AUTH_SECRET` or `SUPABASE_SERVICE_ROLE_KEY`.
@@ -301,7 +399,14 @@ Recommended fix:
 - Keep the fallback behavior only for local development, if needed.
 - Document rotation steps for each secret independently.
 
+Current remediation:
+- `apps/web/lib/oauth-state.ts` requires `OAUTH_STATE_SECRET` in production.
+- `apps/web/lib/webhook-trigger-auth.ts` requires `WEBHOOK_SIGNING_SECRET` in production.
+- Broad-secret fallbacks are development-only.
+
 ### S8. Missing application security headers and CSP
+
+Status: fixed.
 
 Evidence:
 - `apps/web/next.config.mjs:2` has no `headers()` configuration for security headers.
@@ -315,7 +420,14 @@ Recommended fix:
 - Start with `Content-Security-Policy`, `frame-ancestors`, `X-Content-Type-Options`, and `Referrer-Policy`.
 - Use a nonce or hash for the inline theme script.
 
+Current remediation:
+- `apps/web/middleware.ts` applies security headers, including a nonce-backed CSP.
+- `apps/web/app/layout.tsx` reads the nonce and applies it to the inline theme boot script.
+- `apps/web/lib/security-headers.ts` centralizes CSP, frame, referrer, MIME, and permissions policies.
+
 ### S9. Rate limiting is process-local and sparse
+
+Status: fixed for reviewed app endpoints.
 
 Evidence:
 - `apps/web/lib/rate-limit.ts:1` documents the current limiter as a simple per-process `Map`.
@@ -329,7 +441,13 @@ Recommended fix:
 - Add limits to redemption, custom webhook triggers, provider webhooks where appropriate, and other expensive authenticated routes.
 - Use separate buckets for user id, IP, and endpoint.
 
+Current remediation:
+- `apps/web/lib/rate-limit.ts` uses the `check_rate_limit(...)` database RPC in production and keeps the in-memory fallback only for local/non-production compatibility.
+- Redemption, Genesis, custom webhook triggers, and reviewed provider webhook endpoints use shared per-user/per-IP buckets.
+
 ### S10. Client responses and app logs can expose backend/provider detail
+
+Status: fixed for reviewed surfaces.
 
 Evidence:
 - `apps/web/lib/api.ts:7` serializes arbitrary error messages into JSON responses.
@@ -344,6 +462,11 @@ Recommended fix:
 - Log detailed errors server-side with redaction of tokens, cookies, authorization headers, and likely secrets.
 - Add retention and access controls for app logs.
 
+Current remediation:
+- `apps/web/lib/api.ts` redacts client error text and returns generic messages for 5xx responses.
+- `apps/web/lib/app-logs.ts` redacts secret-bearing keys and token-like strings before persistence.
+- Genesis request logs no longer store user description/refinement text or raw model output previews.
+
 ## Existing Controls Worth Preserving
 
 - Supabase RLS is enabled broadly in `supabase/migrations/20240001_init.sql:181`.
@@ -354,17 +477,13 @@ Recommended fix:
 
 ## Suggested Fix Order
 
-1. Rotate and remove exposed credentials/logs/settings from git (S1).
-2. **Stop returning `access_token` from connection nodes; redact secrets before any payload is persisted (S11, S16).**
-3. Upgrade vulnerable production dependencies and re-run `pnpm audit --prod` (S2).
-4. **SSRF allowlist for the HTTP connector (S12) and a hard cap on loop iterations (S13).**
-5. **Bind internal service tokens to a `user_id` claim and enforce ownership in `/api/internal/vault/*` and `/api/internal/connections/*/token` (S14, S18); load schema/user/run from the DB inside the runtime (S15).**
-6. Re-enable build checks and fix current type/lint failures (S5).
-7. Add bounded body reads and persistent dedupe to all webhook routes (S3, S4).
-8. Harden redemption-code generation, rate limiting, and atomic redemption (S6).
-9. Require dedicated public-flow signing secrets in production (S7).
-10. Add security headers/CSP, sanitize external/client-facing errors, drop HTTP-connector body previews (S8, S10, S17).
-11. Validate numeric schema bounds (S19); migrate the approval wait off polling (S20).
+All code-level items in this review are marked fixed in the current working tree. Remaining deployment tasks:
+
+1. Rotate credentials that appeared in previously tracked local files.
+2. Purge `.codex/` and `.claude/` blobs from git history if this repository was pushed/shared.
+3. Apply `supabase/migrations/20240023_safety_hardening.sql` in deployed environments.
+4. Audit/purge historical `node_executions` rows for tokens if S11 existed in any shared environment.
+5. Confirm production has dedicated `OAUTH_STATE_SECRET`, `WEBHOOK_SIGNING_SECRET`, and scoped `INTERNAL_SERVICE_AUTH_SECRET_*` values.
 
 ## Review Methodology Notes
 

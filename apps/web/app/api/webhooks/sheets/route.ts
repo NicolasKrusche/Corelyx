@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { verifyWebhookToken } from "@/lib/webhooks/signed-token";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type SheetsConnectionRow = {
   id: string;
@@ -17,6 +18,9 @@ type SheetsWebhookToken = {
 };
 
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "sheets");
+  if (limited) return limited;
+
   const channelId = request.headers.get("x-goog-channel-id");
   const channelToken = request.headers.get("x-goog-channel-token");
   const resourceId = request.headers.get("x-goog-resource-id");

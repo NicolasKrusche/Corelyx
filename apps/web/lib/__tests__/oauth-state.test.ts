@@ -11,6 +11,8 @@ const ORIGINAL_INTERNAL_SERVICE_AUTH_SECRET =
   process.env.INTERNAL_SERVICE_AUTH_SECRET;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 describe("oauth state", () => {
   afterEach(() => {
@@ -34,6 +36,12 @@ describe("oauth state", () => {
     } else {
       process.env.SUPABASE_SERVICE_ROLE_KEY =
         ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+    }
+
+    if (ORIGINAL_NODE_ENV === undefined) {
+      delete mutableEnv.NODE_ENV;
+    } else {
+      mutableEnv.NODE_ENV = ORIGINAL_NODE_ENV;
     }
   });
 
@@ -169,5 +177,16 @@ describe("oauth state", () => {
       reason: "nonce_mismatch",
     });
     expect(consumeNonce).toHaveBeenCalledTimes(2);
+  });
+
+  it("requires the dedicated OAuth state secret in production", () => {
+    mutableEnv.NODE_ENV = "production";
+    delete process.env.OAUTH_STATE_SECRET;
+    process.env.INTERNAL_SERVICE_AUTH_SECRET = "broad-secret";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+
+    expect(() => issueOAuthState("user-123", { label: "gmail" })).toThrow(
+      "OAUTH_STATE_SECRET"
+    );
   });
 });

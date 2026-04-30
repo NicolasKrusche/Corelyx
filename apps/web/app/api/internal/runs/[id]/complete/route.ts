@@ -20,11 +20,23 @@ export async function POST(
   { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
   const params = await routeParams;
-  if (!requestHasValidInternalServiceToken(request.headers, "next:runs:complete")) {
+  const rawBody = await request.text();
+  if (
+    !requestHasValidInternalServiceToken(request.headers, "next:runs:complete", {
+      method: "POST",
+      path: new URL(request.url).pathname,
+      body: rawBody,
+    })
+  ) {
     return apiError("Unauthorized", 401);
   }
 
-  const body = await request.json().catch(() => ({}));
+  let body: unknown = {};
+  try {
+    body = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    return apiError("Invalid JSON body", 400);
+  }
   const { program_id, user_id, status = "completed", error_message, triggered_by } = body as {
     program_id: string;
     user_id: string;
@@ -164,20 +176,25 @@ export async function POST(
 
           // Dispatch to runtime
           try {
+            const runtimeBody = JSON.stringify({
+              run_id: runId,
+              program_id: trigger.program_id,
+              user_id: prog.user_id,
+              schema: prog.schema,
+              triggered_by: "program",
+              trigger_payload: downstreamTriggerPayload,
+              connections: connectionNameToId,
+            });
             const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
               method: "POST",
               headers: buildInternalServiceHeaders("runtime:execute", {
                 "Content-Type": "application/json",
+              }, {
+                method: "POST",
+                path: "/execute",
+                body: runtimeBody,
               }),
-              body: JSON.stringify({
-                run_id: runId,
-                program_id: trigger.program_id,
-                user_id: prog.user_id,
-                schema: prog.schema,
-                triggered_by: "program",
-                trigger_payload: downstreamTriggerPayload,
-                connections: connectionNameToId,
-              }),
+              body: runtimeBody,
               cache: "no-store",
             });
             if (!runtimeRes.ok) {

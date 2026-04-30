@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 from supabase import create_client, Client
@@ -43,6 +44,13 @@ _REDACTED_KEYS = {
 }
 _REDACTED_PLACEHOLDER = "[redacted]"
 _REDACTED_KEY_PLACEHOLDER = "[redacted_key]"
+_TOKEN_PATTERNS = [
+    re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]{16,}", re.IGNORECASE),
+    re.compile(r"\b(?:sk|rk|pk|ghp|gho|ghu|ghs|github_pat)_[A-Za-z0-9_]{16,}\b"),
+    re.compile(r"\bxox(?:b|p|o|a|r)-[A-Za-z0-9-]{16,}\b"),
+    re.compile(r"\bya29\.[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
+]
 
 
 def _normalise_secret_key(key: str) -> str:
@@ -74,6 +82,13 @@ def is_secret_key(key: str) -> bool:
     )
 
 
+def redact_secret_strings(value: str) -> str:
+    redacted = value
+    for pattern in _TOKEN_PATTERNS:
+        redacted = pattern.sub(_REDACTED_PLACEHOLDER, redacted)
+    return redacted
+
+
 def get_execution_log_verbosity() -> str:
     mode = os.environ.get("EXECUTION_LOG_VERBOSITY", DEFAULT_EXECUTION_LOG_VERBOSITY).strip().upper()
     if mode not in EXECUTION_LOG_VERBOSITY_MODES:
@@ -100,6 +115,8 @@ def redact_secrets(value: Any, _depth: int = 0) -> Any:
         }
     if isinstance(value, list):
         return [redact_secrets(item, _depth + 1) for item in value]
+    if isinstance(value, str):
+        return redact_secret_strings(value)
     return value
 
 

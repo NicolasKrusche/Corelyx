@@ -14,7 +14,7 @@ if sys.stderr and hasattr(sys.stderr, "reconfigure"):
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -180,13 +180,25 @@ _DISPATCHABLE_RUN_STATUSES = {"running", "pending"}
 
 @app.post("/execute")
 async def execute_program(
-    body: ExecuteRequest,
+    request: Request,
     background_tasks: BackgroundTasks,
     x_internal_service_token: str | None = Header(
         default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER
     ),
 ) -> dict[str, str]:
-    verify_execute_token(x_internal_service_token)
+    raw_body = await request.body()
+    if not x_internal_service_token or not verify_internal_service_token(
+        x_internal_service_token,
+        "runtime:execute",
+        method=request.method,
+        path=request.url.path,
+        body=raw_body,
+    ):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        body = ExecuteRequest.model_validate_json(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid execute payload")
 
     # S15: load run + program from the DB. The caller-supplied schema/user_id
     # are ignored — a leaked runtime:execute token can no longer execute
@@ -245,13 +257,21 @@ async def _notify_complete(run_id: str, program_id: str, user_id: str, status: s
     nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000")
     try:
         import httpx
+        body = json.dumps(
+            {"program_id": program_id, "user_id": user_id, "status": status},
+            separators=(",", ":"),
+        )
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
                 f"{nextjs_url}/api/internal/runs/{run_id}/complete",
                 headers=build_internal_service_headers(
-                    "next:runs:complete", subject=user_id
+                    "next:runs:complete",
+                    subject=user_id,
+                    method="POST",
+                    path=f"/api/internal/runs/{run_id}/complete",
+                    body=body,
                 ),
-                json={"program_id": program_id, "user_id": user_id, "status": status},
+                content=body,
             )
     except Exception as e:
         print(f"[runtime] Warning: could not notify completion for run {run_id}: {e}")

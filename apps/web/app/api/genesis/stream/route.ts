@@ -78,7 +78,7 @@ export async function POST(request: Request) {
   const sanitizedDescription = sanitizeTextForLlm(description);
 
   // Rate limit
-  if (!rateLimit(`genesis:${userId}`, 10, 60_000)) {
+  if (!(await rateLimit(`genesis:${userId}`, 10, 60_000))) {
     return sseErrorResponse("Too many requests. Please wait a moment and try again.", "RATE_LIMITED");
   }
 

@@ -4,6 +4,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type AirtableConnectionRow = {
   id: string;
@@ -32,6 +33,9 @@ type AirtableConnectionRow = {
  *                               "tableFields.changed"
  */
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "airtable");
+  if (limited) return limited;
+
   const macSecret = process.env.AIRTABLE_WEBHOOK_MAC_SECRET;
   if (!macSecret) {
     return apiError("Missing AIRTABLE_WEBHOOK_MAC_SECRET", 500);

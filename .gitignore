@@ -33,3 +33,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Local AI/tooling state and logs
+.codex/
+.claude/

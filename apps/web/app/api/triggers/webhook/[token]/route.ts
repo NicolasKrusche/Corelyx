@@ -4,6 +4,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import {
@@ -23,6 +24,9 @@ export async function POST(
   request: Request,
   { params: routeParams }: { params: Promise<{ token: string }> }
 ) {
+  const limited = await enforcePublicEndpointRateLimit(request, "custom-webhook");
+  if (limited) return limited;
+
   const params = await routeParams;
   const { token } = params;
   const boundedBody = await readBoundedTextBody(request);
@@ -200,20 +204,25 @@ export async function POST(
   const triggerPayload = { trigger_id: trigger.id, webhook_payload: payload };
 
   try {
+    const runtimeBody = JSON.stringify({
+      run_id: run.id,
+      program_id: trigger.program_id,
+      user_id: program.user_id,
+      schema: program.schema,
+      triggered_by: "webhook",
+      trigger_payload: triggerPayload,
+      connections: connectionNameToId,
+    });
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
       headers: buildInternalServiceHeaders("runtime:execute", {
         "Content-Type": "application/json",
+      }, {
+        method: "POST",
+        path: "/execute",
+        body: runtimeBody,
       }),
-      body: JSON.stringify({
-        run_id: run.id,
-        program_id: trigger.program_id,
-        user_id: program.user_id,
-        schema: program.schema,
-        triggered_by: "webhook",
-        trigger_payload: triggerPayload,
-        connections: connectionNameToId,
-      }),
+      body: runtimeBody,
       cache: "no-store",
     });
     if (!runtimeRes.ok) {

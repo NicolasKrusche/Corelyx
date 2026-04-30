@@ -653,15 +653,12 @@ class ProgramExecutor:
         items: list = loop_output.get("__loop_items__", [])
         item_var: str = loop_output.get("item_var", "item")
 
-        # S13: cap iteration count. Items beyond MAX_LOOP_ITEMS are dropped and
-        # the count surfaced via state so users can see the truncation.
         if len(items) > MAX_LOOP_ITEMS:
-            print(
-                f"[executor] loop {loop_node_id} truncated from {len(items)} "
-                f"to MAX_LOOP_ITEMS={MAX_LOOP_ITEMS}",
-                flush=True,
+            raise ExecutionError(
+                "LOOP_LIMIT_EXCEEDED",
+                f"Loop '{loop_node_id}' resolved {len(items)} items; maximum allowed is {MAX_LOOP_ITEMS}.",
+                loop_node_id,
             )
-            items = items[:MAX_LOOP_ITEMS]
 
         # Collect all node IDs that are reachable from the loop node (the loop body)
         body_ids: set[str] = set()
@@ -1367,10 +1364,9 @@ class ProgramExecutor:
             )
 
         if response.status_code >= 400:
-            body_preview = response.text[:500]
             raise ExecutionError(
                 "HTTP_REQUEST_FAILED",
-                f"{method} {cfg.url} returned {response.status_code}: {body_preview}",
+                f"{method} {cfg.url} returned {response.status_code}",
             )
 
         if cfg.parse_response:
@@ -1428,39 +1424,94 @@ class ProgramExecutor:
             },
         )
 
-        # Determine timeout
-        timeout_hours = 24.0  # default for supervised/manual
-        if node.type == "agent":
-            cfg: AgentConfig = node.config  # type: ignore[assignment]
-            if hasattr(cfg, "approval_timeout_hours"):
-                timeout_hours = float(cfg.approval_timeout_hours)
         timeout_seconds = timeout_hours * 3600
+        return await self._wait_for_approval_decision(node_exec_id, timeout_seconds)
+
+    async def _wait_for_approval_decision(
+        self, node_exec_id: str, timeout_seconds: float
+    ) -> bool:
+        """Wait for an approval update via Supabase Realtime, with bounded fallback checks."""
+        decision: dict[str, str | None] = {"status": None}
+        changed = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        channel = None
+
+        def _record_payload(payload: Any) -> None:
+            record = None
+            if isinstance(payload, dict):
+                record = payload.get("record") or payload.get("new")
+            if isinstance(record, dict) and record.get("node_execution_id") == node_exec_id:
+                status = record.get("status")
+                if status in ("approved", "rejected"):
+                    decision["status"] = status
+                    loop.call_soon_threadsafe(changed.set)
+
+        try:
+            channel = self.db.channel(f"approval:{node_exec_id}")
+            channel.on_postgres_changes(
+                "UPDATE",
+                schema="public",
+                table="approvals",
+                filter=f"node_execution_id=eq.{node_exec_id}",
+                callback=_record_payload,
+            ).subscribe()
+        except Exception as exc:
+            print(
+                f"[executor] approval realtime unavailable for {node_exec_id}; "
+                f"using bounded fallback checks: {exc}",
+                flush=True,
+            )
+            channel = None
 
         deadline = time.time() + timeout_seconds
-        poll_interval = 5  # seconds
+        fallback_interval = 30.0
 
-        while time.time() < deadline:
-            # Check for cancellation during approval wait
-            current_status = await get_run_status(self.db, self.run_id)
-            if current_status == "cancelled":
-                raise CancellationError()
+        try:
+            while time.time() < deadline:
+                # Check for cancellation during approval wait. This is run-level
+                # state, not approval state, and stays intentionally infrequent.
+                current_status = await get_run_status(self.db, self.run_id)
+                if current_status == "cancelled":
+                    raise CancellationError()
 
-            await asyncio.sleep(poll_interval)
-            approval = (
-                self.db.table("approvals")
-                .select("status")
-                .eq("node_execution_id", node_exec_id)
-                .single()
-                .execute()
-            )
-            status = approval.data.get("status")
-            if status == "approved":
-                return True
-            if status == "rejected":
-                return False
+                approval = (
+                    self.db.table("approvals")
+                    .select("status")
+                    .eq("node_execution_id", node_exec_id)
+                    .limit(1)
+                    .execute()
+                )
+                rows = approval.data or []
+                if rows:
+                    status = rows[0].get("status")
+                    if status == "approved":
+                        return True
+                    if status == "rejected":
+                        return False
 
-        # Timeout — treat as rejected
-        return False
+                remaining = max(0.0, deadline - time.time())
+                try:
+                    await asyncio.wait_for(
+                        changed.wait(), timeout=min(fallback_interval, remaining)
+                    )
+                except asyncio.TimeoutError:
+                    continue
+                finally:
+                    changed.clear()
+
+                if decision["status"] == "approved":
+                    return True
+                if decision["status"] == "rejected":
+                    return False
+        finally:
+            if channel is not None:
+                try:
+                    channel.unsubscribe()
+                except Exception:
+                    pass
+
+        raise ExecutionError("APPROVAL_TIMEOUT", "Approval timed out")
+
 
     # Keep old method name as alias for backward compat
     async def _request_approval(self, node: SchemaNode, input_data: dict) -> bool:
@@ -1576,7 +1627,10 @@ class ProgramExecutor:
                 resp = await client.get(
                     endpoint_url,
                     headers=build_internal_service_headers(
-                        "next:connections:token", subject=self.user_id
+                        "next:connections:token",
+                        subject=self.user_id,
+                        method="GET",
+                        path=endpoint_path,
                     ),
                     params=params if params else None,
                 )
@@ -1637,7 +1691,10 @@ class ProgramExecutor:
                 resp = await client.get(
                     endpoint_url,
                     headers=build_internal_service_headers(
-                        "next:vault", subject=self.user_id
+                        "next:vault",
+                        subject=self.user_id,
+                        method="GET",
+                        path=endpoint_path,
                     ),
                 )
                 if resp.is_success:

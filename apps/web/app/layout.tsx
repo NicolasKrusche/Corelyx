@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { CookieNotice } from "@/components/consent-banner";
@@ -50,16 +51,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" className={`${inter.variable} light accent-blue`} suppressHydrationWarning>
       <head>
         {/* Anti-flash: apply landing override or persisted base + accent before first paint */}
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var el=document.documentElement;var bases=['dark','light'];var accents=['orange','blue','indigo','green','pink','cyan'];var p=location.pathname.replace(/\\/$/,'')||'/';var forceOrange=['/','/login','/signup','/forgot-password','/update-password'].includes(p);el.classList.remove('dark','light','accent-orange','accent-blue','accent-indigo','accent-green','accent-pink','accent-cyan');if(forceOrange){el.setAttribute('data-corelyx-forced-orange-theme','true');el.classList.add('light','accent-orange');return;}el.removeAttribute('data-corelyx-forced-orange-theme');var b=localStorage.getItem('corelyx-base');var a=localStorage.getItem('corelyx-accent');var base=b&&bases.includes(b)?b:'light';var acc=a&&accents.includes(a)?a:'blue';el.classList.add(base,'accent-'+acc);}catch(e){}})();`,
           }}

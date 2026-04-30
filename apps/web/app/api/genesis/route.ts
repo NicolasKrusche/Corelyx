@@ -27,7 +27,7 @@ import {
 } from "@/lib/workflow/normalize";
 import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
-import { errorDetails, truncateForLog, writeAppLog } from "@/lib/app-logs";
+import { errorDetails, writeAppLog } from "@/lib/app-logs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
@@ -106,8 +106,8 @@ export async function POST(request: Request) {
     model,
     connection_count: connection_ids.length,
     existing_program_id: existing_program_id ?? null,
-    description: truncateForLog(sanitizedDescription.value, 1000),
-    refinement: sanitizedRefinement ? truncateForLog(sanitizedRefinement.value, 1000) : null,
+    description_length: sanitizedDescription.value.length,
+    refinement_length: sanitizedRefinement?.value.length ?? 0,
     pii_redacted: hasPiiRedactions(piiRedactions),
     pii_redactions: piiRedactions,
   };
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
   );
 
   // Rate limit: 10 genesis calls per minute per user
-  if (!rateLimit(`genesis:${userId}`, 10, 60_000)) {
+  if (!(await rateLimit(`genesis:${userId}`, 10, 60_000))) {
     await logGenesis(
       "warning",
       "genesis.rate_limited",
@@ -458,7 +458,7 @@ export async function POST(request: Request) {
             );
           }
           return loggedApiError(
-            `Genesis model call failed: ${causeMsg ?? errMsg}`,
+            "Genesis model call failed. Try another model or key.",
             502,
             "genesis.model_failed",
             {
@@ -478,10 +478,8 @@ export async function POST(request: Request) {
   const useAnthropicSDK = apiKeyRow.provider === "anthropic";
 
   if (!rawText) {
-    const lastErrMsg = (lastErr as Error)?.message ?? "empty response";
-    const lastCauseMsg = (lastErr as { cause?: { message?: string } })?.cause?.message;
     return loggedApiError(
-      `Genesis model call failed after trying all available keys: ${lastCauseMsg ?? lastErrMsg}`,
+      "Genesis model call failed after trying all available keys.",
       502,
       "genesis.model_failed",
       {
@@ -559,8 +557,6 @@ export async function POST(request: Request) {
   }
 
   if (!parseOk) {
-    const preview = rawText?.slice(0, 2000) ?? "(empty)";
-    const tail = rawText && rawText.length > 2000 ? `…[${rawText.length} chars total]` : "";
     console.error(`[genesis] Failed to parse JSON. Output length: ${rawText?.length ?? 0}`);
     await logGenesis(
       "error",
@@ -570,11 +566,11 @@ export async function POST(request: Request) {
       {
         requested_model: model,
         model_used: modelUsed,
-        raw_preview: preview + tail,
+        raw_length: rawText?.length ?? 0,
       }
     );
     return NextResponse.json(
-      { error: "Genesis model returned invalid JSON", raw_preview: preview + tail },
+      { error: "Genesis model returned invalid JSON" },
       { status: 502 }
     );
   }
@@ -625,7 +621,7 @@ export async function POST(request: Request) {
         requested_model: model,
         model_used: modelUsed,
         validation: draftResult.error.flatten(),
-        raw_preview: truncateForLog(sanitizeTextForLlm(rawText).value, 2000),
+        raw_length: rawText.length,
       }
     );
     return NextResponse.json(
