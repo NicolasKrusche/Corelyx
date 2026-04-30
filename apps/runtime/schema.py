@@ -1,6 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union, cast
+
+MAX_RETRY_ATTEMPTS = 10
+MAX_BACKOFF_BASE_SECONDS = 60.0
+MAX_HTTP_TIMEOUT_SECONDS = 60.0
+MAX_APPROVAL_TIMEOUT_HOURS = 24.0
+MIN_HTTP_TIMEOUT_SECONDS = 1.0
+MIN_APPROVAL_TIMEOUT_HOURS = 0.01
 
 
 @dataclass
@@ -101,11 +108,66 @@ class ProgramSchema:
     execution_mode: str
 
 
+def _bounded_int(
+    value: Any,
+    default: int,
+    *,
+    field_name: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    if value in (None, ""):
+        parsed = default
+    else:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{field_name} must be an integer") from exc
+    if parsed < minimum or parsed > maximum:
+        raise ValueError(f"{field_name} must be between {minimum} and {maximum}")
+    return parsed
+
+
+def _bounded_float(
+    value: Any,
+    default: float,
+    *,
+    field_name: str,
+    minimum: float,
+    maximum: float,
+) -> float:
+    if value in (None, ""):
+        parsed = default
+    else:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{field_name} must be a number") from exc
+    if parsed < minimum or parsed > maximum:
+        raise ValueError(f"{field_name} must be between {minimum:g} and {maximum:g}")
+    return parsed
+
+
 def _parse_retry(data: dict) -> RetryConfig:
+    backoff = data.get("backoff", "none")
+    if backoff not in ("none", "linear", "exponential"):
+        raise ValueError("retry.backoff must be one of: none, linear, exponential")
     return RetryConfig(
-        max_attempts=int(data.get("max_attempts", 1)),
-        backoff=data.get("backoff", "none"),
-        backoff_base_seconds=float(data.get("backoff_base_seconds", 1.0)),
+        max_attempts=_bounded_int(
+            data.get("max_attempts"),
+            1,
+            field_name="retry.max_attempts",
+            minimum=1,
+            maximum=MAX_RETRY_ATTEMPTS,
+        ),
+        backoff=cast(Literal["none", "linear", "exponential"], backoff),
+        backoff_base_seconds=_bounded_float(
+            data.get("backoff_base_seconds"),
+            1.0,
+            field_name="retry.backoff_base_seconds",
+            minimum=0.0,
+            maximum=MAX_BACKOFF_BASE_SECONDS,
+        ),
         fail_program_on_exhaust=bool(data.get("fail_program_on_exhaust", False)),
     )
 
@@ -123,7 +185,13 @@ def _parse_node_config(
             input_schema=raw.get("input_schema"),
             output_schema=raw.get("output_schema"),
             requires_approval=bool(raw.get("requires_approval", False)),
-            approval_timeout_hours=float(raw.get("approval_timeout_hours", 24.0)),
+            approval_timeout_hours=_bounded_float(
+                raw.get("approval_timeout_hours"),
+                24.0,
+                field_name="approval_timeout_hours",
+                minimum=MIN_APPROVAL_TIMEOUT_HOURS,
+                maximum=MAX_APPROVAL_TIMEOUT_HOURS,
+            ),
             scope_required=raw.get("scope_required"),
             scope_access=raw.get("scope_access", "read"),
             retry=_parse_retry(retry_raw),
@@ -142,7 +210,13 @@ def _parse_node_config(
         if connector_type == "http":
             timeout_raw = raw.get("timeout_seconds")
             timeout_seconds = (
-                float(timeout_raw)
+                _bounded_float(
+                    timeout_raw,
+                    30.0,
+                    field_name="timeout_seconds",
+                    minimum=MIN_HTTP_TIMEOUT_SECONDS,
+                    maximum=MAX_HTTP_TIMEOUT_SECONDS,
+                )
                 if timeout_raw not in (None, "")
                 else None
             )

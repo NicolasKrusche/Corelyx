@@ -8,6 +8,7 @@ import {
   storeConnectionWebhookSecret,
 } from "@/lib/connection-webhook-secrets";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type AsanaConnectionRow = {
   id: string;
@@ -51,6 +52,9 @@ const LEGACY_ASANA_SECRET_METADATA_KEY = "asana_hook_secret";
  *   (format: "<resource_type>.<action>")
  */
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "asana");
+  if (limited) return limited;
+
   const boundedBody = await readBoundedTextBody(request);
   if (!boundedBody.ok) return boundedBody.response;
   const rawBody = boundedBody.text;

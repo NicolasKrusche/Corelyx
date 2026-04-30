@@ -1,22 +1,49 @@
-/**
- * Simple in-memory rate limiter.
- * Works per-process — good enough for a single-instance dev/staging server.
- * For production scale, swap the Map for Redis/Upstash.
- */
+import { createServiceClient } from "@/lib/api";
 
 const store = new Map<string, number[]>();
 
-/**
- * Returns true if the request is allowed, false if rate-limited.
- * @param key     Unique key (e.g. `genesis:user_id`)
- * @param limit   Max calls allowed in the window
- * @param windowMs Time window in milliseconds
- */
-export function rateLimit(key: string, limit: number, windowMs: number): boolean {
+function isProductionRuntime() {
+  return [process.env.NODE_ENV, process.env.VERCEL_ENV, process.env.APP_ENV].some(
+    (value) => value === "production"
+  );
+}
+
+function localRateLimit(key: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
   const timestamps = (store.get(key) ?? []).filter((t) => now - t < windowMs);
   if (timestamps.length >= limit) return false;
   timestamps.push(now);
   store.set(key, timestamps);
   return true;
+}
+
+export async function rateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<boolean> {
+  try {
+    const service = createServiceClient();
+    const { data, error } = await (service as any).rpc("check_rate_limit", {
+      p_key: key,
+      p_limit: limit,
+      p_window_seconds: Math.ceil(windowMs / 1000),
+    });
+
+    if (!error && typeof data === "boolean") {
+      return data;
+    }
+
+    if (isProductionRuntime()) {
+      console.error("[rate-limit] distributed limiter unavailable", error);
+      return false;
+    }
+  } catch (error) {
+    if (isProductionRuntime()) {
+      console.error("[rate-limit] distributed limiter failed", error);
+      return false;
+    }
+  }
+
+  return localRateLimit(key, limit, windowMs);
 }

@@ -4,6 +4,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type SlackConnectionRow = {
   id: string;
@@ -12,6 +13,9 @@ type SlackConnectionRow = {
 };
 
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "slack");
+  if (limited) return limited;
+
   const signingSecret = process.env.SLACK_SIGNING_SECRET;
   if (!signingSecret) {
     return apiError("Missing SLACK_SIGNING_SECRET", 500);

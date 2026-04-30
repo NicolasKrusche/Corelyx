@@ -4,6 +4,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type HubSpotConnectionRow = {
   id: string;
@@ -41,6 +42,9 @@ type HubSpotEventItem = {
  *          "deal.creation" | "deal.deletion" | "deal.propertyChange" | ...
  */
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "hubspot");
+  if (limited) return limited;
+
   const clientSecret = process.env.HUBSPOT_CLIENT_SECRET;
   if (!clientSecret) {
     return apiError("Missing HUBSPOT_CLIENT_SECRET", 500);

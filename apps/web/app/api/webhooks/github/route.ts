@@ -4,6 +4,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type GitHubConnectionRow = {
   id: string;
@@ -12,6 +13,9 @@ type GitHubConnectionRow = {
 };
 
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "github");
+  if (limited) return limited;
+
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
   if (!webhookSecret) {
     return apiError("Missing GITHUB_WEBHOOK_SECRET", 500);

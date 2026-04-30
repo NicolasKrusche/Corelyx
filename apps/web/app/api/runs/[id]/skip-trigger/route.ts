@@ -118,19 +118,24 @@ export async function POST(
   const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
 
   try {
+    const runtimeBody = JSON.stringify({
+      run_id: run.id,
+      program_id: run.program_id,
+      user_id: user.id,
+      schema,
+      triggered_by: "manual",
+      connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
+    });
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
       headers: buildInternalServiceHeaders("runtime:execute", {
         "Content-Type": "application/json",
+      }, {
+        method: "POST",
+        path: "/execute",
+        body: runtimeBody,
       }),
-      body: JSON.stringify({
-        run_id: run.id,
-        program_id: run.program_id,
-        user_id: user.id,
-        schema,
-        triggered_by: "manual",
-        connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
-      }),
+      body: runtimeBody,
       cache: "no-store",
     });
     if (!runtimeRes.ok) {

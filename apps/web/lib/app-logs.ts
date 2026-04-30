@@ -1,4 +1,5 @@
 import type { Json } from "@flowos/db";
+import { redactSecretText, redactSecrets } from "@/lib/redaction";
 
 type AppLogLevel = "info" | "warning" | "error";
 
@@ -22,25 +23,26 @@ type AppLogClient = {
 };
 
 function toJson(value: unknown): Json {
-  return JSON.parse(JSON.stringify(value ?? null)) as Json;
+  return JSON.parse(JSON.stringify(redactSecrets(value ?? null))) as Json;
 }
 
 export function errorDetails(error: unknown) {
   if (error instanceof Error) {
     return {
       name: error.name,
-      message: error.message,
-      stack: error.stack?.slice(0, 4000) ?? null,
+      message: redactSecretText(error.message),
+      stack: error.stack ? redactSecretText(error.stack).slice(0, 4000) : null,
     };
   }
 
   return {
-    message: String(error),
+    message: redactSecretText(String(error)),
   };
 }
 
 export function truncateForLog(value: unknown, maxLength = 2000): string {
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+  const redacted = redactSecrets(value);
+  const text = typeof redacted === "string" ? redacted : JSON.stringify(redacted);
   if (!text) return "";
   return text.length > maxLength ? `${text.slice(0, maxLength)}...[${text.length} chars total]` : text;
 }
@@ -57,7 +59,7 @@ export async function writeAppLog(
     source: input.source,
     event: input.event,
     status: input.status,
-    message: input.message,
+    message: redactSecretText(input.message),
     details: input.details ? toJson(input.details) : null,
     duration_ms: input.durationMs ?? null,
   });

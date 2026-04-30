@@ -3,9 +3,15 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@flowos/db";
 import { createServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
+import { genericErrorMessage, redactSecretText } from "@/lib/redaction";
 
-export function apiError(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
+export function apiError(message: string, status: number, code?: string) {
+  const safeMessage =
+    status >= 500 ? genericErrorMessage(status) : redactSecretText(message);
+  return NextResponse.json(
+    { error: safeMessage, ...(code ? { code } : {}) },
+    { status }
+  );
 }
 
 export async function getAuthUser(): Promise<User | null> {

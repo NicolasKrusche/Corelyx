@@ -34,7 +34,7 @@ describe("getEntitlements", () => {
     expect(ent.maxPrograms).toBe(2);
     expect(ent.runsPerMonth).toBe(50);
     expect(ent.runHistoryDays).toBe(7);
-    expect(ent.genesisUsesPerMonth).toBe(1);
+    expect(ent.genesisUsesPerMonth).toBe(3);
     expect(ent.byok).toBe(false);
     expect(ent.hitlApprovals).toBe(false);
     expect(ent.conflictDetection).toBe(false);
@@ -53,7 +53,7 @@ describe("getEntitlements", () => {
 
   it("returns the correct config for plus (Solo) tier", () => {
     const ent = getEntitlements("plus");
-    expect(ent.maxPrograms).toBeNull();
+    expect(ent.maxPrograms).toBe(5);
     expect(ent.runsPerMonth).toBe(75);
     expect(ent.runHistoryDays).toBe(30);
     expect(ent.genesisUsesPerMonth).toBeNull();
@@ -184,8 +184,11 @@ describe("ENTITLEMENTS record", () => {
     expect(ENTITLEMENTS.unlimited.genesisUsesPerMonth).toBeNull();
   });
 
-  it("free is the only tier with maxPrograms !== null", () => {
+  it("free and plus are the only tiers with maxPrograms !== null", () => {
     expect(ENTITLEMENTS.free.maxPrograms).not.toBeNull();
-    expect(ENTITLEMENTS.plus.maxPrograms).toBeNull();
+    expect(ENTITLEMENTS.plus.maxPrograms).not.toBeNull();
+    expect(ENTITLEMENTS.pro.maxPrograms).toBeNull();
+    expect(ENTITLEMENTS.builder.maxPrograms).toBeNull();
+    expect(ENTITLEMENTS.unlimited.maxPrograms).toBeNull();
   });
 });

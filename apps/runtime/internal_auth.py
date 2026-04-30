@@ -12,7 +12,7 @@ from typing import Any
 INTERNAL_SERVICE_TOKEN_HEADER = "x-internal-service-token"
 
 _CLOCK_SKEW_SECONDS = 30
-_DEFAULT_TOKEN_LIFETIME_SECONDS = 60
+_DEFAULT_TOKEN_LIFETIME_SECONDS = 30
 _MAX_TOKEN_LIFETIME_SECONDS = 300
 
 
@@ -56,12 +56,20 @@ def _sign_payload_segment(payload_segment: str, secret: bytes) -> str:
     return _b64url_encode(digest)
 
 
+def _body_hash(body: bytes | str) -> str:
+    data = body.encode("utf-8") if isinstance(body, str) else body
+    return _b64url_encode(hashlib.sha256(data).digest())
+
+
 def create_internal_service_token(
     audience: str,
     *,
     ttl_seconds: int = _DEFAULT_TOKEN_LIFETIME_SECONDS,
     now_seconds: int | None = None,
     subject: str | None = None,
+    method: str | None = None,
+    path: str | None = None,
+    body: bytes | str | None = None,
 ) -> str:
     if ttl_seconds <= 0 or ttl_seconds > _MAX_TOKEN_LIFETIME_SECONDS:
         raise ValueError(
@@ -78,6 +86,12 @@ def create_internal_service_token(
         if not isinstance(subject, str) or not subject:
             raise ValueError("subject must be a non-empty string")
         payload["sub"] = subject
+    if method is not None:
+        payload["htm"] = method.upper()
+    if path is not None:
+        payload["path"] = path
+    if body is not None:
+        payload["bh"] = _body_hash(body)
     payload_segment = _b64url_encode(
         json.dumps(payload, separators=(",", ":")).encode("utf-8")
     )
@@ -92,10 +106,18 @@ def build_internal_service_headers(
     *,
     ttl_seconds: int = _DEFAULT_TOKEN_LIFETIME_SECONDS,
     subject: str | None = None,
+    method: str | None = None,
+    path: str | None = None,
+    body: bytes | str | None = None,
 ) -> dict[str, str]:
     return {
         INTERNAL_SERVICE_TOKEN_HEADER: create_internal_service_token(
-            audience, ttl_seconds=ttl_seconds, subject=subject
+            audience,
+            ttl_seconds=ttl_seconds,
+            subject=subject,
+            method=method,
+            path=path,
+            body=body,
         )
     }
 
@@ -105,9 +127,17 @@ def verify_internal_service_token(
     expected_audience: str,
     *,
     now_seconds: int | None = None,
+    method: str | None = None,
+    path: str | None = None,
+    body: bytes | str | None = None,
 ) -> bool:
     return verify_internal_service_token_claims(
-        token, expected_audience, now_seconds=now_seconds
+        token,
+        expected_audience,
+        now_seconds=now_seconds,
+        method=method,
+        path=path,
+        body=body,
     ) is not None
 
 
@@ -116,6 +146,9 @@ def verify_internal_service_token_claims(
     expected_audience: str,
     *,
     now_seconds: int | None = None,
+    method: str | None = None,
+    path: str | None = None,
+    body: bytes | str | None = None,
 ) -> dict[str, Any] | None:
     try:
         payload_segment, received_signature = token.split(".", 1)
@@ -143,12 +176,21 @@ def verify_internal_service_token_claims(
     issued_at = claims.get("iat")
     expires_at = claims.get("exp")
     subject = claims.get("sub")
+    token_method = claims.get("htm")
+    token_path = claims.get("path")
+    token_body_hash = claims.get("bh")
 
     if audience != expected_audience:
         return None
     if not isinstance(issued_at, int) or not isinstance(expires_at, int):
         return None
     if subject is not None and not isinstance(subject, str):
+        return None
+    if token_method is not None and not isinstance(token_method, str):
+        return None
+    if token_path is not None and not isinstance(token_path, str):
+        return None
+    if token_body_hash is not None and not isinstance(token_body_hash, str):
         return None
     if expires_at <= issued_at:
         return None
@@ -159,6 +201,12 @@ def verify_internal_service_token_claims(
     if issued_at - _CLOCK_SKEW_SECONDS > current_time:
         return None
     if expires_at + _CLOCK_SKEW_SECONDS < current_time:
+        return None
+    if method is not None and token_method != method.upper():
+        return None
+    if path is not None and token_path != path:
+        return None
+    if body is not None and token_body_hash != _body_hash(body):
         return None
 
     return claims

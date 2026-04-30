@@ -4,6 +4,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type TypeformConnectionRow = {
   id: string;
@@ -25,6 +26,9 @@ type TypeformConnectionRow = {
  *   source: "typeform"  event: "form_response"
  */
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "typeform");
+  if (limited) return limited;
+
   const webhookSecret = process.env.TYPEFORM_WEBHOOK_SECRET;
   if (!webhookSecret) {
     return apiError("Missing TYPEFORM_WEBHOOK_SECRET", 500);

@@ -5,6 +5,7 @@ import { getValidOAuthToken } from "@/lib/oauth-token";
 import { verifyGooglePubSubOidc } from "@/lib/pubsub-auth";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import { readBoundedJsonBody } from "@/lib/request-body";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 type GmailConnectionRow = {
   id: string;
@@ -28,6 +29,9 @@ type GmailPushPayload = {
 };
 
 export async function POST(request: Request) {
+  const limited = await enforcePublicEndpointRateLimit(request, "gmail");
+  if (limited) return limited;
+
   const audience = process.env.PUBSUB_GMAIL_WEBHOOK_AUDIENCE;
   if (!audience) {
     console.error("[gmail-webhook] PUBSUB_GMAIL_WEBHOOK_AUDIENCE not configured");

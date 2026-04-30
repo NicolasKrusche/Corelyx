@@ -143,4 +143,34 @@ describe("internal auth", () => {
     });
     expect(anonClaims?.sub).toBeUndefined();
   });
+
+  it("binds tokens to method, path, and body when requested", () => {
+    process.env.INTERNAL_SERVICE_AUTH_SECRET = "internal-auth-test-secret";
+    const body = JSON.stringify({ run_id: "run-1" });
+
+    const token = createInternalServiceToken("runtime:execute", {
+      nowMs: 1_000_000,
+      ttlSeconds: 30,
+      method: "POST",
+      path: "/execute",
+      body,
+    });
+
+    expect(
+      verifyInternalServiceToken(token, "runtime:execute", {
+        nowMs: 1_010_000,
+        method: "POST",
+        path: "/execute",
+        body,
+      })
+    ).not.toBeNull();
+    expect(
+      verifyInternalServiceToken(token, "runtime:execute", {
+        nowMs: 1_010_000,
+        method: "POST",
+        path: "/execute",
+        body: JSON.stringify({ run_id: "other-run" }),
+      })
+    ).toBeNull();
+  });
 });

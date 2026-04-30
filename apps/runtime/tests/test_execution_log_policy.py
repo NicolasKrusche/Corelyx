@@ -70,6 +70,22 @@ class ExecutionLogPolicyTests(unittest.TestCase):
         self.assertEqual(result["GOOGLE_ACCESS_TOKEN"], "[redacted]")
         self.assertEqual(result["client-secret"], "[redacted]")
 
+    def test_redact_secrets_catches_token_like_strings(self) -> None:
+        result = redact_secrets(
+            {
+                "message": "upstream returned Bearer abcdefghijklmnopqrstuvwxyz0123456789",
+                "nested": [
+                    "github token ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+                    "jwt eyJabcdefghijklmnopqrstuvwxyz.abcdefghijklmnopqrstuvwxyz.abcdefghijklmnopqrstuvwxyz",
+                ],
+            }
+        )
+
+        serialized = str(result)
+        self.assertNotIn("abcdefghijklmnopqrstuvwxyz0123456789", serialized)
+        self.assertNotIn("eyJabcdefghijklmnopqrstuvwxyz", serialized)
+        self.assertIn("[redacted]", serialized)
+
 
 if __name__ == "__main__":
     unittest.main()

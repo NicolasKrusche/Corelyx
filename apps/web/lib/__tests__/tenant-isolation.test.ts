@@ -117,9 +117,20 @@ function hasTenantScoping(source: string): boolean {
     // Public-read filter (browse / published resources)
     /\.eq\(\s*["']is_public["']\s*,\s*true\s*\)/,
     /\.eq\(\s*["']published_at["']/,
+    // Workspace-scoped access is the primary tenant boundary for app data.
+    /\.eq\(\s*["']workspace_id["']\s*,\s*[A-Za-z_.![\]]+/,
+    /\.in\(\s*["']workspace_id["']\s*,\s*[A-Za-z_.![\]]+/,
+    /getActiveWorkspace\s*\(/,
+    /getWorkspaceRole\s*\(/,
+    /getProgramAccess\s*\(/,
+    /requireWorkspaceAccess\s*\(/,
+    /requireWorkspaceContributor\s*\(/,
+    /requireWorkspaceViewer\s*\(/,
     // The internal token's subject is itself the user filter when the handler
     // looks up the row by id and verifies row.user_id === claims.sub.
     /claims\.sub.*\.user_id|\.user_id.*claims\.sub/s,
+    // Explicit admin-only routes may intentionally inspect cross-user data.
+    /isAdminEmail\s*\(/,
     // Routes that look up the row by an opaque token (per-trigger webhook URL,
     // per-channel push subscription) are scoped by that token — the row found
     // determines which user owns the request.

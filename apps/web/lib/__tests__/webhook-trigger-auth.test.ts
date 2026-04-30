@@ -11,6 +11,8 @@ import {
 const originalWebhookSigningSecret = process.env.WEBHOOK_SIGNING_SECRET;
 const originalInternalAuthSecret = process.env.INTERNAL_SERVICE_AUTH_SECRET;
 const originalRuntimeSecret = process.env.RUNTIME_SECRET;
+const originalNodeEnv = process.env.NODE_ENV;
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 afterEach(() => {
   if (originalWebhookSigningSecret === undefined) {
@@ -29,6 +31,12 @@ afterEach(() => {
     delete process.env.RUNTIME_SECRET;
   } else {
     process.env.RUNTIME_SECRET = originalRuntimeSecret;
+  }
+
+  if (originalNodeEnv === undefined) {
+    delete mutableEnv.NODE_ENV;
+  } else {
+    mutableEnv.NODE_ENV = originalNodeEnv;
   }
 });
 
@@ -86,5 +94,16 @@ describe("webhook trigger auth", () => {
       { includeSigningSecret: true }
     );
     expect(revealed.webhook_signing?.secret).toBeTruthy();
+  });
+
+  it("requires the dedicated webhook signing secret in production", () => {
+    mutableEnv.NODE_ENV = "production";
+    delete process.env.WEBHOOK_SIGNING_SECRET;
+    process.env.INTERNAL_SERVICE_AUTH_SECRET = "broad-secret";
+    process.env.RUNTIME_SECRET = "runtime-secret";
+
+    expect(() =>
+      createWebhookSignature("{}", "trigger-token", "1000")
+    ).toThrow("WEBHOOK_SIGNING_SECRET");
   });
 });

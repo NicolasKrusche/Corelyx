@@ -64,7 +64,7 @@ export interface Database {
           id: string;
           code: string;
           label: string | null;
-          type: "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
+          type: "plus_lifetime" | "plus_trial" | "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
           value: Json | null;
           locked_to_email: string | null;
           max_uses: number | null;
@@ -78,7 +78,7 @@ export interface Database {
           id?: string;
           code: string;
           label?: string | null;
-          type: "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
+          type: "plus_lifetime" | "plus_trial" | "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
           value?: Json | null;
           locked_to_email?: string | null;
           max_uses?: number | null;
@@ -92,7 +92,7 @@ export interface Database {
           id?: string;
           code?: string;
           label?: string | null;
-          type?: "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
+          type?: "plus_lifetime" | "plus_trial" | "pro_lifetime" | "builder_lifetime" | "unlimited" | "pro_trial" | "run_credits";
           value?: Json | null;
           locked_to_email?: string | null;
           max_uses?: number | null;
@@ -800,6 +800,23 @@ export interface Database {
           p_payload_retention?: string;
           p_run_retention?: string;
           p_audit_retention?: string;
+        };
+        Returns: Json;
+      };
+      check_rate_limit: {
+        Args: {
+          p_key: string;
+          p_limit: number;
+          p_window_seconds: number;
+        };
+        Returns: boolean;
+      };
+      redeem_code_atomic: {
+        Args: {
+          p_code: string;
+          p_user_id: string;
+          p_workspace_id: string;
+          p_user_email: string;
         };
         Returns: Json;
       };

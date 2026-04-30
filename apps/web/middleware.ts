@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import type { Database } from "@flowos/db";
+import { applySecurityHeaders } from "@/lib/security-headers";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -30,6 +31,22 @@ const PUBLIC_ROUTES = [
 const INTERNAL_API_PREFIX = "/api/internal/";
 
 export async function middleware(request: NextRequest) {
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+
+  function nextWithSecurity() {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    applySecurityHeaders(response.headers, nonce);
+    return response;
+  }
+
+  function redirectWithSecurity(url: URL) {
+    const response = NextResponse.redirect(url);
+    applySecurityHeaders(response.headers, nonce);
+    return response;
+  }
+
   // If Supabase isn't configured yet, allow all public routes through
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -37,7 +54,7 @@ export async function middleware(request: NextRequest) {
 
   // Internal API routes authenticate via internal service tokens so session checks are skipped
   if (pathname.startsWith(INTERNAL_API_PREFIX)) {
-    return NextResponse.next({ request });
+    return nextWithSecurity();
   }
 
   const isPublic = pathname === "/" || PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
@@ -46,12 +63,12 @@ export async function middleware(request: NextRequest) {
     if (!isPublic) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      return NextResponse.redirect(url);
+      return redirectWithSecurity(url);
     }
-    return NextResponse.next({ request });
+    return nextWithSecurity();
   }
 
-  let supabaseResponse = NextResponse.next({ request });
+  let supabaseResponse = nextWithSecurity();
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseKey, {
     cookies: {
@@ -60,7 +77,7 @@ export async function middleware(request: NextRequest) {
       },
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({ request });
+        supabaseResponse = nextWithSecurity();
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options)
         );
@@ -79,13 +96,13 @@ export async function middleware(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return redirectWithSecurity(url);
   }
 
   if (user && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+    return redirectWithSecurity(url);
   }
 
   return supabaseResponse;

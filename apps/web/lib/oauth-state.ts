@@ -60,14 +60,20 @@ export type OAuthStateVerificationResult =
     };
 
 function getOAuthStateSecret() {
-  const secret =
-    process.env.OAUTH_STATE_SECRET ??
+  const dedicatedSecret = process.env.OAUTH_STATE_SECRET;
+  if (dedicatedSecret) return dedicatedSecret;
+
+  const isProduction = [process.env.NODE_ENV, process.env.VERCEL_ENV, process.env.APP_ENV].some(
+    (value) => value === "production"
+  );
+  const devFallback =
     process.env.INTERNAL_SERVICE_AUTH_SECRET ??
     process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret = isProduction ? undefined : devFallback;
 
   if (!secret) {
     throw new Error(
-      "Missing OAuth state signing secret. Set OAUTH_STATE_SECRET for production."
+      "Missing OAuth state signing secret. Set OAUTH_STATE_SECRET."
     );
   }
 
