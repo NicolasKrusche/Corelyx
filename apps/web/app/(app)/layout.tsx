@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
 import { isAdminEmail } from "@/lib/admin";
+import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
 import { ensureAvatarBucket } from "@/lib/avatar-storage";
 
@@ -19,6 +20,7 @@ type AppLayoutProfile = {
   display_name: string | null;
   avatar_url: string | null;
   created_at: string;
+  is_admin: boolean;
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -49,19 +51,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profileRaw } = await supabase
     .from("profiles")
-    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at")
+    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin")
     .eq("id", appUser.id)
     .single();
   const profile = profileRaw as AppLayoutProfile | null;
 
   const isOAuthUser = !appUser.identities?.some((i) => i.provider === "email");
+  
+  // Check admin status via env var OR database flag
+  const isAdmin = isAdminEmail(appUser.email ?? undefined) || profile?.is_admin === true;
 
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
-        isAdmin={isAdminEmail(appUser.email ?? undefined)}
+        isAdmin={isAdmin}
         email={appUser.email ?? ""}
-        tier={(isAdminEmail(appUser.email ?? undefined) ? "unlimited" : (profile?.tier ?? "free")) as "free" | "plus" | "pro" | "builder" | "unlimited"}
+        tier={(isAdmin ? "unlimited" : (profile?.tier ?? "free")) as "free" | "plus" | "pro" | "builder" | "unlimited"}
         planExpiresAt={profile?.plan_expires_at ?? null}
         isBetaTester={profile?.is_beta_tester ?? false}
         userId={appUser.id}

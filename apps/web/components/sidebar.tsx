@@ -497,6 +497,15 @@ export function Sidebar({
 
         <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
           icon={<PricingIcon />} isDark={isDark} />
+        
+        {/* Admin link - only shown to admins */}
+        {isAdmin && (
+          <>
+            <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
+            <NavItem href="/admin" label="Admin" active={pathname.startsWith("/admin")}
+              icon={<AdminIcon />} isDark={isDark} />
+          </>
+        )}
       </nav>
 
       <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>

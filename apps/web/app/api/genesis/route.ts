@@ -9,7 +9,7 @@ export const maxDuration = 300;
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
-import { GENESIS_SYSTEM_PROMPT, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
+import { buildGenesisSystemPrompt, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import {
   hasPiiRedactions,
@@ -234,6 +234,12 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connectionRows);
 
+  // Extract provider names from available connections for dynamic prompt generation
+  const selectedProviders = availableConnections.map((conn) => conn.type);
+  const genesisSystemPrompt = buildGenesisSystemPrompt(
+    selectedProviders.length > 0 ? selectedProviders : null
+  );
+
   // Fetch all valid API keys for the user — preferred key first, then sorted by provider suitability
   const serviceClient = createServiceClient();
   const { data: allKeyRows, error: keysError } = await serviceClient
@@ -371,7 +377,7 @@ export async function POST(request: Request) {
               model: candidateModel,
               max_tokens: GENESIS_MAX_TOKENS,
               temperature: GENESIS_TEMPERATURE,
-              system: GENESIS_SYSTEM_PROMPT,
+              system: genesisSystemPrompt,
               messages: [{ role: "user", content: userMessage }],
             });
             rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
@@ -383,7 +389,7 @@ export async function POST(request: Request) {
                 response_format: { type: "json_object" as const },
               }),
               messages: [
-                { role: "system", content: GENESIS_SYSTEM_PROMPT },
+                { role: "system", content: genesisSystemPrompt },
                 { role: "user", content: userMessage },
               ],
             });
