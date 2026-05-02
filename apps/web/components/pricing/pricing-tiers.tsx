@@ -14,7 +14,7 @@ export const TIERS = [
     features: [
       { text: "2 programs", note: "(hard limit)" },
       { text: "50 runs / month" },
-      { text: "All 12+ connectors" },
+      { text: "All 200+ connectors" },
       { text: "7-day run history" },
       { text: "Visual editor only" },
       { text: "3 Genesis AI uses / month" },
@@ -37,7 +37,7 @@ export const TIERS = [
     features: [
       { text: "5 programs" },
       { text: "75 runs / month" },
-      { text: "All 12+ connectors" },
+      { text: "All 200+ connectors" },
       { text: "Bring your own API keys (BYOK)" },
       { text: "30-day run history" },
       { text: "Visual editor + Genesis AI" },
@@ -62,7 +62,7 @@ export const TIERS = [
       { text: "Human-in-the-loop approvals" },
       { text: "Error prevention (auto)" },
       { text: "500 runs / month — enough for daily automations across your whole team" },
-      { text: "All 12+ connectors" },
+      { text: "All 200+ connectors" },
       { text: "BYOK + Corelyx model credits" },
       { text: "90-day run history" },
       { text: "All trigger types" },
@@ -93,6 +93,20 @@ export const TIERS = [
     missing: [],
   },
 ] as const;
+
+export const ENTERPRISE_TIER = {
+  name: "Enterprise",
+  description: "Custom volume, dedicated infrastructure, SSO, audit logs, and a named success team. Built around your requirements.",
+  features: [
+    "Unlimited runs — negotiated to your volume",
+    "Dedicated infrastructure & private cloud options",
+    "SSO / SAML & advanced access controls",
+    "Full audit log & compliance exports",
+    "Custom SLA with guaranteed uptime",
+    "Onboarding, training & custom integrations",
+    "Named customer success manager",
+  ],
+} as const;
 
 export const FAQ = [
   {
@@ -129,7 +143,12 @@ type TierCTA = {
   checkout?: { tier: PaidTier; interval: BillingInterval };
 };
 
-export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
+type EnterpriseCTA = {
+  label: string;
+  href: string;
+};
+
+export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpriseCta: EnterpriseCTA }) {
   const [interval, setInterval] = useState<"month" | "year">("year");
 
   return (
@@ -164,6 +183,7 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
       </div>
 
       {/* Cards */}
+      <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
         {TIERS.map((tier, i) => {
           const cta = ctas[i];
@@ -277,6 +297,36 @@ export function PricingTiers({ ctas }: { ctas: TierCTA[] }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Enterprise banner */}
+      <div className="relative rounded-2xl border border-border bg-card px-8 py-7 flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-muted-foreground/20 to-transparent rounded-t-2xl" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">{ENTERPRISE_TIER.name}</p>
+          <p className="text-lg font-black tracking-tight">Custom pricing. Built for you.</p>
+          <p className="mt-1 text-sm text-muted-foreground max-w-xl">{ENTERPRISE_TIER.description}</p>
+          <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+            {ENTERPRISE_TIER.features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5">
+                <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5">
+                  <path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm text-foreground/70">{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="shrink-0">
+          <a
+            href={enterpriseCta.href}
+            className="inline-flex items-center justify-center rounded-xl border border-border bg-background/50 px-6 py-3 text-sm font-bold transition-all duration-200 hover:bg-accent hover:border-border/80 whitespace-nowrap"
+          >
+            {enterpriseCta.label}
+          </a>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground/40">No commitment required</p>
+        </div>
+      </div>
       </div>
     </div>
   );

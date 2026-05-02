@@ -1,18 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
+  KeyRound,
+  Lock,
   PlusCircle,
+  Search,
   Settings2,
   ShieldCheck,
   Star,
   Trash2,
   Users,
 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +77,195 @@ const PROVIDER_LABELS: Record<string, string> = {
   asana: "Asana",
   drive: "Google Drive",
   outlook: "Outlook Mail",
+  linear: "Linear",
+  discord: "Discord",
+  teams: "Microsoft Teams",
+  jira: "Jira",
+  salesforce: "Salesforce",
+  trello: "Trello",
+  zendesk: "Zendesk",
+  intercom: "Intercom",
+  stripe: "Stripe",
+  shopify: "Shopify",
+  dropbox: "Dropbox",
+  mailchimp: "Mailchimp",
+  zoom: "Zoom",
+  calendly: "Calendly",
+  gitlab: "GitLab",
+  monday: "Monday.com",
+  clickup: "ClickUp",
+  todoist: "Todoist",
+  basecamp: "Basecamp",
+  pipedrive: "Pipedrive",
+  freshdesk: "Freshdesk",
+  front: "Front",
+  klaviyo: "Klaviyo",
+  activecampaign: "ActiveCampaign",
+  sendgrid: "SendGrid",
+  figma: "Figma",
+  miro: "Miro",
+  confluence: "Confluence",
+  bitbucket: "Bitbucket",
+  quickbooks: "QuickBooks",
+  xero: "Xero",
+  bamboohr: "BambooHR",
+  gusto: "Gusto",
+  docusign: "DocuSign",
+  twitter: "X (Twitter)",
+  linkedin: "LinkedIn",
+  mixpanel: "Mixpanel",
+  amplitude: "Amplitude",
+  box: "Box",
+  onedrive: "OneDrive",
+  wordpress: "WordPress",
+  webflow: "Webflow",
+  loom: "Loom",
+  pagerduty: "PagerDuty",
+  sentry: "Sentry",
+  twilio: "Twilio",
+  whatsapp: "WhatsApp Business",
+  facebook: "Facebook Pages",
+  instagram: "Instagram Business",
+  tiktok: "TikTok for Business",
+  youtube: "YouTube",
+  pinterest: "Pinterest",
+  reddit: "Reddit",
+  buffer: "Buffer",
+  hootsuite: "Hootsuite",
+  resend: "Resend",
+  brevo: "Brevo",
+  convertkit: "ConvertKit",
+  constantcontact: "Constant Contact",
+  drip: "Drip",
+  customerio: "Customer.io",
+  braze: "Braze",
+  iterable: "Iterable",
+  postmark: "Postmark",
+  beehiiv: "Beehiiv",
+  campaignmonitor: "Campaign Monitor",
+  zohocrm: "Zoho CRM",
+  copper: "Copper",
+  closecrm: "Close CRM",
+  freshsales: "Freshsales",
+  insightly: "Insightly",
+  nutshell: "Nutshell",
+  keap: "Keap",
+  wrike: "Wrike",
+  smartsheet: "Smartsheet",
+  coda: "Coda",
+  height: "Height",
+  nifty: "Nifty",
+  teamwork: "Teamwork",
+  zohoprojects: "Zoho Projects",
+  vercel: "Vercel",
+  netlify: "Netlify",
+  circleci: "CircleCI",
+  datadog: "Datadog",
+  newrelic: "New Relic",
+  cloudflare: "Cloudflare",
+  firebase: "Firebase",
+  supabase: "Supabase",
+  heroku: "Heroku",
+  render: "Render",
+  digitalocean: "DigitalOcean",
+  grafana: "Grafana",
+  helpscout: "Help Scout",
+  gorgias: "Gorgias",
+  freshservice: "Freshservice",
+  kustomer: "Kustomer",
+  crisp: "Crisp",
+  drift: "Drift",
+  rippling: "Rippling",
+  workday: "Workday",
+  greenhouse: "Greenhouse",
+  lever: "Lever",
+  personio: "Personio",
+  deel: "Deel",
+  hibob: "HiBob",
+  lattice: "Lattice",
+  workable: "Workable",
+  freshbooks: "FreshBooks",
+  paddle: "Paddle",
+  paypal: "PayPal",
+  chargebee: "Chargebee",
+  recurly: "Recurly",
+  brex: "Brex",
+  ramp: "Ramp",
+  expensify: "Expensify",
+  mollie: "Mollie",
+  gocardless: "GoCardless",
+  square: "Square",
+  lemonsqueezy: "Lemon Squeezy",
+  netsuite: "NetSuite",
+  googleanalytics: "Google Analytics",
+  posthog: "PostHog",
+  heap: "Heap",
+  hotjar: "Hotjar",
+  segment: "Segment",
+  plausible: "Plausible",
+  fullstory: "FullStory",
+  rudderstack: "RudderStack",
+  canva: "Canva",
+  framer: "Framer",
+  invision: "InVision",
+  zeplin: "Zeplin",
+  pandadoc: "PandaDoc",
+  hellosign: "Dropbox Sign",
+  surveymonkey: "SurveyMonkey",
+  jotform: "Jotform",
+  tally: "Tally",
+  googleforms: "Google Forms",
+  paperform: "Paperform",
+  cloudinary: "Cloudinary",
+  awss3: "AWS S3",
+  vimeo: "Vimeo",
+  wistia: "Wistia",
+  mux: "Mux",
+  adyen: "Adyen",
+  braintree: "Braintree",
+  acuityscheduling: "Acuity Scheduling",
+  doodle: "Doodle",
+  simplybook: "SimplyBook.me",
+  eventbrite: "Eventbrite",
+  luma: "Luma",
+  ringcentral: "RingCentral",
+  aircall: "Aircall",
+  openphone: "OpenPhone",
+  vonage: "Vonage",
+  dialpad: "Dialpad",
+  telnyx: "Telnyx",
+  openai: "OpenAI",
+  replicate: "Replicate",
+  cohere: "Cohere",
+  pinecone: "Pinecone",
+  okta: "Okta",
+  auth0: "Auth0",
+  jumpcloud: "JumpCloud",
+  apollo: "Apollo.io",
+  clearbit: "Clearbit",
+  hunter: "Hunter.io",
+  zoominfo: "ZoomInfo",
+  lusha: "Lusha",
+  contentful: "Contentful",
+  sanity: "Sanity",
+  ghost: "Ghost",
+  storyblok: "Storyblok",
+  prismic: "Prismic",
+  toggl: "Toggl",
+  harvest: "Harvest",
+  clockify: "Clockify",
+  hubstaff: "Hubstaff",
+  servicenow: "ServiceNow",
+  opsgenie: "OpsGenie",
+  evernote: "Evernote",
+  onenote: "OneNote",
+  nuclino: "Nuclino",
+  telegram: "Telegram",
+  webex: "Cisco Webex",
+  googlechat: "Google Chat",
+  rocketchat: "Rocket.Chat",
+  semrush: "Semrush",
+  ahrefs: "Ahrefs",
 };
 
 const PROVIDER_ICON_URL: Record<string, string> = {
@@ -88,7 +282,231 @@ const PROVIDER_ICON_URL: Record<string, string> = {
   hubspot: "https://upload.wikimedia.org/wikipedia/commons/3/3f/HubSpot_Logo.svg",
   typeform: "https://www.google.com/s2/favicons?domain=typeform.com&sz=64",
   asana: "https://www.google.com/s2/favicons?domain=app.asana.com&sz=64",
+  linear: "https://www.google.com/s2/favicons?domain=linear.app&sz=64",
+  discord: "https://www.google.com/s2/favicons?domain=discord.com&sz=64",
+  teams: "https://upload.wikimedia.org/wikipedia/commons/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg",
+  jira: "https://www.google.com/s2/favicons?domain=atlassian.net&sz=64",
+  salesforce: "https://www.google.com/s2/favicons?domain=salesforce.com&sz=64",
+  trello: "https://www.google.com/s2/favicons?domain=trello.com&sz=64",
+  zendesk: "https://www.google.com/s2/favicons?domain=zendesk.com&sz=64",
+  intercom: "https://www.google.com/s2/favicons?domain=intercom.com&sz=64",
+  stripe: "https://www.google.com/s2/favicons?domain=stripe.com&sz=64",
+  shopify: "https://www.google.com/s2/favicons?domain=shopify.com&sz=64",
+  dropbox: "https://www.google.com/s2/favicons?domain=dropbox.com&sz=64",
+  mailchimp: "https://www.google.com/s2/favicons?domain=mailchimp.com&sz=64",
+  zoom: "https://www.google.com/s2/favicons?domain=zoom.us&sz=64",
+  calendly: "https://www.google.com/s2/favicons?domain=calendly.com&sz=64",
+  gitlab: "https://www.google.com/s2/favicons?domain=gitlab.com&sz=64",
+  monday: "https://www.google.com/s2/favicons?domain=monday.com&sz=64",
+  clickup: "https://www.google.com/s2/favicons?domain=clickup.com&sz=64",
+  todoist: "https://www.google.com/s2/favicons?domain=todoist.com&sz=64",
+  basecamp: "https://www.google.com/s2/favicons?domain=basecamp.com&sz=64",
+  pipedrive: "https://www.google.com/s2/favicons?domain=pipedrive.com&sz=64",
+  freshdesk: "https://www.google.com/s2/favicons?domain=freshdesk.com&sz=64",
+  front: "https://www.google.com/s2/favicons?domain=front.com&sz=64",
+  klaviyo: "https://www.google.com/s2/favicons?domain=klaviyo.com&sz=64",
+  activecampaign: "https://www.google.com/s2/favicons?domain=activecampaign.com&sz=64",
+  sendgrid: "https://www.google.com/s2/favicons?domain=sendgrid.com&sz=64",
+  figma: "https://www.google.com/s2/favicons?domain=figma.com&sz=64",
+  miro: "https://www.google.com/s2/favicons?domain=miro.com&sz=64",
+  confluence: "https://www.google.com/s2/favicons?domain=confluence.atlassian.com&sz=64",
+  bitbucket: "https://www.google.com/s2/favicons?domain=bitbucket.org&sz=64",
+  quickbooks: "https://www.google.com/s2/favicons?domain=quickbooks.intuit.com&sz=64",
+  xero: "https://www.google.com/s2/favicons?domain=xero.com&sz=64",
+  bamboohr: "https://www.google.com/s2/favicons?domain=bamboohr.com&sz=64",
+  gusto: "https://www.google.com/s2/favicons?domain=gusto.com&sz=64",
+  docusign: "https://www.google.com/s2/favicons?domain=docusign.com&sz=64",
+  twitter: "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+  linkedin: "https://www.google.com/s2/favicons?domain=linkedin.com&sz=64",
+  mixpanel: "https://www.google.com/s2/favicons?domain=mixpanel.com&sz=64",
+  amplitude: "https://www.google.com/s2/favicons?domain=amplitude.com&sz=64",
+  box: "https://www.google.com/s2/favicons?domain=box.com&sz=64",
+  onedrive: "https://www.google.com/s2/favicons?domain=onedrive.live.com&sz=64",
+  wordpress: "https://www.google.com/s2/favicons?domain=wordpress.com&sz=64",
+  webflow: "https://www.google.com/s2/favicons?domain=webflow.com&sz=64",
+  loom: "https://www.google.com/s2/favicons?domain=loom.com&sz=64",
+  pagerduty: "https://www.google.com/s2/favicons?domain=pagerduty.com&sz=64",
+  sentry: "https://www.google.com/s2/favicons?domain=sentry.io&sz=64",
+  twilio: "https://www.google.com/s2/favicons?domain=twilio.com&sz=64",
+  whatsapp: "https://www.google.com/s2/favicons?domain=whatsapp.com&sz=64",
+  facebook: "https://www.google.com/s2/favicons?domain=facebook.com&sz=64",
+  instagram: "https://www.google.com/s2/favicons?domain=instagram.com&sz=64",
+  tiktok: "https://www.google.com/s2/favicons?domain=tiktok.com&sz=64",
+  youtube: "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+  pinterest: "https://www.google.com/s2/favicons?domain=pinterest.com&sz=64",
+  reddit: "https://www.google.com/s2/favicons?domain=reddit.com&sz=64",
+  buffer: "https://www.google.com/s2/favicons?domain=buffer.com&sz=64",
+  hootsuite: "https://www.google.com/s2/favicons?domain=hootsuite.com&sz=64",
+  resend: "https://www.google.com/s2/favicons?domain=resend.com&sz=64",
+  brevo: "https://www.google.com/s2/favicons?domain=brevo.com&sz=64",
+  convertkit: "https://www.google.com/s2/favicons?domain=convertkit.com&sz=64",
+  constantcontact: "https://www.google.com/s2/favicons?domain=constantcontact.com&sz=64",
+  drip: "https://www.google.com/s2/favicons?domain=drip.com&sz=64",
+  customerio: "https://www.google.com/s2/favicons?domain=customer.io&sz=64",
+  braze: "https://www.google.com/s2/favicons?domain=braze.com&sz=64",
+  iterable: "https://www.google.com/s2/favicons?domain=iterable.com&sz=64",
+  postmark: "https://www.google.com/s2/favicons?domain=postmarkapp.com&sz=64",
+  beehiiv: "https://www.google.com/s2/favicons?domain=beehiiv.com&sz=64",
+  campaignmonitor: "https://www.google.com/s2/favicons?domain=campaignmonitor.com&sz=64",
+  zohocrm: "https://www.google.com/s2/favicons?domain=zoho.com&sz=64",
+  copper: "https://www.google.com/s2/favicons?domain=copper.com&sz=64",
+  closecrm: "https://www.google.com/s2/favicons?domain=close.com&sz=64",
+  freshsales: "https://www.google.com/s2/favicons?domain=freshsales.io&sz=64",
+  insightly: "https://www.google.com/s2/favicons?domain=insightly.com&sz=64",
+  nutshell: "https://www.google.com/s2/favicons?domain=nutshell.com&sz=64",
+  keap: "https://www.google.com/s2/favicons?domain=keap.com&sz=64",
+  wrike: "https://www.google.com/s2/favicons?domain=wrike.com&sz=64",
+  smartsheet: "https://www.google.com/s2/favicons?domain=smartsheet.com&sz=64",
+  coda: "https://www.google.com/s2/favicons?domain=coda.io&sz=64",
+  height: "https://www.google.com/s2/favicons?domain=height.app&sz=64",
+  nifty: "https://www.google.com/s2/favicons?domain=niftypm.com&sz=64",
+  teamwork: "https://www.google.com/s2/favicons?domain=teamwork.com&sz=64",
+  zohoprojects: "https://www.google.com/s2/favicons?domain=zoho.com&sz=64",
+  vercel: "https://www.google.com/s2/favicons?domain=vercel.com&sz=64",
+  netlify: "https://www.google.com/s2/favicons?domain=netlify.com&sz=64",
+  circleci: "https://www.google.com/s2/favicons?domain=circleci.com&sz=64",
+  datadog: "https://www.google.com/s2/favicons?domain=datadoghq.com&sz=64",
+  newrelic: "https://www.google.com/s2/favicons?domain=newrelic.com&sz=64",
+  cloudflare: "https://www.google.com/s2/favicons?domain=cloudflare.com&sz=64",
+  firebase: "https://www.google.com/s2/favicons?domain=firebase.google.com&sz=64",
+  supabase: "https://www.google.com/s2/favicons?domain=supabase.com&sz=64",
+  heroku: "https://www.google.com/s2/favicons?domain=heroku.com&sz=64",
+  render: "https://www.google.com/s2/favicons?domain=render.com&sz=64",
+  digitalocean: "https://www.google.com/s2/favicons?domain=digitalocean.com&sz=64",
+  grafana: "https://www.google.com/s2/favicons?domain=grafana.com&sz=64",
+  helpscout: "https://www.google.com/s2/favicons?domain=helpscout.com&sz=64",
+  gorgias: "https://www.google.com/s2/favicons?domain=gorgias.com&sz=64",
+  freshservice: "https://www.google.com/s2/favicons?domain=freshservice.com&sz=64",
+  kustomer: "https://www.google.com/s2/favicons?domain=kustomer.com&sz=64",
+  crisp: "https://www.google.com/s2/favicons?domain=crisp.chat&sz=64",
+  drift: "https://www.google.com/s2/favicons?domain=drift.com&sz=64",
+  rippling: "https://www.google.com/s2/favicons?domain=rippling.com&sz=64",
+  workday: "https://www.google.com/s2/favicons?domain=workday.com&sz=64",
+  greenhouse: "https://www.google.com/s2/favicons?domain=greenhouse.io&sz=64",
+  lever: "https://www.google.com/s2/favicons?domain=lever.co&sz=64",
+  personio: "https://www.google.com/s2/favicons?domain=personio.com&sz=64",
+  deel: "https://www.google.com/s2/favicons?domain=deel.com&sz=64",
+  hibob: "https://www.google.com/s2/favicons?domain=hibob.com&sz=64",
+  lattice: "https://www.google.com/s2/favicons?domain=lattice.com&sz=64",
+  workable: "https://www.google.com/s2/favicons?domain=workable.com&sz=64",
+  freshbooks: "https://www.google.com/s2/favicons?domain=freshbooks.com&sz=64",
+  paddle: "https://www.google.com/s2/favicons?domain=paddle.com&sz=64",
+  paypal: "https://www.google.com/s2/favicons?domain=paypal.com&sz=64",
+  chargebee: "https://www.google.com/s2/favicons?domain=chargebee.com&sz=64",
+  recurly: "https://www.google.com/s2/favicons?domain=recurly.com&sz=64",
+  brex: "https://www.google.com/s2/favicons?domain=brex.com&sz=64",
+  ramp: "https://www.google.com/s2/favicons?domain=ramp.com&sz=64",
+  expensify: "https://www.google.com/s2/favicons?domain=expensify.com&sz=64",
+  mollie: "https://www.google.com/s2/favicons?domain=mollie.com&sz=64",
+  gocardless: "https://www.google.com/s2/favicons?domain=gocardless.com&sz=64",
+  square: "https://www.google.com/s2/favicons?domain=squareup.com&sz=64",
+  lemonsqueezy: "https://www.google.com/s2/favicons?domain=lemonsqueezy.com&sz=64",
+  netsuite: "https://www.google.com/s2/favicons?domain=netsuite.com&sz=64",
+  googleanalytics: "https://www.google.com/s2/favicons?domain=analytics.google.com&sz=64",
+  posthog: "https://www.google.com/s2/favicons?domain=posthog.com&sz=64",
+  heap: "https://www.google.com/s2/favicons?domain=heap.io&sz=64",
+  hotjar: "https://www.google.com/s2/favicons?domain=hotjar.com&sz=64",
+  segment: "https://www.google.com/s2/favicons?domain=segment.com&sz=64",
+  plausible: "https://www.google.com/s2/favicons?domain=plausible.io&sz=64",
+  fullstory: "https://www.google.com/s2/favicons?domain=fullstory.com&sz=64",
+  rudderstack: "https://www.google.com/s2/favicons?domain=rudderstack.com&sz=64",
+  canva: "https://www.google.com/s2/favicons?domain=canva.com&sz=64",
+  framer: "https://www.google.com/s2/favicons?domain=framer.com&sz=64",
+  invision: "https://www.google.com/s2/favicons?domain=invisionapp.com&sz=64",
+  zeplin: "https://www.google.com/s2/favicons?domain=zeplin.io&sz=64",
+  pandadoc: "https://www.google.com/s2/favicons?domain=pandadoc.com&sz=64",
+  hellosign: "https://www.google.com/s2/favicons?domain=hellosign.com&sz=64",
+  surveymonkey: "https://www.google.com/s2/favicons?domain=surveymonkey.com&sz=64",
+  jotform: "https://www.google.com/s2/favicons?domain=jotform.com&sz=64",
+  tally: "https://www.google.com/s2/favicons?domain=tally.so&sz=64",
+  googleforms: "https://www.google.com/s2/favicons?domain=docs.google.com&sz=64",
+  paperform: "https://www.google.com/s2/favicons?domain=paperform.co&sz=64",
+  cloudinary: "https://www.google.com/s2/favicons?domain=cloudinary.com&sz=64",
+  awss3: "https://www.google.com/s2/favicons?domain=aws.amazon.com&sz=64",
+  vimeo: "https://www.google.com/s2/favicons?domain=vimeo.com&sz=64",
+  wistia: "https://www.google.com/s2/favicons?domain=wistia.com&sz=64",
+  mux: "https://www.google.com/s2/favicons?domain=mux.com&sz=64",
+  adyen: "https://www.google.com/s2/favicons?domain=adyen.com&sz=64",
+  braintree: "https://www.google.com/s2/favicons?domain=braintreepayments.com&sz=64",
+  acuityscheduling: "https://www.google.com/s2/favicons?domain=acuityscheduling.com&sz=64",
+  doodle: "https://www.google.com/s2/favicons?domain=doodle.com&sz=64",
+  simplybook: "https://www.google.com/s2/favicons?domain=simplybook.me&sz=64",
+  eventbrite: "https://www.google.com/s2/favicons?domain=eventbrite.com&sz=64",
+  luma: "https://www.google.com/s2/favicons?domain=lu.ma&sz=64",
+  ringcentral: "https://www.google.com/s2/favicons?domain=ringcentral.com&sz=64",
+  aircall: "https://www.google.com/s2/favicons?domain=aircall.io&sz=64",
+  openphone: "https://www.google.com/s2/favicons?domain=openphone.com&sz=64",
+  vonage: "https://www.google.com/s2/favicons?domain=vonage.com&sz=64",
+  dialpad: "https://www.google.com/s2/favicons?domain=dialpad.com&sz=64",
+  telnyx: "https://www.google.com/s2/favicons?domain=telnyx.com&sz=64",
+  openai: "https://www.google.com/s2/favicons?domain=openai.com&sz=64",
+  replicate: "https://www.google.com/s2/favicons?domain=replicate.com&sz=64",
+  cohere: "https://www.google.com/s2/favicons?domain=cohere.com&sz=64",
+  pinecone: "https://www.google.com/s2/favicons?domain=pinecone.io&sz=64",
+  okta: "https://www.google.com/s2/favicons?domain=okta.com&sz=64",
+  auth0: "https://www.google.com/s2/favicons?domain=auth0.com&sz=64",
+  jumpcloud: "https://www.google.com/s2/favicons?domain=jumpcloud.com&sz=64",
+  apollo: "https://www.google.com/s2/favicons?domain=apollo.io&sz=64",
+  clearbit: "https://www.google.com/s2/favicons?domain=clearbit.com&sz=64",
+  hunter: "https://www.google.com/s2/favicons?domain=hunter.io&sz=64",
+  zoominfo: "https://www.google.com/s2/favicons?domain=zoominfo.com&sz=64",
+  lusha: "https://www.google.com/s2/favicons?domain=lusha.com&sz=64",
+  contentful: "https://www.google.com/s2/favicons?domain=contentful.com&sz=64",
+  sanity: "https://www.google.com/s2/favicons?domain=sanity.io&sz=64",
+  ghost: "https://www.google.com/s2/favicons?domain=ghost.org&sz=64",
+  storyblok: "https://www.google.com/s2/favicons?domain=storyblok.com&sz=64",
+  prismic: "https://www.google.com/s2/favicons?domain=prismic.io&sz=64",
+  toggl: "https://www.google.com/s2/favicons?domain=toggl.com&sz=64",
+  harvest: "https://www.google.com/s2/favicons?domain=getharvest.com&sz=64",
+  clockify: "https://www.google.com/s2/favicons?domain=clockify.me&sz=64",
+  hubstaff: "https://www.google.com/s2/favicons?domain=hubstaff.com&sz=64",
+  servicenow: "https://www.google.com/s2/favicons?domain=servicenow.com&sz=64",
+  opsgenie: "https://www.google.com/s2/favicons?domain=atlassian.com&sz=64",
+  evernote: "https://www.google.com/s2/favicons?domain=evernote.com&sz=64",
+  onenote: "https://www.google.com/s2/favicons?domain=onenote.com&sz=64",
+  nuclino: "https://www.google.com/s2/favicons?domain=nuclino.com&sz=64",
+  telegram: "https://www.google.com/s2/favicons?domain=telegram.org&sz=64",
+  webex: "https://www.google.com/s2/favicons?domain=webex.com&sz=64",
+  googlechat: "https://www.google.com/s2/favicons?domain=chat.google.com&sz=64",
+  rocketchat: "https://www.google.com/s2/favicons?domain=rocket.chat&sz=64",
+  semrush: "https://www.google.com/s2/favicons?domain=semrush.com&sz=64",
+  ahrefs: "https://www.google.com/s2/favicons?domain=ahrefs.com&sz=64",
 };
+
+/**
+ * Providers that require a platform-funded API key and will be gated behind
+ * the Pro plan. Everything else either uses the user's own OAuth account (free
+ * for the platform) or a platform key that has a meaningful free tier.
+ */
+const PRO_PROVIDERS = new Set([
+  // AI / ML
+  "openai", "replicate",
+  // Email (no user-OAuth flow — platform key required)
+  "customerio", "braze", "iterable", "postmark", "beehiiv",
+  // SMS / Voice
+  "twilio", "vonage", "telnyx", "openphone", "whatsapp",
+  // Analytics (paid)
+  "heap", "hotjar", "fullstory", "rudderstack",
+  // DevOps / Monitoring (paid)
+  "datadog", "opsgenie",
+  // Cloud / Storage (paid)
+  "awss3", "mux", "wistia",
+  // CRM / Sales intelligence (paid, no OAuth)
+  "copper", "closecrm", "freshsales", "insightly", "nutshell",
+  "clearbit", "zoominfo", "lusha",
+  // Finance / Payments (paid, no OAuth)
+  "adyen", "braintree", "chargebee", "recurly", "mollie",
+  "gocardless", "lemonsqueezy", "netsuite", "ramp", "expensify",
+  "paddle", "square",
+  // HR / People (paid, no OAuth)
+  "rippling", "workday", "personio", "hibob", "lattice", "workable",
+  // CMS / Content (paid)
+  "ghost", "framer", "invision",
+  // Support / CX (paid)
+  "gorgias", "freshservice", "kustomer", "crisp", "drift", "servicenow",
+  // Productivity / SEO (paid)
+  "semrush", "ahrefs", "paperform", "zeplin", "luma", "simplybook", "evernote",
+]);
 
 const AVAILABLE_PROVIDERS: Provider[] = [
   { id: "gmail", label: "Gmail", description: "Send and read emails", wave: 1, href: "/api/connections/oauth/gmail?label=gmail:primary" },
@@ -104,6 +522,195 @@ const AVAILABLE_PROVIDERS: Provider[] = [
   { id: "asana", label: "Asana", description: "Manage tasks and projects", wave: 2, href: "/api/connections/oauth/asana?label=asana:primary" },
   { id: "drive", label: "Google Drive", description: "Read and manage Drive files", wave: 2, href: "/api/connections/oauth/google?service=drive&label=drive:primary" },
   { id: "outlook", label: "Outlook Mail", description: "Send and read Outlook email", wave: 2, href: "/api/connections/oauth/outlook?label=outlook:primary" },
+  { id: "linear", label: "Linear", description: "Create and manage issues and projects", wave: 3, href: "/api/connections/oauth/linear?label=linear:primary" },
+  { id: "discord", label: "Discord", description: "Send messages and read channels", wave: 3, href: "/api/connections/oauth/discord?label=discord:primary" },
+  { id: "teams", label: "Microsoft Teams", description: "Post messages and manage channels", wave: 3, href: "/api/connections/oauth/teams?label=teams:primary" },
+  { id: "jira", label: "Jira", description: "Create and update issues and sprints", wave: 3, href: "/api/connections/oauth/jira?label=jira:primary" },
+  { id: "salesforce", label: "Salesforce", description: "Read and write CRM records and leads", wave: 3, href: "/api/connections/oauth/salesforce?label=salesforce:primary" },
+  { id: "trello", label: "Trello", description: "Manage boards, lists, and cards", wave: 3, href: "/api/connections/oauth/trello?label=trello:primary" },
+  { id: "zendesk", label: "Zendesk", description: "Create and update support tickets", wave: 3, href: "/api/connections/oauth/zendesk?label=zendesk:primary" },
+  { id: "intercom", label: "Intercom", description: "Manage conversations and contacts", wave: 3, href: "/api/connections/oauth/intercom?label=intercom:primary" },
+  { id: "stripe", label: "Stripe", description: "Read payments, customers, and subscriptions", wave: 3, href: "/api/connections/oauth/stripe?label=stripe:primary" },
+  { id: "shopify", label: "Shopify", description: "Read and manage orders, products, and customers", wave: 3, href: "/api/connections/oauth/shopify?label=shopify:primary" },
+  { id: "dropbox", label: "Dropbox", description: "Read and manage files and folders", wave: 3, href: "/api/connections/oauth/dropbox?label=dropbox:primary" },
+  { id: "mailchimp", label: "Mailchimp", description: "Manage audiences, campaigns, and members", wave: 3, href: "/api/connections/oauth/mailchimp?label=mailchimp:primary" },
+  { id: "zoom", label: "Zoom", description: "Create and manage meetings and recordings", wave: 3, href: "/api/connections/oauth/zoom?label=zoom:primary" },
+  { id: "calendly", label: "Calendly", description: "Read scheduled events and invitees", wave: 3, href: "/api/connections/oauth/calendly?label=calendly:primary" },
+  { id: "gitlab", label: "GitLab", description: "Manage repos, issues, and merge requests", wave: 3, href: "/api/connections/oauth/gitlab?label=gitlab:primary" },
+  { id: "monday", label: "Monday.com", description: "Manage boards, items, and workflows", wave: 3, href: "/api/connections/oauth/monday?label=monday:primary" },
+  { id: "clickup", label: "ClickUp", description: "Create tasks, docs, and manage workspaces", wave: 3, href: "/api/connections/oauth/clickup?label=clickup:primary" },
+  { id: "todoist", label: "Todoist", description: "Create and manage tasks and projects", wave: 3, href: "/api/connections/oauth/todoist?label=todoist:primary" },
+  { id: "basecamp", label: "Basecamp", description: "Manage projects, to-dos, and messages", wave: 3, href: "/api/connections/oauth/basecamp?label=basecamp:primary" },
+  { id: "pipedrive", label: "Pipedrive", description: "Manage deals, contacts, and pipeline stages", wave: 3, href: "/api/connections/oauth/pipedrive?label=pipedrive:primary" },
+  { id: "freshdesk", label: "Freshdesk", description: "Create and update support tickets and agents", wave: 3, href: "/api/connections/oauth/freshdesk?label=freshdesk:primary" },
+  { id: "front", label: "Front", description: "Read and reply to shared inbox conversations", wave: 3, href: "/api/connections/oauth/front?label=front:primary" },
+  { id: "klaviyo", label: "Klaviyo", description: "Manage lists, campaigns, and events", wave: 3, href: "/api/connections/oauth/klaviyo?label=klaviyo:primary" },
+  { id: "activecampaign", label: "ActiveCampaign", description: "Manage contacts, automations, and campaigns", wave: 3, href: "/api/connections/oauth/activecampaign?label=activecampaign:primary" },
+  { id: "sendgrid", label: "SendGrid", description: "Send transactional and marketing emails", wave: 3, href: "/api/connections/oauth/sendgrid?label=sendgrid:primary" },
+  { id: "figma", label: "Figma", description: "Read files, comments, and project metadata", wave: 3, href: "/api/connections/oauth/figma?label=figma:primary" },
+  { id: "miro", label: "Miro", description: "Read and update boards and cards", wave: 3, href: "/api/connections/oauth/miro?label=miro:primary" },
+  { id: "confluence", label: "Confluence", description: "Read and write pages and spaces", wave: 3, href: "/api/connections/oauth/confluence?label=confluence:primary" },
+  { id: "bitbucket", label: "Bitbucket", description: "Manage repos, pull requests, and pipelines", wave: 3, href: "/api/connections/oauth/bitbucket?label=bitbucket:primary" },
+  { id: "quickbooks", label: "QuickBooks", description: "Read invoices, expenses, and customers", wave: 3, href: "/api/connections/oauth/quickbooks?label=quickbooks:primary" },
+  { id: "xero", label: "Xero", description: "Read and create invoices and contacts", wave: 3, href: "/api/connections/oauth/xero?label=xero:primary" },
+  { id: "bamboohr", label: "BambooHR", description: "Read employee records and time-off data", wave: 3, href: "/api/connections/oauth/bamboohr?label=bamboohr:primary" },
+  { id: "gusto", label: "Gusto", description: "Read payroll, employees, and company data", wave: 3, href: "/api/connections/oauth/gusto?label=gusto:primary" },
+  { id: "docusign", label: "DocuSign", description: "Send envelopes and track signature status", wave: 3, href: "/api/connections/oauth/docusign?label=docusign:primary" },
+  { id: "twitter", label: "X (Twitter)", description: "Post tweets and read timelines and mentions", wave: 3, href: "/api/connections/oauth/twitter?label=twitter:primary" },
+  { id: "linkedin", label: "LinkedIn", description: "Post updates and read profile and company data", wave: 3, href: "/api/connections/oauth/linkedin?label=linkedin:primary" },
+  { id: "mixpanel", label: "Mixpanel", description: "Track events and query analytics data", wave: 3, href: "/api/connections/oauth/mixpanel?label=mixpanel:primary" },
+  { id: "amplitude", label: "Amplitude", description: "Query charts, cohorts, and event data", wave: 3, href: "/api/connections/oauth/amplitude?label=amplitude:primary" },
+  { id: "box", label: "Box", description: "Read and manage files, folders, and metadata", wave: 3, href: "/api/connections/oauth/box?label=box:primary" },
+  { id: "onedrive", label: "OneDrive", description: "Read and manage files and folders", wave: 3, href: "/api/connections/oauth/onedrive?label=onedrive:primary" },
+  { id: "wordpress", label: "WordPress", description: "Create and manage posts, pages, and media", wave: 3, href: "/api/connections/oauth/wordpress?label=wordpress:primary" },
+  { id: "webflow", label: "Webflow", description: "Read and update CMS items and site data", wave: 3, href: "/api/connections/oauth/webflow?label=webflow:primary" },
+  { id: "loom", label: "Loom", description: "Create and share video recordings", wave: 3, href: "/api/connections/oauth/loom?label=loom:primary" },
+  { id: "pagerduty", label: "PagerDuty", description: "Create incidents and manage on-call schedules", wave: 3, href: "/api/connections/oauth/pagerduty?label=pagerduty:primary" },
+  { id: "sentry", label: "Sentry", description: "Read issues, events, and project alerts", wave: 3, href: "/api/connections/oauth/sentry?label=sentry:primary" },
+  { id: "twilio", label: "Twilio", description: "Send SMS, WhatsApp, and voice messages", wave: 3, href: "/api/connections/oauth/twilio?label=twilio:primary" },
+  { id: "whatsapp", label: "WhatsApp Business", description: "Send and receive business messages", wave: 3, href: "/api/connections/oauth/whatsapp?label=whatsapp:primary" },
+  { id: "facebook", label: "Facebook Pages", description: "Post updates and read page insights", wave: 3, href: "/api/connections/oauth/facebook?label=facebook:primary" },
+  { id: "instagram", label: "Instagram Business", description: "Post content and read account insights", wave: 3, href: "/api/connections/oauth/instagram?label=instagram:primary" },
+  { id: "tiktok", label: "TikTok for Business", description: "Manage ads and read analytics", wave: 3, href: "/api/connections/oauth/tiktok?label=tiktok:primary" },
+  { id: "youtube", label: "YouTube", description: "Upload videos and read channel analytics", wave: 3, href: "/api/connections/oauth/youtube?label=youtube:primary" },
+  { id: "pinterest", label: "Pinterest", description: "Create pins and manage boards", wave: 3, href: "/api/connections/oauth/pinterest?label=pinterest:primary" },
+  { id: "reddit", label: "Reddit", description: "Post to subreddits and read threads", wave: 3, href: "/api/connections/oauth/reddit?label=reddit:primary" },
+  { id: "buffer", label: "Buffer", description: "Schedule posts across social channels", wave: 3, href: "/api/connections/oauth/buffer?label=buffer:primary" },
+  { id: "hootsuite", label: "Hootsuite", description: "Schedule and publish social content", wave: 3, href: "/api/connections/oauth/hootsuite?label=hootsuite:primary" },
+  { id: "resend", label: "Resend", description: "Send transactional emails via API", wave: 3, href: "/api/connections/oauth/resend?label=resend:primary" },
+  { id: "brevo", label: "Brevo", description: "Send email, SMS, and manage contacts", wave: 3, href: "/api/connections/oauth/brevo?label=brevo:primary" },
+  { id: "convertkit", label: "ConvertKit", description: "Manage subscribers, forms, and sequences", wave: 3, href: "/api/connections/oauth/convertkit?label=convertkit:primary" },
+  { id: "constantcontact", label: "Constant Contact", description: "Send campaigns and manage lists", wave: 3, href: "/api/connections/oauth/constantcontact?label=constantcontact:primary" },
+  { id: "drip", label: "Drip", description: "Manage subscribers and e-commerce automations", wave: 3, href: "/api/connections/oauth/drip?label=drip:primary" },
+  { id: "customerio", label: "Customer.io", description: "Trigger campaigns and manage customer profiles", wave: 3, href: "/api/connections/oauth/customerio?label=customerio:primary" },
+  { id: "braze", label: "Braze", description: "Send push, email, and in-app messages", wave: 3, href: "/api/connections/oauth/braze?label=braze:primary" },
+  { id: "iterable", label: "Iterable", description: "Manage users, events, and campaigns", wave: 3, href: "/api/connections/oauth/iterable?label=iterable:primary" },
+  { id: "postmark", label: "Postmark", description: "Send transactional emails and read bounces", wave: 3, href: "/api/connections/oauth/postmark?label=postmark:primary" },
+  { id: "beehiiv", label: "Beehiiv", description: "Manage newsletter subscribers and posts", wave: 3, href: "/api/connections/oauth/beehiiv?label=beehiiv:primary" },
+  { id: "campaignmonitor", label: "Campaign Monitor", description: "Send campaigns and manage subscriber lists", wave: 3, href: "/api/connections/oauth/campaignmonitor?label=campaignmonitor:primary" },
+  { id: "zohocrm", label: "Zoho CRM", description: "Manage leads, contacts, and deals", wave: 3, href: "/api/connections/oauth/zohocrm?label=zohocrm:primary" },
+  { id: "copper", label: "Copper", description: "Manage contacts, leads, and opportunities", wave: 3, href: "/api/connections/oauth/copper?label=copper:primary" },
+  { id: "closecrm", label: "Close CRM", description: "Manage leads, contacts, and calls", wave: 3, href: "/api/connections/oauth/closecrm?label=closecrm:primary" },
+  { id: "freshsales", label: "Freshsales", description: "Manage contacts, deals, and pipelines", wave: 3, href: "/api/connections/oauth/freshsales?label=freshsales:primary" },
+  { id: "insightly", label: "Insightly", description: "Manage contacts, projects, and pipelines", wave: 3, href: "/api/connections/oauth/insightly?label=insightly:primary" },
+  { id: "nutshell", label: "Nutshell", description: "Manage contacts, leads, and timelines", wave: 3, href: "/api/connections/oauth/nutshell?label=nutshell:primary" },
+  { id: "keap", label: "Keap", description: "Manage contacts, automations, and invoices", wave: 3, href: "/api/connections/oauth/keap?label=keap:primary" },
+  { id: "wrike", label: "Wrike", description: "Manage tasks, folders, and projects", wave: 3, href: "/api/connections/oauth/wrike?label=wrike:primary" },
+  { id: "smartsheet", label: "Smartsheet", description: "Read and write sheets, rows, and reports", wave: 3, href: "/api/connections/oauth/smartsheet?label=smartsheet:primary" },
+  { id: "coda", label: "Coda", description: "Read and update docs, tables, and rows", wave: 3, href: "/api/connections/oauth/coda?label=coda:primary" },
+  { id: "height", label: "Height", description: "Create and manage tasks and projects", wave: 3, href: "/api/connections/oauth/height?label=height:primary" },
+  { id: "nifty", label: "Nifty", description: "Manage milestones, tasks, and projects", wave: 3, href: "/api/connections/oauth/nifty?label=nifty:primary" },
+  { id: "teamwork", label: "Teamwork", description: "Manage projects, tasks, and time logs", wave: 3, href: "/api/connections/oauth/teamwork?label=teamwork:primary" },
+  { id: "zohoprojects", label: "Zoho Projects", description: "Manage projects, milestones, and bugs", wave: 3, href: "/api/connections/oauth/zohoprojects?label=zohoprojects:primary" },
+  { id: "vercel", label: "Vercel", description: "Trigger deploys and read deployment status", wave: 3, href: "/api/connections/oauth/vercel?label=vercel:primary" },
+  { id: "netlify", label: "Netlify", description: "Trigger builds and read site analytics", wave: 3, href: "/api/connections/oauth/netlify?label=netlify:primary" },
+  { id: "circleci", label: "CircleCI", description: "Trigger pipelines and read build status", wave: 3, href: "/api/connections/oauth/circleci?label=circleci:primary" },
+  { id: "datadog", label: "Datadog", description: "Read metrics, logs, and create monitors", wave: 3, href: "/api/connections/oauth/datadog?label=datadog:primary" },
+  { id: "newrelic", label: "New Relic", description: "Query metrics, traces, and alerts", wave: 3, href: "/api/connections/oauth/newrelic?label=newrelic:primary" },
+  { id: "cloudflare", label: "Cloudflare", description: "Manage DNS, Workers, and analytics", wave: 3, href: "/api/connections/oauth/cloudflare?label=cloudflare:primary" },
+  { id: "firebase", label: "Firebase", description: "Read and write Firestore and manage users", wave: 3, href: "/api/connections/oauth/firebase?label=firebase:primary" },
+  { id: "supabase", label: "Supabase", description: "Query database tables and manage auth users", wave: 3, href: "/api/connections/oauth/supabase?label=supabase:primary" },
+  { id: "heroku", label: "Heroku", description: "Manage apps, dynos, and deployments", wave: 3, href: "/api/connections/oauth/heroku?label=heroku:primary" },
+  { id: "render", label: "Render", description: "Trigger deploys and manage services", wave: 3, href: "/api/connections/oauth/render?label=render:primary" },
+  { id: "digitalocean", label: "DigitalOcean", description: "Manage droplets, apps, and databases", wave: 3, href: "/api/connections/oauth/digitalocean?label=digitalocean:primary" },
+  { id: "grafana", label: "Grafana", description: "Query dashboards and manage alerts", wave: 3, href: "/api/connections/oauth/grafana?label=grafana:primary" },
+  { id: "helpscout", label: "Help Scout", description: "Manage conversations, mailboxes, and customers", wave: 3, href: "/api/connections/oauth/helpscout?label=helpscout:primary" },
+  { id: "gorgias", label: "Gorgias", description: "Manage support tickets for e-commerce", wave: 3, href: "/api/connections/oauth/gorgias?label=gorgias:primary" },
+  { id: "freshservice", label: "Freshservice", description: "Manage IT tickets, assets, and changes", wave: 3, href: "/api/connections/oauth/freshservice?label=freshservice:primary" },
+  { id: "kustomer", label: "Kustomer", description: "Manage customers, conversations, and workflows", wave: 3, href: "/api/connections/oauth/kustomer?label=kustomer:primary" },
+  { id: "crisp", label: "Crisp", description: "Manage live chat conversations and contacts", wave: 3, href: "/api/connections/oauth/crisp?label=crisp:primary" },
+  { id: "drift", label: "Drift", description: "Manage conversations and qualify leads", wave: 3, href: "/api/connections/oauth/drift?label=drift:primary" },
+  { id: "rippling", label: "Rippling", description: "Read employee, payroll, and device data", wave: 3, href: "/api/connections/oauth/rippling?label=rippling:primary" },
+  { id: "workday", label: "Workday", description: "Read HR, payroll, and workforce data", wave: 3, href: "/api/connections/oauth/workday?label=workday:primary" },
+  { id: "greenhouse", label: "Greenhouse", description: "Manage jobs, candidates, and interviews", wave: 3, href: "/api/connections/oauth/greenhouse?label=greenhouse:primary" },
+  { id: "lever", label: "Lever", description: "Manage candidates, opportunities, and postings", wave: 3, href: "/api/connections/oauth/lever?label=lever:primary" },
+  { id: "personio", label: "Personio", description: "Read employees, absences, and recruitments", wave: 3, href: "/api/connections/oauth/personio?label=personio:primary" },
+  { id: "deel", label: "Deel", description: "Manage contractors, payroll, and contracts", wave: 3, href: "/api/connections/oauth/deel?label=deel:primary" },
+  { id: "hibob", label: "HiBob", description: "Read people, time-off, and org structure", wave: 3, href: "/api/connections/oauth/hibob?label=hibob:primary" },
+  { id: "lattice", label: "Lattice", description: "Manage reviews, goals, and feedback", wave: 3, href: "/api/connections/oauth/lattice?label=lattice:primary" },
+  { id: "workable", label: "Workable", description: "Manage job postings and candidates", wave: 3, href: "/api/connections/oauth/workable?label=workable:primary" },
+  { id: "freshbooks", label: "FreshBooks", description: "Manage invoices, expenses, and clients", wave: 3, href: "/api/connections/oauth/freshbooks?label=freshbooks:primary" },
+  { id: "paddle", label: "Paddle", description: "Read subscriptions, transactions, and customers", wave: 3, href: "/api/connections/oauth/paddle?label=paddle:primary" },
+  { id: "paypal", label: "PayPal", description: "Read transactions, invoices, and payouts", wave: 3, href: "/api/connections/oauth/paypal?label=paypal:primary" },
+  { id: "chargebee", label: "Chargebee", description: "Manage subscriptions, invoices, and customers", wave: 3, href: "/api/connections/oauth/chargebee?label=chargebee:primary" },
+  { id: "recurly", label: "Recurly", description: "Manage subscriptions and billing accounts", wave: 3, href: "/api/connections/oauth/recurly?label=recurly:primary" },
+  { id: "brex", label: "Brex", description: "Read spend, cards, and transactions", wave: 3, href: "/api/connections/oauth/brex?label=brex:primary" },
+  { id: "ramp", label: "Ramp", description: "Read spend, receipts, and card data", wave: 3, href: "/api/connections/oauth/ramp?label=ramp:primary" },
+  { id: "expensify", label: "Expensify", description: "Create reports and manage expenses", wave: 3, href: "/api/connections/oauth/expensify?label=expensify:primary" },
+  { id: "mollie", label: "Mollie", description: "Read payments, orders, and refunds", wave: 3, href: "/api/connections/oauth/mollie?label=mollie:primary" },
+  { id: "gocardless", label: "GoCardless", description: "Manage mandates and direct debit payments", wave: 3, href: "/api/connections/oauth/gocardless?label=gocardless:primary" },
+  { id: "square", label: "Square", description: "Read sales, inventory, and customer data", wave: 3, href: "/api/connections/oauth/square?label=square:primary" },
+  { id: "lemonsqueezy", label: "Lemon Squeezy", description: "Manage products, orders, and subscriptions", wave: 3, href: "/api/connections/oauth/lemonsqueezy?label=lemonsqueezy:primary" },
+  { id: "netsuite", label: "NetSuite", description: "Read financial records and ERP data", wave: 3, href: "/api/connections/oauth/netsuite?label=netsuite:primary" },
+  { id: "googleanalytics", label: "Google Analytics", description: "Query traffic, events, and conversions", wave: 3, href: "/api/connections/oauth/googleanalytics?label=googleanalytics:primary" },
+  { id: "posthog", label: "PostHog", description: "Query events, funnels, and feature flags", wave: 3, href: "/api/connections/oauth/posthog?label=posthog:primary" },
+  { id: "heap", label: "Heap", description: "Query user events and behavioral data", wave: 3, href: "/api/connections/oauth/heap?label=heap:primary" },
+  { id: "hotjar", label: "Hotjar", description: "Read heatmaps, recordings, and feedback", wave: 3, href: "/api/connections/oauth/hotjar?label=hotjar:primary" },
+  { id: "segment", label: "Segment", description: "Track events and manage customer data", wave: 3, href: "/api/connections/oauth/segment?label=segment:primary" },
+  { id: "plausible", label: "Plausible", description: "Query privacy-friendly site analytics", wave: 3, href: "/api/connections/oauth/plausible?label=plausible:primary" },
+  { id: "fullstory", label: "FullStory", description: "Read sessions, events, and user journeys", wave: 3, href: "/api/connections/oauth/fullstory?label=fullstory:primary" },
+  { id: "rudderstack", label: "RudderStack", description: "Track events and sync customer data", wave: 3, href: "/api/connections/oauth/rudderstack?label=rudderstack:primary" },
+  { id: "canva", label: "Canva", description: "Create and export designs from templates", wave: 3, href: "/api/connections/oauth/canva?label=canva:primary" },
+  { id: "framer", label: "Framer", description: "Read and publish site content and pages", wave: 3, href: "/api/connections/oauth/framer?label=framer:primary" },
+  { id: "invision", label: "InVision", description: "Read prototypes, comments, and assets", wave: 3, href: "/api/connections/oauth/invision?label=invision:primary" },
+  { id: "zeplin", label: "Zeplin", description: "Read design specs, assets, and annotations", wave: 3, href: "/api/connections/oauth/zeplin?label=zeplin:primary" },
+  { id: "pandadoc", label: "PandaDoc", description: "Send documents and track signature status", wave: 3, href: "/api/connections/oauth/pandadoc?label=pandadoc:primary" },
+  { id: "hellosign", label: "Dropbox Sign", description: "Send signature requests and read status", wave: 3, href: "/api/connections/oauth/hellosign?label=hellosign:primary" },
+  { id: "surveymonkey", label: "SurveyMonkey", description: "Read survey responses and manage surveys", wave: 3, href: "/api/connections/oauth/surveymonkey?label=surveymonkey:primary" },
+  { id: "jotform", label: "Jotform", description: "Read form submissions and manage forms", wave: 3, href: "/api/connections/oauth/jotform?label=jotform:primary" },
+  { id: "tally", label: "Tally", description: "Read form responses and manage workspaces", wave: 3, href: "/api/connections/oauth/tally?label=tally:primary" },
+  { id: "googleforms", label: "Google Forms", description: "Read form responses and manage forms", wave: 3, href: "/api/connections/oauth/googleforms?label=googleforms:primary" },
+  { id: "paperform", label: "Paperform", description: "Read submissions and manage forms", wave: 3, href: "/api/connections/oauth/paperform?label=paperform:primary" },
+  { id: "cloudinary", label: "Cloudinary", description: "Upload, transform, and deliver media assets", wave: 3, href: "/api/connections/oauth/cloudinary?label=cloudinary:primary" },
+  { id: "awss3", label: "AWS S3", description: "Read and write files to S3 buckets", wave: 3, href: "/api/connections/oauth/awss3?label=awss3:primary" },
+  { id: "vimeo", label: "Vimeo", description: "Upload videos and read analytics", wave: 3, href: "/api/connections/oauth/vimeo?label=vimeo:primary" },
+  { id: "wistia", label: "Wistia", description: "Manage videos and read engagement stats", wave: 3, href: "/api/connections/oauth/wistia?label=wistia:primary" },
+  { id: "mux", label: "Mux", description: "Manage video assets and read playback data", wave: 3, href: "/api/connections/oauth/mux?label=mux:primary" },
+  { id: "adyen", label: "Adyen", description: "Read payments, refunds, and disputes", wave: 3, href: "/api/connections/oauth/adyen?label=adyen:primary" },
+  { id: "braintree", label: "Braintree", description: "Read transactions, customers, and subscriptions", wave: 3, href: "/api/connections/oauth/braintree?label=braintree:primary" },
+  { id: "acuityscheduling", label: "Acuity Scheduling", description: "Read appointments and manage availability", wave: 3, href: "/api/connections/oauth/acuityscheduling?label=acuityscheduling:primary" },
+  { id: "doodle", label: "Doodle", description: "Create polls and manage meeting scheduling", wave: 3, href: "/api/connections/oauth/doodle?label=doodle:primary" },
+  { id: "simplybook", label: "SimplyBook.me", description: "Manage bookings and client appointments", wave: 3, href: "/api/connections/oauth/simplybook?label=simplybook:primary" },
+  { id: "eventbrite", label: "Eventbrite", description: "Manage events, tickets, and attendees", wave: 3, href: "/api/connections/oauth/eventbrite?label=eventbrite:primary" },
+  { id: "luma", label: "Luma", description: "Manage events and read guest RSVPs", wave: 3, href: "/api/connections/oauth/luma?label=luma:primary" },
+  { id: "ringcentral", label: "RingCentral", description: "Send SMS, manage calls, and read logs", wave: 3, href: "/api/connections/oauth/ringcentral?label=ringcentral:primary" },
+  { id: "aircall", label: "Aircall", description: "Read calls, contacts, and team activity", wave: 3, href: "/api/connections/oauth/aircall?label=aircall:primary" },
+  { id: "openphone", label: "OpenPhone", description: "Send messages and read call activity", wave: 3, href: "/api/connections/oauth/openphone?label=openphone:primary" },
+  { id: "vonage", label: "Vonage", description: "Send SMS, voice, and manage numbers", wave: 3, href: "/api/connections/oauth/vonage?label=vonage:primary" },
+  { id: "dialpad", label: "Dialpad", description: "Read calls, transcripts, and contacts", wave: 3, href: "/api/connections/oauth/dialpad?label=dialpad:primary" },
+  { id: "telnyx", label: "Telnyx", description: "Send SMS and manage phone numbers", wave: 3, href: "/api/connections/oauth/telnyx?label=telnyx:primary" },
+  { id: "openai", label: "OpenAI", description: "Call GPT models and manage assistants", wave: 3, href: "/api/connections/oauth/openai?label=openai:primary" },
+  { id: "replicate", label: "Replicate", description: "Run open-source AI models via API", wave: 3, href: "/api/connections/oauth/replicate?label=replicate:primary" },
+  { id: "cohere", label: "Cohere", description: "Generate text and embed documents", wave: 3, href: "/api/connections/oauth/cohere?label=cohere:primary" },
+  { id: "pinecone", label: "Pinecone", description: "Upsert and query vector embeddings", wave: 3, href: "/api/connections/oauth/pinecone?label=pinecone:primary" },
+  { id: "okta", label: "Okta", description: "Manage users, groups, and applications", wave: 3, href: "/api/connections/oauth/okta?label=okta:primary" },
+  { id: "auth0", label: "Auth0", description: "Manage users, roles, and authentication logs", wave: 3, href: "/api/connections/oauth/auth0?label=auth0:primary" },
+  { id: "jumpcloud", label: "JumpCloud", description: "Manage users, devices, and directory groups", wave: 3, href: "/api/connections/oauth/jumpcloud?label=jumpcloud:primary" },
+  { id: "apollo", label: "Apollo.io", description: "Search contacts, enrich leads, and manage sequences", wave: 3, href: "/api/connections/oauth/apollo?label=apollo:primary" },
+  { id: "clearbit", label: "Clearbit", description: "Enrich companies and contacts with firmographic data", wave: 3, href: "/api/connections/oauth/clearbit?label=clearbit:primary" },
+  { id: "hunter", label: "Hunter.io", description: "Find and verify professional email addresses", wave: 3, href: "/api/connections/oauth/hunter?label=hunter:primary" },
+  { id: "zoominfo", label: "ZoomInfo", description: "Search B2B contacts and company intelligence", wave: 3, href: "/api/connections/oauth/zoominfo?label=zoominfo:primary" },
+  { id: "lusha", label: "Lusha", description: "Enrich leads with contact and company data", wave: 3, href: "/api/connections/oauth/lusha?label=lusha:primary" },
+  { id: "contentful", label: "Contentful", description: "Read and write CMS entries and assets", wave: 3, href: "/api/connections/oauth/contentful?label=contentful:primary" },
+  { id: "sanity", label: "Sanity", description: "Read and write structured content documents", wave: 3, href: "/api/connections/oauth/sanity?label=sanity:primary" },
+  { id: "ghost", label: "Ghost", description: "Manage posts, members, and newsletters", wave: 3, href: "/api/connections/oauth/ghost?label=ghost:primary" },
+  { id: "storyblok", label: "Storyblok", description: "Manage stories, components, and assets", wave: 3, href: "/api/connections/oauth/storyblok?label=storyblok:primary" },
+  { id: "prismic", label: "Prismic", description: "Read and publish structured content documents", wave: 3, href: "/api/connections/oauth/prismic?label=prismic:primary" },
+  { id: "toggl", label: "Toggl", description: "Read time entries and manage projects", wave: 3, href: "/api/connections/oauth/toggl?label=toggl:primary" },
+  { id: "harvest", label: "Harvest", description: "Log time, manage projects, and send invoices", wave: 3, href: "/api/connections/oauth/harvest?label=harvest:primary" },
+  { id: "clockify", label: "Clockify", description: "Track time entries and manage workspaces", wave: 3, href: "/api/connections/oauth/clockify?label=clockify:primary" },
+  { id: "hubstaff", label: "Hubstaff", description: "Read time tracking, activity, and payroll data", wave: 3, href: "/api/connections/oauth/hubstaff?label=hubstaff:primary" },
+  { id: "servicenow", label: "ServiceNow", description: "Manage incidents, requests, and CMDB records", wave: 3, href: "/api/connections/oauth/servicenow?label=servicenow:primary" },
+  { id: "opsgenie", label: "OpsGenie", description: "Create alerts and manage on-call schedules", wave: 3, href: "/api/connections/oauth/opsgenie?label=opsgenie:primary" },
+  { id: "evernote", label: "Evernote", description: "Create and read notes and notebooks", wave: 3, href: "/api/connections/oauth/evernote?label=evernote:primary" },
+  { id: "onenote", label: "OneNote", description: "Create and read pages and notebooks", wave: 3, href: "/api/connections/oauth/onenote?label=onenote:primary" },
+  { id: "nuclino", label: "Nuclino", description: "Read and write team wiki pages and workspaces", wave: 3, href: "/api/connections/oauth/nuclino?label=nuclino:primary" },
+  { id: "telegram", label: "Telegram", description: "Send messages and manage bot interactions", wave: 3, href: "/api/connections/oauth/telegram?label=telegram:primary" },
+  { id: "webex", label: "Cisco Webex", description: "Send messages and manage meetings and rooms", wave: 3, href: "/api/connections/oauth/webex?label=webex:primary" },
+  { id: "googlechat", label: "Google Chat", description: "Send messages to spaces and direct messages", wave: 3, href: "/api/connections/oauth/googlechat?label=googlechat:primary" },
+  { id: "rocketchat", label: "Rocket.Chat", description: "Send messages and manage channels", wave: 3, href: "/api/connections/oauth/rocketchat?label=rocketchat:primary" },
+  { id: "semrush", label: "Semrush", description: "Query keyword rankings and site audit data", wave: 3, href: "/api/connections/oauth/semrush?label=semrush:primary" },
+  { id: "ahrefs", label: "Ahrefs", description: "Query backlinks, keywords, and site metrics", wave: 3, href: "/api/connections/oauth/ahrefs?label=ahrefs:primary" },
 ];
 
 const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
@@ -238,6 +845,17 @@ export default function ConnectionsPage() {
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("overview");
   const [highlightedConnectionId, setHighlightedConnectionId] = useState<string | null>(null);
+  const [providerSearch, setProviderSearch] = useState("");
+
+  // API key dialog state (for providers that use API keys instead of OAuth2)
+  const [apiKeyProvider, setApiKeyProvider] = useState<string | null>(null);
+  const [apiKeyLabel, setApiKeyLabel] = useState("");
+  const [apiKeyValue, setApiKeyValue] = useState("");
+  const [apiKeySubmitting, setApiKeySubmitting] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const apiKeyInputRef = useRef<HTMLInputElement>(null);
+
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const successProvider = searchParams.get("connected");
@@ -259,6 +877,51 @@ export default function ConnectionsPage() {
     void load();
   }, [load]);
 
+  // Open API key dialog when redirected back from the catch-all OAuth route
+  useEffect(() => {
+    const provider = searchParams.get("connect_api_key");
+    if (!provider) return;
+    const label = searchParams.get("label") ?? `${provider}:primary`;
+    setApiKeyProvider(provider);
+    setApiKeyLabel(label);
+    setApiKeyValue("");
+    setApiKeyError(null);
+    // Clear the query params from the URL without a navigation
+    const url = new URL(window.location.href);
+    url.searchParams.delete("connect_api_key");
+    url.searchParams.delete("label");
+    router.replace(url.pathname + (url.search || ""), { scroll: false });
+  }, [searchParams, router]);
+
+  async function handleApiKeySubmit() {
+    if (!apiKeyProvider || !apiKeyValue.trim()) return;
+    setApiKeySubmitting(true);
+    setApiKeyError(null);
+    try {
+      const res = await fetch("/api/connections/store-api-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: apiKeyProvider,
+          label: apiKeyLabel,
+          api_key: apiKeyValue.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setApiKeyError(data.error ?? "Failed to save. Please try again.");
+        return;
+      }
+      setApiKeyProvider(null);
+      setApiKeyValue("");
+      await load();
+    } catch {
+      setApiKeyError("Network error. Please try again.");
+    } finally {
+      setApiKeySubmitting(false);
+    }
+  }
+
   const sortedConnections = useMemo(
     () => [...connections].sort(sortConnections),
     [connections],
@@ -268,6 +931,25 @@ export default function ConnectionsPage() {
     () => new Set(connections.map((connection) => connection.provider)),
     [connections],
   );
+
+  const normalizedProviderSearch = providerSearch.trim().toLowerCase();
+  const filteredAvailableProviders = useMemo(() => {
+    if (normalizedProviderSearch.length === 0) return null;
+
+    return AVAILABLE_PROVIDERS.filter((provider) => {
+      if (connectedProviders.has(provider.id)) return false;
+
+      const label = provider.label.toLowerCase();
+      const description = provider.description.toLowerCase();
+      const id = provider.id.toLowerCase();
+
+      return (
+        label.includes(normalizedProviderSearch) ||
+        description.includes(normalizedProviderSearch) ||
+        id.includes(normalizedProviderSearch)
+      );
+    });
+  }, [normalizedProviderSearch, connectedProviders]);
 
   const activeProvider = getProvider(activeProviderId);
   const activeProviderConnections = useMemo(
@@ -858,45 +1540,230 @@ export default function ConnectionsPage() {
         </section>
       )}
 
-      {([1, 2] as const).map((wave) => {
-        const providers = AVAILABLE_PROVIDERS.filter(
-          (provider) => provider.wave === wave && !connectedProviders.has(provider.id),
-        );
-        if (providers.length === 0) return null;
-
-        return (
-          <section key={wave} className="space-y-2">
+      <section className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px] sm:items-end">
+          <div>
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
-              {wave === 1
-                ? sortedConnections.length > 0
-                  ? "Add more"
-                  : "Available"
-                : "More connectors"}
+              {providerSearch.trim().length > 0 ? "Search connectors" : "Available connectors"}
             </h2>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {providers.map((provider) => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  onClick={() => openProvider(provider.id)}
-                  className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-all hover:border-border/80 hover:bg-accent/30"
-                >
-                  <ProviderLogo provider={provider.id} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{provider.label}</p>
-                    <p className="truncate text-[11px] text-muted-foreground/60">
-                      {provider.description}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs font-medium text-muted-foreground/60">
-                    View
-                  </span>
-                </button>
-              ))}
+            <p className="mt-1 text-sm text-muted-foreground">
+              {providerSearch.trim().length > 0
+                ? `Showing ${filteredAvailableProviders?.length ?? 0} result${filteredAvailableProviders?.length === 1 ? "" : "s"}.`
+                : "Browse connectors available to connect."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative w-full">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+              <Input
+                type="search"
+                value={providerSearch}
+                onChange={(event) => setProviderSearch(event.target.value)}
+                placeholder="Search connectors..."
+                className="pl-9"
+              />
             </div>
-          </section>
-        );
-      })}
+            {providerSearch.trim().length > 0 && (
+              <Button size="sm" variant="outline" onClick={() => setProviderSearch("")}>Clear</Button>
+            )}
+          </div>
+        </div>
+
+        {filteredAvailableProviders ? (
+          <div className="space-y-2">
+            {filteredAvailableProviders.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {filteredAvailableProviders.map((provider) => {
+                  const isPro = PRO_PROVIDERS.has(provider.id);
+                  return (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      onClick={() => openProvider(provider.id)}
+                      className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-all hover:border-border/80 hover:bg-accent/30"
+                    >
+                      <ProviderLogo provider={provider.id} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold">{provider.label}</p>
+                          {isPro && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+                              <Lock className="h-2.5 w-2.5" />
+                              Pro
+                            </span>
+                          )}
+                        </div>
+                        <p className="truncate text-[11px] text-muted-foreground/60">
+                          {provider.description}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs font-medium text-muted-foreground/60">
+                        View
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-border/70 bg-card px-5 py-6 text-sm text-muted-foreground">
+                No connectors match your search. Try a different name or feature.
+              </div>
+            )}
+          </div>
+        ) : (
+          (() => {
+            const wave1 = AVAILABLE_PROVIDERS.filter(
+              (p) => p.wave === 1 && !connectedProviders.has(p.id),
+            );
+            const moreFree = AVAILABLE_PROVIDERS.filter(
+              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && !PRO_PROVIDERS.has(p.id),
+            );
+            const morePro = AVAILABLE_PROVIDERS.filter(
+              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && PRO_PROVIDERS.has(p.id),
+            );
+
+            const sections: Array<{ label: string; description: string; providers: Provider[]; isPro?: boolean }> = [];
+            if (wave1.length > 0) {
+              sections.push({
+                label: sortedConnections.length > 0 ? "Add more" : "Available",
+                description: "Connect your own account via OAuth — always included.",
+                providers: wave1,
+              });
+            }
+            if (moreFree.length > 0) {
+              sections.push({
+                label: "Free plan",
+                description: "Included for all users — connect via OAuth or a shared platform key.",
+                providers: moreFree,
+              });
+            }
+            if (morePro.length > 0) {
+              sections.push({
+                label: "Pro plan",
+                description: "Billed per usage — available on Pro and above.",
+                providers: morePro,
+                isPro: true,
+              });
+            }
+
+            return sections.map(({ label, description, providers, isPro }) => (
+              <section key={label} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  {isPro && <Lock className="h-3 w-3 text-amber-500" />}
+                  <h2 className={cn(
+                    "text-[11px] font-bold uppercase tracking-widest",
+                    isPro ? "text-amber-500/70" : "text-muted-foreground/50",
+                  )}>
+                    {label}
+                  </h2>
+                </div>
+                <p className="text-[11px] text-muted-foreground/50">{description}</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {providers.map((provider) => (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      onClick={() => openProvider(provider.id)}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-xl border bg-card px-4 py-3.5 text-left transition-all",
+                        isPro
+                          ? "border-amber-500/15 hover:border-amber-500/30 hover:bg-amber-500/5"
+                          : "border-border hover:border-border/80 hover:bg-accent/30",
+                      )}
+                    >
+                      <ProviderLogo provider={provider.id} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold">{provider.label}</p>
+                        <p className="truncate text-[11px] text-muted-foreground/60">
+                          {provider.description}
+                        </p>
+                      </div>
+                      {isPro ? (
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+                          <Lock className="h-2.5 w-2.5" />
+                          Pro
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-xs font-medium text-muted-foreground/60">
+                          View
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ));
+          })()
+        )}
+      </section>
+
+      {/* API Key connection dialog — shown for providers that don't use OAuth2 redirect flows */}
+      <Dialog
+        open={!!apiKeyProvider}
+        onOpenChange={(open) => {
+          if (!open) {
+            setApiKeyProvider(null);
+            setApiKeyValue("");
+            setApiKeyError(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4" />
+              Connect {apiKeyProvider ? (PROVIDER_LABELS[apiKeyProvider] ?? apiKeyProvider) : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Enter your API key or access token. It will be encrypted and stored securely — never exposed to the frontend.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="api-key-input">API key / access token</Label>
+              <Input
+                id="api-key-input"
+                ref={apiKeyInputRef}
+                type="password"
+                placeholder="sk-... or paste your token here"
+                value={apiKeyValue}
+                onChange={(e) => setApiKeyValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !apiKeySubmitting) void handleApiKeySubmit();
+                }}
+                autoFocus
+              />
+            </div>
+            {apiKeyError && (
+              <p className="text-sm text-destructive">{apiKeyError}</p>
+            )}
+            <p className="text-[11px] text-muted-foreground/60">
+              You can find your API key in your {apiKeyProvider ? (PROVIDER_LABELS[apiKeyProvider] ?? apiKeyProvider) : "provider"} account settings or developer dashboard.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApiKeyProvider(null);
+                setApiKeyValue("");
+                setApiKeyError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!apiKeyValue.trim() || apiKeySubmitting}
+              onClick={() => void handleApiKeySubmit()}
+            >
+              {apiKeySubmitting ? "Saving..." : "Save connection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!activeProvider} onOpenChange={(open) => { if (!open) closeProviderDialog(); }}>
         <DialogContent className="h-[78vh] max-h-[78vh] w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0">
@@ -908,7 +1775,15 @@ export default function ConnectionsPage() {
                     <div className="flex items-center gap-3">
                       <ProviderLogo provider={activeProvider.id} size={38} />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{activeProvider.label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-sm font-semibold">{activeProvider.label}</p>
+                          {PRO_PROVIDERS.has(activeProvider.id) && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+                              <Lock className="h-2.5 w-2.5" />
+                              Pro
+                            </span>
+                          )}
+                        </div>
                         <p className="truncate text-xs text-muted-foreground">
                           {activeProviderConnections.length === 0
                             ? "Not connected yet"

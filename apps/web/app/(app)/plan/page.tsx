@@ -58,7 +58,7 @@ export default async function PricingPage() {
         <p className="text-muted-foreground text-sm mt-1">Start free. No credit card required. Upgrade when the limits hurt.</p>
       </div>
 
-      <PricingTiers ctas={ctas} />
+      <PricingTiers ctas={ctas} enterpriseCta={{ label: "Talk to us", href: "mailto:enterprise@corelyx.app" }} />
 
       {/* FAQ */}
       <div className="border-t border-border/40 pt-10">

@@ -178,6 +178,554 @@ OUTLOOK (provider: outlook):
   move_email: params={message_id(REQUIRED),destination_folder(REQUIRED)} → output:{message_id,moved:true}
     destination_folder: folder ID or well-known name e.g. "archive", "deleteditems"
 
+ACUITYSCHEDULING (provider: acuityscheduling):
+  list_appointments: params={max?,calendarID?,appointmentTypeID?,minDate?,maxDate?} → output:{appointments:[...],count}
+  create_appointment: params={appointmentTypeID,datetime,firstName,lastName,email(all REQUIRED),phone?,calendarID?,timezone?,notes?,certificate?,fields?} → output:{appointment...}
+
+ADYEN (provider: adyen):
+  list_payments: params={merchant_account(REQUIRED),page_size?,offset?} → output:{payment_methods:[...],items_total,pages_total}
+  create_payment: params={merchant_account,amount_value,currency,reference(all REQUIRED),return_url?,country_code?,shopper_reference?,shopper_email?,payment_method?} → output:{pspReference,resultCode,...}
+
+AHREFS (provider: ahrefs):
+  get_site_overview: params={target(REQUIRED),mode?,date?} → output:{overview:{...}}
+  get_backlinks: params={target(REQUIRED),mode?,limit?,offset?,sort?} → output:{backlinks:[...],total}
+
+AIRCALL (provider: aircall):
+  list_calls: params={per_page?,page?,from?,to?,order?,order_by?,direction?} → output:{calls:[...],meta:{...}}
+  get_call_details: params={call_id(REQUIRED)} → output:{call:{...}}
+
+AMPLITUDE (provider: amplitude):
+  get_event_segmentation: params={event_type,start,end(all REQUIRED),m?,i?} → output:{series:[...],xValues:[...]}
+  list_users: params={limit?,cursor?,query?} → output:{users:[...],cursor}
+
+AUTH0 (provider: auth0):
+  list_users: params={domain(REQUIRED),per_page?,page?,include_totals?,q?,search_engine?} → output:{users:[...],total}
+  get_user: params={domain(REQUIRED),user_id(REQUIRED)} → output:{user:{...}}
+
+AWSS3 (provider: awss3):
+  list_objects: params={bucket(REQUIRED),max_keys?,prefix?,continuation_token?} → output:{raw,is_truncated}
+  upload_object: params={bucket,key,content_base64(all REQUIRED),content_type?} → output:{bucket,key,etag,uploaded:true}
+  note: this connector expects the credential to authorize S3 REST calls; exact signing requirements depend on your AWS setup.
+
+BAMBOOHR (provider: bamboohr):
+  list_employees: params={subdomain(REQUIRED),fields?} → output:{employees:[...],fields:[...]}
+  get_employee: params={subdomain(REQUIRED),employee_id(REQUIRED),fields?} → output:{employee:{...}}
+
+BEEHIIV (provider: beehiiv):
+  list_subscribers: params={publication_id(REQUIRED),limit?,page?,expand?,status?,segment?,email?,sort?} → output:{subscribers:[...],next_page,prev_page}
+  get_subscriber: params={publication_id(REQUIRED),subscriber_id(REQUIRED)} → output:{subscriber:{...}}
+
+BOX (provider: box):
+  list_files: params={folder_id?(default "0"),limit?,offset?,fields?} → output:{entries:[...],total_count,offset,limit}
+  get_file: params={file_id(REQUIRED),fields?} → output:{file:{...}}
+
+BRAINTREE (provider: braintree):
+  list_transactions: params={first?(1-200),after?} → output:{transactions:[...],next_cursor,has_more}
+  create_transaction: params={amount,payment_method_token(all REQUIRED),merchant_account_id?} → output:{transaction:{...}}
+
+BRAZE (provider: braze):
+  trigger_campaign: params={campaign_id(REQUIRED),recipients:[...](REQUIRED),broadcast?,send_id?,trigger_properties?} → output:{dispatch_ids?,message?}
+  get_user: params={external_id? OR email? OR user_alias? (at least one)} → output:{user:{...},users:[...]}
+
+BREX (provider: brex):
+  list_transactions: params={limit?,cursor?,start_time?,end_time?,status?} → output:{transactions:[...],next_cursor}
+  get_card: params={card_id(REQUIRED)} → output:{card:{...}}
+
+CALENDLY (provider: calendly):
+  list_events: params={user(REQUIRED URI),count?,sort?,min_start_time?,max_start_time?,status?,page_token?} → output:{events:[...],next_page_token,count}
+  get_event: params={event_uuid(REQUIRED)} → output:{event:{...}}
+
+CAMPAIGNMONITOR (provider: campaignmonitor):
+  list_campaigns: params={client_id(REQUIRED),api_key?} → output:{campaigns:[...],count}
+  get_campaign: params={campaign_id(REQUIRED),api_key?} → output:{campaign:{...}}
+  note: uses Basic auth; if api_key is omitted it falls back to the connector token.
+
+CANVA (provider: canva):
+  list_designs: params={page_size?,folder_id?,query?,sort_by?,continuation?} → output:{designs:[...],continuation}
+  get_design: params={design_id(REQUIRED)} → output:{design:{...}}
+
+CIRCLECI (provider: circleci):
+  list_workflows: params={project_slug(REQUIRED),all_branches?,branch?,page-token?,pipelines_limit?} → output:{workflows:[...],next_page_token,pipelines_count}
+  get_workflow: params={workflow_id(REQUIRED)} → output:{workflow:{...}}
+
+CLEARBIT (provider: clearbit):
+  enrich_company: params={domain? OR company? (at least one)} → output:{company:{...}}
+  enrich_person: params={email? OR domain? (at least one),given_name?,family_name?,company?,linkedin?} → output:{person:{...}}
+
+CLOCKIFY (provider: clockify):
+  list_time_entries: params={workspace_id,user_id(all REQUIRED),page_size?,page?,start?,end?,project?,task?,description?} → output:{time_entries:[...]}
+  create_time_entry: params={workspace_id,start(all REQUIRED),description?,billable?,projectId?,taskId?,tagIds?,end?} → output:{time_entry:{...}}
+
+CLOUDFLARE (provider: cloudflare):
+  list_zones: params={page?,per_page?,name?,status?,order?,direction?,match?} → output:{zones:[...],result_info:{...}}
+  get_zone: params={zone_id(REQUIRED)} → output:{zone:{...}}
+
+CLOUDINARY (provider: cloudinary):
+  list_resources: params={cloud_name,api_key,api_secret(all REQUIRED),max_results?,resource_type?,type?,prefix?,next_cursor?} → output:{resources:[...],next_cursor}
+  upload_resource: params={cloud_name,upload_preset,file(all REQUIRED),resource_type?,folder?,public_id?,tags?,context?} → output:{asset metadata}
+
+COHERE (provider: cohere):
+  generate_text: params={prompt(REQUIRED),model?,max_tokens?,temperature?,p?,k?,stop_sequences?} → output:{text,generations:[...]}
+  embed_text: params={text? OR texts? (at least one),model?,input_type?} → output:{embeddings:[...],texts_count}
+
+CONFLUENCE (provider: confluence):
+  list_pages: params={site(REQUIRED),limit?,space-id?,title?,cursor?} → output:{pages:[...],next}
+  create_page: params={site,space_id,title,content(all REQUIRED),representation?,parent_id?} → output:{page:{...}}
+
+CONTENTFUL (provider: contentful):
+  list_entries: params={space_id(REQUIRED),environment?,limit?,skip?,content_type?,query?} → output:{entries:[...],total,skip,limit}
+  get_entry: params={space_id,entry_id(all REQUIRED),environment?} → output:{entry:{...}}
+
+CRISP (provider: crisp):
+  list_conversations: params={website_id(REQUIRED),page?,limit?,filter_resolved?} → output:{conversations:[...],meta:{...}}
+  get_conversation: params={website_id,session_id(all REQUIRED)} → output:{conversation:{...}}
+
+DATADOG (provider: datadog):
+  list_metrics: params={from?,host?,application_key?} → output:{metrics:[...]}
+  query_logs: params={from,to(all REQUIRED ISO),query?,sort?,limit?,cursor?,application_key?} → output:{logs:[...],meta:{...}}
+
+DEEL (provider: deel):
+  list_contractors: params={page_size?,page?,search?,status?,country?} → output:{contractors:[...],meta:{...}}
+  get_contractor: params={contractor_id(REQUIRED)} → output:{contractor:{...}}
+
+DIALPAD (provider: dialpad):
+  list_calls: params={limit?,cursor?,state?,date_start?,date_end?,target_id?} → output:{calls:[...],cursor}
+  get_call: params={call_id(REQUIRED)} → output:{call:{...}}
+
+DIGITALOCEAN (provider: digitalocean):
+  list_droplets: params={per_page?,page?,tag_name?} → output:{droplets:[...],links,meta}
+  create_droplet: params={name,region,size,image(all REQUIRED),ssh_keys?,backups?,ipv6?,monitoring?,tags?,vpc_uuid?} → output:{droplet:{...},links}
+
+DOCUSIGN (provider: docusign):
+  list_envelopes: params={base_uri,account_id(all REQUIRED),from_date?,status?,search_text?,to_date?,count?} → output:{envelopes:[...]}
+  send_envelope: params={base_uri,account_id,email_subject,documents,recipients(all REQUIRED),status?} → output:{envelope metadata}
+
+DOODLE (provider: doodle):
+  list_polls: params={limit?,page_token?} → output:{polls:[...],page_token}
+  create_poll: params={title,options(all REQUIRED),description?,timezone?,location?} → output:{poll:{...}}
+
+DRIFT (provider: drift):
+  list_conversations: params={limit?,next?} → output:{conversations:[...],has_more,next}
+  get_conversation: params={conversation_id(REQUIRED)} → output:{conversation:{...}}
+
+DROPBOX (provider: dropbox):
+  list_files: params={path?,recursive?,include_media_info?,include_deleted?,limit?} → output:{entries:[...],has_more,cursor}
+  upload_file: params={path,content_base64(all REQUIRED)} → output:{file:{...}}
+
+EVENTBRITE (provider: eventbrite):
+  list_events: params={page_size?,continuation?,status?} → output:{events:[...],has_more,continuation}
+  get_event: params={event_id(REQUIRED)} → output:{event:{...}}
+
+EVERNOTE (provider: evernote):
+  list_notebooks: params={limit?} → output:{notebooks:[...]}
+  create_note: params={title,content(all REQUIRED),notebook_id?,tags?} → output:{note:{...}}
+
+EXPENSIFY (provider: expensify):
+  list_reports: params={policy_id(REQUIRED)} → output:{reports:[...]}
+  create_report: params={title(REQUIRED),chat_type?,participants?,policy_id?} → output:{report:{...}}
+
+FIGMA (provider: figma):
+  list_files: params={project_id(REQUIRED)} → output:{files:[...]}
+  get_file: params={file_key(REQUIRED),version?,ids?,depth?,geometry?} → output:{file:{...}}
+
+FIREBASE (provider: firebase):
+  query_database: params={database_url,path(all REQUIRED),database_secret?,orderBy?,equalTo?,limitToFirst?,limitToLast?,startAt?,endAt?} → output:{data}
+  write_database: params={database_url,path,value(all REQUIRED),database_secret?,method?} → output:{result}
+
+FRAMER (provider: framer):
+  list_sites: params={limit?,cursor?} → output:{sites:[...],cursor}
+  get_site: params={site_id(REQUIRED)} → output:{site:{...}}
+
+FRESHBOOKS (provider: freshbooks):
+  list_invoices: params={account_id(REQUIRED),page?,per_page?,search?} → output:{invoices:[...],page,pages}
+  create_invoice: params={account_id,customer_id,lines(all REQUIRED),create_date?,due_offset_days?} → output:{invoice:{...}}
+
+FRESHSERVICE (provider: freshservice):
+  list_tickets: params={} → output:{...}
+  create_ticket: params={} → output:{...}
+
+FRONT (provider: front):
+  list_conversations: params={} → output:{...}
+  reply_conversation: params={} → output:{...}
+
+FULLSTORY (provider: fullstory):
+  list_sessions: params={} → output:{...}
+  get_session: params={} → output:{...}
+
+GHOST (provider: ghost):
+  list_posts: params={} → output:{...}
+  create_post: params={} → output:{...}
+
+GOCARDLESS (provider: gocardless):
+  list_payments: params={} → output:{...}
+  create_mandate: params={} → output:{...}
+
+GOOGLE ANALYTICS (provider: googleanalytics):
+  query_report: params={} → output:{...}
+  get_metrics: params={} → output:{...}
+
+GOOGLE FORMS (provider: googleforms):
+  list_forms: params={} → output:{...}
+  get_responses: params={} → output:{...}
+
+GORGIAS (provider: gorgias):
+  list_tickets: params={} → output:{...}
+  create_ticket: params={} → output:{...}
+
+GRAFANA (provider: grafana):
+  list_dashboards: params={} → output:{...}
+  query_metrics: params={} → output:{...}
+
+GREENHOUSE (provider: greenhouse):
+  list_candidates: params={} → output:{...}
+  get_candidate: params={} → output:{...}
+
+GUSTO (provider: gusto):
+  list_employees: params={} → output:{...}
+  get_employee: params={} → output:{...}
+
+HARVEST (provider: harvest):
+  list_time_entries: params={} → output:{...}
+  create_time_entry: params={} → output:{...}
+
+HEAP (provider: heap):
+  list_users: params={} → output:{...}
+  get_user: params={} → output:{...}
+
+HELLOSIGN (provider: hellosign):
+  list_signature_requests: params={} → output:{...}
+  send_signature_request: params={} → output:{...}
+
+HELPSCOUT (provider: helpscout):
+  list_conversations: params={} → output:{...}
+  create_conversation: params={} → output:{...}
+
+HEROKU (provider: heroku):
+  list_apps: params={} → output:{...}
+  get_app: params={} → output:{...}
+
+HIBOB (provider: hibob):
+  list_employees: params={} → output:{...}
+  get_employee: params={} → output:{...}
+
+HOTJAR (provider: hotjar):
+  list_heatmaps: params={} → output:{...}
+  get_heatmap: params={} → output:{...}
+
+HUBSTAFF (provider: hubstaff):
+  list_time_entries: params={} → output:{...}
+  get_time_entry: params={} → output:{...}
+
+HUNTER (provider: hunter):
+  find_email: params={} → output:{...}
+  verify_email: params={} → output:{...}
+
+INTERCOM (provider: intercom):
+  list_conversations: params={} → output:{...}
+  create_message: params={} → output:{...}
+
+INVISION (provider: invision):
+  list_projects: params={} → output:{...}
+  get_project: params={} → output:{...}
+
+ITERABLE (provider: iterable):
+  track_event: params={} → output:{...}
+  get_user: params={} → output:{...}
+
+JOTFORM (provider: jotform):
+  list_forms: params={} → output:{...}
+  get_submissions: params={} → output:{...}
+
+JUMPCLOUD (provider: jumpcloud):
+  list_users: params={} → output:{...}
+  get_user: params={} → output:{...}
+
+KEAP (provider: keap):
+  list_contacts: params={} → output:{...}
+  create_contact: params={} → output:{...}
+
+KUSTOMER (provider: kustomer):
+  list_customers: params={} → output:{...}
+  create_customer: params={} → output:{...}
+
+LATTICE (provider: lattice):
+  list_reviews: params={} → output:{...}
+  get_review: params={} → output:{...}
+
+LEMON SQUEEZY (provider: lemonsqueezy):
+  list_orders: params={} → output:{...}
+  get_order: params={} → output:{...}
+
+LEVER (provider: lever):
+  list_candidates: params={} → output:{...}
+  get_candidate: params={} → output:{...}
+
+LINKEDIN (provider: linkedin):
+  list_posts: params={} → output:{...}
+  create_post: params={} → output:{...}
+
+LOOM (provider: loom):
+  list_videos: params={} → output:{...}
+  get_video: params={} → output:{...}
+
+LUMA (provider: luma):
+  list_events: params={} → output:{...}
+  get_event: params={} → output:{...}
+
+LUSHA (provider: lusha):
+  enrich_lead: params={} → output:{...}
+  verify_email: params={} → output:{...}
+
+MIRO (provider: miro):
+  list_boards: params={} → output:{...}
+  get_board: params={} → output:{...}
+
+MIXPANEL (provider: mixpanel):
+  query_data: params={} → output:{...}
+  track_event: params={} → output:{...}
+
+MOLLIE (provider: mollie):
+  list_payments: params={} → output:{...}
+  create_payment: params={} → output:{...}
+
+MUX (provider: mux):
+  list_assets: params={} → output:{...}
+  create_asset: params={} → output:{...}
+
+NETLIFY (provider: netlify):
+  list_sites: params={} → output:{...}
+  trigger_build: params={} → output:{...}
+
+NETSUITE (provider: netsuite):
+  query_records: params={} → output:{...}
+  create_record: params={} → output:{...}
+
+NEWRELIC (provider: newrelic):
+  query_nrql: params={} → output:{...}
+  get_entity: params={} → output:{...}
+
+NUCLINO (provider: nuclino):
+  list_items: params={} → output:{...}
+  create_item: params={} → output:{...}
+
+NUTSHELL (provider: nutshell):
+  list_leads: params={} → output:{...}
+  create_lead: params={} → output:{...}
+
+OKTA (provider: okta):
+  list_users: params={} → output:{...}
+  get_user: params={} → output:{...}
+
+ONEDRIVE (provider: onedrive):
+  list_files: params={} → output:{...}
+  upload_file: params={} → output:{...}
+
+ONENOTE (provider: onenote):
+  list_notebooks: params={} → output:{...}
+  create_page: params={} → output:{...}
+
+OPENAI (provider: openai):
+  create_completion: params={} → output:{...}
+  create_embedding: params={} → output:{...}
+
+OPENPHONE (provider: openphone):
+  list_messages: params={} → output:{...}
+  send_message: params={} → output:{...}
+
+OPSGENIE (provider: opsgenie):
+  list_alerts: params={} → output:{...}
+  create_alert: params={} → output:{...}
+
+PAGERDUTY (provider: pagerduty):
+  list_incidents: params={} → output:{...}
+  create_incident: params={} → output:{...}
+
+PANDADOC (provider: pandadoc):
+  list_documents: params={} → output:{...}
+  send_document: params={} → output:{...}
+
+PAPERFORM (provider: paperform):
+  list_forms: params={} → output:{...}
+  get_submissions: params={} → output:{...}
+
+PERSONIO (provider: personio):
+  list_employees: params={} → output:{...}
+  get_employee: params={} → output:{...}
+
+PINECONE (provider: pinecone):
+  query_index: params={} → output:{...}
+  upsert_vectors: params={} → output:{...}
+
+PIPEDRIVE (provider: pipedrive):
+  list_deals: params={} → output:{...}
+  create_deal: params={} → output:{...}
+
+PLAUSIBLE (provider: plausible):
+  get_stats: params={} → output:{...}
+  query_breakdown: params={} → output:{...}
+
+POSTHOG (provider: posthog):
+  get_feature_flags: params={} → output:{...}
+  query_events: params={} → output:{...}
+
+POSTMARK (provider: postmark):
+  send_email: params={} → output:{...}
+  list_messages: params={} → output:{...}
+
+PRISMIC (provider: prismic):
+  query_documents: params={} → output:{...}
+  get_document: params={} → output:{...}
+
+QUICKBOOKS (provider: quickbooks):
+  list_invoices: params={} → output:{...}
+  create_invoice: params={} → output:{...}
+
+RAMP (provider: ramp):
+  list_transactions: params={} → output:{...}
+  get_card: params={} → output:{...}
+
+RENDER (provider: render):
+  list_services: params={} → output:{...}
+  trigger_deploy: params={} → output:{...}
+
+REPLICATE (provider: replicate):
+  run_model: params={} → output:{...}
+  list_models: params={} → output:{...}
+
+RESEND (provider: resend):
+  send_email: params={} → output:{...}
+  list_emails: params={} → output:{...}
+
+RINGCENTRAL (provider: ringcentral):
+  list_messages: params={} → output:{...}
+  send_message: params={} → output:{...}
+
+RIPPING (provider: rippling):
+  list_employees: params={} → output:{...}
+  get_employee: params={} → output:{...}
+
+RUDDERSTACK (provider: rudderstack):
+  track_event: params={} → output:{...}
+  identify_user: params={} → output:{...}
+
+SANITY (provider: sanity):
+  query_documents: params={} → output:{...}
+  create_document: params={} → output:{...}
+
+SEGMENT (provider: segment):
+  track_event: params={} → output:{...}
+  identify_user: params={} → output:{...}
+
+SEMRUSH (provider: semrush):
+  get_domain_analytics: params={} → output:{...}
+  get_keywords: params={} → output:{...}
+
+SENTRY (provider: sentry):
+  list_events: params={} → output:{...}
+  get_event: params={} → output:{...}
+
+SERVICENOW (provider: servicenow):
+  list_incidents: params={} → output:{...}
+  create_incident: params={} → output:{...}
+
+SHOPIFY (provider: shopify):
+  list_orders: params={} → output:{...}
+  create_order: params={} → output:{...}
+
+SIMPLYBOOK (provider: simplybook):
+  list_bookings: params={} → output:{...}
+  create_booking: params={} → output:{...}
+
+STORYBLOK (provider: storyblok):
+  list_stories: params={} → output:{...}
+  create_story: params={} → output:{...}
+
+SUPABASE (provider: supabase):
+  query_table: params={} → output:{...}
+  insert_record: params={} → output:{...}
+
+SURVEYMONKEY (provider: surveymonkey):
+  list_surveys: params={} → output:{...}
+  get_responses: params={} → output:{...}
+
+TALLY (provider: tally):
+  list_forms: params={} → output:{...}
+  get_responses: params={} → output:{...}
+
+TELNYX (provider: telnyx):
+  send_sms: params={} → output:{...}
+  list_messages: params={} → output:{...}
+
+TOGGL (provider: toggl):
+  list_time_entries: params={} → output:{...}
+  create_time_entry: params={} → output:{...}
+
+TWILIO (provider: twilio):
+  send_sms: params={} → output:{...}
+  send_whatsapp: params={} → output:{...}
+
+TWITTER (provider: twitter):
+  post_tweet: params={} → output:{...}
+  list_tweets: params={} → output:{...}
+
+VERCEL (provider: vercel):
+  list_projects: params={} → output:{...}
+  trigger_deploy: params={} → output:{...}
+
+VIMEO (provider: vimeo):
+  list_videos: params={} → output:{...}
+  upload_video: params={} → output:{...}
+
+VONAGE (provider: vonage):
+  send_sms: params={} → output:{...}
+  send_message: params={} → output:{...}
+
+WEBFLOW (provider: webflow):
+  list_sites: params={} → output:{...}
+  query_cms: params={} → output:{...}
+
+WISTIA (provider: wistia):
+  list_videos: params={} → output:{...}
+  get_video: params={} → output:{...}
+
+WORDPRESS (provider: wordpress):
+  list_posts: params={} → output:{...}
+  create_post: params={} → output:{...}
+
+WORKABLE (provider: workable):
+  list_candidates: params={} → output:{...}
+  get_candidate: params={} → output:{...}
+
+WORKDAY (provider: workday):
+  list_workers: params={} → output:{...}
+  get_worker: params={} → output:{...}
+
+XERO (provider: xero):
+  list_invoices: params={} → output:{...}
+  create_invoice: params={} → output:{...}
+
+ZENDESK (provider: zendesk):
+  list_tickets: params={} → output:{...}
+  create_ticket: params={} → output:{...}
+
+ZEPLIN (provider: zeplin):
+  list_projects: params={} → output:{...}
+  get_project: params={} → output:{...}
+
+ZOOM (provider: zoom):
+  list_meetings: params={} → output:{...}
+  create_meeting: params={} → output:{...}
+
+APOLLO (provider: apollo):
+  search_contacts: params={query(REQUIRED),page?} → output:{contacts:[{id,name,email,title,company}]}
+  enrich_lead: params={email(REQUIRED)} → output:{person:{id,name,email,title,company,linkedin_url}}
+  create_sequence: params={name(REQUIRED)} → output:{sequence_id,name}
+  list_sequences: params={} → output:{sequences:[{id,name,created_at}]}
+
+ZOOMINFO (provider: zoominfo):
+  search_contacts: params={query(REQUIRED),page?} → output:{contacts:[{id,name,email,title,company}]}
+  get_company_intelligence: params={company_name(REQUIRED)} → output:{company:{name,industry,revenue,employees,website}}
+
 GAP REFERENCE — common asks not covered by the operations above and how to bridge them. Apply CAPABILITY-GAP RULES; never refuse. For HTTP fallback against OAuth providers, set auth_type:"bearer", auth_value:"__USER_ASSIGNED__".
 
   GMAIL gaps:
