@@ -1,33 +1,39 @@
-from .base import IConnector, ConnectorError
-from .gmail import GmailConnector
-from .notion import NotionConnector
-from .slack import SlackConnector
-from .github import GitHubConnector
-from .sheets import SheetsConnector
-from .calendar import CalendarConnector
-from .docs import DocsConnector
-from .drive import DriveConnector
-from .airtable import AirtableConnector
-from .hubspot import HubSpotConnector
-from .asana import AsanaConnector
-from .typeform import TypeformConnector
-from .outlook import OutlookConnector
+from __future__ import annotations
 
-REGISTRY: dict[str, type[IConnector]] = {
-    "gmail": GmailConnector,
-    "notion": NotionConnector,
-    "slack": SlackConnector,
-    "github": GitHubConnector,
-    "sheets": SheetsConnector,
-    "calendar": CalendarConnector,
-    "docs": DocsConnector,
-    "drive": DriveConnector,
-    "airtable": AirtableConnector,
-    "hubspot": HubSpotConnector,
-    "asana": AsanaConnector,
-    "typeform": TypeformConnector,
-    "outlook": OutlookConnector,
-}
+from importlib import import_module
+import inspect
+from pathlib import Path
+
+from .base import IConnector, ConnectorError
+
+
+def _discover_registry() -> dict[str, type[IConnector]]:
+    connectors_dir = Path(__file__).resolve().parent
+    registry: dict[str, type[IConnector]] = {}
+
+    for module_path in connectors_dir.glob("*.py"):
+        module_name = module_path.stem
+        if module_name in {"__init__", "base", "rate_limit"}:
+            continue
+
+        module = import_module(f"{__package__}.{module_name}")
+        for _, cls in inspect.getmembers(module, inspect.isclass):
+            if cls is IConnector or not issubclass(cls, IConnector):
+                continue
+
+            provider = getattr(cls, "provider", None)
+            if not isinstance(provider, str) or not provider:
+                continue
+            if provider in registry:
+                raise RuntimeError(
+                    f"Duplicate connector provider '{provider}' found in {cls.__name__}"
+                )
+            registry[provider] = cls
+
+    return registry
+
+
+REGISTRY: dict[str, type[IConnector]] = _discover_registry()
 
 
 def get_connector(provider: str) -> IConnector | None:
@@ -35,22 +41,4 @@ def get_connector(provider: str) -> IConnector | None:
     return cls() if cls else None
 
 
-__all__ = [
-    "IConnector",
-    "ConnectorError",
-    "GmailConnector",
-    "NotionConnector",
-    "SlackConnector",
-    "GitHubConnector",
-    "SheetsConnector",
-    "CalendarConnector",
-    "DocsConnector",
-    "DriveConnector",
-    "AirtableConnector",
-    "HubSpotConnector",
-    "AsanaConnector",
-    "TypeformConnector",
-    "OutlookConnector",
-    "REGISTRY",
-    "get_connector",
-]
+__all__ = ["IConnector", "ConnectorError", "REGISTRY", "get_connector"]
