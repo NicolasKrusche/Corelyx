@@ -43,6 +43,19 @@ from engine.safe_expressions import (
     evaluate_expression,
 )
 from engine.pii import sanitize_text_for_llm, sanitize_value_for_llm
+from engine.circuit_breaker import (
+    CircuitOpenError,
+    get_llm_circuit,
+    get_oauth_token_circuit,
+)
+from engine.run_limits import (
+    RunLimitExceeded,
+    RunLimiter,
+    get_run_limits,
+)
+from engine.credential_lock import (
+    get_token_refresh_manager,
+)
 from internal_auth import build_internal_service_headers
 
 TelemetryPayload = dict[str, int | float]
@@ -385,6 +398,7 @@ class ProgramExecutor:
         execution_mode: str = "autonomous",
         conflict_policy: str = "queue",
         connection_name_to_id: dict[str, str] | None = None,
+        is_paid_plan: bool = False,
     ) -> None:
         self.schema = schema
         self.run_id = run_id
@@ -402,6 +416,11 @@ class ProgramExecutor:
             node.id: _empty_telemetry() for node in schema.nodes
         }
         self._run_telemetry: TelemetryPayload = _empty_telemetry()
+        
+        # Initialize run limiter for resource protection
+        limits = get_run_limits().get_limits(is_paid_plan)
+        self._limiter = RunLimiter(limits, run_id)
+        self._limiter.start()
 
     def _record_telemetry(
         self,
@@ -783,6 +802,10 @@ class ProgramExecutor:
         return resolved
 
     async def _execute_node(self, node: SchemaNode, input_data: dict) -> dict:
+        # Check run limits before executing
+        self._limiter.check_node_limit()
+        self._limiter.check_execution_time()
+        
         # input_data includes full state keyed by node ID (for expression resolution),
         # but logging the entire state to the DB causes oversized payloads and
         # httpx [Errno 22] on Windows. Log only the "real" input fields — strip
@@ -869,15 +892,27 @@ class ProgramExecutor:
                 )
                 return {}
 
+        # Check LLM call limits before fetching API key
+        self._limiter.check_llm_call()
+        
         # Fetch API key from Next.js internal endpoint (keeps key off this service)
         api_key, provider = await self._fetch_api_key(cfg.api_key_ref)
 
-        # Execute with retry
-        return await self._with_retry(
-            lambda: self._call_llm(cfg, api_key, provider, input_data, node.id),
-            cfg.retry,
-            node.id,
-        )
+        # Execute with retry and circuit breaker protection
+        circuit = get_llm_circuit()
+        try:
+            return await circuit.call(
+                self._with_retry,
+                lambda: self._call_llm(cfg, api_key, provider, input_data, node.id),
+                cfg.retry,
+                node.id,
+            )
+        except CircuitOpenError as e:
+            raise ExecutionError(
+                "LLM_CIRCUIT_OPEN",
+                f"LLM service temporarily unavailable due to repeated failures. Please try again later.",
+                node.id,
+            ) from e
 
     async def _call_llm(
         self,
@@ -1010,6 +1045,11 @@ class ProgramExecutor:
             if reported_cost is not None
             else _estimate_cost_usd(cfg.model, prompt_tokens, completion_tokens)
         )
+        
+        # Check run limits after getting actual usage
+        self._limiter.check_llm_tokens(total_tokens)
+        self._limiter.check_cost(estimated_cost_usd)
+        
         self._record_telemetry(
             node_id,
             prompt_tokens=prompt_tokens,
@@ -1140,6 +1180,9 @@ class ProgramExecutor:
         return input_data
 
     async def _execute_connection(self, node: SchemaNode, input_data: dict) -> dict:
+        # Check connector call limits
+        self._limiter.check_connector_call()
+        
         cfg = node.config
         if isinstance(cfg, HttpConnectionConfig):
             retry_cfg = cfg.retry or RetryConfig(
@@ -1158,7 +1201,17 @@ class ProgramExecutor:
             if not connection_name:
                 raise ExecutionError("OAUTH_CONFIG_INVALID", "OAuth connection node has no connection reference")
             connection_id = self._resolve_connection_id(connection_name)
-            access_token = await self._fetch_oauth_token(connection_id)
+            
+            # Fetch OAuth token with circuit breaker protection
+            circuit = get_oauth_token_circuit()
+            try:
+                access_token = await circuit.call(self._fetch_oauth_token, connection_id)
+            except CircuitOpenError as e:
+                raise ExecutionError(
+                    "OAUTH_CIRCUIT_OPEN",
+                    f"OAuth token service temporarily unavailable. Please try again later.",
+                    node.id,
+                ) from e
 
             # If the node specifies a native operation, dispatch to the connector.
             if cfg.operation:
@@ -1618,6 +1671,25 @@ class ProgramExecutor:
 
     async def _fetch_oauth_token(self, connection_id: str, force_refresh: bool = False) -> str:
         """Fetch a valid (auto-refreshed) OAuth access token from Next.js."""
+        # Use token refresh manager to prevent race conditions
+        manager = get_token_refresh_manager()
+        
+        # Check cache first (unless force_refresh)
+        if not force_refresh:
+            cached = manager.get_cached_token(connection_id)
+            if cached:
+                return cached
+        
+        # Use distributed lock to prevent concurrent refreshes
+        return await manager.refresh_with_lock(
+            connection_id,
+            self._do_fetch_oauth_token,
+            connection_id,
+            force_refresh,
+        )
+    
+    async def _do_fetch_oauth_token(self, connection_id: str, force_refresh: bool = False) -> str:
+        """Internal method to actually fetch the token from Next.js."""
         params = {"force_refresh": "true"} if force_refresh else {}
         endpoint_path = f"/api/internal/connections/{connection_id}/token"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)

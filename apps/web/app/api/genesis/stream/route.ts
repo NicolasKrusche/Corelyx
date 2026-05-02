@@ -8,7 +8,7 @@ export const maxDuration = 300;
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
-import { GENESIS_SYSTEM_PROMPT, buildGenesisUserMessage } from "@/lib/genesis/prompt";
+import { buildGenesisSystemPrompt, buildGenesisUserMessage } from "@/lib/genesis/prompt";
 import { ProgramSchemaZ } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import {
@@ -128,6 +128,12 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connections);
 
+  // Extract provider names from available connections for dynamic prompt generation
+  const selectedProviders = availableConnections.map((conn) => conn.type);
+  const genesisSystemPrompt = buildGenesisSystemPrompt(
+    selectedProviders.length > 0 ? selectedProviders : null
+  );
+
   // Resolve API keys — preferred first, then fallbacks sorted by provider priority
   const serviceClient = createServiceClient();
   const { data: allKeyRows, error: keysError } = await serviceClient
@@ -196,7 +202,7 @@ export async function POST(request: Request) {
                   model: candidateModel,
                   max_tokens: GENESIS_MAX_TOKENS,
                   temperature: GENESIS_TEMPERATURE,
-                  system: GENESIS_SYSTEM_PROMPT,
+                  system: genesisSystemPrompt,
                   messages: [{ role: "user", content: userMessage }],
                 });
 
@@ -220,7 +226,7 @@ export async function POST(request: Request) {
                     response_format: { type: "json_object" as const },
                   }),
                   messages: [
-                    { role: "system", content: GENESIS_SYSTEM_PROMPT },
+                    { role: "system", content: genesisSystemPrompt },
                     { role: "user", content: userMessage },
                   ],
                 });

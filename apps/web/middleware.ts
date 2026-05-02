@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import type { Database } from "@flowos/db";
 import { applySecurityHeaders } from "@/lib/security-headers";
+import { maintenanceMiddleware } from "@/lib/maintenance-middleware";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -55,6 +56,13 @@ export async function middleware(request: NextRequest) {
   // Internal API routes authenticate via internal service tokens so session checks are skipped
   if (pathname.startsWith(INTERNAL_API_PREFIX)) {
     return nextWithSecurity();
+  }
+
+  // Check maintenance mode and feature flags
+  const maintenanceResponse = maintenanceMiddleware(request);
+  if (maintenanceResponse) {
+    applySecurityHeaders(maintenanceResponse.headers, nonce);
+    return maintenanceResponse;
   }
 
   const isPublic = pathname === "/" || PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
