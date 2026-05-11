@@ -609,6 +609,7 @@ export function Sidebar({
               >
                 <span>{initials}</span>
                 {initialAvatarUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={initialAvatarUrl}
                     alt=""
@@ -1008,6 +1009,7 @@ function SettingsModal({
                 <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-lg font-semibold text-primary-foreground">
                   <span>{identityInitial}</span>
                   {avatarUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarUrl}
                       alt=""
@@ -1110,6 +1112,7 @@ function SettingsModal({
                     <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary text-xl font-semibold text-primary-foreground">
                       <span>{identityInitial}</span>
                       {avatarUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                       )}
                     </div>
@@ -1160,6 +1163,7 @@ function SettingsModal({
                     <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary text-xl font-semibold text-primary-foreground">
                       <span>{identityInitial}</span>
                       {avatarUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                       )}
                     </div>

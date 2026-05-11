@@ -42,9 +42,8 @@ export function SharePanel({ programId }: { programId: string }) {
     setState(body);
   }
 
-  useEffect(() => {
-    void loadShare();
-  }, [programId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadShare is stable within the programId scope
+  useEffect(() => { void loadShare(); }, [programId]);
 
   async function updateShare(payload: { visibility?: ProgramVisibility; user_id?: string; role?: ProgramRole | null }) {
     setBusy(true);
