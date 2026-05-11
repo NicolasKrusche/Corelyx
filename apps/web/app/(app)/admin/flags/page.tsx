@@ -9,10 +9,23 @@ import {
   Shield
 } from "lucide-react";
 
+type FeatureFlagDisplay = {
+  key: string;
+  label: string;
+  value: boolean | number;
+  dangerous?: boolean;
+  type?: "number";
+};
+
 export default function FeatureFlagsPage() {
   const flags = getFeatureFlags();
   
-  const featureGroups = [
+  const featureGroups: Array<{
+    title: string;
+    description: string;
+    icon: typeof Shield;
+    features: FeatureFlagDisplay[];
+  }> = [
     {
       title: "Emergency Controls",
       description: "Kill switches for critical situations",

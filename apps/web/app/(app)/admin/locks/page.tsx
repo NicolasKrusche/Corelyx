@@ -1,6 +1,13 @@
 import { createServiceClient } from "@/lib/api";
 import { Lock, Unlock, Clock } from "lucide-react";
 
+type CredentialLockRow = {
+  lock_key: string;
+  lock_id: string;
+  created_at: string;
+  expires_at: string;
+};
+
 async function getActiveLocks() {
   const db = createServiceClient();
   
@@ -10,7 +17,7 @@ async function getActiveLocks() {
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false });
   
-  return locks || [];
+  return (locks ?? []) as unknown as CredentialLockRow[];
 }
 
 function formatDuration(seconds: number): string {

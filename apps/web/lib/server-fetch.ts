@@ -1,7 +1,7 @@
 /**
  * Server-side fetch wrapper that disables Next.js route-handler caching.
  *
- * Next.js 14 caches `fetch()` responses in App Router route handlers by
+ * Next.js App Router can cache `fetch()` responses in route handlers by
  * default, even for POST requests. When request bodies are identical the
  * cache key hashes the same, so successive calls return a frozen response.
  * This caused a production bug where OAuth refresh-token exchanges returned

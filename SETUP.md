@@ -1,127 +1,150 @@
-# FlowOS — Local Setup
+# Corelyx Local Setup
 
 ## Prerequisites
 
 - Node.js 20+
-- pnpm 9+ (`npm i -g pnpm`)
-- Supabase CLI (`npm i -g supabase`)
-- Docker Desktop (for local Supabase)
-- An Anthropic API key (for Genesis)
-- Google Cloud project with OAuth credentials (for Gmail connections)
+- pnpm 9+
+- Python 3.11+
+- Supabase CLI
+- Docker Desktop for local Supabase
+- Provider accounts for any connectors you want to test
 
----
+## Install Dependencies
 
-## 1. Install dependencies
-
-```bash
+```powershell
 pnpm install
 ```
 
----
+For the runtime, use the existing virtual environment if present, or create one:
 
-## 2. Configure environment variables
-
-```bash
-cp .env.example apps/web/.env.local
+```powershell
+cd apps\runtime
+python -m venv venv
+venv\Scripts\python.exe -m pip install -U pip
+venv\Scripts\python.exe -m pip install poetry
+venv\Scripts\poetry.exe install
 ```
 
-Fill in `apps/web/.env.local`:
+If Poetry is already installed globally, this is enough:
 
-| Variable | Where to get it |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Project Settings → API |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same page, "anon public" key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Same page, "service_role" key (keep secret) |
-| `INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE` | Strong random secret shared by web and runtime for `/execute` calls |
-| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_RUNS_COMPLETE` | Strong random secret shared by runtime and web for run completion callbacks |
-| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_CONNECTIONS_TOKEN` | Strong random secret shared by runtime and web for OAuth token retrieval |
-| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_VAULT` | Strong random secret shared by runtime and web for Vault secret retrieval |
-| `INTERNAL_SERVICE_AUTH_SECRET_NEXT_EVENT_DISPATCH` | Strong random secret for internal event dispatch calls |
-| `ANTHROPIC_API_KEY` | console.anthropic.com |
-| `GOOGLE_CLIENT_ID` | console.cloud.google.com → OAuth 2.0 Client IDs. Used for Google sign-in and Google connectors. |
-| `GOOGLE_CLIENT_SECRET` | Same page. Used for Google sign-in and Google connectors. |
-| `PUBSUB_GMAIL_WEBHOOK_AUDIENCE` | The exact Gmail Pub/Sub push endpoint URL configured as the OIDC audience |
-| `PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL` | The service account email configured on the Gmail Pub/Sub push subscription |
-| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` for local dev |
-
-| `INNGEST_SIGNING_KEY` | Required in production so Inngest requests to `/api/inngest` are verified |
-
-| `RUNTIME_CORS_ALLOWED_ORIGINS` | Comma-separated web origins allowed by the runtime API CORS policy |
-| `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys |
-| `STRIPE_WEBHOOK_SECRET` | Stripe CLI `listen` output or Dashboard webhook endpoint secret |
-| `STRIPE_PRICE_PRO_MONTHLY` | Stripe Price ID for Pro monthly subscription |
-| `STRIPE_PRICE_PRO_YEARLY` | Stripe Price ID for Pro yearly subscription |
-| `STRIPE_PRICE_BUILDER_MONTHLY` | Stripe Price ID for Builder monthly subscription |
-| `STRIPE_PRICE_BUILDER_YEARLY` | Stripe Price ID for Builder yearly subscription |
-
-For Google OAuth, add these **Authorized redirect URIs**:
-- `http://localhost:3000/auth/callback`
-- `http://localhost:3000/api/connections/oauth/gmail/callback`
-
-For Stripe local webhook forwarding, run this in a separate terminal:
-
-```bash
-stripe listen --forward-to localhost:3000/api/billing/webhook
+```powershell
+poetry install
 ```
 
-Use the printed signing secret value as `STRIPE_WEBHOOK_SECRET`.
+## Environment Files
 
----
+Copy the examples and fill in values locally:
 
-## 3. Start local Supabase
+```powershell
+Copy-Item apps\web\.env.local.example apps\web\.env.local
+Copy-Item apps\runtime\.env.example apps\runtime\.env
+```
 
-```bash
+Do not commit `.env.local`, `.env`, or any real secret values.
+
+Required web values for normal local development:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_APP_URL`
+- `RUNTIME_URL`
+- `RUNTIME_SECRET`
+- `INTERNAL_SERVICE_AUTH_SECRET`
+- Scoped internal service secrets listed in `apps/web/.env.local.example`
+- `ANTHROPIC_API_KEY` or another configured model provider key
+
+Optional values enable specific integrations:
+
+- Stripe billing: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and price IDs.
+- Resend email: `RESEND_API_KEY`, `FROM_EMAIL`.
+- Inngest: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`.
+- Connector OAuth: provider-specific `*_CLIENT_ID` and `*_CLIENT_SECRET` values.
+- Provider webhooks: provider-specific signing or token secrets.
+
+The runtime must share the same internal secrets used by the web app for runtime execution, run completion callbacks, OAuth token retrieval, and Vault secret retrieval.
+
+## Local Supabase
+
+Start Supabase from the repository root:
+
+```powershell
 supabase start
 ```
 
-This starts Postgres, Auth, Storage, and the dashboard at `http://localhost:54323`.
+Copy the printed local API URL, anon key, and service role key into `apps/web/.env.local` and `apps/runtime/.env`.
 
-The credentials it prints override your `.env.local` for local dev — update:
-- `NEXT_PUBLIC_SUPABASE_URL` → `http://127.0.0.1:54321`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` → from `supabase start` output
-- `SUPABASE_SERVICE_ROLE_KEY` → from `supabase start` output
+Apply migrations:
 
----
-
-## 4. Apply migrations
-
-```bash
+```powershell
 supabase db push
 ```
 
-This runs all migrations in `supabase/migrations/` including:
-- `20240001_init.sql` — all tables + RLS
-- `20240002_vault_helpers.sql` — Vault RPC functions
+Supabase Studio is usually available at `http://localhost:54323`.
 
-Verify at `http://localhost:54323` (Supabase Studio).
+## Start Services
 
----
+Terminal 1, web app:
 
-## 5. Start the dev server
-
-```bash
-pnpm dev
+```powershell
+pnpm --filter @flowos/web dev
 ```
 
 Open `http://localhost:3000`.
 
----
+Terminal 2, runtime:
 
-## Test flow
+```powershell
+cd apps\runtime
+venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002 --reload
+```
 
-1. **Sign up** at `/signup` → confirm email (check Inbucket at `http://localhost:54324`)
-2. **Add an API key** at `/api-keys` → paste an Anthropic key
-3. **Connect Gmail** at `/connections` → OAuth through Google
-4. **Create a program** at `/programs/new`:
-   - Describe your automation
-   - Select your Gmail connection
-   - Click "Generate program"
-5. **View the program** — see the node list and raw schema
+Check runtime health:
 
----
+```powershell
+Invoke-WebRequest http://127.0.0.1:8002/health -UseBasicParsing | Select-Object -ExpandProperty Content
+```
 
-## Notes
+Expected response:
 
-- Supabase Vault is enabled by default in hosted Supabase. For local dev, Vault is available in Supabase CLI v1.148+. If Vault RPCs fail locally, the app will show an error — you can test without real Vault by using the hosted project instead.
-- The visual editor (Phase 2) is not yet built — the program detail page shows a node list and raw JSON only.
-- The runtime engine (Phase 3) is not yet built — programs cannot be executed yet.
+```json
+{"status":"ok"}
+```
+
+## Useful Checks
+
+```powershell
+pnpm --filter @flowos/schema type-check
+pnpm --filter @flowos/db type-check
+pnpm --filter @flowos/web type-check -- --incremental false
+pnpm --filter @flowos/web lint
+pnpm --filter @flowos/web test
+pnpm --filter @flowos/web build
+```
+
+Runtime tests:
+
+```powershell
+cd apps\runtime
+venv\Scripts\python.exe -m pytest tests
+```
+
+## OAuth Redirects
+
+For local OAuth testing, configure provider redirect URLs as needed. Common examples:
+
+- `http://localhost:3000/auth/callback`
+- `http://localhost:3000/api/connections/oauth/google/callback`
+- `http://localhost:3000/api/connections/oauth/gmail/callback`
+- `http://localhost:3000/api/connections/oauth/github/callback`
+- `http://localhost:3000/api/connections/oauth/slack/callback`
+
+## Stripe Webhooks
+
+For local billing webhook testing:
+
+```powershell
+stripe listen --forward-to localhost:3000/api/billing/webhook
+```
+
+Use the printed signing secret as `STRIPE_WEBHOOK_SECRET`.

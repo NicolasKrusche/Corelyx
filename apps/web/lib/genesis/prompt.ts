@@ -435,7 +435,7 @@ export function buildGenesisSystemPrompt(
   const operationsSection = buildConnectorOperationsSection(selectedProviders);
   const gapRefSection = buildGapReferenceSection(selectedProviders);
 
-  return `You are FlowOS Genesis. Convert natural-language automation descriptions into executable JSON program schemas.
+  return `You are Corelyx Genesis. Convert natural-language automation descriptions into executable JSON program schemas.
 
 OUTPUT RULE: Emit only a single raw JSON object. No explanation, no markdown, no code fences. Start with { end with }.
 On failure, emit only one of the two error objects defined at the end.
@@ -561,7 +561,8 @@ export const GENESIS_SYSTEM_PROMPT = buildGenesisSystemPrompt();
 export function buildRefinementUserMessage(
   refinement: string,
   existingSchema: object,
-  availableConnections: Array<{ name: string; type: string; scopes: string[] }>
+  availableConnections: Array<{ name: string; type: string; scopes: string[] }>,
+  euComplianceContext?: string | null
 ): string {
   const connectionList =
     availableConnections.length > 0
@@ -573,14 +574,19 @@ export function buildRefinementUserMessage(
           .join("\n")
       : "  (none)";
 
+  const complianceSection = euComplianceContext
+    ? `\nEU Compliance Requirements for this workflow:\n${euComplianceContext}\n\nWhen refining the schema, ensure the updated workflow accounts for the above EU obligations.\n`
+    : "";
+
   return [
-    "Here is an existing FlowOS program schema:",
+    "Here is an existing Corelyx program schema:",
     "```json",
     JSON.stringify(existingSchema, null, 2),
     "```",
     "",
     `<user_input>\n${refinement}\n</user_input>`,
     "",
+    complianceSection,
     `Available connections:\n${connectionList}`,
     "",
     "Return the complete canonical updated program schema as a single JSON object, not a patch. Preserve all nodes and edges that don't need to change. Only modify what the refinement request requires. Include every required top-level field, node field, config default, trigger entry, and edge field. Output only the raw JSON object — no explanation, no markdown, no code fences.",
@@ -589,7 +595,8 @@ export function buildRefinementUserMessage(
 
 export function buildGenesisUserMessage(
   description: string,
-  availableConnections: Array<{ name: string; type: string; scopes: string[] }>
+  availableConnections: Array<{ name: string; type: string; scopes: string[] }>,
+  euComplianceContext?: string | null
 ): string {
   const connectionList =
     availableConnections.length > 0
@@ -601,10 +608,14 @@ export function buildGenesisUserMessage(
           .join("\n")
       : "  (none — use HTTP connection nodes only if an external API is needed)";
 
+  const complianceSection = euComplianceContext
+    ? `\nEU Compliance Requirements for this workflow:\n${euComplianceContext}\n\nEnsure the generated schema accounts for the above EU obligations (e.g., include consent-check steps, data-minimisation transforms, or access-log connection nodes where required by the regulations listed).\n`
+    : "";
+
   return `<user_input>
 ${description}
 </user_input>
-
+${complianceSection}
 Available connections for this program:
 ${connectionList}
 

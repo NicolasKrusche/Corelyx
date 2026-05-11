@@ -11,6 +11,21 @@ import {
   Zap
 } from "lucide-react";
 
+type EstimatedCostRow = {
+  estimated_cost_usd: number | null;
+};
+
+type RecentFailureRow = {
+  id: string;
+  program_id: string | null;
+  error_message: string | null;
+  created_at: string;
+};
+
+function asRows<T>(data: unknown): T[] {
+  return Array.isArray(data) ? (data as T[]) : [];
+}
+
 async function getStats() {
   const db = createServiceClient();
   
@@ -33,8 +48,14 @@ async function getStats() {
     .select("*", { count: "exact", head: true });
   
   // Today's cost
-  const { data: todayCost } = await db
-    .rpc("get_daily_llm_cost", { target_date: today });
+  const { data: todayCostData } = await db
+    .from("llm_usage_logs")
+    .select("estimated_cost_usd")
+    .gte("created_at", today);
+  const todayCost = asRows<EstimatedCostRow>(todayCostData).reduce(
+    (sum, row) => sum + (row.estimated_cost_usd || 0),
+    0
+  );
   
   // Recent failed runs
   const { data: recentFailures } = await db
@@ -48,8 +69,8 @@ async function getStats() {
     activeRuns: activeRuns || 0,
     todayRuns: todayRuns || 0,
     totalUsers: totalUsers || 0,
-    todayCost: todayCost || 0,
-    recentFailures: recentFailures || [],
+    todayCost,
+    recentFailures: asRows<RecentFailureRow>(recentFailures),
   };
 }
 
@@ -137,7 +158,7 @@ export default async function AdminOverviewPage() {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Today's LLM Cost</p>
+              <p className="text-sm font-medium text-gray-600">Today&apos;s LLM Cost</p>
               <p className="text-3xl font-bold text-gray-900">
                 ${stats.todayCost.toFixed(2)}
               </p>
@@ -265,13 +286,12 @@ export default async function AdminOverviewPage() {
           <Activity className="w-5 h-5 text-blue-600" />
           <span className="font-medium text-blue-800">Circuit Breakers</span>
         </a>
-        <a 
-          href="/docs/incident-response" 
-          target="_blank"
+        <a
+          href="/security"
           className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <AlertTriangle className="w-5 h-5 text-gray-600" />
-          <span className="font-medium text-gray-800">Incident Runbook</span>
+          <span className="font-medium text-gray-800">Security Policy</span>
         </a>
       </div>
     </div>

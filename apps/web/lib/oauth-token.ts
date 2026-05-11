@@ -309,7 +309,7 @@ export async function getValidOAuthToken(
     headers["Authorization"] = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
   }
 
-  // IMPORTANT: cache: "no-store" — Next.js 14 caches fetch() by default in route
+  // IMPORTANT: cache: "no-store" - App Router can cache fetch() in route
   // handlers, which would return the same stale access_token on every refresh and
   // leave the connection permanently broken once the first one expired.
   const refreshRes = await fetch(config.endpoint, { method: "POST", headers, body, cache: "no-store" });

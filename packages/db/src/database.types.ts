@@ -16,6 +16,7 @@ export interface Database {
           plan_expires_at: string | null;
           bonus_runs: number;
           is_beta_tester: boolean;
+          is_admin: boolean;
           genesis_uses_this_month: number;
           genesis_month_reset_at: string | null;
           processing_restricted: boolean;
@@ -33,6 +34,7 @@ export interface Database {
           plan_expires_at?: string | null;
           bonus_runs?: number;
           is_beta_tester?: boolean;
+          is_admin?: boolean;
           genesis_uses_this_month?: number;
           genesis_month_reset_at?: string | null;
           processing_restricted?: boolean;
@@ -50,6 +52,7 @@ export interface Database {
           plan_expires_at?: string | null;
           bonus_runs?: number;
           is_beta_tester?: boolean;
+          is_admin?: boolean;
           genesis_uses_this_month?: number;
           genesis_month_reset_at?: string | null;
           processing_restricted?: boolean;
@@ -385,6 +388,7 @@ export interface Database {
           id: string;
           user_id: string;
           org_id: string | null;
+          workspace_id: string;
           name: string;
           provider: string;
           vault_secret_id: string;
@@ -396,6 +400,7 @@ export interface Database {
           id?: string;
           user_id: string;
           org_id?: string | null;
+          workspace_id?: string;
           name: string;
           provider: string;
           vault_secret_id: string;
@@ -407,6 +412,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           org_id?: string | null;
+          workspace_id?: string;
           name?: string;
           provider?: string;
           vault_secret_id?: string;
@@ -420,6 +426,7 @@ export interface Database {
           id: string;
           user_id: string;
           org_id: string | null;
+          workspace_id: string;
           name: string;
           provider: string;
           auth_type: "oauth" | "api_key";
@@ -435,6 +442,7 @@ export interface Database {
           id?: string;
           user_id: string;
           org_id?: string | null;
+          workspace_id?: string;
           name: string;
           provider: string;
           auth_type: "oauth" | "api_key";
@@ -450,6 +458,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           org_id?: string | null;
+          workspace_id?: string;
           name?: string;
           provider?: string;
           auth_type?: "oauth" | "api_key";
@@ -467,6 +476,7 @@ export interface Database {
           id: string;
           user_id: string;
           org_id: string | null;
+          workspace_id: string;
           name: string;
           description: string | null;
           schema: Json;
@@ -474,6 +484,12 @@ export interface Database {
           execution_mode: "autonomous" | "supervised" | "manual";
           is_active: boolean;
           conflict_policy: "queue" | "skip" | "fail";
+          visibility: "workspace" | "restricted";
+          is_public: boolean;
+          tags: string[];
+          fork_count: number;
+          published_at: string | null;
+          public_author_name: string | null;
           last_run_at: string | null;
           created_at: string;
           updated_at: string;
@@ -482,6 +498,7 @@ export interface Database {
           id?: string;
           user_id: string;
           org_id?: string | null;
+          workspace_id?: string;
           name: string;
           description?: string | null;
           schema: Json;
@@ -489,6 +506,12 @@ export interface Database {
           execution_mode?: "autonomous" | "supervised" | "manual";
           is_active?: boolean;
           conflict_policy?: "queue" | "skip" | "fail";
+          visibility?: "workspace" | "restricted";
+          is_public?: boolean;
+          tags?: string[];
+          fork_count?: number;
+          published_at?: string | null;
+          public_author_name?: string | null;
           last_run_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -497,6 +520,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           org_id?: string | null;
+          workspace_id?: string;
           name?: string;
           description?: string | null;
           schema?: Json;
@@ -504,6 +528,12 @@ export interface Database {
           execution_mode?: "autonomous" | "supervised" | "manual";
           is_active?: boolean;
           conflict_policy?: "queue" | "skip" | "fail";
+          visibility?: "workspace" | "restricted";
+          is_public?: boolean;
+          tags?: string[];
+          fork_count?: number;
+          published_at?: string | null;
+          public_author_name?: string | null;
           last_run_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -513,6 +543,33 @@ export interface Database {
         Row: { program_id: string; connection_id: string };
         Insert: { program_id: string; connection_id: string };
         Update: { program_id?: string; connection_id?: string };
+      };
+      program_memberships: {
+        Row: {
+          program_id: string;
+          user_id: string;
+          role: "editor" | "runner" | "viewer";
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          program_id: string;
+          user_id: string;
+          role: "editor" | "runner" | "viewer";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          program_id?: string;
+          user_id?: string;
+          role?: "editor" | "runner" | "viewer";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       program_versions: {
         Row: {
@@ -547,9 +604,12 @@ export interface Database {
           triggered_by: string;
           trigger_payload: Json | null;
           status: "pending" | "running" | "paused" | "completed" | "failed" | "cancelled";
+          execution_mode: string | null;
           started_at: string | null;
           completed_at: string | null;
           error_message: string | null;
+          node_execution_count: number;
+          llm_token_count: number;
           prompt_tokens: number;
           completion_tokens: number;
           total_tokens: number;
@@ -564,9 +624,12 @@ export interface Database {
           triggered_by: string;
           trigger_payload?: Json | null;
           status?: "pending" | "running" | "paused" | "completed" | "failed" | "cancelled";
+          execution_mode?: string | null;
           started_at?: string | null;
           completed_at?: string | null;
           error_message?: string | null;
+          node_execution_count?: number;
+          llm_token_count?: number;
           prompt_tokens?: number;
           completion_tokens?: number;
           total_tokens?: number;
@@ -581,9 +644,12 @@ export interface Database {
           triggered_by?: string;
           trigger_payload?: Json | null;
           status?: "pending" | "running" | "paused" | "completed" | "failed" | "cancelled";
+          execution_mode?: string | null;
           started_at?: string | null;
           completed_at?: string | null;
           error_message?: string | null;
+          node_execution_count?: number;
+          llm_token_count?: number;
           prompt_tokens?: number;
           completion_tokens?: number;
           total_tokens?: number;
@@ -592,6 +658,7 @@ export interface Database {
           model_call_count?: number;
           created_at?: string;
         };
+        Relationships: [];
       };
       node_executions: {
         Row: {
@@ -712,7 +779,11 @@ export interface Database {
           type: "manual" | "cron" | "webhook" | "event" | "program";
           config: Json;
           is_active: boolean;
+          webhook_token: string | null;
+          next_run_at: string | null;
+          last_fired_at: string | null;
           created_at: string;
+          updated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -720,7 +791,11 @@ export interface Database {
           type: "manual" | "cron" | "webhook" | "event" | "program";
           config: Json;
           is_active?: boolean;
+          webhook_token?: string | null;
+          next_run_at?: string | null;
+          last_fired_at?: string | null;
           created_at?: string;
+          updated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -728,7 +803,122 @@ export interface Database {
           type?: "manual" | "cron" | "webhook" | "event" | "program";
           config?: Json;
           is_active?: boolean;
+          webhook_token?: string | null;
+          next_run_at?: string | null;
+          last_fired_at?: string | null;
           created_at?: string;
+          updated_at?: string | null;
+        };
+      };
+      workspaces: {
+        Row: {
+          id: string;
+          name: string;
+          created_by: string | null;
+          tier: "free" | "plus" | "pro" | "builder" | "unlimited";
+          plan_expires_at: string | null;
+          bonus_runs: number;
+          is_beta_tester: boolean;
+          genesis_uses_this_month: number;
+          genesis_month_reset_at: string | null;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          created_by?: string | null;
+          tier?: "free" | "plus" | "pro" | "builder" | "unlimited";
+          plan_expires_at?: string | null;
+          bonus_runs?: number;
+          is_beta_tester?: boolean;
+          genesis_uses_this_month?: number;
+          genesis_month_reset_at?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_by?: string | null;
+          tier?: "free" | "plus" | "pro" | "builder" | "unlimited";
+          plan_expires_at?: string | null;
+          bonus_runs?: number;
+          is_beta_tester?: boolean;
+          genesis_uses_this_month?: number;
+          genesis_month_reset_at?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      workspace_memberships: {
+        Row: {
+          workspace_id: string;
+          user_id: string;
+          role: "owner" | "admin" | "member" | "viewer";
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          workspace_id: string;
+          user_id: string;
+          role: "owner" | "admin" | "member" | "viewer";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          workspace_id?: string;
+          user_id?: string;
+          role?: "owner" | "admin" | "member" | "viewer";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      workspace_invitations: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          email: string;
+          role: "admin" | "member" | "viewer";
+          invited_by: string | null;
+          accepted_by: string | null;
+          accepted_at: string | null;
+          revoked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          email: string;
+          role: "admin" | "member" | "viewer";
+          invited_by?: string | null;
+          accepted_by?: string | null;
+          accepted_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          email?: string;
+          role?: "admin" | "member" | "viewer";
+          invited_by?: string | null;
+          accepted_by?: string | null;
+          accepted_at?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       usage: {
@@ -792,9 +982,98 @@ export interface Database {
           expires_at?: string;
         };
       };
+      credential_locks: {
+        Row: {
+          id: string;
+          lock_key: string;
+          lock_id: string;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          lock_key: string;
+          lock_id: string;
+          created_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          id?: string;
+          lock_key?: string;
+          lock_id?: string;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
+      llm_usage_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          workspace_id: string | null;
+          run_id: string | null;
+          model: string;
+          prompt_tokens: number;
+          completion_tokens: number;
+          total_tokens: number;
+          estimated_cost_usd: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          workspace_id?: string | null;
+          run_id?: string | null;
+          model: string;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+          estimated_cost_usd?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          workspace_id?: string | null;
+          run_id?: string | null;
+          model?: string;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+          estimated_cost_usd?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
-    Views: Record<string, never>;
+    Views: {
+      daily_llm_costs: {
+        Row: {
+          user_id: string | null;
+          date: string | null;
+          total_cost: number | null;
+          total_tokens: number | null;
+          request_count: number | null;
+        };
+      };
+    };
     Functions: {
+      get_daily_llm_cost: {
+        Args: {
+          target_date: string;
+        };
+        Returns: number;
+      };
+      cleanup_expired_credential_locks: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
+      increment_fork_count: {
+        Args: {
+          program_id: string;
+        };
+        Returns: undefined;
+      };
       purge_expired_operational_data: {
         Args: {
           p_payload_retention?: string;

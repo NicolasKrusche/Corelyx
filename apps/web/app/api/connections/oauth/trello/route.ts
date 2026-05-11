@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     redirect_uri: redirectUri,
     scope: "read,write,account",
     expiration: "never",
-    name: "FlowOS",
+    name: "Corelyx",
     state: issuedState.state,
   });
 

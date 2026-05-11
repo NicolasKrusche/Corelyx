@@ -93,7 +93,7 @@ export function getMaintenanceResponse(): {
     error: "SERVICE_UNAVAILABLE",
     message: 
       process.env.MAINTENANCE_MESSAGE || 
-      "FlowOS is temporarily unavailable for maintenance. Please try again in a few minutes.",
+      "Corelyx is temporarily unavailable for maintenance. Please try again in a few minutes.",
     statusCode: 503,
   };
 }

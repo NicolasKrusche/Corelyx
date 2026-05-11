@@ -37,3 +37,19 @@ Thumbs.db
 # Local AI/tooling state and logs
 .codex/
 .claude/
+
+# Python virtual environments
+.venv/
+venv/
+
+# Internal working documents (not for external distribution)
+plan.md
+plan_advanced.md
+safety_concerns.md
+safety_issues.md
+connections.md
+legal.md
+entitlements_plan.md
+multi_user_launch_blockers.md
+compliance_plan.md
+performance_improvements.md

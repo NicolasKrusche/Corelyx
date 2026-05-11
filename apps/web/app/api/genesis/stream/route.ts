@@ -9,6 +9,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
 import { buildGenesisSystemPrompt, buildGenesisUserMessage } from "@/lib/genesis/prompt";
+import { runEuComplianceFilter } from "@/lib/genesis/eu-compliance";
 import { ProgramSchemaZ } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import {
@@ -173,9 +174,26 @@ export async function POST(request: Request) {
       let modelUsed = model;
 
       try {
+        // Step 1: EU compliance pre-filter — identify relevant EU regulatory
+        // obligations before Genesis generates the workflow. Non-blocking.
+        send({ type: "status", message: "Checking EU compliance requirements..." });
+        let euComplianceContext: string | null = null;
+        try {
+          const filterKeyRow = keyCandidates[0]!;
+          const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
+          euComplianceContext = await runEuComplianceFilter(
+            sanitizedDescription.value,
+            filterKeyRow,
+            filterApiKey
+          );
+        } catch {
+          // Non-blocking — continue without compliance context
+        }
+
+        // Step 2: Build the Genesis user message with any EU compliance context.
         send({ type: "status", message: "Contacting model..." });
 
-        const userMessage = buildGenesisUserMessage(sanitizedDescription.value, availableConnections);
+        const userMessage = buildGenesisUserMessage(sanitizedDescription.value, availableConnections, euComplianceContext);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
