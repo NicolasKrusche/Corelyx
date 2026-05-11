@@ -794,6 +794,7 @@ function ResourcePicker({
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- queryKey is a stable hash of query; re-fetching on query object identity would be noisy
   }, [connectionId, resourceType, queryKey]);
 
   const selectedKnown = resources?.some((r) => r.id === value) ?? false;

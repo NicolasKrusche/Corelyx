@@ -555,9 +555,6 @@ ERRORS (last resort — only these two cases):
 Do NOT output any other format. Do NOT wrap in markdown.`;
 }
 
-// Legacy export for backwards compatibility
-export const GENESIS_SYSTEM_PROMPT = buildGenesisSystemPrompt();
-
 export function buildRefinementUserMessage(
   refinement: string,
   existingSchema: object,

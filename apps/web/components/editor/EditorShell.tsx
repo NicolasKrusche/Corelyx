@@ -676,6 +676,7 @@ export function EditorShell({
   }, [
     state.selectedNodeId,
     state.selectedEdgeId,
+    state.schema.nodes,
     duplicateNode,
     performSave,
   ]);
