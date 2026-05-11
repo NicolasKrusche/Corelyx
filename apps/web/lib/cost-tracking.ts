@@ -27,6 +27,29 @@ export interface UsageStats {
   modelBreakdown: Record<string, { tokens: number; cost: number }>;
 }
 
+type LlmUsageLogInsert = {
+  user_id: string;
+  workspace_id?: string;
+  run_id: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+};
+
+type LlmUsageLogRow = {
+  estimated_cost_usd: number | null;
+  total_tokens: number | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  model: string | null;
+};
+
+function asRows<T>(data: unknown): T[] {
+  return Array.isArray(data) ? (data as T[]) : [];
+}
+
 // Default limits (can be overridden per user/workspace)
 const DEFAULT_DAILY_LIMIT_USD = 10;
 const DEFAULT_MONTHLY_LIMIT_USD = 100;
@@ -56,7 +79,7 @@ export async function trackLLMUsage({
   const db = createServiceClient();
   
   try {
-    await db.from("llm_usage_logs").insert({
+    const usageLog: LlmUsageLogInsert = {
       user_id: userId,
       workspace_id: workspaceId,
       run_id: runId,
@@ -65,7 +88,9 @@ export async function trackLLMUsage({
       completion_tokens: completionTokens,
       total_tokens: promptTokens + completionTokens,
       estimated_cost_usd: estimatedCost,
-    });
+    };
+
+    await db.from("llm_usage_logs").insert(usageLog as never);
   } catch (e) {
     console.error("[cost-tracking] Failed to log LLM usage:", e);
     // Don't throw - cost tracking should not break execution
@@ -94,11 +119,12 @@ export async function getDailyUsage(userId: string): Promise<{
   if (error || !data) {
     return { totalCost: 0, totalTokens: 0, runCount: 0 };
   }
+  const rows = asRows<LlmUsageLogRow>(data);
   
   return {
-    totalCost: data.reduce((sum, row) => sum + (row.estimated_cost_usd || 0), 0),
-    totalTokens: data.reduce((sum, row) => sum + (row.total_tokens || 0), 0),
-    runCount: data.length,
+    totalCost: rows.reduce((sum, row) => sum + (row.estimated_cost_usd || 0), 0),
+    totalTokens: rows.reduce((sum, row) => sum + (row.total_tokens || 0), 0),
+    runCount: rows.length,
   };
 }
 
@@ -124,11 +150,12 @@ export async function getMonthlyUsage(userId: string): Promise<{
   if (error || !data) {
     return { totalCost: 0, totalTokens: 0, runCount: 0 };
   }
+  const rows = asRows<LlmUsageLogRow>(data);
   
   return {
-    totalCost: data.reduce((sum, row) => sum + (row.estimated_cost_usd || 0), 0),
-    totalTokens: data.reduce((sum, row) => sum + (row.total_tokens || 0), 0),
-    runCount: data.length,
+    totalCost: rows.reduce((sum, row) => sum + (row.estimated_cost_usd || 0), 0),
+    totalTokens: rows.reduce((sum, row) => sum + (row.total_tokens || 0), 0),
+    runCount: rows.length,
   };
 }
 
@@ -233,10 +260,11 @@ export async function getUsageStats({
       modelBreakdown: {},
     };
   }
+  const rows = asRows<LlmUsageLogRow>(data);
   
   const modelBreakdown: UsageStats["modelBreakdown"] = {};
   
-  for (const row of data) {
+  for (const row of rows) {
     const model = row.model || "unknown";
     if (!modelBreakdown[model]) {
       modelBreakdown[model] = { tokens: 0, cost: 0 };
@@ -248,11 +276,11 @@ export async function getUsageStats({
   return {
     userId,
     period: "day",
-    totalTokens: data.reduce((sum, r) => sum + (r.total_tokens || 0), 0),
-    promptTokens: data.reduce((sum, r) => sum + (r.prompt_tokens || 0), 0),
-    completionTokens: data.reduce((sum, r) => sum + (r.completion_tokens || 0), 0),
-    estimatedCost: data.reduce((sum, r) => sum + (r.estimated_cost_usd || 0), 0),
-    runCount: data.length,
+    totalTokens: rows.reduce((sum, r) => sum + (r.total_tokens || 0), 0),
+    promptTokens: rows.reduce((sum, r) => sum + (r.prompt_tokens || 0), 0),
+    completionTokens: rows.reduce((sum, r) => sum + (r.completion_tokens || 0), 0),
+    estimatedCost: rows.reduce((sum, r) => sum + (r.estimated_cost_usd || 0), 0),
+    runCount: rows.length,
     modelBreakdown,
   };
 }

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
 import { 
   Activity, 
@@ -21,22 +20,15 @@ export const metadata = {
 };
 
 async function getUser() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-      },
-    }
-  );
+  const supabase = await createServerClient();
   
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }
+
+type AdminProfileRow = {
+  is_admin: boolean | null;
+};
 
 const navItems = [
   { href: "/admin", label: "Overview", icon: Activity },
@@ -61,23 +53,15 @@ export default async function AdminLayout({
   }
   
   // Check admin status via env var or database
-  const { data: profile } = await createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookies().getAll();
-        },
-      },
-    }
-  )
+  const supabase = await createServerClient();
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
     .single();
+  const adminProfile = profile as unknown as AdminProfileRow | null;
   
-  const isAdmin = isAdminEmail(user.email ?? undefined) || profile?.is_admin === true;
+  const isAdmin = isAdminEmail(user.email ?? undefined) || adminProfile?.is_admin === true;
   
   if (!isAdmin) {
     redirect("/dashboard?error=admin_required");
@@ -135,12 +119,11 @@ export default async function AdminLayout({
                 Emergency Stop
               </Link>
               <Link
-                href="/docs/incident-response"
-                target="_blank"
+                href="/security"
                 className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <Shield className="h-4 w-4" />
-                View Runbook
+                Security Policy
               </Link>
             </div>
           </div>

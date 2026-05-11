@@ -1,6 +1,24 @@
 import { createServiceClient } from "@/lib/api";
 import { DollarSign, TrendingUp, Users, AlertTriangle } from "lucide-react";
 
+type EstimatedCostRow = {
+  estimated_cost_usd: number | null;
+};
+
+type TopUserCostRow = EstimatedCostRow & {
+  user_id: string | null;
+  total_tokens: number | null;
+};
+
+type ModelCostRow = EstimatedCostRow & {
+  model: string | null;
+  total_tokens: number | null;
+};
+
+function asRows<T>(data: unknown): T[] {
+  return Array.isArray(data) ? (data as T[]) : [];
+}
+
 async function getCostStats() {
   const db = createServiceClient();
   
@@ -8,8 +26,14 @@ async function getCostStats() {
   const monthStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
   
   // Today's cost
-  const { data: todayCost } = await db
-    .rpc("get_daily_llm_cost", { target_date: today });
+  const { data: todayData } = await db
+    .from("llm_usage_logs")
+    .select("estimated_cost_usd")
+    .gte("created_at", today);
+  const todayCost = asRows<EstimatedCostRow>(todayData).reduce(
+    (sum, row) => sum + (row.estimated_cost_usd || 0),
+    0
+  );
   
   // Monthly cost
   const { data: monthlyData } = await db
@@ -17,10 +41,10 @@ async function getCostStats() {
     .select("estimated_cost_usd")
     .gte("created_at", monthStart);
   
-  const monthlyCost = monthlyData?.reduce(
+  const monthlyCost = asRows<EstimatedCostRow>(monthlyData).reduce(
     (sum, row) => sum + (row.estimated_cost_usd || 0), 
     0
-  ) || 0;
+  );
   
   // Top users by cost
   const { data: topUsers } = await db
@@ -37,18 +61,19 @@ async function getCostStats() {
     .gte("created_at", today);
   
   const modelCosts: Record<string, { cost: number; tokens: number }> = {};
-  modelBreakdown?.forEach((row) => {
-    if (!modelCosts[row.model]) {
-      modelCosts[row.model] = { cost: 0, tokens: 0 };
+  asRows<ModelCostRow>(modelBreakdown).forEach((row) => {
+    const model = row.model ?? "unknown";
+    if (!modelCosts[model]) {
+      modelCosts[model] = { cost: 0, tokens: 0 };
     }
-    modelCosts[row.model].cost += row.estimated_cost_usd || 0;
-    modelCosts[row.model].tokens += row.total_tokens || 0;
+    modelCosts[model].cost += row.estimated_cost_usd || 0;
+    modelCosts[model].tokens += row.total_tokens || 0;
   });
   
   return {
-    todayCost: todayCost || 0,
+    todayCost,
     monthlyCost,
-    topUsers: topUsers || [],
+    topUsers: asRows<TopUserCostRow>(topUsers),
     modelCosts,
   };
 }
@@ -73,7 +98,7 @@ export default async function CostsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Today's Cost</p>
+            <p className="text-sm font-medium text-gray-600">Today&apos;s Cost</p>
             <DollarSign className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-3xl font-bold text-gray-900">
@@ -174,7 +199,7 @@ export default async function CostsPage() {
                     ${data.cost.toFixed(4)}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {((data.cost / stats.todayCost) * 100).toFixed(1)}%
+                    {stats.todayCost > 0 ? ((data.cost / stats.todayCost) * 100).toFixed(1) : "0.0"}%
                   </p>
                 </div>
               </div>

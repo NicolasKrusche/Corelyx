@@ -77,9 +77,10 @@ ADD COLUMN IF NOT EXISTS node_execution_count INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS llm_token_count INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS estimated_cost_usd DECIMAL(10, 6) DEFAULT 0;
 
--- Index for finding runs approaching limits
+-- Index for finding active runs approaching limits. Run ownership is derived
+-- through programs, so this index intentionally avoids a nonexistent runs.user_id.
 CREATE INDEX IF NOT EXISTS idx_runs_cost_tracking 
-ON runs(user_id, status, estimated_cost_usd) 
+ON runs(program_id, status, estimated_cost_usd)
 WHERE status = 'running';
 
 -- ============================================================================

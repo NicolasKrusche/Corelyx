@@ -10,6 +10,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
 import { buildGenesisSystemPrompt, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
+import { runEuComplianceFilter } from "@/lib/genesis/eu-compliance";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import {
   hasPiiRedactions,
@@ -323,14 +324,47 @@ export async function POST(request: Request) {
     );
   };
 
+  // Step 1: EU compliance pre-filter — run before Genesis to identify any
+  // relevant EU regulatory obligations. Uses the first available key with a
+  // fast/cheap model. Non-blocking: failures are logged and generation continues.
+  let euComplianceContext: string | null = null;
+  try {
+    const filterKeyRow = keyCandidates[0]!;
+    const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
+    euComplianceContext = await runEuComplianceFilter(
+      sanitizedDescription.value,
+      filterKeyRow,
+      filterApiKey
+    );
+    if (euComplianceContext) {
+      await logGenesis(
+        "info",
+        "genesis.compliance_filter.applied",
+        "running",
+        "EU compliance context identified and will be included in Genesis prompt.",
+        { compliance_length: euComplianceContext.length }
+      );
+    }
+  } catch (err) {
+    console.warn("[genesis] EU compliance pre-filter skipped:", (err as Error).message);
+  }
+
+  // Step 2: Build the Genesis user message including any EU compliance context.
   let rawText = "";
   let lastErr: unknown;
   let modelUsed = model;
   let usedKeyRow: GenesisApiKeyRow | null = null;
   let usedApiKey = "";
   const userMessage = isRefinement
-    ? buildRefinementUserMessage(sanitizedExistingSchema?.value, sanitizedRefinement!.value, availableConnections)
-    : buildGenesisUserMessage(sanitizedDescription.value, availableConnections);
+    ? buildRefinementUserMessage(
+        sanitizedRefinement!.value,
+        (sanitizedExistingSchema?.value && typeof sanitizedExistingSchema.value === "object"
+          ? sanitizedExistingSchema.value
+          : {}) as object,
+        availableConnections,
+        euComplianceContext
+      )
+    : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, euComplianceContext);
 
   keyAttemptLoop:
   for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex++) {
@@ -517,7 +551,6 @@ export async function POST(request: Request) {
       console.warn("[genesis] Layer-1 parse failed — attempting jsonrepair");
       parsed_schema = JSON.parse(jsonrepair(extractJson(rawText)));
       parseOk = true;
-      console.log("[genesis] jsonrepair recovered the schema");
     } catch {
       // Layer 3 — repair prompt
       console.warn("[genesis] jsonrepair failed — sending repair prompt to model");
@@ -555,7 +588,6 @@ export async function POST(request: Request) {
 
         parsed_schema = tryParse(repairedText);
         parseOk = true;
-        console.log("[genesis] repair prompt recovered the schema");
       } catch (repairErr) {
         console.error("[genesis] All three parse layers failed:", (repairErr as Error).message);
       }

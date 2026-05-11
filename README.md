@@ -1,99 +1,114 @@
 # Corelyx
 
-Visual Agentic Operating System.
+Corelyx is a visual automation builder for graph-based AI workflows. Users describe an automation in plain language, an AI model (Genesis) generates a validated workflow schema, the schema is edited visually, and the runtime executes it with server-side credentials.
 
-Corelyx lets users describe an automation in natural language, generate a graph-based agent workflow, edit it visually, validate it, and run it with secure server-side credentials.
+## Repository Layout
 
-## Test account
+pnpm + Turborepo monorepo.
 
-```
-Email:    demo@corelyx.systems
-Password: Corelyx2025!
-```
+| Path | Description |
+|---|---|
+| `apps/web` | Next.js 15 App Router — UI, API routes, OAuth, billing, admin |
+| `apps/runtime` | Python FastAPI runtime — executes validated workflow schemas via LangGraph |
+| `packages/schema` | Shared TypeScript types and Zod validators |
+| `packages/db` | Supabase client exports and generated database types |
+| `supabase/migrations` | Postgres migrations, RLS policies, Vault helpers, RPC functions |
 
-Use these credentials at `/login` to access the app without creating an account.
+> The workspace package scope is `@flowos/*`. This is a technical namespace — do not rename without a full monorepo migration.
 
-## What this repository contains
-
-This is a pnpm + Turborepo monorepo with four main areas:
-
-- apps/web: Next.js 14 frontend and API routes (editor, programs, keys, connections, approvals, runs)
-- apps/runtime: Python FastAPI runtime for graph execution
-- packages/schema: Canonical schema types and validators shared across apps
-- packages/db: Typed Supabase client and generated database types
-
-## Core architecture
+## Architecture
 
 Corelyx is schema-first.
 
-- The canonical schema is the source of truth.
-- React Flow in the web app is a translation layer for editing.
-- LangGraph in the runtime is a translation layer for execution.
-- Validation gates are enforced before save/run.
+- The canonical JSON workflow schema is the source of truth.
+- The web editor translates between visual state (React Flow) and the canonical schema.
+- The runtime translates the canonical schema into executable LangGraph steps.
+- Credentials stay server-side at all times, referenced by opaque IDs.
+- Validation gates run before save and before execution — invalid schemas never reach the runtime.
 
-Design intent:
+Genesis (the AI generation layer) uses a two-step flow: a fast EU regulatory compliance pre-filter runs first to identify applicable obligations (GDPR, AI Act, NIS2, etc.), then the main generation prompt incorporates those constraints so the output schema is compliance-aware from the start.
 
-- Fail early and explicitly on invalid workflows
-- Keep credentials server-side only
-- Keep editor and runtime loosely coupled through shared schema contracts
+## Tech Stack
 
-## Tech stack
+| Layer | Choice |
+|---|---|
+| Web | Next.js 15, React 18, Tailwind CSS, React Flow |
+| Runtime | Python 3.11+, FastAPI, LangGraph |
+| Auth / DB | Supabase (Postgres, Auth, RLS, Realtime, Vault) |
+| Billing | Stripe |
+| Email | Resend |
+| Triggers | Inngest + provider webhooks |
+| Tooling | pnpm 9, Turborepo, Vitest, ESLint, TypeScript strict |
 
-- Frontend: Next.js 14 App Router, Tailwind, shadcn/ui, React Flow
-- Runtime: Python, FastAPI, LangGraph
-- Data/Auth: Supabase (Postgres, Auth, RLS, Realtime, Vault)
-- Model routing: LiteLLM proxy
-- Triggering: Inngest
-- Tooling: pnpm, Turborepo, TypeScript strict mode
+## Local Development
 
-## How the product flows
+**Requirements:** Node.js 20+, pnpm 9+, Python 3.11+, Supabase CLI, Docker Desktop.
 
-1. User describes an automation.
-2. Genesis creates an initial canonical schema.
-3. Post-genesis validation checks schema constraints.
-4. User edits the graph in the visual editor.
-5. Schema is saved and versioned.
-6. Pre-flight checks validate live dependencies (keys, scopes, connections).
-7. Runtime executes nodes and streams live state.
+```powershell
+# Install JS dependencies
+pnpm install
 
-## Local development
+# Copy and fill in environment files
+Copy-Item apps\web\.env.local.example apps\web\.env.local
+Copy-Item apps\runtime\.env.example apps\runtime\.env
 
-Requirements:
+# Start the web app
+pnpm --filter @flowos/web dev
 
-- Node.js 20+
-- pnpm 9+
-- Supabase CLI
-- Docker Desktop
+# Start the runtime (separate terminal)
+cd apps\runtime
+venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002 --reload
+```
 
-Install and run:
+See [SETUP.md](SETUP.md) for the full setup guide and [STARTUP_STEPS.md](STARTUP_STEPS.md) for the Windows quick-start checklist.
 
-1. Install dependencies:
-   pnpm install
-2. Follow setup instructions in SETUP.md for environment variables and Supabase.
-3. Start all services:
-   pnpm dev
+## Quality Checks
 
-## Monorepo scripts
+Run from the repository root:
 
-Run from repository root:
+```powershell
+pnpm --filter @flowos/schema type-check
+pnpm --filter @flowos/db type-check
+pnpm --filter @flowos/web type-check
+pnpm --filter @flowos/web lint
+pnpm --filter @flowos/web test
+pnpm --filter @flowos/web build
+pnpm audit --audit-level high
+```
 
-- pnpm dev: start workspace dev servers
-- pnpm build: build all packages/apps
-- pnpm lint: run lint across workspace
-- pnpm type-check: run type checking across workspace
-- pnpm clean: clean workspace build artifacts
+Runtime tests:
 
-## Current status
+```powershell
+cd apps\runtime
+venv\Scripts\python.exe -m pytest tests
+```
 
-The project is being built in phased delivery (foundation, genesis/validation, editor, runtime, triggers, connectors, polish). See plan.md for the full implementation roadmap.
+## Environment and Secrets
+
+Local `.env` files are gitignored. Do not commit real keys, OAuth secrets, Stripe secrets, webhook secrets, or service tokens. Sample files contain only safe local defaults (localhost URLs, blank secrets).
+
+See `apps/web/.env.local.example` and `apps/runtime/.env.example` for all required variables.
+
+## Compliance
+
+Corelyx is designed for EU operation. Relevant compliance documents:
+
+- [AI_SYSTEM_INVENTORY.md](AI_SYSTEM_INVENTORY.md) — EU AI Act system inventory
+- [DPIA_TEMPLATE.md](DPIA_TEMPLATE.md) — GDPR Data Protection Impact Assessment
+- [ROPA_CONTROLLER.md](ROPA_CONTROLLER.md) — Record of Processing Activities (Controller)
+- [ROPA_PROCESSOR.md](ROPA_PROCESSOR.md) — Record of Processing Activities (Processor)
+- [SUBPROCESSORS.md](SUBPROCESSORS.md) — Sub-processor list
+- [SECURITY.md](SECURITY.md) — Security policy and disclosure process
+- [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) — Incident response runbook
 
 ## Documentation
 
-- plan.md: implementation plan and phased roadmap
-- SETUP.md: local environment and Supabase setup
-- CLAUDE.md: product constraints, architecture principles, and coding rules
-- apps/runtime/README.md: runtime-specific notes
+- [SETUP.md](SETUP.md) — Full local setup
+- [STARTUP_STEPS.md](STARTUP_STEPS.md) — Windows quick-start checklist
+- [AGENTS.md](AGENTS.md) — Codex-facing engineering rules
+- [CLAUDE.md](CLAUDE.md) — Claude-facing engineering rules
+- [common_issues.md](common_issues.md) — Known issues and resolutions
 
 ## License
 
-See LICENSE for terms.
+See [LICENSE](LICENSE).

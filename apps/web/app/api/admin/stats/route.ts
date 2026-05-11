@@ -1,29 +1,34 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/api";
+import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
+
+type EstimatedCostRow = {
+  estimated_cost_usd: number | null;
+};
+
+type RecentFailureRow = {
+  id: string;
+  program_id: string | null;
+  error_message: string | null;
+  created_at: string;
+};
+
+function asRows<T>(data: unknown): T[] {
+  return Array.isArray(data) ? (data as T[]) : [];
+}
 
 /**
  * GET /api/admin/stats
  * Returns system statistics for admin dashboard.
  */
 export async function GET() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-      },
-    }
-  );
+  const supabase = await createServerClient();
   
   const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user || !(await isUserAdmin(user.id))) {
+  if (!user || !(isAdminEmail(user.email ?? undefined) || (await isUserAdmin(user.id)))) {
     return NextResponse.json(
       { error: "Admin access required" },
       { status: 403 }
@@ -31,8 +36,10 @@ export async function GET() {
   }
   
   try {
+    const db = createServiceClient();
+
     // Get active runs count
-    const { count: activeRuns } = await supabase
+    const { count: activeRuns } = await db
       .from("runs")
       .select("*", { count: "exact", head: true })
       .eq("status", "running");
@@ -43,32 +50,38 @@ export async function GET() {
     const [
       { count: todayRuns },
       { count: totalUsers },
-      { data: todayCost },
+      { data: todayCostData },
       { data: recentFailures },
     ] = await Promise.all([
-      supabase
+      db
         .from("runs")
         .select("*", { count: "exact", head: true })
         .gte("created_at", today),
-      supabase
+      db
         .from("profiles")
         .select("*", { count: "exact", head: true }),
-      supabase
-        .rpc("get_daily_llm_cost", { target_date: today }),
-      supabase
+      db
+        .from("llm_usage_logs")
+        .select("estimated_cost_usd")
+        .gte("created_at", today),
+      db
         .from("runs")
         .select("id, program_id, error_message, created_at")
         .eq("status", "failed")
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
+    const todayCost = asRows<EstimatedCostRow>(todayCostData).reduce(
+      (sum, row) => sum + (row.estimated_cost_usd || 0),
+      0
+    );
     
     return NextResponse.json({
       activeRuns: activeRuns || 0,
       todayRuns: todayRuns || 0,
       totalUsers: totalUsers || 0,
-      todayCost: todayCost || 0,
-      recentFailures: recentFailures || [],
+      todayCost,
+      recentFailures: asRows<RecentFailureRow>(recentFailures),
     });
   } catch (error) {
     console.error("[admin/stats] Error:", error);

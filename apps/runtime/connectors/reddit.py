@@ -9,7 +9,7 @@ from .base import IConnector, ConnectorError
 from .rate_limit import request_with_rate_limit
 
 _BASE = "https://oauth.reddit.com"
-_USER_AGENT = "FlowOS/1.0 (by /u/flowos_bot)"
+_USER_AGENT = "Corelyx/1.0"
 
 
 class RedditConnector(IConnector):

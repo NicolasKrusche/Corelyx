@@ -1,33 +1,61 @@
 import { createServiceClient } from "@/lib/api";
 import { Play, Clock, AlertCircle, CheckCircle } from "lucide-react";
 
+type ActiveRunRow = {
+  id: string;
+  program_id: string;
+  status: "running" | "pending";
+  started_at: string | null;
+  triggered_by: string;
+  error_message: string | null;
+};
+
 async function getActiveRuns() {
   const db = createServiceClient();
   
   // Get running and pending runs
-  const { data: runs } = await db
+  const { data: runsRaw } = await db
     .from("runs")
-    .select("id, program_id, user_id, status, started_at, triggered_by, error_message")
+    .select("id, program_id, status, started_at, triggered_by, error_message")
     .in("status", ["running", "pending"])
     .order("started_at", { ascending: false })
     .limit(50);
+
+  const runs = (runsRaw ?? []) as ActiveRunRow[];
+  const programIds = [...new Set(runs.map((run) => run.program_id))];
+
+  const { data: programsRaw } = programIds.length > 0
+    ? await db
+        .from("programs")
+        .select("id, user_id")
+        .in("id", programIds)
+    : { data: [] };
+
+  const programs = (programsRaw ?? []) as Array<{ id: string; user_id: string }>;
+  const programOwnerMap = new Map(programs.map((program) => [program.id, program.user_id]));
   
   // Get user info
-  const userIds = [...new Set(runs?.map(r => r.user_id) || [])];
-  const { data: users } = await db
-    .from("profiles")
-    .select("id, display_name")
-    .in("id", userIds);
+  const userIds = [...new Set(programs.map((program) => program.user_id))];
+  const { data: usersRaw } = userIds.length > 0
+    ? await db
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", userIds)
+    : { data: [] };
   
-  const userMap = new Map(users?.map(u => [u.id, u.display_name]) || []);
+  const users = (usersRaw ?? []) as Array<{ id: string; display_name: string | null }>;
+  const userMap = new Map(users.map((user) => [user.id, user.display_name]));
   
-  return runs?.map(run => ({
+  return runs.map((run) => {
+    const userId = programOwnerMap.get(run.program_id);
+    return {
     ...run,
-    userDisplayName: userMap.get(run.user_id) || run.user_id.slice(0, 8),
+    userDisplayName: userId ? userMap.get(userId) || userId.slice(0, 8) : "Unknown",
     duration: run.started_at 
       ? Math.floor((Date.now() - new Date(run.started_at).getTime()) / 1000)
       : 0,
-  })) || [];
+    };
+  });
 }
 
 function formatDuration(seconds: number): string {
@@ -157,7 +185,7 @@ export default async function ActiveRunsPage() {
                       {formatDuration(run.duration)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(run.started_at).toLocaleString()}
+                      {run.started_at ? new Date(run.started_at).toLocaleString() : "Not started"}
                     </td>
                   </tr>
                 ))}

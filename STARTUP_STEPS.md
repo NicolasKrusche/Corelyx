@@ -1,26 +1,25 @@
-# Start Web and Runtime Locally
+# Start Web And Runtime Locally
 
-This is the exact flow used to start:
-- Web app: `http://localhost:3000`
-- Runtime API: `http://127.0.0.1:8002`
+These steps assume the repository is at `C:\NexFlow`.
 
-## 1. Open terminal in the repo root
+## 1. Open The Repo
 
 ```powershell
-cd /d n:\ai
-pnpm --filter @flowos/web dev
+cd /d C:\NexFlow
 ```
 
-## 2. Start the web app (Next.js on port 3000)
+## 2. Start The Web App
 
-Run this in terminal window 1:
+Run in terminal 1:
 
 ```powershell
+cd /d C:\NexFlow
 pnpm --filter @flowos/web dev
 ```
 
 Expected output includes:
-- `Next.js ...`
+
+- `Next.js`
 - `Local: http://localhost:3000`
 - `Ready`
 
@@ -30,80 +29,28 @@ Quick check:
 Invoke-WebRequest http://localhost:3000 -UseBasicParsing | Select-Object StatusCode
 ```
 
-Expected: `200`
+Expected status: `200`.
 
-## 3. Start the runtime API (Uvicorn on port 8002)
+## 3. Start The Runtime API
 
-Run this in terminal window 2:
-
-```powershell
-cd /d n:\ai\apps\runtime
-venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002
-```
-
-Expected output includes:
-- `Application startup complete`
-- `Uvicorn running on http://127.0.0.1:8002`
-
-Quick check (from any terminal):
-
-```powershell
-Invoke-WebRequest http://127.0.0.1:8002/health -UseBasicParsing | Select-Object -ExpandProperty Content
-```
-
-Expected response:
-
-```json
-{"status":"ok"}
-```
-
-## 4. Keep both terminals open
-
-- Web and runtime stop when their terminal is closed.
-- To stop manually, press `Ctrl+C` in each terminal.
-
----
-
-## Laptop Startup Guide (`C:\NexFlow`)
-
-Use these steps when the repo is located at `C:\NexFlow`.
-
-### 1. Open terminal in repo root
-
-```powershell
-cd /d C:\NexFlow
-```
-
-### 2. Start web app (terminal 1)
-
-```powershell
-cd /d C:\NexFlow
-pnpm --filter @flowos/web dev
-```
-
-Quick check:
-
-```powershell
-Invoke-WebRequest http://localhost:3000 -UseBasicParsing | Select-Object StatusCode
-```
-
-Expected: `200`
-
-### 3. Start runtime API (terminal 2)
-
-If needed, activate the virtual environment first:
-
-```powershell
-cd /d C:\NexFlow
-(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& C:\NexFlow\.venv\Scripts\Activate.ps1)
-```
-
-Then start runtime:lol
+Run in terminal 2:
 
 ```powershell
 cd /d C:\NexFlow\apps\runtime
-..\..\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002
+venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002 --reload
 ```
+
+If the app-local runtime venv is not available but the repo-root venv is, use:
+
+```powershell
+cd /d C:\NexFlow\apps\runtime
+..\..\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002 --reload
+```
+
+Expected output includes:
+
+- `Application startup complete`
+- `Uvicorn running on http://127.0.0.1:8002`
 
 Quick check:
 
@@ -117,8 +64,13 @@ Expected response:
 {"status":"ok"}
 ```
 
-## Notes from this environment
+## 4. Keep Both Terminals Open
 
-- `apps/runtime/package.json` uses a cross-shell fallback in `dev` that can fail on Windows PowerShell.
-- Running runtime directly with `venv\Scripts\python.exe -m uvicorn ...` is the reliable path.
-- If `supabase start` is needed, Docker Desktop must be installed and running first.
+- Web and runtime stop when their terminal is closed.
+- Press `Ctrl+C` in each terminal to stop manually.
+
+## Notes
+
+- Local environment values live in `apps\web\.env.local` and `apps\runtime\.env`.
+- Local env files are ignored by git and must not contain placeholder production secrets.
+- Docker Desktop must be running before `supabase start`.

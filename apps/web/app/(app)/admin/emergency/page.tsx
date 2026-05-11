@@ -1,6 +1,4 @@
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { AlertTriangle, Power, Shield, AlertCircle } from "lucide-react";
 
 async function getCurrentStatus() {
@@ -17,24 +15,6 @@ async function updateFeatureFlag(key: string, value: boolean) {
   // In production, this would update via Vercel API or similar
   // For now, we'll just set the env var for the current process
   process.env[key] = value ? "true" : "false";
-  
-  // Log the action
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-      },
-    }
-  );
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  console.log(`[ADMIN] ${user?.email} updated ${key} to ${value}`);
   
   revalidatePath("/admin/emergency");
 }

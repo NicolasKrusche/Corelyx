@@ -1,81 +1,55 @@
-# FlowOS — Codex Instructions
+# Corelyx Codex Instructions
 
-> Visual Agentic Operating System: user describes automation → AI designs the graph → user tunes it visually → it runs itself.
+Corelyx lets users build AI workflows visually. The canonical workflow schema is the product contract: React Flow is the editor representation, and the runtime translates validated schemas into executable graph steps.
 
----
+## Monorepo Structure
 
-## Project Overview
+- `apps/web`: Next.js 15 App Router, API routes, Tailwind UI, connector OAuth, billing, triggers, and admin pages.
+- `apps/runtime`: Python FastAPI runtime for workflow execution.
+- `packages/schema`: Shared TypeScript schema types and Zod validators.
+- `packages/db`: Supabase client exports and generated database types.
+- `supabase/migrations`: Postgres schema, RLS, policies, and RPC functions.
 
-FlowOS lets users build AI agent pipelines visually. The canonical JSON schema is the heart of the product — React Flow and LangGraph are both just translation layers on top of it.
+The workspace package scope is still `@flowos/*`. Treat that as a technical package name, not the product name.
 
-**Monorepo structure:**
-- `apps/web` — Next.js 14 App Router + Tailwind (→ Vercel)
-- `apps/runtime` — Python FastAPI + LangGraph (→ Railway)
-- `packages/schema` — Canonical types + Zod validators (shared TS)
-- `packages/db` — Supabase client + generated types
+## Common Commands
 
-**Run dev:** `pnpm dev` (Turborepo runs all packages)
+```powershell
+pnpm --filter @flowos/schema type-check
+pnpm --filter @flowos/db type-check
+pnpm --filter @flowos/web type-check -- --incremental false
+pnpm --filter @flowos/web lint
+pnpm --filter @flowos/web test
+pnpm --filter @flowos/web build
+```
 
-For recurring troubleshooting and resolved bugs, see `common_issues.md` at the repo root.
+Runtime tests:
 
----
+```powershell
+cd apps\runtime
+venv\Scripts\python.exe -m pytest tests
+```
 
-## Tech Stack
+## Engineering Rules
 
-| Layer | Choice |
-|---|---|
-| Frontend | Next.js 14 App Router, Tailwind, shadcn/ui |
-| Visual editor | React Flow |
-| Runtime | LangGraph (Python, Railway) |
-| Auth + DB | Supabase (RLS, Vault, Realtime) |
-| Model routing | LiteLLM (self-hosted Railway) |
-| Triggers | Inngest |
-| Monorepo | pnpm + Turborepo |
+- Keep credentials server-side. Never return OAuth tokens, Vault secret IDs, or service-role data to frontend responses.
+- Do not log secrets or raw provider tokens.
+- Route all credential access through the established token/Vault helpers.
+- Validate request bodies and external webhook payloads before processing.
+- Keep schema translations tested when changing node, edge, trigger, or connector behavior.
+- Prefer focused fixes over broad rewrites.
+- Do not rename `@flowos/*` packages without a deliberate monorepo migration.
 
----
+## Genesis Prompt Sync
 
-## Security Rules (Non-Negotiable)
+When adding or changing connector operations under `apps/runtime/connectors`, check `apps/web/lib/genesis/prompt.ts` so Genesis can generate the correct operation names, input fields, and output fields.
 
-- Tokens are **never** returned to the frontend
-- Tokens are **never** logged — log scrubber middleware must redact OAuth token patterns
-- All credential access goes through `getValidToken()` only
-- `credential_ref` / `vault_secret_id` are **never** in any frontend-facing API response
-- All model calls go through the LiteLLM proxy — never directly from frontend
-- Connection deletion must purge from Vault, not just the DB row
+If an operation is internal-only, leave a short note in the implementation explaining why it is intentionally omitted from Genesis.
 
----
+## Security Expectations
 
-
-## Genesis Prompt Sync Rule
-
-Whenever you add or modify a connector operation (in `apps/runtime/connectors/`), always check `apps/web/lib/genesis/prompt.ts` and update it if needed so Genesis knows about the new operation. This applies to:
-
-- New operations added to `supported_operations`
-- Changed parameter names or semantics
-- New output fields that downstream nodes might reference
-
-If the operation is user-facing (Genesis could plausibly generate it), document it in the prompt. If it's purely internal, note why it was omitted.
-
----
-
-## Coding Standards
-
-- TypeScript strict mode everywhere — **no `any`**
-- All DB access through typed Supabase client with RLS enforced
-- No secrets in frontend env vars — backend only
-- All API routes validate and sanitize input before processing
-- All external API calls (models, connectors) go through server-side routes only
-- Every function that touches credentials must have a unit test
-- Translation functions (`toReactFlow`, `fromReactFlow`, `toLangGraph`) must have exhaustive tests covering every node type, edge type, and sentinel value
-- Supabase Realtime for all live updates — **no polling anywhere in the codebase**
-- React Flow editor dispatches actions only — never mutates schema directly
-
----
-
-## What NOT to Build (MVP Scope Guard)
-
-Do not implement any of the following — they are explicitly out of scope:
-
-- Native mobile app (PWA only)
-- White-label / embedding
-
+- Internal web-to-runtime calls must use the internal auth helpers and shared secrets.
+- Runtime callbacks to the web app must use scoped internal secrets.
+- Public webhook routes must verify provider signatures or configured webhook tokens.
+- Supabase service-role clients must stay in server-only code paths.
+- Local `.env` files are ignored and must not be committed.

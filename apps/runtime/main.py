@@ -136,7 +136,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler.shutdown(wait=False)
 
 
-app = FastAPI(title="FlowOS Runtime", lifespan=lifespan)
+app = FastAPI(title="Corelyx Runtime", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

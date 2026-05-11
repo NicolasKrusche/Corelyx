@@ -30,7 +30,7 @@ class BasecampConnector(IConnector):
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
-            "User-Agent": "FlowOS (support@flowos.app)",
+            "User-Agent": "Corelyx (support@corelyx.app)",
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
             account_id = params.get("account_id") or await self._get_account_id(client, headers)

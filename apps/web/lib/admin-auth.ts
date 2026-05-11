@@ -6,6 +6,10 @@
 
 import { createServiceClient } from "@/lib/api";
 
+type AdminProfileRow = {
+  is_admin: boolean | null;
+};
+
 /**
  * Check if a user is an admin.
  */
@@ -23,7 +27,8 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
     return false;
   }
   
-  return data.is_admin === true;
+  const profile = data as unknown as AdminProfileRow;
+  return profile.is_admin === true;
 }
 
 /**
