@@ -1,4 +1,4 @@
-// EU compliance pre-filter for Genesis — identifies relevant EU regulations
+// EU compliance pre-filter for Genesis. Identifies relevant EU regulations
 // before workflow generation so Genesis can design the schema accordingly.
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import { getProviderBaseURL } from "@/lib/genesis/request";
 import type { GenesisApiKeyRow } from "@/lib/genesis/request";
 
-// Prefer fast/cheap models for the compliance filter — output is small and
+// Prefer fast/cheap models for the compliance filter. Output is small and
 // latency matters more than raw capability here.
 const COMPLIANCE_FILTER_MODELS: Record<string, string> = {
   anthropic: "claude-haiku-4-5-20251001",
@@ -14,20 +14,28 @@ const COMPLIANCE_FILTER_MODELS: Record<string, string> = {
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-small-latest",
   openrouter: "meta-llama/llama-3.3-70b-instruct:free",
-  google: "gemini-1.5-flash",
 };
+
+export function pickEuComplianceFilterKey(
+  keyCandidates: GenesisApiKeyRow[]
+): GenesisApiKeyRow | null {
+  return (
+    keyCandidates.find((key) => key.provider in COMPLIANCE_FILTER_MODELS) ??
+    null
+  );
+}
 
 const EU_COMPLIANCE_FILTER_SYSTEM_PROMPT = `You are an EU regulatory compliance specialist. Analyze the described automation workflow and identify ONLY the EU regulations that directly and materially apply to it.
 
 Evaluate relevance from: GDPR, EU AI Act, NIS2 Directive, DORA (Digital Operational Resilience Act), ePrivacy Directive, Data Act, DSA (Digital Services Act), DGA (Data Governance Act), PSD2/PSD3, CSRD.
 
-OUTPUT FORMAT — return a concise bullet list where each bullet is:
-• [Regulation, article if applicable]: [Specific obligation this creates for this workflow]
+OUTPUT FORMAT - return a concise bullet list where each bullet is:
+- [Regulation, article if applicable]: [Specific obligation this creates for this workflow]
 
 RULES:
 - Only include regulations with a direct, practical impact on how this workflow must be designed or operated
 - Cite specific articles where applicable (e.g., GDPR Art. 6, Art. 13, Art. 17)
-- Do not explain regulations generally — state only the concrete obligation that applies here
+- Do not explain regulations generally; state only the concrete obligation that applies here
 - Do not include regulations that apply in theory but have no design consequence for this specific workflow
 - If no EU regulation directly applies, respond with exactly: NONE`;
 
@@ -38,15 +46,15 @@ function buildEuComplianceFilterMessage(description: string): string {
 /**
  * Runs the EU compliance pre-filter against the workflow description.
  * Returns a bullet list of relevant EU obligations, or null if none apply
- * or the call fails. Never throws — compliance filter is non-blocking.
+ * or the call fails. Never throws; compliance filter is non-blocking.
  */
 export async function runEuComplianceFilter(
   description: string,
   keyRow: GenesisApiKeyRow,
   apiKey: string
 ): Promise<string | null> {
-  const filterModel =
-    COMPLIANCE_FILTER_MODELS[keyRow.provider] ?? "gpt-4o-mini";
+  const filterModel = COMPLIANCE_FILTER_MODELS[keyRow.provider];
+  if (!filterModel) return null;
   const userMessage = buildEuComplianceFilterMessage(description);
 
   try {

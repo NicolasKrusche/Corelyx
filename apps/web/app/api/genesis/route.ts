@@ -10,7 +10,10 @@ import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
 import { buildGenesisSystemPrompt, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
-import { runEuComplianceFilter } from "@/lib/genesis/eu-compliance";
+import {
+  pickEuComplianceFilterKey,
+  runEuComplianceFilter,
+} from "@/lib/genesis/eu-compliance";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import {
   hasPiiRedactions,
@@ -329,13 +332,15 @@ export async function POST(request: Request) {
   // fast/cheap model. Non-blocking: failures are logged and generation continues.
   let euComplianceContext: string | null = null;
   try {
-    const filterKeyRow = keyCandidates[0]!;
-    const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
-    euComplianceContext = await runEuComplianceFilter(
-      sanitizedDescription.value,
-      filterKeyRow,
-      filterApiKey
-    );
+    const filterKeyRow = pickEuComplianceFilterKey(keyCandidates);
+    if (filterKeyRow) {
+      const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
+      euComplianceContext = await runEuComplianceFilter(
+        sanitizedDescription.value,
+        filterKeyRow,
+        filterApiKey
+      );
+    }
     if (euComplianceContext) {
       await logGenesis(
         "info",
