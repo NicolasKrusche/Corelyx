@@ -933,8 +933,9 @@ export default function ConnectionsPage() {
   );
 
   const normalizedProviderSearch = providerSearch.trim().toLowerCase();
+  const hasProviderSearch = normalizedProviderSearch.length > 0;
   const filteredAvailableProviders = useMemo(() => {
-    if (normalizedProviderSearch.length === 0) return null;
+    if (!hasProviderSearch) return [];
 
     return AVAILABLE_PROVIDERS.filter((provider) => {
       if (connectedProviders.has(provider.id)) return false;
@@ -949,7 +950,7 @@ export default function ConnectionsPage() {
         id.includes(normalizedProviderSearch)
       );
     });
-  }, [normalizedProviderSearch, connectedProviders]);
+  }, [hasProviderSearch, normalizedProviderSearch, connectedProviders]);
 
   const activeProvider = getProvider(activeProviderId);
   const activeProviderConnections = useMemo(
@@ -1544,12 +1545,12 @@ export default function ConnectionsPage() {
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px] sm:items-end">
           <div>
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
-              {providerSearch.trim().length > 0 ? "Search connectors" : "Available connectors"}
+              Search connectors
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {providerSearch.trim().length > 0
-                ? `Showing ${filteredAvailableProviders?.length ?? 0} result${filteredAvailableProviders?.length === 1 ? "" : "s"}.`
-                : "Browse connectors available to connect."}
+              {hasProviderSearch
+                ? `Showing ${filteredAvailableProviders.length} result${filteredAvailableProviders.length === 1 ? "" : "s"}.`
+                : "Type a connector name or feature to find an integration."}
             </p>
           </div>
 
@@ -1564,7 +1565,7 @@ export default function ConnectionsPage() {
                 className="pl-9"
               />
             </div>
-            {providerSearch.trim().length > 0 && (
+            {hasProviderSearch && (
               <Button size="sm" variant="outline" onClick={() => setProviderSearch("")}>Clear</Button>
             )}
           </div>
@@ -1606,8 +1607,16 @@ export default function ConnectionsPage() {
                 })}
               </div>
             ) : (
-              <div className="rounded-2xl border border-border/70 bg-card px-5 py-6 text-sm text-muted-foreground">
-                No connectors match your search. Try a different name or feature.
+              <div className="rounded-2xl border border-dashed border-border/70 bg-card/50 px-5 py-10 text-center">
+                <Search className="mx-auto h-5 w-5 text-muted-foreground/50" />
+                <p className="mt-3 text-sm font-medium text-foreground">
+                  {hasProviderSearch ? "No connectors match your search" : "Search to add a connector"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {hasProviderSearch
+                    ? "Try a different app name or feature."
+                    : "Available connectors stay hidden until you search by app name or capability."}
+                </p>
               </div>
             )}
           </div>

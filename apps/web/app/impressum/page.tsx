@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 import {
   LEGAL_LAST_UPDATED,
-  impressumMissingFields,
   legalIdentity,
 } from "@/lib/legal";
 
@@ -43,19 +42,6 @@ export default async function ImpressumPage() {
           </p>
         </div>
 
-        {impressumMissingFields.length > 0 ? (
-          <div className="mb-8 rounded-2xl border border-amber-300/60 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
-            <p className="font-semibold">
-              This environment is missing some public provider-identification
-              fields.
-            </p>
-            <p className="mt-2">
-              Before launching commercially, fill the missing server environment
-              values for: {impressumMissingFields.join(", ")}.
-            </p>
-          </div>
-        ) : null}
-
         <div className="space-y-6">
           <section className="rounded-2xl border border-border bg-card/60 p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
@@ -71,18 +57,16 @@ export default async function ImpressumPage() {
                 ) : null}
               </div>
 
-              <div>
-                <p className="font-semibold text-foreground">Address</p>
-                {legalIdentity.addressLines.length > 0 ? (
+              {legalIdentity.addressLines.length > 0 ? (
+                <div>
+                  <p className="font-semibold text-foreground">Address</p>
                   <div className="mt-1">
                     {legalIdentity.addressLines.map((line) => (
                       <p key={line}>{line}</p>
                     ))}
                   </div>
-                ) : (
-                  <p className="mt-1">Address not configured in this environment.</p>
-                )}
-              </div>
+                </div>
+              ) : null}
             </div>
           </section>
 
@@ -103,34 +87,28 @@ export default async function ImpressumPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-card/60 p-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-              Company register
-            </p>
-            <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              {legalIdentity.companyRegisterNo ? (
-                <>
-                  <p>Firmenbuchnummer: {legalIdentity.companyRegisterNo}</p>
-                  <p>Firmenbuchgericht: Handelsgericht Wien</p>
-                </>
-              ) : (
-                <p>Company register number not configured in this environment.</p>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-border bg-card/60 p-6">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-              VAT identification number
-            </p>
-            <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              <p>
-                {legalIdentity.vatId
-                  ? `USt-IdNr.: ${legalIdentity.vatId}`
-                  : "VAT ID / USt-IdNr. not configured in this environment."}
+          {legalIdentity.companyRegisterNo ? (
+            <section className="rounded-2xl border border-border bg-card/60 p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                Company register
               </p>
-            </div>
-          </section>
+              <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                <p>Firmenbuchnummer: {legalIdentity.companyRegisterNo}</p>
+                <p>Firmenbuchgericht: Handelsgericht Wien</p>
+              </div>
+            </section>
+          ) : null}
+
+          {legalIdentity.vatId ? (
+            <section className="rounded-2xl border border-border bg-card/60 p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                VAT identification number
+              </p>
+              <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                <p>USt-IdNr.: {legalIdentity.vatId}</p>
+              </div>
+            </section>
+          ) : null}
 
           <section className="rounded-2xl border border-border bg-card/60 p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">

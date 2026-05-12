@@ -335,10 +335,9 @@ export default async function PrivacyPage() {
                   regions configured in those third-party accounts.
                 </p>
                 <p>
-                  From the repository alone we cannot verify every live account
-                  setting. In particular, the active Supabase, Vercel, Railway,
-                  Inngest, and model-provider regional settings still need to be
-                  checked in their respective dashboards.
+                  The exact transfer path depends on the services you enable,
+                  the provider contracts in place, and the regions configured in
+                  those third-party accounts.
                 </p>
               </div>
               <div className="mt-8 border-t border-border/30" />
