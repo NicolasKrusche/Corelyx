@@ -4,7 +4,7 @@ import { LegalPageHeader } from "@/components/legal-page-header";
 
 export const metadata: Metadata = {
   title: "Data Processing Agreement - Corelyx",
-  description: "Corelyx Data Processing Agreement template for business customers.",
+  description: "Corelyx Data Processing Agreement for business customers.",
 };
 
 const LAST_UPDATED = "April 2026";
@@ -101,15 +101,8 @@ export default async function DpaPage() {
             Data Processing Agreement
           </h1>
           <p className="mt-4 text-sm text-muted-foreground">
-            Draft template for business customers. Last updated: {LAST_UPDATED}.
+            For business customers. Last updated: {LAST_UPDATED}.
           </p>
-          <div className="mt-6 rounded-2xl border border-border bg-card/60 p-5 text-sm leading-relaxed text-muted-foreground">
-            This page is provided so customers can review the intended Article 28 GDPR terms. It still requires qualified Austrian/EU legal review before signature or commercial reliance. For a signed copy, contact{" "}
-            <a href="mailto:legal@corelyx.app" className="text-primary hover:underline">
-              legal@corelyx.app
-            </a>
-            .
-          </div>
         </div>
 
         <div className="space-y-5">

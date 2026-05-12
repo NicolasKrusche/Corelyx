@@ -30,15 +30,6 @@ export const legalIdentity = {
 export const privacyContactEmail =
   readEnv("PRIVACY_EMAIL") || "privacy@corelyx.app";
 
-export const impressumMissingFields = [
-  !readEnv("LEGAL_ENTITY_NAME") ? "legal entity name" : null,
-  !readEnv("LEGAL_ADDRESS_LINE_1") ? "street address" : null,
-  !postalCityLine ? "postal code and city" : null,
-  !readEnv("LEGAL_COUNTRY") ? "country" : null,
-  !readEnv("LEGAL_VAT_ID") ? "VAT ID / USt-IdNr." : null,
-  !readEnv("LEGAL_COMPANY_REGISTER_NO") ? "company register number (Firmenbuchnummer)" : null,
-].filter((value): value is string => Boolean(value));
-
 export interface ProcessorEntry {
   name: string;
   role: string;
@@ -115,7 +106,7 @@ export const coreServiceProviders: ProcessorEntry[] = [
       "Art. 6(1)(b) GDPR for product operation; Art. 6(1)(f) GDPR for security, backups, and reliability.",
     dataLocation: readEnv("SUPABASE_REGION")
       ? `Project deployed in the ${readEnv("SUPABASE_REGION")} Supabase region. Supabase offers EU regions including Frankfurt (eu-central-1) and multiple non-EU AWS regions.`
-      : "Project region chosen in Supabase. The configured region for the current project has not been documented in this environment. Supabase offers EU regions including Frankfurt (eu-central-1) and multiple non-EU AWS regions. Set the SUPABASE_REGION environment variable to document the confirmed region.",
+      : "Project region chosen in Supabase. Supabase offers EU regions including Frankfurt (eu-central-1) and multiple non-EU AWS regions.",
     transferNotes:
       "If the project or any subprocessors are outside the EEA, UK, or Switzerland, third-country transfer safeguards such as the Supabase DPA and SCCs should be in place.",
   },
@@ -130,7 +121,7 @@ export const coreServiceProviders: ProcessorEntry[] = [
     legalBasis:
       "Art. 6(1)(b) GDPR for hosting and delivery; Art. 6(1)(f) GDPR for security and uptime.",
     dataLocation:
-      "Global CDN plus region-based compute. Vercel documents 20 compute-capable regions, and Functions default to iad1 (Washington, D.C., USA) unless configured otherwise. The exact production region is not verifiable from this repository.",
+      "Global CDN plus region-based compute. Vercel documents multiple compute-capable regions, and Functions default to iad1 (Washington, D.C., USA) unless configured otherwise.",
     transferNotes:
       "Expect international transfers unless you intentionally keep all relevant compute and storage in-region. Use the Vercel DPA and transfer addenda where required.",
   },
@@ -145,7 +136,7 @@ export const coreServiceProviders: ProcessorEntry[] = [
     legalBasis:
       "Art. 6(1)(b) GDPR for workflow execution; Art. 6(1)(f) GDPR for reliability and debugging.",
     dataLocation:
-      "Selected Railway service region. Railway currently documents US West, US East, EU West (Amsterdam), and Singapore regions, but the active deployment region is not verifiable from this repository.",
+      "Selected Railway service region. Railway currently documents US West, US East, EU West (Amsterdam), and Singapore regions.",
     transferNotes:
       "If the runtime is deployed outside the EEA, UK, or Switzerland, appropriate transfer safeguards must cover that deployment.",
   },
@@ -160,7 +151,7 @@ export const coreServiceProviders: ProcessorEntry[] = [
     legalBasis:
       "Art. 6(1)(b) GDPR for workflow orchestration; Art. 6(1)(f) GDPR for resilience and monitoring.",
     dataLocation:
-      "Provider-managed cloud location. The exact processing or storage region for the configured Inngest project is not verifiable from this repository.",
+      "Provider-managed cloud location based on the configured Inngest project.",
     transferNotes:
       "Treat Inngest as a third-country transfer risk until the configured region and contractual safeguards are confirmed in the Inngest account.",
   },
@@ -209,7 +200,7 @@ export const connectedServices: ProcessorEntry[] = [
     legalBasis:
       "Art. 6(1)(b) GDPR because the processing is required to provide the login or automation flow you requested.",
     dataLocation:
-      "Provider-managed. Corelyx cannot verify or force a single Google processing region from this repository; actual location depends on your Google account, workspace settings, and Google's infrastructure.",
+      "Provider-managed. Processing location depends on your Google account, workspace settings, and Google's infrastructure.",
     transferNotes:
       "Google may process data globally. Check your Google Workspace or Google Cloud terms if you require regional controls.",
   },
@@ -223,7 +214,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Workspace identifiers, channel metadata, message content, and any payload you instruct Corelyx to send or read.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual storage and processing depend on the connected Slack workspace and Slack's infrastructure.",
+      "Provider-managed. Storage and processing depend on the connected Slack workspace and Slack's infrastructure.",
     transferNotes:
       "Treat Slack as a separate recipient or service provider selected by you; review the Slack workspace's own data residency settings if required.",
   },
@@ -237,7 +228,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Workspace metadata, page content, database rows, titles, rich text, and other objects in the shared Notion workspace.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual location depends on the connected Notion workspace and Notion's infrastructure.",
+      "Provider-managed. Processing location depends on the connected Notion workspace and Notion's infrastructure.",
     transferNotes:
       "If Notion data contains third-party personal data, you remain responsible for having an appropriate legal basis to send it.",
   },
@@ -251,7 +242,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Repository metadata, issue or PR content, comments, code-adjacent metadata, and webhook payloads.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual location depends on the connected GitHub account or organization and GitHub's infrastructure.",
+      "Provider-managed. Processing location depends on the connected GitHub account or organization and GitHub's infrastructure.",
     transferNotes:
       "GitHub is a separate service chosen by you. Review your GitHub organization settings and agreements if regional restrictions apply.",
   },
@@ -265,7 +256,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Base metadata, table schemas, records, fields, and webhook-related events.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual location depends on Airtable's infrastructure and any account-level residency features you have.",
+      "Provider-managed. Processing location depends on Airtable's infrastructure and any account-level residency features you have.",
     transferNotes:
       "Consider Airtable a separate recipient of the data you instruct Corelyx to send there.",
   },
@@ -279,7 +270,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Workspace identifiers, task content, assignee data, due dates, comments, and webhook events.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual location depends on Asana's infrastructure and the connected workspace.",
+      "Provider-managed. Processing location depends on Asana's infrastructure and the connected workspace.",
     transferNotes:
       "If you automate HR, project, or customer data through Asana, you remain responsible for ensuring the connected workspace is lawfully configured.",
   },
@@ -293,7 +284,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Contact records, emails, names, phone numbers, companies, CRM metadata, and webhook events.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual location depends on the connected HubSpot account and HubSpot's infrastructure.",
+      "Provider-managed. Processing location depends on the connected HubSpot account and HubSpot's infrastructure.",
     transferNotes:
       "CRM data often contains third-party personal data; ensure you have an appropriate basis before syncing or enriching it through Corelyx.",
   },
@@ -307,7 +298,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Mailbox metadata, message bodies, recipients, subject lines, attachments metadata, and related Microsoft account information.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual location depends on the connected Microsoft tenant and Microsoft's infrastructure.",
+      "Provider-managed. Processing location depends on the connected Microsoft tenant and Microsoft's infrastructure.",
     transferNotes:
       "Regional controls, if any, are determined by your Microsoft tenant rather than Corelyx.",
   },
@@ -321,7 +312,7 @@ export const connectedServices: ProcessorEntry[] = [
       "Form metadata, answer payloads, response identifiers, and any personal data collected in the connected form.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed and not verifiable from this repository. Actual location depends on Typeform's infrastructure and your account settings.",
+      "Provider-managed. Processing location depends on Typeform's infrastructure and your account settings.",
     transferNotes:
       "Form responses can be sensitive; only connect forms and fields you are authorized to process.",
   },
@@ -369,7 +360,7 @@ export const modelProviders: ProcessorEntry[] = [
       "Prompts, system instructions, selected workflow data, outputs, provider metadata, and logging metadata.",
     legalBasis: "Art. 6(1)(b) GDPR.",
     dataLocation:
-      "Provider-managed. OpenRouter documents enterprise-only EU in-region routing via eu.openrouter.ai, but that configuration is not verifiable from this repository.",
+      "Provider-managed. OpenRouter documents enterprise-only EU in-region routing via eu.openrouter.ai.",
     transferNotes:
       "OpenRouter can forward data to additional downstream model providers. You must review both OpenRouter's terms and the downstream provider policy for the model actually used.",
     notes:
