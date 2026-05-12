@@ -6,6 +6,7 @@ import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { findPremadeBrowseProgram } from "@/lib/browse-programs";
 import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
+import { ensureUserProvisioned } from "@/lib/auth/provisioning";
 
 /**
  * POST /api/browse/[id]/fork
@@ -24,6 +25,12 @@ export async function POST(
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  try {
+    await ensureUserProvisioned(user);
+  } catch {
+    return apiError("Workspace could not be prepared.", 500);
+  }
 
   const ws = await getActiveWorkspace(user.id);
   if (!ws) return apiError("No active workspace", 400);

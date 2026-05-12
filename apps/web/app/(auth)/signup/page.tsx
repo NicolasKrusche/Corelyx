@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { authCallbackUrl, completePostLoginSetup } from "@/lib/auth/client";
 import { Loader2 } from "lucide-react";
 import { AuthVisualPanel } from "@/components/ui/auth-visual-panel";
 
@@ -21,7 +22,7 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: authCallbackUrl() },
     });
     if (error) {
       setError(error.message);
@@ -29,9 +30,17 @@ export default function SignupPage() {
     } else {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (!signInError) {
+        try {
+          await completePostLoginSetup();
+        } catch {
+          setError("Account created, but setup could not finish. Please try signing in again.");
+          setLoading(false);
+          return;
+        }
         window.location.href = "/dashboard";
       } else {
         setDone(true);
+        setLoading(false);
       }
     }
   }
@@ -39,14 +48,21 @@ export default function SignupPage() {
   async function handleGoogleSignup() {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: authCallbackUrl(), skipBrowserRedirect: true },
     });
     if (error) {
       setError(error.message);
       setLoading(false);
+      return;
     }
+    if (!data.url) {
+      setError("Google sign-up could not be started. Please try again.");
+      setLoading(false);
+      return;
+    }
+    window.location.assign(data.url);
   }
 
   if (done) {
@@ -104,6 +120,7 @@ export default function SignupPage() {
             </h1>
 
             <button
+              type="button"
               onClick={handleGoogleSignup}
               disabled={loading}
               className="mb-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"

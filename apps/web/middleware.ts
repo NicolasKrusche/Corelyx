@@ -10,6 +10,7 @@ const PUBLIC_ROUTES = [
   "/signup",
   "/forgot-password",
   "/auth/callback",
+  "/api/auth/post-login",
   "/api/connections/oauth/github/callback",
   "/api/connections/oauth/airtable/callback",
   "/api/browse",

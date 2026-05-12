@@ -5,17 +5,18 @@ import { motion, useInView, type Variants } from "framer-motion";
 import { useRef } from "react";
 import {
   ArrowRight,
+  Building2,
   Cable,
   Check,
   CirclePlay,
   Eye,
   FileText,
+  GitBranch,
   KeyRound,
   LockKeyhole,
   Radio,
   ShieldCheck,
   Users,
-  Building2,
 } from "lucide-react";
 
 const INTEGRATIONS = [
@@ -41,42 +42,42 @@ const OPERATING_POINTS = [
 
 const WORKFLOW_STEPS = [
   {
-    label: "Describe",
-    title: "Write the outcome",
-    body: "Start with a plain-language request. Corelyx turns intent into triggers, agent steps, connector calls, and GDPR-compliant data flows — generated entirely within EU infrastructure.",
+    label: "Define",
+    title: "Describe the operational outcome",
+    body: "Start from a plain-language request, a blank graph, or an existing workflow pattern. Corelyx turns the work into validated triggers, branches, connector calls, and approval points.",
   },
   {
-    label: "Shape",
-    title: "Inspect before you run",
-    body: "Review the generated graph in a real editor. Move nodes, add human approval gates, verify the execution path. You define it. You approve it. You own it.",
+    label: "Review",
+    title: "Inspect the graph before it runs",
+    body: "Operators can see where data moves, which systems are called, and which steps require a human decision. The visual graph stays tied to the executable schema.",
   },
   {
-    label: "Run",
-    title: "Operate with a paper trail",
-    body: "Launch manually, schedule work, or react to events. Every run produces an automatic Article 30 processing record and can pause for human review at any step.",
+    label: "Operate",
+    title: "Run with a traceable record",
+    body: "Launch manually, schedule work, or respond to events. Each run keeps node status, outputs, failures, approvals, and compliance context in one place.",
   },
 ];
 
 const CONTROL_FEATURES = [
   {
-    icon: ShieldCheck,
-    title: "Human oversight — EU AI Act compliant",
-    body: "Pause sensitive actions before they touch customer data or external systems. Every approval gate satisfies mandatory human oversight requirements under the EU AI Act.",
+    icon: Users,
+    title: "Approval queues",
+    body: "Route sensitive actions to the right person before customer data is changed, messages are sent, or external systems are updated.",
   },
   {
-    icon: LockKeyhole,
-    title: "Credentials never leave EU jurisdiction",
-    body: "OAuth tokens and API keys are stored in Vault and resolved within Austrian/Frankfurt infrastructure. Zero transatlantic data transfers — not subject to the US CLOUD Act.",
+    icon: KeyRound,
+    title: "Credential boundary",
+    body: "OAuth tokens and API keys are resolved through server-side helpers and Vault paths. Secrets are never returned to frontend responses.",
   },
   {
     icon: Radio,
-    title: "Event-aware automations",
-    body: "Trigger from webhooks, cron schedules, provider events, manual starts, and program-to-program outputs — all logged, all auditable.",
+    title: "Runtime visibility",
+    body: "Follow each step through queued, running, completed, skipped, and failed states with enough context to debug the workflow later.",
   },
   {
     icon: Eye,
-    title: "Full audit trail for regulatory review",
-    body: "Inspect node status, payloads, failures, and skipped paths. Every run leaves a court-admissible log you can hand to a DPO without calling a consultant.",
+    title: "Reviewable execution history",
+    body: "Inspect inputs, sanitized outputs, approvals, and connector outcomes without relying on scattered logs or manual screenshots.",
   },
 ];
 
@@ -84,27 +85,57 @@ const COMPLIANCE_CARDS = [
   {
     icon: FileText,
     tag: "GDPR Art. 30",
-    title: "Automatic processing records",
-    body: "Every workflow run generates a Record of Processing Activity. Article 30 compliance happens automatically — not as a spreadsheet exercise after the fact.",
+    title: "Processing records",
+    body: "Workflow runs can produce structured processing records, so teams can explain what data moved, why it moved, and which systems were involved.",
   },
   {
     icon: Users,
     tag: "EU AI Act",
-    title: "Human-in-the-loop gates",
-    body: "Built-in approval steps satisfy the EU AI Act's mandatory human oversight requirements. Deploy AI agents without legal exposure.",
+    title: "Human oversight",
+    body: "Approval gates make it possible to pause high-impact actions before execution and preserve the decision history for later review.",
   },
   {
     icon: Building2,
     tag: "Data residency",
-    title: "Infrastructure stays in Europe",
-    body: "Hosted in Austria and Frankfurt. Your data is never routed outside the EU — no transatlantic transfers, no US CLOUD Act exposure, no Privacy Shield uncertainty.",
+    title: "EU infrastructure focus",
+    body: "Runtime and credential paths are designed around EU-hosted infrastructure, with connector calls routed through controlled server-side paths.",
   },
   {
     icon: ShieldCheck,
     tag: "GDPR Art. 28",
-    title: "DPA included — one click",
-    body: "Your Data Processing Agreement is ready to sign from day one. No legal back-and-forth, no 6-week procurement cycle. Ship your automation and stay compliant.",
+    title: "Procurement material",
+    body: "DPA, subprocessor information, DPIA support, and data export documentation are available from the product rather than buried in sales cycles.",
   },
+];
+
+const GOVERNANCE_LINKS = [
+  {
+    href: "/dpa",
+    title: "Data Processing Agreement",
+    body: "Processor terms for procurement and privacy review.",
+  },
+  {
+    href: "/subprocessors",
+    title: "Subprocessor Registry",
+    body: "A public inventory of infrastructure, model, and connector providers.",
+  },
+  {
+    href: "/dpia-template",
+    title: "DPIA Template",
+    body: "A structured starting point for higher-risk automation assessments.",
+  },
+  {
+    href: "/data-export-schema",
+    title: "Data Export Schema",
+    body: "Machine-readable account and workflow export documentation.",
+  },
+];
+
+const TRUST_ITEMS = [
+  { label: "EU-hosted runtime", detail: "Austrian and Frankfurt infrastructure" },
+  { label: "Server-side credentials", detail: "Tokens never return to the browser" },
+  { label: "Human approval gates", detail: "Pause sensitive steps before execution" },
+  { label: "Run-level audit logs", detail: "Review status, payloads, and failures" },
 ];
 
 const fadeUp: Variants = {
@@ -314,15 +345,15 @@ function HeroScene() {
           </div>
 
           <div className="absolute left-8 top-20 h-[460px] w-[590px]">
+            <AnchoredDataLine x1={160} y1={46} x2={230} y2={38} dotDelay={0} />
+            <AnchoredDataLine x1={390} y1={38} x2={445} y2={116} dotDelay={0.5} />
+            <AnchoredDataLine x1={310} y1={76} x2={236} y2={230} dotDelay={1} />
+            <AnchoredDataLine x1={316} y1={268} x2={402} y2={348} dotDelay={1.5} />
             <SceneNode className="left-0 top-8" tone="green" title="Gmail trigger" subtitle="new inbound lead" floatDelay={0} />
             <SceneNode className="left-[230px] top-0" tone="orange" title="Classify intent" subtitle="model: fast" floatDelay={0.6} />
             <SceneNode className="left-[445px] top-[78px]" tone="blue" title="CRM update" subtitle="HubSpot contact" floatDelay={1.2} />
             <SceneNode className="left-[156px] top-[230px]" tone="pink" title="Approval gate" subtitle="Art. 22 review" floatDelay={1.8} />
             <SceneNode className="left-[402px] top-[310px]" tone="green" title="Slack summary" subtitle="#sales-ops" floatDelay={0.9} />
-            <DataLine className="left-[128px] top-[72px] w-[132px] rotate-[-12deg]" dotDelay={0} />
-            <DataLine className="left-[352px] top-[68px] w-[116px] rotate-[28deg]" dotDelay={0.5} />
-            <DataLine className="left-[250px] top-[196px] w-[142px] rotate-[33deg]" dotDelay={1.0} />
-            <DataLine className="left-[292px] top-[320px] w-[132px] rotate-[14deg]" dotDelay={1.5} />
           </div>
 
           <div className="absolute right-8 top-20 w-[270px] rounded-lg border border-white/10 bg-[#191716] p-4">
@@ -398,9 +429,10 @@ function SceneNode({
 
   return (
     <motion.div
-      className={`absolute w-40 rounded-lg border p-3 shadow-[0_18px_44px_rgba(0,0,0,0.32)] ${tones[tone]} ${className}`}
-      animate={{ y: [0, -7, 0] }}
-      transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: floatDelay }}
+      className={`absolute z-10 flex h-[76px] w-40 flex-col justify-center rounded-lg border p-3 shadow-[0_18px_44px_rgba(0,0,0,0.32)] ${tones[tone]} ${className}`}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: 0.15 + floatDelay * 0.08, ease: "easeOut" }}
     >
       <p className="text-sm font-semibold text-white">{title}</p>
       <p className="mt-1 text-xs opacity-80">{subtitle}</p>
@@ -408,9 +440,33 @@ function SceneNode({
   );
 }
 
-function DataLine({ className, dotDelay }: { className: string; dotDelay: number }) {
+function AnchoredDataLine({
+  x1,
+  y1,
+  x2,
+  y2,
+  dotDelay,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  dotDelay: number;
+}) {
+  const length = Math.hypot(x2 - x1, y2 - y1);
+  const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+
   return (
-    <div className={`absolute h-px bg-white/20 ${className}`}>
+    <div
+      className="absolute z-0 h-px bg-white/20"
+      style={{
+        left: x1,
+        top: y1,
+        width: length,
+        transform: `rotate(${angle}deg)`,
+        transformOrigin: "0 50%",
+      }}
+    >
       <motion.span
         className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#f05a28]"
         style={{ left: 0 }}
@@ -430,22 +486,14 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const TRUST_ITEMS = [
-  // eslint-disable-next-line @next/next/no-img-element
-  { flag: <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-4 w-auto" />, text: "Made in Austria" },
-  { flag: "🔒", text: "GDPR-native" },
-  { flag: "⚖️", text: "EU AI Act ready" },
-  { flag: "🚫", text: "No US data transfers" },
-];
-
 function TrustBar() {
   return (
     <section className="border-y border-white/10 bg-[#0d0d0c]">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-0 divide-x divide-white/10 sm:justify-between">
+      <div className="mx-auto grid max-w-7xl gap-y-6 px-4 py-6 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
         {TRUST_ITEMS.map((item) => (
-          <div key={item.text} className="flex items-center gap-2.5 px-6 py-4 text-sm text-[#c9c1b5]">
-            <span className="text-base leading-none">{item.flag}</span>
-            <span className="font-medium">{item.text}</span>
+          <div key={item.label} className="border-l border-white/10 pl-4">
+            <p className="text-sm font-semibold text-white">{item.label}</p>
+            <p className="mt-1 text-sm leading-6 text-[#a9a096]">{item.detail}</p>
           </div>
         ))}
       </div>
@@ -455,32 +503,32 @@ function TrustBar() {
 
 function WorkflowSection() {
   return (
-    <section id="workflow" className="bg-[#f3efe7] px-4 py-20 text-[#161412] sm:px-6 lg:px-8">
+    <section id="workflow" className="bg-[#f7f8fa] px-4 py-20 text-[#16181d] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
+        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
           <Reveal>
             <SectionKicker>Workflow</SectionKicker>
-            <h2 className="mt-4 max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
-              From plain-English request to a running, auditable workflow.
+            <h2 className="mt-4 max-w-xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+              A visual graph with operational guardrails.
             </h2>
           </Reveal>
           <Reveal i={1}>
-            <p className="max-w-2xl text-lg leading-8 text-[#5d554d]">
-              Corelyx is built around a visual execution graph — so operators can see what was generated, where data moves, which steps need approval, and what happened afterward. No black boxes, no opaque job queues.
+            <p className="max-w-2xl text-base leading-7 text-[#4f5863]">
+              Corelyx uses the visual editor as the planning surface and the validated workflow schema as the execution contract. Teams can review what was generated before trusting it in production.
             </p>
           </Reveal>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
+        <div className="mt-12 grid gap-8 md:grid-cols-3">
           {WORKFLOW_STEPS.map((step, index) => (
             <Reveal key={step.label} i={index}>
-              <article className="h-full rounded-lg border border-[#d8cfc2] bg-white p-6 transition-shadow hover:shadow-lg">
-                <div className="mb-12 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-[#f05a28]">{step.label}</span>
-                  <span className="font-mono text-sm text-[#8b8175]">{String(index + 1).padStart(2, "0")}</span>
+              <article className="relative border-t border-[#cfd6df] pt-5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-sm font-semibold text-[#b9441e]">{step.label}</span>
+                  <GitBranch className="h-4 w-4 text-[#8a94a3]" />
                 </div>
-                <h3 className="text-xl font-semibold">{step.title}</h3>
-                <p className="mt-4 leading-7 text-[#62594f]">{step.body}</p>
+                <h3 className="mt-6 text-lg font-semibold text-[#111317]">{step.title}</h3>
+                <p className="mt-3 leading-7 text-[#58606b]">{step.body}</p>
               </article>
             </Reveal>
           ))}
@@ -492,28 +540,30 @@ function WorkflowSection() {
 
 function ControlSection() {
   return (
-    <section id="control" className="bg-[#090909] px-4 py-20 text-white sm:px-6 lg:px-8">
+    <section id="control" className="bg-[#171a20] px-4 py-20 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
           <Reveal>
             <SectionKicker dark>Control Plane</SectionKicker>
-            <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
-              Built for operators who are accountable for what their agents do.
+            <h2 className="mt-4 max-w-xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+              Built for teams that are accountable for automation.
             </h2>
-            <p className="mt-6 leading-8 text-[#c9c1b5]">
-              Keep the fast parts fast. Put humans on the risky parts. Make every run legible for a regulator, a DPO, or your own post-mortem.
+            <p className="mt-6 max-w-xl leading-7 text-[#c7ced8]">
+              Corelyx keeps routine steps fast and sensitive steps reviewable, with enough evidence to understand what happened after the run.
             </p>
           </Reveal>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
             {CONTROL_FEATURES.map((feature, i) => {
               const Icon = feature.icon;
               return (
-                <Reveal key={feature.title} i={i * 0.5}>
-                  <article className="h-full rounded-lg border border-white/10 bg-white/[0.045] p-6 transition-colors hover:bg-white/[0.07]">
-                    <Icon className="h-5 w-5 text-[#f05a28]" />
-                    <h3 className="mt-6 text-lg font-semibold">{feature.title}</h3>
-                    <p className="mt-3 leading-7 text-[#bcb4aa]">{feature.body}</p>
+                <Reveal key={feature.title} i={i * 0.25}>
+                  <article className="border-t border-white/10 pt-5">
+                    <div className="flex items-center gap-3">
+                      <Icon className="h-5 w-5 text-[#f27a4a]" />
+                      <h3 className="text-base font-semibold">{feature.title}</h3>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-[#c7ced8]">{feature.body}</p>
                   </article>
                 </Reveal>
               );
@@ -527,37 +577,34 @@ function ControlSection() {
 
 function ComplianceSection() {
   return (
-    <section id="compliance" className="bg-[#f3efe7] px-4 py-20 text-[#161412] sm:px-6 lg:px-8">
+    <section id="compliance" className="bg-white px-4 py-20 text-[#16181d] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <Reveal>
-          <p className="mb-2 text-sm font-semibold italic text-[#8b7b6a]">Vertrauen durch Transparenz</p>
-          <SectionKicker>Compliance Without the Consultant</SectionKicker>
+          <SectionKicker>Governance</SectionKicker>
           <div className="mt-4 grid gap-6 lg:grid-cols-[0.9fr_1fr] lg:items-end">
-            <h2 className="max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
-              GDPR-compliant by architecture, not by checkbox.
+            <h2 className="max-w-xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+              Compliance material that stays close to the product.
             </h2>
-            <p className="max-w-2xl text-lg leading-8 text-[#5d554d]">
-              Zapier, Make, and n8n were built for speed in a US context. Corelyx was designed from day one for the EU&apos;s data sovereignty requirements — so your legal team doesn&apos;t have to audit every automation you ship.
+            <p className="max-w-2xl text-base leading-7 text-[#4f5863]">
+              Corelyx is designed for EU-facing workflow operations. The product supports DPA review, subprocessor visibility, DPIA preparation, data exports, and audit review without turning every workflow into a separate legal project.
             </p>
           </div>
         </Reveal>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 divide-y divide-[#dde2e8] border-y border-[#dde2e8]">
           {COMPLIANCE_CARDS.map((card, i) => {
             const Icon = card.icon;
             return (
-              <Reveal key={card.title} i={i * 0.15}>
-                <article className="flex h-full flex-col rounded-lg border border-[#d8cfc2] bg-white p-6 transition-shadow hover:shadow-lg">
-                  <div className="mb-4 flex items-start justify-between gap-2">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f3efe7] border border-[#d8cfc2]">
-                      <Icon className="h-5 w-5 text-[#f05a28]" />
+              <Reveal key={card.title} i={i * 0.12}>
+                <article className="grid gap-4 py-6 sm:grid-cols-[180px_1fr] sm:items-start lg:grid-cols-[180px_260px_1fr]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+                      <Icon className="h-5 w-5 text-[#b9441e]" />
                     </div>
-                    <span className="rounded-full border border-[#d8cfc2] bg-[#f9f6f1] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#8b7b6a]">
-                      {card.tag}
-                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[#58606b]">{card.tag}</span>
                   </div>
-                  <h3 className="text-base font-semibold leading-snug">{card.title}</h3>
-                  <p className="mt-3 flex-1 text-sm leading-6 text-[#62594f]">{card.body}</p>
+                  <h3 className="text-base font-semibold leading-snug text-[#111317]">{card.title}</h3>
+                  <p className="text-sm leading-6 text-[#58606b]">{card.body}</p>
                 </article>
               </Reveal>
             );
@@ -565,36 +612,38 @@ function ComplianceSection() {
         </div>
 
         <Reveal i={1}>
-          <div className="mt-10 flex flex-wrap items-center gap-4 rounded-lg border border-[#d8cfc2] bg-white px-6 py-5">
-            <div className="flex-1">
-              <p className="text-sm font-semibold">Zero data exposure — GDPR Article 32 compliant</p>
-              <p className="mt-0.5 text-sm text-[#62594f]">
-                API keys and OAuth tokens are never returned to the frontend. All credential access goes through <span className="font-mono text-xs bg-[#f3efe7] px-1.5 py-0.5 rounded">getValidToken()</span> — a server-side route within EU jurisdiction. Your data doesn&apos;t touch our margins.
-              </p>
-            </div>
-            <Link
-              href="/security"
-              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-[#151210] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2a2520]"
-            >
-              Read the security model
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+          <div className="mt-10 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+            {GOVERNANCE_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group border-t border-[#dde2e8] pt-4"
+              >
+                <p className="flex items-center justify-between gap-3 text-sm font-semibold text-[#111317]">
+                  {item.title}
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[#8a94a3] transition-transform group-hover:translate-x-0.5" />
+                </p>
+                <p className="mt-2 text-sm leading-6 text-[#58606b]">{item.body}</p>
+              </Link>
+            ))}
           </div>
         </Reveal>
 
         <Reveal i={1.2}>
-          <div className="mt-5 flex flex-wrap gap-3 text-sm">
-            <Link href="/dpa" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
-              Data Processing Agreement
-            </Link>
-            <Link href="/subprocessors" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
-              Subprocessor Registry
-            </Link>
-            <Link href="/dpia-template" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
-              DPIA Template
-            </Link>
-            <Link href="/data-export-schema" className="rounded-md border border-[#d8cfc2] bg-white px-4 py-2 font-semibold text-[#151210] transition-colors hover:bg-[#f9f6f1]">
-              Data Export Schema
+          <div className="mt-8 flex flex-wrap items-center gap-4 border-y border-[#dde2e8] py-5">
+            <LockKeyhole className="h-5 w-5 shrink-0 text-[#257b57]" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-[#111317]">Credential access stays server-side.</p>
+              <p className="mt-1 text-sm leading-6 text-[#58606b]">
+                Connector calls use the established token and Vault helpers, so secrets are not sent to browser clients.
+              </p>
+            </div>
+            <Link
+              href="/security"
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-[#111317] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2a2f36]"
+            >
+              Security model
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </Reveal>
@@ -605,20 +654,21 @@ function ComplianceSection() {
 
 function IntegrationsSection() {
   const doubled = [...INTEGRATIONS, ...INTEGRATIONS];
+
   return (
-    <section id="integrations" className="bg-[#151210] px-4 py-20 text-white sm:px-6 lg:px-8">
+    <section id="integrations" className="bg-[#f7f8fa] px-4 py-20 text-[#16181d] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
           <Reveal>
-            <SectionKicker dark>Integrations</SectionKicker>
-            <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-              Connect the tools your team already uses — without moving your data to the US.
+            <SectionKicker>Integrations</SectionKicker>
+            <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+              Connect common work tools through a controlled runtime.
             </h2>
           </Reveal>
           <Reveal i={1}>
             <Link
               href="/signup"
-              className="inline-flex h-11 w-max items-center gap-2 rounded-md border border-white/[0.14] px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              className="inline-flex h-11 w-max items-center gap-2 rounded-md bg-[#111317] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2a2f36]"
             >
               Connect tools
               <Cable className="h-4 w-4" />
@@ -626,24 +676,22 @@ function IntegrationsSection() {
           </Reveal>
         </div>
 
-        <div className="relative mt-12 overflow-hidden">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[#151210] to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[#151210] to-transparent" />
-          <div className="flex animate-marquee gap-3" style={{ width: "max-content" }}>
+        <div className="relative mt-12 overflow-hidden border-y border-[#dde2e8] py-5">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#f7f8fa] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#f7f8fa] to-transparent" />
+          <div className="flex animate-marquee items-center gap-8" style={{ width: "max-content" }}>
             {doubled.map((name, i) => (
-              <div
-                key={i}
-                className="rounded-lg border border-white/10 bg-[#0d0d0d] px-5 py-4 text-sm text-[#d8d0c6] whitespace-nowrap"
-              >
-                {name}
+              <div key={`${name}-${i}`} className="flex items-center gap-8 whitespace-nowrap">
+                <span className="text-base font-semibold text-[#313841]">{name}</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-[#c2cad4]" />
               </div>
             ))}
           </div>
         </div>
 
         <Reveal i={1}>
-          <p className="mt-8 text-sm text-[#7a7269]">
-            All connector calls are proxied server-side through EU infrastructure. Third-party API calls never originate from the user&apos;s browser.
+          <p className="mt-6 max-w-2xl text-sm leading-6 text-[#58606b]">
+            Connector requests run server-side. Browser clients receive the result they need, not the credential material used to fetch it.
           </p>
         </Reveal>
       </div>
@@ -653,38 +701,29 @@ function IntegrationsSection() {
 
 function FinalCta() {
   return (
-    <section className="bg-[#f3efe7] px-4 py-20 text-[#151210] sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_auto] lg:items-center">
+    <section className="bg-white px-4 py-16 text-[#16181d] sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 border-t border-[#dde2e8] pt-10 lg:grid-cols-[1fr_auto] lg:items-center">
         <Reveal>
           <SectionKicker>Get started</SectionKicker>
-          <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Ship your first GDPR-compliant automation this week.
+          <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+            Build one controlled workflow, then expand from there.
           </h2>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-[#62594f]">
-            Start with a small operational task, inspect the generated graph, add approval gates where needed. DPA ready to sign. No legal review required before you go live.
+          <p className="mt-4 max-w-2xl leading-7 text-[#58606b]">
+            Start with a recurring operational task, inspect the generated graph, and add approval steps where the workflow touches sensitive data or external systems.
           </p>
-          <div className="mt-6 flex flex-wrap gap-4 text-sm text-[#8b7b6a]">
-            <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#6abf8a]" /> Free to start</span>
-            <span className="flex items-center gap-1.5"><Check className="h-4 w-4 text-[#6abf8a]" /> DPA included</span>
-            <span className="flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-[#6abf8a]" /> Made in Austria{" "}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-4 w-auto" />
-            </span>
-          </div>
         </Reveal>
         <Reveal i={1}>
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
             <Link
               href="/signup"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#151210] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#2a2520]"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#e6531f] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#c94316]"
             >
               Create an account
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[#cfc4b6] px-5 text-sm font-semibold text-[#151210] transition-colors hover:bg-white"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[#cfd6df] bg-white px-5 text-sm font-semibold text-[#111317] transition-colors hover:bg-[#eef2f6]"
             >
               View pricing
             </Link>
@@ -697,30 +736,30 @@ function FinalCta() {
 
 function SiteFooter() {
   return (
-    <footer className="border-t border-white/10 bg-[#090909] px-4 py-8 text-sm text-[#a9a096] sm:px-6 lg:px-8">
+    <footer className="border-t border-[#dde2e8] bg-white px-4 py-8 text-sm text-[#58606b] sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain opacity-80" />
-            <span>© {new Date().getFullYear()} Corelyx</span>
+            <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain" />
+            <span className="font-medium text-[#111317]">© {new Date().getFullYear()} Corelyx</span>
           </div>
-          <p className="text-xs text-[#6a6259]">
+          <p className="text-xs text-[#6b7480]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-3 w-auto mr-1" /> Made in Austria · Hosted in Frankfurt · GDPR-native infrastructure
+            <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-3 w-auto mr-1" /> Built in Austria. Hosted in the EU.
           </p>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
-          <Link href="/pricing" className="hover:text-white">Pricing</Link>
-          <Link href="/privacy" className="hover:text-white">Privacy</Link>
-          <Link href="/terms" className="hover:text-white">Terms</Link>
-          <Link href="/dpa" className="hover:text-white">DPA</Link>
-          <Link href="/subprocessors" className="hover:text-white">Subprocessors</Link>
-          <Link href="/security" className="hover:text-white">Security</Link>
-          <Link href="/dpia-template" className="hover:text-white">DPIA</Link>
-          <Link href="/data-export-schema" className="hover:text-white">Export schema</Link>
-          <Link href="/impressum" className="hover:text-white">Impressum</Link>
-          <Link href="/login" className="hover:text-white">Sign in</Link>
+          <Link href="/pricing" className="hover:text-[#111317]">Pricing</Link>
+          <Link href="/privacy" className="hover:text-[#111317]">Privacy</Link>
+          <Link href="/terms" className="hover:text-[#111317]">Terms</Link>
+          <Link href="/dpa" className="hover:text-[#111317]">DPA</Link>
+          <Link href="/subprocessors" className="hover:text-[#111317]">Subprocessors</Link>
+          <Link href="/security" className="hover:text-[#111317]">Security</Link>
+          <Link href="/dpia-template" className="hover:text-[#111317]">DPIA</Link>
+          <Link href="/data-export-schema" className="hover:text-[#111317]">Export schema</Link>
+          <Link href="/impressum" className="hover:text-[#111317]">Impressum</Link>
+          <Link href="/login" className="hover:text-[#111317]">Sign in</Link>
         </div>
       </div>
     </footer>
@@ -729,7 +768,7 @@ function SiteFooter() {
 
 function SectionKicker({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
   return (
-    <p className={`text-sm font-semibold uppercase tracking-wide ${dark ? "text-[#f05a28]" : "text-[#b9441e]"}`}>
+    <p className={`text-sm font-semibold uppercase tracking-wide ${dark ? "text-[#f27a4a]" : "text-[#b9441e]"}`}>
       {children}
     </p>
   );
