@@ -344,7 +344,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "group/side fixed left-0 top-0 z-40 flex h-full w-16 hover:w-56 flex-col overflow-hidden border-r transition-[width] duration-300 ease-out",
+        "group/side fixed left-0 top-0 z-40 flex h-full w-16 overflow-visible hover:w-56 flex-col border-r transition-[width] duration-300 ease-out",
         isDark ? "text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)]" : "text-gray-900",
         borderCls
       )}
@@ -376,7 +376,7 @@ export function Sidebar({
             type="button"
             aria-label="Active workspace"
             aria-expanded={workspaceMenuOpen}
-            disabled={switchingWorkspace || workspaces.length === 0}
+            disabled={switchingWorkspace}
             onClick={() => setWorkspaceMenuOpen((open) => !open)}
             className={cn(
               "flex h-10 w-full items-center overflow-hidden rounded-lg border text-sm shadow-sm transition-colors",
@@ -411,7 +411,18 @@ export function Sidebar({
                 Switch workspace
               </div>
               <div className="max-h-60 overflow-y-auto">
-                {workspaces.map((workspace) => {
+                {workspaces.length === 0 ? (
+                  <Link
+                    href="/workspaces"
+                    onClick={() => setWorkspaceMenuOpen(false)}
+                    className={cn(
+                      "flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                      isDark ? "text-blue-100/80 hover:bg-white/8 hover:text-white" : "text-gray-600 hover:bg-black/5 hover:text-gray-950"
+                    )}
+                  >
+                    Create a workspace
+                  </Link>
+                ) : workspaces.map((workspace) => {
                   const selected = workspace.id === activeWorkspaceId;
                   return (
                     <button

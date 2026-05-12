@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { authCallbackUrl } from "@/lib/auth/client";
 
 export default function ForgotPasswordPage() {
   const supabase = createBrowserClient();
@@ -16,7 +17,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/update-password`,
+      redirectTo: authCallbackUrl("/update-password"),
     });
     if (error) {
       setError(error.message);

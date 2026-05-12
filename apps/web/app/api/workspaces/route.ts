@@ -4,6 +4,7 @@ import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { canManageWorkspace, type WorkspaceRole } from "@/lib/workspaces";
 import { checkWorkspaceLimit } from "@/lib/limits";
+import { ensureUserProvisioned } from "@/lib/auth/provisioning";
 
 const CreateWorkspaceSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -111,6 +112,12 @@ export async function GET() {
   if (!user) return apiError("Unauthorized", 401);
 
   const service = createServiceClient() as LooseServiceClient;
+  try {
+    await ensureUserProvisioned(user);
+  } catch {
+    return apiError("Workspace could not be prepared.", 500);
+  }
+
   await acceptPendingInvitations(service, user.id, user.email);
 
   const [membershipsRes, profileRes] = await Promise.all([
@@ -130,6 +137,17 @@ export async function GET() {
 
   const memberships = (membershipsRes.data ?? []) as MembershipRow[];
   const workspaceIds = memberships.map((membership) => membership.workspace_id);
+  let activeWorkspaceId = (profileRes.data as { org_id?: string | null } | null)?.org_id ?? null;
+
+  if (!activeWorkspaceId || !workspaceIds.includes(activeWorkspaceId)) {
+    activeWorkspaceId = workspaceIds[0] ?? null;
+    if (activeWorkspaceId) {
+      await service
+        .from("profiles")
+        .update({ org_id: activeWorkspaceId, updated_at: new Date().toISOString() } as never)
+        .eq("id", user.id);
+    }
+  }
 
   let workspaces: WorkspaceRow[] = [];
   let memberCounts = new Map<string, number>();
@@ -161,7 +179,7 @@ export async function GET() {
   );
 
   return NextResponse.json({
-    active_workspace_id: (profileRes.data as { org_id?: string | null } | null)?.org_id ?? null,
+    active_workspace_id: activeWorkspaceId,
     workspaces: workspaces.map((workspace) => ({
       ...workspace,
       role: membershipByWorkspace.get(workspace.id)?.role ?? "viewer",

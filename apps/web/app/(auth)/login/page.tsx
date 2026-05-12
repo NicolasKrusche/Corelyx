@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { authCallbackUrl, completePostLoginSetup } from "@/lib/auth/client";
 import { Loader2 } from "lucide-react";
 import { AuthVisualPanel } from "@/components/ui/auth-visual-panel";
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  account_setup_failed: "Sign-in worked, but account setup could not finish. Please try again.",
+  auth_callback_failed: "Google sign-in could not be completed. Please try again.",
+};
 
 export default function LoginPage() {
   const supabase = createBrowserClient();
@@ -12,6 +18,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (code) {
+      setError(AUTH_ERROR_MESSAGES[code] ?? "Sign-in could not be completed. Please try again.");
+    }
+  }, []);
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -22,6 +35,13 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
+      try {
+        await completePostLoginSetup();
+      } catch {
+        setError("Signed in, but account setup could not finish. Please try again.");
+        setLoading(false);
+        return;
+      }
       window.location.href = "/dashboard";
     }
   }
@@ -29,14 +49,21 @@ export default function LoginPage() {
   async function handleGoogleLogin() {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: authCallbackUrl(), skipBrowserRedirect: true },
     });
     if (error) {
       setError(error.message);
       setLoading(false);
+      return;
     }
+    if (!data.url) {
+      setError("Google sign-in could not be started. Please try again.");
+      setLoading(false);
+      return;
+    }
+    window.location.assign(data.url);
   }
 
   return (
@@ -56,6 +83,7 @@ export default function LoginPage() {
             </h1>
 
             <button
+              type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
               className="mb-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
