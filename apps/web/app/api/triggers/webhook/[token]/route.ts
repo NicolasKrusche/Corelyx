@@ -200,7 +200,7 @@ export async function POST(
   }
 
   // Dispatch to runtime
-  const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
+  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
   const triggerPayload = { trigger_id: trigger.id, webhook_payload: payload };
 
   try {

@@ -115,7 +115,7 @@ export async function POST(
     connections = (data ?? []) as ConnectionRow[];
   }
 
-  const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
+  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
 
   try {
     const runtimeBody = JSON.stringify({

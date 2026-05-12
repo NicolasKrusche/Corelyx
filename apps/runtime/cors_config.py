@@ -8,6 +8,7 @@ from internal_auth import INTERNAL_SERVICE_TOKEN_HEADER
 
 PRODUCTION_ENV_NAMES = ("NODE_ENV", "VERCEL_ENV", "APP_ENV", "RUNTIME_ENV")
 RUNTIME_CORS_ALLOWED_ORIGINS_ENV = "RUNTIME_CORS_ALLOWED_ORIGINS"
+PUBLIC_CORS_ORIGINS = ("https://corelyx.app", "https://www.corelyx.app")
 DEFAULT_DEV_CORS_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 CORS_ALLOWED_METHODS = ["GET", "POST"]
 CORS_ALLOWED_HEADERS = ["content-type", INTERNAL_SERVICE_TOKEN_HEADER]
@@ -72,9 +73,10 @@ def get_cors_allowed_origins(
                 raise RuntimeError(
                     f"{RUNTIME_CORS_ALLOWED_ORIGINS_ENV} contains invalid origin {origin!r}: {exc}"
                 ) from exc
+        origins.extend(PUBLIC_CORS_ORIGINS)
         return _unique(origins)
 
-    origins = []
+    origins = list(PUBLIC_CORS_ORIGINS)
     for name in ("NEXT_PUBLIC_APP_URL", "NEXTJS_INTERNAL_URL"):
         value = _env_value(values, name)
         if not value:

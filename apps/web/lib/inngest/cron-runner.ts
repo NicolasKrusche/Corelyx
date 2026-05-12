@@ -35,7 +35,7 @@ export const cronRunner = inngest.createFunction(
     if (due.length === 0) return { fired: 0 };
 
     // ── 2. For each due trigger, dispatch a run ────────────────────────────
-    const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
+    const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
 
     let fired = 0;
 

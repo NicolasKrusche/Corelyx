@@ -96,7 +96,7 @@ export async function POST(
       );
 
       if (matching.length > 0) {
-        const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
+        const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
 
         for (const trigger of matching) {
           // Fetch downstream program schema
