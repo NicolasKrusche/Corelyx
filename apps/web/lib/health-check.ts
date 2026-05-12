@@ -84,7 +84,7 @@ async function checkSupabaseRealtime(): Promise<HealthCheckResult> {
 
 async function checkRuntime(): Promise<HealthCheckResult> {
   const start = Date.now();
-  const runtimeUrl = process.env.RUNTIME_INTERNAL_URL || "http://localhost:8000";
+  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
   
   try {
     const controller = new AbortController();

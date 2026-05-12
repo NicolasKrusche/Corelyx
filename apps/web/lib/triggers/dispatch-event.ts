@@ -92,7 +92,7 @@ export async function dispatchEventTriggers(
     );
   }
 
-  const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
+  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
   const runIds: string[] = [];
 
   await Promise.all(

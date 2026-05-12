@@ -134,7 +134,7 @@ export async function POST(request: Request) {
   const run = runRaw as unknown as { id: string };
 
   // Dispatch to Python runtime — if it rejects or is unreachable, fail the run immediately
-  const runtimeUrl = process.env.RUNTIME_URL ?? "http://localhost:8000";
+  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
 
   const markFailed = (msg: string) =>
     serviceClient
