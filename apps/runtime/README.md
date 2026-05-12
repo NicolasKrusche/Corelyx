@@ -22,3 +22,12 @@ venv\Scripts\python.exe -m pytest tests
 ```
 
 See `.env.example` for required runtime secrets and callback URLs.
+
+## Railway Deployment
+
+Create a Railway service from this repo with the root directory set to
+`apps/runtime`. The included `railway.json` tells Railway to install Python
+dependencies with Poetry and start the FastAPI app on Railway's `$PORT`.
+
+Set the production environment variables from `.env.example`, then point the
+web app's `RUNTIME_URL` and `RUNTIME_INTERNAL_URL` to the Railway service URL.
