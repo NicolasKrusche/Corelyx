@@ -5,7 +5,9 @@ import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import {
   buildRuntimeExecuteHeaders,
+  formatRuntimeRejection,
   isRuntimeDispatchConfigError,
+  readRuntimeRejectionDetails,
 } from "@/lib/runtime-dispatch";
 import { getProcessingRestriction } from "@/lib/compliance";
 
@@ -198,9 +200,10 @@ export async function POST(
               cache: "no-store",
             });
             if (!runtimeRes.ok) {
+              const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
               await db
                 .from("runs")
-                .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() } as never)
+                .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
                 .eq("id", runId);
               continue;
             }

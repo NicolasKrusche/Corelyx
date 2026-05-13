@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import {
   buildRuntimeExecuteHeaders,
+  formatRuntimeRejection,
+  readRuntimeRejectionDetails,
   runtimeDispatchConfigError,
 } from "@/lib/runtime-dispatch";
 import { getRuntimeUrl } from "@/lib/runtime-url";
@@ -138,11 +140,8 @@ export async function POST(
       cache: "no-store",
     });
     if (!runtimeRes.ok) {
-      const body = await runtimeRes.text().catch(() => "");
-      return apiError(
-        `Runtime rejected re-dispatch (${runtimeRes.status})${body ? `: ${body.slice(0, 200)}` : ""}`,
-        502
-      );
+      const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
+      return apiError(formatRuntimeRejection(runtimeError), 502);
     }
   } catch (e) {
     const configError = runtimeDispatchConfigError(e);

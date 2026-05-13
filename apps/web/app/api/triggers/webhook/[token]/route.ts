@@ -4,6 +4,8 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import {
   buildRuntimeExecuteHeaders,
+  formatRuntimeRejection,
+  readRuntimeRejectionDetails,
   runtimeDispatchConfigError,
 } from "@/lib/runtime-dispatch";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
@@ -225,11 +227,19 @@ export async function POST(
       cache: "no-store",
     });
     if (!runtimeRes.ok) {
+      const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
       await db
         .from("runs")
-        .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() } as never)
+        .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
         .eq("id", run.id);
-      return NextResponse.json({ error: "Runtime failed to accept the run" }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: "Runtime failed to accept the run",
+          runtime_status: runtimeError.status,
+          message: runtimeError.detail,
+        },
+        { status: 502 }
+      );
     }
   } catch (error) {
     const configError = runtimeDispatchConfigError(error);
