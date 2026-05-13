@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { CookieNotice } from "@/components/consent-banner";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -75,6 +76,7 @@ export default async function RootLayout({
           <LanguagePrompt />
           <CookieNotice />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
