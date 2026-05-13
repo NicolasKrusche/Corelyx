@@ -75,7 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         initialAvatarUrl={profile?.avatar_url ?? ""}
         isOAuthUser={isOAuthUser}
       />
-      <main className="relative ml-16 min-h-screen px-6 py-6 lg:px-8 lg:py-8">
+      <main className="relative ml-0 min-h-screen px-6 py-14 lg:ml-16 lg:px-8 lg:py-8">
         <div className="app-bg-gradient pointer-events-none fixed inset-0 -z-10 bg-background" />
         <div className="mx-auto w-full max-w-[1180px]">
           <WelcomeOfferBanner
