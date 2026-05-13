@@ -13,8 +13,7 @@ export async function GET(request: Request) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = createServiceClient() as any;
+  const db = createServiceClient();
   const sinceParam = new URL(request.url).searchParams.get("since");
   const since = sinceParam
     ? new Date(parseInt(sinceParam, 10)).toISOString()
