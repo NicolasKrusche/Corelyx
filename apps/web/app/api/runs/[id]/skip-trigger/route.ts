@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { buildInternalServiceHeaders } from "@/lib/internal-auth";
+import {
+  buildRuntimeExecuteHeaders,
+  runtimeDispatchConfigError,
+} from "@/lib/runtime-dispatch";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import type { ProgramSchema } from "@flowos/schema";
@@ -127,15 +130,10 @@ export async function POST(
       triggered_by: "manual",
       connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
     });
+    const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
-      headers: buildInternalServiceHeaders("runtime:execute", {
-        "Content-Type": "application/json",
-      }, {
-        method: "POST",
-        path: "/execute",
-        body: runtimeBody,
-      }),
+      headers: runtimeHeaders,
       body: runtimeBody,
       cache: "no-store",
     });
@@ -147,6 +145,8 @@ export async function POST(
       );
     }
   } catch (e) {
+    const configError = runtimeDispatchConfigError(e);
+    if (configError) return configError;
     const msg = e instanceof Error ? e.message : "unknown error";
     return apiError(`Runtime is unreachable — is the runtime service running? (${msg})`, 503);
   }

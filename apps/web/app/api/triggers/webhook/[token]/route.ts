@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
-import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
+import {
+  buildRuntimeExecuteHeaders,
+  runtimeDispatchConfigError,
+} from "@/lib/runtime-dispatch";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
@@ -214,15 +217,10 @@ export async function POST(
       trigger_payload: triggerPayload,
       connections: connectionNameToId,
     });
+    const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
-      headers: buildInternalServiceHeaders("runtime:execute", {
-        "Content-Type": "application/json",
-      }, {
-        method: "POST",
-        path: "/execute",
-        body: runtimeBody,
-      }),
+      headers: runtimeHeaders,
       body: runtimeBody,
       cache: "no-store",
     });
@@ -233,7 +231,15 @@ export async function POST(
         .eq("id", run.id);
       return NextResponse.json({ error: "Runtime failed to accept the run" }, { status: 502 });
     }
-  } catch {
+  } catch (error) {
+    const configError = runtimeDispatchConfigError(error);
+    if (configError) {
+      await db
+        .from("runs")
+        .update({ status: "failed", error_message: "Runtime auth is not configured.", completed_at: new Date().toISOString() } as never)
+        .eq("id", run.id);
+      return configError;
+    }
     await db
       .from("runs")
       .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
