@@ -7,7 +7,9 @@ import { getProcessingRestriction } from "@/lib/compliance";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import {
   buildRuntimeExecuteHeaders,
+  formatRuntimeRejection,
   isRuntimeDispatchConfigError,
+  readRuntimeRejectionDetails,
 } from "@/lib/runtime-dispatch";
 
 /**
@@ -111,10 +113,11 @@ export const cronRunner = inngest.createFunction(
             cache: "no-store",
           });
           if (!runtimeRes.ok) {
-            logger.error(`Runtime rejected cron run ${runId} (${runtimeRes.status})`);
+            const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
+            logger.error(`Runtime rejected cron run ${runId} (${runtimeError.status}): ${runtimeError.detail}`);
             await db
               .from("runs")
-              .update({ status: "failed", error_message: `Runtime rejected execution (${runtimeRes.status})`, completed_at: new Date().toISOString() } as never)
+              .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
               .eq("id", runId);
             return;
           }

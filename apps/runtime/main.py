@@ -188,14 +188,29 @@ async def execute_program(
     ),
 ) -> dict[str, str]:
     raw_body = await request.body()
-    if not x_internal_service_token or not verify_internal_service_token(
-        x_internal_service_token,
-        "runtime:execute",
-        method=request.method,
-        path=request.url.path,
-        body=raw_body,
-    ):
+    if not x_internal_service_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        has_valid_token = verify_internal_service_token(
+            x_internal_service_token,
+            "runtime:execute",
+            method=request.method,
+            path=request.url.path,
+            body=raw_body,
+        )
+    except RuntimeError as exc:
+        if "INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE" in str(exc):
+            print(f"[runtime] Execute auth misconfigured: {exc}")
+            raise HTTPException(
+                status_code=500,
+                detail="Runtime auth is not configured",
+            )
+        raise
+
+    if not has_valid_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     try:
         body = ExecuteRequest.model_validate_json(raw_body)
     except Exception:

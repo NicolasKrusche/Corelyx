@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import {
   buildRuntimeExecuteHeaders,
+  formatRuntimeRejection,
+  readRuntimeRejectionDetails,
   runtimeDispatchConfigError,
 } from "@/lib/runtime-dispatch";
 import { createServerClient } from "@/lib/supabase/server";
@@ -163,9 +165,16 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
     if (!runtimeRes.ok) {
-      await markFailed(`Runtime rejected execution (${runtimeRes.status})`);
+      const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
+      await markFailed(formatRuntimeRejection(runtimeError));
       return NextResponse.json(
-        { run_id: run.id, status: "failed", error: "Runtime failed to accept the run" },
+        {
+          run_id: run.id,
+          status: "failed",
+          error: "Runtime failed to accept the run",
+          runtime_status: runtimeError.status,
+          message: runtimeError.detail,
+        },
         { status: 502 }
       );
     }

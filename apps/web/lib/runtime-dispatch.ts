@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 
+const MAX_RUNTIME_ERROR_DETAIL_LENGTH = 500;
+
+export type RuntimeRejectionDetails = {
+  status: number;
+  detail: string;
+};
+
 export function buildRuntimeExecuteHeaders(runtimeBody: string): Headers {
   return buildInternalServiceHeaders(
     "runtime:execute",
@@ -13,6 +20,43 @@ export function buildRuntimeExecuteHeaders(runtimeBody: string): Headers {
       body: runtimeBody,
     }
   );
+}
+
+export async function readRuntimeRejectionDetails(
+  response: Response
+): Promise<RuntimeRejectionDetails> {
+  const text = await response.text().catch(() => "");
+  let detail = text.trim();
+
+  if (detail) {
+    try {
+      const parsed = JSON.parse(detail) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const body = parsed as Record<string, unknown>;
+        const candidate = body.detail ?? body.message ?? body.error;
+        if (typeof candidate === "string") {
+          detail = candidate;
+        } else if (candidate !== undefined) {
+          detail = JSON.stringify(candidate);
+        }
+      }
+    } catch {
+      // Keep the raw response text when the runtime does not return JSON.
+    }
+  }
+
+  if (!detail) {
+    detail = response.statusText || "Runtime rejected the request";
+  }
+
+  return {
+    status: response.status,
+    detail: detail.slice(0, MAX_RUNTIME_ERROR_DETAIL_LENGTH),
+  };
+}
+
+export function formatRuntimeRejection(details: RuntimeRejectionDetails): string {
+  return `Runtime rejected execution (${details.status}): ${details.detail}`;
 }
 
 export function isRuntimeDispatchConfigError(error: unknown): boolean {

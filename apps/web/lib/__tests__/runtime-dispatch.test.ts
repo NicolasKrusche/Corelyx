@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   buildRuntimeExecuteHeaders,
+  formatRuntimeRejection,
   isRuntimeDispatchConfigError,
+  readRuntimeRejectionDetails,
   runtimeDispatchConfigError,
 } from "../runtime-dispatch";
 import { INTERNAL_SERVICE_TOKEN_HEADER } from "../internal-auth";
@@ -69,5 +71,19 @@ describe("runtime dispatch", () => {
     await expect(response?.json()).resolves.toMatchObject({
       error: "Runtime auth is not configured",
     });
+  });
+
+  it("extracts runtime rejection details from JSON responses", async () => {
+    const details = await readRuntimeRejectionDetails(
+      new Response(JSON.stringify({ detail: "Unauthorized" }), {
+        status: 401,
+        statusText: "Unauthorized",
+      })
+    );
+
+    expect(details).toEqual({ status: 401, detail: "Unauthorized" });
+    expect(formatRuntimeRejection(details)).toBe(
+      "Runtime rejected execution (401): Unauthorized"
+    );
   });
 });
