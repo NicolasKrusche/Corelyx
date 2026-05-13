@@ -3,6 +3,7 @@
  */
 
 import { createServiceClient } from "@/lib/api";
+import { getRuntimeUrl } from "@/lib/runtime-url";
 
 export interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
@@ -84,7 +85,7 @@ async function checkSupabaseRealtime(): Promise<HealthCheckResult> {
 
 async function checkRuntime(): Promise<HealthCheckResult> {
   const start = Date.now();
-  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
+  const runtimeUrl = getRuntimeUrl();
   
   try {
     const controller = new AbortController();
@@ -92,6 +93,7 @@ async function checkRuntime(): Promise<HealthCheckResult> {
     
     const response = await fetch(`${runtimeUrl}/health`, {
       signal: controller.signal,
+      cache: "no-store",
     });
     
     clearTimeout(timeout);
@@ -104,6 +106,16 @@ async function checkRuntime(): Promise<HealthCheckResult> {
       };
     }
     
+    const payload = (await response.json().catch(() => null)) as { status?: unknown } | null;
+    if (payload?.status !== "ok") {
+      return {
+        status: "fail",
+        responseTimeMs: Date.now() - start,
+        message: "Runtime health response was not ok",
+        lastError: payload ? JSON.stringify(payload) : "Invalid JSON response",
+      };
+    }
+
     return {
       status: "pass",
       responseTimeMs: Date.now() - start,

@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
+import { getRuntimeUrl } from "@/lib/runtime-url";
 
 type JsonObject = Record<string, unknown>;
 
@@ -92,7 +93,7 @@ export async function dispatchEventTriggers(
     );
   }
 
-  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
+  const runtimeUrl = getRuntimeUrl();
   const runIds: string[] = [];
 
   await Promise.all(

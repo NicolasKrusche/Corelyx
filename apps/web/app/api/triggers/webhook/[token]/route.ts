@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
+import { getRuntimeUrl } from "@/lib/runtime-url";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
@@ -200,7 +201,7 @@ export async function POST(
   }
 
   // Dispatch to runtime
-  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
+  const runtimeUrl = getRuntimeUrl();
   const triggerPayload = { trigger_id: trigger.id, webhook_payload: payload };
 
   try {

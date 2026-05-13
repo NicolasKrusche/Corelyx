@@ -12,7 +12,9 @@ venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8002 --reloa
 Health check:
 
 ```powershell
-Invoke-WebRequest http://127.0.0.1:8002/health -UseBasicParsing | Select-Object -ExpandProperty Content
+$port = if ($env:PORT) { $env:PORT } else { "8002" }
+$runtimeUrl = "http://127.0.0.1:$port"
+Invoke-WebRequest "$runtimeUrl/health" -UseBasicParsing | Select-Object -ExpandProperty Content
 ```
 
 ## Tests
@@ -30,5 +32,6 @@ Create a Railway service from this repo with the root directory set to
 from `Dockerfile`; the image installs `requirements.txt` and starts FastAPI on
 Railway's `$PORT`, falling back to `8002` locally.
 
-Set the production environment variables from `.env.example`, then point the
-web app's `RUNTIME_URL` and `RUNTIME_INTERNAL_URL` to the Railway service URL.
+Set the production environment variables from `.env.example`, map
+`https://api.corelyx.app` to the Railway service, then set the web app's
+`NEXT_PUBLIC_RUNTIME_URL` to `https://api.corelyx.app`.
