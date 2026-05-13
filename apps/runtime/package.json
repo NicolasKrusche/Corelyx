@@ -1,9 +1,0 @@
-{
-  "name": "@flowos/runtime",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "python3 -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload",
-    "start": "poetry run uvicorn main:app --host 0.0.0.0 --port ${PORT:-8002}"
-  }
-}
