@@ -1196,9 +1196,10 @@ export function EditorShell({
       } | null;
 
       if (body?.run_id) {
+        const runError = body.message ?? body.error ?? "Runtime dispatch failed.";
         setValidationNotice(
           body.status === "failed"
-            ? `Run record created, but execution failed: ${body.error ?? "Runtime dispatch failed."}`
+            ? `Run record created, but execution failed: ${runError}`
             : "Run started."
         );
         setLastRunId(body.run_id);
@@ -1259,16 +1260,21 @@ export function EditorShell({
         setShowWebhookTest(false);
         router.push(`/programs/${programId}/runs/${run_id}`);
       } else {
-        const body = await res.json().catch(() => null) as { checks?: PreFlightCheck[]; error?: string } | null;
+        const body = await res.json().catch(() => null) as {
+          checks?: PreFlightCheck[];
+          error?: string;
+          message?: string;
+        } | null;
         setShowWebhookTest(false);
         if (body?.checks) {
           setPreFlightChecks(body.checks);
         } else {
+          const message = body?.message ?? body?.error ?? "Failed to start test run";
           setPreFlightChecks([{
             code: "PRE_001",
             label: "Error",
             status: "fail",
-            failures: [{ node_id: null, message: body?.error ?? "Failed to start test run", fix_suggestion: "" }],
+            failures: [{ node_id: null, message, fix_suggestion: "" }],
           }]);
         }
       }
