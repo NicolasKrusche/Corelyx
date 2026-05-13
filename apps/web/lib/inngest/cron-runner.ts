@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
+import { getRuntimeUrl } from "@/lib/runtime-url";
 
 /**
  * Inngest function: runs every minute, finds all active cron triggers that are
@@ -35,7 +36,7 @@ export const cronRunner = inngest.createFunction(
     if (due.length === 0) return { fired: 0 };
 
     // ── 2. For each due trigger, dispatch a run ────────────────────────────
-    const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
+    const runtimeUrl = getRuntimeUrl();
 
     let fired = 0;
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
+import { getRuntimeUrl } from "@/lib/runtime-url";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
@@ -115,7 +116,7 @@ export async function POST(
     connections = (data ?? []) as ConnectionRow[];
   }
 
-  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
+  const runtimeUrl = getRuntimeUrl();
 
   try {
     const runtimeBody = JSON.stringify({

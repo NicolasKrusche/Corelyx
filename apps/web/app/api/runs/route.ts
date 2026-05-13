@@ -6,6 +6,7 @@ import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { checkRunLimit, getRunHistoryDays } from "@/lib/limits";
 import { sendRunLimitWarningEmail } from "@/lib/email";
 import { ensureProcessingAllowed } from "@/lib/compliance";
+import { getRuntimeUrl } from "@/lib/runtime-url";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
   const run = runRaw as unknown as { id: string };
 
   // Dispatch to Python runtime — if it rejects or is unreachable, fail the run immediately
-  const runtimeUrl = process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8002";
+  const runtimeUrl = getRuntimeUrl();
 
   const markFailed = (msg: string) =>
     serviceClient
