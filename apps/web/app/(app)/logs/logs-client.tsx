@@ -402,35 +402,32 @@ export function LogsClient() {
 
     void load();
 
+    // Debounce so a burst of realtime events (e.g. many node_executions completing
+    // at once) coalesces into a single reload instead of many back-to-back fetches.
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    function scheduleLoad() {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { void load(); }, 400);
+    }
+
     const supabaseChannels = [
       supabase
         .channel("logs-runs")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "runs" },
-          () => { void load(); }
-        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "runs" }, scheduleLoad)
         .subscribe(),
       supabase
         .channel("logs-node-executions")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "node_executions" },
-          () => { void load(); }
-        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "node_executions" }, scheduleLoad)
         .subscribe(),
       supabase
         .channel("logs-app-logs")
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "app_logs" },
-          () => { void load(); }
-        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "app_logs" }, scheduleLoad)
         .subscribe(),
     ];
 
     return () => {
       cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabaseChannels.forEach((ch) => supabase.removeChannel(ch));
     };
   }, []);

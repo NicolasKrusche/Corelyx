@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
@@ -167,74 +167,56 @@ export function Sidebar({
   const genesisUsagePercent = genesisUsageTotal ? Math.min(100, Math.round(genesisUsageRatio * 100)) : 0;
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
 
+  type SidebarData = {
+    pendingApprovalsCount: number;
+    failedRunsCount: number;
+    activeWorkspaceId: string | null;
+    workspaces: SidebarWorkspace[];
+    usage: {
+      runs: { current: number; total: number | null };
+      genesis: { usesThisMonth: number; maxUses: number | null };
+    };
+  };
+
+  const fetchSidebarData = useCallback(async () => {
+    try {
+      const since = localStorage.getItem("runs_last_seen");
+      const url = since ? `/api/sidebar-data?since=${since}` : "/api/sidebar-data";
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = (await res.json()) as SidebarData;
+      setPendingApprovals(data.pendingApprovalsCount);
+      setFailedRuns(data.failedRunsCount);
+      setWorkspaces(data.workspaces);
+      setActiveWorkspaceId(data.activeWorkspaceId);
+      setRunUsageCurrent(data.usage.runs.current);
+      setRunUsageTotal(data.usage.runs.total);
+      setGenesisUsageCurrent(data.usage.genesis.usesThisMonth);
+      setGenesisUsageTotal(data.usage.genesis.maxUses);
+    } catch { /* keep existing values */ }
+  }, []);
+
+  // Single fetch on mount + realtime subscription scoped to this user's approvals
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchCount() {
-      try {
-        const res = await fetch("/api/approvals");
-        if (!res.ok) return;
-        const data = (await res.json()) as { approvals: unknown[] };
-        if (!cancelled) setPendingApprovals(data.approvals?.length ?? 0);
-      } catch { /* badge won't show */ }
-    }
-
-    void fetchCount();
-
+    void fetchSidebarData();
     const supabase = createBrowserClient();
     const channel = supabase
       .channel("sidebar-approvals")
-      .on("postgres_changes", { event: "*", schema: "public", table: "approvals" }, () => { void fetchCount(); })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "approvals", filter: `user_id=eq.${userId}` },
+        () => { void fetchSidebarData(); },
+      )
       .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchSidebarData, userId]);
 
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  // Clear failed-run badge locally when visiting /runs — no network call needed
   useEffect(() => {
-    let cancelled = false;
     if (pathname.startsWith("/runs")) {
       localStorage.setItem("runs_last_seen", Date.now().toString());
       setFailedRuns(0);
-      return;
     }
-    async function fetchFailed() {
-      try {
-        const lastSeen = localStorage.getItem("runs_last_seen");
-        const url = lastSeen ? `/api/runs/failed-count?since=${lastSeen}` : "/api/runs/failed-count";
-        const res = await fetch(url);
-        if (!res.ok) return;
-        const data = (await res.json()) as { count: number };
-        if (!cancelled) setFailedRuns(data.count ?? 0);
-      } catch { /* badge won't show */ }
-    }
-    void fetchFailed();
-    return () => { cancelled = true; };
-  }, [pathname]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchWorkspaces() {
-      try {
-        const res = await fetch("/api/workspaces", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          active_workspace_id?: string | null;
-          workspaces?: SidebarWorkspace[];
-        };
-        if (cancelled) return;
-        setWorkspaces(data.workspaces ?? []);
-        setActiveWorkspaceId(data.active_workspace_id ?? null);
-      } catch {
-        // Keep sidebar usable without workspace metadata.
-      }
-    }
-    void fetchWorkspaces();
-    return () => {
-      cancelled = true;
-    };
   }, [pathname]);
 
   async function switchWorkspace(workspaceId: string) {
@@ -250,6 +232,7 @@ export function Sidebar({
       if (res.ok) {
         setActiveWorkspaceId(workspaceId);
         router.refresh();
+        void fetchSidebarData();
         if (pathname.startsWith("/programs/") || pathname.startsWith("/runs")) {
           router.push("/dashboard");
         }
@@ -258,36 +241,6 @@ export function Sidebar({
       setSwitchingWorkspace(false);
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchUsage() {
-      try {
-        const res = await fetch("/api/entitlements");
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          usage?: {
-            runs?: { current?: number; total?: number | null };
-            genesis?: { usesThisMonth?: number; maxUses?: number | null };
-          };
-        };
-
-        if (cancelled) return;
-        setRunUsageCurrent(data.usage?.runs?.current ?? 0);
-        setRunUsageTotal(data.usage?.runs?.total ?? null);
-        setGenesisUsageCurrent(data.usage?.genesis?.usesThisMonth ?? 0);
-        setGenesisUsageTotal(data.usage?.genesis?.maxUses ?? null);
-      } catch {
-        // keep existing fallback values
-      }
-    }
-
-    void fetchUsage();
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname]);
 
   // Close mobile sidebar on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
