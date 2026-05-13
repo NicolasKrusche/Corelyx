@@ -17,7 +17,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cors_config import (
     CORS_ALLOWED_HEADERS,
@@ -157,6 +157,8 @@ app.add_middleware(
 
 
 class ExecuteRequest(BaseModel):
+    model_config = {"populate_by_name": True}
+
     run_id: str
     # The remaining fields are accepted for backward compatibility but are NOT
     # trusted (S15). The runtime loads program_id, user_id, and the schema
@@ -164,7 +166,8 @@ class ExecuteRequest(BaseModel):
     # caller put in body.{program_id,user_id,schema}.
     program_id: Optional[str] = None
     user_id: Optional[str] = None
-    schema: Optional[dict[str, Any]] = None
+    # "schema" shadows BaseModel.schema in Pydantic v2 — use alias to avoid the warning.
+    workflow_schema: Optional[dict[str, Any]] = Field(default=None, alias="schema")
     trigger_payload: Optional[dict[str, Any]] = None
     triggered_by: str = "manual"
     # Maps connection name → connection UUID; populated by Next.js for manual/event runs.
