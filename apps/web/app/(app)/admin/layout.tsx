@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
-import { 
-  Activity, 
-  AlertTriangle, 
-  Shield, 
-  Zap, 
-  Settings, 
+import {
+  Activity,
+  AlertTriangle,
+  MessageCircle,
+  Shield,
+  Zap,
+  Settings,
   DollarSign,
   PlayCircle,
   Lock,
@@ -39,6 +40,7 @@ const navItems = [
   { href: "/admin/emergency", label: "Emergency", icon: AlertTriangle },
   { href: "/admin/locks", label: "Credential Locks", icon: Lock },
   { href: "/admin/flags", label: "Feature Flags", icon: Settings },
+  { href: "/admin/support", label: "Support Tickets", icon: MessageCircle },
 ];
 
 export default async function AdminLayout({
