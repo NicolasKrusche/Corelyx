@@ -74,7 +74,7 @@ function NavItem({
         <span className="absolute left-0 inset-y-2 w-[2px] rounded-full" style={{ backgroundColor: "var(--sb-bar)" }} />
       )}
       <span className="flex h-full w-12 shrink-0 items-center justify-center">{icon}</span>
-      <span className="min-w-0 flex-1 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">{label}</span>
+      <span className="min-w-0 flex-1 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">{label}</span>
       {badge != null && badge > 0 && (
         <span className="absolute right-1 top-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ backgroundColor: "var(--sb-badge)" }}>
           {badge > 99 ? "99+" : badge}
@@ -135,6 +135,7 @@ export function Sidebar({
   const [genesisUsageTotal, setGenesisUsageTotal] = useState<number | null>(null);
   const [advanced, setAdvanced] = useAdvancedMode();
   const { base, accent, setBase, setAccent } = useTheme();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [workspaces, setWorkspaces] = useState<SidebarWorkspace[]>([]);
@@ -288,6 +289,9 @@ export function Sidebar({
     };
   }, [pathname]);
 
+  // Close mobile sidebar on navigation
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (!menuRef.current) return;
@@ -342,9 +346,40 @@ export function Sidebar({
   }
 
   return (
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        type="button"
+        aria-label={mobileOpen ? "Close menu" : "Open menu"}
+        onClick={() => setMobileOpen((v) => !v)}
+        className={cn(
+          "fixed left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-lg border transition-colors lg:hidden",
+          isDark
+            ? "border-white/10 bg-slate-900/80 text-white backdrop-blur"
+            : "border-black/10 bg-white/80 text-gray-900 backdrop-blur"
+        )}
+      >
+        {mobileOpen ? <CloseIcon className="h-4 w-4" /> : <MenuIcon />}
+      </button>
+
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+
     <aside
+      data-open={mobileOpen ? "" : undefined}
       className={cn(
-        "group/side fixed left-0 top-0 z-40 flex h-full w-16 overflow-visible hover:w-56 flex-col border-r transition-[width] duration-300 ease-out",
+        "group/side fixed left-0 top-0 z-40 flex h-full flex-col border-r",
+        // Mobile: full width drawer, slides in/out
+        "w-56 -translate-x-full overflow-hidden transition-transform duration-300 ease-out",
+        mobileOpen && "translate-x-0",
+        // Desktop: icon rail that expands on hover
+        "lg:w-16 lg:translate-x-0 lg:overflow-visible lg:transition-[width] lg:hover:w-56",
         isDark ? "text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)]" : "text-gray-900",
         borderCls
       )}
@@ -365,7 +400,7 @@ export function Sidebar({
           <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-6 w-6 object-contain" />
         </span>
         <span className={cn(
-          "whitespace-nowrap text-sm font-bold tracking-tight opacity-0 transition-opacity duration-150 group-hover/side:opacity-100",
+          "whitespace-nowrap text-sm font-bold tracking-tight opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
           isDark ? "text-white" : "text-gray-900"
         )}>Corelyx</span>
       </div>
@@ -386,11 +421,11 @@ export function Sidebar({
             )}
           >
             <span className="flex h-full w-10 shrink-0 items-center justify-center"><WorkspaceIcon /></span>
-            <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-xs font-semibold opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">
+            <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-xs font-semibold opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
               {activeWorkspace?.name ?? "Workspace"}
             </span>
             <span className={cn(
-              "mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-all duration-150 group-hover/side:opacity-100",
+              "mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-all duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
               workspaceMenuOpen && "rotate-180",
               isDark ? "text-blue-100/80" : "text-gray-500"
             )}>
@@ -464,7 +499,7 @@ export function Sidebar({
           onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = palette.btnBg; }}
         >
           <span className="flex h-full w-10 shrink-0 items-center justify-center"><PlusIcon /></span>
-          <span className="min-w-0 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">Create new</span>
+          <span className="min-w-0 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">Create new</span>
         </Link>
       </div>
 
@@ -520,7 +555,7 @@ export function Sidebar({
       </nav>
 
       <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>
-        <div className="max-h-0 overflow-hidden opacity-0 pointer-events-none transition-all duration-200 group-hover/side:mb-2 group-hover/side:max-h-[280px] group-hover/side:opacity-100 group-hover/side:pointer-events-auto">
+        <div className="max-h-0 overflow-hidden opacity-0 pointer-events-none transition-all duration-200 group-hover/side:mb-2 group-hover/side:max-h-[280px] group-hover/side:opacity-100 group-hover/side:pointer-events-auto group-data-[open]/side:mb-2 group-data-[open]/side:max-h-[280px] group-data-[open]/side:opacity-100 group-data-[open]/side:pointer-events-auto">
           <div className={cn(
             "rounded-2xl border px-3 py-3",
             isDark ? "border-white/10 bg-white/5 text-blue-50" : "border-black/10 bg-black/5 text-gray-900"
@@ -579,7 +614,7 @@ export function Sidebar({
             <div className={cn(
               "absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 rounded-xl border p-1.5 shadow-xl",
               "border-border bg-popover text-popover-foreground",
-              "hidden group-hover/side:block"
+              "hidden group-hover/side:block group-data-[open]/side:block"
             )}>
               <button
                 type="button"
@@ -637,18 +672,18 @@ export function Sidebar({
                 )} />
               )}
             </div>
-            <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100">
+            <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
               <p className="truncate text-[13px] font-semibold leading-4">{displayName}</p>
               <p
                 className={cn(
-                  "mt-0.5 max-h-0 overflow-hidden text-[11px] leading-3 opacity-0 transition-all duration-200 group-hover/side:max-h-4 group-hover/side:opacity-100",
+                  "mt-0.5 max-h-0 overflow-hidden text-[11px] leading-3 opacity-0 transition-all duration-200 group-hover/side:max-h-4 group-hover/side:opacity-100 group-data-[open]/side:max-h-4 group-data-[open]/side:opacity-100",
                   isDark ? "text-blue-100/70" : "text-gray-600"
                 )}
               >
                 {tierLabel}
               </p>
             </div>
-            <ChevronDownIcon className={cn("mr-3 h-4 w-4 shrink-0 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100", menuOpen && "rotate-180")} />
+            <ChevronDownIcon className={cn("mr-3 h-4 w-4 shrink-0 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100", menuOpen && "rotate-180")} />
           </button>
         </div>
       </div>
@@ -676,6 +711,7 @@ export function Sidebar({
         />
       )}
     </aside>
+    </>
   );
 }
 
@@ -1782,6 +1818,13 @@ function CloseIcon({ className }: { className?: string }) {
   return (
     <svg className={cn("h-4 w-4", className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+    </svg>
+  );
+}
+function MenuIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
     </svg>
   );
 }
