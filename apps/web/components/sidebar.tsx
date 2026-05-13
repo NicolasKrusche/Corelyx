@@ -688,6 +688,8 @@ export function Sidebar({
         </div>
       </div>
 
+    </aside>
+
       {settingsOpen && (
         <SettingsModal
           email={email}
@@ -710,7 +712,6 @@ export function Sidebar({
           onClose={handleCloseSettings}
         />
       )}
-    </aside>
     </>
   );
 }
