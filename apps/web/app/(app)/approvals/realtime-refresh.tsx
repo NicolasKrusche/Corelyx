@@ -4,13 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
 
-/**
- * Invisible client component that subscribes to Supabase Realtime for the
- * approvals table. When any approval is inserted or updated it calls
- * router.refresh() which re-runs the server component and repopulates the list
- * without a full page reload.
- */
-export function ApprovalsRealtimeRefresh() {
+export function ApprovalsRealtimeRefresh({ userId }: { userId: string }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -20,13 +14,13 @@ export function ApprovalsRealtimeRefresh() {
       .channel("approvals-page")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "approvals" },
-        () => { router.refresh(); }
+        { event: "*", schema: "public", table: "approvals", filter: `user_id=eq.${userId}` },
+        () => { router.refresh(); },
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [router]);
+  }, [router, userId]);
 
   return null;
 }
