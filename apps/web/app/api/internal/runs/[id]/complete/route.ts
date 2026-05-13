@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { sendRunFailureEmail } from "@/lib/email";
-import { buildInternalServiceHeaders, requestHasValidInternalServiceToken } from "@/lib/internal-auth";
+import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
+import {
+  buildRuntimeExecuteHeaders,
+  isRuntimeDispatchConfigError,
+} from "@/lib/runtime-dispatch";
 import { getProcessingRestriction } from "@/lib/compliance";
 
 /**
@@ -186,15 +190,10 @@ export async function POST(
               trigger_payload: downstreamTriggerPayload,
               connections: connectionNameToId,
             });
+            const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
             const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
               method: "POST",
-              headers: buildInternalServiceHeaders("runtime:execute", {
-                "Content-Type": "application/json",
-              }, {
-                method: "POST",
-                path: "/execute",
-                body: runtimeBody,
-              }),
+              headers: runtimeHeaders,
               body: runtimeBody,
               cache: "no-store",
             });
@@ -205,10 +204,16 @@ export async function POST(
                 .eq("id", runId);
               continue;
             }
-          } catch {
+          } catch (error) {
             await db
               .from("runs")
-              .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
+              .update({
+                status: "failed",
+                error_message: isRuntimeDispatchConfigError(error)
+                  ? "Runtime auth is not configured."
+                  : "Runtime is unreachable",
+                completed_at: new Date().toISOString(),
+              } as never)
               .eq("id", runId);
             continue;
           }

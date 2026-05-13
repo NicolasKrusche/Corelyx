@@ -2,10 +2,13 @@ import { NonRetriableError, cron } from "inngest";
 import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
-import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
 import { getRuntimeUrl } from "@/lib/runtime-url";
+import {
+  buildRuntimeExecuteHeaders,
+  isRuntimeDispatchConfigError,
+} from "@/lib/runtime-dispatch";
 
 /**
  * Inngest function: runs every minute, finds all active cron triggers that are
@@ -100,15 +103,10 @@ export const cronRunner = inngest.createFunction(
             triggered_by: "cron",
             trigger_payload: { trigger_id: trigger.id },
           });
+          const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
           const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
             method: "POST",
-            headers: buildInternalServiceHeaders("runtime:execute", {
-              "Content-Type": "application/json",
-            }, {
-              method: "POST",
-              path: "/execute",
-              body: runtimeBody,
-            }),
+            headers: runtimeHeaders,
             body: runtimeBody,
             cache: "no-store",
           });
@@ -120,11 +118,16 @@ export const cronRunner = inngest.createFunction(
               .eq("id", runId);
             return;
           }
-        } catch {
-          logger.error(`Runtime unreachable for cron run ${runId}`);
+        } catch (error) {
+          const authMisconfigured = isRuntimeDispatchConfigError(error);
+          logger.error(authMisconfigured ? `Runtime auth misconfigured for cron run ${runId}` : `Runtime unreachable for cron run ${runId}`);
           await db
             .from("runs")
-            .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
+            .update({
+              status: "failed",
+              error_message: authMisconfigured ? "Runtime auth is not configured." : "Runtime is unreachable",
+              completed_at: new Date().toISOString(),
+            } as never)
             .eq("id", runId);
           return;
         }

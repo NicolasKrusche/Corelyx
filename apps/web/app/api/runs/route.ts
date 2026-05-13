@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { buildInternalServiceHeaders } from "@/lib/internal-auth";
+import {
+  buildRuntimeExecuteHeaders,
+  runtimeDispatchConfigError,
+} from "@/lib/runtime-dispatch";
 import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { checkRunLimit, getRunHistoryDays } from "@/lib/limits";
@@ -152,15 +155,10 @@ export async function POST(request: Request) {
       triggered_by: "manual",
       connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
     });
+    const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
       method: "POST",
-      headers: buildInternalServiceHeaders("runtime:execute", {
-        "Content-Type": "application/json",
-      }, {
-        method: "POST",
-        path: "/execute",
-        body: runtimeBody,
-      }),
+      headers: runtimeHeaders,
       body: runtimeBody,
       cache: "no-store",
     });
@@ -171,10 +169,16 @@ export async function POST(request: Request) {
         { status: 502 }
       );
     }
-  } catch {
-    await markFailed("Runtime is unreachable — is the runtime service running?");
+  } catch (error) {
+    const configError = runtimeDispatchConfigError(error);
+    if (configError) {
+      await markFailed("Runtime auth is not configured.");
+      return configError;
+    }
+    const message = error instanceof Error ? error.message : "unknown error";
+    await markFailed(`Runtime is unreachable — is the runtime service running? (${message})`);
     return NextResponse.json(
-      { run_id: run.id, status: "failed", error: "Runtime is unreachable" },
+      { run_id: run.id, status: "failed", error: "Runtime is unreachable", message },
       { status: 503 }
     );
   }

@@ -1,8 +1,11 @@
 import { createServiceClient } from "@/lib/api";
-import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
 import { getRuntimeUrl } from "@/lib/runtime-url";
+import {
+  buildRuntimeExecuteHeaders,
+  isRuntimeDispatchConfigError,
+} from "@/lib/runtime-dispatch";
 
 type JsonObject = Record<string, unknown>;
 
@@ -181,15 +184,10 @@ export async function dispatchEventTriggers(
           trigger_payload: triggerPayload,
           connections: connectionNameToId,
         });
+        const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
         const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
           method: "POST",
-          headers: buildInternalServiceHeaders("runtime:execute", {
-            "Content-Type": "application/json",
-          }, {
-            method: "POST",
-            path: "/execute",
-            body: runtimeBody,
-          }),
+          headers: runtimeHeaders,
           body: runtimeBody,
           cache: "no-store",
         });
@@ -200,10 +198,16 @@ export async function dispatchEventTriggers(
             .eq("id", run.id);
           return;
         }
-      } catch {
+      } catch (error) {
         await db
           .from("runs")
-          .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
+          .update({
+            status: "failed",
+            error_message: isRuntimeDispatchConfigError(error)
+              ? "Runtime auth is not configured."
+              : "Runtime is unreachable",
+            completed_at: new Date().toISOString(),
+          } as never)
           .eq("id", run.id);
         return;
       }
