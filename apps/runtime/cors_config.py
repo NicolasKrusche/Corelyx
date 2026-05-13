@@ -4,14 +4,16 @@ import os
 from collections.abc import Mapping
 from urllib.parse import urlparse
 
-from internal_auth import INTERNAL_SERVICE_TOKEN_HEADER
-
 PRODUCTION_ENV_NAMES = ("NODE_ENV", "VERCEL_ENV", "APP_ENV", "RUNTIME_ENV")
+CORS_ORIGINS_ENV = "CORS_ORIGINS"
 RUNTIME_CORS_ALLOWED_ORIGINS_ENV = "RUNTIME_CORS_ALLOWED_ORIGINS"
-PUBLIC_CORS_ORIGINS = ("https://corelyx.app", "https://www.corelyx.app")
-DEFAULT_DEV_CORS_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
-CORS_ALLOWED_METHODS = ["GET", "POST"]
-CORS_ALLOWED_HEADERS = ["content-type", INTERNAL_SERVICE_TOKEN_HEADER]
+DEFAULT_CORS_ORIGINS = (
+    "https://corelyx.app",
+    "https://www.corelyx.app",
+    "http://localhost:3000",
+)
+CORS_ALLOWED_METHODS = ["*"]
+CORS_ALLOWED_HEADERS = ["*"]
 
 
 def is_production_environment(
@@ -54,16 +56,17 @@ def get_cors_allowed_origins(
     values = os.environ if env is None else env
     is_production = is_production_environment(values)
     configured_origins = _split_csv(
-        _env_value(values, RUNTIME_CORS_ALLOWED_ORIGINS_ENV)
+        _env_value(values, CORS_ORIGINS_ENV)
+        or _env_value(values, RUNTIME_CORS_ALLOWED_ORIGINS_ENV)
     )
 
+    origins = list(DEFAULT_CORS_ORIGINS)
     if configured_origins:
-        origins: list[str] = []
         for origin in configured_origins:
             if origin == "*":
                 if is_production:
                     raise RuntimeError(
-                        f"{RUNTIME_CORS_ALLOWED_ORIGINS_ENV} must not include '*' in production"
+                        f"{CORS_ORIGINS_ENV} must not include '*' in production"
                     )
                 origins.append(origin)
                 continue
@@ -71,12 +74,10 @@ def get_cors_allowed_origins(
                 origins.append(normalize_cors_origin(origin))
             except ValueError as exc:
                 raise RuntimeError(
-                    f"{RUNTIME_CORS_ALLOWED_ORIGINS_ENV} contains invalid origin {origin!r}: {exc}"
+                    f"{CORS_ORIGINS_ENV} contains invalid origin {origin!r}: {exc}"
                 ) from exc
-        origins.extend(PUBLIC_CORS_ORIGINS)
         return _unique(origins)
 
-    origins = list(PUBLIC_CORS_ORIGINS)
     for name in ("NEXT_PUBLIC_APP_URL", "NEXTJS_INTERNAL_URL"):
         value = _env_value(values, name)
         if not value:
@@ -91,10 +92,7 @@ def get_cors_allowed_origins(
 
     if is_production and not origins:
         raise RuntimeError(
-            f"Set {RUNTIME_CORS_ALLOWED_ORIGINS_ENV} or NEXT_PUBLIC_APP_URL before running the runtime in production"
+            f"Set {CORS_ORIGINS_ENV} or NEXT_PUBLIC_APP_URL before running the runtime in production"
         )
-
-    if not is_production:
-        origins.extend(DEFAULT_DEV_CORS_ORIGINS)
 
     return _unique(origins)

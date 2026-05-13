@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from cors_config import (
-    DEFAULT_DEV_CORS_ORIGINS,
+    DEFAULT_CORS_ORIGINS,
     get_cors_allowed_origins,
     normalize_cors_origin,
 )
@@ -16,13 +16,13 @@ class RuntimeCorsConfigTests(unittest.TestCase):
             "https://app.example.com",
         )
 
-    def test_dev_uses_local_defaults(self) -> None:
+    def test_uses_default_origins(self) -> None:
         self.assertEqual(
             get_cors_allowed_origins({}),
-            list(DEFAULT_DEV_CORS_ORIGINS),
+            list(DEFAULT_CORS_ORIGINS),
         )
 
-    def test_production_infers_app_origin(self) -> None:
+    def test_adds_inferred_app_origin(self) -> None:
         self.assertEqual(
             get_cors_allowed_origins(
                 {
@@ -30,7 +30,37 @@ class RuntimeCorsConfigTests(unittest.TestCase):
                     "NEXT_PUBLIC_APP_URL": "https://app.example.com/dashboard",
                 }
             ),
-            ["https://app.example.com"],
+            [
+                *DEFAULT_CORS_ORIGINS,
+                "https://app.example.com",
+            ],
+        )
+
+    def test_cors_origins_env_adds_explicit_origins(self) -> None:
+        self.assertEqual(
+            get_cors_allowed_origins(
+                {
+                    "CORS_ORIGINS": "https://preview.example.com, https://app.example.com/path",
+                }
+            ),
+            [
+                *DEFAULT_CORS_ORIGINS,
+                "https://preview.example.com",
+                "https://app.example.com",
+            ],
+        )
+
+    def test_legacy_runtime_cors_env_still_works(self) -> None:
+        self.assertEqual(
+            get_cors_allowed_origins(
+                {
+                    "RUNTIME_CORS_ALLOWED_ORIGINS": "https://legacy.example.com",
+                }
+            ),
+            [
+                *DEFAULT_CORS_ORIGINS,
+                "https://legacy.example.com",
+            ],
         )
 
     def test_production_rejects_wildcard_origin(self) -> None:
@@ -38,13 +68,9 @@ class RuntimeCorsConfigTests(unittest.TestCase):
             get_cors_allowed_origins(
                 {
                     "RUNTIME_ENV": "production",
-                    "RUNTIME_CORS_ALLOWED_ORIGINS": "*",
+                    "CORS_ORIGINS": "*",
                 }
             )
-
-    def test_production_requires_configured_origin(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "Set RUNTIME_CORS_ALLOWED_ORIGINS"):
-            get_cors_allowed_origins({"RUNTIME_ENV": "production"})
 
 
 if __name__ == "__main__":
