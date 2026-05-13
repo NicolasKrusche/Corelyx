@@ -34,12 +34,21 @@ from db import (
 from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
 from internal_auth import (
     INTERNAL_SERVICE_TOKEN_HEADER,
+    _get_internal_service_secret,
     build_internal_service_headers,
     verify_internal_service_token,
 )
 from schema import ProgramSchema, parse_schema
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
+
+# Validate required auth secrets at startup so misconfiguration surfaces in
+# Railway logs immediately rather than silently on the first execute request.
+try:
+    _get_internal_service_secret("runtime:execute")
+    print("[runtime] Auth config OK: INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE is set")
+except RuntimeError as _exc:
+    print(f"[runtime] WARNING: {_exc} — set this variable in your Railway service to match Vercel")
 
 scheduler = AsyncIOScheduler()
 
@@ -145,17 +154,6 @@ app.add_middleware(
     allow_headers=CORS_ALLOWED_HEADERS,
     allow_credentials=True,
 )
-
-
-def verify_execute_token(
-    x_internal_service_token: str | None = Header(
-        default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER
-    )
-) -> None:
-    if not x_internal_service_token or not verify_internal_service_token(
-        x_internal_service_token, "runtime:execute"
-    ):
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 class ExecuteRequest(BaseModel):
