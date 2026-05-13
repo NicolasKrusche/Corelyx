@@ -106,7 +106,7 @@ export function RunPanel({ programId }: { programId: string }) {
         if (err.error === "RUN_LIMIT_REACHED") {
           setFetchError(err.message ?? "Monthly run limit reached. Upgrade your plan for more runs.");
         } else {
-          setFetchError(err.error ?? "Failed to start run");
+          setFetchError(err.message ?? err.error ?? "Failed to start run");
         }
         setState("done");
       }
