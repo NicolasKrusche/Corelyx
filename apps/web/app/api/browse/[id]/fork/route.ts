@@ -120,6 +120,13 @@ export async function POST(
 
   const newProg = newProgRaw as unknown as { id: string; name: string };
 
+  await db.from("program_memberships").insert({
+    program_id: newProg.id,
+    user_id: user.id,
+    role: "editor",
+    created_by: user.id,
+  } as unknown as never);
+
   // Link matched connections
   if (matchedConnections.length > 0) {
     await db.from("program_connections").insert(

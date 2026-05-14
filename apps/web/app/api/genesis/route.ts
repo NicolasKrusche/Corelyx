@@ -763,7 +763,7 @@ export async function POST(request: Request) {
   }
 
   // ── New program path ──────────────────────────────────────────────────────
-  const { data: rawProgram, error: insertError } = await supabase
+  const { data: rawProgram, error: insertError } = await serviceClient
     .from("programs")
     .insert({
       user_id: userId,
@@ -794,9 +794,27 @@ export async function POST(request: Request) {
     );
   }
 
+  const { error: membershipErr } = await serviceClient.from("program_memberships").insert({
+    program_id: program.id,
+    user_id: userId,
+    role: "editor",
+    created_by: userId,
+  } as unknown as never);
+  if (membershipErr) {
+    console.error("[genesis] Failed to grant creator editor access:", membershipErr.message);
+    await logGenesis(
+      "warning",
+      "genesis.creator_membership_failed",
+      "warning",
+      "Program was generated, but creator editor membership storage failed.",
+      { error: membershipErr.message },
+      program.id
+    );
+  }
+
   // Link connections
   if (connectionRows.length > 0) {
-    const { error: connLinkErr } = await supabase.from("program_connections").insert(
+    const { error: connLinkErr } = await serviceClient.from("program_connections").insert(
       toProgramConnectionLinks(program.id, connectionRows) as unknown as never
     );
     if (connLinkErr) {
@@ -813,7 +831,7 @@ export async function POST(request: Request) {
   }
 
   // Store genesis snapshot as version 0
-  const { error: versionErr } = await supabase.from("program_versions").insert({
+  const { error: versionErr } = await serviceClient.from("program_versions").insert({
     program_id: program.id,
     version: 0,
     schema: schema as unknown as Record<string, unknown>,

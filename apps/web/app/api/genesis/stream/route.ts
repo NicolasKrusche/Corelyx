@@ -351,7 +351,7 @@ export async function POST(request: Request) {
 
         send({ type: "status", message: "Saving program..." });
 
-        const { data: rawProgram, error: insertError } = await supabase
+        const { data: rawProgram, error: insertError } = await serviceClient
           .from("programs")
           .insert({
             user_id: userId,
@@ -370,8 +370,15 @@ export async function POST(request: Request) {
           throw new Error(`Failed to save program: ${insertError?.message ?? "unknown error"}`);
         }
 
+        await serviceClient.from("program_memberships").insert({
+          program_id: program.id,
+          user_id: userId,
+          role: "editor",
+          created_by: userId,
+        } as unknown as never);
+
         if (connections.length > 0) {
-          const { error: linkError } = await supabase
+          const { error: linkError } = await serviceClient
             .from("program_connections")
             .insert(
               toProgramConnectionLinks(program.id, connections) as unknown as never
@@ -381,7 +388,7 @@ export async function POST(request: Request) {
           }
         }
 
-        await supabase.from("program_versions").insert({
+        await serviceClient.from("program_versions").insert({
           program_id: program.id,
           version: 0,
           schema: schema as unknown as Record<string, unknown>,
