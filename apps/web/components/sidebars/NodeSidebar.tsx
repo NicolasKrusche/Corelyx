@@ -859,6 +859,81 @@ function ResourcePicker({
   );
 }
 
+// ─── Corelyx platform key panel ──────────────────────────────────────────────
+
+type CreditData = {
+  availableIncluded: number | null;
+  availablePurchased: number;
+  total: number | null;
+};
+
+function CorelyxKeyPanel() {
+  const [credits, setCredits] = useState<CreditData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/credits/balance")
+      .then((r) => r.ok ? r.json() as Promise<CreditData> : null)
+      .then((data) => { setCredits(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const total = credits?.total;
+  const isUnlimited = total === null;
+  const isLow = !isUnlimited && typeof total === "number" && total < 1;
+  const isEmpty = !isUnlimited && typeof total === "number" && total <= 0;
+
+  return (
+    <div className={cn(
+      "rounded-xl border p-3 space-y-2.5 text-xs",
+      isEmpty
+        ? "border-destructive/40 bg-destructive/5"
+        : isLow
+          ? "border-amber-500/40 bg-amber-500/5"
+          : "border-primary/20 bg-primary/5"
+    )}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-foreground">⚡ Corelyx Platform Key</span>
+        <a
+          href="/plan"
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
+        >
+          Buy credits
+        </a>
+      </div>
+
+      <div className="space-y-1 text-muted-foreground">
+        <div className="flex items-center justify-between">
+          <span>Available balance</span>
+          <span className={cn("font-medium tabular-nums", isEmpty ? "text-destructive" : "text-foreground")}>
+            {loading ? "…" : isUnlimited ? "Unlimited" : `$${(total as number).toFixed(2)}`}
+          </span>
+        </div>
+        {credits && !isUnlimited && (credits.availablePurchased ?? 0) > 0 && (
+          <div className="flex items-center justify-between">
+            <span>Purchased</span>
+            <span className="tabular-nums">${credits.availablePurchased.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+
+      {isEmpty && (
+        <p className="text-destructive font-medium">Credits exhausted — this node won&apos;t run.</p>
+      )}
+      {isLow && !isEmpty && (
+        <p className="text-amber-600 dark:text-amber-400">Running low. Top up to avoid interruptions.</p>
+      )}
+
+      <p className="text-muted-foreground/70 leading-relaxed">
+        All providers supported (OpenAI, Anthropic, Groq, Google, and more) via a single key.
+        Credits reset monthly with your plan.
+      </p>
+    </div>
+  );
+}
+
 // ─── Agent sidebar ────────────────────────────────────────────────────────────
 
 type AgentTab = "model" | "prompt" | "retry";
@@ -935,12 +1010,9 @@ function AgentSidebar({
                 </option>
               ))}
             </Select>
-            {isPlatformKey && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Uses your platform AI credit balance. Supports all providers via OpenRouter.
-              </p>
-            )}
           </FieldGroup>
+
+          {isPlatformKey && <CorelyxKeyPanel />}
 
           <FieldGroup label="Model" htmlFor="agent-model">
             {providerPresets.length > 0 && (
