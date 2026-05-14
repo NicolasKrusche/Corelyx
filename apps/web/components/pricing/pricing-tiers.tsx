@@ -39,6 +39,7 @@ export const TIERS = [
       { text: "75 runs / month" },
       { text: "All 200+ connectors" },
       { text: "Bring your own API keys (BYOK)" },
+      { text: "$2.50 platform AI credits / month", note: "(use any model, no setup)" },
       { text: "30-day run history" },
       { text: "Visual editor + Genesis AI" },
       { text: "Manual, cron & webhook triggers" },
@@ -63,7 +64,7 @@ export const TIERS = [
       { text: "Error prevention (auto)" },
       { text: "500 runs / month — enough for daily automations across your whole team" },
       { text: "All 200+ connectors" },
-      { text: "BYOK + Corelyx model credits" },
+      { text: "BYOK + $10 platform AI credits / month" },
       { text: "90-day run history" },
       { text: "All trigger types" },
       { text: "Email notifications" },
@@ -82,6 +83,7 @@ export const TIERS = [
     highlight: false,
     features: [
       { text: "Everything in Team" },
+      { text: "$15 platform AI credits / month", note: "(included, resets monthly)" },
       { text: "Unlimited team seats" },
       { text: "2,000 runs / month", note: "(custom available)" },
       { text: "1-year run history" },
@@ -115,11 +117,15 @@ export const FAQ = [
   },
   {
     q: "What is BYOK?",
-    a: "Bring Your Own Key. You add your own Anthropic, OpenAI, or OpenRouter API key, and model costs go directly to your provider account. Corelyx never marks up model usage.",
+    a: "Bring Your Own Key. You add your own Anthropic, OpenAI, Groq, Google, or OpenRouter API key and model costs go directly to your provider account — no markup.",
+  },
+  {
+    q: "What are platform AI credits?",
+    a: "An alternative to BYOK — use Corelyx's managed key and pay from a credit balance. Credits are included monthly with Solo ($2.50), Team ($10), and Scale ($15) plans, and you can top up anytime in $5–$50 packs. All providers are supported via a single key.",
   },
   {
     q: "Can I use my own API keys on paid plans?",
-    a: "Yes — BYOK works on Solo and above. Team and Scale also include optional Corelyx model credits as a convenience top-up.",
+    a: "Yes — BYOK works on Solo and above. You can also mix: use BYOK for most nodes and platform credits for others.",
   },
   {
     q: "What happens if I exceed my run limit?",
