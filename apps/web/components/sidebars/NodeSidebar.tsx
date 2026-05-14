@@ -874,8 +874,11 @@ function AgentSidebar({
 }) {
   const [tab, setTab] = useState<AgentTab>("model");
 
-  const selectedKey = apiKeys.find((k) => k.id === config.api_key_ref);
-  const providerPresets = MODEL_PRESETS[selectedKey?.provider ?? ""] ?? [];
+  const isPlatformKey = config.api_key_ref === "platform";
+  const selectedKey = isPlatformKey ? null : apiKeys.find((k) => k.id === config.api_key_ref);
+  const providerPresets = isPlatformKey
+    ? (MODEL_PRESETS["openrouter"] ?? [])
+    : (MODEL_PRESETS[selectedKey?.provider ?? ""] ?? []);
   const datalistId = "agent-model-presets";
 
   const tabs: { id: AgentTab; label: string }[] = [
@@ -916,20 +919,27 @@ function AgentSidebar({
                 const keyId = e.target.value || "__USER_ASSIGNED__";
                 const updates: Partial<AgentConfig> = { api_key_ref: keyId };
                 if (config.model === "__USER_ASSIGNED__" && keyId !== "__USER_ASSIGNED__") {
-                  const selected = apiKeys.find((k) => k.id === keyId);
-                  const presets = MODEL_PRESETS[selected?.provider ?? ""] ?? [];
+                  const presets = keyId === "platform"
+                    ? (MODEL_PRESETS["openrouter"] ?? [])
+                    : (MODEL_PRESETS[apiKeys.find((k) => k.id === keyId)?.provider ?? ""] ?? []);
                   if (presets.length > 0) updates.model = presets[0];
                 }
                 onUpdate(updates);
               }}
             >
               <option value="">— Select API Key —</option>
+              <option value="platform">⚡ Corelyx Platform Key (credits)</option>
               {apiKeys.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.name} ({k.provider})
                 </option>
               ))}
             </Select>
+            {isPlatformKey && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Uses your platform AI credit balance. Supports all providers via OpenRouter.
+              </p>
+            )}
           </FieldGroup>
 
           <FieldGroup label="Model" htmlFor="agent-model">
