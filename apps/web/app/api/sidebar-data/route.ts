@@ -4,6 +4,7 @@ import { getActiveWorkspace } from "@/lib/workspaces";
 import { getRunUsage, checkGenesisAccess } from "@/lib/limits";
 import { isAdminEmail } from "@/lib/admin";
 import { parseTier } from "@/lib/entitlements";
+import { getUserCreditBalance } from "@/lib/credits";
 
 // GET /api/sidebar-data?since=<ms-timestamp>
 // Combines approvals count, failed-runs count, workspace list, and usage into
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
     ?? null;
 
   // Round 2 — all remaining queries in parallel
-  const [approvalsRes, programsRes, workspacesRes, workspaceTierRes, authRes, runUsage, genesisAccess] =
+  const [approvalsRes, programsRes, workspacesRes, workspaceTierRes, authRes, runUsage, genesisAccess, creditBalance] =
     await Promise.all([
       db
         .from("approvals")
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
       db.auth.admin.getUserById(user.id),
       getRunUsage(user.id, workspaceId),
       checkGenesisAccess(user.id, workspaceId),
+      getUserCreditBalance(user.id).catch(() => null),
     ]);
 
   // Round 3 — failed-run count (depends on programIds)
@@ -107,6 +109,13 @@ export async function GET(request: Request) {
     usage: {
       runs: { current: runUsage.current, total: runUsage.total },
       genesis: { usesThisMonth: genesisAccess.usesThisMonth, maxUses: genesisAccess.maxUses },
+      aiCredits: creditBalance
+        ? {
+            availableIncluded: creditBalance.availableIncluded === Infinity ? null : creditBalance.availableIncluded,
+            availablePurchased: creditBalance.availablePurchased,
+            total: creditBalance.total === Infinity ? null : creditBalance.total,
+          }
+        : null,
     },
   });
 }

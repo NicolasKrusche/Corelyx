@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { getTierFromPriceId } from "@/lib/billing";
 import { getStripeClient } from "@/lib/stripe";
+import { topUpUserCredits } from "@/lib/credits";
 
 const ACTIVE_SUB_STATUSES = new Set([
   "trialing",
@@ -87,7 +88,27 @@ export async function POST(request: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      if (typeof session.subscription === "string" && session.client_reference_id) {
+
+      if (session.metadata?.type === "credits") {
+        // One-time credit top-up purchase
+        const userId = session.metadata.user_id ?? session.client_reference_id;
+        const amountUsd = parseFloat(session.metadata.amount_usd ?? "0");
+        if (userId && amountUsd > 0) {
+          const service = createServiceClient();
+          // Record in audit log
+          await service.from("credit_purchases").insert({
+            user_id: userId,
+            amount_usd: amountUsd,
+            stripe_session_id: session.id,
+            stripe_payment_intent_id:
+              typeof session.payment_intent === "string" ? session.payment_intent : null,
+            status: "completed",
+          } as never);
+          // Credit the user's pool
+          await topUpUserCredits(userId, amountUsd);
+        }
+      } else if (typeof session.subscription === "string" && session.client_reference_id) {
+        // Subscription checkout — attach user metadata to subscription
         await stripe.subscriptions.update(session.subscription, {
           metadata: {
             user_id: session.client_reference_id,
