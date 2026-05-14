@@ -15,61 +15,68 @@ import { cn } from "@/lib/utils";
 
 const plans = [
   {
-    name: "Starter",
-    description: "Great for testing AI workflows and running your first programs",
-    price: 12,
-    yearlyPrice: 99,
-    buttonText: "Get started",
+    name: "Solo",
+    description: "For individuals who need more runs and no program limits.",
+    price: 9.9,
+    yearlyPrice: 83,
+    yearlyMonthly: 6.9,
+    buttonText: "Start for €9.90",
     href: "/signup",
     buttonVariant: "outline" as const,
     includes: [
-      "Starter includes:",
-      "2 active programs",
-      "Manual runs",
-      "Visual editor",
-      "Run history",
-      "Secure API keys",
-      "Community support",
-      "Public templates",
+      "Solo includes:",
+      "5 programs",
+      "75 runs / month",
+      "All 200+ connectors",
+      "BYOK (bring your own API key)",
+      "$2.50 platform AI credits / month",
+      "30-day run history",
+      "Webhook triggers",
+      "Email support",
     ],
   },
   {
-    name: "Business",
-    description: "Best value for teams that need scheduled runs and approvals",
-    price: 48,
-    yearlyPrice: 399,
-    buttonText: "Get started",
+    name: "Team",
+    description: "For teams running automations in production.",
+    price: 19.9,
+    yearlyPrice: 191,
+    yearlyMonthly: 15.9,
+    buttonText: "Start with Team",
     href: "/signup",
     buttonVariant: "default" as const,
     popular: true,
     includes: [
-      "Everything in Starter, plus:",
-      "25 active programs",
-      "Scheduled and webhook runs",
-      "Human approvals",
-      "Live execution logs",
+      "Everything in Solo, plus:",
+      "Unlimited programs",
+      "Up to 3 team seats",
+      "Human-in-the-loop approvals",
+      "Error prevention (auto)",
+      "500 runs / month",
+      "$10 platform AI credits / month",
+      "90-day run history",
+      "All trigger types",
       "Priority support",
-      "Advanced run policies",
-      "Team-ready workflows",
     ],
   },
   {
-    name: "Enterprise",
-    description: "Advanced plan with enhanced controls for larger teams",
-    price: 96,
-    yearlyPrice: 899,
+    name: "Scale",
+    description: "For agencies and enterprises managing clients at scale.",
+    price: 49.9,
+    yearlyPrice: 479,
+    yearlyMonthly: 39.9,
     buttonText: "Contact sales",
-    href: "mailto:sales@corelyx.systems",
+    href: "mailto:sales@corelyx.app",
     buttonVariant: "outline" as const,
     includes: [
-      "Everything in Business, plus:",
-      "Unlimited programs",
-      "Shared connections",
-      "Audit-friendly logs",
-      "Attachment permissions",
-      "Dedicated onboarding",
-      "Custom limits",
-      "Security review support",
+      "Everything in Team, plus:",
+      "Unlimited team seats",
+      "2,000 runs / month",
+      "$15 platform AI credits / month",
+      "1-year run history",
+      "Priority execution queue",
+      "Dedicated success manager",
+      "Custom integrations",
+      "SLA guarantee",
     ],
   },
 ];
@@ -266,8 +273,7 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
           customVariants={revealVariants}
           className="text-gray-300"
         >
-          Choose the plan that matches how many workflows you want Corelyx to
-          run, monitor, and scale.
+          Start free — no credit card required. Upgrade when the limits hurt.
         </TimelineContent>
 
         <TimelineContent
@@ -329,17 +335,18 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
                 </div>
                 <div className="flex items-baseline">
                   <span className="text-4xl font-semibold">
-                    $
+                    €
                     <NumberFlow
-                      format={{ maximumFractionDigits: 0 }}
-                      value={isYearly ? plan.yearlyPrice : plan.price}
+                      format={{ maximumFractionDigits: 2 }}
+                      value={isYearly ? ("yearlyMonthly" in plan ? plan.yearlyMonthly : plan.yearlyPrice) : plan.price}
                       className="text-4xl font-semibold"
                     />
                   </span>
-                  <span className="ml-1 text-gray-300">
-                    /{isYearly ? "year" : "month"}
-                  </span>
+                  <span className="ml-1 text-gray-300">/ month</span>
                 </div>
+                {isYearly && (
+                  <p className="text-[11px] text-gray-400">€{"yearlyPrice" in plan ? plan.yearlyPrice : ""} billed annually</p>
+                )}
                 <p className="mb-4 text-sm text-gray-300">{plan.description}</p>
               </CardHeader>
 
