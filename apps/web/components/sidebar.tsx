@@ -85,6 +85,35 @@ function NavItem({
   );
 }
 
+function NavButton({
+  label,
+  icon,
+  onClick,
+  isDark = true,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  isDark?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      onClick={onClick}
+      className={cn(
+        "relative flex h-8 w-full items-center overflow-hidden rounded-lg text-sm transition-colors",
+        isDark
+          ? "text-blue-100/80 hover:bg-white/8 hover:text-white font-normal"
+          : "text-gray-600 hover:bg-black/8 hover:text-gray-900 font-normal"
+      )}
+    >
+      <span className="flex h-full w-12 shrink-0 items-center justify-center">{icon}</span>
+      <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">{label}</span>
+    </button>
+  );
+}
+
 // ─── AI Credits purchase panel ────────────────────────────────────────────────
 
 const CREDIT_PACKS = [5, 10, 25, 50] as const;
@@ -217,6 +246,7 @@ export function Sidebar({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<AccountSettingsSection>("account");
   const [workspaces, setWorkspaces] = useState<SidebarWorkspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
@@ -377,6 +407,7 @@ export function Sidebar({
 
   function handleCloseSettings() {
     setSettingsOpen(false);
+    setSettingsInitialTab("account");
     if (!searchParams.has("settings")) return;
 
     const params = new URLSearchParams(searchParams.toString());
@@ -582,6 +613,12 @@ export function Sidebar({
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
+        <NavButton
+          label="Support"
+          icon={<SupportIcon />}
+          isDark={isDark}
+          onClick={() => { setSettingsInitialTab("support"); setSettingsOpen(true); }}
+        />
         <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
           icon={<PricingIcon />} isDark={isDark} />
         
@@ -776,6 +813,7 @@ export function Sidebar({
           onAccentChange={setAccent}
           aiCreditsAvailable={aiCreditsAvailable}
           aiCreditsPurchased={aiCreditsPurchased}
+          initialTab={settingsInitialTab}
           onClose={handleCloseSettings}
         />
       )}
@@ -849,10 +887,11 @@ function SettingsModal({
   onAccentChange: (next: AccentColor) => void;
   aiCreditsAvailable: number | null;
   aiCreditsPurchased: number;
+  initialTab?: AccountSettingsSection;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<AccountSettingsSection>("account");
+  const [tab, setTab] = useState<AccountSettingsSection>(initialTab ?? "account");
 
   const [formDisplayName, setFormDisplayName] = useState(initialDisplayName);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
