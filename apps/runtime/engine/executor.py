@@ -894,7 +894,13 @@ class ProgramExecutor:
 
         # Check LLM call limits before fetching API key
         self._limiter.check_llm_call()
-        
+
+        use_platform_key = cfg.api_key_ref == "platform"
+
+        # Check platform credit balance before fetching the key
+        if use_platform_key and self.user_id:
+            await self._check_platform_credits()
+
         # Fetch API key from Next.js internal endpoint (keeps key off this service)
         api_key, provider = await self._fetch_api_key(cfg.api_key_ref)
 
@@ -903,7 +909,7 @@ class ProgramExecutor:
         try:
             return await circuit.call(
                 self._with_retry,
-                lambda: self._call_llm(cfg, api_key, provider, input_data, node.id),
+                lambda: self._call_llm(cfg, api_key, provider, input_data, node.id, deduct_credits=use_platform_key),
                 cfg.retry,
                 node.id,
             )
@@ -921,6 +927,7 @@ class ProgramExecutor:
         provider: str,
         input_data: dict,
         node_id: str,
+        deduct_credits: bool = False,
     ) -> dict:
         """Call the LLM via LiteLLM-compatible API."""
         if not api_key:
@@ -937,6 +944,8 @@ class ProgramExecutor:
 
         if litellm_url:
             base_url = litellm_url
+        elif provider == "openrouter" and os.environ.get("PLATFORM_LLM_BASE_URL"):
+            base_url = os.environ["PLATFORM_LLM_BASE_URL"]
         elif "claude" in cfg.model or provider == "anthropic":
             base_url = "https://api.anthropic.com/v1"
         elif provider in PROVIDER_URLS:
@@ -1049,7 +1058,11 @@ class ProgramExecutor:
         # Check run limits after getting actual usage
         self._limiter.check_llm_tokens(total_tokens)
         self._limiter.check_cost(estimated_cost_usd)
-        
+
+        # Deduct platform credits for usage-based billing
+        if deduct_credits and estimated_cost_usd and self.user_id:
+            await self._deduct_platform_credits(estimated_cost_usd)
+
         self._record_telemetry(
             node_id,
             prompt_tokens=prompt_tokens,
@@ -1754,7 +1767,17 @@ class ProgramExecutor:
     async def _fetch_api_key(self, api_key_ref: str) -> tuple[str, str]:
         """Fetch the API key value + provider from the Next.js internal vault endpoint.
         Returns (value, provider).
+        'platform' is a sentinel that uses the shared OpenRouter proxy key.
         """
+        if api_key_ref == "platform":
+            key = os.environ.get("PLATFORM_LLM_API_KEY", "")
+            if not key:
+                raise ExecutionError(
+                    "PLATFORM_KEY_MISSING",
+                    "Platform AI key is not configured. Contact support.",
+                )
+            return key, "openrouter"
+
         endpoint_path = f"/api/internal/vault/{api_key_ref}"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
         attempt_errors: list[str] = []
@@ -1810,6 +1833,60 @@ class ProgramExecutor:
             "API_KEY_FETCH_FAILED",
             f"Could not fetch API key '{api_key_ref}': no response",
         )
+
+    async def _check_platform_credits(self) -> None:
+        """Raise ExecutionError if the user has no platform credits remaining."""
+        endpoint_path = "/api/internal/credits"
+        endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
+        async with httpx.AsyncClient(timeout=10) as client:
+            for endpoint_url in endpoint_urls:
+                try:
+                    resp = await client.get(
+                        endpoint_url,
+                        headers=build_internal_service_headers(
+                            "next:credits",
+                            subject=self.user_id,
+                            method="GET",
+                            path=endpoint_path,
+                        ),
+                    )
+                    if resp.is_success:
+                        data = resp.json()
+                        total = data.get("total")
+                        # null total means unlimited plan
+                        if total is not None and float(total) <= 0:
+                            raise ExecutionError(
+                                "INSUFFICIENT_CREDITS",
+                                "Platform AI credits exhausted. Purchase more credits to continue using platform-managed keys.",
+                            )
+                        return
+                except ExecutionError:
+                    raise
+                except Exception:
+                    pass
+
+    async def _deduct_platform_credits(self, amount_usd: float) -> None:
+        """Deduct platform credits after a successful LLM call. Best-effort — never blocks execution."""
+        if not self.user_id or amount_usd <= 0:
+            return
+        endpoint_path = "/api/internal/credits"
+        endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
+        async with httpx.AsyncClient(timeout=10) as client:
+            for endpoint_url in endpoint_urls:
+                try:
+                    await client.post(
+                        endpoint_url,
+                        json={"amount_usd": amount_usd},
+                        headers=build_internal_service_headers(
+                            "next:credits",
+                            subject=self.user_id,
+                            method="POST",
+                            path=endpoint_path,
+                        ),
+                    )
+                    return
+                except Exception:
+                    pass
 
     def _nextjs_endpoint_candidates(self, endpoint_path: str) -> list[str]:
         """Build internal endpoint URLs with an origin-only fallback.

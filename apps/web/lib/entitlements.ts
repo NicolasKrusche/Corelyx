@@ -35,8 +35,8 @@ export interface PlanEntitlements {
   maxTeamSeats: number | null;
   maxWorkspaces: number | null;
 
-  // Model credits (operational signal, not code-enforced)
-  modelCreditsIncluded: boolean;
+  // Platform AI credits included per month (null = unlimited, 0 = none)
+  includedAiCreditsUsd: number | null;
 }
 
 export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
@@ -52,7 +52,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: false,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
-    modelCreditsIncluded: false,
+    includedAiCreditsUsd: 0,
   },
   plus: {
     maxPrograms: 5,
@@ -66,7 +66,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: false,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
-    modelCreditsIncluded: false,
+    includedAiCreditsUsd: 2.50,
   },
   pro: {
     maxPrograms: null,
@@ -80,7 +80,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: false,
     maxTeamSeats: 3,
     maxWorkspaces: 3,
-    modelCreditsIncluded: true,
+    includedAiCreditsUsd: 10,
   },
   builder: {
     maxPrograms: null,
@@ -94,7 +94,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
-    modelCreditsIncluded: true,
+    includedAiCreditsUsd: 15,
   },
   unlimited: {
     maxPrograms: null,
@@ -108,7 +108,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
-    modelCreditsIncluded: true,
+    includedAiCreditsUsd: null,
   },
 };
 
