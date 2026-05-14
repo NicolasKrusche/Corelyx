@@ -254,6 +254,11 @@ export function Sidebar({
     usage: {
       runs: { current: number; total: number | null };
       genesis: { usesThisMonth: number; maxUses: number | null };
+      aiCredits: {
+        availableIncluded: number | null;
+        availablePurchased: number;
+        total: number | null;
+      } | null;
     };
   };
 
@@ -769,6 +774,8 @@ export function Sidebar({
           accent={accent}
           onBaseChange={setBase}
           onAccentChange={setAccent}
+          aiCreditsAvailable={aiCreditsAvailable}
+          aiCreditsPurchased={aiCreditsPurchased}
           onClose={handleCloseSettings}
         />
       )}
@@ -819,6 +826,8 @@ function SettingsModal({
   accent,
   onBaseChange,
   onAccentChange,
+  aiCreditsAvailable,
+  aiCreditsPurchased,
   onClose,
 }: {
   email: string;
@@ -838,6 +847,8 @@ function SettingsModal({
   accent: AccentColor;
   onBaseChange: (next: BaseTheme) => void;
   onAccentChange: (next: AccentColor) => void;
+  aiCreditsAvailable: number | null;
+  aiCreditsPurchased: number;
   onClose: () => void;
 }) {
   const router = useRouter();

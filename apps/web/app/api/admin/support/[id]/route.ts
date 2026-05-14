@@ -6,6 +6,8 @@ import { isUserAdmin } from "@/lib/admin-auth";
 
 const PatchSchema = z.object({ status: z.enum(["open", "closed"]) });
 
+type SupportDb = any;
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -21,7 +23,7 @@ export async function PATCH(
   const parsed = PatchSchema.safeParse(body);
   if (!parsed.success) return apiError("Invalid request", 400);
 
-  const db = createServiceClient();
+  const db = createServiceClient() as SupportDb;
   const { error } = await db
     .from("support_tickets")
     .update({ status: parsed.data.status, updated_at: new Date().toISOString() })

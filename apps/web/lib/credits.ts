@@ -23,6 +23,10 @@ type ProfileRow = {
   purchased_credits_usd: string | number;
 };
 
+type RpcClient = ReturnType<typeof createServiceClient> & {
+  rpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
 async function maybeResetIncluded(userId: string, row: ProfileRow): Promise<number> {
   const resetAt = new Date(row.included_credits_reset_at);
   const now = new Date();
@@ -107,8 +111,8 @@ export async function deductUserCredits(
   const fromPurchased = remaining;
 
   // Atomic RPC deduction
-  const { data: rpcResult, error: rpcError } = await service.rpc(
-    "deduct_user_credits_raw" as never,
+  const { data: rpcResult, error: rpcError } = await (service as RpcClient).rpc(
+    "deduct_user_credits_raw",
     {
       p_user_id: userId,
       p_add_to_included: round6(fromIncluded),
@@ -137,7 +141,7 @@ export async function topUpUserCredits(
   amountUsd: number,
 ): Promise<void> {
   const service = createServiceClient();
-  const { error } = await service.rpc("top_up_user_credits" as never, {
+  const { error } = await (service as RpcClient).rpc("top_up_user_credits", {
     p_user_id: userId,
     p_amount_usd: round6(amountUsd),
   });
