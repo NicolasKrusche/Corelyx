@@ -338,14 +338,14 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
                     €
                     <NumberFlow
                       format={{ maximumFractionDigits: 2 }}
-                      value={isYearly ? ("yearlyMonthly" in plan ? plan.yearlyMonthly : plan.yearlyPrice) : plan.price}
+                      value={isYearly ? plan.yearlyMonthly : plan.price}
                       className="text-4xl font-semibold"
                     />
                   </span>
                   <span className="ml-1 text-gray-300">/ month</span>
                 </div>
                 {isYearly && (
-                  <p className="text-[11px] text-gray-400">€{"yearlyPrice" in plan ? plan.yearlyPrice : ""} billed annually</p>
+                  <p className="text-[11px] text-gray-400">€{plan.yearlyPrice} billed annually</p>
                 )}
                 <p className="mb-4 text-sm text-gray-300">{plan.description}</p>
               </CardHeader>
