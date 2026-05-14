@@ -2,6 +2,28 @@ import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bot,
+  Braces,
+  CalendarClock,
+  CheckCircle2,
+  Circle,
+  Clock3,
+  FileJson,
+  GitBranch,
+  Globe2,
+  History,
+  Lock,
+  Network,
+  Play,
+  Settings,
+  SlidersHorizontal,
+  Sparkles,
+  Workflow,
+  Zap,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +58,37 @@ function parseSchema(raw: Json) {
 function isAiGenerated(genesisModel: string | null): boolean {
   if (!genesisModel) return false;
   return genesisModel !== "manual" && genesisModel !== "template";
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "Never";
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function readableMode(mode: string) {
+  return mode.replace(/_/g, " ");
+}
+
+function NodeGlyph({ type }: { type: string }) {
+  const normalized = type.toLowerCase();
+  if (normalized.includes("trigger")) return <Zap className="h-4 w-4" />;
+  if (normalized.includes("agent")) return <Bot className="h-4 w-4" />;
+  if (normalized.includes("connection")) return <Network className="h-4 w-4" />;
+  return <Circle className="h-4 w-4" />;
+}
+
+function StatusDot({ active }: { active: boolean }) {
+  return (
+    <span
+      className={`h-2.5 w-2.5 rounded-full ${active ? "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" : "bg-slate-400"}`}
+      aria-hidden="true"
+    />
+  );
 }
 
 export default async function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
@@ -76,10 +129,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     workspace_id: string;
   };
   const program = data as ProgramRow;
-  const { nodes, edges, triggers, genesisModel } = parseSchema(program.schema);
+  const { nodes, edges, genesisModel } = parseSchema(program.schema);
   const aiGenerated = isAiGenerated(genesisModel);
 
-  // Fetch active trigger count from DB
   const serviceClient = createServiceClient();
   const { data: triggerRows } = await serviceClient
     .from("triggers")
@@ -91,7 +143,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     (t: { is_active: boolean }) => t.is_active
   ).length;
 
-  // Fetch conflict info
   const { data: linkedConns } = await serviceClient
     .from("program_connections")
     .select("connection_id")
@@ -111,7 +162,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     conflictingProgramCount = uniq.size;
   }
 
-  // Check for at least one successful run (gates publish)
   const { count: successfulRunCount } = await serviceClient
     .from("runs")
     .select("id", { count: "exact", head: true })
@@ -125,39 +175,81 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     connection: "outline",
   };
 
+  const stats = [
+    { label: "Nodes", value: nodes.length, icon: Workflow },
+    { label: "Edges", value: edges.length, icon: GitBranch },
+    { label: "Triggers", value: dbTriggerCount, icon: Zap, sub: activeTriggerCount > 0 ? `${activeTriggerCount} active` : "None active", href: `/programs/${id}/triggers` },
+    { label: "Schema", value: `v${program.schema_version ?? 1}`, icon: Braces },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Link
-            href="/dashboard"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ← Programs
-          </Link>
-          <h1 className="text-xl font-semibold mt-1">{program.name}</h1>
-          {program.description && (
-            <p className="text-sm text-muted-foreground mt-0.5">{program.description}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          {aiGenerated && (
-            <Badge variant="outline" className="border-violet-500/40 text-violet-700 dark:text-violet-300">
-              AI-generated
+    <div className="mx-auto max-w-7xl space-y-6 px-1 pb-10">
+      <div className="flex flex-col gap-4 border-b border-border/70 pb-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 text-muted-foreground">
+            <Link href="/dashboard">
+              <ArrowLeft className="h-4 w-4" />
+              Programs
+            </Link>
+          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-3xl font-semibold tracking-normal text-foreground">{program.name}</h1>
+            <Badge variant={program.is_active ? "success" : "secondary"} className="gap-1.5">
+              <StatusDot active={program.is_active} />
+              {program.is_active ? "Active" : "Inactive"}
             </Badge>
-          )}
-          <Badge variant={program.is_active ? "success" : "secondary"}>
-            {program.is_active ? "Active" : "Inactive"}
-          </Badge>
-          <Badge variant="outline" className="capitalize">{program.execution_mode}</Badge>
+            {aiGenerated && (
+              <Badge variant="outline" className="border-violet-500/40 bg-violet-500/10 text-violet-700 dark:text-violet-300">
+                <Sparkles className="mr-1 h-3 w-3" />
+                AI-generated
+              </Badge>
+            )}
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {program.description || "No description yet. Open the editor to document what this workflow does."}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1">
+              <Play className="h-3.5 w-3.5" />
+              {readableMode(program.execution_mode)}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {program.conflict_policy}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1">
+              {program.visibility === "restricted" ? <Lock className="h-3.5 w-3.5" /> : <Globe2 className="h-3.5 w-3.5" />}
+              {program.visibility}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/programs/${id}/runs`}>
+              <History className="h-4 w-4" />
+              Runs
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/programs/${id}/triggers`}>
+              <Zap className="h-4 w-4" />
+              Triggers
+            </Link>
+          </Button>
           {userCanEdit && (
             <>
               <Button asChild variant="outline" size="sm">
-                <Link href={`/programs/${program.id}/settings`}>Settings</Link>
+                <Link href={`/programs/${program.id}/settings`}>
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
               </Button>
               <Button asChild size="sm">
-                <Link href={`/programs/${program.id}/editor`}>Open Editor</Link>
+                <Link href={`/programs/${program.id}/editor`}>
+                  <Workflow className="h-4 w-4" />
+                  Open Editor
+                </Link>
               </Button>
               <DeleteProgramButton programId={program.id} programName={program.name} />
             </>
@@ -165,161 +257,204 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* AI-generated review notice — EU AI Act Art. 14 (human oversight) + Art. 50 (AI transparency). */}
-      {aiGenerated && !program.is_active && (
-        <div className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-4 py-3 text-sm text-violet-800 dark:text-violet-200 flex items-start gap-2">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true">
-            <path fillRule="evenodd" d="M2.5 10a7.5 7.5 0 1115 0 7.5 7.5 0 01-15 0zm7.5-4a1 1 0 011 1v3.5a1 1 0 11-2 0V7a1 1 0 011-1zm0 7.25a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
-          </svg>
-          <span>
-            <strong>Corelyx generated this workflow from your description.</strong>{" "}
-            Review every node, parameter, and connection before activating it. AI output can be incorrect or incomplete.
-            {genesisModel && genesisModel !== "manual" && genesisModel !== "template" && (
-              <span className="text-xs opacity-80"> · model: <span className="font-mono">{genesisModel}</span></span>
-            )}
-          </span>
-        </div>
-      )}
-
-      {/* Conflict warning */}
-      {conflictingProgramCount > 0 && (
-        <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400 flex items-start gap-2">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 mt-0.5">
-              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-            </svg>
-          <span>
-            {conflictingProgramCount} other program{conflictingProgramCount > 1 ? "s" : ""} share connections with this program.
-            {" "}
-            <Link
-              href={`/programs/${id}/conflicts`}
-              className="underline underline-offset-2"
-            >
-              View conflicts
-            </Link>
-            {" — "}current policy: <strong className="capitalize">{program.conflict_policy}</strong>.
-          </span>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: "Nodes", value: nodes.length },
-          { label: "Edges", value: edges.length },
-          {
-            label: "Triggers",
-            value: dbTriggerCount,
-            sub: activeTriggerCount > 0 ? `${activeTriggerCount} active` : undefined,
-            href: `/programs/${id}/triggers`,
-          },
-          { label: "Schema v", value: program.schema_version ?? 1 },
-        ].map(({ label, value, sub, href }) => (
-          <Card key={label} className={href ? "hover:bg-accent/50 transition-colors" : ""}>
-            {href ? (
-              <Link href={href} className="block">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">{label}</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-2xl font-semibold">{value}</p>
-                  {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-                </CardContent>
-              </Link>
-            ) : (
-              <>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">{label}</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-2xl font-semibold">{value}</p>
-                </CardContent>
-              </>
-            )}
-          </Card>
-        ))}
-      </div>
-
-      {/* Quick nav */}
-      <div className="flex gap-2 flex-wrap">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/programs/${id}/runs`}>View Run History</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/programs/${id}/triggers`}>Manage Triggers</Link>
-        </Button>
-        {conflictingProgramCount > 0 && (
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/programs/${id}/conflicts`}>Conflict Settings</Link>
-          </Button>
-        )}
-      </div>
-
-      {/* Node list */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Nodes</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 divide-y divide-border">
-          {nodes.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">No nodes.</p>
-          ) : (
-            nodes.map((node, i) => (
-              <div key={i} className="py-3 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-medium">{node.label}</p>
-                  <p className="text-xs text-muted-foreground">{node.description}</p>
-                </div>
-                <Badge variant={NODE_BADGE[node.type] ?? "outline"} className="capitalize shrink-0">
-                  {node.type}
-                </Badge>
+      <div className="grid gap-4 md:grid-cols-4">
+        {stats.map(({ label, value, icon: Icon, sub, href }) => {
+          const content = (
+            <div className="flex min-h-24 items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+                <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground">{value}</p>
+                {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
               </div>
-            ))
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Icon className="h-5 w-5" />
+              </span>
+            </div>
+          );
+
+          return href ? (
+            <Link key={label} href={href} className="block transition-opacity hover:opacity-85">
+              {content}
+            </Link>
+          ) : (
+            <div key={label}>{content}</div>
+          );
+        })}
+      </div>
+
+      {(aiGenerated && !program.is_active) || conflictingProgramCount > 0 ? (
+        <div className="grid gap-3">
+          {aiGenerated && !program.is_active && (
+            <div className="flex items-start gap-3 rounded-lg border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-900 dark:text-violet-100">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium">Review this AI-generated workflow before activation.</p>
+                <p className="mt-1 text-violet-800/80 dark:text-violet-100/75">
+                  Check every node, parameter, and connection. AI output can be incorrect or incomplete.
+                  {genesisModel && genesisModel !== "manual" && genesisModel !== "template" && (
+                    <span className="ml-1 font-mono text-xs">model: {genesisModel}</span>
+                  )}
+                </p>
+              </div>
+            </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Execution controls (mode switcher + conflict policy) */}
-      {userCanEdit && (
-        <ExecutionControls
-          programId={program.id}
-          executionMode={program.execution_mode ?? "supervised"}
-          conflictPolicy={program.conflict_policy ?? "queue"}
-        />
-      )}
+          {conflictingProgramCount > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {conflictingProgramCount} other program{conflictingProgramCount > 1 ? "s" : ""} share connections with this workflow.
+                </p>
+                <p className="mt-1 text-amber-800/80 dark:text-amber-100/75">
+                  Current concurrent run policy is <span className="font-semibold capitalize">{program.conflict_policy}</span>.{" "}
+                  <Link href={`/programs/${id}/conflicts`} className="underline underline-offset-2">
+                    View conflicts
+                  </Link>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
 
-      <SharePanel programId={program.id} />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 border-b border-border/70 pb-4">
+              <div>
+                <CardTitle className="text-base">Workflow topology</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">Nodes in execution order, with their current role in the graph.</p>
+              </div>
+              <Badge variant="outline">{nodes.length} total</Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+              {nodes.length === 0 ? (
+                <div className="p-6 text-sm text-muted-foreground">No nodes yet.</div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {nodes.map((node, i) => (
+                    <div key={`${node.id}-${i}`} className="grid gap-3 px-5 py-4 sm:grid-cols-[36px_minmax(0,1fr)_auto] sm:items-center">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        <NodeGlyph type={node.type} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium text-foreground">{node.label}</p>
+                          <span className="text-xs text-muted-foreground">#{i + 1}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">{node.description || "No description."}</p>
+                      </div>
+                      <Badge variant={NODE_BADGE[node.type] ?? "outline"} className="w-fit capitalize">
+                        {node.type}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Run panel */}
-      <RunPanel programId={program.id} />
+          {userCanEdit && (
+            <ExecutionControls
+              programId={program.id}
+              executionMode={program.execution_mode ?? "supervised"}
+              conflictPolicy={program.conflict_policy ?? "queue"}
+            />
+          )}
 
-      {/* Publish panel */}
-      {userCanEdit && (
-        <PublishPanel
-          programId={program.id}
-          initialState={{
-            is_public: program.is_public ?? false,
-            tags: program.tags ?? [],
-            fork_count: program.fork_count ?? 0,
-            published_at: program.published_at ?? null,
-            public_author_name: program.public_author_name ?? null,
-          }}
-          hasSuccessfulRun={(successfulRunCount ?? 0) > 0}
-        />
-      )}
+          <RunPanel programId={program.id} />
 
-      {/* Raw schema */}
-      <details>
-        <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground select-none">
-          Raw schema (JSON)
-        </summary>
-        <pre className="mt-3 text-xs bg-muted rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-all">
-          {JSON.stringify(program.schema, null, 2)}
-        </pre>
-      </details>
+          {userCanEdit && (
+            <PublishPanel
+              programId={program.id}
+              initialState={{
+                is_public: program.is_public ?? false,
+                tags: program.tags ?? [],
+                fork_count: program.fork_count ?? 0,
+                published_at: program.published_at ?? null,
+                public_author_name: program.public_author_name ?? null,
+              }}
+              hasSuccessfulRun={(successfulRunCount ?? 0) > 0}
+            />
+          )}
+        </div>
 
-      <Button variant="outline" asChild>
-        <Link href="/dashboard">← Dashboard</Link>
-      </Button>
+        <aside className="space-y-6 lg:sticky lg:top-6">
+          <Card>
+            <CardHeader className="border-b border-border/70 pb-4">
+              <CardTitle className="text-base">Operations</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock3 className="h-4 w-4" />
+                    Last run
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{formatDate(program.last_run_at)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <CalendarClock className="h-4 w-4" />
+                    Updated
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{formatDate(program.updated_at)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Completed runs
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{successfulRunCount ?? 0}</span>
+                </div>
+              </div>
+
+              <div className="grid gap-2 border-t border-border/70 pt-4">
+                <Button asChild variant="outline" className="justify-start">
+                  <Link href={`/programs/${id}/runs`}>
+                    <History className="h-4 w-4" />
+                    View run history
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="justify-start">
+                  <Link href={`/programs/${id}/triggers`}>
+                    <Zap className="h-4 w-4" />
+                    Manage triggers
+                  </Link>
+                </Button>
+                {conflictingProgramCount > 0 && (
+                  <Button asChild variant="outline" className="justify-start">
+                    <Link href={`/programs/${id}/conflicts`}>
+                      <AlertTriangle className="h-4 w-4" />
+                      Conflict settings
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <SharePanel programId={program.id} />
+
+          <details className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm">
+            <summary className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+              <FileJson className="h-4 w-4" />
+              Raw schema
+            </summary>
+            <pre className="mt-4 max-h-[420px] overflow-auto rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
+              {JSON.stringify(program.schema, null, 2)}
+            </pre>
+          </details>
+
+          <Button variant="outline" asChild className="w-full justify-start">
+            <Link href="/dashboard">
+              <ArrowLeft className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </Button>
+        </aside>
+      </div>
     </div>
   );
 }
