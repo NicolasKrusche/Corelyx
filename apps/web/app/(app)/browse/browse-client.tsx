@@ -581,11 +581,7 @@ function ProviderLogo({ provider, size = "md" }: { provider: string; size?: "sm"
 }
 
 function formatUseCount(count: number): string {
-  if (count >= 1000) {
-    return `${Math.floor(count / 1000)}k+`;
-  }
-
-  return `${Math.max(100, Math.ceil(count / 100) * 100)}+`;
+  return `${count}`;
 }
 
 function humanizeTag(tag: string): string {
