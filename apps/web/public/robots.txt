@@ -1,6 +1,4 @@
-export function GET() {
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://corelyx.app";
-  const body = `User-agent: *
+User-agent: *
 Allow: /
 Allow: /pricing
 Allow: /privacy
@@ -17,9 +15,4 @@ Disallow: /runs
 Disallow: /api/
 Disallow: /admin/
 
-Sitemap: ${APP_URL}/sitemap.xml
-`;
-  return new Response(body, {
-    headers: { "Content-Type": "text/plain" },
-  });
-}
+Sitemap: https://corelyx.app/sitemap.xml
