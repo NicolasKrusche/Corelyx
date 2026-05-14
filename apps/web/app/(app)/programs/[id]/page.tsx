@@ -190,7 +190,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   ];
 
   return (
-    <div className="mx-auto max-w-[1368px] space-y-4 pb-10">
+    <div className="w-full space-y-4 pb-10">
       <div className="space-y-5 border-b border-border pb-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Link href="/dashboard" className="inline-flex items-center gap-1 hover:text-foreground">
