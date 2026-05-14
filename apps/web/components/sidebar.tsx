@@ -85,6 +85,82 @@ function NavItem({
   );
 }
 
+// ─── AI Credits purchase panel ────────────────────────────────────────────────
+
+const CREDIT_PACKS = [5, 10, 25, 50] as const;
+
+function AiCreditsPurchasePanel({
+  panelClass,
+  neutralBtnClass,
+  aiCreditsAvailable,
+  aiCreditsPurchased,
+}: {
+  panelClass: string;
+  neutralBtnClass: string;
+  aiCreditsAvailable: number | null;
+  aiCreditsPurchased: number;
+}) {
+  const [buying, setBuying] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleBuy(amount: number) {
+    setBuying(amount);
+    setError(null);
+    try {
+      const res = await fetch("/api/credits/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount_usd: amount }),
+      });
+      if (!res.ok) { setError("Failed to create checkout session."); return; }
+      const { url } = await res.json() as { url: string };
+      if (url) window.location.href = url;
+    } finally {
+      setBuying(null);
+    }
+  }
+
+  return (
+    <section className={panelClass}>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Platform AI Credits</p>
+      <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between">
+          <span>Available</span>
+          <span className="font-medium text-foreground">
+            {aiCreditsAvailable === null ? "Unlimited" : `$${aiCreditsAvailable.toFixed(2)}`}
+          </span>
+        </div>
+        {aiCreditsPurchased > 0 && (
+          <div className="flex items-center justify-between text-xs">
+            <span>Purchased (never expires)</span>
+            <span>${aiCreditsPurchased.toFixed(2)}</span>
+          </div>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Credits are used when your workflows call LLMs via the platform key. Included credits reset monthly with your plan.
+      </p>
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">Top up</p>
+        <div className="flex flex-wrap gap-2">
+          {CREDIT_PACKS.map((amount) => (
+            <button
+              key={amount}
+              type="button"
+              disabled={buying !== null}
+              onClick={() => { void handleBuy(amount); }}
+              className={cn(neutralBtnClass, "text-xs disabled:opacity-40")}
+            >
+              {buying === amount ? "…" : `$${amount}`}
+            </button>
+          ))}
+        </div>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      </div>
+    </section>
+  );
+}
+
 // ─── Main sidebar ─────────────────────────────────────────────────────────────
 
 type Tier = "free" | "plus" | "pro" | "builder" | "unlimited";
@@ -134,6 +210,8 @@ export function Sidebar({
   const [runUsageTotal, setRunUsageTotal] = useState<number | null>(null);
   const [genesisUsageCurrent, setGenesisUsageCurrent] = useState(0);
   const [genesisUsageTotal, setGenesisUsageTotal] = useState<number | null>(null);
+  const [aiCreditsAvailable, setAiCreditsAvailable] = useState<number | null>(null);
+  const [aiCreditsPurchased, setAiCreditsPurchased] = useState(0);
   const [advanced, setAdvanced] = useAdvancedMode();
   const { base, accent, setBase, setAccent } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -194,6 +272,10 @@ export function Sidebar({
       setRunUsageTotal(data.usage.runs.total);
       setGenesisUsageCurrent(data.usage.genesis.usesThisMonth);
       setGenesisUsageTotal(data.usage.genesis.maxUses);
+      if (data.usage.aiCredits) {
+        setAiCreditsAvailable(data.usage.aiCredits.total);
+        setAiCreditsPurchased(data.usage.aiCredits.availablePurchased);
+      }
     } catch { /* keep existing values */ }
   }, []);
 
@@ -560,6 +642,30 @@ export function Sidebar({
               </div>
               <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets monthly</p>
             </div>
+
+            {aiCreditsAvailable !== null && (
+              <div className={cn(
+                "mt-2 rounded-xl px-3 py-2.5",
+                isDark ? "bg-white/5" : "bg-black/5"
+              )}>
+                <div className="flex items-center justify-between text-[12px] font-medium">
+                  <span>Platform AI credits</span>
+                  <span>{aiCreditsAvailable === null ? "Unlimited" : `$${aiCreditsAvailable.toFixed(2)}`}</span>
+                </div>
+                {aiCreditsPurchased > 0 && (
+                  <p className={cn("mt-0.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>
+                    +${aiCreditsPurchased.toFixed(2)} purchased credits
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}
+                  className={cn("mt-1.5 text-[11px] underline underline-offset-2", isDark ? "text-blue-100/60 hover:text-blue-100" : "text-gray-500 hover:text-gray-800")}
+                >
+                  Buy more credits
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1350,6 +1456,8 @@ function SettingsModal({
                     </div>
                   </section>
                 </div>
+
+                <AiCreditsPurchasePanel panelClass={panelClass} neutralBtnClass={neutralBtnClass} aiCreditsAvailable={aiCreditsAvailable} aiCreditsPurchased={aiCreditsPurchased} />
               </div>
             )}
 

@@ -101,7 +101,7 @@ describe("getEntitlements", () => {
     expect(ent.runHistoryDays).toBe(365);
     expect(ent.priorityExecution).toBe(true);
     expect(ent.maxTeamSeats).toBeNull();
-    expect(ent.modelCreditsIncluded).toBe(true);
+    expect(ent.includedAiCreditsUsd).toBe(15);
   });
 
   it("unlimited: all null/true", () => {
