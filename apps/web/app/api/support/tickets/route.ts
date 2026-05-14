@@ -8,11 +8,13 @@ const CreateTicketSchema = z.object({
   message: z.string().trim().min(1).max(5000),
 });
 
+type SupportDb = any;
+
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  const db = createServiceClient();
+  const db = createServiceClient() as SupportDb;
   const { data, error } = await db
     .from("support_tickets")
     .select("id, type, subject, status, created_at, updated_at")
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError("Invalid request", 400);
 
   const { type, subject, message } = parsed.data;
-  const db = createServiceClient();
+  const db = createServiceClient() as SupportDb;
 
   const [{ data: profile }] = await Promise.all([
     db.from("profiles").select("tier").eq("id", user.id).single(),

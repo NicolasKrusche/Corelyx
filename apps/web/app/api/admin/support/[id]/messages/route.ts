@@ -8,6 +8,8 @@ const AddMessageSchema = z.object({
   content: z.string().trim().min(1).max(5000),
 });
 
+type SupportDb = any;
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -19,7 +21,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const db = createServiceClient();
+  const db = createServiceClient() as SupportDb;
   const { data, error } = await db
     .from("support_messages")
     .select("id, sender_type, content, created_at")
@@ -45,7 +47,7 @@ export async function POST(
   const parsed = AddMessageSchema.safeParse(body);
   if (!parsed.success) return apiError("Invalid request", 400);
 
-  const db = createServiceClient();
+  const db = createServiceClient() as SupportDb;
   const { data: message, error } = await db
     .from("support_messages")
     .insert({ ticket_id: id, sender_type: "admin", content: parsed.data.content })
