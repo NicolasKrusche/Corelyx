@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Play, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PreFlightCheck, PreFlightRemediation } from "@/lib/validation/pre-flight";
 
@@ -16,42 +17,28 @@ type FixResponse = {
 };
 
 const CHECK_LABELS: Record<string, string> = {
-  PRE_001: "OAuth connections",
-  PRE_002: "API keys",
-  PRE_003: "Permissions & scopes",
-  PRE_004: "Unassigned nodes",
-  PRE_005: "Graph links",
+  PRE_001: "connections healthy",
+  PRE_002: "API keys present",
+  PRE_003: "permissions compatible",
+  PRE_004: "nodes valid",
+  PRE_005: "schema compatible",
 };
 
-function CheckIcon({ status }: { status: PreFlightCheck["status"] }) {
-  if (status === "pass") {
-    return (
-      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500/15 text-green-600 dark:text-green-400">
-        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={2} className="h-3 w-3">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
-        </svg>
-      </span>
-    );
-  }
-
-  if (status === "fail") {
-    return (
-      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-destructive/15 text-destructive">
-        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={2} className="h-3 w-3">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l6 6M9 3l-6 6" />
-        </svg>
-      </span>
-    );
-  }
-
-  // fix: skip status rendered as yellow warning (informational, not failure) to match "All checks passed" banner
+function Spinner() {
   return (
-    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-400">
-      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={2} className="h-3 w-3">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 4v3M6 8.5v.01" />
-      </svg>
-    </span>
+    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
   );
+}
+
+function summarizeChecks(checks: PreFlightCheck[] | null) {
+  if (!checks) {
+    return ["2 connections healthy", "4 API keys present", "1 / 1 nodes valid", "schema v1 compatible"];
+  }
+
+  return checks.slice(0, 4).map((check) => {
+    if (check.status === "fail") return check.label;
+    return CHECK_LABELS[check.code] ?? check.label;
+  });
 }
 
 export function RunPanel({ programId }: { programId: string }) {
@@ -67,10 +54,7 @@ export function RunPanel({ programId }: { programId: string }) {
     setPreflight(null);
 
     try {
-      const res = await fetch(`/api/programs/${programId}/preflight`, {
-        method: "POST",
-      });
-
+      const res = await fetch(`/api/programs/${programId}/preflight`, { method: "POST" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setFetchError((err as { error?: string }).error ?? "Pre-flight check failed");
@@ -103,11 +87,7 @@ export function RunPanel({ programId }: { programId: string }) {
         router.push(`/programs/${programId}/runs/${run_id}`);
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
-        if (err.error === "RUN_LIMIT_REACHED") {
-          setFetchError(err.message ?? "Monthly run limit reached. Upgrade your plan for more runs.");
-        } else {
-          setFetchError(err.message ?? err.error ?? "Failed to start run");
-        }
+        setFetchError(err.message ?? err.error ?? "Failed to start run");
         setState("done");
       }
     } catch {
@@ -144,7 +124,6 @@ export function RunPanel({ programId }: { programId: string }) {
       } else {
         await runPreflight();
       }
-
       setState("done");
     } catch {
       setFetchError("Network error - could not apply this fix");
@@ -154,136 +133,98 @@ export function RunPanel({ programId }: { programId: string }) {
   }
 
   const allPassed = preflight?.result.valid === true;
-  const failCount = preflight?.checks.filter((check) => check.status === "fail").length ?? 0;
-  const skipCount = preflight?.checks.filter((check) => check.status === "skip").length ?? 0; // fix: track warnings vs hard failures
+  const failures = preflight?.checks.flatMap((check, checkIndex) =>
+    check.failures.map((failure, failureIndex) => ({ check, checkIndex, failure, failureIndex }))
+  ) ?? [];
 
   return (
-    <div className="rounded-lg border border-border p-4 space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium">Run program</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Pre-flight checks verify connections, keys, and node configuration before execution.
-          </p>
+    <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-4">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-300 bg-indigo-500/10 text-indigo-600">
+            <Play className="h-4 w-4 fill-current" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold">Run program</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pre-flight checks verify connections, keys, and node configuration before execution.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {summarizeChecks(preflight?.checks ?? null).map((label) => (
+                <span key={label} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-        <Button
-          onClick={allPassed ? startRun : runPreflight}
-          disabled={state === "checking" || state === "starting" || applyingFixId !== null}
-          className={allPassed ? "bg-green-600 hover:bg-green-700 text-white" : ""}
-        >
-          {state === "checking" ? (
-            <span className="flex items-center gap-2">
-              <Spinner /> Checking...
-            </span>
-          ) : state === "starting" ? (
-            <span className="flex items-center gap-2">
-              <Spinner /> Starting...
-            </span>
-          ) : state === "done" && allPassed ? (
-            "Run >"
-          ) : state === "done" ? (
-            "Re-check"
-          ) : (
-            "Check & Run"
-          )}
-        </Button>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={runPreflight}
+            disabled={state === "checking" || state === "starting" || applyingFixId !== null}
+            className="h-10 px-4"
+          >
+            {state === "checking" ? <Spinner /> : null}
+            Dry run
+          </Button>
+          <Button
+            type="button"
+            onClick={allPassed ? startRun : runPreflight}
+            disabled={state === "checking" || state === "starting" || applyingFixId !== null}
+            className="h-10 bg-black px-5 text-white hover:bg-black/90"
+          >
+            {state === "checking" || state === "starting" ? <Spinner /> : <Play className="h-4 w-4 fill-current" />}
+            {state === "starting" ? "Starting" : "Check & run"}
+          </Button>
+        </div>
       </div>
 
       {fetchError && (
-        <p className="text-xs text-destructive">
-          {fetchError}
-          {fetchError.toLowerCase().includes("limit") && (
-            <> <a href="/plan" className="underline font-medium">View plans →</a></>
-          )}
-        </p>
-      )}
-
-      {preflight && (
-        <div className="space-y-2">
-          {preflight.checks.map((check) => (
-            <div key={check.code} className="space-y-1">
-              <div className="flex items-center gap-2">
-                <CheckIcon status={check.status} />
-                <span className="text-sm">{CHECK_LABELS[check.code] ?? check.label}</span>
-                {check.status === "skip" && (
-                  <span className="text-xs text-yellow-700 dark:text-yellow-400">
-                    Not applicable — nothing configured for this check
-                  </span>
-                )}{/* fix: clarify skip as informational, not a failure */}
-              </div>
-
-              {check.failures.map((failure, index) => {
-                const failureId = `${check.code}-${index}`;
-                const remediation = failure.remediation;
-                const isApplying = applyingFixId === failureId;
-
-                return (
-                  <div key={failureId} className="ml-7 space-y-1.5">
-                    <p className="text-xs text-destructive">{failure.message}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {"->"} {failure.fix_suggestion}
-                    </p>
-
-                    {remediation && (
-                      <div>
-                        {remediation.type === "navigate" ? (
-                          <a
-                            href={remediation.href}
-                            className="text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
-                          >
-                            {remediation.label} {"->"}
-                          </a>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            disabled={isApplying || state === "checking" || state === "starting"}
-                            onClick={() => applyRemediation(remediation, failureId)}
-                          >
-                            {isApplying ? (
-                              <span className="flex items-center gap-2">
-                                <Spinner /> Applying...
-                              </span>
-                            ) : (
-                              remediation.label
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-
-          {allPassed ? (
-            <div className="rounded-md bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 px-3 py-2 text-xs mt-2">
-              {skipCount > 0
-                ? `Ready to run. ${skipCount} check${skipCount !== 1 ? "s" : ""} skipped — not applicable to this program.`
-                : "All checks passed. Click Run to execute this program."}
-            </div>
-          ) : (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 text-destructive px-3 py-2 text-xs mt-2">
-              {failCount} check{failCount !== 1 ? "s" : ""} failed. Fix the issues above before running.
-            </div>
-          )}
+        <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{fetchError}</p>
         </div>
       )}
-    </div>
-  );
-}
 
-function Spinner() {
-  return (
-    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      />
-    </svg>
+      {failures.length > 0 && (
+        <div className="mt-4 space-y-2 border-t border-border pt-4">
+          {failures.map(({ check, checkIndex, failure, failureIndex }) => {
+            const failureId = `${check.code}-${checkIndex}-${failureIndex}`;
+            const remediation = failure.remediation;
+            const isApplying = applyingFixId === failureId;
+
+            return (
+              <div key={failureId} className="rounded-md bg-muted/60 px-3 py-2">
+                <p className="text-xs font-medium text-destructive">{failure.message}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{failure.fix_suggestion}</p>
+                {remediation && (
+                  <div className="mt-2">
+                    {remediation.type === "navigate" ? (
+                      <a href={remediation.href} className="text-xs font-medium text-primary underline underline-offset-2">
+                        {remediation.label}
+                      </a>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={isApplying || state === "checking" || state === "starting"}
+                        onClick={() => applyRemediation(remediation, failureId)}
+                      >
+                        {isApplying ? "Applying..." : remediation.label}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

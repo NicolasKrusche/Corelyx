@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Eye, Hand, RefreshCw, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   programId: string;
@@ -11,15 +12,21 @@ type Props = {
 };
 
 const MODE_DESCRIPTIONS: Record<string, string> = {
-  autonomous: "Runs fully automatically — no approvals required (except nodes explicitly marked).",
-  supervised: "Every agent node requires manual approval before executing.",
-  manual: "Step-through mode — you advance each node manually.",
+  autonomous: "Autonomous. Runs fully automatically - no approvals required (except nodes explicitly marked).",
+  supervised: "Supervised. Every agent node requires manual approval before executing.",
+  manual: "Manual. Step-through mode - you advance each node manually.",
 };
 
 const POLICY_DESCRIPTIONS: Record<string, string> = {
-  queue: "New runs wait in queue if another is already running.",
-  skip: "New runs are skipped if another is already running.",
-  fail: "New runs fail immediately if another is already running.",
+  queue: "Queue. New runs wait in line if another is already running.",
+  skip: "Skip. New runs are skipped if another is already running.",
+  fail: "Fail. New runs fail immediately if another is already running.",
+};
+
+const MODE_ICONS = {
+  autonomous: Zap,
+  supervised: Eye,
+  manual: Hand,
 };
 
 export function ExecutionControls({ programId, executionMode, conflictPolicy }: Props) {
@@ -31,6 +38,13 @@ export function ExecutionControls({ programId, executionMode, conflictPolicy }: 
   const [isPending, startTransition] = useTransition();
 
   const isDirty = mode !== executionMode || policy !== conflictPolicy;
+
+  const handleReset = () => {
+    setMode(executionMode);
+    setPolicy(conflictPolicy);
+    setError(null);
+    setSaved(false);
+  };
 
   const handleSave = () => {
     setError(null);
@@ -52,73 +66,87 @@ export function ExecutionControls({ programId, executionMode, conflictPolicy }: 
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Execution Controls</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Execution mode */}
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
         <div>
-          <label className="block text-xs font-medium text-foreground mb-2">Execution Mode</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(["autonomous", "supervised", "manual"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                  mode === m
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-accent"
-                }`}
-              >
-                <p className="text-xs font-medium capitalize">{m}</p>
-              </button>
-            ))}
+          <h2 className="text-sm font-semibold">Execution</h2>
+          <p className="mt-1 text-sm text-muted-foreground">How the program runs and handles concurrent triggers.</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={handleReset} disabled={isPending}>
+          <RefreshCw className="h-4 w-4" />
+          Reset
+        </Button>
+      </div>
+
+      <div className="space-y-5 p-5">
+        <div>
+          <p className="mb-2 text-sm text-foreground">
+            Execution mode <span className="text-xs text-muted-foreground">- how steps advance</span>
+          </p>
+          <div className="grid rounded-lg border border-border bg-muted/60 p-1 sm:grid-cols-3">
+            {(["autonomous", "supervised", "manual"] as const).map((m) => {
+              const Icon = MODE_ICONS[m];
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors ${
+                    mode === m
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="capitalize">{m}</span>
+                </button>
+              );
+            })}
           </div>
           {MODE_DESCRIPTIONS[mode] && (
-            <p className="text-xs text-muted-foreground mt-2">{MODE_DESCRIPTIONS[mode]}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{MODE_DESCRIPTIONS[mode]}</p>
           )}
         </div>
 
-        {/* Conflict policy */}
         <div>
-          <label className="block text-xs font-medium text-foreground mb-2">
-            Concurrent Run Policy
-          </label>
-          <div className="grid grid-cols-3 gap-2">
+          <p className="mb-2 text-sm text-foreground">
+            Concurrent run policy <span className="text-xs text-muted-foreground">- when a run is already in progress</span>
+          </p>
+          <div className="grid rounded-lg border border-border bg-muted/60 p-1 sm:grid-cols-3">
             {(["queue", "skip", "fail"] as const).map((p) => (
               <button
                 key={p}
+                type="button"
                 onClick={() => setPolicy(p)}
-                className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                className={`inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors ${
                   policy === p
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-accent"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <p className="text-xs font-medium capitalize">{p}</p>
+                <span className="capitalize">{p}</span>
               </button>
             ))}
           </div>
           {POLICY_DESCRIPTIONS[policy] && (
-            <p className="text-xs text-muted-foreground mt-2">{POLICY_DESCRIPTIONS[policy]}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{POLICY_DESCRIPTIONS[policy]}</p>
           )}
         </div>
 
-        {/* Save */}
         {(isDirty || saved || error) && (
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={handleSave}
               disabled={isPending || !isDirty}
-              className="h-8 px-3 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              {isPending ? "Saving…" : saved ? "Saved!" : "Save Changes"}
+              {isPending ? "Saving..." : saved ? "Saved" : "Save changes"}
             </button>
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
