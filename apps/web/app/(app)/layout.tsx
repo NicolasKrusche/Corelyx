@@ -77,7 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <main className="relative ml-0 min-h-screen px-6 py-14 lg:ml-16 lg:px-8 lg:py-8">
         <div className="app-bg-gradient pointer-events-none fixed inset-0 -z-10 bg-background" />
-        <div className="mx-auto w-full max-w-[1180px]">
+        <div className="w-full">
           <WelcomeOfferBanner
             createdAt={profile?.created_at ?? appUser.created_at}
             tier={profile?.tier ?? "free"}
