@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PROGRAM_ROLE_LABELS, WORKSPACE_ROLE_LABELS, type ProgramRole, type ProgramVisibility, type WorkspaceRole } from "@/lib/workspace-types";
 
 type ShareMember = {
@@ -26,6 +26,17 @@ const PROGRAM_ROLE_OPTIONS: Array<{ value: ProgramRole | ""; label: string }> = 
   { value: "runner", label: "Runner" },
   { value: "viewer", label: "Viewer" },
 ];
+
+function InitialAvatar({ member, index }: { member: ShareMember; index: number }) {
+  const label = member.display_name || member.email || member.user_id;
+  const colors = ["bg-indigo-500", "bg-orange-500", "bg-emerald-500", "bg-sky-500"];
+
+  return (
+    <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${colors[index % colors.length]}`}>
+      {label.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
 
 export function SharePanel({ programId }: { programId: string }) {
   const [state, setState] = useState<ShareResponse | null>(null);
@@ -63,24 +74,29 @@ export function SharePanel({ programId }: { programId: string }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Workspace access</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold">Access</h2>
+        <Button asChild variant="outline" size="sm" className="h-8">
+          <Link href="/workspaces">
+            <Plus className="h-4 w-4" />
+            Invite
+          </Link>
+        </Button>
+      </div>
+
+      <div className="space-y-4 p-4">
         {!state ? (
           <p className="text-sm text-muted-foreground">Loading sharing settings...</p>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-              <div>
-                <p className="text-sm font-medium">Program visibility</p>
-                <p className="text-xs text-muted-foreground">
-                  Workspace default lets members inherit access. Restricted only allows owners, admins, and explicit program roles.
-                </p>
-              </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-sm font-semibold">Workspace visibility</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Workspace default lets members inherit access. Restricted only allows owners, admins, and explicit program roles.
+              </p>
               <select
-                className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                className="mt-4 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 disabled={!state.can_edit || busy}
                 value={state.visibility}
                 onChange={(event) => updateShare({ visibility: event.target.value as ProgramVisibility })}
@@ -90,51 +106,65 @@ export function SharePanel({ programId }: { programId: string }) {
               </select>
             </div>
 
-            <div className="divide-y divide-border rounded-lg border border-border">
-              {state.members.map((member) => (
-                <div key={member.user_id} className="flex flex-wrap items-center justify-between gap-3 p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {member.display_name || member.email || member.user_id}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">{WORKSPACE_ROLE_LABELS[member.workspace_role]}</Badge>
-                      {member.program_role && (
-                        <Badge variant="secondary">{PROGRAM_ROLE_LABELS[member.program_role]}</Badge>
-                      )}
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Members · {state.members.length}
+              </p>
+              <div className="space-y-3">
+                {state.members.map((member, index) => (
+                  <div key={member.user_id} className="flex items-center gap-3">
+                    <InitialAvatar member={member} index={index} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {member.display_name || member.email || member.user_id}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {member.workspace_role === "owner" ? "Workspace owner" : WORKSPACE_ROLE_LABELS[member.workspace_role]}
+                        {member.program_role ? ` · ${PROGRAM_ROLE_LABELS[member.program_role]}` : ""}
+                      </p>
                     </div>
+                    <select
+                      className="h-8 max-w-36 rounded-md border border-input bg-background px-2 text-xs"
+                      disabled={!state.can_edit || busy || member.workspace_role === "owner" || member.workspace_role === "admin"}
+                      value={member.program_role ?? ""}
+                      onChange={(event) => {
+                        const value = event.target.value as ProgramRole | "";
+                        void updateShare({
+                          user_id: member.user_id,
+                          role: value === "" ? null : value,
+                        });
+                      }}
+                    >
+                      {member.workspace_role === "owner" || member.workspace_role === "admin" ? (
+                        <option value="">Owner</option>
+                      ) : (
+                        PROGRAM_ROLE_OPTIONS.map((option) => (
+                          <option key={option.value || "default"} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   </div>
-                  <select
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                    disabled={!state.can_edit || busy || member.workspace_role === "owner" || member.workspace_role === "admin"}
-                    value={member.program_role ?? ""}
-                    onChange={(event) => {
-                      const value = event.target.value as ProgramRole | "";
-                      void updateShare({
-                        user_id: member.user_id,
-                        role: value === "" ? null : value,
-                      });
-                    }}
-                  >
-                    {PROGRAM_ROLE_OPTIONS.map((option) => (
-                      <option key={option.value || "default"} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </>
         )}
 
         {message && <p className="text-xs text-destructive">{message}</p>}
         {state?.can_edit && (
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => void loadShare()}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void loadShare()}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            <RefreshCw className="h-4 w-4" />
             Refresh access
-          </Button>
+          </button>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
