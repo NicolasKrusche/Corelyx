@@ -866,6 +866,7 @@ function SettingsModal({
   onAccentChange,
   aiCreditsAvailable,
   aiCreditsPurchased,
+  initialTab,
   onClose,
 }: {
   email: string;
