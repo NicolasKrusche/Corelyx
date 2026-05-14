@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { apiError } from "@/lib/api";
+import { apiError, createServiceClient } from "@/lib/api";
 import { checkProgramLimit } from "@/lib/limits";
 import { buildBlankProgramSchema } from "@/lib/programs/blank-schema";
 import { validatePostGenesis } from "@/lib/validation";
@@ -60,6 +60,7 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const description = parsed.data.description?.trim() ?? "";
   const programId = crypto.randomUUID();
+  const serviceClient = createServiceClient();
   const schema = buildBlankProgramSchema({
     programId,
     name: parsed.data.name,
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     now,
   });
 
-  const { data: programRaw, error: insertError } = await supabase
+  const { data: programRaw, error: insertError } = await serviceClient
     .from("programs")
     .insert({
       id: programId,
@@ -87,9 +88,19 @@ export async function POST(request: Request) {
     return apiError(insertError?.message ?? "Failed to create program", 500);
   }
 
+  const { error: membershipError } = await serviceClient.from("program_memberships").insert({
+    program_id: programId,
+    user_id: user.id,
+    role: "editor",
+    created_by: user.id,
+  } as unknown as never);
+  if (membershipError) {
+    console.error("[/api/programs] Failed to grant creator editor access:", membershipError.message);
+  }
+
   const validation = validatePostGenesis(schema, []);
 
-  const { error: versionError } = await supabase.from("program_versions").insert({
+  const { error: versionError } = await serviceClient.from("program_versions").insert({
     program_id: programId,
     version: 0,
     schema: schema as unknown as Record<string, unknown>,

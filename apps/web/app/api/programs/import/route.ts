@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { apiError } from "@/lib/api";
+import { apiError, createServiceClient } from "@/lib/api";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
@@ -139,8 +139,9 @@ export async function POST(request: Request) {
   }
 
   const validation = validatePostGenesis(normalizedSchema, matchedConnections);
+  const serviceClient = createServiceClient();
 
-  const { data: programRaw, error: insertError } = await supabase
+  const { data: programRaw, error: insertError } = await serviceClient
     .from("programs")
     .insert({
       user_id: user.id,
@@ -168,14 +169,24 @@ export async function POST(request: Request) {
     updated_at: string;
   };
 
+  const { error: membershipError } = await serviceClient.from("program_memberships").insert({
+    program_id: program.id,
+    user_id: user.id,
+    role: "editor",
+    created_by: user.id,
+  } as unknown as never);
+  if (membershipError) {
+    console.error("[program import] Failed to grant creator editor access:", membershipError.message);
+  }
+
   if (matchedConnections.length > 0) {
-    const { error: linkError } = await supabase.from("program_connections").insert(
+    const { error: linkError } = await serviceClient.from("program_connections").insert(
       matchedConnections.map((conn) => ({ program_id: program.id, connection_id: conn.id })) as unknown as never
     );
     if (linkError) console.error("[program import] Failed to link connections:", linkError.message);
   }
 
-  const { error: versionErr } = await supabase.from("program_versions").insert({
+  const { error: versionErr } = await serviceClient.from("program_versions").insert({
     program_id: program.id,
     version: 0,
     schema: normalizedSchema as unknown as Record<string, unknown>,
