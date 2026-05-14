@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
 import {
   Activity,
@@ -22,7 +23,6 @@ export const metadata = {
 
 async function getUser() {
   const supabase = await createServerClient();
-  
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }
@@ -31,64 +31,63 @@ type AdminProfileRow = {
   is_admin: boolean | null;
 };
 
-const navItems = [
-  { href: "/admin", label: "Overview", icon: Activity },
-  { href: "/admin/health", label: "System Health", icon: Shield },
-  { href: "/admin/circuits", label: "Circuit Breakers", icon: Zap },
-  { href: "/admin/runs", label: "Active Runs", icon: PlayCircle },
-  { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
-  { href: "/admin/emergency", label: "Emergency", icon: AlertTriangle },
-  { href: "/admin/locks", label: "Credential Locks", icon: Lock },
-  { href: "/admin/flags", label: "Feature Flags", icon: Settings },
-  { href: "/admin/support", label: "Support Tickets", icon: MessageCircle },
-];
-
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const user = await getUser();
-  
+
   if (!user) {
     redirect("/login?redirect=/admin");
   }
-  
-  // Check admin status via env var or database
+
   const supabase = await createServerClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single();
-  const adminProfile = profile as unknown as AdminProfileRow | null;
-  
+  const service = createServiceClient();
+
+  const [profileRes, openTicketsRes] = await Promise.all([
+    supabase.from("profiles").select("is_admin").eq("id", user.id).single(),
+    service.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
+  ]);
+
+  const adminProfile = profileRes.data as unknown as AdminProfileRow | null;
   const isAdmin = isAdminEmail(user.email ?? undefined) || adminProfile?.is_admin === true;
-  
+
   if (!isAdmin) {
     redirect("/dashboard?error=admin_required");
   }
-  
+
+  const openTicketCount = openTicketsRes.count ?? 0;
+
+  const navItems = [
+    { href: "/admin", label: "Overview", icon: Activity },
+    { href: "/admin/health", label: "System Health", icon: Shield },
+    { href: "/admin/circuits", label: "Circuit Breakers", icon: Zap },
+    { href: "/admin/runs", label: "Active Runs", icon: PlayCircle },
+    { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
+    { href: "/admin/emergency", label: "Emergency", icon: AlertTriangle },
+    { href: "/admin/locks", label: "Credential Locks", icon: Lock },
+    { href: "/admin/flags", label: "Feature Flags", icon: Settings },
+    { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
+  ];
+
   return (
     <div className="min-h-screen">
-      {/* Simple admin header - matches app theme */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
           <p className="text-muted-foreground">System monitoring and controls</p>
         </div>
-        <Link 
-          href="/dashboard" 
+        <Link
+          href="/dashboard"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
         </Link>
       </div>
-      
-      {/* Two column layout */}
+
       <div className="flex gap-6">
-        {/* Left sidebar navigation */}
         <nav className="w-56 shrink-0">
           <div className="sticky top-6 space-y-1">
             {navItems.map((item) => {
@@ -103,12 +102,16 @@ export default async function AdminLayout({
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <span className="flex-1">{item.label}</span>
+                  {"badge" in item && item.badge > 0 && (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
-            
-            {/* Quick Actions */}
+
             <div className="mt-6 pt-6 border-t">
               <p className="mb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Quick Actions
@@ -130,8 +133,7 @@ export default async function AdminLayout({
             </div>
           </div>
         </nav>
-        
-        {/* Main content */}
+
         <main className="flex-1 min-w-0">
           {children}
         </main>

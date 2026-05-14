@@ -10,6 +10,7 @@ import { DashboardSearch } from "@/components/dashboard/dashboard-search";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { getRunUsage } from "@/lib/limits";
 import { getActiveWorkspace } from "@/lib/workspaces";
+import { getUserCreditBalance } from "@/lib/credits";
 
 type Program = {
   id: string;
@@ -99,7 +100,7 @@ export default async function DashboardPage({
   const activeWorkspace = await getActiveWorkspace(user.id);
   if (!activeWorkspace) redirect("/workspaces");
 
-  const [workspaceResult, programsResult, connectionsResult, apiKeysResult, runUsage] = await Promise.all([
+  const [workspaceResult, programsResult, connectionsResult, apiKeysResult, runUsage, creditBalance] = await Promise.all([
     supabase
       .from("workspaces")
       .select("id, name")
@@ -119,6 +120,7 @@ export default async function DashboardPage({
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", activeWorkspace.workspaceId),
     getRunUsage(user.id, activeWorkspace.workspaceId),
+    getUserCreditBalance(user.id).catch(() => null),
   ]);
 
   const workspace = (workspaceResult.data ?? null) as WorkspaceRow | null;
@@ -197,6 +199,22 @@ export default async function DashboardPage({
           </p>
         </div>
       </section>
+
+      {creditBalance && creditBalance.total !== Infinity && creditBalance.total < 1 && (
+        <section className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm">
+          <p className="text-amber-700 dark:text-amber-300 font-medium">
+            {creditBalance.total <= 0
+              ? "Platform AI credits exhausted — LLM nodes using the platform key won't run."
+              : `Only $${creditBalance.total.toFixed(2)} in platform AI credits remaining.`}
+          </p>
+          <Link
+            href="/plan"
+            className="shrink-0 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
+          >
+            Buy credits
+          </Link>
+        </section>
+      )}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {featuredPrograms.length === 0 ? (

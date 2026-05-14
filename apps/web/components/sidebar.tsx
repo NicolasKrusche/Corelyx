@@ -613,12 +613,8 @@ export function Sidebar({
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
-        <NavButton
-          label="Support"
-          icon={<SupportIcon />}
-          isDark={isDark}
-          onClick={() => { setSettingsInitialTab("support"); setSettingsOpen(true); }}
-        />
+        <NavItem href="/support" label="Support" active={pathname.startsWith("/support")}
+          icon={<SupportIcon />} isDark={isDark} />
         <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
           icon={<PricingIcon />} isDark={isDark} />
         
