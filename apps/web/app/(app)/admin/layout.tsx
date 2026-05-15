@@ -13,7 +13,8 @@ import {
   DollarSign,
   PlayCircle,
   Lock,
-  ArrowLeft
+  ArrowLeft,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,13 @@ async function getUser() {
 
 type AdminProfileRow = {
   is_admin: boolean | null;
+};
+
+type AdminNavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: number;
 };
 
 export default async function AdminLayout({
@@ -59,7 +67,7 @@ export default async function AdminLayout({
 
   const openTicketCount = openTicketsRes.count ?? 0;
 
-  const navItems = [
+  const navItems: AdminNavItem[] = [
     { href: "/admin", label: "Overview", icon: Activity },
     { href: "/admin/health", label: "System Health", icon: Shield },
     { href: "/admin/circuits", label: "Circuit Breakers", icon: Zap },
@@ -103,7 +111,7 @@ export default async function AdminLayout({
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="flex-1">{item.label}</span>
-                  {"badge" in item && item.badge > 0 && (
+                  {item.badge != null && item.badge > 0 && (
                     <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
                       {item.badge > 99 ? "99+" : item.badge}
                     </span>
