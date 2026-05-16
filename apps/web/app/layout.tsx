@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 import { CookieNotice } from "@/components/consent-banner";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -58,8 +60,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
-    <html lang="en" className={`${inter.variable} light accent-blue`} suppressHydrationWarning>
+    <html lang={locale} className={`${inter.variable} light accent-blue`} suppressHydrationWarning>
       <head>
         {/* Anti-flash: apply landing override or persisted base + accent before first paint */}
         <script
@@ -70,12 +74,14 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-sans">
-        <ThemeProvider>
-          <LanguageBootstrap />
-          {children}
-          <LanguagePrompt />
-          <CookieNotice />
-        </ThemeProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ThemeProvider>
+            <LanguageBootstrap />
+            {children}
+            <LanguagePrompt />
+            <CookieNotice />
+          </ThemeProvider>
+        </NextIntlClientProvider>
         <Analytics />
       </body>
     </html>

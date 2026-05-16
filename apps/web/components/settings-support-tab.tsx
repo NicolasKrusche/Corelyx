@@ -20,6 +20,9 @@ type SupportMessage = {
   created_at: string;
 };
 
+type ProgramOption = { id: string; name: string };
+type ActiveGrant = { id: string; program_id: string; expires_at: string; programs: { name: string } | null };
+
 const TYPE_LABEL: Record<string, string> = {
   support: "Support",
   sales: "Custom integrations",
@@ -67,6 +70,11 @@ export function SettingsSupportTab({
   const [reply, setReply] = useState("");
   const [replying, setReplying] = useState(false);
 
+  const [programs, setPrograms] = useState<ProgramOption[]>([]);
+  const [grants, setGrants] = useState<ActiveGrant[]>([]);
+  const [grantsOpen, setGrantsOpen] = useState(false);
+  const [grantWorking, setGrantWorking] = useState<string | null>(null);
+
   const endRef = useRef<HTMLDivElement>(null);
 
   async function fetchTickets() {
@@ -84,11 +92,45 @@ export function SettingsSupportTab({
     setMessages(data.messages);
   }
 
+  async function fetchGrants(ticketId: string) {
+    const res = await fetch(`/api/support/grants?ticket_id=${ticketId}`);
+    if (!res.ok) return;
+    const data = (await res.json()) as { grants: ActiveGrant[] };
+    setGrants(data.grants);
+  }
+
+  async function fetchPrograms() {
+    if (programs.length > 0) return;
+    const res = await fetch("/api/programs");
+    if (!res.ok) return;
+    const data = (await res.json()) as ProgramOption[];
+    setPrograms(data.map((p) => ({ id: p.id, name: p.name })));
+  }
+
+  async function handleGrantToggle(programId: string) {
+    if (!selected) return;
+    setGrantWorking(programId);
+    const existing = grants.find((g) => g.program_id === programId);
+    if (existing) {
+      await fetch(`/api/support/grants/${existing.id}`, { method: "DELETE" });
+    } else {
+      await fetch("/api/support/grants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ program_id: programId, ticket_id: selected.id }),
+      });
+    }
+    await fetchGrants(selected.id);
+    setGrantWorking(null);
+  }
+
   useEffect(() => { void fetchTickets(); }, []);
 
   useEffect(() => {
     if (view !== "thread" || !selected) return;
     void fetchMessages(selected.id);
+    void fetchGrants(selected.id);
+    void fetchPrograms();
 
     const supabase = createBrowserClient();
     const channel = supabase
@@ -191,6 +233,51 @@ export function SettingsSupportTab({
             </div>
           ))}
           <div ref={endRef} />
+        </div>
+
+        {/* Shared programs */}
+        <div className="mt-3 rounded-2xl border border-border bg-secondary/10">
+          <button
+            type="button"
+            onClick={() => setGrantsOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground"
+          >
+            <span>Shared programs {grants.length > 0 && `(${grants.length})`}</span>
+            <span className="text-[10px]">{grantsOpen ? "▲" : "▼"}</span>
+          </button>
+          {grantsOpen && (
+            <div className="border-t border-border px-4 pb-3 pt-2 space-y-1.5">
+              {programs.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">No programs in your workspace.</p>
+              ) : (
+                programs.map((program) => {
+                  const granted = grants.some((g) => g.program_id === program.id);
+                  const working = grantWorking === program.id;
+                  return (
+                    <div key={program.id} className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm">{program.name}</span>
+                      <button
+                        type="button"
+                        disabled={working}
+                        onClick={() => handleGrantToggle(program.id)}
+                        className={cn(
+                          "shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-40",
+                          granted
+                            ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                            : "bg-primary/10 text-primary hover:bg-primary/20",
+                        )}
+                      >
+                        {working ? "…" : granted ? "Revoke" : "Share"}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+              <p className="pt-1 text-[10px] text-muted-foreground">
+                Shared programs let support staff view workflow nodes and recent runs to diagnose issues. Access expires in 7 days.
+              </p>
+            </div>
+          )}
         </div>
 
         {selected.status === "open" ? (

@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "ホーム",
+    "workspaces": "ワークスペース",
+    "import": "インポート",
+    "browse": "ブラウズ",
+    "connections": "コネクション",
+    "runs": "実行",
+    "approvals": "承認",
+    "logs": "ログ",
+    "apiKeys": "APIキー",
+    "credits": "クレジット・使用量",
+    "support": "サポート",
+    "pricing": "料金",
+    "admin": "管理"
+  },
+  "userMenu": {
+    "settings": "設定",
+    "language": "言語",
+    "signOut": "サインアウト"
+  },
+  "settings": {
+    "groups": {
+      "personal": "個人",
+      "workspace": "ワークスペース"
+    },
+    "tabs": {
+      "account": { "label": "アカウント", "caption": "概要とアクセス" },
+      "profile": { "label": "プロフィール", "caption": "表示名とアバター" },
+      "security": { "label": "セキュリティ", "caption": "パスワードとサインイン" },
+      "plan": { "label": "プラン", "caption": "サブスクリプションとアクセス" },
+      "support": { "label": "サポート", "caption": "ヘルプまたは営業へのお問い合わせ" },
+      "legal": { "label": "法的情報", "caption": "プライバシーと利用規約" },
+      "danger": { "label": "危険ゾーン", "caption": "このアカウントを削除" },
+      "general": { "label": "一般", "caption": "テーマと設定" },
+      "language": { "label": "言語", "caption": "翻訳とロケール" },
+      "advanced": { "label": "詳細設定", "caption": "上級者向けオプション" },
+      "compliance": { "label": "EUコンプライアンス", "caption": "GDPRと法的文書" },
+      "codeManager": { "label": "管理ツール", "caption": "コードとDSRキュー" }
+    }
+  },
+  "tiers": {
+    "free": "無料",
+    "plus": "ソロ",
+    "pro": "チーム",
+    "builder": "スケール",
+    "unlimited": "無制限"
+  },
+  "credits": {
+    "title": "クレジット・使用量",
+    "totalAvailable": "利用可能合計",
+    "unlimited": "無制限",
+    "included": "含まれる",
+    "purchased": "購入済み",
+    "platformAi": "プラットフォームAI",
+    "genesisAi": "Genesis AI",
+    "workflowRuns": "ワークフロー実行",
+    "usedThisMonth": "今月の使用量",
+    "runsThisMonth": "今月の実行数",
+    "upgrade": "アップグレード →",
+    "topUp": "クレジットをチャージ",
+    "topUpDesc": "購入したクレジットは有効期限なし。月間割り当て消費後に使用されます。",
+    "topUpNote": "$1 ≈ モデルによって数百回のLLM呼び出し。Corелыксプラットフォームキー経由のワークフローのみ対象。",
+    "includedCredits": "含まれるクレジット",
+    "includedCreditsDesc": "プランとともに毎月リセット",
+    "purchasedCredits": "購入済みクレジット",
+    "purchasedCreditsNeverExpire": "有効期限なし"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "Home",
+    "workspaces": "Workspaces",
+    "import": "Import",
+    "browse": "Browse",
+    "connections": "Connections",
+    "runs": "Runs",
+    "approvals": "Approvals",
+    "logs": "Logs",
+    "apiKeys": "API Keys",
+    "credits": "Credits & Usage",
+    "support": "Support",
+    "pricing": "Pricing",
+    "admin": "Admin"
+  },
+  "userMenu": {
+    "settings": "Settings",
+    "language": "Language",
+    "signOut": "Sign out"
+  },
+  "settings": {
+    "groups": {
+      "personal": "Personal",
+      "workspace": "Workspace"
+    },
+    "tabs": {
+      "account": { "label": "Account", "caption": "Overview and access" },
+      "profile": { "label": "Profile", "caption": "Display name and avatar" },
+      "security": { "label": "Security", "caption": "Password and sign-in" },
+      "plan": { "label": "Plan", "caption": "Subscription and access" },
+      "support": { "label": "Support", "caption": "Get help or contact sales" },
+      "legal": { "label": "Legal", "caption": "Privacy and terms" },
+      "danger": { "label": "Danger zone", "caption": "Delete this account" },
+      "general": { "label": "General", "caption": "Theme and preferences" },
+      "language": { "label": "Language", "caption": "Translation and locale" },
+      "advanced": { "label": "Advanced", "caption": "Power-user controls" },
+      "compliance": { "label": "EU Compliance", "caption": "GDPR and legal docs" },
+      "codeManager": { "label": "Admin Tools", "caption": "Codes and DSR queue" }
+    }
+  },
+  "tiers": {
+    "free": "Free",
+    "plus": "Solo",
+    "pro": "Team",
+    "builder": "Scale",
+    "unlimited": "Unlimited"
+  },
+  "credits": {
+    "title": "Credits & Usage",
+    "totalAvailable": "Total available",
+    "unlimited": "Unlimited",
+    "included": "included",
+    "purchased": "purchased",
+    "platformAi": "Platform AI",
+    "genesisAi": "Genesis AI",
+    "workflowRuns": "Workflow Runs",
+    "usedThisMonth": "Used this month",
+    "runsThisMonth": "Runs this month",
+    "upgrade": "Upgrade →",
+    "topUp": "Top up credits",
+    "topUpDesc": "Purchased credits never expire and are used after your monthly allowance runs out.",
+    "topUpNote": "$1 ≈ a few hundred LLM calls depending on model. Used only when workflows run via the Corelyx platform key.",
+    "includedCredits": "Included credits",
+    "includedCreditsDesc": "Resets monthly with your plan",
+    "purchasedCredits": "Purchased credits",
+    "purchasedCreditsNeverExpire": "Never expire"
+  }
+}

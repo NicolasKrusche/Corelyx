@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "Главная",
+    "workspaces": "Рабочие области",
+    "import": "Импорт",
+    "browse": "Обзор",
+    "connections": "Подключения",
+    "runs": "Запуски",
+    "approvals": "Одобрения",
+    "logs": "Журналы",
+    "apiKeys": "API-ключи",
+    "credits": "Кредиты и использование",
+    "support": "Поддержка",
+    "pricing": "Тарифы",
+    "admin": "Администратор"
+  },
+  "userMenu": {
+    "settings": "Настройки",
+    "language": "Язык",
+    "signOut": "Выйти"
+  },
+  "settings": {
+    "groups": {
+      "personal": "Личные",
+      "workspace": "Рабочая область"
+    },
+    "tabs": {
+      "account": { "label": "Аккаунт", "caption": "Обзор и доступ" },
+      "profile": { "label": "Профиль", "caption": "Имя и аватар" },
+      "security": { "label": "Безопасность", "caption": "Пароль и вход" },
+      "plan": { "label": "Тариф", "caption": "Подписка и доступ" },
+      "support": { "label": "Поддержка", "caption": "Помощь или продажи" },
+      "legal": { "label": "Правовое", "caption": "Конфиденциальность и условия" },
+      "danger": { "label": "Опасная зона", "caption": "Удалить аккаунт" },
+      "general": { "label": "Общие", "caption": "Тема и настройки" },
+      "language": { "label": "Язык", "caption": "Перевод и локаль" },
+      "advanced": { "label": "Расширенные", "caption": "Опции для опытных" },
+      "compliance": { "label": "Соответствие ЕС", "caption": "GDPR и юридические документы" },
+      "codeManager": { "label": "Инструменты", "caption": "Коды и очередь DSR" }
+    }
+  },
+  "tiers": {
+    "free": "Бесплатный",
+    "plus": "Соло",
+    "pro": "Команда",
+    "builder": "Масштаб",
+    "unlimited": "Безлимитный"
+  },
+  "credits": {
+    "title": "Кредиты и использование",
+    "totalAvailable": "Всего доступно",
+    "unlimited": "Безлимитно",
+    "included": "включено",
+    "purchased": "куплено",
+    "platformAi": "Платформенный ИИ",
+    "genesisAi": "Genesis ИИ",
+    "workflowRuns": "Запуски рабочих процессов",
+    "usedThisMonth": "Использовано в этом месяце",
+    "runsThisMonth": "Запусков в этом месяце",
+    "upgrade": "Обновить →",
+    "topUp": "Пополнить кредиты",
+    "topUpDesc": "Купленные кредиты не истекают и используются после исчерпания ежемесячного лимита.",
+    "topUpNote": "$1 ≈ несколько сотен вызовов LLM в зависимости от модели.",
+    "includedCredits": "Включённые кредиты",
+    "includedCreditsDesc": "Обновляется ежемесячно с планом",
+    "purchasedCredits": "Купленные кредиты",
+    "purchasedCreditsNeverExpire": "Не истекают"
+  }
+}

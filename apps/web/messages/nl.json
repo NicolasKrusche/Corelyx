@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "Home",
+    "workspaces": "Werkruimten",
+    "import": "Importeren",
+    "browse": "Bladeren",
+    "connections": "Verbindingen",
+    "runs": "Uitvoeringen",
+    "approvals": "Goedkeuringen",
+    "logs": "Logboeken",
+    "apiKeys": "API-sleutels",
+    "credits": "Tegoed & Gebruik",
+    "support": "Ondersteuning",
+    "pricing": "Prijzen",
+    "admin": "Admin"
+  },
+  "userMenu": {
+    "settings": "Instellingen",
+    "language": "Taal",
+    "signOut": "Uitloggen"
+  },
+  "settings": {
+    "groups": {
+      "personal": "Persoonlijk",
+      "workspace": "Werkruimte"
+    },
+    "tabs": {
+      "account": { "label": "Account", "caption": "Overzicht en toegang" },
+      "profile": { "label": "Profiel", "caption": "Weergavenaam en avatar" },
+      "security": { "label": "Beveiliging", "caption": "Wachtwoord en aanmelden" },
+      "plan": { "label": "Abonnement", "caption": "Abonnement en toegang" },
+      "support": { "label": "Ondersteuning", "caption": "Help of contacteer verkoop" },
+      "legal": { "label": "Juridisch", "caption": "Privacy en voorwaarden" },
+      "danger": { "label": "Gevarenzone", "caption": "Dit account verwijderen" },
+      "general": { "label": "Algemeen", "caption": "Thema en voorkeuren" },
+      "language": { "label": "Taal", "caption": "Vertaling en taalinstelling" },
+      "advanced": { "label": "Geavanceerd", "caption": "Geavanceerde opties" },
+      "compliance": { "label": "EU-naleving", "caption": "AVG en juridische documenten" },
+      "codeManager": { "label": "Beheerderstools", "caption": "Codes en DSR-wachtrij" }
+    }
+  },
+  "tiers": {
+    "free": "Gratis",
+    "plus": "Solo",
+    "pro": "Team",
+    "builder": "Scale",
+    "unlimited": "Onbeperkt"
+  },
+  "credits": {
+    "title": "Tegoed & Gebruik",
+    "totalAvailable": "Totaal beschikbaar",
+    "unlimited": "Onbeperkt",
+    "included": "inbegrepen",
+    "purchased": "gekocht",
+    "platformAi": "Platform-AI",
+    "genesisAi": "Genesis-AI",
+    "workflowRuns": "Workflow-uitvoeringen",
+    "usedThisMonth": "Gebruikt deze maand",
+    "runsThisMonth": "Uitvoeringen deze maand",
+    "upgrade": "Upgraden →",
+    "topUp": "Tegoed opwaarderen",
+    "topUpDesc": "Gekocht tegoed vervalt nooit en wordt gebruikt na uw maandelijkse limiet.",
+    "topUpNote": "$1 ≈ een paar honderd LLM-aanroepen afhankelijk van het model. Alleen gebruikt voor workflows via de Corelyx-platformsleutel.",
+    "includedCredits": "Inbegrepen tegoed",
+    "includedCreditsDesc": "Wordt maandelijks gereset met uw abonnement",
+    "purchasedCredits": "Gekocht tegoed",
+    "purchasedCreditsNeverExpire": "Vervalt nooit"
+  }
+}

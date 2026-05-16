@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "workspaces": "Espacios de trabajo",
+    "import": "Importar",
+    "browse": "Explorar",
+    "connections": "Conexiones",
+    "runs": "Ejecuciones",
+    "approvals": "Aprobaciones",
+    "logs": "Registros",
+    "apiKeys": "Claves API",
+    "credits": "Créditos & Uso",
+    "support": "Soporte",
+    "pricing": "Precios",
+    "admin": "Admin"
+  },
+  "userMenu": {
+    "settings": "Configuración",
+    "language": "Idioma",
+    "signOut": "Cerrar sesión"
+  },
+  "settings": {
+    "groups": {
+      "personal": "Personal",
+      "workspace": "Espacio de trabajo"
+    },
+    "tabs": {
+      "account": { "label": "Cuenta", "caption": "Resumen y acceso" },
+      "profile": { "label": "Perfil", "caption": "Nombre y avatar" },
+      "security": { "label": "Seguridad", "caption": "Contraseña e inicio de sesión" },
+      "plan": { "label": "Plan", "caption": "Suscripción y acceso" },
+      "support": { "label": "Soporte", "caption": "Ayuda o contacto comercial" },
+      "legal": { "label": "Legal", "caption": "Privacidad y términos" },
+      "danger": { "label": "Zona de peligro", "caption": "Eliminar esta cuenta" },
+      "general": { "label": "General", "caption": "Tema y preferencias" },
+      "language": { "label": "Idioma", "caption": "Traducción y configuración regional" },
+      "advanced": { "label": "Avanzado", "caption": "Opciones avanzadas" },
+      "compliance": { "label": "Cumplimiento UE", "caption": "RGPD y documentos legales" },
+      "codeManager": { "label": "Herramientas admin", "caption": "Códigos y cola DSR" }
+    }
+  },
+  "tiers": {
+    "free": "Gratis",
+    "plus": "Solo",
+    "pro": "Equipo",
+    "builder": "Scale",
+    "unlimited": "Ilimitado"
+  },
+  "credits": {
+    "title": "Créditos & Uso",
+    "totalAvailable": "Total disponible",
+    "unlimited": "Ilimitado",
+    "included": "incluidos",
+    "purchased": "comprados",
+    "platformAi": "IA de Plataforma",
+    "genesisAi": "IA Genesis",
+    "workflowRuns": "Ejecuciones de flujos",
+    "usedThisMonth": "Usado este mes",
+    "runsThisMonth": "Ejecuciones este mes",
+    "upgrade": "Actualizar →",
+    "topUp": "Recargar créditos",
+    "topUpDesc": "Los créditos comprados nunca caducan y se usan tras agotar tu cuota mensual.",
+    "topUpNote": "$1 ≈ unos cientos de llamadas LLM según el modelo. Solo para flujos mediante la clave de plataforma Corelyx.",
+    "includedCredits": "Créditos incluidos",
+    "includedCreditsDesc": "Se restablece mensualmente con tu plan",
+    "purchasedCredits": "Créditos comprados",
+    "purchasedCreditsNeverExpire": "Nunca caducan"
+  }
+}

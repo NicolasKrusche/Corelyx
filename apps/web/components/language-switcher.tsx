@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 const STORAGE_KEY = "corelyx-language";
 const AUTO_KEY = "corelyx-language-auto";
 const PROMPT_DISMISSED_KEY = "corelyx-language-prompt-dismissed";
-const CACHE_PREFIX = "corelyx-tx:";
 
 export const SUPPORTED_LANGUAGES: { code: string; label: string; native: string }[] = [
   { code: "en", label: "English", native: "English" },
@@ -53,192 +52,19 @@ function detectSystemLanguage(): string {
   return "en";
 }
 
-// ─── DOM translator ──────────────────────────────────────────────────────────
+// ─── Cookie helper ───────────────────────────────────────────────────────────
 
-const SKIP_TAGS = new Set([
-  "SCRIPT", "STYLE", "NOSCRIPT", "CODE", "PRE", "KBD", "SAMP", "VAR",
-  "TEXTAREA", "INPUT", "SELECT", "OPTION",
-]);
+const LOCALE_COOKIE = "corelyx-locale";
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year
 
-function shouldSkipNode(node: Node): boolean {
-  let cur: Node | null = node;
-  while (cur && cur !== document.body) {
-    if (cur.nodeType === Node.ELEMENT_NODE) {
-      const el = cur as Element;
-      if (SKIP_TAGS.has(el.tagName)) return true;
-      if (el.classList?.contains("notranslate")) return true;
-      if (el.getAttribute("translate") === "no") return true;
-      if (el.getAttribute("contenteditable") === "true") return true;
-    }
-    cur = cur.parentNode;
-  }
-  return false;
+function setLocaleCookie(code: string) {
+  document.cookie = `${LOCALE_COOKIE}=${encodeURIComponent(code)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
 }
 
-function collectTextNodes(root: Node): Text[] {
-  const result: Text[] = [];
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      const text = node.nodeValue ?? "";
-      if (!text.trim()) return NodeFilter.FILTER_REJECT;
-      // Skip pure punctuation/numbers — translation is wasted.
-      if (!/[\p{L}]/u.test(text)) return NodeFilter.FILTER_REJECT;
-      if (shouldSkipNode(node)) return NodeFilter.FILTER_REJECT;
-      return NodeFilter.FILTER_ACCEPT;
-    },
-  });
-  let n: Node | null;
-  while ((n = walker.nextNode())) {
-    result.push(n as Text);
-  }
-  return result;
-}
-
-function cacheKey(lang: string, source: string): string {
-  // djb2 hash for compact, deterministic key.
-  let hash = 5381;
-  for (let i = 0; i < source.length; i++) {
-    hash = ((hash << 5) + hash + source.charCodeAt(i)) | 0;
-  }
-  return `${CACHE_PREFIX}${lang}:${(hash >>> 0).toString(36)}`;
-}
-
-function getCached(lang: string, source: string): string | null {
-  try {
-    return localStorage.getItem(cacheKey(lang, source));
-  } catch {
-    return null;
-  }
-}
-
-function setCached(lang: string, source: string, translated: string) {
-  try {
-    localStorage.setItem(cacheKey(lang, source), translated);
-  } catch {
-    // Quota exceeded — clear oldest 25% of translation cache and retry once.
-    try {
-      const keys: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(CACHE_PREFIX)) keys.push(k);
-      }
-      const drop = Math.ceil(keys.length / 4);
-      for (let i = 0; i < drop; i++) localStorage.removeItem(keys[i]);
-      localStorage.setItem(cacheKey(lang, source), translated);
-    } catch {
-      // give up silently
-    }
-  }
-}
-
-async function fetchTranslations(texts: string[], target: string): Promise<string[]> {
-  const res = await fetch("/api/translate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ texts, target }),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Translate API error: ${res.status}`);
-  const body = (await res.json()) as { translations?: string[] };
-  return body.translations ?? [];
-}
-
-let translationInProgress = false;
-
-async function translateRoot(root: Node, target: string) {
-  if (target === "en") return;
-  if (translationInProgress) return;
-  translationInProgress = true;
-  try {
-    const nodes = collectTextNodes(root);
-    if (nodes.length === 0) return;
-
-    type Pending = { node: Text; source: string };
-    const pending: Pending[] = [];
-
-    for (const node of nodes) {
-      const source = node.nodeValue ?? "";
-      const cached = getCached(target, source);
-      if (cached !== null) {
-        node.nodeValue = cached;
-      } else {
-        pending.push({ node, source });
-      }
-    }
-
-    if (pending.length === 0) return;
-
-    // Batch into chunks of 50 nodes / 30K chars.
-    const chunks: Pending[][] = [];
-    let current: Pending[] = [];
-    let currentChars = 0;
-    for (const item of pending) {
-      const len = item.source.length;
-      if (current.length >= 50 || currentChars + len > 30_000) {
-        if (current.length > 0) chunks.push(current);
-        current = [];
-        currentChars = 0;
-      }
-      current.push(item);
-      currentChars += len;
-    }
-    if (current.length > 0) chunks.push(current);
-
-    for (const chunk of chunks) {
-      try {
-        const translated = await fetchTranslations(chunk.map((c) => c.source), target);
-        for (let i = 0; i < chunk.length; i++) {
-          const tx = translated[i];
-          if (typeof tx === "string" && tx.length > 0) {
-            chunk[i].node.nodeValue = tx;
-            setCached(target, chunk[i].source, tx);
-          }
-        }
-      } catch (err) {
-        console.warn("[translate] batch failed:", err);
-      }
-    }
-  } finally {
-    translationInProgress = false;
-  }
-}
-
-let mutationObserver: MutationObserver | null = null;
-let pendingNodes: Set<Node> = new Set();
-let flushHandle: number | null = null;
-
-function startMutationObserver(target: string) {
-  if (mutationObserver) mutationObserver.disconnect();
-  if (target === "en") return;
-
-  mutationObserver = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      if (m.type === "childList") {
-        m.addedNodes.forEach((n) => {
-          if (n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.TEXT_NODE) {
-            pendingNodes.add(n);
-          }
-        });
-      } else if (m.type === "characterData" && m.target.nodeType === Node.TEXT_NODE) {
-        pendingNodes.add(m.target);
-      }
-    }
-    if (flushHandle !== null) return;
-    flushHandle = window.setTimeout(() => {
-      flushHandle = null;
-      const nodes = Array.from(pendingNodes);
-      pendingNodes = new Set();
-      for (const n of nodes) {
-        void translateRoot(n, target);
-      }
-    }, 250);
-  });
-
-  mutationObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-  });
+function getLocaleCookie(): string {
+  if (typeof document === "undefined") return "en";
+  const entry = document.cookie.split(";").map((c) => c.trim()).find((c) => c.startsWith(`${LOCALE_COOKIE}=`));
+  return entry ? decodeURIComponent(entry.split("=")[1]) : "en";
 }
 
 declare global {
@@ -251,9 +77,9 @@ declare global {
 
 export function applyLanguage(code: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, code);
-  // Clear cache when switching languages so source text can be re-collected from fresh markup.
-  // (We keep per-lang translation cache; only the in-DOM text needs a reload.)
+  const target = SUPPORTED_CODES.has(code) ? code : "en";
+  localStorage.setItem(STORAGE_KEY, target);
+  setLocaleCookie(target);
   window.location.reload();
 }
 
@@ -269,16 +95,28 @@ export function LanguageBootstrap() {
     if (!stored && auto) {
       const detected = detectSystemLanguage();
       if (detected !== "en") {
-        localStorage.setItem(STORAGE_KEY, detected);
         stored = detected;
+        localStorage.setItem(STORAGE_KEY, detected);
       }
     }
 
-    if (!stored || stored === "en") return;
+    const target = stored && SUPPORTED_CODES.has(stored) ? stored : "en";
+    const currentCookie = getLocaleCookie();
 
-    document.documentElement.setAttribute("lang", stored);
-    void translateRoot(document.body, stored);
-    startMutationObserver(stored);
+    if (currentCookie !== target) {
+      // Cookie is out of sync with stored preference — set it and reload so SSR
+      // can serve the correct next-intl messages for this locale.
+      setLocaleCookie(target);
+      if (target !== "en") {
+        // Only force a reload for non-English (English is the SSR default).
+        window.location.reload();
+        return;
+      }
+    }
+
+    if (target !== "en") {
+      document.documentElement.setAttribute("lang", target);
+    }
   }, []);
 
   return null;
@@ -309,7 +147,7 @@ export function LanguagePrompt() {
         Translate this site to {label}?
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Translation is provided by DeepL (EU-based, GDPR compliant). You can change this anytime in Settings.
+        The interface will reload in {label}. You can change this anytime in Settings → Language.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -385,8 +223,7 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
           ))}
         </select>
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Translation is powered by DeepL — an EU-based, GDPR-compliant service. Quality is high
-          for European languages but legal documents are authoritative in English.
+          Changing the language reloads the interface. Legal documents are always authoritative in English.
         </p>
       </div>
       <label className="flex items-start gap-3 rounded-xl border border-border bg-background px-3 py-3">
