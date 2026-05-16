@@ -230,6 +230,17 @@
 .animate-fade-up-delay-3 { opacity: 0; animation: fade-up 0.7s ease 0.38s forwards; }
 .animate-fade-up-delay-4 { opacity: 0; animation: fade-up 0.7s ease 0.56s forwards; }
 
+/* ── Announcement shimmer (notification center) ── */
+@keyframes announcement-shimmer {
+  0%   { transform: translateX(-100%) skewX(-12deg); opacity: 0; }
+  50%  { opacity: 0.6; }
+  100% { transform: translateX(200%) skewX(-12deg); opacity: 0; }
+}
+.announcement-shimmer-sweep {
+  background: linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.15) 50%, transparent 100%);
+  animation: announcement-shimmer 2.4s ease 0.3s 1 forwards;
+}
+
 /* ── Float (for orbs) ── */
 @keyframes float-slow {
   0%, 100% { transform: translateY(0px); }
