@@ -12,6 +12,7 @@ import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-p
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SettingsSupportTab } from "@/components/settings-support-tab";
 import { NotificationCenter } from "@/components/notification-center";
+import { NotificationPreferences } from "@/components/notification-preferences";
 
 // ─── Sidebar palette ──────────────────────────────────────────────────────────
 
@@ -1778,6 +1779,8 @@ function SettingsModal({
                     ))}
                   </div>
                 </section>
+
+                <NotificationPreferences panelClass={panelClass} />
               </div>
             )}
 

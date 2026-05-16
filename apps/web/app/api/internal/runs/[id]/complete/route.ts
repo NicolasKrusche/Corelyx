@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { sendRunFailureEmail } from "@/lib/email";
+import { isNotificationEnabled } from "@/lib/notification-prefs";
 import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import {
@@ -73,7 +74,7 @@ export async function POST(
       ]);
       const email = userData?.user?.email;
       const programName = (programData as { name?: string } | null)?.name ?? "Unknown program";
-      if (email) {
+      if (email && await isNotificationEnabled(user_id, "run_failures")) {
         await sendRunFailureEmail({
           to: email,
           programName,

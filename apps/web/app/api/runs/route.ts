@@ -10,6 +10,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { checkRunLimit, getRunHistoryDays } from "@/lib/limits";
 import { sendRunLimitWarningEmail } from "@/lib/email";
+import { isNotificationEnabled } from "@/lib/notification-prefs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import { ProgramSchemaZ } from "@flowos/schema";
@@ -54,11 +55,15 @@ export async function POST(request: Request) {
   }
   // Fire 80% warning email in background (non-blocking)
   if (runLimitCheck.warnAt80Percent && user.email && runLimitCheck.currentCount && runLimitCheck.totalAllowed) {
-    void sendRunLimitWarningEmail({
-      to: user.email,
-      used: runLimitCheck.currentCount,
-      total: runLimitCheck.totalAllowed,
-      tier: "free",
+    void isNotificationEnabled(user.id, "run_limit_warnings").then((enabled) => {
+      if (enabled) {
+        void sendRunLimitWarningEmail({
+          to: user.email!,
+          used: runLimitCheck.currentCount!,
+          total: runLimitCheck.totalAllowed!,
+          tier: "free",
+        });
+      }
     });
   }
 
