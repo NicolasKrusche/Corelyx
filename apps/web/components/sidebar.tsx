@@ -11,6 +11,7 @@ import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SettingsSupportTab } from "@/components/settings-support-tab";
+import { NotificationCenter } from "@/components/notification-center";
 
 // ─── Sidebar palette ──────────────────────────────────────────────────────────
 
@@ -803,6 +804,10 @@ export function Sidebar({
               )}
             </div>
           </div>
+        </div>
+
+        <div className="px-2 pb-1">
+          <NotificationCenter isDark={isDark} />
         </div>
 
         <div ref={menuRef} className="relative">
