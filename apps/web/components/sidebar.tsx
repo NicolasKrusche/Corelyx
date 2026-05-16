@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
@@ -22,12 +23,12 @@ interface SidebarPalette {
 
 const SIDEBAR_PALETTE: Record<BaseTheme, Record<AccentColor, SidebarPalette>> = {
   dark: {
-    orange: { from: "#1e1006", via: "#190d05", to: "#140a04", activeBar: "#fdba74", btnBg: "#ea580c", btnHover: "#c2410c", badgeBg: "#ea580c" },
-    blue:   { from: "#071524", via: "#061220", to: "#050f1c", activeBar: "#93c5fd", btnBg: "#2563eb", btnHover: "#1d4ed8", badgeBg: "#2563eb" },
-    indigo: { from: "#0c0a22", via: "#09081c", to: "#070616", activeBar: "#a5b4fc", btnBg: "#4f46e5", btnHover: "#4338ca", badgeBg: "#4f46e5" },
-    green:  { from: "#061508", via: "#051207", to: "#040f06", activeBar: "#86efac", btnBg: "#16a34a", btnHover: "#15803d", badgeBg: "#16a34a" },
-    pink:   { from: "#200710", via: "#1b060d", to: "#16050a", activeBar: "#f9a8d4", btnBg: "#db2777", btnHover: "#be185d", badgeBg: "#db2777" },
-    cyan:   { from: "#04151a", via: "#031115", to: "#030e11", activeBar: "#67e8f9", btnBg: "#0891b2", btnHover: "#0e7490", badgeBg: "#0891b2" },
+    orange: { from: "#1c1410", via: "#191210", to: "#161010", activeBar: "#fdba74", btnBg: "#ea580c", btnHover: "#c2410c", badgeBg: "#ea580c" },
+    blue:   { from: "#101418", via: "#0e1216", to: "#0c1014", activeBar: "#93c5fd", btnBg: "#2563eb", btnHover: "#1d4ed8", badgeBg: "#2563eb" },
+    indigo: { from: "#121118", via: "#101016", to: "#0e0e14", activeBar: "#a5b4fc", btnBg: "#4f46e5", btnHover: "#4338ca", badgeBg: "#4f46e5" },
+    green:  { from: "#101410", via: "#0e130e", to: "#0c110c", activeBar: "#86efac", btnBg: "#16a34a", btnHover: "#15803d", badgeBg: "#16a34a" },
+    pink:   { from: "#181012", via: "#160e10", to: "#140c0f", activeBar: "#f9a8d4", btnBg: "#db2777", btnHover: "#be185d", badgeBg: "#db2777" },
+    cyan:   { from: "#0e1416", via: "#0c1214", to: "#0a1012", activeBar: "#67e8f9", btnBg: "#0891b2", btnHover: "#0e7490", badgeBg: "#0891b2" },
   },
   light: {
     orange: { from: "#fff4ea", via: "#ffeedd", to: "#ffe8d0", activeBar: "#ea580c", btnBg: "#ea580c", btnHover: "#c2410c", badgeBg: "#ea580c" },
@@ -190,6 +191,58 @@ function AiCreditsPurchasePanel({
   );
 }
 
+// ─── Sidebar inline credit top-up ─────────────────────────────────────────────
+
+const SIDEBAR_CREDIT_PACKS = [5, 10, 25, 50] as const;
+
+function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess: () => void }) {
+  const [buying, setBuying] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleBuy(amount: number) {
+    setBuying(amount);
+    setError(null);
+    try {
+      const res = await fetch("/api/credits/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount_usd: amount }),
+      });
+      if (!res.ok) { setError("Checkout failed."); return; }
+      const { url } = await res.json() as { url: string };
+      if (url) window.location.href = url;
+      else { onSuccess(); }
+    } finally {
+      setBuying(null);
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <p className={cn("mb-1.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>Top up</p>
+      <div className="flex flex-wrap gap-1.5">
+        {SIDEBAR_CREDIT_PACKS.map((amount) => (
+          <button
+            key={amount}
+            type="button"
+            disabled={buying !== null}
+            onClick={() => { void handleBuy(amount); }}
+            className={cn(
+              "rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-40",
+              isDark
+                ? "bg-white/10 text-blue-100 hover:bg-white/20"
+                : "bg-black/8 text-gray-800 hover:bg-black/15",
+            )}
+          >
+            {buying === amount ? "…" : `$${amount}`}
+          </button>
+        ))}
+      </div>
+      {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 // ─── Main sidebar ─────────────────────────────────────────────────────────────
 
 type Tier = "free" | "plus" | "pro" | "builder" | "unlimited";
@@ -233,6 +286,8 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const tNav = useTranslations("nav");
+  const tMenu = useTranslations("userMenu");
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [failedRuns, setFailedRuns] = useState(0);
   const [runUsageCurrent, setRunUsageCurrent] = useState(0);
@@ -247,6 +302,7 @@ export function Sidebar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<AccountSettingsSection>("account");
+  const [activeLang, setActiveLang] = useState<string>("en");
   const [workspaces, setWorkspaces] = useState<SidebarWorkspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
@@ -362,6 +418,16 @@ export function Sidebar({
 
   // Close mobile sidebar on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? (localStorage.getItem("corelyx-language") ?? "en") : "en";
+    setActiveLang(stored);
+    function onStorage(e: StorageEvent) {
+      if (e.key === "corelyx-language") setActiveLang(e.newValue ?? "en");
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -577,52 +643,54 @@ export function Sidebar({
 
       <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
         {/* Dashboard */}
-        <NavItem href="/dashboard" label="Home" active={pathname === "/dashboard"}
+        <NavItem href="/dashboard" label={tNav("home")} active={pathname === "/dashboard"}
           icon={<GridIcon />} isDark={isDark} />
-        <NavItem href="/workspaces" label="Workspaces" active={pathname.startsWith("/workspaces")}
+        <NavItem href="/workspaces" label={tNav("workspaces")} active={pathname.startsWith("/workspaces")}
           icon={<WorkspaceIcon />} isDark={isDark} />
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
-        <NavItem href="/programs/import" label="Import" active={pathname.startsWith("/programs/import")}
+        <NavItem href="/programs/import" label={tNav("import")} active={pathname.startsWith("/programs/import")}
           icon={<ImportIcon />} isDark={isDark} />
-        <NavItem href="/browse" label="Browse" active={pathname.startsWith("/browse")}
+        <NavItem href="/browse" label={tNav("browse")} active={pathname.startsWith("/browse")}
           icon={<BrowseIcon />} isDark={isDark} />
-        <NavItem href="/connections" label="Connections" active={pathname.startsWith("/connections")}
+        <NavItem href="/connections" label={tNav("connections")} active={pathname.startsWith("/connections")}
           icon={<LinkIcon />} isDark={isDark} />
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
-        <NavItem href="/runs" label="Runs" active={pathname.startsWith("/runs")}
+        <NavItem href="/runs" label={tNav("runs")} active={pathname.startsWith("/runs")}
           icon={<RunsIcon />} badge={failedRuns} isDark={isDark} />
-        <NavItem href="/approvals" label="Approvals" active={pathname.startsWith("/approvals")}
+        <NavItem href="/approvals" label={tNav("approvals")} active={pathname.startsWith("/approvals")}
           icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} />
         {advanced && (
-          <NavItem href="/logs" label="Logs" active={pathname.startsWith("/logs")}
+          <NavItem href="/logs" label={tNav("logs")} active={pathname.startsWith("/logs")}
             icon={<LogsIcon />} isDark={isDark} />
         )}
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
-        <NavItem href="/api-keys" label="API Keys" active={pathname.startsWith("/api-keys")}
+        <NavItem href="/api-keys" label={tNav("apiKeys")} active={pathname.startsWith("/api-keys")}
           icon={<KeyIcon />} isDark={isDark} />
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
 
-        <NavItem href="/support" label="Support" active={pathname.startsWith("/support")}
+        <NavItem href="/credits" label={tNav("credits")} active={pathname.startsWith("/credits")}
+          icon={<CreditsIcon />} isDark={isDark} />
+        <NavItem href="/support" label={tNav("support")} active={pathname.startsWith("/support")}
           icon={<SupportIcon />} isDark={isDark} />
-        <NavItem href="/plan" label="Pricing" active={pathname === "/plan"}
+        <NavItem href="/plan" label={tNav("pricing")} active={pathname === "/plan"}
           icon={<PricingIcon />} isDark={isDark} />
-        
+
         {/* Admin link - only shown to admins */}
         {isAdmin && (
           <>
             <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
-            <NavItem href="/admin" label="Admin" active={pathname.startsWith("/admin")}
+            <NavItem href="/admin" label={tNav("admin")} active={pathname.startsWith("/admin")}
               icon={<AdminIcon />} isDark={isDark} />
           </>
         )}
@@ -681,29 +749,23 @@ export function Sidebar({
               <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets monthly</p>
             </div>
 
-            {aiCreditsAvailable !== null && (
-              <div className={cn(
-                "mt-2 rounded-xl px-3 py-2.5",
-                isDark ? "bg-white/5" : "bg-black/5"
-              )}>
-                <div className="flex items-center justify-between text-[12px] font-medium">
-                  <span>Platform AI credits</span>
-                  <span>{aiCreditsAvailable === null ? "Unlimited" : `$${aiCreditsAvailable.toFixed(2)}`}</span>
-                </div>
-                {aiCreditsPurchased > 0 && (
-                  <p className={cn("mt-0.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>
-                    +${aiCreditsPurchased.toFixed(2)} purchased credits
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}
-                  className={cn("mt-1.5 text-[11px] underline underline-offset-2", isDark ? "text-blue-100/60 hover:text-blue-100" : "text-gray-500 hover:text-gray-800")}
-                >
-                  Buy more credits
-                </button>
+            <div className={cn(
+              "mt-2 rounded-xl px-3 py-2.5",
+              isDark ? "bg-white/5" : "bg-black/5"
+            )}>
+              <div className="flex items-center justify-between text-[12px] font-medium">
+                <span>Platform AI credits</span>
+                <span>{aiCreditsAvailable === null ? "Unlimited" : `$${(aiCreditsAvailable ?? 0).toFixed(2)}`}</span>
               </div>
-            )}
+              {aiCreditsPurchased > 0 && (
+                <p className={cn("mt-0.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>
+                  +${aiCreditsPurchased.toFixed(2)} purchased (never expires)
+                </p>
+              )}
+              {aiCreditsAvailable !== null && (
+                <SidebarCreditTopUp isDark={isDark} onSuccess={fetchSidebarData} />
+              )}
+            </div>
           </div>
         </div>
 
@@ -723,7 +785,19 @@ export function Sidebar({
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent"
               >
                 <SettingsIcon />
-                <span>Settings</span>
+                <span>{tMenu("settings")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSettingsInitialTab("language");
+                  setSettingsOpen(true);
+                }}
+                className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent"
+              >
+                <GlobeIcon />
+                <span>{tMenu("language")}</span>
               </button>
               <button
                 type="button"
@@ -731,7 +805,7 @@ export function Sidebar({
                 className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent"
               >
                 <LogOutIcon />
-                <span>Sign out</span>
+                <span>{tMenu("signOut")}</span>
               </button>
             </div>
           )}
@@ -771,7 +845,17 @@ export function Sidebar({
               )}
             </div>
             <div className="min-w-0 flex-1 opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
-              <p className="truncate text-[13px] font-semibold leading-4">{displayName}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-[13px] font-semibold leading-4">{displayName}</p>
+                {activeLang !== "en" && (
+                  <span className={cn(
+                    "shrink-0 rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide leading-none",
+                    isDark ? "bg-white/10 text-blue-100/70" : "bg-black/8 text-gray-500"
+                  )}>
+                    {activeLang.split("-")[0].toUpperCase()}
+                  </span>
+                )}
+              </div>
               <p
                 className={cn(
                   "mt-0.5 max-h-0 overflow-hidden text-[11px] leading-3 opacity-0 transition-all duration-200 group-hover/side:max-h-4 group-hover/side:opacity-100 group-data-[open]/side:max-h-4 group-data-[open]/side:opacity-100",
@@ -888,6 +972,7 @@ function SettingsModal({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const tSettings = useTranslations("settings");
   const [tab, setTab] = useState<AccountSettingsSection>(initialTab ?? "account");
 
   const [formDisplayName, setFormDisplayName] = useState(initialDisplayName);
@@ -934,25 +1019,25 @@ function SettingsModal({
   const neutralBtnClass = "inline-flex rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-accent";
   const settingsGroups: AccountSettingsGroup[] = [
     {
-      label: "Personal",
+      label: tSettings("groups.personal"),
       items: [
-        { id: "account", label: "Account", caption: "Overview and access", icon: UserIcon },
-        { id: "profile", label: "Profile", caption: "Display name and avatar", icon: BrowseIcon },
-        { id: "security", label: "Security", caption: "Password and sign-in", icon: KeyIcon },
-        { id: "benefits", label: "Plan", caption: "Subscription and access", icon: PricingIcon },
-        { id: "support", label: "Support", caption: "Get help or contact sales", icon: SupportIcon },
-        { id: "legal", label: "Legal", caption: "Privacy and terms", icon: LogsIcon, hidden: true },
-        { id: "danger", label: "Danger zone", caption: "Delete this account", icon: CloseIcon },
+        { id: "account", label: tSettings("tabs.account.label"), caption: tSettings("tabs.account.caption"), icon: UserIcon },
+        { id: "profile", label: tSettings("tabs.profile.label"), caption: tSettings("tabs.profile.caption"), icon: BrowseIcon },
+        { id: "security", label: tSettings("tabs.security.label"), caption: tSettings("tabs.security.caption"), icon: KeyIcon },
+        { id: "benefits", label: tSettings("tabs.plan.label"), caption: tSettings("tabs.plan.caption"), icon: PricingIcon },
+        { id: "support", label: tSettings("tabs.support.label"), caption: tSettings("tabs.support.caption"), icon: SupportIcon },
+        { id: "legal", label: tSettings("tabs.legal.label"), caption: tSettings("tabs.legal.caption"), icon: LogsIcon, hidden: true },
+        { id: "danger", label: tSettings("tabs.danger.label"), caption: tSettings("tabs.danger.caption"), icon: CloseIcon },
       ],
     },
     {
-      label: "Workspace",
+      label: tSettings("groups.workspace"),
       items: [
-        { id: "general", label: "General", caption: "Theme and preferences", icon: SettingsIcon },
-        { id: "language", label: "Language", caption: "Translation and locale", icon: GlobeIcon },
-        { id: "advanced", label: "Advanced", caption: "Power-user controls", icon: AdminIcon },
-        { id: "compliance", label: "EU Compliance", caption: "GDPR and legal docs", icon: LogsIcon },
-        ...(isAdmin ? [{ id: "codeManager" as const, label: "Admin Tools", caption: "Codes and DSR queue", icon: KeyIcon }] : []),
+        { id: "general", label: tSettings("tabs.general.label"), caption: tSettings("tabs.general.caption"), icon: SettingsIcon },
+        { id: "language", label: tSettings("tabs.language.label"), caption: tSettings("tabs.language.caption"), icon: GlobeIcon },
+        { id: "advanced", label: tSettings("tabs.advanced.label"), caption: tSettings("tabs.advanced.caption"), icon: AdminIcon },
+        { id: "compliance", label: tSettings("tabs.compliance.label"), caption: tSettings("tabs.compliance.caption"), icon: LogsIcon },
+        ...(isAdmin ? [{ id: "codeManager" as const, label: tSettings("tabs.codeManager.label"), caption: tSettings("tabs.codeManager.caption"), icon: KeyIcon }] : []),
       ],
     },
   ];
@@ -1955,6 +2040,14 @@ function SupportIcon() {
   return (
     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+    </svg>
+  );
+}
+
+function CreditsIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
     </svg>
   );
 }

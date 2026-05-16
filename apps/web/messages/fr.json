@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "workspaces": "Espaces de travail",
+    "import": "Importer",
+    "browse": "Parcourir",
+    "connections": "Connexions",
+    "runs": "Exécutions",
+    "approvals": "Approbations",
+    "logs": "Journaux",
+    "apiKeys": "Clés API",
+    "credits": "Crédits & Utilisation",
+    "support": "Assistance",
+    "pricing": "Tarifs",
+    "admin": "Admin"
+  },
+  "userMenu": {
+    "settings": "Paramètres",
+    "language": "Langue",
+    "signOut": "Se déconnecter"
+  },
+  "settings": {
+    "groups": {
+      "personal": "Personnel",
+      "workspace": "Espace de travail"
+    },
+    "tabs": {
+      "account": { "label": "Compte", "caption": "Vue d'ensemble et accès" },
+      "profile": { "label": "Profil", "caption": "Nom et avatar" },
+      "security": { "label": "Sécurité", "caption": "Mot de passe et connexion" },
+      "plan": { "label": "Forfait", "caption": "Abonnement et accès" },
+      "support": { "label": "Assistance", "caption": "Aide ou contact commercial" },
+      "legal": { "label": "Mentions légales", "caption": "Confidentialité et CGU" },
+      "danger": { "label": "Zone dangereuse", "caption": "Supprimer ce compte" },
+      "general": { "label": "Général", "caption": "Thème et préférences" },
+      "language": { "label": "Langue", "caption": "Traduction et locale" },
+      "advanced": { "label": "Avancé", "caption": "Options avancées" },
+      "compliance": { "label": "Conformité UE", "caption": "RGPD et documents légaux" },
+      "codeManager": { "label": "Outils admin", "caption": "Codes et file DSR" }
+    }
+  },
+  "tiers": {
+    "free": "Gratuit",
+    "plus": "Solo",
+    "pro": "Équipe",
+    "builder": "Scale",
+    "unlimited": "Illimité"
+  },
+  "credits": {
+    "title": "Crédits & Utilisation",
+    "totalAvailable": "Total disponible",
+    "unlimited": "Illimité",
+    "included": "inclus",
+    "purchased": "achetés",
+    "platformAi": "IA Plateforme",
+    "genesisAi": "IA Genesis",
+    "workflowRuns": "Exécutions de workflows",
+    "usedThisMonth": "Utilisé ce mois-ci",
+    "runsThisMonth": "Exécutions ce mois-ci",
+    "upgrade": "Passer à la version supérieure →",
+    "topUp": "Recharger des crédits",
+    "topUpDesc": "Les crédits achetés n'expirent jamais et sont utilisés après votre quota mensuel.",
+    "topUpNote": "1 $ ≈ quelques centaines d'appels LLM selon le modèle. Utilisé uniquement pour les workflows via la clé de plateforme Corelyx.",
+    "includedCredits": "Crédits inclus",
+    "includedCreditsDesc": "Se réinitialise mensuellement avec votre forfait",
+    "purchasedCredits": "Crédits achetés",
+    "purchasedCreditsNeverExpire": "N'expirent jamais"
+  }
+}

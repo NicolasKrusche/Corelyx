@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "Strona główna",
+    "workspaces": "Obszary robocze",
+    "import": "Importuj",
+    "browse": "Przeglądaj",
+    "connections": "Połączenia",
+    "runs": "Uruchomienia",
+    "approvals": "Zatwierdzenia",
+    "logs": "Dzienniki",
+    "apiKeys": "Klucze API",
+    "credits": "Kredyty i użycie",
+    "support": "Wsparcie",
+    "pricing": "Cennik",
+    "admin": "Admin"
+  },
+  "userMenu": {
+    "settings": "Ustawienia",
+    "language": "Język",
+    "signOut": "Wyloguj się"
+  },
+  "settings": {
+    "groups": {
+      "personal": "Osobiste",
+      "workspace": "Obszar roboczy"
+    },
+    "tabs": {
+      "account": { "label": "Konto", "caption": "Przegląd i dostęp" },
+      "profile": { "label": "Profil", "caption": "Nazwa wyświetlana i avatar" },
+      "security": { "label": "Bezpieczeństwo", "caption": "Hasło i logowanie" },
+      "plan": { "label": "Plan", "caption": "Subskrypcja i dostęp" },
+      "support": { "label": "Wsparcie", "caption": "Pomoc lub kontakt sprzedaży" },
+      "legal": { "label": "Prawne", "caption": "Prywatność i regulamin" },
+      "danger": { "label": "Strefa niebezpieczna", "caption": "Usuń to konto" },
+      "general": { "label": "Ogólne", "caption": "Motyw i preferencje" },
+      "language": { "label": "Język", "caption": "Tłumaczenie i ustawienia regionalne" },
+      "advanced": { "label": "Zaawansowane", "caption": "Opcje dla zaawansowanych" },
+      "compliance": { "label": "Zgodność z UE", "caption": "RODO i dokumenty prawne" },
+      "codeManager": { "label": "Narzędzia admina", "caption": "Kody i kolejka DSR" }
+    }
+  },
+  "tiers": {
+    "free": "Bezpłatny",
+    "plus": "Solo",
+    "pro": "Zespół",
+    "builder": "Scale",
+    "unlimited": "Nieograniczony"
+  },
+  "credits": {
+    "title": "Kredyty i użycie",
+    "totalAvailable": "Łącznie dostępne",
+    "unlimited": "Nieograniczone",
+    "included": "wliczone",
+    "purchased": "zakupione",
+    "platformAi": "AI Platformy",
+    "genesisAi": "AI Genesis",
+    "workflowRuns": "Uruchomienia przepływów",
+    "usedThisMonth": "Użyte w tym miesiącu",
+    "runsThisMonth": "Uruchomienia w tym miesiącu",
+    "upgrade": "Ulepsz →",
+    "topUp": "Doładuj kredyty",
+    "topUpDesc": "Zakupione kredyty nigdy nie wygasają i są używane po wyczerpaniu miesięcznego limitu.",
+    "topUpNote": "$1 ≈ kilkaset wywołań LLM w zależności od modelu. Używane tylko w przepływach przez klucz platformy Corelyx.",
+    "includedCredits": "Kredyty wliczone",
+    "includedCreditsDesc": "Resetuje się co miesiąc wraz z planem",
+    "purchasedCredits": "Zakupione kredyty",
+    "purchasedCreditsNeverExpire": "Nigdy nie wygasają"
+  }
+}

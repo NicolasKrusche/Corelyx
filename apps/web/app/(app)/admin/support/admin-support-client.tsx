@@ -22,6 +22,15 @@ type Message = {
   created_at: string;
 };
 
+type GrantRow = {
+  id: string;
+  user_id: string;
+  program_id: string;
+  expires_at: string;
+  created_at: string;
+  programs: { id: string; name: string; description: string | null } | null;
+};
+
 const TYPE_BADGE: Record<string, string> = {
   support: "bg-blue-500/10 text-blue-700",
   sales: "bg-amber-500/10 text-amber-700",
@@ -57,6 +66,7 @@ export function AdminSupportClient() {
   const [reply, setReply] = useState("");
   const [replying, setReplying] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [grants, setGrants] = useState<GrantRow[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
   async function fetchTickets() {
@@ -74,11 +84,19 @@ export function AdminSupportClient() {
     setMessages(data.messages);
   }
 
+  async function fetchGrants(ticketId: string) {
+    const res = await fetch(`/api/admin/support/${ticketId}/grants`);
+    if (!res.ok) return;
+    const data = (await res.json()) as { grants: GrantRow[] };
+    setGrants(data.grants);
+  }
+
   useEffect(() => { void fetchTickets(); }, []);
 
   useEffect(() => {
     if (!selected) return;
     void fetchMessages(selected.id);
+    void fetchGrants(selected.id);
 
     const supabase = createBrowserClient();
     const channel = supabase
@@ -216,6 +234,22 @@ export function AdminSupportClient() {
                 {closing ? "…" : selected.status === "open" ? "Close ticket" : "Reopen"}
               </button>
             </div>
+
+            {grants.length > 0 && (
+              <div className="border-b border-border px-5 py-2.5 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mr-1">Shared programs:</span>
+                {grants.map((grant) => (
+                  <a
+                    key={grant.id}
+                    href={`/admin/grants/${grant.id}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors"
+                  >
+                    {grant.programs?.name ?? grant.program_id.slice(0, 8)}
+                    <span className="text-[10px] text-muted-foreground">→</span>
+                  </a>
+                ))}
+              </div>
+            )}
 
             <div className="flex-1 space-y-3 overflow-y-auto p-5">
               {messages.map((msg) => (

@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "홈",
+    "workspaces": "워크스페이스",
+    "import": "가져오기",
+    "browse": "둘러보기",
+    "connections": "연결",
+    "runs": "실행",
+    "approvals": "승인",
+    "logs": "로그",
+    "apiKeys": "API 키",
+    "credits": "크레딧 & 사용량",
+    "support": "지원",
+    "pricing": "요금제",
+    "admin": "관리"
+  },
+  "userMenu": {
+    "settings": "설정",
+    "language": "언어",
+    "signOut": "로그아웃"
+  },
+  "settings": {
+    "groups": {
+      "personal": "개인",
+      "workspace": "워크스페이스"
+    },
+    "tabs": {
+      "account": { "label": "계정", "caption": "개요 및 접근 권한" },
+      "profile": { "label": "프로필", "caption": "표시 이름 및 아바타" },
+      "security": { "label": "보안", "caption": "비밀번호 및 로그인" },
+      "plan": { "label": "플랜", "caption": "구독 및 접근 권한" },
+      "support": { "label": "지원", "caption": "도움말 또는 영업 문의" },
+      "legal": { "label": "법적 정보", "caption": "개인정보처리방침 및 이용약관" },
+      "danger": { "label": "위험 구역", "caption": "이 계정 삭제" },
+      "general": { "label": "일반", "caption": "테마 및 환경설정" },
+      "language": { "label": "언어", "caption": "번역 및 지역 설정" },
+      "advanced": { "label": "고급", "caption": "고급 사용자 옵션" },
+      "compliance": { "label": "EU 준수", "caption": "GDPR 및 법적 문서" },
+      "codeManager": { "label": "관리 도구", "caption": "코드 및 DSR 대기열" }
+    }
+  },
+  "tiers": {
+    "free": "무료",
+    "plus": "솔로",
+    "pro": "팀",
+    "builder": "스케일",
+    "unlimited": "무제한"
+  },
+  "credits": {
+    "title": "크레딧 & 사용량",
+    "totalAvailable": "총 가용",
+    "unlimited": "무제한",
+    "included": "포함됨",
+    "purchased": "구매됨",
+    "platformAi": "플랫폼 AI",
+    "genesisAi": "Genesis AI",
+    "workflowRuns": "워크플로 실행",
+    "usedThisMonth": "이번 달 사용량",
+    "runsThisMonth": "이번 달 실행 횟수",
+    "upgrade": "업그레이드 →",
+    "topUp": "크레딧 충전",
+    "topUpDesc": "구매한 크레딧은 만료되지 않으며 월 한도 소진 후 사용됩니다.",
+    "topUpNote": "$1 ≈ 모델에 따라 수백 번의 LLM 호출. Corelyx 플랫폼 키를 통한 워크플로에서만 사용됩니다.",
+    "includedCredits": "포함 크레딧",
+    "includedCreditsDesc": "플랜과 함께 매월 초기화됨",
+    "purchasedCredits": "구매 크레딧",
+    "purchasedCreditsNeverExpire": "만료되지 않음"
+  }
+}

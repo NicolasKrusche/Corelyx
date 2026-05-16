@@ -1,0 +1,69 @@
+{
+  "nav": {
+    "home": "主页",
+    "workspaces": "工作区",
+    "import": "导入",
+    "browse": "浏览",
+    "connections": "连接",
+    "runs": "运行",
+    "approvals": "审批",
+    "logs": "日志",
+    "apiKeys": "API 密钥",
+    "credits": "积分与用量",
+    "support": "支持",
+    "pricing": "价格",
+    "admin": "管理"
+  },
+  "userMenu": {
+    "settings": "设置",
+    "language": "语言",
+    "signOut": "退出登录"
+  },
+  "settings": {
+    "groups": {
+      "personal": "个人",
+      "workspace": "工作区"
+    },
+    "tabs": {
+      "account": { "label": "账户", "caption": "概览与访问权限" },
+      "profile": { "label": "个人资料", "caption": "显示名称和头像" },
+      "security": { "label": "安全", "caption": "密码和登录" },
+      "plan": { "label": "计划", "caption": "订阅与访问权限" },
+      "support": { "label": "支持", "caption": "获取帮助或联系销售" },
+      "legal": { "label": "法律", "caption": "隐私与条款" },
+      "danger": { "label": "危险区域", "caption": "删除此账户" },
+      "general": { "label": "通用", "caption": "主题与偏好" },
+      "language": { "label": "语言", "caption": "翻译与区域设置" },
+      "advanced": { "label": "高级", "caption": "高级用户选项" },
+      "compliance": { "label": "欧盟合规", "caption": "GDPR 和法律文件" },
+      "codeManager": { "label": "管理工具", "caption": "代码和 DSR 队列" }
+    }
+  },
+  "tiers": {
+    "free": "免费",
+    "plus": "个人",
+    "pro": "团队",
+    "builder": "规模",
+    "unlimited": "无限制"
+  },
+  "credits": {
+    "title": "积分与用量",
+    "totalAvailable": "总可用",
+    "unlimited": "无限制",
+    "included": "已包含",
+    "purchased": "已购买",
+    "platformAi": "平台 AI",
+    "genesisAi": "Genesis AI",
+    "workflowRuns": "工作流运行",
+    "usedThisMonth": "本月已用",
+    "runsThisMonth": "本月运行次数",
+    "upgrade": "升级 →",
+    "topUp": "充值积分",
+    "topUpDesc": "购买的积分永不过期，在月度配额用完后使用。",
+    "topUpNote": "$1 ≈ 视模型而定，约数百次 LLM 调用。仅用于通过 Corelyx 平台密钥运行的工作流。",
+    "includedCredits": "包含积分",
+    "includedCreditsDesc": "每月随计划重置",
+    "purchasedCredits": "已购积分",
+    "purchasedCreditsNeverExpire": "永不过期"
+  }
+}
