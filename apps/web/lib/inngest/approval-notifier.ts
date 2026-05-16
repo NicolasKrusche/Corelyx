@@ -2,6 +2,7 @@ import { NonRetriableError, cron } from "inngest";
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
 import { sendApprovalEmail } from "@/lib/email";
+import { isNotificationEnabled } from "@/lib/notification-prefs";
 
 type PendingApproval = {
   id: string;
@@ -80,13 +81,16 @@ export const approvalNotifier = inngest.createFunction(
         const reason = approval.context?.reason;
 
         try {
-          await sendApprovalEmail({
-            to: email,
-            nodeLabel,
-            programName,
-            approvalId: approval.id,
-            reason,
-          });
+          const canSend = await isNotificationEnabled(approval.user_id, "approvals");
+          if (canSend) {
+            await sendApprovalEmail({
+              to: email,
+              nodeLabel,
+              programName,
+              approvalId: approval.id,
+              reason,
+            });
+          }
         } catch (err) {
           logger.error(`Failed to send approval email for ${approval.id}: ${String(err)}`);
           return;
