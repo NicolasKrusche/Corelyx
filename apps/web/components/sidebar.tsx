@@ -430,6 +430,16 @@ export function Sidebar({
   }, []);
 
   useEffect(() => {
+    function onOpenSettings(e: Event) {
+      const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab ?? "account";
+      setSettingsInitialTab(tab as AccountSettingsSection);
+      setSettingsOpen(true);
+    }
+    window.addEventListener("corelyx:open-settings", onOpenSettings);
+    return () => window.removeEventListener("corelyx:open-settings", onOpenSettings);
+  }, []);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (!menuRef.current) return;
       if (menuRef.current.contains(event.target as Node)) return;
@@ -639,6 +649,32 @@ export function Sidebar({
           <span className="flex h-full w-10 shrink-0 items-center justify-center"><PlusIcon /></span>
           <span className="min-w-0 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">Create new</span>
         </Link>
+
+        {/* Command palette trigger */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("corelyx:open-palette"))}
+          title="Search (⌘K)"
+          className={cn(
+            "flex h-8 w-full items-center overflow-hidden rounded-lg text-sm transition-colors",
+            isDark ? "text-blue-100/50 hover:bg-white/8 hover:text-white/70" : "text-gray-400 hover:bg-black/8 hover:text-gray-600"
+          )}
+        >
+          <span className="flex h-full w-12 shrink-0 items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/>
+            </svg>
+          </span>
+          <span className="flex min-w-0 flex-1 items-center justify-between opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
+            <span className="truncate whitespace-nowrap">Search</span>
+            <span className={cn(
+              "mr-2 flex shrink-0 items-center gap-0.5 rounded border px-1.5 py-0.5 text-[9px] font-medium leading-none",
+              isDark ? "border-white/15 text-blue-100/40" : "border-black/15 text-gray-400"
+            )}>
+              <span>⌘</span><span>K</span>
+            </span>
+          </span>
+        </button>
       </div>
 
       <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">

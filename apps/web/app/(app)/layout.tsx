@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/sidebar";
+import { CommandPalette } from "@/components/command-palette";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
@@ -63,6 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-background">
+      <CommandPalette />
       <Sidebar
         isAdmin={isAdmin}
         email={appUser.email ?? ""}
