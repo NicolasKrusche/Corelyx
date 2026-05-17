@@ -230,16 +230,15 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
           open && (isDark ? "bg-white/8 text-white" : "bg-black/8 text-gray-900")
         )}
       >
-        <span className="relative flex h-full w-12 shrink-0 items-center justify-center">
+        <span className="relative flex h-full w-10 shrink-0 items-center justify-center">
           <BellIcon />
           {totalUnread > 0 && (
             <>
-              {/* Pulsing ring — only when there's something new */}
               {isNew && (
-                <span className="absolute right-2.5 top-1.5 h-2 w-2 animate-ping rounded-full bg-primary opacity-75" />
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-ping rounded-full bg-primary opacity-75" />
               )}
               <span className={cn(
-                "absolute right-2.5 top-1.5 flex h-2 w-2 items-center justify-center rounded-full",
+                "absolute right-1.5 top-1.5 flex h-2 w-2 items-center justify-center rounded-full",
                 isNew ? "bg-primary" : "bg-muted-foreground/60"
               )} />
             </>
