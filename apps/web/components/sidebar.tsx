@@ -302,6 +302,7 @@ export function Sidebar({
   const { base, accent, setBase, setAccent } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<AccountSettingsSection>("account");
   const [activeLang, setActiveLang] = useState<string>("en");
@@ -735,7 +736,7 @@ export function Sidebar({
       </nav>
 
       <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>
-        <div className="max-h-0 overflow-hidden opacity-0 pointer-events-none transition-all duration-200 group-hover/side:mb-2 group-hover/side:max-h-[280px] group-hover/side:opacity-100 group-hover/side:pointer-events-auto group-data-[open]/side:mb-2 group-data-[open]/side:max-h-[280px] group-data-[open]/side:opacity-100 group-data-[open]/side:pointer-events-auto">
+        <div className={cn("overflow-hidden transition-all duration-200", usageOpen ? "mb-2 max-h-[280px] opacity-100 pointer-events-auto" : "max-h-0 opacity-0 pointer-events-none")}>
           <div className={cn(
             "rounded-2xl border px-3 py-3",
             isDark ? "border-white/10 bg-white/5 text-blue-50" : "border-black/10 bg-black/5 text-gray-900"
@@ -807,16 +808,42 @@ export function Sidebar({
           </div>
         </div>
 
-        <div className="px-2 pb-1">
-          <NotificationCenter isDark={isDark} />
-        </div>
+        {/* Usage toggle button */}
+        <button
+          type="button"
+          onClick={() => setUsageOpen((v) => !v)}
+          title="Workspace usage"
+          className={cn(
+            "flex h-8 w-full items-center overflow-hidden rounded-lg text-sm transition-colors mb-1",
+            isDark
+              ? "text-blue-100/60 hover:bg-white/8 hover:text-white/80"
+              : "text-gray-500 hover:bg-black/8 hover:text-gray-700",
+            usageOpen && (isDark ? "bg-white/8 text-white/80" : "bg-black/8 text-gray-700")
+          )}
+        >
+          <span className="flex h-full w-10 shrink-0 items-center justify-center">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+              <path d="M3 20h18M5 20V12M9 20V8M13 20V4M17 20V10" strokeLinecap="round" />
+            </svg>
+          </span>
+          <span className="flex-1 min-w-0 truncate whitespace-nowrap text-left text-[13px] font-medium opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
+            Workspace usage
+          </span>
+          <span className={cn(
+            "mr-2 flex-shrink-0 opacity-0 transition-all duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
+            usageOpen && "rotate-180"
+          )}>
+            <ChevronDownIcon />
+          </span>
+        </button>
+
+        <NotificationCenter isDark={isDark} />
 
         <div ref={menuRef} className="relative">
           {menuOpen && (
             <div className={cn(
-              "absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 rounded-xl border p-1.5 shadow-xl",
-              "border-border bg-popover text-popover-foreground",
-              "hidden group-hover/side:block group-data-[open]/side:block"
+              "absolute bottom-[calc(100%+8px)] left-0 z-50 min-w-[200px] w-full rounded-xl border p-1.5 shadow-xl",
+              "border-border bg-popover text-popover-foreground"
             )}>
               <button
                 type="button"
@@ -1936,9 +1963,11 @@ function SettingsModal({
 }
 
 async function handleSignOut() {
-  const { createBrowserClient } = await import("@/lib/supabase/client");
-  const supabase = createBrowserClient();
-  await supabase.auth.signOut();
+  try {
+    const { createBrowserClient } = await import("@/lib/supabase/client");
+    const supabase = createBrowserClient();
+    await supabase.auth.signOut();
+  } catch { /* ignore — redirect anyway */ }
   window.location.href = "/login";
 }
 

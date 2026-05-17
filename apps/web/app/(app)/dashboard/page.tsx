@@ -158,7 +158,7 @@ export default async function DashboardPage({
       .from("api_keys")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", activeWorkspace.workspaceId),
-    getRunUsage(user.id, activeWorkspace.workspaceId),
+    getRunUsage(user.id, activeWorkspace.workspaceId).catch(() => ({ current: 0, total: null, tier: "free" as const })),
     getUserCreditBalance(user.id).catch(() => null),
   ]);
 
