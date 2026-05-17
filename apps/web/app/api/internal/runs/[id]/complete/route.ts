@@ -11,6 +11,7 @@ import {
   readRuntimeRejectionDetails,
 } from "@/lib/runtime-dispatch";
 import { getProcessingRestriction } from "@/lib/compliance";
+import { recordTriggerEvent } from "@/lib/trigger-events";
 
 /**
  * POST /api/internal/runs/[id]/complete
@@ -139,6 +140,7 @@ export async function POST(
 
           if (activeRuns && activeRuns.length > 0) {
             if (prog.conflict_policy === "skip" || prog.conflict_policy === "fail") {
+              recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: `Conflict policy: ${prog.conflict_policy}` });
               continue; // Skip or fail — don't fire downstream
             }
             // queue: proceed (runtime will queue)
@@ -227,6 +229,8 @@ export async function POST(
             .from("triggers")
             .update({ last_fired_at: new Date().toISOString() } as never)
             .eq("id", trigger.id);
+
+          recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "program", status: "dispatched" });
         }
       }
     }

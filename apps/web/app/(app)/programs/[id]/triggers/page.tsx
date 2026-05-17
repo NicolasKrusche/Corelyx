@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { TriggerManager } from "./trigger-manager";
+import { TriggerEventLog, type TriggerEvent } from "@/components/triggers/trigger-event-log";
 
 type TriggerRow = {
   id: string;
@@ -44,13 +45,22 @@ export default async function TriggersPage({
   const serviceClient = createServiceClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-  const { data: triggersRaw } = await serviceClient
-    .from("triggers")
-    .select(
-      "id, program_id, type, config, is_active, webhook_token, next_run_at, last_fired_at, created_at"
-    )
-    .eq("program_id", id)
-    .order("created_at", { ascending: false });
+  const [triggersResult, eventsResult] = await Promise.all([
+    serviceClient
+      .from("triggers")
+      .select("id, program_id, type, config, is_active, webhook_token, next_run_at, last_fired_at, created_at")
+      .eq("program_id", id)
+      .order("created_at", { ascending: false }),
+    serviceClient
+      .from("trigger_events")
+      .select("id, trigger_id, run_id, fired_at, source, status, message")
+      .eq("program_id", id)
+      .order("fired_at", { ascending: false })
+      .limit(50),
+  ]);
+
+  const { data: triggersRaw } = triggersResult;
+  const triggerEvents = (eventsResult.data ?? []) as unknown as TriggerEvent[];
 
   type RawTrigger = TriggerRow & { webhook_token?: string };
   const triggers: TriggerRow[] = ((triggersRaw ?? []) as unknown as RawTrigger[]).map(
@@ -82,6 +92,8 @@ export default async function TriggersPage({
         programId={id}
         initialTriggers={triggers}
       />
+
+      <TriggerEventLog events={triggerEvents} programId={id} />
     </div>
   );
 }

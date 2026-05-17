@@ -11,6 +11,7 @@ import {
   isRuntimeDispatchConfigError,
   readRuntimeRejectionDetails,
 } from "@/lib/runtime-dispatch";
+import { recordTriggerEvent } from "@/lib/trigger-events";
 
 /**
  * Inngest function: runs every minute, finds all active cron triggers that are
@@ -66,12 +67,14 @@ export const cronRunner = inngest.createFunction(
         const restriction = await getProcessingRestriction(userId, db);
         if (restriction.restricted) {
           logger.warn(`Skipping cron trigger ${trigger.id}: processing restricted for user ${userId}`);
+          recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "cron", status: "skipped", message: "Processing restricted" });
           return;
         }
 
         const limitCheck = await checkRunLimit(userId, workspaceId ?? null);
         if (!limitCheck.allowed) {
           logger.warn(`Skipping cron trigger ${trigger.id}: run limit reached for user ${userId}`);
+          recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "cron", status: "skipped", message: "Monthly run limit reached" });
           return;
         }
 
@@ -119,23 +122,27 @@ export const cronRunner = inngest.createFunction(
               .from("runs")
               .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
               .eq("id", runId);
+            recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "failed", message: formatRuntimeRejection(runtimeError) });
             return;
           }
         } catch (error) {
           const authMisconfigured = isRuntimeDispatchConfigError(error);
           logger.error(authMisconfigured ? `Runtime auth misconfigured for cron run ${runId}` : `Runtime unreachable for cron run ${runId}`);
+          const errMsg = authMisconfigured ? "Runtime auth is not configured." : "Runtime is unreachable";
           await db
             .from("runs")
             .update({
               status: "failed",
-              error_message: authMisconfigured ? "Runtime auth is not configured." : "Runtime is unreachable",
+              error_message: errMsg,
               completed_at: new Date().toISOString(),
             } as never)
             .eq("id", runId);
+          recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "failed", message: errMsg });
           return;
         }
 
         fired++;
+        recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "dispatched" });
 
         // Update last_fired_at and compute next_run_at
         const expr = (trigger.config as Record<string, unknown>).expression as string;
