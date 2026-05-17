@@ -5,6 +5,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
+import { WhatsNewModal } from "@/components/whats-new-modal";
 import { ensureAvatarBucket } from "@/lib/avatar-storage";
 
 type AppLayoutUser = {
@@ -64,6 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-background">
+      <WhatsNewModal />
       <CommandPalette />
       <Sidebar
         isAdmin={isAdmin}
