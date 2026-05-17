@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { RefreshCw, Home } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function AppError({
   error,
@@ -10,6 +11,7 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("errors");
   useEffect(() => {
     console.error("[app error boundary]", error);
   }, [error]);
@@ -38,14 +40,13 @@ export default function AppError({
 
       <div className="space-y-1.5">
         <p className="text-[10px] font-bold uppercase tracking-widest text-destructive">
-          Error
+          {t("unexpectedError")}
         </p>
         <h1 className="text-xl font-black tracking-tight">
-          Something went wrong
+          {t("appError")}
         </h1>
         <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-          This section encountered an unexpected error. Try refreshing or head
-          back to the dashboard.
+          {t("appErrorDesc")}
         </p>
       </div>
 
@@ -53,7 +54,7 @@ export default function AppError({
       {error.digest && (
         <div className="mt-4 rounded-lg border border-border bg-card px-4 py-2">
           <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-            Reference
+            {t("errorReference")}
           </p>
           <p className="font-mono text-xs text-muted-foreground">{error.digest}</p>
         </div>
@@ -65,14 +66,14 @@ export default function AppError({
           className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          Try again
+          {t("tryAgain")}
         </button>
         <a
           href="/dashboard"
           className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-accent"
         >
           <Home className="h-3.5 w-3.5" />
-          Dashboard
+          {t("goToDashboard")}
         </a>
       </div>
     </div>

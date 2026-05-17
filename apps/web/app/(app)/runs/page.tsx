@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { StopRunButton } from "@/app/(app)/programs/[id]/runs/[runId]/stop-button";
+import { getTranslations } from "next-intl/server";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,8 @@ export default async function RunsPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const t = await getTranslations("runs");
+
   const { data: programsRaw } = await supabase
     .from("programs")
     .select("id")
@@ -102,11 +105,11 @@ export default async function RunsPage({
   const completed = runs.filter((r) => !activeStatuses.includes(r.status));
 
   const STATUS_FILTERS = [
-    { label: "All",       value: "" },
-    { label: "Running",   value: "running" },
-    { label: "Completed", value: "completed" },
-    { label: "Failed",    value: "failed" },
-    { label: "Cancelled", value: "cancelled" },
+    { label: t("filterAll"),       value: "" },
+    { label: t("filterRunning"),   value: "running" },
+    { label: t("filterCompleted"), value: "completed" },
+    { label: t("filterFailed"),    value: "failed" },
+    { label: t("filterCancelled"), value: "cancelled" },
   ];
 
   return (
@@ -115,9 +118,9 @@ export default async function RunsPage({
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Runs</h1>
+          <h1 className="text-3xl font-black tracking-tight">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            {runs.length > 0 ? `${runs.length} run${runs.length !== 1 ? "s" : ""}` : "No runs yet"}
+            {runs.length > 0 ? `${runs.length} run${runs.length !== 1 ? "s" : ""}` : t("noRuns")}
           </p>
         </div>
         {/* Filter tabs */}
@@ -146,19 +149,17 @@ export default async function RunsPage({
             </svg>
           </div>
           <p className="text-sm font-semibold">
-            {resolvedSearchParams.status ? `No ${resolvedSearchParams.status} runs` : "No runs yet"}
+            {resolvedSearchParams.status ? t("noFilteredRuns", { status: resolvedSearchParams.status }) : t("noRuns")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground/60">
-            {resolvedSearchParams.status
-              ? "Try a different filter or clear the selection."
-              : "Open a workflow and click Run to start your first execution."}
+            {resolvedSearchParams.status ? t("tryDifferentFilter") : t("openWorkflow")}
           </p>
           {!resolvedSearchParams.status && (
             <Link
               href="/dashboard"
               className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Go to workflows
+              {t("goToWorkflows")}
             </Link>
           )}
         </div>

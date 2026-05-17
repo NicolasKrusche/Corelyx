@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/api";
 import { redirect } from "next/navigation";
 import { ApprovalCard } from "./approval-card";
 import { ApprovalsRealtimeRefresh } from "./realtime-refresh";
+import { getTranslations } from "next-intl/server";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ export default async function ApprovalsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const t = await getTranslations("approvals");
   const serviceClient = createServiceClient();
 
   const { data: approvalsRaw } = await serviceClient
@@ -80,9 +82,9 @@ export default async function ApprovalsPage() {
     <div className="space-y-6">
       <ApprovalsRealtimeRefresh userId={user.id} />
       <div>
-        <h1 className="text-2xl font-semibold">Pending approvals</h1>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Review and approve or reject agent actions that require human sign-off.
+          {t("description")}
         </p>
       </div>
 
@@ -93,9 +95,9 @@ export default async function ApprovalsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
           </div>
-          <p className="text-sm font-semibold">All caught up</p>
+          <p className="text-sm font-semibold">{t("allCaughtUp")}</p>
           <p className="mt-1 text-xs text-muted-foreground/60">
-            No pending approvals. New requests appear here when an agent step asks for human sign-off.
+            {t("noPendingDesc")}
           </p>
         </div>
       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +53,7 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 export default function ApiKeysPage() {
+  const t = useTranslations("apiKeys");
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -111,12 +113,12 @@ export default function ApiKeysPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">API Keys</h1>
+          <h1 className="text-3xl font-black tracking-tight">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Keys are encrypted at rest and never appear in logs.
+            {t("description")}
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} size="sm">Add key</Button>
+        <Button onClick={() => setDialogOpen(true)} size="sm">{t("addKey")}</Button>
       </div>
 
       {loading ? (
@@ -130,9 +132,9 @@ export default function ApiKeysPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
             </svg>
           </div>
-          <p className="text-sm font-medium mb-1">No API keys yet</p>
-          <p className="text-xs text-muted-foreground/60 mb-5">Add a key to start running AI agents.</p>
-          <Button size="sm" onClick={() => setDialogOpen(true)}>Add first key</Button>
+          <p className="text-sm font-medium mb-1">{t("noKeys")}</p>
+          <p className="text-xs text-muted-foreground/60 mb-5">{t("noKeysDesc")}</p>
+          <Button size="sm" onClick={() => setDialogOpen(true)}>{t("addFirstKey")}</Button>
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden">
@@ -151,14 +153,14 @@ export default function ApiKeysPage() {
                   <div className="mt-0.5 flex items-center gap-2.5 text-[11px] text-muted-foreground/50 font-mono">
                     <span title={key.last_used_at ? new Date(key.last_used_at).toLocaleString() : undefined}>
                       {key.last_used_at
-                        ? <>used {timeAgo(key.last_used_at)}</>
-                        : <span className="text-muted-foreground/30">never used</span>}
+                        ? <>{t("used")} {timeAgo(key.last_used_at)}</>
+                        : <span className="text-muted-foreground/30">{t("neverUsed")}</span>}
                     </span>
                     {key.last_validated_at && (
                       <>
                         <span className="opacity-30">·</span>
                         <span title={new Date(key.last_validated_at).toLocaleString()}>
-                          validated {timeAgo(key.last_validated_at)}
+                          {t("validated")} {timeAgo(key.last_validated_at)}
                         </span>
                       </>
                     )}
@@ -172,11 +174,11 @@ export default function ApiKeysPage() {
                 <div className="flex items-center gap-1 shrink-0">
                   <Button size="sm" variant="ghost" className="text-xs h-7 px-2"
                     disabled={validating === key.id} onClick={() => handleValidate(key.id)}>
-                    {validating === key.id ? "Checking…" : "Validate"}
+                    {validating === key.id ? t("validating") : t("validate")}
                   </Button>
                   <Button size="sm" variant="ghost" className="text-xs h-7 px-2 text-muted-foreground/60 hover:text-destructive"
                     disabled={deleting === key.id} onClick={() => handleDelete(key.id)}>
-                    {deleting === key.id ? "…" : "Remove"}
+                    {deleting === key.id ? t("removing") : t("remove")}
                   </Button>
                 </div>
               </div>
@@ -189,15 +191,15 @@ export default function ApiKeysPage() {
         <DialogContent>
           <form onSubmit={handleAdd}>
             <DialogHeader>
-              <DialogTitle>Add API key</DialogTitle>
+              <DialogTitle>{t("addKeyTitle")}</DialogTitle>
               <DialogDescription>
-                The key is encrypted immediately and never stored in plaintext.
+                {t("addKeyDesc")}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div>
-                <Label htmlFor="provider">Provider</Label>
+                <Label htmlFor="provider">{t("providerLabel")}</Label>
                 <Select
                   id="provider"
                   className="mt-1"
@@ -219,7 +221,7 @@ export default function ApiKeysPage() {
                 )}
               </div>
               <div>
-                <Label htmlFor="name">Label</Label>
+                <Label htmlFor="name">{t("nameLabel")}</Label>
                 <Input
                   id="name"
                   className="mt-1"
@@ -230,7 +232,7 @@ export default function ApiKeysPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="key">API key</Label>
+                <Label htmlFor="key">{t("keyLabel")}</Label>
                 <Input
                   id="key"
                   type="password"
@@ -245,8 +247,8 @@ export default function ApiKeysPage() {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save key"}</Button>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t("saving") : t("saveKey")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
