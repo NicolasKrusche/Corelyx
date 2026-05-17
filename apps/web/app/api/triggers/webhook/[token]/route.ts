@@ -18,6 +18,7 @@ import {
   WEBHOOK_TIMESTAMP_HEADER,
   verifyWebhookSignature,
 } from "@/lib/webhook-trigger-auth";
+import { recordTriggerEvent } from "@/lib/trigger-events";
 
 /**
  * POST /api/triggers/webhook/[token]
@@ -257,6 +258,7 @@ export async function POST(
     return NextResponse.json({ error: "Runtime is unreachable" }, { status: 503 });
   }
 
+  recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "dispatched" });
   return NextResponse.json({ run_id: run.id, status: "running" }, { status: 202 });
 }
 
