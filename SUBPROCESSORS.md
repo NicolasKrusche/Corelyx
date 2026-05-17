@@ -10,7 +10,7 @@ If you are a customer and want to be notified of changes, subscribe at [legal@co
 ---
 
 ## Active subprocessors
-
+b
 | Service | Provider | Purpose | Data processed | Hosting region | Cross-border transfer mechanism |
 |---|---|---|---|---|---|
 | Supabase | Supabase Inc. | Postgres database, auth, Vault for secrets | User accounts, workflow definitions, execution logs (metadata-only by default), encrypted OAuth tokens, encrypted API keys | EU (region pinned) | Subprocessor agreement; data residency confirmed in EU region. |
@@ -58,4 +58,4 @@ Customers can revoke access at any time from the Connections settings. Token rev
 ## Contact
 
 For DPA requests or subprocessor change notifications: [legal@corelyx.app](mailto:legal@corelyx.app)
-test22sasdad
+test22sasdadlllllasdlll
