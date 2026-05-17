@@ -139,16 +139,28 @@ export default async function RunsPage({
       </div>
 
       {runs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-14 text-center">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-border bg-card text-muted-foreground/40 mb-4">
-            <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
+        <div className="rounded-2xl border border-dashed border-border bg-card/50 px-8 py-16 text-center">
+          <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground/40">
+            <svg viewBox="0 0 16 16" fill="currentColor" className="h-5 w-5">
               <path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531L5.305 13.533A1.5 1.5 0 0 1 3 12.267V3.732Z" />
             </svg>
           </div>
-          <p className="text-sm font-medium mb-1">
+          <p className="text-sm font-semibold">
             {resolvedSearchParams.status ? `No ${resolvedSearchParams.status} runs` : "No runs yet"}
           </p>
-          <p className="text-xs text-muted-foreground/60">Open a program and click Run to get started.</p>
+          <p className="mt-1 text-xs text-muted-foreground/60">
+            {resolvedSearchParams.status
+              ? "Try a different filter or clear the selection."
+              : "Open a workflow and click Run to start your first execution."}
+          </p>
+          {!resolvedSearchParams.status && (
+            <Link
+              href="/dashboard"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Go to workflows
+            </Link>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
