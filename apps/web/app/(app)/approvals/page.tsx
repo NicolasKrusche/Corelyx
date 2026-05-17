@@ -87,9 +87,15 @@ export default async function ApprovalsPage() {
       </div>
 
       {approvals.length === 0 ? (
-        <div className="rounded-lg border border-border p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            No pending approvals. You&apos;re all caught up.
+        <div className="rounded-2xl border border-border bg-card/50 px-8 py-14 text-center">
+          <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground/40">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          <p className="text-sm font-semibold">All caught up</p>
+          <p className="mt-1 text-xs text-muted-foreground/60">
+            No pending approvals. New requests appear here when an agent step asks for human sign-off.
           </p>
         </div>
       ) : (

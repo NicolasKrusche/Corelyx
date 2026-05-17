@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { Plug, Workflow, CheckCircle2 } from "lucide-react";
 
 const STORAGE_KEY = "corelyx-onboarding-dismissed";
 
@@ -12,7 +13,7 @@ interface Props {
 }
 
 export function OnboardingChecklist({ hasPrograms, hasConnections, hasApiKeys }: Props) {
-  const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
+  const [dismissed, setDismissed] = useState(true); // start hidden to avoid SSR flash
 
   useEffect(() => {
     try {
@@ -24,7 +25,7 @@ export function OnboardingChecklist({ hasPrograms, hasConnections, hasApiKeys }:
 
   const allDone = hasPrograms && (hasConnections || hasApiKeys);
 
-  // Auto-dismiss once everything is done
+  // Auto-dismiss once all steps are complete
   useEffect(() => {
     if (allDone) {
       try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* ignore */ }
@@ -36,25 +37,20 @@ export function OnboardingChecklist({ hasPrograms, hasConnections, hasApiKeys }:
 
   const steps = [
     {
-      done: hasConnections,
-      label: "Connect a service",
-      description: "Link Gmail, Slack, Notion, or any other integration.",
+      done: hasConnections || hasApiKeys,
+      Icon: Plug,
+      label: "Set up an integration",
+      description: "Connect a service like Gmail or Slack, or add your own Anthropic / OpenAI API key.",
       href: "/connections",
       cta: "Go to Connections",
     },
     {
-      done: hasApiKeys,
-      label: "Add an AI model key",
-      description: "Add an Anthropic, OpenAI, or OpenRouter API key to power your agents.",
-      href: "/api-keys",
-      cta: "Add API key",
-    },
-    {
       done: hasPrograms,
-      label: "Create your first program",
-      description: "Describe an automation in plain English — Corelyx builds the graph.",
+      Icon: Workflow,
+      label: "Create your first workflow",
+      description: "Describe your automation in plain English — Genesis AI builds the graph for you.",
       href: "/programs/new",
-      cta: "Create program",
+      cta: "Create workflow",
     },
   ];
 
@@ -66,78 +62,93 @@ export function OnboardingChecklist({ hasPrograms, hasConnections, hasApiKeys }:
   }
 
   return (
-    <div className="relative rounded-xl border border-primary/20 bg-primary/4 overflow-hidden">
-      {/* Top glow line */}
-      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+    <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/[0.03]">
+      {/* Top gradient line */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
       <div className="p-5">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-sm font-bold">Get started</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {completedCount} of {steps.length} steps complete
-            </p>
-          </div>
-          {/* Progress bar */}
-          <div className="flex items-center gap-2 shrink-0 mt-0.5">
-            <div className="w-24 h-1.5 rounded-full bg-border overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${(completedCount / steps.length) * 100}%` }}
-              />
+        {/* Header */}
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-bold">Get started</p>
+            {/* Pill progress dots */}
+            <div className="flex items-center gap-1">
+              {steps.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                    i < completedCount
+                      ? "w-5 bg-primary"
+                      : "w-3 bg-border"
+                  }`}
+                />
+              ))}
             </div>
-            <button
-              onClick={dismiss}
-              className="text-muted-foreground/40 hover:text-muted-foreground transition-colors text-xs"
-              title="Dismiss"
-            >
-              ✕
-            </button>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {completedCount}/{steps.length}
+            </span>
           </div>
+          <button
+            onClick={dismiss}
+            className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            title="Dismiss"
+          >
+            Skip
+          </button>
         </div>
 
-        <div className="space-y-2">
-          {steps.map((step) => (
-            <div
-              key={step.label}
-              className={`flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors ${
-                step.done
-                  ? "border-border/40 bg-card/40 opacity-60"
-                  : "border-border bg-card hover:bg-accent/40"
-              }`}
-            >
-              {/* Check circle */}
-              <div className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                step.done
-                  ? "border-green-500 bg-green-500/20"
-                  : "border-border"
-              }`}>
-                {step.done && (
-                  <svg viewBox="0 0 12 12" fill="currentColor" className="w-3 h-3 text-green-400">
-                    <path fillRule="evenodd" d="M10.5 2.5a.75.75 0 0 1 .166.913l-4 6a.75.75 0 0 1-1.153.098l-2.5-2.5a.75.75 0 0 1 1.06-1.06l1.89 1.889 3.464-5.196a.75.75 0 0 1 1.073-.144Z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className={`text-xs font-semibold ${step.done ? "line-through text-muted-foreground" : ""}`}>
-                  {step.label}
-                </p>
-                {!step.done && (
-                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">{step.description}</p>
-                )}
-              </div>
-
-              {!step.done && (
-                <Link
-                  href={step.href}
-                  className="shrink-0 text-[11px] font-semibold text-primary hover:underline"
+        {/* Steps */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {steps.map((step) => {
+            const Icon = step.Icon;
+            return (
+              <div
+                key={step.label}
+                className={`flex gap-3 rounded-xl border p-4 transition-colors ${
+                  step.done
+                    ? "border-border/40 bg-card/30 opacity-60"
+                    : "border-border bg-card hover:border-primary/20"
+                }`}
+              >
+                {/* Icon */}
+                <div
+                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    step.done ? "bg-green-500/10" : "bg-primary/10"
+                  }`}
                 >
-                  {step.cta} →
-                </Link>
-              )}
-            </div>
-          ))}
+                  {step.done ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Icon className="h-4 w-4 text-primary" />
+                  )}
+                </div>
+
+                {/* Text */}
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-sm font-semibold ${
+                      step.done ? "text-muted-foreground line-through" : ""
+                    }`}
+                  >
+                    {step.label}
+                  </p>
+                  {!step.done && (
+                    <>
+                      <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/60">
+                        {step.description}
+                      </p>
+                      <Link
+                        href={step.href}
+                        className="mt-2 inline-block text-[11px] font-semibold text-primary hover:underline"
+                      >
+                        {step.cta} →
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

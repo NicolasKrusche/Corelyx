@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
 import { DashboardSearch } from "@/components/dashboard/dashboard-search";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { WelcomeHero } from "@/components/dashboard/welcome-hero";
 import { getRunUsage } from "@/lib/limits";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { getUserCreditBalance } from "@/lib/credits";
@@ -215,6 +216,9 @@ export default async function DashboardPage({
           </Link>
         </section>
       )}
+
+      {/* First-run welcome hero — client component, self-hides once dismissed */}
+      {programs.length === 0 && !searchQuery && <WelcomeHero />}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {featuredPrograms.length === 0 ? (
