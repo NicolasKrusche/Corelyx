@@ -8,6 +8,8 @@ import { getEntitlements, parseTier } from "@/lib/entitlements";
 import { getRunUsage, checkGenesisAccess } from "@/lib/limits";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { CreditsTopUp } from "./credits-topup";
+import { UsageCharts } from "@/components/usage-charts";
+import { getUsageHistory } from "@/lib/usage-history";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
@@ -44,10 +46,11 @@ export default async function CreditsPage() {
   const ent = getEntitlements(tier);
   const workspaceId = ws?.workspaceId ?? null;
 
-  const [creditBalance, runUsage, genesisAccess] = await Promise.all([
+  const [creditBalance, runUsage, genesisAccess, usageHistory] = await Promise.all([
     getUserCreditBalance(user.id),
     getRunUsage(user.id, workspaceId),
     checkGenesisAccess(user.id, workspaceId),
+    getUsageHistory(user.id, workspaceId),
   ]);
 
   const isUnlimited = creditBalance.total === Infinity;
@@ -174,6 +177,9 @@ export default async function CreditsPage() {
           )}
         </div>
       </div>
+
+      {/* Usage charts */}
+      <UsageCharts history={usageHistory} />
 
       {/* Top up */}
       {!isUnlimited && (
