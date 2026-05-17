@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 export default function ErrorPage({
   error,
@@ -9,6 +10,7 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("errors");
   // Log to console in development; in production this would go to Sentry/similar
   useEffect(() => {
     console.error("[error boundary]", error);
@@ -40,14 +42,13 @@ export default function ErrorPage({
 
         <div className="space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-destructive">
-            Unexpected error
+            {t("unexpectedError")}
           </p>
           <h1 className="text-2xl font-black tracking-tight">
-            Something went wrong
+            {t("serverError")}
           </h1>
           <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-            An unexpected error occurred. Our team has been notified. You can
-            try again or head back to the dashboard.
+            {t("serverErrorDesc")}
           </p>
         </div>
 
@@ -55,7 +56,7 @@ export default function ErrorPage({
         {error.digest && (
           <div className="rounded-lg border border-border bg-card px-4 py-2.5">
             <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-              Error reference
+              {t("errorReference")}
             </p>
             <p className="font-mono text-xs text-muted-foreground">
               {error.digest}
@@ -68,13 +69,13 @@ export default function ErrorPage({
             onClick={reset}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all hover:shadow-[0_0_28px_hsl(var(--primary)/0.45)]"
           >
-            Try again
+            {t("tryAgain")}
           </button>
           <a
             href="/dashboard"
             className="inline-flex items-center gap-1.5 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
           >
-            Dashboard
+            {t("goToDashboard")}
           </a>
         </div>
       </div>

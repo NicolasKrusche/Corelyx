@@ -1,15 +1,15 @@
-{
+﻿{
   "nav": {
     "home": "Home",
     "workspaces": "Spazi di lavoro",
     "import": "Importa",
-    "browse": "Esplora",
+    "browse": "Sfoglia",
     "connections": "Connessioni",
     "runs": "Esecuzioni",
     "approvals": "Approvazioni",
-    "logs": "Log",
+    "logs": "Registri",
     "apiKeys": "Chiavi API",
-    "credits": "Crediti & Utilizzo",
+    "credits": "Crediti e utilizzo",
     "support": "Supporto",
     "pricing": "Prezzi",
     "admin": "Admin"
@@ -17,7 +17,7 @@
   "userMenu": {
     "settings": "Impostazioni",
     "language": "Lingua",
-    "signOut": "Disconnetti"
+    "signOut": "Esci"
   },
   "settings": {
     "groups": {
@@ -26,17 +26,17 @@
     },
     "tabs": {
       "account": { "label": "Account", "caption": "Panoramica e accesso" },
-      "profile": { "label": "Profilo", "caption": "Nome e avatar" },
+      "profile": { "label": "Profilo", "caption": "Nome visualizzato e avatar" },
       "security": { "label": "Sicurezza", "caption": "Password e accesso" },
       "plan": { "label": "Piano", "caption": "Abbonamento e accesso" },
-      "support": { "label": "Supporto", "caption": "Aiuto o contatto vendite" },
+      "support": { "label": "Supporto", "caption": "Ottieni aiuto o contatta le vendite" },
       "legal": { "label": "Legale", "caption": "Privacy e termini" },
       "danger": { "label": "Zona pericolosa", "caption": "Elimina questo account" },
       "general": { "label": "Generale", "caption": "Tema e preferenze" },
-      "language": { "label": "Lingua", "caption": "Traduzione e localizzazione" },
-      "advanced": { "label": "Avanzate", "caption": "Opzioni avanzate" },
+      "language": { "label": "Lingua", "caption": "Traduzione e locale" },
+      "advanced": { "label": "Avanzate", "caption": "Controlli per utenti avanzati" },
       "compliance": { "label": "Conformità UE", "caption": "GDPR e documenti legali" },
-      "codeManager": { "label": "Strumenti admin", "caption": "Codici e coda DSR" }
+      "codeManager": { "label": "Admin Tools", "caption": "Codici e coda DSR" }
     }
   },
   "tiers": {
@@ -47,23 +47,103 @@
     "unlimited": "Illimitato"
   },
   "credits": {
-    "title": "Crediti & Utilizzo",
+    "title": "Crediti e utilizzo",
     "totalAvailable": "Totale disponibile",
     "unlimited": "Illimitato",
     "included": "inclusi",
     "purchased": "acquistati",
-    "platformAi": "IA Piattaforma",
-    "genesisAi": "IA Genesis",
-    "workflowRuns": "Esecuzioni workflow",
-    "usedThisMonth": "Utilizzato questo mese",
+    "platformAi": "IA della piattaforma",
+    "genesisAi": "Genesis AI",
+    "workflowRuns": "Esecuzioni del flusso di lavoro",
+    "usedThisMonth": "Usati questo mese",
     "runsThisMonth": "Esecuzioni questo mese",
     "upgrade": "Aggiorna →",
     "topUp": "Ricarica crediti",
-    "topUpDesc": "I crediti acquistati non scadono mai e vengono usati dopo la quota mensile.",
-    "topUpNote": "$1 ≈ alcune centinaia di chiamate LLM in base al modello. Usato solo per i workflow tramite la chiave di piattaforma Corelyx.",
+    "topUpDesc": "I crediti acquistati non scadono mai e vengono utilizzati dopo aver esaurito la quota mensile.",
+    "topUpNote": "1 $ ≈ qualche centinaio di chiamate LLM a seconda del modello. Usato solo quando i flussi di lavoro vengono eseguiti tramite la chiave della piattaforma Corelyx.",
     "includedCredits": "Crediti inclusi",
     "includedCreditsDesc": "Si azzera mensilmente con il tuo piano",
     "purchasedCredits": "Crediti acquistati",
-    "purchasedCreditsNeverExpire": "Non scadono mai"
+    "purchasedCreditsNeverExpire": "Non scadono mai",
+    "thirtyDayActivity": "Attività 30 giorni",
+    "workflowRunsChart": "Esecuzioni del flusso di lavoro",
+    "aiSpend": "Spesa IA",
+    "runsThisPeriod": "esecuzioni in questo periodo",
+    "thisPeriod": "in questo periodo",
+    "noActivity": "Nessuna attività ancora — esegui un flusso di lavoro per vedere il grafico."
+  },
+  "dashboard": {
+    "programs": "Programmi",
+    "active": "Attivo",
+    "connections": "Connessioni",
+    "runsThisMonth": "Esecuzioni questo mese",
+    "workflows": "Flussi di lavoro",
+    "recentRuns": "Esecuzioni recenti",
+    "createNew": "Crea nuovo",
+    "import": "Importa",
+    "noAgents": "Nessun agente ancora",
+    "noAgentsDesc": "Crea la tua prima automazione per popolare questo spazio di lavoro.",
+    "noWorkflowsMatch": "Nessun flusso di lavoro corrispondente",
+    "noRunsYet": "Nessuna esecuzione ancora",
+    "openAndRun": "Apri un flusso di lavoro e clicca su Esegui."
+  },
+  "runs": {
+    "title": "Esecuzioni",
+    "noRuns": "Nessuna esecuzione ancora",
+    "noFilteredRuns": "Nessuna esecuzione {status}",
+    "openWorkflow": "Apri un flusso di lavoro e clicca su Esegui per avviare la prima esecuzione.",
+    "tryDifferentFilter": "Prova un filtro diverso o cancella la selezione.",
+    "goToWorkflows": "Vai ai flussi di lavoro",
+    "filterAll": "Tutti",
+    "filterRunning": "In esecuzione",
+    "filterCompleted": "Completati",
+    "filterFailed": "Falliti",
+    "filterCancelled": "Annullati"
+  },
+  "approvals": {
+    "title": "Approvazioni in attesa",
+    "description": "Esamina e approva o rifiuta le azioni degli agenti che richiedono l'approvazione umana.",
+    "allCaughtUp": "Tutto in ordine",
+    "noPendingDesc": "Nessuna approvazione in attesa. Le nuove richieste appaiono qui quando un passaggio dell'agente richiede l'approvazione umana."
+  },
+  "apiKeys": {
+    "title": "Chiavi API",
+    "description": "Le chiavi sono crittografate a riposo e non appaiono mai nei registri.",
+    "addKey": "Aggiungi chiave",
+    "noKeys": "Nessuna chiave API ancora",
+    "noKeysDesc": "Aggiungi una chiave per iniziare a eseguire agenti IA.",
+    "addFirstKey": "Aggiungi prima chiave",
+    "neverUsed": "mai usata",
+    "used": "usata",
+    "validated": "validata",
+    "validate": "Convalida",
+    "validating": "Verifica in corso…",
+    "remove": "Rimuovi",
+    "removing": "…",
+    "addKeyTitle": "Aggiungi chiave API",
+    "addKeyDesc": "La chiave viene crittografata immediatamente e non viene mai memorizzata in chiaro.",
+    "providerLabel": "Provider",
+    "nameLabel": "Etichetta",
+    "keyLabel": "Chiave API",
+    "cancel": "Annulla",
+    "saveKey": "Salva chiave",
+    "saving": "Salvataggio…"
+  },
+  "errors": {
+    "notFound": "Pagina non trovata",
+    "notFoundDesc": "La pagina che stai cercando non esiste o potrebbe essere stata spostata. Controlla l'URL o torna alla pagina principale.",
+    "serverError": "Qualcosa è andato storto",
+    "serverErrorDesc": "Si è verificato un errore imprevisto. Il nostro team è stato notificato. Puoi riprovare o tornare alla dashboard.",
+    "appNotFound": "Pagina non trovata",
+    "appNotFoundDesc": "Questa pagina non esiste o potresti non avere accesso.",
+    "appError": "Qualcosa è andato storto",
+    "appErrorDesc": "Questa sezione ha riscontrato un errore imprevisto. Prova ad aggiornare o torna alla dashboard.",
+    "unexpectedError": "Errore imprevisto",
+    "errorReference": "Riferimento errore",
+    "goToDashboard": "Vai alla dashboard",
+    "goToWorkflows": "Vai ai flussi di lavoro",
+    "contactSupport": "Contatta il supporto",
+    "tryAgain": "Riprova",
+    "goBack": "Torna indietro"
   }
 }

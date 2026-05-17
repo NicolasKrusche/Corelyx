@@ -12,6 +12,7 @@ import { WelcomeHero } from "@/components/dashboard/welcome-hero";
 import { getRunUsage } from "@/lib/limits";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { getUserCreditBalance } from "@/lib/credits";
+import { getTranslations } from "next-intl/server";
 
 type Program = {
   id: string;
@@ -96,6 +97,7 @@ export default async function DashboardPage({
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const t = await getTranslations("dashboard");
   const searchQuery = getSearchQuery(await searchParams);
   const normalizedQuery = searchQuery.toLowerCase();
   const activeWorkspace = await getActiveWorkspace(user.id);
@@ -177,12 +179,12 @@ export default async function DashboardPage({
           <DashboardSearch initialValue={searchQuery} />
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/programs/import">Import</Link>
+              <Link href="/programs/import">{t("import")}</Link>
             </Button>
             <Button asChild size="sm" className="gap-1.5">
               <Link href="/programs/new">
                 <Plus className="h-3.5 w-3.5" />
-                Create new
+                {t("createNew")}
               </Link>
             </Button>
           </div>
@@ -223,11 +225,11 @@ export default async function DashboardPage({
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {featuredPrograms.length === 0 ? (
           <div className="md:col-span-2 rounded-2xl border border-dashed border-border bg-card/60 p-6">
-            <p className="text-sm font-semibold">{searchQuery ? "No matching workflows" : "No agents yet"}</p>
+            <p className="text-sm font-semibold">{searchQuery ? t("noWorkflowsMatch") : t("noAgents")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {searchQuery
                 ? "Try searching by workflow name, description, status, or trigger."
-                : "Create your first automation to populate this workspace board."}
+                : t("noAgentsDesc")}
             </p>
           </div>
         ) : (
@@ -264,19 +266,19 @@ export default async function DashboardPage({
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Programs</p>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("programs")}</p>
           <p className="text-2xl font-black tabular-nums">{programs.length}</p>
         </div>
         <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Active</p>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("active")}</p>
           <p className="text-2xl font-black tabular-nums text-green-500">{activePrograms}</p>
         </div>
         <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Connections</p>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("connections")}</p>
           <p className="text-2xl font-black tabular-nums">{connectionCount}</p>
         </div>
         <div className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Runs this month</p>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("runsThisMonth")}</p>
           <p className={`text-2xl font-black tabular-nums ${runUsage.total && runUsage.current / runUsage.total >= 0.8 ? "text-yellow-500" : ""}`}>
             {runUsage.current}
             {runUsage.total !== null && (
@@ -303,7 +305,7 @@ export default async function DashboardPage({
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Workflow className="h-4 w-4" />
             </span>
-            <h2 className="text-lg font-semibold">Workflows</h2>
+            <h2 className="text-lg font-semibold">{t("workflows")}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">Needs attention</span>
@@ -353,16 +355,16 @@ export default async function DashboardPage({
           <div className="lg:col-span-2">
             <div className="mb-3 flex items-center gap-2">
               <Clock3 className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Recent runs</h3>
+              <h3 className="text-sm font-semibold">{t("recentRuns")}</h3>
             </div>
 
             {filteredRecentRuns.length === 0 ? (
               <div className="rounded-xl border border-border bg-card/70 p-8 text-center">
                 <p className="text-xs font-medium text-muted-foreground">
-                  {searchQuery ? "No runs match your search" : "No runs yet"}
+                  {searchQuery ? "No runs match your search" : t("noRunsYet")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground/60">
-                  {searchQuery ? "Try a workflow name, status, or trigger." : "Open a workflow and click Run."}
+                  {searchQuery ? "Try a workflow name, status, or trigger." : t("openAndRun")}
                 </p>
               </div>
             ) : (

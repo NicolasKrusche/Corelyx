@@ -1,4 +1,4 @@
-{
+﻿{
   "nav": {
     "home": "Home",
     "workspaces": "Werkruimten",
@@ -9,15 +9,15 @@
     "approvals": "Goedkeuringen",
     "logs": "Logboeken",
     "apiKeys": "API-sleutels",
-    "credits": "Tegoed & Gebruik",
-    "support": "Ondersteuning",
+    "credits": "Credits & gebruik",
+    "support": "Support",
     "pricing": "Prijzen",
     "admin": "Admin"
   },
   "userMenu": {
     "settings": "Instellingen",
     "language": "Taal",
-    "signOut": "Uitloggen"
+    "signOut": "Afmelden"
   },
   "settings": {
     "groups": {
@@ -28,15 +28,15 @@
       "account": { "label": "Account", "caption": "Overzicht en toegang" },
       "profile": { "label": "Profiel", "caption": "Weergavenaam en avatar" },
       "security": { "label": "Beveiliging", "caption": "Wachtwoord en aanmelden" },
-      "plan": { "label": "Abonnement", "caption": "Abonnement en toegang" },
-      "support": { "label": "Ondersteuning", "caption": "Help of contacteer verkoop" },
+      "plan": { "label": "Plan", "caption": "Abonnement en toegang" },
+      "support": { "label": "Support", "caption": "Hulp krijgen of contact met verkoop" },
       "legal": { "label": "Juridisch", "caption": "Privacy en voorwaarden" },
       "danger": { "label": "Gevarenzone", "caption": "Dit account verwijderen" },
       "general": { "label": "Algemeen", "caption": "Thema en voorkeuren" },
-      "language": { "label": "Taal", "caption": "Vertaling en taalinstelling" },
-      "advanced": { "label": "Geavanceerd", "caption": "Geavanceerde opties" },
-      "compliance": { "label": "EU-naleving", "caption": "AVG en juridische documenten" },
-      "codeManager": { "label": "Beheerderstools", "caption": "Codes en DSR-wachtrij" }
+      "language": { "label": "Taal", "caption": "Vertaling en locatie" },
+      "advanced": { "label": "Geavanceerd", "caption": "Besturingselementen voor gevorderde gebruikers" },
+      "compliance": { "label": "EU-naleving", "caption": "GDPR en juridische documenten" },
+      "codeManager": { "label": "Admin Tools", "caption": "Codes en DSR-wachtrij" }
     }
   },
   "tiers": {
@@ -47,23 +47,103 @@
     "unlimited": "Onbeperkt"
   },
   "credits": {
-    "title": "Tegoed & Gebruik",
+    "title": "Credits & gebruik",
     "totalAvailable": "Totaal beschikbaar",
     "unlimited": "Onbeperkt",
     "included": "inbegrepen",
     "purchased": "gekocht",
     "platformAi": "Platform-AI",
-    "genesisAi": "Genesis-AI",
+    "genesisAi": "Genesis AI",
     "workflowRuns": "Workflow-uitvoeringen",
-    "usedThisMonth": "Gebruikt deze maand",
+    "usedThisMonth": "Deze maand gebruikt",
     "runsThisMonth": "Uitvoeringen deze maand",
     "upgrade": "Upgraden →",
-    "topUp": "Tegoed opwaarderen",
-    "topUpDesc": "Gekocht tegoed vervalt nooit en wordt gebruikt na uw maandelijkse limiet.",
-    "topUpNote": "$1 ≈ een paar honderd LLM-aanroepen afhankelijk van het model. Alleen gebruikt voor workflows via de Corelyx-platformsleutel.",
-    "includedCredits": "Inbegrepen tegoed",
-    "includedCreditsDesc": "Wordt maandelijks gereset met uw abonnement",
-    "purchasedCredits": "Gekocht tegoed",
-    "purchasedCreditsNeverExpire": "Vervalt nooit"
+    "topUp": "Credits opwaarderen",
+    "topUpDesc": "Gekochte credits verlopen nooit en worden gebruikt nadat uw maandelijkse tegoed op is.",
+    "topUpNote": "$ 1 ≈ een paar honderd LLM-aanroepen afhankelijk van het model. Alleen gebruikt wanneer workflows worden uitgevoerd via de Corelyx-platformsleutel.",
+    "includedCredits": "Inbegrepen credits",
+    "includedCreditsDesc": "Wordt maandelijks opnieuw ingesteld met uw plan",
+    "purchasedCredits": "Gekochte credits",
+    "purchasedCreditsNeverExpire": "Verlopen nooit",
+    "thirtyDayActivity": "Activiteit van 30 dagen",
+    "workflowRunsChart": "Workflow-uitvoeringen",
+    "aiSpend": "AI-uitgaven",
+    "runsThisPeriod": "uitvoeringen in deze periode",
+    "thisPeriod": "in deze periode",
+    "noActivity": "Nog geen activiteit — voer een workflow uit om uw grafiek te zien."
+  },
+  "dashboard": {
+    "programs": "Programma's",
+    "active": "Actief",
+    "connections": "Verbindingen",
+    "runsThisMonth": "Uitvoeringen deze maand",
+    "workflows": "Workflows",
+    "recentRuns": "Recente uitvoeringen",
+    "createNew": "Nieuw aanmaken",
+    "import": "Importeren",
+    "noAgents": "Nog geen agents",
+    "noAgentsDesc": "Maak uw eerste automatisering om dit werkruimtebord te vullen.",
+    "noWorkflowsMatch": "Geen overeenkomende workflows",
+    "noRunsYet": "Nog geen uitvoeringen",
+    "openAndRun": "Open een workflow en klik op Uitvoeren."
+  },
+  "runs": {
+    "title": "Uitvoeringen",
+    "noRuns": "Nog geen uitvoeringen",
+    "noFilteredRuns": "Geen {status} uitvoeringen",
+    "openWorkflow": "Open een workflow en klik op Uitvoeren om uw eerste uitvoering te starten.",
+    "tryDifferentFilter": "Probeer een ander filter of wis de selectie.",
+    "goToWorkflows": "Naar workflows gaan",
+    "filterAll": "Alle",
+    "filterRunning": "Actief",
+    "filterCompleted": "Voltooid",
+    "filterFailed": "Mislukt",
+    "filterCancelled": "Geannuleerd"
+  },
+  "approvals": {
+    "title": "Openstaande goedkeuringen",
+    "description": "Bekijk en keur goed of weiger agentacties waarvoor menselijke goedkeuring vereist is.",
+    "allCaughtUp": "Alles bijgewerkt",
+    "noPendingDesc": "Geen openstaande goedkeuringen. Nieuwe verzoeken verschijnen hier wanneer een agentstap menselijke goedkeuring vereist."
+  },
+  "apiKeys": {
+    "title": "API-sleutels",
+    "description": "Sleutels worden in rust versleuteld en verschijnen nooit in logboeken.",
+    "addKey": "Sleutel toevoegen",
+    "noKeys": "Nog geen API-sleutels",
+    "noKeysDesc": "Voeg een sleutel toe om AI-agents te kunnen uitvoeren.",
+    "addFirstKey": "Eerste sleutel toevoegen",
+    "neverUsed": "nooit gebruikt",
+    "used": "gebruikt",
+    "validated": "gevalideerd",
+    "validate": "Valideren",
+    "validating": "Controleren…",
+    "remove": "Verwijderen",
+    "removing": "…",
+    "addKeyTitle": "API-sleutel toevoegen",
+    "addKeyDesc": "De sleutel wordt onmiddellijk versleuteld en nooit in leesbare tekst opgeslagen.",
+    "providerLabel": "Provider",
+    "nameLabel": "Label",
+    "keyLabel": "API-sleutel",
+    "cancel": "Annuleren",
+    "saveKey": "Sleutel opslaan",
+    "saving": "Opslaan…"
+  },
+  "errors": {
+    "notFound": "Pagina niet gevonden",
+    "notFoundDesc": "De pagina die u zoekt bestaat niet of is mogelijk verplaatst. Controleer de URL of ga terug naar veiligheid.",
+    "serverError": "Er is iets misgegaan",
+    "serverErrorDesc": "Er is een onverwachte fout opgetreden. Ons team is op de hoogte gesteld. U kunt het opnieuw proberen of teruggaan naar het dashboard.",
+    "appNotFound": "Pagina niet gevonden",
+    "appNotFoundDesc": "Deze pagina bestaat niet of u heeft mogelijk geen toegang.",
+    "appError": "Er is iets misgegaan",
+    "appErrorDesc": "Dit gedeelte heeft een onverwachte fout ondervonden. Probeer te vernieuwen of ga terug naar het dashboard.",
+    "unexpectedError": "Onverwachte fout",
+    "errorReference": "Foutreferentie",
+    "goToDashboard": "Naar dashboard gaan",
+    "goToWorkflows": "Naar workflows gaan",
+    "contactSupport": "Contact opnemen met support",
+    "tryAgain": "Opnieuw proberen",
+    "goBack": "Terug gaan"
   }
 }

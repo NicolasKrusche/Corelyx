@@ -10,6 +10,7 @@ import { getActiveWorkspace } from "@/lib/workspaces";
 import { CreditsTopUp } from "./credits-topup";
 import { UsageCharts } from "@/components/usage-charts";
 import { getUsageHistory } from "@/lib/usage-history";
+import { getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
@@ -46,6 +47,8 @@ export default async function CreditsPage() {
   const ent = getEntitlements(tier);
   const workspaceId = ws?.workspaceId ?? null;
 
+  const t = await getTranslations("credits");
+
   const [creditBalance, runUsage, genesisAccess, usageHistory] = await Promise.all([
     getUserCreditBalance(user.id),
     getRunUsage(user.id, workspaceId),
@@ -65,7 +68,7 @@ export default async function CreditsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight">Credits & Usage</h1>
+          <h1 className="text-2xl font-black tracking-tight">{t("title")}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {TIER_LABEL[tier]} plan ·{" "}
             <Link href="/plan" className="text-primary hover:underline underline-offset-2">
@@ -79,22 +82,22 @@ export default async function CreditsPage() {
       <div className="relative overflow-hidden rounded-2xl bg-primary p-6 text-primary-foreground">
         <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
         <div className="absolute -bottom-10 -right-4 h-32 w-32 rounded-full bg-white/5" />
-        <p className="text-xs font-semibold uppercase tracking-widest opacity-70">Total available</p>
+        <p className="text-xs font-semibold uppercase tracking-widest opacity-70">{t("totalAvailable")}</p>
         <p className="mt-1 text-4xl font-black tracking-tight">
-          {isUnlimited ? "Unlimited" : `$${creditBalance.total.toFixed(2)}`}
+          {isUnlimited ? t("unlimited") : `$${creditBalance.total.toFixed(2)}`}
         </p>
         {!isUnlimited && (
           <div className="mt-4 flex items-center gap-4 text-sm">
             <span className="opacity-80">
               <span className="font-semibold opacity-100">${creditBalance.availableIncluded.toFixed(2)}</span>
-              {" "}included
+              {" "}{t("included")}
             </span>
             {creditBalance.availablePurchased > 0 && (
               <>
                 <span className="opacity-40">·</span>
                 <span className="opacity-80">
                   <span className="font-semibold opacity-100">${creditBalance.availablePurchased.toFixed(2)}</span>
-                  {" "}purchased
+                  {" "}{t("purchased")}
                 </span>
               </>
             )}
@@ -106,14 +109,14 @@ export default async function CreditsPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         {/* AI credits */}
         <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Platform AI</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t("platformAi")}</p>
           {isUnlimited ? (
-            <p className="mt-2 text-lg font-bold">Unlimited</p>
+            <p className="mt-2 text-lg font-bold">{t("unlimited")}</p>
           ) : includedTotal === 0 ? (
             <>
               <p className="mt-2 text-lg font-bold">—</p>
               <p className="mt-1 text-xs text-muted-foreground">Not on Free plan</p>
-              <Link href="/plan" className="mt-2 block text-xs font-medium text-primary hover:underline">Upgrade →</Link>
+              <Link href="/plan" className="mt-2 block text-xs font-medium text-primary hover:underline">{t("upgrade")}</Link>
             </>
           ) : (
             <>
@@ -122,18 +125,18 @@ export default async function CreditsPage() {
                 <span className="ml-1 text-sm font-normal text-muted-foreground">/ ${includedTotal?.toFixed(2)}</span>
               </p>
               <StatBar value={includedUsed} max={includedTotal} />
-              <p className="mt-2 text-xs text-muted-foreground">Used this month</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("usedThisMonth")}</p>
             </>
           )}
         </div>
 
         {/* Genesis */}
         <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Genesis AI</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t("genesisAi")}</p>
           {genesisAccess.maxUses === null ? (
             <>
-              <p className="mt-2 text-lg font-bold">Unlimited</p>
-              <p className="mt-1 text-xs text-muted-foreground">Uses this month</p>
+              <p className="mt-2 text-lg font-bold">{t("unlimited")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("usedThisMonth")}</p>
             </>
           ) : (
             <>
@@ -143,9 +146,9 @@ export default async function CreditsPage() {
               </p>
               <StatBar value={genesisAccess.usesThisMonth} max={genesisAccess.maxUses} />
               <div className="mt-2 flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">Used this month</p>
+                <p className="text-xs text-muted-foreground">{t("usedThisMonth")}</p>
                 {genesisLeft === 0 && (
-                  <Link href="/plan" className="text-xs font-medium text-primary hover:underline">Upgrade →</Link>
+                  <Link href="/plan" className="text-xs font-medium text-primary hover:underline">{t("upgrade")}</Link>
                 )}
               </div>
             </>
@@ -154,11 +157,11 @@ export default async function CreditsPage() {
 
         {/* Runs */}
         <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Workflow Runs</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t("workflowRuns")}</p>
           {runUsage.total === null ? (
             <>
-              <p className="mt-2 text-lg font-bold">Unlimited</p>
-              <p className="mt-1 text-xs text-muted-foreground">Runs this month</p>
+              <p className="mt-2 text-lg font-bold">{t("unlimited")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("runsThisMonth")}</p>
             </>
           ) : (
             <>
@@ -168,9 +171,9 @@ export default async function CreditsPage() {
               </p>
               <StatBar value={runUsage.current} max={runUsage.total} />
               <div className="mt-2 flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">Used this month</p>
+                <p className="text-xs text-muted-foreground">{t("usedThisMonth")}</p>
                 {runsLeft === 0 && (
-                  <Link href="/plan" className="text-xs font-medium text-primary hover:underline">Upgrade →</Link>
+                  <Link href="/plan" className="text-xs font-medium text-primary hover:underline">{t("upgrade")}</Link>
                 )}
               </div>
             </>
@@ -186,18 +189,14 @@ export default async function CreditsPage() {
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-semibold">Top up credits</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Purchased credits never expire and are used after your monthly allowance runs out.
-              </p>
+              <p className="font-semibold">{t("topUp")}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{t("topUpDesc")}</p>
             </div>
           </div>
           <div className="mt-4">
             <CreditsTopUp />
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            $1 ≈ a few hundred LLM calls depending on model. Used only when workflows run via the Corelyx platform key.
-          </p>
+          <p className="mt-3 text-xs text-muted-foreground">{t("topUpNote")}</p>
         </section>
       )}
 
@@ -206,15 +205,15 @@ export default async function CreditsPage() {
         <section className="rounded-2xl border border-border bg-card divide-y divide-border">
           <div className="flex items-center justify-between px-5 py-3.5">
             <div>
-              <p className="text-sm font-medium">Included credits</p>
-              <p className="text-xs text-muted-foreground">Resets monthly with your plan</p>
+              <p className="text-sm font-medium">{t("includedCredits")}</p>
+              <p className="text-xs text-muted-foreground">{t("includedCreditsDesc")}</p>
             </div>
             <span className="text-sm font-semibold">${creditBalance.availableIncluded.toFixed(2)} left</span>
           </div>
           <div className="flex items-center justify-between px-5 py-3.5">
             <div>
-              <p className="text-sm font-medium">Purchased credits</p>
-              <p className="text-xs text-muted-foreground">Never expire</p>
+              <p className="text-sm font-medium">{t("purchasedCredits")}</p>
+              <p className="text-xs text-muted-foreground">{t("purchasedCreditsNeverExpire")}</p>
             </div>
             <span className="text-sm font-semibold">${creditBalance.availablePurchased.toFixed(2)}</span>
           </div>

@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
-export default function NotFoundPage() {
+export default async function NotFoundPage() {
+  const t = await getTranslations("errors");
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
 
@@ -30,11 +32,10 @@ export default function NotFoundPage() {
 
         <div className="space-y-2">
           <h1 className="text-2xl font-black tracking-tight">
-            Page not found
+            {t("notFound")}
           </h1>
           <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-            The page you&apos;re looking for doesn&apos;t exist or may have been
-            moved. Double-check the URL or head back to safety.
+            {t("notFoundDesc")}
           </p>
         </div>
 
@@ -43,13 +44,13 @@ export default function NotFoundPage() {
             href="/dashboard"
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.3)] transition-all hover:shadow-[0_0_28px_hsl(var(--primary)/0.45)]"
           >
-            Go to Dashboard
+            {t("goToDashboard")}
           </Link>
           <Link
             href="/support"
             className="inline-flex items-center gap-1.5 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
           >
-            Contact support
+            {t("contactSupport")}
           </Link>
         </div>
       </div>
