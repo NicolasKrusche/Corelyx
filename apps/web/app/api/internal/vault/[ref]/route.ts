@@ -70,5 +70,11 @@ export async function GET(
     return apiError("Failed to retrieve secret from vault", 500);
   }
 
+  // Stamp last_used_at — fire-and-forget, never blocks the response.
+  void serviceClient
+    .from("api_keys")
+    .update({ last_used_at: new Date().toISOString() } as never)
+    .eq("id", ref);
+
   return NextResponse.json({ value, provider: row.provider });
 }

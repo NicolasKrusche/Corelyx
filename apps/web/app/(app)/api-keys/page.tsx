@@ -14,8 +14,21 @@ type ApiKey = {
   provider: string;
   is_valid: boolean;
   last_validated_at: string | null;
+  last_used_at: string | null;
   created_at: string;
 };
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
 const PROVIDERS = [
   { value: "anthropic",   label: "Anthropic" },
@@ -135,11 +148,21 @@ export default function ApiKeysPage() {
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{key.name}</p>
-                  {key.last_validated_at && (
-                    <p className="text-[11px] text-muted-foreground/50 font-mono">
-                      validated {new Date(key.last_validated_at).toLocaleDateString()}
-                    </p>
-                  )}
+                  <div className="mt-0.5 flex items-center gap-2.5 text-[11px] text-muted-foreground/50 font-mono">
+                    <span title={key.last_used_at ? new Date(key.last_used_at).toLocaleString() : undefined}>
+                      {key.last_used_at
+                        ? <>used {timeAgo(key.last_used_at)}</>
+                        : <span className="text-muted-foreground/30">never used</span>}
+                    </span>
+                    {key.last_validated_at && (
+                      <>
+                        <span className="opacity-30">·</span>
+                        <span title={new Date(key.last_validated_at).toLocaleString()}>
+                          validated {timeAgo(key.last_validated_at)}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <Badge variant={key.is_valid ? "success" : "destructive"}>
