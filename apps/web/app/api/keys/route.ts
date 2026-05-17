@@ -24,7 +24,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("api_keys")
-    .select("id, name, provider, is_valid, last_validated_at, created_at, user_id, workspace_id")
+    .select("id, name, provider, is_valid, last_validated_at, last_used_at, created_at, user_id, workspace_id")
     .eq("workspace_id", ws.workspaceId)
     .order("created_at", { ascending: false });
 
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       provider,
       vault_secret_id: vaultId,
     } as never)
-    .select("id, name, provider, is_valid, last_validated_at, created_at, user_id, workspace_id")
+    .select("id, name, provider, is_valid, last_validated_at, last_used_at, created_at, user_id, workspace_id")
     .single();
 
   if (error) return apiError(error.message, 500);
