@@ -5,6 +5,8 @@ import { createServiceClient } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { StopRunButton } from "@/app/(app)/programs/[id]/runs/[runId]/stop-button";
 import { getTranslations } from "next-intl/server";
+import { RunsLiveButton, ExportRunsButton } from "./runs-toolbar";
+import { RunsFooter } from "./runs-footer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,7 +91,7 @@ function StatusBadge({ status }: { status: string }) {
 export default async function RunsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; group?: string }>;
+  searchParams: Promise<{ status?: string; group?: string; sort?: string }>;
 }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -112,11 +114,13 @@ export default async function RunsPage({
 
   const serviceClient = createServiceClient();
 
+  const sortAsc = resolvedSearchParams.sort === "asc";
+
   let query = serviceClient
     .from("runs")
     .select("id, program_id, status, triggered_by, started_at, completed_at, error_message, created_at, programs(name)")
     .in("program_id", programIds.length > 0 ? programIds : ["__none__"])
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: sortAsc })
     .limit(200);
 
   if (resolvedSearchParams.status) {
@@ -221,20 +225,18 @@ export default async function RunsPage({
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {runningNow > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              Live · auto
-            </span>
-          )}
-          <Link
-            href="/runs"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
-          >
-            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
-            Export
-          </Link>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <RunsLiveButton hasActive={runningNow > 0} />
+          <ExportRunsButton runs={runs.map((r) => ({
+            id: r.id,
+            program: r.programs?.name ?? "Unknown",
+            status: r.status,
+            triggered_by: r.triggered_by,
+            started_at: r.started_at,
+            completed_at: r.completed_at,
+            duration_ms: calcDurationMs(r.started_at, r.completed_at),
+            error_message: r.error_message,
+          }))} />
           {failedRuns24h.length > 0 && (
             <Link
               href="/runs?status=failed"
@@ -245,10 +247,10 @@ export default async function RunsPage({
             </Link>
           )}
           <Link
-            href="/dashboard"
+            href="/programs"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
           >
-            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1Zm.75 4.75v-.5a.75.75 0 0 0-1.5 0v.5a.75.75 0 0 0 1.5 0ZM8 6.5a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 8 6.5Z"/></svg>
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531L5.305 13.533A1.5 1.5 0 0 1 3 12.267V3.732Z"/></svg>
             Trigger run
           </Link>
         </div>
@@ -374,17 +376,46 @@ export default async function RunsPage({
 
         {/* Group / sort */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-          <Link
-            href={groupByError ? "/runs" : "/runs?group=error"}
-            className={`rounded-lg border px-3 py-1.5 font-medium transition-colors ${
-              groupByError
-                ? "border-primary/30 bg-primary/10 text-primary"
-                : "border-border bg-card hover:bg-accent"
-            }`}
-          >
-            Group: {groupByError ? "error type" : "none"}
-          </Link>
-          <span className="border border-border bg-card rounded-lg px-3 py-1.5 font-medium">Sort: newest first</span>
+          {(() => {
+            const params = new URLSearchParams();
+            if (resolvedSearchParams.status) params.set("status", resolvedSearchParams.status);
+            if (!groupByError) params.set("group", "error");
+            const groupHref = `/runs${params.toString() ? `?${params.toString()}` : ""}`;
+            const noGroupParams = new URLSearchParams();
+            if (resolvedSearchParams.status) noGroupParams.set("status", resolvedSearchParams.status);
+            if (resolvedSearchParams.sort) noGroupParams.set("sort", resolvedSearchParams.sort);
+            const noGroupHref = `/runs${noGroupParams.toString() ? `?${noGroupParams.toString()}` : ""}`;
+            return (
+              <Link
+                href={groupByError ? noGroupHref : groupHref}
+                className={`rounded-lg border px-3 py-1.5 font-medium transition-colors ${
+                  groupByError
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border bg-card hover:bg-accent"
+                }`}
+              >
+                Group: {groupByError ? "error type" : "none"}
+              </Link>
+            );
+          })()}
+          {(() => {
+            const params = new URLSearchParams();
+            if (resolvedSearchParams.status) params.set("status", resolvedSearchParams.status);
+            if (resolvedSearchParams.group) params.set("group", resolvedSearchParams.group);
+            if (!sortAsc) params.set("sort", "asc");
+            const sortHref = `/runs${params.toString() ? `?${params.toString()}` : ""}`;
+            return (
+              <Link
+                href={sortHref}
+                className="border border-border bg-card rounded-lg px-3 py-1.5 font-medium hover:bg-accent transition-colors inline-flex items-center gap-1"
+              >
+                <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/60">
+                  <path d="M2 4.75a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75ZM4 8a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 8Zm2.75 2.5a.75.75 0 0 0 0 1.5h2.5a.75.75 0 0 0 0-1.5h-2.5Z"/>
+                </svg>
+                Sort: {sortAsc ? "oldest first" : "newest first"}
+              </Link>
+            );
+          })()}
         </div>
       </div>
 
@@ -445,6 +476,11 @@ export default async function RunsPage({
               ))}
             </div>
           </section>
+          <RunsFooter
+            totalShown={runs.length}
+            filterLabel={resolvedSearchParams.status}
+            failedRuns={runs.filter((r) => r.status === "failed").map((r) => ({ id: r.id, program_id: r.program_id }))}
+          />
         </div>
       ) : (
         /* ── Normal list view ── */
@@ -466,11 +502,11 @@ export default async function RunsPage({
             )}
             <RunList runs={resolvedSearchParams.status ? runs : completed} />
           </section>
-          {runs.length >= 100 && (
-            <p className="text-center text-xs text-muted-foreground/40 pb-2">
-              Showing latest 200 runs
-            </p>
-          )}
+          <RunsFooter
+            totalShown={runs.length}
+            filterLabel={resolvedSearchParams.status}
+            failedRuns={runs.filter((r) => r.status === "failed").map((r) => ({ id: r.id, program_id: r.program_id }))}
+          />
         </div>
       )}
     </div>
