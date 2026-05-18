@@ -36,6 +36,83 @@ async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<void>
   }
 }
 
+// ─── Auth emails ──────────────────────────────────────────────────────────────
+
+export async function sendPasswordResetEmail({
+  to,
+  resetUrl,
+}: {
+  to: string;
+  resetUrl: string;
+}): Promise<void> {
+  await sendEmail({
+    to,
+    subject: "Reset your Corelyx password",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;">
+      <tr><td style="padding:32px 40px 0;text-align:center;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#fff7ed;border-radius:12px;border:1px solid #fed7aa;margin-bottom:16px;">
+          <span style="font-size:24px;">🔑</span>
+        </div>
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Reset your password</h1>
+        <p style="margin:0;font-size:15px;color:#6b7280;line-height:1.5;">Click the button below to set a new password. This link expires in 1 hour.</p>
+      </td></tr>
+      <tr><td style="padding:28px 40px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${resetUrl}" style="display:inline-block;background:#ea580c;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:0.1px;">Reset password</a>
+        </div>
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+          If you didn&apos;t request a password reset, you can safely ignore this email.<br>
+          Or copy this link: <a href="${resetUrl}" style="color:#ea580c;word-break:break-all;">${resetUrl}</a>
+        </p>
+      </td></tr>
+      <tr><td style="padding:20px 40px;background:#f9fafb;border-top:1px solid #f3f4f6;text-align:center;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx · <a href="${APP_URL}" style="color:#9ca3af;">${APP_URL}</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`,
+  });
+}
+
+export async function sendWelcomeEmail({ to }: { to: string }): Promise<void> {
+  await sendEmail({
+    to,
+    subject: "Welcome to Corelyx",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;">
+      <tr><td style="padding:32px 40px 0;text-align:center;">
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Welcome to Corelyx 🎉</h1>
+        <p style="margin:0;font-size:15px;color:#6b7280;line-height:1.5;">Your account is ready. Start building AI workflows in minutes.</p>
+      </td></tr>
+      <tr><td style="padding:28px 40px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${APP_URL}/dashboard" style="display:inline-block;background:#ea580c;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;">Go to dashboard</a>
+        </div>
+      </td></tr>
+      <tr><td style="padding:20px 40px;background:#f9fafb;border-top:1px solid #f3f4f6;text-align:center;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx · <a href="${APP_URL}" style="color:#9ca3af;">${APP_URL}</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`,
+  });
+}
+
 // ─── Approval notification ─────────────────────────────────────────────────
 
 export async function sendSecurityAlertEmail({

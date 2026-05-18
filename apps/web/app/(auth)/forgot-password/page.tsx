@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createBrowserClient } from "@/lib/supabase/client";
 import { authCallbackUrl } from "@/lib/auth/client";
 
 export default function ForgotPasswordPage() {
-  const supabase = createBrowserClient();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -16,11 +14,16 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: authCallbackUrl("/update-password"),
+
+    const res = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, redirectTo: authCallbackUrl("/update-password") }),
     });
-    if (error) {
-      setError(error.message);
+    const json = (await res.json()) as { ok?: boolean; error?: string };
+
+    if (!res.ok) {
+      setError(json.error ?? "Something went wrong. Please try again.");
       setLoading(false);
     } else {
       setDone(true);
