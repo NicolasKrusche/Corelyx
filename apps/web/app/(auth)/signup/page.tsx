@@ -19,30 +19,37 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: authCallbackUrl() },
+
+    // Create account server-side (admin API, no Supabase SMTP required)
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
-    if (error) {
-      setError(error.message);
+    const json = (await res.json()) as { ok?: boolean; error?: string };
+
+    if (!res.ok || !json.ok) {
+      setError(json.error ?? "Could not create account. Please try again.");
       setLoading(false);
-    } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (!signInError) {
-        try {
-          await completePostLoginSetup();
-        } catch {
-          setError("Account created, but setup could not finish. Please try signing in again.");
-          setLoading(false);
-          return;
-        }
-        window.location.href = "/dashboard";
-      } else {
-        setDone(true);
-        setLoading(false);
-      }
+      return;
     }
+
+    // Account is pre-confirmed — sign in immediately
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError("Account created! Please sign in to continue.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await completePostLoginSetup();
+    } catch {
+      setError("Signed in, but account setup could not finish. Please try again.");
+      setLoading(false);
+      return;
+    }
+    window.location.href = "/dashboard";
   }
 
   async function handleGoogleSignup() {
