@@ -58,4 +58,4 @@ Customers can revoke access at any time from the Connections settings. Token rev
 ## Contact
 
 For DPA requests or subprocessor change notifications: [legal@corelyx.app](mailto:legal@corelyx.app)
-test22sasdadlllllasdlllasd
+test22sasdadlllllasdlllasda
