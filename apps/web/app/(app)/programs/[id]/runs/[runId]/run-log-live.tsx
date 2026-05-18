@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import Plan, { type PlanStatus, type PlanTask } from "@/components/ui/agent-plan";
 import type { Edge, Node } from "@flowos/schema";
@@ -275,19 +276,46 @@ export function RunLogLive({
   nodeMap,
   edges,
   runStatus: initialRunStatus,
+  startedAt,
 }: {
   runId: string;
   initialExecs: NodeExecutionRow[];
   nodeMap: Record<string, Node>;
   edges: Edge[];
   runStatus: string;
+  startedAt?: string | null;
 }) {
+  const router = useRouter();
   const [execs, setExecs] = useState<NodeExecutionRow[]>(initialExecs);
   const [runStatus, setRunStatus] = useState(initialRunStatus);
+  const [elapsed, setElapsed] = useState<string>("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevTerminalRef = useRef(false);
   const supabase = createBrowserClient();
 
   const isTerminal = TERMINAL.has(runStatus);
+
+  // Refresh the server component once the run reaches a terminal state so the
+  // metadata grid (tokens, cost, duration) reflects the final values.
+  useEffect(() => {
+    if (isTerminal && !prevTerminalRef.current) {
+      router.refresh();
+    }
+    prevTerminalRef.current = isTerminal;
+  }, [isTerminal, router]);
+
+  // Tick a live elapsed timer every second while the run is active.
+  useEffect(() => {
+    if (isTerminal || !startedAt) {
+      setElapsed("");
+      return;
+    }
+    const tick = () => setElapsed(formatDuration(startedAt, null));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isTerminal, startedAt]);
+
   const planTasks = useMemo(
     () => buildPlanTasks({ nodeMap, edges, execs, runStatus }),
     [edges, execs, nodeMap, runStatus]
@@ -378,9 +406,20 @@ export function RunLogLive({
   return (
     <div className="space-y-6">
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-base font-medium">Run overview</h2>
           <StatusBadge status={runStatus} />
+          {!isTerminal && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-600 dark:text-yellow-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-500 animate-pulse" />
+              Live
+            </span>
+          )}
+          {!isTerminal && elapsed && (
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+              {elapsed}
+            </span>
+          )}
         </div>
         <Plan
           tasks={planTasks}

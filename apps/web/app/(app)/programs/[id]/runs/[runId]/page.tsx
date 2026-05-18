@@ -5,6 +5,7 @@ import type { ProgramSchema, Node } from "@flowos/schema";
 import { RunLogLive } from "./run-log-live";
 import { StopRunButton } from "./stop-button";
 import { SkipTriggerButton } from "./skip-trigger-button";
+import { ReplayButton } from "./replay-button";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -225,11 +226,14 @@ export default async function RunLogPage({
             Runs
           </a>
         </p>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-semibold">Run log</h1>
           {showSkipTrigger && <SkipTriggerButton runId={run.id} />}
           {["running", "waiting_approval", "pending"].includes(run.status) && (
             <StopRunButton runId={run.id} />
+          )}
+          {["completed", "success", "failed", "cancelled"].includes(run.status) && (
+            <ReplayButton runId={run.id} programId={id} />
           )}
         </div>
       </div>
@@ -299,6 +303,7 @@ export default async function RunLogPage({
         nodeMap={nodeMap}
         edges={schema.edges}
         runStatus={run.status}
+        startedAt={run.started_at}
       />
     </div>
   );
