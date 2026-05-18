@@ -1,47 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Sparkles, ChartBar, Clock, Globe, TriangleAlert, ListChecks, Zap } from "lucide-react";
 
 // Bump this key whenever you want the modal to reappear for all users.
-const WHATS_NEW_KEY = "corelyx-whats-new-v20260517";
+const WHATS_NEW_KEY = "corelyx-whats-new-v20260518";
 
 type Update = {
-  icon: React.ReactNode;
+  icon: string;
   title: string;
   description: string;
 };
 
 const UPDATES: Update[] = [
   {
-    icon: <ChartBar className="h-4 w-4" />,
-    title: "Usage sparklines",
-    description: "30-day AI spend and workflow run charts now live on your Credits & Usage page.",
+    icon: "↺",
+    title: "Run replay",
+    description: "Re-run any completed or failed workflow with one click. Carries the original trigger payload forward automatically.",
   },
   {
-    icon: <ListChecks className="h-4 w-4" />,
-    title: "Onboarding checklist",
-    description: "A step-by-step getting-started guide that tracks your progress and hides once complete.",
+    icon: "⚡",
+    title: "Live run progress",
+    description: "A pulsing Live badge and elapsed timer appear while a run is active. Metadata refreshes the moment the run finishes.",
   },
   {
-    icon: <TriangleAlert className="h-4 w-4" />,
-    title: "Redesigned error pages",
-    description: "404 and 500 pages are now full-screen with a proper recovery flow — inside the app shell too.",
+    icon: "🔐",
+    title: "Workspace environment variables",
+    description: "Store encrypted secrets per workspace and reference them as $env.VAR_NAME inside any workflow. Full CRUD in the sidebar.",
   },
   {
-    icon: <Clock className="h-4 w-4" />,
-    title: "API key last-used timestamps",
-    description: "See exactly when each key was last called, down to the minute.",
+    icon: "🕐",
+    title: "Visual cron builder",
+    description: "Pick schedule frequency, day, and time from friendly dropdowns instead of writing raw cron expressions. Shows the next 5 run times.",
   },
   {
-    icon: <Zap className="h-4 w-4" />,
-    title: "Trigger event log",
-    description: "Every webhook fire, cron tick, and program-chain run is now recorded on the Triggers page.",
+    icon: "🪝",
+    title: "Webhook payload inspector",
+    description: "Expand any webhook trigger event in the activity log to view the full incoming JSON payload with a one-click copy button.",
   },
   {
-    icon: <Globe className="h-4 w-4" />,
-    title: "Full i18n across 12 languages",
-    description: "All page content — dashboard, runs, approvals, API keys, credits, errors — now respects your locale.",
+    icon: "🔍",
+    title: "Run search & date filter",
+    description: "Filter the runs list by program name or error message, and scope to today, 7 days, or 30 days with one click.",
   },
 ];
 
@@ -87,13 +86,17 @@ export function WhatsNewModal() {
           className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           aria-label="Close"
         >
-          <X className="h-4 w-4" />
+          <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4">
+            <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+          </svg>
         </button>
 
         {/* Header */}
         <div className="px-6 pb-4 pt-6">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-primary">
-            <Sparkles className="h-3 w-3" />
+            <svg viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
+              <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828l.645-1.937ZM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.734 1.734 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.734 1.734 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.734 1.734 0 0 0 3.407 2.31l.387-1.162ZM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L10.863.1Z" />
+            </svg>
             What&apos;s new
           </div>
           <h2 className="text-xl font-black tracking-tight">Fresh off the press</h2>
@@ -106,10 +109,10 @@ export function WhatsNewModal() {
         <div className="mx-6 h-px bg-border" />
 
         {/* Update list */}
-        <ul className="space-y-0 divide-y divide-border/60 px-0">
+        <ul className="divide-y divide-border/60">
           {UPDATES.map((u) => (
             <li key={u.title} className="flex items-start gap-3 px-6 py-3.5">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-base leading-none">
                 {u.icon}
               </span>
               <div className="min-w-0">
