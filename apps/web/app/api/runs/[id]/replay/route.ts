@@ -16,6 +16,7 @@ import { getRuntimeUrl } from "@/lib/runtime-url";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
+import { resolveWorkspaceEnvVars } from "@/lib/env-vars";
 
 /**
  * POST /api/runs/[id]/replay
@@ -177,6 +178,7 @@ export async function POST(
   // Dispatch to runtime
   const runtimeUrl = getRuntimeUrl();
   try {
+    const envVars = await resolveWorkspaceEnvVars(programWorkspaceId);
     const runtimeBody = JSON.stringify({
       run_id: run.id,
       program_id: original.program_id,
@@ -185,6 +187,7 @@ export async function POST(
       triggered_by: "replay",
       trigger_payload: original.trigger_payload ?? null,
       connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
+      env_vars: envVars,
     });
     const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
