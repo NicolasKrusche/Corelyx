@@ -714,6 +714,8 @@ export function Sidebar({
 
         <NavItem href="/api-keys" label={tNav("apiKeys")} active={pathname.startsWith("/api-keys")}
           icon={<KeyIcon />} isDark={isDark} />
+        <NavItem href="/env-vars" label={tNav("envVars")} active={pathname.startsWith("/env-vars")}
+          icon={<EnvVarsIcon />} isDark={isDark} />
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
@@ -2013,6 +2015,13 @@ function KeyIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+    </svg>
+  );
+}
+function EnvVarsIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5 10 12l-3.25 4.5M13.5 16.5h3.75M3.75 21h16.5a1.75 1.75 0 0 0 1.75-1.75V4.75A1.75 1.75 0 0 0 20.25 3H3.75A1.75 1.75 0 0 0 2 4.75v14.5A1.75 1.75 0 0 0 3.75 21Z" />
     </svg>
   );
 }
