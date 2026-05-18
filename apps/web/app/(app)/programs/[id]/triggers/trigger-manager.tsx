@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CronBuilder } from "@/components/triggers/cron-builder";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,35 +127,13 @@ function NewTriggerForm({
         </select>
       </div>
 
-      {/* Cron fields */}
+      {/* Cron builder */}
       {type === "cron" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">
-              Cron expression
-            </label>
-            <input
-              type="text"
-              value={cronExpr}
-              onChange={(e) => setCronExpr(e.target.value)}
-              placeholder="0 9 * * 1-5"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              e.g. <code className="font-mono">0 9 * * 1-5</code> = weekdays at 9am
-            </p>
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Timezone</label>
-            <input
-              type="text"
-              value={cronTz}
-              onChange={(e) => setCronTz(e.target.value)}
-              placeholder="UTC"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
+        <CronBuilder
+          expression={cronExpr}
+          timezone={cronTz}
+          onChange={(expr, tz) => { setCronExpr(expr); setCronTz(tz); }}
+        />
       )}
 
       {/* Program chain fields */}
