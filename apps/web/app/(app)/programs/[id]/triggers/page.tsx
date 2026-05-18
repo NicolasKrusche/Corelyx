@@ -53,7 +53,7 @@ export default async function TriggersPage({
       .order("created_at", { ascending: false }),
     serviceClient
       .from("trigger_events")
-      .select("id, trigger_id, run_id, fired_at, source, status, message")
+      .select("id, trigger_id, run_id, fired_at, source, status, message, payload")
       .eq("program_id", id)
       .order("fired_at", { ascending: false })
       .limit(50),

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 export type TriggerEvent = {
@@ -8,6 +11,7 @@ export type TriggerEvent = {
   source: string;
   status: "dispatched" | "skipped" | "failed";
   message: string | null;
+  payload?: unknown;
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -52,6 +56,120 @@ const STATUS_DOT: Record<string, string> = {
   failed:     "bg-red-500",
 };
 
+// ─── Payload inspector ─────────────────────────────────────────────────────────
+
+function PayloadInspector({ payload }: { payload: unknown }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  if (payload === null || payload === undefined) return null;
+
+  const json = JSON.stringify(payload, null, 2);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(json);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-2 ml-0">
+      <button
+        type="button"
+        onClick={() => setOpen((s) => !s)}
+        className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-500/80 hover:text-purple-500 transition-colors"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`}
+        >
+          <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+        {open ? "Hide" : "View"} payload
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-lg border border-purple-500/15 bg-purple-500/5 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-purple-500/10">
+            <span className="text-[10px] font-medium text-purple-500/60 font-mono">webhook_payload</span>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="text-[10px] text-muted-foreground/50 hover:text-foreground transition-colors px-1.5 py-0.5 rounded"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <pre className="px-3 py-2.5 text-[11px] font-mono text-muted-foreground/80 overflow-x-auto max-h-48 leading-relaxed whitespace-pre">
+            {json}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Event row ─────────────────────────────────────────────────────────────────
+
+function EventRow({ ev, programId }: { ev: TriggerEvent; programId: string }) {
+  const hasPayload =
+    ev.source === "webhook" &&
+    ev.payload !== null &&
+    ev.payload !== undefined &&
+    typeof ev.payload === "object" &&
+    Object.keys(ev.payload as object).length > 0;
+
+  return (
+    <div className="px-4 py-3 text-sm hover:bg-accent/20 transition-colors">
+      <div className="flex items-center gap-3">
+        {/* Source badge */}
+        <span
+          className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold font-mono ${SOURCE_COLORS[ev.source] ?? "bg-muted text-muted-foreground"}`}
+        >
+          {SOURCE_LABELS[ev.source] ?? ev.source}
+        </span>
+
+        {/* Status badge */}
+        <span
+          className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${STATUS_STYLES[ev.status] ?? "bg-muted text-muted-foreground"}`}
+        >
+          <span className={`h-1 w-1 rounded-full ${STATUS_DOT[ev.status] ?? "bg-muted-foreground"}`} />
+          {ev.status}
+        </span>
+
+        {/* Message */}
+        <p className="flex-1 truncate text-xs text-muted-foreground/70">
+          {ev.message ?? (ev.status === "dispatched" ? "Run created" : "")}
+        </p>
+
+        {/* Run link */}
+        {ev.run_id && (
+          <Link
+            href={`/programs/${programId}/runs/${ev.run_id}`}
+            className="shrink-0 font-mono text-[10px] text-primary/70 hover:text-primary transition-colors"
+            title="View run"
+          >
+            run →
+          </Link>
+        )}
+
+        {/* Timestamp */}
+        <span
+          className="shrink-0 text-[11px] text-muted-foreground/40 font-mono tabular-nums"
+          title={new Date(ev.fired_at).toLocaleString()}
+        >
+          {timeAgo(ev.fired_at)}
+        </span>
+      </div>
+
+      {/* Payload inspector (webhook events only) */}
+      {hasPayload && <PayloadInspector payload={ev.payload} />}
+    </div>
+  );
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -79,49 +197,7 @@ export function TriggerEventLog({ events, programId }: Props) {
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border/60">
           {events.map((ev) => (
-            <div
-              key={ev.id}
-              className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-accent/20 transition-colors"
-            >
-              {/* Source badge */}
-              <span
-                className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold font-mono ${SOURCE_COLORS[ev.source] ?? "bg-muted text-muted-foreground"}`}
-              >
-                {SOURCE_LABELS[ev.source] ?? ev.source}
-              </span>
-
-              {/* Status badge */}
-              <span
-                className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${STATUS_STYLES[ev.status] ?? "bg-muted text-muted-foreground"}`}
-              >
-                <span className={`h-1 w-1 rounded-full ${STATUS_DOT[ev.status] ?? "bg-muted-foreground"}`} />
-                {ev.status}
-              </span>
-
-              {/* Message */}
-              <p className="flex-1 truncate text-xs text-muted-foreground/70">
-                {ev.message ?? (ev.status === "dispatched" ? "Run created" : "")}
-              </p>
-
-              {/* Run link */}
-              {ev.run_id && (
-                <Link
-                  href={`/programs/${programId}/runs/${ev.run_id}`}
-                  className="shrink-0 font-mono text-[10px] text-primary/70 hover:text-primary transition-colors"
-                  title="View run"
-                >
-                  run →
-                </Link>
-              )}
-
-              {/* Timestamp */}
-              <span
-                className="shrink-0 text-[11px] text-muted-foreground/40 font-mono tabular-nums"
-                title={new Date(ev.fired_at).toLocaleString()}
-              >
-                {timeAgo(ev.fired_at)}
-              </span>
-            </div>
+            <EventRow key={ev.id} ev={ev} programId={programId} />
           ))}
         </div>
       )}

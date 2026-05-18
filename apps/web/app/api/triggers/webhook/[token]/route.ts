@@ -258,7 +258,7 @@ export async function POST(
     return NextResponse.json({ error: "Runtime is unreachable" }, { status: 503 });
   }
 
-  recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "dispatched" });
+  recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "dispatched", payload: Object.keys(payload).length > 0 ? payload : undefined });
   return NextResponse.json({ run_id: run.id, status: "running" }, { status: 202 });
 }
 

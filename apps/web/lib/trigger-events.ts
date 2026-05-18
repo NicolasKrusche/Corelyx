@@ -15,6 +15,7 @@ export function recordTriggerEvent(opts: {
   source: string;          // 'cron' | 'webhook' | 'program' | 'event' | 'manual'
   status: TriggerEventStatus;
   message?: string | null;
+  payload?: unknown;       // optional raw payload (e.g. webhook request body)
 }): void {
   const db = createServiceClient();
   void db
@@ -26,6 +27,7 @@ export function recordTriggerEvent(opts: {
       source: opts.source,
       status: opts.status,
       message: opts.message ?? null,
+      payload: opts.payload ?? null,
     } as never)
     .then(({ error }) => {
       if (error) console.warn("[trigger-events] insert failed:", error.message);

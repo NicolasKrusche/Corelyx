@@ -7,6 +7,7 @@ import { StopRunButton } from "@/app/(app)/programs/[id]/runs/[runId]/stop-butto
 import { getTranslations } from "next-intl/server";
 import { RunsLiveButton, ExportRunsButton } from "./runs-toolbar";
 import { RunsFooter } from "./runs-footer";
+import { RunsSearch } from "./runs-search";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ function StatusBadge({ status }: { status: string }) {
 export default async function RunsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; group?: string; sort?: string }>;
+  searchParams: Promise<{ status?: string; group?: string; sort?: string; q?: string; since?: string }>;
 }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -115,6 +116,18 @@ export default async function RunsPage({
   const serviceClient = createServiceClient();
 
   const sortAsc = resolvedSearchParams.sort === "asc";
+  const sinceParam = resolvedSearchParams.since ?? "";
+  const qParam = (resolvedSearchParams.q ?? "").trim().toLowerCase();
+
+  // Compute date window from `since` preset
+  const sinceMs: Record<string, number> = {
+    today: Date.now() - 24 * 60 * 60 * 1000,
+    "7d":  Date.now() - 7  * 24 * 60 * 60 * 1000,
+    "30d": Date.now() - 30 * 24 * 60 * 60 * 1000,
+  };
+  const sinceStart = sinceParam && sinceMs[sinceParam]
+    ? new Date(sinceMs[sinceParam]).toISOString()
+    : null;
 
   let query = serviceClient
     .from("runs")
@@ -126,9 +139,21 @@ export default async function RunsPage({
   if (resolvedSearchParams.status) {
     query = query.eq("status", resolvedSearchParams.status);
   }
+  if (sinceStart) {
+    query = query.gte("created_at", sinceStart);
+  }
 
   const { data: runsRaw } = await query;
-  const runs = (runsRaw ?? []) as unknown as RunRow[];
+  let runs = (runsRaw ?? []) as unknown as RunRow[];
+
+  // Client-side text search across program name + error message
+  if (qParam) {
+    runs = runs.filter((r) => {
+      const name = (r.programs?.name ?? "").toLowerCase();
+      const err = (r.error_message ?? "").toLowerCase();
+      return name.includes(qParam) || err.includes(qParam);
+    });
+  }
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const now = Date.now();
@@ -239,7 +264,7 @@ export default async function RunsPage({
           }))} />
           {failedRuns24h.length > 0 && (
             <Link
-              href="/runs?status=failed"
+              href={`/runs?status=failed${sinceParam ? `&since=${sinceParam}` : ""}${qParam ? `&q=${encodeURIComponent(qParam)}` : ""}`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/15 transition-colors"
             >
               <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1ZM8 9.5a.75.75 0 0 0 0-1.5.75.75 0 0 0 0 1.5ZM7.25 6.75a.75.75 0 0 1 1.5 0v1.5a.75.75 0 0 1-1.5 0v-1.5Z"/></svg>
@@ -255,6 +280,9 @@ export default async function RunsPage({
           </Link>
         </div>
       </div>
+
+      {/* ── Search + date filter ── */}
+      <RunsSearch currentQ={resolvedSearchParams.q ?? ""} currentSince={sinceParam} />
 
       {/* ── Stats cards ── */}
       {runs24h.length > 0 && (
@@ -349,10 +377,15 @@ export default async function RunsPage({
         <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shrink-0 flex-wrap">
           {STATUS_FILTERS.map(({ label, value }) => {
             const count = filterCounts[value] ?? 0;
+            const filterParams = new URLSearchParams();
+            if (value) filterParams.set("status", value);
+            if (qParam) filterParams.set("q", qParam);
+            if (sinceParam) filterParams.set("since", sinceParam);
+            const filterHref = `/runs${filterParams.toString() ? `?${filterParams.toString()}` : ""}`;
             return (
               <Link
                 key={label}
-                href={value ? `/runs?status=${value}` : "/runs"}
+                href={filterHref}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   (resolvedSearchParams.status ?? "") === value
                     ? "bg-accent text-foreground shadow-sm"
@@ -377,14 +410,19 @@ export default async function RunsPage({
         {/* Group / sort */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
           {(() => {
-            const params = new URLSearchParams();
-            if (resolvedSearchParams.status) params.set("status", resolvedSearchParams.status);
-            if (!groupByError) params.set("group", "error");
-            const groupHref = `/runs${params.toString() ? `?${params.toString()}` : ""}`;
-            const noGroupParams = new URLSearchParams();
-            if (resolvedSearchParams.status) noGroupParams.set("status", resolvedSearchParams.status);
-            if (resolvedSearchParams.sort) noGroupParams.set("sort", resolvedSearchParams.sort);
-            const noGroupHref = `/runs${noGroupParams.toString() ? `?${noGroupParams.toString()}` : ""}`;
+            const groupOnParams = new URLSearchParams();
+            if (resolvedSearchParams.status) groupOnParams.set("status", resolvedSearchParams.status);
+            if (qParam) groupOnParams.set("q", qParam);
+            if (sinceParam) groupOnParams.set("since", sinceParam);
+            groupOnParams.set("group", "error");
+            const groupHref = `/runs?${groupOnParams.toString()}`;
+
+            const groupOffParams = new URLSearchParams();
+            if (resolvedSearchParams.status) groupOffParams.set("status", resolvedSearchParams.status);
+            if (resolvedSearchParams.sort) groupOffParams.set("sort", resolvedSearchParams.sort);
+            if (qParam) groupOffParams.set("q", qParam);
+            if (sinceParam) groupOffParams.set("since", sinceParam);
+            const noGroupHref = `/runs${groupOffParams.toString() ? `?${groupOffParams.toString()}` : ""}`;
             return (
               <Link
                 href={groupByError ? noGroupHref : groupHref}
@@ -399,11 +437,13 @@ export default async function RunsPage({
             );
           })()}
           {(() => {
-            const params = new URLSearchParams();
-            if (resolvedSearchParams.status) params.set("status", resolvedSearchParams.status);
-            if (resolvedSearchParams.group) params.set("group", resolvedSearchParams.group);
-            if (!sortAsc) params.set("sort", "asc");
-            const sortHref = `/runs${params.toString() ? `?${params.toString()}` : ""}`;
+            const sortParams = new URLSearchParams();
+            if (resolvedSearchParams.status) sortParams.set("status", resolvedSearchParams.status);
+            if (resolvedSearchParams.group) sortParams.set("group", resolvedSearchParams.group);
+            if (qParam) sortParams.set("q", qParam);
+            if (sinceParam) sortParams.set("since", sinceParam);
+            if (!sortAsc) sortParams.set("sort", "asc");
+            const sortHref = `/runs${sortParams.toString() ? `?${sortParams.toString()}` : ""}`;
             return (
               <Link
                 href={sortHref}
