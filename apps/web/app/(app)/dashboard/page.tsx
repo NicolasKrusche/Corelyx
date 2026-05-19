@@ -426,14 +426,10 @@ export default async function DashboardPage({
               </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-md border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium">Blank</span>
-                <Link
-                  href="/programs/new"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                >
+                <span className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary">
                   <Sparkles className="h-3 w-3" />
                   Prompt
-                </Link>
+                </span>
               </div>
             </Link>
           )}
