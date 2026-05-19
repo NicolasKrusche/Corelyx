@@ -394,6 +394,7 @@ class ProgramExecutor:
         self,
         schema: ProgramSchema,
         run_id: str,
+        program_id: str,
         user_id: str,
         execution_mode: str = "autonomous",
         conflict_policy: str = "queue",
@@ -402,6 +403,7 @@ class ProgramExecutor:
     ) -> None:
         self.schema = schema
         self.run_id = run_id
+        self.program_id = program_id
         self.user_id = user_id
         self.execution_mode = execution_mode
         self.conflict_policy = conflict_policy
@@ -1485,7 +1487,7 @@ class ProgramExecutor:
             {
                 "node_label": node.label,
                 "input": input_data,
-                "program_id": self.schema.program_id,
+                "program_id": self.program_id,
                 "reason": reason,
                 "execution_mode": self.execution_mode,
                 "timeout_hours": timeout_hours,
@@ -1594,7 +1596,7 @@ class ProgramExecutor:
         result = (
             self.db.table("program_connections")
             .select("connection_id")
-            .eq("program_id", self.schema.program_id)
+            .eq("program_id", self.program_id)
             .execute()
         )
         connection_ids = [row["connection_id"] for row in (result.data or [])]
