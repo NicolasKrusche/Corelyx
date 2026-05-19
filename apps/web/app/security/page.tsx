@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 
 export const metadata: Metadata = {
-  title: "Security Policy - Corelyx",
-  description: "How to report security vulnerabilities to Corelyx and what response timelines to expect.",
+  title: "Security",
+  description:
+    "How to report security vulnerabilities to Corelyx, expected response timelines, and an overview of the platform's security architecture.",
+  alternates: { canonical: "https://corelyx.app/security" },
+  openGraph: { url: "https://corelyx.app/security" },
 };
 
 const timeline = [

@@ -15,38 +15,50 @@ const inter = Inter({
   display: "swap",
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://corelyx.app";
+// Hardcode the canonical domain — never rely solely on env var for metadataBase
+// because it may not be set at build time, breaking absolute OG image URLs.
+const SITE_URL = "https://corelyx.app";
+
+const OG_DESCRIPTION =
+  "Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself.";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Corelyx — Visual AI Automation",
-    template: "%s — Corelyx",
+    template: "%s | Corelyx",
   },
-  description:
-    "Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself.",
-  metadataBase: new URL(APP_URL),
+  description: OG_DESCRIPTION,
+  // Explicit robots for the root — individual private routes override with noindex
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
   openGraph: {
     type: "website",
     siteName: "Corelyx",
     title: "Corelyx — Visual AI Automation",
-    description:
-      "Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself.",
-    url: APP_URL,
+    description: OG_DESCRIPTION,
+    url: SITE_URL,
     images: [
       {
-        url: "/og-image.png",
+        url: "/pictures/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Corelyx — Visual AI Automation",
+        alt: "Corelyx — Visual AI Automation, GDPR-native workflow automation",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@corelyx",
     title: "Corelyx — Visual AI Automation",
-    description:
-      "Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself.",
-    images: ["/og-image.png"],
+    description: OG_DESCRIPTION,
+    images: ["/pictures/og-image.png"],
   },
   icons: {
     icon: "/pictures/logo-no-bg.png",
