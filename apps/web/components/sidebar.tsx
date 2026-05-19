@@ -1562,10 +1562,21 @@ function SettingsModal({
                           spellCheck={false}
                         />
                       </div>
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        Your public profile will be at corelyx.app/u/
-                        {formUsername.trim() || "yourname"}
-                      </p>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className="text-[10px] text-muted-foreground">
+                          corelyx.app/u/{formUsername.trim() || "yourname"}
+                        </p>
+                        {initialUsername && (
+                          <a
+                            href={`/u/${initialUsername}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] font-medium text-primary hover:underline shrink-0"
+                          >
+                            View profile →
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Profile photo</label>

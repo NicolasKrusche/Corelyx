@@ -248,9 +248,19 @@ export function AdminSupportClient() {
               <div className="mt-1 flex items-center justify-between gap-1">
                 <p className="text-[11px] text-muted-foreground">{formatRelative(ticket.updated_at)}</p>
                 {ticket.assignee && (
-                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                    {ticket.assignee.display_name ?? ticket.assignee.username ?? "Assigned"}
-                  </span>
+                  ticket.assignee.username ? (
+                    <a
+                      href={`/u/${ticket.assignee.username}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      {ticket.assignee.display_name ?? ticket.assignee.username}
+                    </a>
+                  ) : (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {ticket.assignee.display_name ?? "Assigned"}
+                    </span>
+                  )
                 )}
               </div>
             </button>
