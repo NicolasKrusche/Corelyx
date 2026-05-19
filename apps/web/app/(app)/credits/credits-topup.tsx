@@ -6,18 +6,16 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 const PACKS = [
-  { amount: 5,  label: "$5",  calls: "~500 LLM calls",   badge: null,          bonus: null },
-  { amount: 10, label: "$10", calls: "~1k LLM calls",    badge: "POPULAR",     bonus: null },
-  { amount: 25, label: "$25", calls: "~2.5k LLM calls",  badge: null,          bonus: "+5% bonus" },
-  { amount: 50, label: "$50", calls: "~5k LLM calls",    badge: "BEST VALUE",  bonus: "+10% bonus" },
+  { amount: 5,  label: "$5",  badge: null,         bonus: null },
+  { amount: 10, label: "$10", badge: "POPULAR",    bonus: null },
+  { amount: 25, label: "$25", badge: null,         bonus: "+5% bonus" },
+  { amount: 50, label: "$50", badge: "BEST VALUE", bonus: "+10% bonus" },
 ] as const;
 
 export function CreditsTopUp() {
   const [selected, setSelected] = useState<number>(10);
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const pack = PACKS.find((p) => p.amount === selected)!;
 
   async function handleBuy() {
     setBuying(true);
@@ -40,7 +38,7 @@ export function CreditsTopUp() {
     <div>
       {/* Pack grid */}
       <div className="grid grid-cols-4 gap-2 mb-5">
-        {PACKS.map(({ amount, label, calls, badge, bonus }) => (
+        {PACKS.map(({ amount, label, badge, bonus }) => (
           <button
             key={amount}
             type="button"
@@ -72,7 +70,6 @@ export function CreditsTopUp() {
               </span>
             )}
             <span className={cn("text-base font-bold", selected === amount && "text-primary")}>{label}</span>
-            <span className="mt-0.5 text-[10px] text-muted-foreground">{calls}</span>
             {bonus && <span className="mt-0.5 text-[10px] font-semibold text-green-600">{bonus}</span>}
           </button>
         ))}
@@ -83,10 +80,6 @@ export function CreditsTopUp() {
         <div className="flex items-center justify-between px-4 py-2.5 text-sm">
           <span className="text-muted-foreground">Selected pack</span>
           <span className="font-medium">${selected.toFixed(2)}</span>
-        </div>
-        <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-          <span className="text-muted-foreground">Estimated LLM calls</span>
-          <span className="font-medium text-primary">{pack.calls}</span>
         </div>
         <div className="flex items-center justify-between px-4 py-2.5 text-sm font-semibold">
           <span>Total today</span>
@@ -114,8 +107,7 @@ export function CreditsTopUp() {
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-        $1 is a few hundred LLM calls depending on model. Used only when workflows run via
-        the Corelyx platform key.
+        Credits are consumed when workflows use the Corelyx platform AI key. Bring your own key (BYOK) to avoid credit usage.
       </p>
     </div>
   );

@@ -101,10 +101,12 @@ function parseClaims(payloadSegment: string): InternalServiceClaims | null {
 function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
-  if (left.length !== right.length) {
-    return false;
-  }
-  return timingSafeEqual(left, right);
+  // Pad to the same length so timingSafeEqual can run without throwing, then
+  // also check length equality separately — both conditions must be true.
+  const maxLen = Math.max(left.length, right.length);
+  const paddedLeft = Buffer.concat([left, Buffer.alloc(maxLen - left.length)]);
+  const paddedRight = Buffer.concat([right, Buffer.alloc(maxLen - right.length)]);
+  return timingSafeEqual(paddedLeft, paddedRight) && left.length === right.length;
 }
 
 export function createInternalServiceToken(

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
 import { getValidInternalServiceClaims } from "@/lib/internal-auth";
 import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
+import { maybeFireAutoRecharge } from "@/lib/auto-recharge";
 
 // GET /api/internal/credits
 // Called by the Python runtime to check credit balance before an LLM call.
@@ -53,6 +54,8 @@ export async function POST(request: Request) {
     if (!ok) {
       return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 });
     }
+    // Fire-and-forget: check if auto-recharge should trigger
+    void maybeFireAutoRecharge(claims.sub).catch(() => undefined);
     return NextResponse.json({ ok: true });
   } catch {
     return apiError("Failed to deduct credits", 500);

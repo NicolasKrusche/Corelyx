@@ -5,7 +5,9 @@ import { ensureUserProvisioned } from "@/lib/auth/provisioning";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const rawNext = searchParams.get("next") ?? "/dashboard";
+  // Only allow relative paths that start with a single slash and contain no protocol
+  const next = /^\/[^/]/.test(rawNext) && !rawNext.includes("://") ? rawNext : "/dashboard";
 
   if (code) {
     const supabase = await createServerClient();

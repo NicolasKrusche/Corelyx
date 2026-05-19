@@ -13,7 +13,7 @@ interface SendEmailOptions {
   html: string;
 }
 
-async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<void> {
+export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY not set — skipping email send");
@@ -101,6 +101,43 @@ export async function sendWelcomeEmail({ to }: { to: string }): Promise<void> {
         <div style="text-align:center;margin-bottom:24px;">
           <a href="${APP_URL}/dashboard" style="display:inline-block;background:#ea580c;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;">Go to dashboard</a>
         </div>
+      </td></tr>
+      <tr><td style="padding:20px 40px;background:#f9fafb;border-top:1px solid #f3f4f6;text-align:center;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx · <a href="${APP_URL}" style="color:#9ca3af;">${APP_URL}</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`,
+  });
+}
+
+export async function sendDuplicateSignupEmail({ to }: { to: string }): Promise<void> {
+  const loginUrl = `${APP_URL}/login`;
+  const resetUrl = `${APP_URL}/login?reset=1`;
+  await sendEmail({
+    to,
+    subject: "Someone tried to create a Corelyx account with your email",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;">
+      <tr><td style="padding:32px 40px 0;text-align:center;">
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Account already exists</h1>
+        <p style="margin:0;font-size:15px;color:#6b7280;line-height:1.5;">Someone (hopefully you) tried to sign up with this email address. You already have a Corelyx account — just sign in.</p>
+      </td></tr>
+      <tr><td style="padding:28px 40px;">
+        <div style="text-align:center;margin-bottom:16px;">
+          <a href="${loginUrl}" style="display:inline-block;background:#ea580c;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;">Sign in</a>
+        </div>
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+          Forgot your password? <a href="${resetUrl}" style="color:#ea580c;">Reset it here</a>.<br>
+          If this wasn&apos;t you, no action is needed — your account is safe.
+        </p>
       </td></tr>
       <tr><td style="padding:20px 40px;background:#f9fafb;border-top:1px solid #f3f4f6;text-align:center;">
         <p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx · <a href="${APP_URL}" style="color:#9ca3af;">${APP_URL}</a></p>
@@ -608,6 +645,57 @@ export async function sendDsrResponseEmail({
 <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.5;">If anything is unclear, reply to this email or contact <a href="mailto:legal@corelyx.app" style="color:#111827;">legal@corelyx.app</a>.</p>
 </td></tr>
 <tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx — ${escapeHtml(reference)}</p></td></tr>
+</table></td></tr></table>
+</body></html>`.trim(),
+  });
+}
+
+// ─── DSR user follow-up notification ──────────────────────────────────────
+
+interface DsrFollowUpNotificationOptions {
+  to: string;
+  reference: string;
+  typeLabel: string;
+  userEmail: string;
+  followUp: string;
+}
+
+export async function sendDsrFollowUpNotificationEmail({
+  to,
+  reference,
+  typeLabel,
+  userEmail,
+  followUp,
+}: DsrFollowUpNotificationOptions): Promise<void> {
+  await sendEmail({
+    to,
+    subject: `[DSR follow-up] User responded — ${reference}`,
+    html: `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx — DSR follow-up</span></td></tr>
+<tr><td style="padding:32px;">
+<span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;margin-bottom:16px;">User responded</span>
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">A user has responded to your request for more information.</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">
+  This DSR should be moved back to <strong>In review</strong>.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;border-radius:6px;margin-bottom:24px;">
+<tr><td style="padding:16px 20px;">
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Reference</p>
+<p style="margin:0 0 12px;font-size:15px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Request type</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(typeLabel)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">User</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(userEmail)}</p>
+<p style="margin:0 0 6px;font-size:12px;font-weight:500;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Their message</p>
+<p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(followUp)}</p>
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx — DSR ${escapeHtml(reference)}</p></td></tr>
 </table></td></tr></table>
 </body></html>`.trim(),
   });

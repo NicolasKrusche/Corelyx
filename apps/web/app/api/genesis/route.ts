@@ -33,6 +33,10 @@ import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/l
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, writeAppLog } from "@/lib/app-logs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
+import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
+
+// Fixed credit charge per Genesis generation/refinement using the Corelyx platform key.
+const GENESIS_PLATFORM_RATE_USD = 2.0;
 import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
@@ -54,8 +58,9 @@ import {
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
   connection_ids: z.array(z.string().uuid()).max(10),
-  api_key_id: z.string().uuid(),
-  model: z.string().min(1),
+  api_key_id: z.string().uuid().optional(),
+  use_platform_key: z.boolean().optional(),
+  model: z.string().min(1).optional(),
   existing_schema: z.unknown().optional(),
   refinement: z.string().max(500).optional(),
   existing_program_id: z.string().uuid().optional(),
@@ -92,7 +97,15 @@ export async function POST(request: Request) {
     return apiError(parsed.error.message, 400);
   }
 
-  const { description, connection_ids, api_key_id, model, existing_schema, refinement, existing_program_id } = parsed.data;
+  const { description, connection_ids, api_key_id, use_platform_key, existing_schema, refinement, existing_program_id } = parsed.data;
+  const usePlatformKey = use_platform_key === true;
+
+  if (!usePlatformKey && !api_key_id) {
+    return apiError("api_key_id is required when not using the platform key", 400);
+  }
+
+  // Resolve the model: platform key always uses claude-sonnet-4-6; BYOK uses whatever the client sent.
+  const model = usePlatformKey ? "anthropic/claude-sonnet-4-6" : (parsed.data.model ?? "claude-sonnet-4-6");
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const isRefinement = !!(existing_schema && refinement && existing_program_id);
   const sanitizedDescription = sanitizeTextForLlm(description);
@@ -244,32 +257,51 @@ export async function POST(request: Request) {
     selectedProviders.length > 0 ? selectedProviders : null
   );
 
-  // Fetch all valid API keys for the user — preferred key first, then sorted by provider suitability
   const serviceClient = createServiceClient();
-  const { data: allKeyRows, error: keysError } = await serviceClient
-    .from("api_keys")
-    .select("id, vault_secret_id, provider")
-    .eq("workspace_id", workspaceId)
-    .eq("is_valid", true);
+  let keyCandidates: GenesisApiKeyRow[];
 
-  const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
-  if (keysError || validKeyRows.length === 0) {
-    return loggedApiError(
-      "API key not found. Please add a valid API key.",
-      402,
-      "genesis.api_key_lookup_failed",
-      keysError ? { error: keysError.message } : undefined
-    );
-  }
+  if (usePlatformKey) {
+    const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
+    if (!platformRawKey) {
+      return loggedApiError("Platform AI key is not available.", 503, "genesis.platform_key_unavailable");
+    }
+    // Check the user has enough credits before we spend anything.
+    const balance = await getUserCreditBalance(userId);
+    if (balance.total < GENESIS_PLATFORM_RATE_USD) {
+      return NextResponse.json(
+        { error: "INSUFFICIENT_CREDITS", message: `At least $${GENESIS_PLATFORM_RATE_USD.toFixed(2)} in credits is required to use the Corelyx platform key.` },
+        { status: 402 }
+      );
+    }
+    // vault_secret_id holds the raw API key for platform entries — handled in the loop below.
+    keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];
+  } else {
+    // Fetch all valid API keys for the user — preferred key first, then sorted by provider suitability
+    const { data: allKeyRows, error: keysError } = await serviceClient
+      .from("api_keys")
+      .select("id, vault_secret_id, provider")
+      .eq("workspace_id", workspaceId)
+      .eq("is_valid", true);
 
-  const keyCandidates = sortApiKeyFallbacks(api_key_id, validKeyRows);
-  if (keyCandidates.length === 0) {
-    return loggedApiError(
-      "Selected API key not found or invalid. Refresh the page and choose another key.",
-      402,
-      "genesis.api_key_invalid",
-      { api_key_id }
-    );
+    const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
+    if (keysError || validKeyRows.length === 0) {
+      return loggedApiError(
+        "API key not found. Please add a valid API key.",
+        402,
+        "genesis.api_key_lookup_failed",
+        keysError ? { error: keysError.message } : undefined
+      );
+    }
+
+    keyCandidates = sortApiKeyFallbacks(api_key_id!, validKeyRows);
+    if (keyCandidates.length === 0) {
+      return loggedApiError(
+        "Selected API key not found or invalid. Refresh the page and choose another key.",
+        402,
+        "genesis.api_key_invalid",
+        { api_key_id }
+      );
+    }
   }
 
   // Permanent errors — prompt is too large for this model/tier, retrying won't help
@@ -377,7 +409,10 @@ export async function POST(request: Request) {
 
     let currentApiKey: string;
     try {
-      currentApiKey = await vaultRetrieve(serviceClient, currentKeyRow.vault_secret_id);
+      // Platform key entries store the raw key directly in vault_secret_id (no vault lookup needed).
+      currentApiKey = currentKeyRow.id === "platform"
+        ? currentKeyRow.vault_secret_id
+        : await vaultRetrieve(serviceClient, currentKeyRow.vault_secret_id);
     } catch (err) {
       console.warn(`[genesis] Vault retrieve failed for key ${currentKeyRow.id}:`, (err as Error).message);
       continue;
@@ -759,6 +794,7 @@ export async function POST(request: Request) {
       existing_program_id
     );
     await incrementGenesisUses(userId, workspaceId);
+    if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_USD);
     return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
   }
 
@@ -867,5 +903,6 @@ export async function POST(request: Request) {
     program.id
   );
   await incrementGenesisUses(userId, workspaceId);
+  if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_USD);
   return NextResponse.json({ program, schema, validation }, { status: 201 });
 }

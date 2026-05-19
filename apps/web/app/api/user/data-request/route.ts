@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-import { sendDsrConfirmationEmail, sendDsrLegalNotificationEmail } from "@/lib/email";
+import { sendDsrConfirmationEmail, sendDsrLegalNotificationEmail, sendDsrFollowUpNotificationEmail } from "@/lib/email";
 
 const REQUEST_TYPES = [
   "access",
@@ -242,6 +242,57 @@ export async function POST(request: Request) {
   }).catch((err) => console.warn("[compliance] legal notification email failed:", err));
 
   return NextResponse.json({ request: record }, { status: 201 });
+}
+
+// PATCH /api/user/data-request - submit follow-up info when status is waiting_on_user.
+export async function PATCH(request: Request) {
+  const user = await getAuthUser();
+  if (!user) return apiError("Unauthorized", 401);
+
+  const body = await request.json().catch(() => null) as { id?: unknown; follow_up?: unknown } | null;
+  const id = body?.id;
+  const followUp = typeof body?.follow_up === "string" ? body.follow_up.trim().slice(0, 4000) : null;
+
+  if (typeof id !== "string" || !id) return apiError("id is required", 400);
+  if (!followUp) return apiError("follow_up text is required", 400);
+
+  const service = createServiceClient() as unknown as ComplianceClient;
+
+  // Verify ownership and that request is actually waiting on the user
+  const { data: existing } = await service
+    .from("data_subject_requests")
+    .select("id, request_type, status, requester_email, submitted_at, due_at, completed_at, details, response_summary")
+    .eq("user_id", user.id)
+    .order("submitted_at", { ascending: false });
+
+  const row = (existing ?? []).find((r) => r.id === id);
+  if (!row) return apiError("Request not found", 404);
+  if (row.status !== "waiting_on_user") return apiError("Request is not waiting for your response", 400);
+
+  const { data: updated, error } = await service
+    .from("data_subject_requests")
+    .update({
+      status: "in_review",
+      user_followup: followUp,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("id, request_type, status, details, response_summary, submitted_at, due_at, completed_at")
+    .single();
+
+  if (error || !updated) return apiError("Failed to update request", 500);
+
+  const typeLabel = REQUEST_TYPE_LABELS[row.request_type as DataSubjectRequestType] ?? row.request_type;
+
+  void sendDsrFollowUpNotificationEmail({
+    to: LEGAL_EMAIL,
+    reference: id,
+    typeLabel,
+    userEmail: user.email ?? row.requester_email ?? "(no email)",
+    followUp,
+  }).catch((err) => console.warn("[compliance] follow-up notification email failed:", err));
+
+  return NextResponse.json({ request: updated });
 }
 
 async function markCompleted(

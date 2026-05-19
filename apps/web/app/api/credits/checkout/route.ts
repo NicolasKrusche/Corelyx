@@ -43,6 +43,9 @@ export async function POST(request: Request) {
     mode: "payment",
     customer: stripeCustomerId,
     client_reference_id: user.id,
+    payment_intent_data: {
+      setup_future_usage: "off_session",
+    },
     line_items: [
       {
         quantity: 1,
