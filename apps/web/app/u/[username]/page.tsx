@@ -17,7 +17,7 @@ const XP_LEVELS = [
 ] as const;
 
 function getLevelInfo(xp: number) {
-  let level = XP_LEVELS[0];
+  let level: typeof XP_LEVELS[number] = XP_LEVELS[0];
   for (const l of XP_LEVELS) {
     if (xp >= l.min) level = l;
   }

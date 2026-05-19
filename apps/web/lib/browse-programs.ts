@@ -21,6 +21,7 @@ export type BrowseProgram = {
   fork_count: number;
   published_at: string | null;
   public_author_name: string | null;
+  author_username: string | null;
   schema_version: number;
   node_summary: NodeSummary;
   schema?: ProgramSchema;
@@ -345,6 +346,7 @@ function makeProgram(input: {
     fork_count: getBrowseUseCount({ id: input.id, name: input.name }),
     published_at: NOW,
     public_author_name: AUTHOR,
+    author_username: null,
     schema_version: 1,
     node_summary: deriveNodeSummary(schema),
     schema,
