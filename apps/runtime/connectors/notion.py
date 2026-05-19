@@ -171,6 +171,28 @@ class NotionConnector(IConnector):
             headers=headers,
             json=body,
         )
+        # If a filter references a property that doesn't exist in the database,
+        # Notion returns 400 with "Could not find property". Retry without the
+        # filter so the operation still returns results rather than failing hard.
+        if r.status_code == 400 and "filter" in body:
+            try:
+                err = r.json()
+            except Exception:
+                err = {}
+            if "Could not find property" in err.get("message", ""):
+                print(
+                    f"[notion] query_database filter references unknown property "
+                    f"({err.get('message', '')}); retrying without filter",
+                    flush=True,
+                )
+                body.pop("filter")
+                r = await request_with_rate_limit(
+                    client,
+                    "POST",
+                    f"{_BASE}/databases/{database_id}/query",
+                    headers=headers,
+                    json=body,
+                )
         _raise_for_status(r, "query_database")
         data = r.json()
         return {"results": data.get("results", []), "has_more": data.get("has_more", False)}
