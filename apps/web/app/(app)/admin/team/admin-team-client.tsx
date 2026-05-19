@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { TeamMember } from "@/app/api/admin/team/route";
 
@@ -160,7 +161,13 @@ export function AdminTeamClient() {
                   {/* Identity */}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-medium">{name}</p>
+                      {m.username ? (
+                        <Link href={`/u/${m.username}`} className="truncate text-sm font-medium hover:underline">
+                          {name}
+                        </Link>
+                      ) : (
+                        <p className="truncate text-sm font-medium">{name}</p>
+                      )}
                       {m.team_role && (
                         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", ROLE_COLOR[m.team_role])}>
                           {ROLE_LABEL[m.team_role]}
