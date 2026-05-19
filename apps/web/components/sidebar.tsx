@@ -724,8 +724,10 @@ export function Sidebar({
           icon={<CreditsIcon />} isDark={isDark} />
         <NavItem href="/support" label={tNav("support")} active={pathname.startsWith("/support")}
           icon={<SupportIcon />} isDark={isDark} />
-        <NavItem href="/plan" label={tNav("pricing")} active={pathname === "/plan"}
-          icon={<PricingIcon />} isDark={isDark} />
+        {tier === "free" && (
+          <NavItem href="/plan" label={tNav("pricing")} active={pathname === "/plan"}
+            icon={<PricingIcon />} isDark={isDark} />
+        )}
 
         {/* Admin link - only shown to admins */}
         {isAdmin && (

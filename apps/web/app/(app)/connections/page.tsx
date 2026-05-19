@@ -508,6 +508,8 @@ const PRO_PROVIDERS = new Set([
   "semrush", "ahrefs", "paperform", "zeplin", "luma", "simplybook", "evernote",
 ]);
 
+const POPULAR_PROVIDER_IDS = ["gmail", "slack", "notion", "sheets", "hubspot", "github", "asana", "drive"];
+
 const AVAILABLE_PROVIDERS: Provider[] = [
   { id: "gmail", label: "Gmail", description: "Send and read emails", wave: 1, href: "/api/connections/oauth/gmail?label=gmail:primary" },
   { id: "sheets", label: "Google Sheets", description: "Read and write spreadsheet data", wave: 1, href: "/api/connections/oauth/google?service=sheets&label=sheets:primary" },
@@ -1540,6 +1542,37 @@ export default function ConnectionsPage() {
           </div>
         </section>
       )}
+
+      {(() => {
+        const popularProviders = POPULAR_PROVIDER_IDS
+          .map((id) => AVAILABLE_PROVIDERS.find((p) => p.id === id))
+          .filter((p): p is Provider => !!p && !connectedProviders.has(p.id));
+        if (popularProviders.length === 0) return null;
+        return (
+          <section className="space-y-2">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+              Popular
+            </h2>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {popularProviders.map((provider) => (
+                <button
+                  key={provider.id}
+                  type="button"
+                  onClick={() => openProvider(provider.id)}
+                  className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-all hover:border-border/80 hover:bg-accent/30"
+                >
+                  <ProviderLogo provider={provider.id} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{provider.label}</p>
+                    <p className="truncate text-[11px] text-muted-foreground/60">{provider.description}</p>
+                  </div>
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground/60">Connect</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       <section className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px] sm:items-end">

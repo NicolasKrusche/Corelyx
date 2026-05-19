@@ -107,7 +107,7 @@ export function CreditsTopUp() {
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-        Credits are consumed when workflows use the Corelyx platform AI key. Bring your own key (BYOK) to avoid credit usage.
+        Credits are used when workflows run via the Corelyx platform key.
       </p>
     </div>
   );
