@@ -2,19 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-
-type DsrStatus = "submitted" | "in_review" | "waiting_on_user" | "completed" | "rejected";
-
-type DsrRow = {
-  id: string;
-  request_type: string;
-  status: DsrStatus;
-  details: string | null;
-  response_summary: string | null;
-  submitted_at: string;
-  due_at: string;
-  completed_at: string | null;
-};
+import type { DsrMessage, DsrRowWithMessages } from "@/app/api/user/data-request/route";
 
 const TYPE_LABELS: Record<string, string> = {
   access: "Right of Access",
@@ -26,44 +14,53 @@ const TYPE_LABELS: Record<string, string> = {
   withdrawal: "Withdrawal of Consent",
 };
 
-const STATUS_COPY: Record<DsrStatus, { label: string; color: string; description: string }> = {
-  submitted: {
-    label: "Submitted",
-    color: "border-border bg-muted/50 text-muted-foreground",
-    description: "We've received your request and will begin review shortly.",
-  },
-  in_review: {
-    label: "In review",
-    color: "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-    description: "Our team is actively reviewing your request.",
-  },
-  waiting_on_user: {
-    label: "Action needed",
-    color: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    description: "We need more information from you before we can continue.",
-  },
-  completed: {
-    label: "Completed",
-    color: "border-green-500/25 bg-green-500/10 text-green-700 dark:text-green-300",
-    description: "Your request has been fulfilled.",
-  },
-  rejected: {
-    label: "Closed",
-    color: "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300",
-    description: "Your request could not be fulfilled as submitted.",
-  },
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  submitted:        { label: "Submitted",     color: "border-border bg-muted/50 text-muted-foreground" },
+  in_review:        { label: "In review",     color: "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300" },
+  waiting_on_user:  { label: "Action needed", color: "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+  completed:        { label: "Completed",     color: "border-green-500/25 bg-green-500/10 text-green-700 dark:text-green-300" },
+  rejected:         { label: "Closed",        color: "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300" },
 };
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function isOverdue(iso: string, status: DsrStatus) {
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function isOverdue(iso: string, status: string) {
   return !["completed", "rejected"].includes(status) && new Date(iso).getTime() < Date.now();
 }
 
+function MessageBubble({ msg }: { msg: DsrMessage }) {
+  const isAdmin = msg.sender === "admin";
+  return (
+    <div className={cn("flex gap-2.5", isAdmin ? "flex-row" : "flex-row-reverse")}>
+      {/* Avatar */}
+      <div className={cn(
+        "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+        isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+      )}>
+        {isAdmin ? "C" : "Y"}
+      </div>
+      {/* Bubble */}
+      <div className={cn(
+        "max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm",
+        isAdmin
+          ? "rounded-tl-sm bg-primary/8 border border-primary/15"
+          : "rounded-tr-sm bg-muted/60 border border-border"
+      )}>
+        <p className="whitespace-pre-wrap leading-relaxed">{msg.body}</p>
+        <p className="mt-1 text-[10px] text-muted-foreground/60">{fmtTime(msg.created_at)}</p>
+      </div>
+    </div>
+  );
+}
+
 export function DataRequestsClient({ userEmail }: { userEmail: string }) {
-  const [requests, setRequests] = useState<DsrRow[]>([]);
+  const [requests, setRequests] = useState<DsrRowWithMessages[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [followUp, setFollowUp] = useState<Record<string, string>>({});
@@ -75,8 +72,11 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
     setLoading(true);
     const res = await fetch("/api/user/data-request");
     if (res.ok) {
-      const data = await res.json() as { requests: DsrRow[] };
+      const data = await res.json() as { requests: DsrRowWithMessages[] };
       setRequests(data.requests);
+      // Auto-expand any request that needs action
+      const actionNeeded = data.requests.find((r) => r.status === "waiting_on_user");
+      if (actionNeeded) setExpandedId(actionNeeded.id);
     }
     setLoading(false);
   }, []);
@@ -94,11 +94,10 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
       body: JSON.stringify({ id, follow_up: text }),
     });
     if (res.ok) {
-      const data = await res.json() as { request: DsrRow };
-      setRequests((prev) => prev.map((r) => r.id === id ? { ...r, ...data.request } : r));
       setFollowUp((prev) => ({ ...prev, [id]: "" }));
       setSuccessId(id);
-      setTimeout(() => setSuccessId(null), 4000);
+      setTimeout(() => setSuccessId(null), 3000);
+      await load();
     } else {
       const body = await res.json().catch(() => null) as { error?: string } | null;
       setError(body?.error ?? "Failed to send. Please try again.");
@@ -145,10 +144,11 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
       )}
 
       {requests.map((req) => {
-        const meta = STATUS_COPY[req.status];
+        const meta = STATUS_META[req.status] ?? STATUS_META.submitted;
         const isExpanded = expandedId === req.id;
         const needsAction = req.status === "waiting_on_user";
         const overdue = isOverdue(req.due_at, req.status);
+        const isDone = ["completed", "rejected"].includes(req.status);
 
         return (
           <div
@@ -158,7 +158,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
               needsAction ? "border-amber-400/40" : "border-border"
             )}
           >
-            {/* Header row */}
+            {/* Header */}
             <button
               type="button"
               className="flex w-full items-start justify-between gap-4 p-5 text-left"
@@ -171,7 +171,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
                   </p>
                   {needsAction && (
                     <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                      Action needed
+                      Reply needed
                     </span>
                   )}
                 </div>
@@ -181,7 +181,9 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
                     {req.completed_at ? `Resolved ${fmt(req.completed_at)}` : `Due ${fmt(req.due_at)}`}
                     {overdue && " · overdue"}
                   </span>
-                  <span className="font-mono text-[10px] opacity-50">{req.id.slice(0, 8)}…</span>
+                  {req.messages.length > 0 && (
+                    <span>{req.messages.length} message{req.messages.length !== 1 ? "s" : ""}</span>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -197,41 +199,47 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
               </div>
             </button>
 
-            {/* Expanded content */}
+            {/* Expanded — message thread */}
             {isExpanded && (
               <div className="border-t border-border px-5 pb-5 pt-4 space-y-4">
-                <p className="text-xs text-muted-foreground">{meta.description}</p>
 
-                {req.details && (
-                  <div>
-                    <p className="mb-1 text-xs font-semibold text-muted-foreground">Your original message</p>
-                    <p className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm whitespace-pre-wrap">
-                      {req.details}
-                    </p>
+                {req.messages.length > 0 ? (
+                  <div className="space-y-3">
+                    {req.messages.map((msg) => (
+                      <MessageBubble key={msg.id} msg={msg} />
+                    ))}
+                  </div>
+                ) : (
+                  /* No messages yet — fall back to showing raw fields */
+                  <div className="space-y-3">
+                    {req.details && (
+                      <div className="flex flex-row-reverse gap-2.5">
+                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">Y</div>
+                        <div className="max-w-[82%] rounded-2xl rounded-tr-sm border border-border bg-muted/60 px-3.5 py-2.5 text-sm">
+                          <p className="whitespace-pre-wrap leading-relaxed">{req.details}</p>
+                        </div>
+                      </div>
+                    )}
+                    {req.response_summary && (
+                      <div className="flex gap-2.5">
+                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">C</div>
+                        <div className="max-w-[82%] rounded-2xl rounded-tl-sm border border-primary/15 bg-primary/8 px-3.5 py-2.5 text-sm">
+                          <p className="whitespace-pre-wrap leading-relaxed">{req.response_summary}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {req.response_summary && (
-                  <div>
-                    <p className="mb-1 text-xs font-semibold text-muted-foreground">
-                      {req.status === "waiting_on_user" ? "What we need from you" : "Our response"}
-                    </p>
-                    <p className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm whitespace-pre-wrap">
-                      {req.response_summary}
-                    </p>
-                  </div>
-                )}
-
-                {/* Follow-up form — only shown when waiting on user */}
+                {/* Reply box — only when waiting on user */}
                 {needsAction && (
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold">Your reply</p>
+                  <div className="pt-1">
                     <textarea
-                      rows={4}
+                      rows={3}
                       maxLength={4000}
                       value={followUp[req.id] ?? ""}
                       onChange={(e) => setFollowUp((prev) => ({ ...prev, [req.id]: e.target.value }))}
-                      placeholder="Provide the requested information here…"
+                      placeholder="Type your reply…"
                       className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                     />
                     <div className="mt-2 flex items-center justify-between gap-3">
@@ -240,7 +248,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
                       </span>
                       <div className="flex items-center gap-2">
                         {successId === req.id && (
-                          <span className="text-xs text-green-600 font-medium">Sent — we&apos;ll review shortly.</span>
+                          <span className="text-xs font-medium text-green-600">Sent — we&apos;ll review shortly.</span>
                         )}
                         <button
                           type="button"
@@ -255,7 +263,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
                   </div>
                 )}
 
-                {req.status === "completed" && (
+                {isDone && (
                   <p className="text-xs text-muted-foreground">
                     Need further help? Contact{" "}
                     <a href="mailto:legal@corelyx.app" className="text-primary hover:underline">legal@corelyx.app</a>.
@@ -267,7 +275,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
         );
       })}
 
-      <p className="text-xs text-muted-foreground px-1">
+      <p className="px-1 text-xs text-muted-foreground">
         Requests are handled within 30 days per GDPR Article 12. Questions? Email{" "}
         <a href="mailto:legal@corelyx.app" className="text-primary hover:underline">legal@corelyx.app</a>
         {userEmail ? ` — we'll reply to ${userEmail}` : ""}.
