@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
-import { isAdminEmail } from "@/lib/admin";
+import { hasFounderAccess } from "@/lib/admin-auth";
 import Link from "next/link";
 import { ArrowLeft, Circle } from "lucide-react";
 import type { Metadata } from "next";
@@ -39,7 +39,7 @@ export default async function AdminGrantPage({
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  if (!isAdminEmail(user.email)) redirect("/dashboard");
+  if (!(await hasFounderAccess(user.id, user.email))) redirect("/admin");
 
   const service = createServiceClient();
 

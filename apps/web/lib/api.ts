@@ -5,6 +5,18 @@ import { createServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { genericErrorMessage, redactSecretText } from "@/lib/redaction";
 
+export async function writeNotification(
+  userId: string,
+  notification: { type: string; title: string; body: string; href?: string }
+): Promise<void> {
+  const service = createServiceClient();
+  await (service as unknown as {
+    from(t: string): { insert(v: Record<string, unknown>): Promise<unknown> };
+  })
+    .from("notifications")
+    .insert({ user_id: userId, ...notification });
+}
+
 export function apiError(message: string, status: number, code?: string) {
   const safeMessage =
     status >= 500 ? genericErrorMessage(status) : redactSecretText(message);

@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/api";
 import { Lock, Unlock, Clock } from "lucide-react";
 
@@ -27,6 +30,11 @@ function formatDuration(seconds: number): string {
 }
 
 export default async function CredentialLocksPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/dashboard");
+  if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
+
   const locks = await getActiveLocks();
   
   return (

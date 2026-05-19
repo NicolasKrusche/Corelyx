@@ -1,7 +1,10 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { getFeatureFlags } from "@/lib/feature-flags";
-import { 
-  ToggleLeft, 
-  ToggleRight, 
+import {
+  ToggleLeft,
+  ToggleRight,
   Settings,
   AlertTriangle,
   Sparkles,
@@ -17,7 +20,12 @@ type FeatureFlagDisplay = {
   type?: "number";
 };
 
-export default function FeatureFlagsPage() {
+export default async function FeatureFlagsPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/dashboard");
+  if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
+
   const flags = getFeatureFlags();
   
   const featureGroups: Array<{

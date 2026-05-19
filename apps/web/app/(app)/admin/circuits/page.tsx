@@ -1,9 +1,13 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { Activity, AlertCircle, CheckCircle, XCircle, Zap } from "lucide-react";
 
-// This would ideally fetch from the runtime API
-// For now, showing the structure
-
-export default function CircuitBreakersPage() {
+export default async function CircuitBreakersPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/dashboard");
+  if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
   // Mock data - in production, fetch from runtime
   const circuits = [
     {

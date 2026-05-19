@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/api";
 import { Play, Clock, AlertCircle, CheckCircle } from "lucide-react";
 
@@ -65,6 +68,11 @@ function formatDuration(seconds: number): string {
 }
 
 export default async function ActiveRunsPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/dashboard");
+  if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
+
   const runs = await getActiveRuns();
   
   const runningCount = runs.filter(r => r.status === "running").length;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ANNOUNCEMENTS, type Announcement } from "@/lib/announcements";
+import type { AppNotification } from "@/app/api/notifications/route";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,6 +150,7 @@ const ALERT_DOT: Record<Alert["kind"], string> = {
 export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [inboxItems, setInboxItems] = useState<AppNotification[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [isNew, setIsNew] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -156,7 +158,7 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
 
   // Active (non-dismissed) announcements
   const activeAnnouncements = ANNOUNCEMENTS.filter((a) => !dismissed.has(a.id));
-  const totalUnread = alerts.length + activeAnnouncements.length;
+  const totalUnread = alerts.length + activeAnnouncements.length + inboxItems.length;
 
   // Fetch alerts on mount
   const fetchAlerts = useCallback(async () => {
@@ -170,10 +172,20 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
     } catch { /* noop */ }
   }, []);
 
+  const fetchInboxItems = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) return;
+      const data = (await res.json()) as { notifications: AppNotification[] };
+      setInboxItems(data.notifications);
+    } catch { /* noop */ }
+  }, []);
+
   useEffect(() => {
     setDismissed(getDismissed());
     void fetchAlerts();
-  }, [fetchAlerts]);
+    void fetchInboxItems();
+  }, [fetchAlerts, fetchInboxItems]);
 
   // Determine if there's anything new since last read
   useEffect(() => {
@@ -181,9 +193,9 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
     const hasNewAnnouncement = activeAnnouncements.some(
       (a) => new Date(a.date).getTime() > lastRead
     );
-    setIsNew(hasNewAnnouncement || alerts.length > 0);
+    setIsNew(hasNewAnnouncement || alerts.length > 0 || inboxItems.length > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alerts.length, dismissed]);
+  }, [alerts.length, dismissed, inboxItems.length]);
 
   // Close on outside click
   useEffect(() => {
@@ -203,6 +215,11 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
       markRead();
       setIsNew(false);
       void fetchAlerts();
+      void fetchInboxItems();
+      // Mark in-app notifications as read server-side
+      void fetch("/api/notifications", { method: "POST" }).then(() => {
+        setInboxItems([]);
+      }).catch(() => undefined);
     }
     setOpen((v) => !v);
   }
@@ -274,6 +291,38 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
           </div>
 
           <div className="max-h-[420px] overflow-y-auto">
+            {/* Inbox */}
+            {inboxItems.length > 0 && (
+              <section className="px-3 pt-3">
+                <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Inbox
+                </p>
+                <div className="space-y-2">
+                  {inboxItems.map((item) => {
+                    const inner = (
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium">{item.title}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">{item.body}</span>
+                        <span className="mt-1 block text-[10px] text-muted-foreground/60">{formatDate(item.created_at)}</span>
+                      </span>
+                    );
+                    const cls = "flex items-start gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:brightness-95";
+                    return item.href ? (
+                      <Link key={item.id} href={item.href} onClick={() => setOpen(false)} className={cls}>
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={item.id} className={cls}>
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                        {inner}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {/* Alerts */}
             {alerts.length > 0 && (
               <section className="px-3 pt-3">
@@ -359,7 +408,7 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
             )}
 
             {/* Empty state */}
-            {alerts.length === 0 && activeAnnouncements.length === 0 && (
+            {alerts.length === 0 && activeAnnouncements.length === 0 && inboxItems.length === 0 && (
               <div className="flex flex-col items-center py-10 text-center">
                 <span className="text-3xl">🎉</span>
                 <p className="mt-3 text-sm font-medium">You&apos;re all caught up</p>

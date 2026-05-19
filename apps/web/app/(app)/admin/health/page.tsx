@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { getHealthStatus } from "@/lib/health-check";
 import { 
   CheckCircle, 
@@ -10,6 +13,11 @@ import {
 } from "lucide-react";
 
 export default async function HealthPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/dashboard");
+  if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
+
   const health = await getHealthStatus();
   
   return (

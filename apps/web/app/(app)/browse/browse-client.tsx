@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useId } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Search, X, TrendingUp, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +98,7 @@ export function BrowseClient({
   const [selectedUseCase, setSelectedUseCase] = useState<string | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState("");
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [forking, setForking] = useState<string | null>(null);
   const [forked, setForked] = useState<Record<string, string>>({}); // id → new program id
   const [forkError, setForkError] = useState<string | null>(null); // fix: inline error surface for fork failures
@@ -114,15 +115,16 @@ export function BrowseClient({
 
     if (activeTags.length > 0) params.set("tags", activeTags.join(","));
     if (searchQ.trim()) params.set("q", searchQ.trim());
+    if (sort === "popular") params.set("sort", "popular");
 
     return params;
-  }, [q, selectedApp, selectedUseCase]);
+  }, [q, selectedApp, selectedUseCase, sort]);
 
   // Only re-fetch when filters are actually set — initial data comes from server
   useEffect(() => {
     const activeTags = [selectedApp, selectedUseCase].filter(Boolean) as string[];
 
-    if (!q && activeTags.length === 0) {
+    if (!q && activeTags.length === 0 && sort === "latest") {
       setPrograms(initialPrograms);
       setTotal(initialTotal);
       setHasMore(initialPrograms.length < initialTotal);
@@ -170,7 +172,7 @@ export function BrowseClient({
       cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [q, selectedApp, selectedUseCase, initialPrograms, initialTotal, buildBrowseParams]);
+  }, [q, selectedApp, selectedUseCase, sort, initialPrograms, initialTotal, buildBrowseParams]);
 
   const loadNextPage = useCallback(async () => {
     if (loading || loadingMore || selectedProgramId || !hasMore || programs.length >= total) return;
@@ -297,22 +299,50 @@ export function BrowseClient({
               Search by name, pick an app, or narrow by the job you want done.
             </p>
           </div>
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1 self-start sm:self-auto"
-              onClick={() => {
-                setQ("");
-                setSelectedApp(null);
-                setSelectedUseCase(null);
-                setSelectedProgramId("");
-              }}
-            >
-              <X className="h-3.5 w-3.5" />
-              Clear filters
-            </Button>
-          )}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex rounded-lg border border-border bg-background p-0.5">
+              <button
+                type="button"
+                onClick={() => setSort("latest")}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  sort === "latest"
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Clock className="h-3 w-3" />
+                Latest
+              </button>
+              <button
+                type="button"
+                onClick={() => setSort("popular")}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  sort === "popular"
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <TrendingUp className="h-3 w-3" />
+                Popular
+              </button>
+            </div>
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1"
+                onClick={() => {
+                  setQ("");
+                  setSelectedApp(null);
+                  setSelectedUseCase(null);
+                  setSelectedProgramId("");
+                }}
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center">

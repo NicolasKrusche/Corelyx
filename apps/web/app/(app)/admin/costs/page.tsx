@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { hasCostsAccess } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/api";
 import { DollarSign, TrendingUp, Users, AlertTriangle } from "lucide-react";
 
@@ -79,6 +82,11 @@ async function getCostStats() {
 }
 
 export default async function CostsPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/dashboard");
+  if (!(await hasCostsAccess(user.id, user.email))) redirect("/admin");
+
   const stats = await getCostStats();
   
   const dailyLimit = 100; // Example limit

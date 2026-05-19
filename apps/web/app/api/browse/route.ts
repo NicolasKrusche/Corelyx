@@ -27,12 +27,13 @@ export async function GET(request: Request) {
     .map((value) => value.trim())
     .filter(Boolean);
   const q      = searchParams.get("q")?.trim() ?? undefined;
+  const sort   = searchParams.get("sort") === "popular" ? "popular" : "latest";
   const limit  = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "6", 10), 1), 96);
   const offset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10), 0);
 
   const db = createServiceClient();
   const activeTags = tags.length > 0 ? tags : tag ? [tag] : [];
-  const premadePrograms = filterPremadeBrowsePrograms({ tags: activeTags, q });
+  const premadePrograms = filterPremadeBrowsePrograms({ tags: activeTags, q }, sort);
   const premadeSlice = premadePrograms.slice(offset, offset + limit);
   const remainingLimit = limit - premadeSlice.length;
   const dbOffset = Math.max(0, offset - premadePrograms.length);
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
       { count: "exact" }
     )
     .eq("is_public", true)
+    .order(sort === "popular" ? "fork_count" : "published_at", { ascending: false })
     .order("published_at", { ascending: false });
 
   if (activeTags.length > 0) {

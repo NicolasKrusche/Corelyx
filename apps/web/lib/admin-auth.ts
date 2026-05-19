@@ -1,10 +1,5 @@
-/**
- * Admin authentication utilities.
- * 
- * Checks if user has admin privileges.
- */
-
 import { createServiceClient } from "@/lib/api";
+import { isAdminEmail } from "@/lib/admin";
 
 type AdminProfileRow = {
   is_admin: boolean | null;
@@ -29,6 +24,33 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
   
   const profile = data as unknown as AdminProfileRow;
   return profile.is_admin === true;
+}
+
+/** Returns true if the user can access technical/engineering pages (founder or dev). */
+export async function hasTechnicalAccess(userId: string, email?: string | null): Promise<boolean> {
+  if (isAdminEmail(email ?? undefined)) return true;
+  const db = createServiceClient();
+  const { data } = await db.from("profiles").select("team_role").eq("id", userId).single();
+  const role = (data as { team_role: string | null } | null)?.team_role ?? null;
+  return role === "founder" || role === "dev";
+}
+
+/** Returns true if the user can access the costs page (founder, dev, or marketing). */
+export async function hasCostsAccess(userId: string, email?: string | null): Promise<boolean> {
+  if (isAdminEmail(email ?? undefined)) return true;
+  const db = createServiceClient();
+  const { data } = await db.from("profiles").select("team_role").eq("id", userId).single();
+  const role = (data as { team_role: string | null } | null)?.team_role ?? null;
+  return role === "founder" || role === "dev" || role === "marketing";
+}
+
+/** Returns true if the user is a founder (email admin OR team_role=founder). */
+export async function hasFounderAccess(userId: string, email?: string | null): Promise<boolean> {
+  if (isAdminEmail(email ?? undefined)) return true;
+  const db = createServiceClient();
+  const { data } = await db.from("profiles").select("is_admin, team_role").eq("id", userId).single();
+  const p = data as { is_admin: boolean | null; team_role: string | null } | null;
+  return p?.is_admin === true && p.team_role === "founder";
 }
 
 /**
