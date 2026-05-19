@@ -11,10 +11,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_lower
   WHERE username IS NOT NULL;
 
 -- Username format: 3–30 chars, alphanumeric + underscores only
-ALTER TABLE public.profiles
-  ADD CONSTRAINT IF NOT EXISTS profiles_username_format
-  CHECK (username IS NULL OR (
-    length(username) >= 3 AND
-    length(username) <= 30 AND
-    username ~ '^[a-zA-Z0-9_]+$'
-  ));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'profiles_username_format'
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_username_format
+      CHECK (username IS NULL OR (
+        length(username) >= 3 AND
+        length(username) <= 30 AND
+        username ~ '^[a-zA-Z0-9_]+$'
+      ));
+  END IF;
+END $$;
