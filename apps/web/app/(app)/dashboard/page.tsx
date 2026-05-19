@@ -2,13 +2,14 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, Workflow, Sparkles, Clock3, Star, MoreHorizontal, RefreshCw, Download } from "lucide-react";
+import { Plus, Workflow, Sparkles, Clock3, Star, MoreHorizontal, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
 import { DashboardSearch } from "@/components/dashboard/dashboard-search";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { WelcomeHero } from "@/components/dashboard/welcome-hero";
+import { RecentRunsList } from "@/components/dashboard/recent-runs-list";
 import { getRunUsage } from "@/lib/limits";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { getUserCreditBalance } from "@/lib/credits";
@@ -51,13 +52,6 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function duration(start: string | null, end: string | null): string | null {
-  if (!start || !end) return null;
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
 function getGreeting(): string {
   const hour = new Date().getUTCHours();
   if (hour < 12) return "morning";
@@ -73,26 +67,6 @@ function formatHeaderDate(): string {
   const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   return `${dayName} · ${month} ${day} · ${time}`;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  running: "bg-yellow-400",
-  completed: "bg-green-500",
-  success: "bg-green-500",
-  failed: "bg-red-500",
-  cancelled: "bg-muted-foreground",
-  waiting_approval: "bg-blue-400",
-  pending: "bg-muted-foreground",
-};
-
-const STATUS_BG: Record<string, string> = {
-  running: "bg-yellow-400/10 text-yellow-500",
-  completed: "bg-green-500/10 text-green-600",
-  success: "bg-green-500/10 text-green-600",
-  failed: "bg-red-500/10 text-red-500",
-  cancelled: "bg-muted/60 text-muted-foreground",
-  waiting_approval: "bg-blue-400/10 text-blue-500",
-  pending: "bg-muted/60 text-muted-foreground",
-};
 
 const NODE_DOT_COLORS = [
   "bg-blue-400", "bg-violet-400", "bg-emerald-400", "bg-amber-400",
@@ -594,60 +568,7 @@ export default async function DashboardPage({
                 </Link>
               </div>
 
-              {filteredRecentRuns.length === 0 ? (
-                <div className="p-8 text-center">
-                  <p className="text-xs text-muted-foreground">
-                    {searchQuery ? "No runs match your search." : "No runs yet."}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="divide-y divide-border/40">
-                    {filteredRecentRuns.map((run) => {
-                      const d = duration(run.started_at, run.completed_at);
-                      return (
-                        <Link
-                          key={run.id}
-                          href={`/programs/${run.program_id}/runs/${run.id}`}
-                          className="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-accent/30"
-                        >
-                          <div className="mt-0.5 shrink-0">
-                            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold capitalize ${STATUS_BG[run.status] ?? "bg-muted/60 text-muted-foreground"}`}>
-                              <span className={`h-1 w-1 rounded-full ${STATUS_COLORS[run.status] ?? "bg-muted-foreground"}`} />
-                              {run.status === "completed" ? "OK" : run.status === "waiting_approval" ? "Waiting" : run.status.replace(/_/g, " ")}
-                            </span>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-medium">{run.programs?.name ?? "Unknown"}</p>
-                            <p className="font-mono text-[10px] text-muted-foreground/60">{run.triggered_by}</p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="font-mono text-[10px] text-muted-foreground/70">{timeAgo(run.created_at)}</p>
-                            {d && <p className="font-mono text-[10px] text-muted-foreground/40">{d}</p>}
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-
-                  {/* Footer summary */}
-                  <div className="flex items-center justify-between border-t border-border/40 px-4 py-2.5">
-                    <p className="text-[10px] text-muted-foreground/50">
-                      {filteredRecentRuns.filter((r) => r.status === "failed").length > 0 && (
-                        <span className="text-red-500">{filteredRecentRuns.filter((r) => r.status === "failed").length} failed</span>
-                      )}
-                      {filteredRecentRuns.filter((r) => r.status === "failed").length > 0 && filteredRecentRuns.filter((r) => ["completed", "success"].includes(r.status)).length > 0 && " · "}
-                      {filteredRecentRuns.filter((r) => ["completed", "success"].includes(r.status)).length > 0 && (
-                        <span>{filteredRecentRuns.filter((r) => ["completed", "success"].includes(r.status)).length} ok</span>
-                      )}
-                    </p>
-                    <button className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-foreground transition-colors">
-                      <RefreshCw className="h-2.5 w-2.5" />
-                      Refresh
-                    </button>
-                  </div>
-                </>
-              )}
+              <RecentRunsList runs={filteredRecentRuns} searchQuery={searchQuery} />
             </div>
           </div>
         </div>
