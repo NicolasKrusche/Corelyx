@@ -68,21 +68,30 @@ export default async function AdminLayout({
     redirect("/dashboard?error=admin_required");
   }
 
-  const isFounder = isAdminEmail(user.email ?? undefined) || adminProfile?.team_role === "founder";
+  const teamRole = adminProfile?.team_role ?? null;
+  const isFounder = isAdminEmail(user.email ?? undefined) || teamRole === "founder";
+  const canAccessTechnical = isFounder || teamRole === "dev";
+  const canAccessCosts = canAccessTechnical || teamRole === "marketing";
   const openTicketCount = openTicketsRes.count ?? 0;
 
   const navItems: AdminNavItem[] = [
     { href: "/admin", label: "Overview", icon: Activity },
-    { href: "/admin/health", label: "System Health", icon: Shield },
-    { href: "/admin/circuits", label: "Circuit Breakers", icon: Zap },
-    { href: "/admin/runs", label: "Active Runs", icon: PlayCircle },
-    { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
-    { href: "/admin/emergency", label: "Emergency", icon: AlertTriangle },
-    { href: "/admin/locks", label: "Credential Locks", icon: Lock },
-    { href: "/admin/flags", label: "Feature Flags", icon: Settings },
+    ...(canAccessTechnical ? [
+      { href: "/admin/health", label: "System Health", icon: Shield },
+      { href: "/admin/circuits", label: "Circuit Breakers", icon: Zap },
+      { href: "/admin/runs", label: "Active Runs", icon: PlayCircle },
+      { href: "/admin/emergency", label: "Emergency", icon: AlertTriangle },
+      { href: "/admin/locks", label: "Credential Locks", icon: Lock },
+      { href: "/admin/flags", label: "Feature Flags", icon: Settings },
+    ] as AdminNavItem[] : []),
+    ...(canAccessCosts ? [
+      { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
+    ] as AdminNavItem[] : []),
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
-    ...(isFounder ? [{ href: "/admin/dsr", label: "DSR Queue", icon: FileText }] : []),
-    { href: "/admin/team", label: "Team", icon: Users },
+    ...(isFounder ? [
+      { href: "/admin/dsr", label: "DSR Queue", icon: FileText },
+      { href: "/admin/team", label: "Team", icon: Users },
+    ] as AdminNavItem[] : []),
   ];
 
   return (
@@ -126,25 +135,27 @@ export default async function AdminLayout({
               );
             })}
 
-            <div className="mt-6 pt-6 border-t">
-              <p className="mb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Quick Actions
-              </p>
-              <Link
-                href="/admin/emergency"
-                className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors"
-              >
-                <AlertTriangle className="h-4 w-4" />
-                Emergency Stop
-              </Link>
-              <Link
-                href="/security"
-                className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              >
-                <Shield className="h-4 w-4" />
-                Security Policy
-              </Link>
-            </div>
+            {canAccessTechnical && (
+              <div className="mt-6 pt-6 border-t">
+                <p className="mb-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Quick Actions
+                </p>
+                <Link
+                  href="/admin/emergency"
+                  className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  Emergency Stop
+                </Link>
+                <Link
+                  href="/security"
+                  className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <Shield className="h-4 w-4" />
+                  Security Policy
+                </Link>
+              </div>
+            )}
           </div>
         </nav>
 

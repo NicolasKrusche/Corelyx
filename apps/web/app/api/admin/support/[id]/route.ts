@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, writeNotification } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 
@@ -51,11 +51,32 @@ export async function PATCH(
   if (parsed.data.assigned_to !== undefined) update.assigned_to = parsed.data.assigned_to;
 
   const db = createServiceClient() as SupportDb;
+
+  // Fetch current ticket to get subject + previous assignee before updating
+  const { data: ticketBefore } = await db
+    .from("support_tickets")
+    .select("subject, assigned_to")
+    .eq("id", id)
+    .single();
+
   const { error } = await db
     .from("support_tickets")
     .update(update)
     .eq("id", id);
 
   if (error) return apiError(error.message, 500);
+
+  // Notify the newly assigned team member (fire-and-forget)
+  const newAssignee = parsed.data.assigned_to;
+  if (newAssignee && newAssignee !== ticketBefore?.assigned_to) {
+    const subject = (ticketBefore as { subject?: string } | null)?.subject ?? "a support ticket";
+    void writeNotification(newAssignee, {
+      type: "ticket_assigned",
+      title: "Ticket assigned to you",
+      body: `You've been assigned: "${subject}"`,
+      href: "/admin/support",
+    }).catch(() => undefined);
+  }
+
   return NextResponse.json({ ok: true });
 }

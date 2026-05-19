@@ -950,11 +950,11 @@ export function findPremadeBrowseProgram(id: string): BrowseProgram | undefined 
   return PREMADE_BROWSE_PROGRAMS.find((program) => program.id === id);
 }
 
-export function filterPremadeBrowsePrograms(params: { tag?: string; tags?: string[]; q?: string }): BrowseProgram[] {
+export function filterPremadeBrowsePrograms(params: { tag?: string; tags?: string[]; q?: string }, sort: "latest" | "popular" = "latest"): BrowseProgram[] {
   const normalizedQ = params.q?.trim().toLowerCase();
   const tags = params.tags?.length ? params.tags : params.tag ? [params.tag] : [];
 
-  return PREMADE_BROWSE_PROGRAMS.filter((program) => {
+  const filtered = PREMADE_BROWSE_PROGRAMS.filter((program) => {
     if (tags.some((tag) => !program.tags.includes(tag))) return false;
     if (!normalizedQ) return true;
 
@@ -967,4 +967,10 @@ export function filterPremadeBrowsePrograms(params: { tag?: string; tags?: strin
 
     return searchable.includes(normalizedQ);
   }).map(({ schema, ...program }) => program);
+
+  if (sort === "popular") {
+    filtered.sort((a, b) => b.fork_count - a.fork_count);
+  }
+
+  return filtered;
 }

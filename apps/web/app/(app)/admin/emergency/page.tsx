@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { revalidatePath } from "next/cache";
 import { AlertTriangle, Power, Shield, AlertCircle } from "lucide-react";
 
@@ -20,6 +23,11 @@ async function updateFeatureFlag(key: string, value: boolean) {
 }
 
 export default async function EmergencyControlsPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/dashboard");
+  if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
+
   const status = await getCurrentStatus();
   
   const anyActive = status.maintenanceMode || status.disableGenesis || status.disableExecution;
