@@ -1059,9 +1059,11 @@ class ProgramExecutor:
         self._limiter.check_llm_tokens(total_tokens)
         self._limiter.check_cost(estimated_cost_usd)
 
-        # Deduct platform credits for usage-based billing
+        # 10× markup on provider cost — margin over raw API spend.
+        # estimated_cost_usd in telemetry reflects the actual provider cost (pre-markup).
+        _PLATFORM_MARKUP = 10.0
         if deduct_credits and estimated_cost_usd and self.user_id:
-            await self._deduct_platform_credits(estimated_cost_usd)
+            await self._deduct_platform_credits(estimated_cost_usd * _PLATFORM_MARKUP)
 
         self._record_telemetry(
             node_id,

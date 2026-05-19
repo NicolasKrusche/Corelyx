@@ -10,10 +10,10 @@ RUNTIME_CORS_ALLOWED_ORIGINS_ENV = "RUNTIME_CORS_ALLOWED_ORIGINS"
 DEFAULT_CORS_ORIGINS = (
     "https://corelyx.app",
     "https://www.corelyx.app",
-    "http://localhost:3000",
 )
-CORS_ALLOWED_METHODS = ["*"]
-CORS_ALLOWED_HEADERS = ["*"]
+DEV_CORS_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
+CORS_ALLOWED_METHODS = ["GET", "POST"]
+CORS_ALLOWED_HEADERS = ["Content-Type", "x-internal-service-token"]
 
 
 def is_production_environment(
@@ -61,6 +61,8 @@ def get_cors_allowed_origins(
     )
 
     origins = list(DEFAULT_CORS_ORIGINS)
+    if not is_production:
+        origins.extend(DEV_CORS_ORIGINS)
     if configured_origins:
         for origin in configured_origins:
             if origin == "*":

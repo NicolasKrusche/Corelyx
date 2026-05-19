@@ -8,6 +8,7 @@ import { getEntitlements, parseTier } from "@/lib/entitlements";
 import { getRunUsage, checkGenesisAccess } from "@/lib/limits";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { CreditsTopUp, PastPurchasesLink } from "./credits-topup";
+import { AutoRechargeSettings } from "./auto-recharge-settings";
 import { UsageCharts } from "@/components/usage-charts";
 import { getUsageHistory } from "@/lib/usage-history";
 import { getTranslations } from "next-intl/server";
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
 const TIER_LABEL: Record<string, string> = {
-  free: "Free", plus: "Solo", pro: "Pro", builder: "Team", unlimited: "Unlimited",
+  free: "Free", plus: "Solo", pro: "Team", builder: "Scale", unlimited: "Unlimited",
 };
 
 function StatBar({ value, max, color = "bg-primary" }: { value: number; max: number | null; color?: string }) {
@@ -73,10 +74,12 @@ export default async function CreditsPage() {
   const service = createServiceClient();
   const [ws, profileRes] = await Promise.all([
     getActiveWorkspace(user.id),
-    service.from("profiles").select("tier").eq("id", user.id).single(),
+    service.from("profiles").select("tier, stripe_payment_method_id").eq("id", user.id).single(),
   ]);
 
-  const tier = parseTier((profileRes.data as { tier?: string } | null)?.tier);
+  const profileData = profileRes.data as { tier?: string; stripe_payment_method_id?: string | null } | null;
+  const tier = parseTier(profileData?.tier);
+  const hasSavedPaymentMethod = Boolean(profileData?.stripe_payment_method_id);
   const ent = getEntitlements(tier);
   const workspaceId = ws?.workspaceId ?? null;
 
@@ -141,37 +144,45 @@ export default async function CreditsPage() {
 
   const PLANS = [
     {
-      id: "free" as const,
-      label: "FREE",
-      price: "$0",
+      id: "plus" as const,
+      label: "SOLO",
+      price: "€9.90",
       period: "/month",
       features: [
-        "Unlimited workflow runs",
-        "Unlimited Genesis AI generations",
-        "BYOK (bring your own keys)",
-        "Platform AI not included",
-        "Community support",
+        "5 programs",
+        "75 runs / month",
+        "All 200+ connectors",
+        "BYOK (bring your own API key)",
+        "€2.50 platform AI credits / month",
+        "30-day run history",
+        "Webhook triggers",
+        "Email support",
       ],
-      cta: tier === "free" ? "You're here" : "Downgrade",
-      href: tier === "free" ? undefined : "/dashboard",
+      cta: tier === "plus" ? "Current plan" : currentTierIdx > 1 ? "Downgrade" : "Upgrade to Solo",
+      checkout: tier === "free" ? { tier: "plus", interval: "month" } : undefined,
+      href: tier === "plus" ? undefined : currentTierIdx > 1 ? "/dashboard" : undefined,
       primary: false,
-      current: tier === "free",
-      badge: tier === "free" ? "CURRENT" : null,
+      current: tier === "plus",
+      badge: tier === "plus" ? "CURRENT" : null,
     },
     {
       id: "pro" as const,
-      label: "PRO",
-      price: "$20",
+      label: "TEAM",
+      price: "€19.90",
       period: "/month",
       features: [
-        "Everything in Free",
-        "$10 Platform AI credits / month",
-        "Priority queue (5× concurrency)",
-        "30-day run history",
-        "Email + Slack support",
+        "Everything in Solo, plus:",
+        "Unlimited programs",
+        "Up to 3 team seats",
+        "Human-in-the-loop approvals",
+        "500 runs / month",
+        "€10 platform AI credits / month",
+        "90-day run history",
+        "All trigger types",
+        "Priority support",
       ],
-      cta: tier === "pro" ? "Current plan" : currentTierIdx > 2 ? "Downgrade" : "Upgrade to Pro",
-      checkout: tier !== "pro" && currentTierIdx <= 1 ? { tier: "pro", interval: "month" } : undefined,
+      cta: tier === "pro" ? "Current plan" : currentTierIdx > 2 ? "Downgrade" : "Upgrade to Team",
+      checkout: currentTierIdx <= 1 ? { tier: "pro", interval: "month" } : undefined,
       href: tier === "pro" ? undefined : currentTierIdx > 2 ? "/dashboard" : undefined,
       primary: true,
       current: tier === "pro",
@@ -179,17 +190,21 @@ export default async function CreditsPage() {
     },
     {
       id: "builder" as const,
-      label: "TEAM",
-      price: "$60",
-      period: "/seat / month",
+      label: "SCALE",
+      price: "€49.90",
+      period: "/month",
       features: [
-        "Everything in Pro",
-        "$40 Platform AI credits / seat",
-        "SSO + audit log",
-        "Shared connections & vaults",
-        "SLA & dedicated support",
+        "Everything in Team, plus:",
+        "Unlimited team seats",
+        "2,000 runs / month",
+        "€15 platform AI credits / month",
+        "1-year run history",
+        "Priority execution queue",
+        "Dedicated success manager",
+        "Custom integrations",
+        "SLA guarantee",
       ],
-      cta: tier === "builder" ? "Current plan" : "Talk to sales",
+      cta: tier === "builder" ? "Current plan" : "Contact sales",
       href: tier === "builder" ? undefined : "mailto:sales@corelyx.app",
       primary: false,
       current: tier === "builder",
@@ -294,7 +309,7 @@ export default async function CreditsPage() {
               className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-sm font-semibold hover:bg-white/20 transition-colors"
             >
               <Rocket className="h-3.5 w-3.5" />
-              Upgrade to Pro
+              Upgrade plan
             </Link>
             <Link
               href="#activity"
@@ -420,40 +435,7 @@ export default async function CreditsPage() {
 
           {/* Auto-recharge + Budget alerts */}
           <div className="space-y-4">
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="flex items-center gap-1.5 font-semibold text-sm">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-muted-foreground"><path d="M7 1v3M7 10v3M1 7h3M10 7h3M2.9 2.9l2.1 2.1M8.9 8.9l2.1 2.1M2.9 11.1l2.1-2.1M8.9 5.1l2.1-2.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                    Auto-recharge
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Top up automatically when your balance gets low.</p>
-                </div>
-                {/* Toggle — disabled state */}
-                <button
-                  type="button"
-                  disabled
-                  aria-label="Auto-recharge disabled"
-                  className="relative inline-flex h-5 w-9 cursor-not-allowed items-center rounded-full bg-muted opacity-50 transition-colors"
-                >
-                  <span className="inline-block h-4 w-4 translate-x-0.5 rounded-full bg-muted-foreground/60 transition-transform" />
-                </button>
-              </div>
-
-              <div className="mt-4 rounded-xl border border-border/60 bg-muted/30 p-4">
-                <p className="mb-2 text-xs font-semibold text-muted-foreground">When balance falls below</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground/60">
-                  <span>Add</span>
-                  <span className="rounded-md border border-border bg-background px-2 py-0.5 text-xs">$10.00</span>
-                  <span>when balance drops below</span>
-                  <span className="rounded-md border border-border bg-background px-2 py-0.5 text-xs">$2.00</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground/60">
-                  <span>Cap: $50 / month</span>
-                  <span className="text-muted-foreground/40 cursor-not-allowed">Edit rule →</span>
-                </div>
-              </div>
-            </section>
+            <AutoRechargeSettings hasSavedPaymentMethod={hasSavedPaymentMethod} />
 
             <section className="rounded-2xl border border-border bg-card p-5">
               <div className="flex items-center justify-between">

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
-import { sendWelcomeEmail } from "@/lib/email";
+import { sendDuplicateSignupEmail, sendWelcomeEmail } from "@/lib/email";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limited = await enforcePublicEndpointRateLimit(req, "signup", 10, 60_000);
+  if (limited) return limited;
+
   try {
     const { email, password } = (await req.json()) as { email?: string; password?: string };
 
@@ -23,13 +27,15 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      // Surface a friendly message for duplicate emails
       const msg = error.message.toLowerCase();
       if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("duplicate")) {
-        return NextResponse.json(
-          { error: "An account with this email already exists. Try signing in instead." },
-          { status: 409 }
-        );
+        // Don't reveal that the email exists — send a notification email instead
+        try {
+          await sendDuplicateSignupEmail({ to: email });
+        } catch {
+          // best-effort
+        }
+        return NextResponse.json({ ok: true });
       }
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -41,7 +47,7 @@ export async function POST(req: NextRequest) {
       console.warn("[auth/signup] Welcome email failed:", emailErr);
     }
 
-    return NextResponse.json({ ok: true, user_id: data.user.id });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[auth/signup] Unexpected error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });

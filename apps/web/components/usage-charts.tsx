@@ -191,7 +191,7 @@ export function UsageCharts({ history }: { history: DayUsage[] }) {
             <p className="mt-0.5 text-xs text-muted-foreground/70">Total executions across all programs</p>
             <div className="mt-1.5 flex items-baseline gap-1.5">
               <span className="text-xl font-bold">{totalRuns.toLocaleString()} runs</span>
-              {priorRuns > 0 && (
+              {priorRuns > 0 && runDelta !== 0 && (
                 <span className={`text-xs font-medium ${runDelta >= 0 ? "text-green-600" : "text-red-500"}`}>
                   {runDelta >= 0 ? "+" : ""}{runDelta} vs prior
                 </span>
@@ -247,7 +247,7 @@ export function UsageCharts({ history }: { history: DayUsage[] }) {
             <div className="mt-1.5 flex items-baseline gap-1.5">
               <span className="text-xl font-bold">${totalCost.toFixed(4)}</span>
               <span className="text-xs text-muted-foreground">period</span>
-              {priorCost > 0 && (
+              {priorCost > 0 && costDelta !== 0 && (
                 <span className={`text-xs font-medium ${costDelta >= 0 ? "text-green-600" : "text-red-500"}`}>
                   {costDelta >= 0 ? "+" : ""}${costDelta.toFixed(4)}
                 </span>

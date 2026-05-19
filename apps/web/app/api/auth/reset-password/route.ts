@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limited = await enforcePublicEndpointRateLimit(req, "reset-password", 5, 60_000);
+  if (limited) return limited;
+
   try {
-    const { email, redirectTo } = (await req.json()) as { email?: string; redirectTo?: string };
+    const { email } = (await req.json()) as { email?: string };
 
     if (!email) {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
-    const resetRedirect =
-      redirectTo ?? `${appUrl}/auth/callback?next=/update-password`;
+    const resetRedirect = `${appUrl}/auth/callback?next=/update-password`;
 
     const supabase = createServiceClient();
 
