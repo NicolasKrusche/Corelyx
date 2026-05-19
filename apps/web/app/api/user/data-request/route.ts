@@ -42,6 +42,7 @@ type DataSubjectRequestRow = {
   submitted_at: string;
   due_at: string;
   completed_at: string | null;
+  requester_email: string | null;
 };
 
 type DbError = { message: string };
