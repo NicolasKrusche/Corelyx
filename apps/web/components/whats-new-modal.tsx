@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 // Bump this key whenever you want the modal to reappear for all users.
-const WHATS_NEW_KEY = "corelyx-whats-new-v20260518";
+const WHATS_NEW_KEY = "corelyx-whats-new-v20260519";
 
 type Update = {
   icon: string;
@@ -13,34 +13,19 @@ type Update = {
 
 const UPDATES: Update[] = [
   {
-    icon: "↺",
-    title: "Run replay",
-    description: "Re-run any completed or failed workflow with one click. Carries the original trigger payload forward automatically.",
-  },
-  {
     icon: "⚡",
-    title: "Live run progress",
-    description: "A pulsing Live badge and elapsed timer appear while a run is active. Metadata refreshes the moment the run finishes.",
+    title: "Auto-recharge",
+    description: "Set a balance threshold and Corelyx will automatically top up your credits using your saved payment method — no manual top-ups needed.",
   },
   {
-    icon: "🔐",
-    title: "Workspace environment variables",
-    description: "Store encrypted secrets per workspace and reference them as $env.VAR_NAME inside any workflow. Full CRUD in the sidebar.",
+    icon: "✨",
+    title: "Generate programs with the Corelyx AI key",
+    description: "Use your platform credits to generate workflows with Genesis — no API key required. A flat fee applies per generation.",
   },
   {
-    icon: "🕐",
-    title: "Visual cron builder",
-    description: "Pick schedule frequency, day, and time from friendly dropdowns instead of writing raw cron expressions. Shows the next 5 run times.",
-  },
-  {
-    icon: "🪝",
-    title: "Webhook payload inspector",
-    description: "Expand any webhook trigger event in the activity log to view the full incoming JSON payload with a one-click copy button.",
-  },
-  {
-    icon: "🔍",
-    title: "Run search & date filter",
-    description: "Filter the runs list by program name or error message, and scope to today, 7 days, or 30 days with one click.",
+    icon: "📋",
+    title: "GDPR data request tracking",
+    description: "View and manage your data subject requests directly in the app under Support → Data Requests. Reply to follow-up questions without leaving Corelyx.",
   },
 ];
 
