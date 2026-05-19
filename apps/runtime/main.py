@@ -44,11 +44,19 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # Validate required auth secrets at startup so misconfiguration surfaces in
 # Railway logs immediately rather than silently on the first execute request.
-try:
-    _get_internal_service_secret("runtime:execute")
-    print("[runtime] Auth config OK: INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE is set")
-except RuntimeError as _exc:
-    print(f"[runtime] WARNING: {_exc} — set this variable in your Railway service to match Vercel")
+_REQUIRED_SECRETS = [
+    "runtime:execute",        # web → runtime (inbound)
+    "next:runs:complete",     # runtime → web (run completion callback)
+    "next:connections:token", # runtime → web (OAuth token fetch)
+    "next:vault",             # runtime → web (Vault secret fetch)
+    "next:credits",           # runtime → web (credit deduction)
+]
+for _audience in _REQUIRED_SECRETS:
+    try:
+        _get_internal_service_secret(_audience)
+        print(f"[runtime] Auth config OK: secret for '{_audience}' is set")
+    except RuntimeError as _exc:
+        print(f"[runtime] WARNING: {_exc} — set this variable in both Railway and Vercel to the same value")
 
 scheduler = AsyncIOScheduler()
 
