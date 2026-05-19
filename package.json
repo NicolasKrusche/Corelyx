@@ -23,7 +23,10 @@
       "@typescript-eslint/parser": "^8.59.1",
       "minimatch@>=9.0.0 <9.0.7": "9.0.7",
       "postcss": "^8.5.12",
-      "protobufjs": "7.5.5"
+      "protobufjs": ">=7.5.6",
+      "@opentelemetry/auto-instrumentations-node": ">=0.75.0",
+      "@opentelemetry/sdk-node": ">=0.217.0",
+      "@opentelemetry/exporter-prometheus": ">=0.217.0"
     }
   }
 }
