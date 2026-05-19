@@ -124,6 +124,12 @@ export async function PATCH(request: Request) {
   });
 
   if (responseSummary && ["completed", "rejected", "waiting_on_user"].includes(row.status)) {
+    // Write to message thread so user sees it in their timeline
+    void service
+      .from("dsr_messages")
+      .insert({ dsr_id: row.id, sender: "admin", body: responseSummary } as never)
+      .catch(() => undefined);
+
     const email = row.requester_email;
     if (email) {
       void sendDsrResponseEmail({
