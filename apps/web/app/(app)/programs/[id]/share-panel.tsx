@@ -11,6 +11,7 @@ type ShareMember = {
   workspace_role: WorkspaceRole;
   program_role: ProgramRole | null;
   display_name: string | null;
+  username: string | null;
   email: string | null;
 };
 
@@ -115,9 +116,15 @@ export function SharePanel({ programId }: { programId: string }) {
                   <div key={member.user_id} className="flex items-center gap-3">
                     <InitialAvatar member={member} index={index} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {member.display_name || member.email || member.user_id}
-                      </p>
+                      {member.username ? (
+                        <Link href={`/u/${member.username}`} className="truncate text-sm font-medium hover:underline">
+                          {member.display_name || member.email || member.user_id}
+                        </Link>
+                      ) : (
+                        <p className="truncate text-sm font-medium">
+                          {member.display_name || member.email || member.user_id}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {member.workspace_role === "owner" ? "Workspace owner" : WORKSPACE_ROLE_LABELS[member.workspace_role]}
                         {member.program_role ? ` · ${PROGRAM_ROLE_LABELS[member.program_role]}` : ""}
