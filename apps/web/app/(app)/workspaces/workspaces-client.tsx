@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, Check, Crown, Shield, UserPlus, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Building2, Check, Crown, Settings, Shield, Upload, UserPlus, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   WORKSPACE_ROLE_LABELS,
@@ -13,6 +13,10 @@ import {
 type Workspace = {
   id: string;
   name: string;
+  logo_url: string | null;
+  description: string | null;
+  default_program_visibility: "workspace" | "restricted";
+  members_can_create_programs: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -85,8 +89,12 @@ export function WorkspacesClient() {
   const [renameValue, setRenameValue] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Exclude<WorkspaceRole, "owner">>("member");
+  const [settingsDescription, setSettingsDescription] = useState("");
+  const [settingsDefaultVisibility, setSettingsDefaultVisibility] = useState<"workspace" | "restricted">("workspace");
+  const [settingsMembersCanCreate, setSettingsMembersCanCreate] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const selectedWorkspace = useMemo(
     () => workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? workspaces[0] ?? null,
@@ -153,6 +161,9 @@ export function WorkspacesClient() {
       return;
     }
     setRenameValue(selectedWorkspace.name);
+    setSettingsDescription(selectedWorkspace.description ?? "");
+    setSettingsDefaultVisibility(selectedWorkspace.default_program_visibility ?? "workspace");
+    setSettingsMembersCanCreate(selectedWorkspace.members_can_create_programs ?? true);
     void loadMembers(selectedWorkspace.id);
   }, [selectedWorkspace, loadMembers]);
 
@@ -224,6 +235,59 @@ export function WorkspacesClient() {
         )
       );
       setMessage({ type: "success", text: "Workspace renamed." });
+    }
+    setBusy(null);
+  }
+
+  async function updateSettings(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedWorkspace) return;
+    setBusy("settings");
+
+    const res = await fetch("/api/workspaces", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_settings",
+        workspace_id: selectedWorkspace.id,
+        description: settingsDescription.trim() || null,
+        default_program_visibility: settingsDefaultVisibility,
+        members_can_create_programs: settingsMembersCanCreate,
+      }),
+    });
+    const body = await res.json().catch(() => null) as { workspace?: Workspace; error?: string } | null;
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not save settings." });
+    } else {
+      setWorkspaces((current) =>
+        current.map((ws) =>
+          ws.id === selectedWorkspace.id
+            ? { ...ws, ...(body?.workspace ?? {}) }
+            : ws
+        )
+      );
+      setMessage({ type: "success", text: "Settings saved." });
+    }
+    setBusy(null);
+  }
+
+  async function uploadLogo(file: File) {
+    if (!selectedWorkspace) return;
+    setBusy("logo");
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const res = await fetch(`/api/workspaces/${selectedWorkspace.id}/logo`, { method: "POST", body: fd });
+    const body = await res.json().catch(() => null) as { logo_url?: string; error?: string } | null;
+    if (!res.ok) {
+      setMessage({ type: "error", text: body?.error ?? "Could not upload logo." });
+    } else {
+      setWorkspaces((current) =>
+        current.map((ws) =>
+          ws.id === selectedWorkspace.id ? { ...ws, logo_url: body?.logo_url ?? ws.logo_url } : ws
+        )
+      );
+      setMessage({ type: "success", text: "Logo updated." });
     }
     setBusy(null);
   }
@@ -381,9 +445,13 @@ export function WorkspacesClient() {
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Building2 className="h-5 w-5" />
-                    </span>
+                    {workspace.logo_url ? (
+                      <img src={workspace.logo_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Building2 className="h-5 w-5" />
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-semibold text-foreground">{workspace.name}</span>
@@ -420,7 +488,9 @@ export function WorkspacesClient() {
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Created {formatDate(selectedWorkspace.created_at)}
+                      {selectedWorkspace.description
+                        ? selectedWorkspace.description
+                        : `Created ${formatDate(selectedWorkspace.created_at)}`}
                     </p>
                   </div>
 
@@ -451,6 +521,101 @@ export function WorkspacesClient() {
                   </form>
                 )}
               </section>
+
+              {canManage && (
+                <section className="rounded-xl border border-border bg-card p-5">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Settings className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">Workspace settings</h3>
+                  </div>
+
+                  <div className="mb-5 flex items-center gap-4">
+                    <div className="relative shrink-0">
+                      {selectedWorkspace.logo_url ? (
+                        <img src={selectedWorkspace.logo_url} alt="" className="h-16 w-16 rounded-xl object-cover" />
+                      ) : (
+                        <span className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Building2 className="h-8 w-8" />
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        disabled={busy === "logo"}
+                        onClick={() => logoInputRef.current?.click()}
+                        className="absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background shadow-sm hover:bg-accent disabled:opacity-50"
+                        title="Upload logo"
+                      >
+                        <Upload className="h-3 w-3" />
+                      </button>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void uploadLogo(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPEG, WebP or GIF · max 2 MB
+                    </p>
+                  </div>
+
+                  <form onSubmit={updateSettings} className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Description</label>
+                      <textarea
+                        value={settingsDescription}
+                        onChange={(e) => setSettingsDescription(e.target.value)}
+                        maxLength={300}
+                        rows={2}
+                        placeholder="Short description of this workspace…"
+                        className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Default program visibility</label>
+                        <select
+                          value={settingsDefaultVisibility}
+                          onChange={(e) => setSettingsDefaultVisibility(e.target.value as "workspace" | "restricted")}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                        >
+                          <option value="workspace">Workspace (all members)</option>
+                          <option value="restricted">Restricted (explicit roles only)</option>
+                        </select>
+                        <p className="mt-1 text-xs text-muted-foreground">Applied to new programs by default.</p>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Program creation</label>
+                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={settingsMembersCanCreate}
+                            onChange={(e) => setSettingsMembersCanCreate(e.target.checked)}
+                            className="h-4 w-4 rounded border-border"
+                          />
+                          <span className="text-sm">Members can create programs</span>
+                        </label>
+                        <p className="mt-1 text-xs text-muted-foreground">When off, only owners and admins can create programs.</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={busy === "settings"}
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                    >
+                      {busy === "settings" ? "Saving..." : "Save settings"}
+                    </button>
+                  </form>
+                </section>
+              )}
 
               {canManage && (
                 <section className="rounded-xl border border-border bg-card p-5">

@@ -49,6 +49,18 @@ export async function POST(request: Request) {
     return apiError("Viewers cannot create programs.", 403);
   }
 
+  if (ws.role === "member" || ws.role === "viewer") {
+    const svc = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
+    const { data: wsRow } = await svc
+      .from("workspaces")
+      .select("members_can_create_programs")
+      .eq("id", ws.workspaceId)
+      .single();
+    if ((wsRow as { members_can_create_programs: boolean } | null)?.members_can_create_programs === false) {
+      return apiError("Only workspace owners and admins can create programs in this workspace.", 403);
+    }
+  }
+
   const limitCheck = await checkProgramLimit(user.id, ws.workspaceId);
   if (!limitCheck.allowed) {
     return NextResponse.json(
