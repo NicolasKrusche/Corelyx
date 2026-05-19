@@ -13,6 +13,7 @@ type ProfileRow = {
   is_admin: boolean;
   is_expert: boolean;
   is_beta_tester: boolean;
+  team_role: string | null;
   created_at: string;
 };
 
@@ -49,6 +50,7 @@ export type PublicProfileResponse = {
   avatar_url: string | null;
   bio: string | null;
   badges: PublicProfileBadge[];
+  team_role: string | null;
   member_since: string;
   skill_xp: number;
   programs: PublicProfileProgram[];
@@ -76,7 +78,7 @@ export async function GET(
     };
   })
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, is_admin, is_expert, is_beta_tester, created_at")
+    .select("id, username, display_name, avatar_url, bio, is_admin, is_expert, is_beta_tester, team_role, created_at")
     .ilike("username", username)
     .single();
 
@@ -145,6 +147,7 @@ export async function GET(
     avatar_url: profile.avatar_url,
     bio: profile.bio,
     badges,
+    team_role: profile.team_role,
     member_since: profile.created_at,
     skill_xp: skillXp,
     programs,

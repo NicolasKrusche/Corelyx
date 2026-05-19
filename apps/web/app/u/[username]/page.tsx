@@ -38,6 +38,13 @@ const BADGE_META = {
   beta_tester:  { label: "Beta Tester",   color: "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20" },
 } as const;
 
+const TEAM_ROLE_META: Record<string, { label: string; color: string }> = {
+  founder:   { label: "Founder",   color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
+  dev:       { label: "Developer", color: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20" },
+  support:   { label: "Support",   color: "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20" },
+  marketing: { label: "Marketing", color: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20" },
+};
+
 type BadgeKey = keyof typeof BADGE_META;
 const EARLY_ADOPTER_CUTOFF = "2026-01-01T00:00:00Z";
 
@@ -52,6 +59,7 @@ type ProfileRow = {
   is_admin: boolean;
   is_expert: boolean;
   is_beta_tester: boolean;
+  team_role: string | null;
   created_at: string;
 };
 
@@ -109,7 +117,7 @@ export default async function UserProfilePage({
     };
   })
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, is_admin, is_expert, is_beta_tester, created_at")
+    .select("id, username, display_name, avatar_url, bio, is_admin, is_expert, is_beta_tester, team_role, created_at")
     .ilike("username", username)
     .single();
 
@@ -205,7 +213,7 @@ export default async function UserProfilePage({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-xl font-bold text-foreground">{displayName}</h1>
-              {badges.length > 0 && (
+              {(badges.length > 0 || profile.team_role) && (
                 <div className="flex flex-wrap gap-1.5">
                   {badges.map((b) => (
                     <span
@@ -215,6 +223,13 @@ export default async function UserProfilePage({
                       {BADGE_META[b].label}
                     </span>
                   ))}
+                  {profile.team_role && TEAM_ROLE_META[profile.team_role] && (
+                    <span
+                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${TEAM_ROLE_META[profile.team_role].color}`}
+                    >
+                      {TEAM_ROLE_META[profile.team_role].label}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
