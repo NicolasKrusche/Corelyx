@@ -58,6 +58,15 @@ for _audience in _REQUIRED_SECRETS:
     except RuntimeError as _exc:
         print(f"[runtime] WARNING: {_exc} — set this variable in both Railway and Vercel to the same value")
 
+_nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "").strip()
+if not _nextjs_url or "localhost" in _nextjs_url:
+    print(
+        f"[runtime] WARNING: NEXTJS_INTERNAL_URL={_nextjs_url!r} — "
+        "set this to your Vercel deployment URL in Railway or OAuth token fetches will fail"
+    )
+else:
+    print(f"[runtime] NEXTJS_INTERNAL_URL={_nextjs_url}")
+
 scheduler = AsyncIOScheduler()
 
 
