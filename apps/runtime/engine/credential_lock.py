@@ -68,8 +68,7 @@ class CredentialLock:
                             "expires_at": (
                                 time.time() + self.lock_timeout
                             ),
-                        },
-                        options={"ignoreDuplicates": False},
+                        }
                     )
                     .execute()
                 )
