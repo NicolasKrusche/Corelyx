@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     return apiError("Viewers cannot create programs.", 403);
   }
 
-  if (ws.role === "member" || ws.role === "viewer") {
+  if (ws.role === "member") {
     const svc = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
     const { data: wsRow } = await svc
       .from("workspaces")
