@@ -67,7 +67,7 @@ export async function GET(
   const { data: profiles } = userIds.length > 0
     ? await service
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, username")
         .in("id", userIds)
     : { data: [] };
 
@@ -76,7 +76,7 @@ export async function GET(
     : { data: { users: [] } };
 
   const profileById = new Map(
-    ((profiles ?? []) as Array<{ id: string; display_name: string | null; avatar_url: string | null }>)
+    ((profiles ?? []) as Array<{ id: string; display_name: string | null; avatar_url: string | null; username: string | null }>)
       .map((profile) => [profile.id, profile])
   );
   const emailById = new Map(
@@ -95,6 +95,7 @@ export async function GET(
       program_role: programRoleByUser.get(member.user_id) ?? null,
       display_name: profileById.get(member.user_id)?.display_name ?? null,
       avatar_url: profileById.get(member.user_id)?.avatar_url ?? null,
+      username: profileById.get(member.user_id)?.username ?? null,
       email: emailById.get(member.user_id) ?? null,
     })),
   });
