@@ -99,10 +99,14 @@ export type EffectiveProgramAccess = {
  * handlers using the service-role client (which bypasses RLS) still enforce
  * access correctly.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getProgramAccess(
   programId: string,
   userId: string
 ): Promise<EffectiveProgramAccess | null> {
+  if (!UUID_RE.test(programId)) return null;
+
   const service = createServiceClient() as LooseClient;
 
   const { data: program } = await service
