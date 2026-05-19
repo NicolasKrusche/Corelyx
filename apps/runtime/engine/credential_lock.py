@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from db import get_db
@@ -66,8 +67,8 @@ class CredentialLock:
                             "lock_key": self.lock_key,
                             "lock_id": self._lock_id,
                             "expires_at": (
-                                time.time() + self.lock_timeout
-                            ),
+                                datetime.now(timezone.utc) + timedelta(seconds=self.lock_timeout)
+                            ).isoformat(),
                         }
                     )
                     .execute()
@@ -132,7 +133,7 @@ class CredentialLock:
                 db.table("credential_locks")
                 .delete()
                 .eq("lock_key", self.lock_key)
-                .lt("expires_at", time.time())
+                .lt("expires_at", datetime.now(timezone.utc).isoformat())
                 .execute()
             )
             
