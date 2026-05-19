@@ -16,6 +16,8 @@ const PUBLIC_ROUTES = [
   "/api/connections/oauth/github/callback",
   "/api/connections/oauth/airtable/callback",
   "/api/browse",
+  "/api/u/",
+  "/u/",
   "/api/health",
   "/privacy",
   "/terms",

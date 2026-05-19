@@ -285,7 +285,7 @@ export default async function UserProfilePage({
               {programs.map((p) => (
                 <a
                   key={p.id}
-                  href="/browse"
+                  href={`/browse?program=${p.id}`}
                   className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-border/60 hover:bg-card/80"
                 >
                   <p className="font-semibold text-sm text-foreground line-clamp-1">{p.name}</p>
