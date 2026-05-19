@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 
 export const metadata: Metadata = {
-  title: "DPIA Template - Corelyx",
-  description: "Customer-facing DPIA template for Corelyx workflows that process personal data.",
+  title: "DPIA Template",
+  description:
+    "Customer-facing Data Protection Impact Assessment (DPIA) template for Corelyx workflows that process personal data under GDPR Article 35.",
+  alternates: { canonical: "https://corelyx.app/dpia-template" },
+  openGraph: { url: "https://corelyx.app/dpia-template" },
 };
 
 const triggers = [

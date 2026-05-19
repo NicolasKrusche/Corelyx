@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
+
+// Entire authenticated app shell must be excluded from search index.
+// All pages inside this group require login and contain user-specific data.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 import { Sidebar } from "@/components/sidebar";
 import { CommandPalette } from "@/components/command-palette";
 import { isAdminEmail } from "@/lib/admin";

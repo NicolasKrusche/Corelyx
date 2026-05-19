@@ -3,8 +3,11 @@ import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 
 export const metadata: Metadata = {
-  title: "Data Export Schema - Corelyx",
-  description: "Machine-readable account data export schema for Corelyx GDPR portability exports.",
+  title: "Data Export Schema",
+  description:
+    "Machine-readable account data export schema for Corelyx GDPR portability exports. Covers programs, runs, connections, and profile data.",
+  alternates: { canonical: "https://corelyx.app/data-export-schema" },
+  openGraph: { url: "https://corelyx.app/data-export-schema" },
 };
 
 const sections = [

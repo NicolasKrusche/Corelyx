@@ -10,9 +10,11 @@ import {
 } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Subprocessors - Corelyx",
+  title: "Subprocessors",
   description:
     "Public subprocessor registry for Corelyx infrastructure, connected services, and optional AI model providers.",
+  alternates: { canonical: "https://corelyx.app/subprocessors" },
+  openGraph: { url: "https://corelyx.app/subprocessors" },
 };
 
 function RegistrySection({

@@ -7,9 +7,10 @@ import {
 } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Impressum - Corelyx",
-  description:
-    "Provider identification and contact information for the Corelyx website.",
+  title: "Impressum",
+  description: "Provider identification and contact information for the Corelyx website.",
+  alternates: { canonical: "https://corelyx.app/impressum" },
+  openGraph: { url: "https://corelyx.app/impressum" },
 };
 
 export default async function ImpressumPage() {

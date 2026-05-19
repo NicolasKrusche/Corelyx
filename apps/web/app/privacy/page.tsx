@@ -17,9 +17,11 @@ import {
 } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - Corelyx",
+  title: "Privacy Policy",
   description:
     "How Corelyx processes personal data, including its processor inventory, legal bases, and data transfer notes.",
+  alternates: { canonical: "https://corelyx.app/privacy" },
+  openGraph: { url: "https://corelyx.app/privacy" },
 };
 
 const sections = [

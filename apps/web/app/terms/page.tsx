@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 
 export const metadata: Metadata = {
-  title: "Terms of Service - Corelyx",
+  title: "Terms of Service",
   description: "The terms that govern your use of the Corelyx platform.",
+  alternates: { canonical: "https://corelyx.app/terms" },
+  openGraph: { url: "https://corelyx.app/terms" },
 };
 
 const LAST_UPDATED = "April 24, 2026";
