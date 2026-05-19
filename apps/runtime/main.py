@@ -102,7 +102,7 @@ async def trigger_workflow(workflow_id: str) -> None:
     error_message: str | None = None
     executor: ProgramExecutor | None = None
     try:
-        executor = ProgramExecutor(schema, run_id, user_id)
+        executor = ProgramExecutor(schema, run_id, workflow_id, user_id)
         await executor.execute(None)
         final_status = "completed"
     except ExecutionError as e:
@@ -259,6 +259,7 @@ async def execute_program(
         _run_program,
         schema,
         body.run_id,
+        program_id_db,
         user_id_db,
         body.trigger_payload,
         body.connections,
@@ -297,6 +298,7 @@ async def _notify_complete(run_id: str, program_id: str, user_id: str, status: s
 async def _run_program(
     schema: ProgramSchema,
     run_id: str,
+    program_id: str,
     user_id: str,
     trigger_payload: Optional[dict[str, Any]],
     connection_name_to_id: dict[str, str] | None = None,
@@ -304,7 +306,7 @@ async def _run_program(
     db = get_db()
     final_status = "failed"
     error_message: str | None = None
-    executor = ProgramExecutor(schema, run_id, user_id, connection_name_to_id=connection_name_to_id)
+    executor = ProgramExecutor(schema, run_id, program_id, user_id, connection_name_to_id=connection_name_to_id)
     try:
         await asyncio.wait_for(executor.execute(trigger_payload), timeout=RUN_TIMEOUT_SECONDS)
         final_status = "completed"
@@ -325,7 +327,7 @@ async def _run_program(
         )
         await release_run_locks(db, run_id)
         # Notify Next.js — fires inter-program triggers for completed runs
-        await _notify_complete(run_id, schema.program_id, user_id, final_status)
+        await _notify_complete(run_id, program_id, user_id, final_status)
 
 
 @app.get("/health")

@@ -120,6 +120,12 @@ export async function POST(
 
   const newProg = newProgRaw as unknown as { id: string; name: string };
 
+  // Always stamp the real DB UUID into schema.program_id — the source schema
+  // (premade or otherwise) may carry a different value which would break
+  // runtime DB queries that use program_id as a UUID.
+  const finalSchema = { ...(forkedSchema as unknown as Record<string, unknown>), program_id: newProg.id };
+  await db.from("programs").update({ schema: finalSchema } as unknown as never).eq("id", newProg.id);
+
   await db.from("program_memberships").insert({
     program_id: newProg.id,
     user_id: user.id,
@@ -138,7 +144,7 @@ export async function POST(
   await db.from("program_versions").insert({
     program_id: newProg.id,
     version: 0,
-    schema: forkedSchema as unknown as Record<string, unknown>,
+    schema: finalSchema,
     change_summary: `Created from browse program "${source.name}" (${source.id})`,
   } as unknown as never);
 

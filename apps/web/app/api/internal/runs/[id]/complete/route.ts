@@ -46,19 +46,27 @@ export async function POST(
   } catch {
     return apiError("Invalid JSON body", 400);
   }
-  const { program_id, user_id, status = "completed", error_message, triggered_by } = body as {
-    program_id: string;
+  const { user_id, status = "completed", error_message, triggered_by } = body as {
     user_id: string;
     status?: string;
     error_message?: string;
     triggered_by?: string;
   };
 
-  if (!program_id || !user_id) {
-    return apiError("Missing program_id or user_id", 400);
+  if (!user_id) {
+    return apiError("Missing user_id", 400);
   }
 
   const db = createServiceClient();
+
+  // Look up the program_id from the run record — do not trust the body value,
+  // which may be a non-UUID premade ID when schema.program_id was not patched.
+  const { data: runRow } = await db
+    .from("runs")
+    .select("program_id")
+    .eq("id", params.id)
+    .single();
+  const program_id: string = (runRow as { program_id: string } | null)?.program_id ?? "";
 
   // ── 1. Release resource locks ──────────────────────────────────────────────
   await db
