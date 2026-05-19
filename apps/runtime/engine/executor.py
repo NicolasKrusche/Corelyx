@@ -1713,16 +1713,20 @@ class ProgramExecutor:
         attempt_errors: list[str] = []
         async with httpx.AsyncClient(timeout=15) as client:
             for idx, endpoint_url in enumerate(endpoint_urls):
-                resp = await client.get(
-                    endpoint_url,
-                    headers=build_internal_service_headers(
-                        "next:connections:token",
-                        subject=self.user_id,
-                        method="GET",
-                        path=endpoint_path,
-                    ),
-                    params=params if params else None,
-                )
+                try:
+                    resp = await client.get(
+                        endpoint_url,
+                        headers=build_internal_service_headers(
+                            "next:connections:token",
+                            subject=self.user_id,
+                            method="GET",
+                            path=endpoint_path,
+                        ),
+                        params=params if params else None,
+                    )
+                except (httpx.ConnectError, httpx.TimeoutException) as e:
+                    attempt_errors.append(f"{endpoint_url} -> {type(e).__name__}: {e}")
+                    break
                 if resp.is_success:
                     try:
                         data = resp.json()
