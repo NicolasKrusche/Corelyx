@@ -20,6 +20,13 @@ const UpdateWorkspaceSchema = z.discriminatedUnion("action", [
     workspace_id: z.string().uuid(),
     name: z.string().trim().min(1).max(120),
   }),
+  z.object({
+    action: z.literal("update_settings"),
+    workspace_id: z.string().uuid(),
+    description: z.string().max(300).nullable().optional(),
+    default_program_visibility: z.enum(["workspace", "restricted"]).optional(),
+    members_can_create_programs: z.boolean().optional(),
+  }),
 ]);
 
 type LooseServiceClient = ReturnType<typeof createServiceClient> & {
@@ -29,6 +36,10 @@ type LooseServiceClient = ReturnType<typeof createServiceClient> & {
 type WorkspaceRow = {
   id: string;
   name: string;
+  logo_url: string | null;
+  description: string | null;
+  default_program_visibility: "workspace" | "restricted";
+  members_can_create_programs: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -156,7 +167,7 @@ export async function GET() {
     const [workspacesRes, countsRes] = await Promise.all([
       service
         .from("workspaces")
-        .select("id, name, created_by, created_at, updated_at")
+        .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
         .in("id", workspaceIds)
         .order("created_at", { ascending: true }),
       service
@@ -210,7 +221,7 @@ export async function POST(request: Request) {
       name: parsed.data.name,
       created_by: user.id,
     } as never)
-    .select("id, name, created_by, created_at, updated_at")
+    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
     .single();
 
   if (error || !workspace) return apiError(error?.message ?? "Workspace could not be created.", 500);
@@ -274,11 +285,28 @@ export async function PATCH(request: Request) {
     return apiError("Only workspace owners and admins can rename a workspace.", 403);
   }
 
+  if (parsed.data.action === "update_settings") {
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (parsed.data.description !== undefined) patch.description = parsed.data.description;
+    if (parsed.data.default_program_visibility !== undefined) patch.default_program_visibility = parsed.data.default_program_visibility;
+    if (parsed.data.members_can_create_programs !== undefined) patch.members_can_create_programs = parsed.data.members_can_create_programs;
+
+    const { data, error } = await service
+      .from("workspaces")
+      .update(patch as never)
+      .eq("id", parsed.data.workspace_id)
+      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
+      .single();
+
+    if (error || !data) return apiError(error?.message ?? "Settings could not be updated.", 500);
+    return NextResponse.json({ workspace: data as WorkspaceRow });
+  }
+
   const { data, error } = await service
     .from("workspaces")
     .update({ name: parsed.data.name, updated_at: new Date().toISOString() } as never)
     .eq("id", parsed.data.workspace_id)
-    .select("id, name, created_by, created_at, updated_at")
+    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
     .single();
 
   if (error || !data) return apiError(error?.message ?? "Workspace could not be updated.", 500);
