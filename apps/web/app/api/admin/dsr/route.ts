@@ -38,15 +38,29 @@ type AdminDsrRow = {
   updated_at: string;
 };
 
-async function requireAdmin() {
+async function requireFounder() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) return null;
-  return user;
+  if (!user) return null;
+
+  // Email-based admins (env) are always founders
+  if (isAdminEmail(user.email)) return user;
+
+  // DB admins need team_role = 'founder'
+  const service = createServiceClient();
+  const { data: profile } = await service
+    .from("profiles")
+    .select("is_admin, team_role")
+    .eq("id", user.id)
+    .single();
+  const p = profile as { is_admin: boolean; team_role: string | null } | null;
+  if (p?.is_admin && p.team_role === "founder") return user;
+
+  return null;
 }
 
 export async function GET(request: Request) {
-  const admin = await requireAdmin();
+  const admin = await requireFounder();
   if (!admin) return apiError("Forbidden", 403);
 
   const { searchParams } = new URL(request.url);
@@ -73,7 +87,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const admin = await requireAdmin();
+  const admin = await requireFounder();
   if (!admin) return apiError("Forbidden", 403);
 
   const body = await request.json().catch(() => null);

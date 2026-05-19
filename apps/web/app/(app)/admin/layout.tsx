@@ -32,6 +32,7 @@ async function getUser() {
 
 type AdminProfileRow = {
   is_admin: boolean | null;
+  team_role: string | null;
 };
 
 type AdminNavItem = {
@@ -56,7 +57,7 @@ export default async function AdminLayout({
   const service = createServiceClient();
 
   const [profileRes, openTicketsRes] = await Promise.all([
-    supabase.from("profiles").select("is_admin").eq("id", user.id).single(),
+    supabase.from("profiles").select("is_admin, team_role").eq("id", user.id).single(),
     service.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
   ]);
 
@@ -67,6 +68,7 @@ export default async function AdminLayout({
     redirect("/dashboard?error=admin_required");
   }
 
+  const isFounder = isAdminEmail(user.email ?? undefined) || adminProfile?.team_role === "founder";
   const openTicketCount = openTicketsRes.count ?? 0;
 
   const navItems: AdminNavItem[] = [
@@ -79,7 +81,7 @@ export default async function AdminLayout({
     { href: "/admin/locks", label: "Credential Locks", icon: Lock },
     { href: "/admin/flags", label: "Feature Flags", icon: Settings },
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
-    { href: "/admin/dsr", label: "DSR Queue", icon: FileText },
+    ...(isFounder ? [{ href: "/admin/dsr", label: "DSR Queue", icon: FileText }] : []),
     { href: "/admin/team", label: "Team", icon: Users },
   ];
 
