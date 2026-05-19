@@ -129,7 +129,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
       <div className="rounded-2xl border border-border bg-card p-10 text-center">
         <p className="text-sm font-medium">No data requests yet</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          You haven't submitted any GDPR data requests. You can do so from your{" "}
+          You haven&apos;t submitted any GDPR data requests. You can do so from your{" "}
           <a href="/settings/privacy" className="text-primary hover:underline">privacy settings</a>.
         </p>
       </div>
@@ -240,7 +240,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
                       </span>
                       <div className="flex items-center gap-2">
                         {successId === req.id && (
-                          <span className="text-xs text-green-600 font-medium">Sent — we'll review shortly.</span>
+                          <span className="text-xs text-green-600 font-medium">Sent — we&apos;ll review shortly.</span>
                         )}
                         <button
                           type="button"
