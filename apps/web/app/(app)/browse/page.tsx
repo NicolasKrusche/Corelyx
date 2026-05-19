@@ -18,7 +18,7 @@ export default async function BrowsePage() {
   let query = db
     .from("programs")
     .select(
-      "id, name, description, tags, fork_count, published_at, public_author_name, schema, schema_version",
+      "id, name, description, tags, fork_count, published_at, public_author_name, author_username, schema, schema_version",
       { count: "exact" }
     )
     .eq("is_public", true)
@@ -42,6 +42,7 @@ export default async function BrowsePage() {
     public_author_name: string | null;
     schema: unknown;
     schema_version: number;
+    author_username: string | null;
   }>).map((p) => ({
     id: p.id,
     name: p.name,
@@ -50,6 +51,7 @@ export default async function BrowsePage() {
     fork_count: getBrowseUseCount(p),
     published_at: p.published_at,
     public_author_name: p.public_author_name,
+    author_username: p.author_username,
     schema_version: p.schema_version,
     node_summary: deriveNodeSummary(p.schema),
   }));
