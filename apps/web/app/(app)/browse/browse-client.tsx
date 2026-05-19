@@ -27,6 +27,7 @@ type PublicProgram = {
   fork_count: number;
   published_at: string | null;
   public_author_name: string | null;
+  author_username: string | null;
   schema_version: number;
   node_summary: NodeSummary;
 };
@@ -507,7 +508,16 @@ function ProgramCard({
       <div className="mt-auto pt-2 flex items-center justify-between gap-2 border-t border-border">
         <div className="text-[10px] text-muted-foreground space-y-0.5">
           {program.public_author_name && (
-            <p>by {program.public_author_name}</p>
+            program.author_username ? (
+              <p>
+                by{" "}
+                <Link href={`/u/${program.author_username}`} className="hover:underline">
+                  {program.public_author_name}
+                </Link>
+              </p>
+            ) : (
+              <p>by {program.public_author_name}</p>
+            )
           )}
           <p className="flex items-center gap-1">
             <UseIcon className="w-3 h-3" />

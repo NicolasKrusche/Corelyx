@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   let query = db
     .from("programs")
     .select(
-      "id, name, description, tags, fork_count, published_at, public_author_name, schema, schema_version",
+      "id, name, description, tags, fork_count, published_at, public_author_name, user_id, schema, schema_version",
       { count: "exact" }
     )
     .eq("is_public", true)
@@ -73,11 +73,31 @@ export async function GET(request: Request) {
     fork_count: number;
     published_at: string | null;
     public_author_name: string | null;
+    user_id: string | null;
     schema: unknown;
     schema_version: number;
   };
 
-  const publishedPrograms = ((data ?? []) as unknown as ProgramRow[]).map((p) => ({
+  const rows = (data ?? []) as unknown as ProgramRow[];
+
+  // Batch-fetch usernames for authors that have a user_id
+  const authorIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))] as string[];
+  let usernameMap: Map<string, string | null> = new Map();
+  if (authorIds.length > 0) {
+    const { data: profileRows } = await (db as unknown as {
+      from(t: string): {
+        select(c: string): {
+          in(col: string, vals: string[]): Promise<{ data: { id: string; username: string | null }[] | null }>;
+        };
+      };
+    })
+      .from("profiles")
+      .select("id, username")
+      .in("id", authorIds);
+    for (const p of (profileRows ?? [])) usernameMap.set(p.id, p.username ?? null);
+  }
+
+  const publishedPrograms = rows.map((p) => ({
     id: p.id,
     name: p.name,
     description: p.description,
@@ -85,6 +105,7 @@ export async function GET(request: Request) {
     fork_count: getBrowseUseCount(p),
     published_at: p.published_at,
     public_author_name: p.public_author_name,
+    author_username: p.user_id ? (usernameMap.get(p.user_id) ?? null) : null,
     schema_version: p.schema_version,
     // Derive node summary from schema without returning the full schema
     node_summary: deriveNodeSummary(p.schema),

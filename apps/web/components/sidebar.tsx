@@ -273,6 +273,8 @@ export function Sidebar({
   initialDisplayName = "",
   initialAvatarUrl = "",
   isOAuthUser = false,
+  initialUsername = "",
+  skillXp = 0,
 }: {
   isAdmin?: boolean;
   email?: string;
@@ -284,6 +286,8 @@ export function Sidebar({
   initialDisplayName?: string;
   initialAvatarUrl?: string;
   isOAuthUser?: boolean;
+  initialUsername?: string;
+  skillXp?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -953,6 +957,8 @@ export function Sidebar({
           displayName={displayName}
           initialDisplayName={initialDisplayName}
           initialAvatarUrl={initialAvatarUrl}
+          initialUsername={initialUsername}
+          skillXp={skillXp}
           tier={tier}
           tierLabel={tierLabel}
           isAdmin={isAdmin}
@@ -1006,6 +1012,8 @@ function SettingsModal({
   displayName,
   initialDisplayName,
   initialAvatarUrl,
+  initialUsername,
+  skillXp,
   tier,
   tierLabel,
   isAdmin,
@@ -1028,6 +1036,8 @@ function SettingsModal({
   displayName: string;
   initialDisplayName: string;
   initialAvatarUrl: string;
+  initialUsername: string;
+  skillXp: number;
   tier: Tier;
   tierLabel: string;
   isAdmin: boolean;
@@ -1049,10 +1059,25 @@ function SettingsModal({
   const [tab, setTab] = useState<AccountSettingsSection>(initialTab ?? "account");
 
   const [formDisplayName, setFormDisplayName] = useState(initialDisplayName);
+  const [formUsername, setFormUsername] = useState(initialUsername);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [avatarFileName, setAvatarFileName] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileStatus, setProfileStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // XP level for workspace status panel
+  const XP_LEVELS = [
+    { min: 0,    title: "Newcomer"  },
+    { min: 50,   title: "Explorer"  },
+    { min: 200,  title: "Builder"   },
+    { min: 500,  title: "Automator" },
+    { min: 1000, title: "Pro"       },
+    { min: 2500, title: "Expert"    },
+    { min: 5000, title: "Master"    },
+  ] as const;
+  const currentLevel = XP_LEVELS.reduce((acc, l) => (skillXp >= l.min ? l : acc), XP_LEVELS[0]);
+  const nextLevel = XP_LEVELS[XP_LEVELS.indexOf(currentLevel as typeof XP_LEVELS[number]) + 1] ?? null;
+  const xpProgress = nextLevel ? Math.min(1, (skillXp - currentLevel.min) / (nextLevel.min - currentLevel.min)) : 1;
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -1153,9 +1178,16 @@ function SettingsModal({
       return;
     }
 
+    const usernameVal = formUsername.trim().toLowerCase() || null;
+    if (usernameVal && !/^[a-zA-Z0-9_]{3,30}$/.test(usernameVal)) {
+      setProfileStatus({ type: "error", message: "Username must be 3–30 characters and contain only letters, numbers, or underscores." });
+      setProfileSaving(false);
+      return;
+    }
+
     const profiles = supabase.from("profiles") as unknown as {
       upsert: (
-        value: { id: string; display_name: string | null; avatar_url: string | null },
+        value: { id: string; display_name: string | null; avatar_url: string | null; username: string | null },
         options: { onConflict: string }
       ) => PromiseLike<{ error: { message: string } | null }>;
     };
@@ -1165,6 +1197,7 @@ function SettingsModal({
         id: user.id,
         display_name: formDisplayName.trim() || null,
         avatar_url: avatarUrl.trim() || null,
+        username: usernameVal,
       },
       { onConflict: "id" }
     );
@@ -1462,9 +1495,20 @@ function SettingsModal({
                       {isBetaTester && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Beta</span>}
                     </div>
                     <div className="mt-5 border-t border-border pt-4">
-                      <p className="text-sm font-medium text-foreground">Skill level</p>
-                      <p className="mt-1 text-sm text-foreground">AI Agent Builder</p>
-                      <p className="text-xs text-muted-foreground">Skill level 0</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground">Skill level</p>
+                        <p className="text-xs text-muted-foreground">{skillXp} XP</p>
+                      </div>
+                      <p className="mt-0.5 text-sm text-foreground">{currentLevel.title}</p>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${Math.round(xpProgress * 100)}%` }}
+                        />
+                      </div>
+                      {nextLevel && (
+                        <p className="mt-1 text-[10px] text-muted-foreground">{nextLevel.min - skillXp} XP to {nextLevel.title}</p>
+                      )}
                     </div>
                   </section>
                 </div>
@@ -1502,6 +1546,26 @@ function SettingsModal({
                         className={fieldClass}
                         placeholder="Your name"
                       />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Username</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">@</span>
+                        <input
+                          type="text"
+                          value={formUsername}
+                          onChange={(e) => setFormUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 30))}
+                          maxLength={30}
+                          className={`${fieldClass} pl-7`}
+                          placeholder="yourname"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Your public profile will be at corelyx.app/u/
+                        {formUsername.trim() || "yourname"}
+                      </p>
                     </div>
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Profile photo</label>

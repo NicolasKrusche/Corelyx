@@ -23,6 +23,7 @@ type AppLayoutProfile = {
   avatar_url: string | null;
   created_at: string;
   is_admin: boolean;
+  username: string | null;
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -53,10 +54,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profileRaw } = await supabase
     .from("profiles")
-    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin")
+    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username")
     .eq("id", appUser.id)
     .single();
   const profile = profileRaw as AppLayoutProfile | null;
+
+  // Fetch XP stats for skill level calculation (parallel, best-effort)
+  const [{ count: runCount }, { count: programCount }, { count: connectionCount }] = await Promise.all([
+    supabase.from("runs").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
+    supabase.from("programs").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
+    supabase.from("connections").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
+  ]);
+  const skillXp =
+    (runCount ?? 0) * 5 +
+    (programCount ?? 0) * 50 +
+    (connectionCount ?? 0) * 25;
 
   const isOAuthUser = !appUser.identities?.some((i) => i.provider === "email");
   
@@ -78,6 +90,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         initialDisplayName={profile?.display_name ?? ""}
         initialAvatarUrl={profile?.avatar_url ?? ""}
         isOAuthUser={isOAuthUser}
+        initialUsername={profile?.username ?? ""}
+        skillXp={skillXp}
       />
       <main className="relative ml-0 min-h-screen px-6 py-14 lg:ml-56 lg:mr-56 lg:px-0 lg:py-8">
         <div className="app-bg-gradient pointer-events-none fixed inset-0 -z-10 bg-background" />
