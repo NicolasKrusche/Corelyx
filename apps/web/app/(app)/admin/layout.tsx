@@ -15,6 +15,7 @@ import {
   Lock,
   ArrowLeft,
   FileText,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,7 @@ export default async function AdminLayout({
     { href: "/admin/flags", label: "Feature Flags", icon: Settings },
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
     { href: "/admin/dsr", label: "DSR Queue", icon: FileText },
+    { href: "/admin/team", label: "Team", icon: Users },
   ];
 
   return (
