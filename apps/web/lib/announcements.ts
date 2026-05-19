@@ -25,6 +25,16 @@ export type Announcement = {
 };
 
 export const ANNOUNCEMENTS: Announcement[] = [
+  {
+    id: "popular-sort-profiles-notifications",
+    type: "feature",
+    title: "Popular programs, public profiles & notifications",
+    body: "Browse programs by popularity, visit any builder's public profile at /u/username, and get in-app notifications when tickets are assigned to you.",
+    date: "2026-05-19",
+    badge: "New",
+    link: "/browse",
+    linkLabel: "Explore popular",
+  },
   // ── Uncomment to go live ──────────────────────────────────────────────────
   //
   // {
