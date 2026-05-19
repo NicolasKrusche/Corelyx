@@ -56,6 +56,7 @@ export async function PATCH(
     description: z.string().optional(),
     is_active: z.boolean().optional(),
     execution_mode: z.enum(["autonomous", "approval_required", "supervised"]).optional(),
+    folder_id: z.string().uuid().nullable().optional(),
   });
 
   const parsed = bodySchema.safeParse(body);

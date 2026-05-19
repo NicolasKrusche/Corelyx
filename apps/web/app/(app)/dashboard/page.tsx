@@ -2,10 +2,11 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, Workflow, Sparkles, Clock3, Star, MoreHorizontal, Download } from "lucide-react";
+import { Plus, Workflow, Sparkles, Clock3, MoreHorizontal, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DeleteProgramButton } from "@/components/programs/delete-program-button";
+import { ProgramList, type FolderItem, type ProgramListItem } from "@/components/programs/program-list";
+import { canManageWorkspace } from "@/lib/workspace-types";
 import { DashboardSearch } from "@/components/dashboard/dashboard-search";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { WelcomeHero } from "@/components/dashboard/welcome-hero";
@@ -24,6 +25,7 @@ type Program = {
   schema_version: number;
   last_run_at: string | null;
   updated_at: string;
+  folder_id: string | null;
 };
 
 type RecentRun = {
@@ -113,7 +115,7 @@ export default async function DashboardPage({
   const activeWorkspace = await getActiveWorkspace(user.id);
   if (!activeWorkspace) redirect("/workspaces");
 
-  const [workspaceResult, programsResult, connectionsResult, apiKeysResult, runUsage, creditBalance] = await Promise.all([
+  const [workspaceResult, programsResult, connectionsResult, apiKeysResult, foldersResult, runUsage, creditBalance] = await Promise.all([
     supabase
       .from("workspaces")
       .select("id, name")
@@ -121,7 +123,7 @@ export default async function DashboardPage({
       .single(),
     supabase
       .from("programs")
-      .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, updated_at")
+      .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, updated_at, folder_id")
       .eq("workspace_id", activeWorkspace.workspaceId)
       .order("updated_at", { ascending: false }),
     supabase
@@ -132,6 +134,11 @@ export default async function DashboardPage({
       .from("api_keys")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", activeWorkspace.workspaceId),
+    createServiceClient()
+      .from("workspace_folders")
+      .select("id, name, color")
+      .eq("workspace_id", activeWorkspace.workspaceId)
+      .order("created_at", { ascending: true }),
     getRunUsage(user.id, activeWorkspace.workspaceId).catch(() => ({ current: 0, total: null, tier: "free" as const })),
     getUserCreditBalance(user.id).catch(() => null),
   ]);
@@ -140,6 +147,8 @@ export default async function DashboardPage({
   const programs = (programsResult.data ?? []) as Program[];
   const connectionCount = connectionsResult.count ?? 0;
   const apiKeyCount = apiKeysResult.count ?? 0;
+  const folders = (foldersResult.data ?? []) as FolderItem[];
+  const canManageFolders = canManageWorkspace(activeWorkspace.role);
   const programIds = programs.map((p) => p.id);
 
   let recentRuns: RecentRun[] = [];
@@ -183,17 +192,6 @@ export default async function DashboardPage({
   );
   const pinnedPrograms = (searchQuery ? filteredPrograms : programs).slice(0, 3);
 
-  // Filter tab counts
-  const recentlyEditedCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const filterCounts = {
-    needsAttention: needsAttentionPrograms.length,
-    recentlyEdited: programs.filter((p) => p.updated_at > recentlyEditedCutoff).length,
-    recentlyRun: programs.filter((p) => p.last_run_at && p.last_run_at > recentlyEditedCutoff).length,
-    inactive: programs.filter((p) => !p.is_active).length,
-    all: programs.length,
-  };
-
-  const recentRunsPanel = recentRuns.slice(0, 10);
 
   return (
     <div className="space-y-5 text-foreground">
@@ -452,108 +450,17 @@ export default async function DashboardPage({
         </p>
 
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-4 py-2">
-            {filterCounts.needsAttention > 0 && (
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium text-red-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                Needs attention {filterCounts.needsAttention}
-              </span>
-            )}
-            <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              Recently edited {filterCounts.recentlyEdited}
-            </span>
-            <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-              Recently run {filterCounts.recentlyRun}
-            </span>
-            <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-              Inactive {filterCounts.inactive}
-            </span>
-            <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-              All {filterCounts.all}
-            </span>
-          </div>
-
           <div className="grid grid-cols-1 divide-y divide-border/40 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
-            {/* ── Workflow table ── */}
+            {/* ── Program list with folders ── */}
             <div className="lg:col-span-3">
-              {/* Column headers */}
-              {filteredPrograms.length > 0 && (
-                <div className="hidden lg:grid grid-cols-[1fr_80px_100px_90px_32px] gap-3 border-b border-border/40 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-                  <span>Program</span>
-                  <span>Runs</span>
-                  <span>Last run</span>
-                  <span>Status</span>
-                  <span />
-                </div>
-              )}
-
-              {filteredPrograms.length === 0 ? (
-                <div className="p-12 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "No workflows match your search." : "No workflows yet."}
-                  </p>
-                  <Button asChild size="sm" className="mt-4">
-                    <Link href="/programs/new">Create a workflow</Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="divide-y divide-border/40">
-                  {filteredPrograms.map((p) => {
-                    const stats = perProgramStats[p.id] ?? { total: 0, failed: 0 };
-                    const hasFailed = stats.failed > 0;
-                    const barColor = hasFailed ? "bg-red-500/60 group-hover:bg-red-500" : p.is_active ? "bg-green-500/60 group-hover:bg-green-500" : "bg-muted-foreground/20";
-
-                    return (
-                      <div key={p.id} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/30">
-                        <div className={`h-8 w-1 shrink-0 rounded-full ${barColor} transition-colors`} />
-
-                        <Link href={`/programs/${p.id}`} className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{p.name}</p>
-                          <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground/60">
-                            v{p.schema_version} · {p.execution_mode}
-                          </p>
-                        </Link>
-
-                        <div className="hidden lg:block w-20 shrink-0 text-[11px] text-muted-foreground/70 tabular-nums">
-                          {stats.total > 0 ? (
-                            <span>{stats.total - stats.failed} / {stats.total}</span>
-                          ) : (
-                            <span className="text-muted-foreground/40">—</span>
-                          )}
-                        </div>
-
-                        <div className="hidden lg:block w-24 shrink-0 text-[11px] text-muted-foreground/70">
-                          {p.last_run_at ? timeAgo(p.last_run_at) : <span className="italic text-muted-foreground/40">never</span>}
-                        </div>
-
-                        <div className="hidden lg:flex w-22 shrink-0">
-                          {hasFailed ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-red-500">
-                              {stats.failed} failed
-                            </span>
-                          ) : p.is_active ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-600">
-                              Healthy
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex shrink-0 items-center gap-1">
-                          <button className="hidden group-hover:flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors">
-                            <Star className="h-3 w-3" />
-                          </button>
-                          <DeleteProgramButton programId={p.id} programName={p.name} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <ProgramList
+                workspaceId={activeWorkspace.workspaceId}
+                initialPrograms={programs as ProgramListItem[]}
+                initialFolders={folders}
+                stats={perProgramStats}
+                canManage={canManageFolders}
+                searchQuery={normalizedQuery}
+              />
             </div>
 
             {/* ── Recent Runs ── */}
