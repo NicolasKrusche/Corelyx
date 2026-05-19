@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
 
+type Assignee = {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+};
+
 type Ticket = {
   id: string;
   user_email: string;
@@ -11,8 +17,17 @@ type Ticket = {
   type: "support" | "sales" | "priority";
   subject: string;
   status: "open" | "closed";
+  assigned_to: string | null;
+  assignee: Assignee | null;
   created_at: string;
   updated_at: string;
+};
+
+type TeamMember = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  username: string | null;
 };
 
 type Message = {
@@ -59,6 +74,8 @@ function formatRelative(iso: string) {
 
 export function AdminSupportClient() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [canAssign, setCanAssign] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("open");
@@ -66,15 +83,24 @@ export function AdminSupportClient() {
   const [reply, setReply] = useState("");
   const [replying, setReplying] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [grants, setGrants] = useState<GrantRow[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
   async function fetchTickets() {
     const res = await fetch("/api/admin/support");
     if (!res.ok) return;
-    const data = (await res.json()) as { tickets: Ticket[] };
+    const data = (await res.json()) as { tickets: Ticket[]; can_assign: boolean };
     setTickets(data.tickets);
+    setCanAssign(data.can_assign);
     setLoading(false);
+  }
+
+  async function fetchTeam() {
+    const res = await fetch("/api/admin/team");
+    if (!res.ok) return;
+    const data = (await res.json()) as { members: TeamMember[] };
+    setTeamMembers(data.members);
   }
 
   async function fetchMessages(ticketId: string) {
@@ -91,7 +117,10 @@ export function AdminSupportClient() {
     setGrants(data.grants);
   }
 
-  useEffect(() => { void fetchTickets(); }, []);
+  useEffect(() => {
+    void fetchTickets();
+    void fetchTeam();
+  }, []);
 
   useEffect(() => {
     if (!selected) return;
@@ -131,6 +160,21 @@ export function AdminSupportClient() {
     await fetchMessages(selected.id);
     await fetchTickets();
     setReplying(false);
+  }
+
+  async function handleAssign(assignedTo: string | null) {
+    if (!selected) return;
+    setAssigning(true);
+    await fetch(`/api/admin/support/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigned_to: assignedTo }),
+    });
+    const assignee = assignedTo ? (teamMembers.find((m) => m.id === assignedTo) ?? null) : null;
+    const updatedAssignee = assignee ? { id: assignee.id, display_name: assignee.display_name, username: assignee.username } : null;
+    setSelected((t) => t ? { ...t, assigned_to: assignedTo, assignee: updatedAssignee } : t);
+    setTickets((ts) => ts.map((t) => t.id === selected.id ? { ...t, assigned_to: assignedTo, assignee: updatedAssignee } : t));
+    setAssigning(false);
   }
 
   async function handleSetStatus(status: "open" | "closed") {
@@ -201,7 +245,14 @@ export function AdminSupportClient() {
                 </span>
                 <span className="text-[11px] text-muted-foreground">{ticket.user_email}</span>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">{formatRelative(ticket.updated_at)}</p>
+              <div className="mt-1 flex items-center justify-between gap-1">
+                <p className="text-[11px] text-muted-foreground">{formatRelative(ticket.updated_at)}</p>
+                {ticket.assignee && (
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                    {ticket.assignee.display_name ?? ticket.assignee.username ?? "Assigned"}
+                  </span>
+                )}
+              </div>
             </button>
           ))}
         </div>
@@ -215,24 +266,41 @@ export function AdminSupportClient() {
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
               <div className="min-w-0">
                 <p className="font-semibold truncate">{selected.subject}</p>
                 <p className="text-xs text-muted-foreground">{selected.user_email} · {TIER_LABEL[selected.user_tier] ?? selected.user_tier}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleSetStatus(selected.status === "open" ? "closed" : "open")}
-                disabled={closing}
-                className={cn(
-                  "shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40",
-                  selected.status === "open"
-                    ? "bg-secondary text-foreground hover:bg-destructive hover:text-destructive-foreground"
-                    : "bg-green-600 text-white hover:bg-green-700",
+              <div className="flex shrink-0 items-center gap-2">
+                {canAssign && (
+                  <select
+                    value={selected.assigned_to ?? ""}
+                    onChange={(e) => void handleAssign(e.target.value || null)}
+                    disabled={assigning}
+                    className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:border-primary disabled:opacity-50"
+                  >
+                    <option value="">Unassigned</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.display_name ?? m.email}
+                      </option>
+                    ))}
+                  </select>
                 )}
-              >
-                {closing ? "…" : selected.status === "open" ? "Close ticket" : "Reopen"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetStatus(selected.status === "open" ? "closed" : "open")}
+                  disabled={closing}
+                  className={cn(
+                    "rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40",
+                    selected.status === "open"
+                      ? "bg-secondary text-foreground hover:bg-destructive hover:text-destructive-foreground"
+                      : "bg-green-600 text-white hover:bg-green-700",
+                  )}
+                >
+                  {closing ? "…" : selected.status === "open" ? "Close ticket" : "Reopen"}
+                </button>
+              </div>
             </div>
 
             {grants.length > 0 && (
