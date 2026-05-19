@@ -19,6 +19,253 @@ function fmt(iso: string) {
   });
 }
 
+function fmtShort(iso: string) {
+  return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+// ─── Stacked bar chart for workflow runs ────────────────────────────────────
+
+interface RunsBarChartProps {
+  data: DayUsage[];
+  gradId: string;
+  isEmpty: boolean;
+}
+
+function RunsBarChart({ data, gradId, isEmpty }: RunsBarChartProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const W = 400;
+  const H = 90;
+  const PAD_T = 12;
+  const PAD_B = 18;
+  const PAD_L = 4;
+  const PAD_R = 4;
+  const CHART_H = H - PAD_T - PAD_B;
+  const CHART_W = W - PAD_L - PAD_R;
+
+  const maxRuns = Math.max(...data.map((d) => d.runs), 1);
+  // Gridline values: 0, half, max
+  const gridVals = [0, Math.round(maxRuns / 2), maxRuns];
+
+  const barW = CHART_W / data.length;
+  const BAR_GAP = Math.max(1, barW * 0.18);
+
+  // 7-day rolling average of total runs
+  const rollingAvg = data.map((_, i) => {
+    const window = data.slice(Math.max(0, i - 6), i + 1);
+    return window.reduce((s, d) => s + d.runs, 0) / window.length;
+  });
+
+  const avgPts = rollingAvg.map((v, i) => ({
+    x: PAD_L + (i + 0.5) * barW,
+    y: PAD_T + CHART_H - (v / maxRuns) * CHART_H,
+  }));
+
+  function buildAvgPath(pts: typeof avgPts): string {
+    if (pts.length < 2) return "";
+    let d = `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1];
+      const cur = pts[i];
+      const cpx = (prev.x + cur.x) / 2;
+      d += ` C ${cpx.toFixed(2)},${prev.y.toFixed(2)} ${cpx.toFixed(2)},${cur.y.toFixed(2)} ${cur.x.toFixed(2)},${cur.y.toFixed(2)}`;
+    }
+    return d;
+  }
+
+  const avgPath = buildAvgPath(avgPts);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!svgRef.current) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      const rel = (e.clientX - rect.left) / rect.width;
+      const idx = Math.min(data.length - 1, Math.max(0, Math.floor(rel * data.length)));
+      setHovered(idx);
+    },
+    [data.length],
+  );
+
+  // Tooltip left position as %
+  const tooltipLeft = hovered !== null ? ((hovered + 0.5) / data.length) * 100 : null;
+
+  // Date labels: first, middle, last
+  const labelIdxs = [0, Math.floor((data.length - 1) / 2), data.length - 1];
+
+  if (isEmpty) {
+    return (
+      <div className="mt-3 flex h-[90px] items-center justify-center">
+        <p className="text-center text-xs text-muted-foreground">
+          No activity yet — run a workflow to see your chart.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mt-3" onMouseLeave={() => setHovered(null)}>
+      {hovered !== null && tooltipLeft !== null && (
+        <div
+          className="pointer-events-none absolute z-20 rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-md"
+          style={{
+            top: 0,
+            left: `${Math.min(Math.max(tooltipLeft, 10), 82)}%`,
+            transform: "translateX(-50%)",
+          }}
+        >
+          <p className="font-semibold leading-snug">{fmtShort(data[hovered].date)}</p>
+          <div className="mt-1 space-y-0.5 text-[11px]">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <span className="inline-block h-2 w-2 rounded-sm bg-primary/80" />
+                Success
+              </span>
+              <span className="font-medium">{data[hovered].runs - data[hovered].failed}</span>
+            </div>
+            {data[hovered].failed > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <span className="inline-block h-2 w-2 rounded-sm bg-red-500/80" />
+                  Failed
+                </span>
+                <span className="font-medium text-red-500">{data[hovered].failed}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-0.5 mt-0.5">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-semibold">{data[hovered].runs}</span>
+            </div>
+            {data[hovered].runs > 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Success rate</span>
+                <span className={`font-medium ${data[hovered].failed / data[hovered].runs > 0.2 ? "text-red-500" : "text-green-600"}`}>
+                  {Math.round(((data[hovered].runs - data[hovered].failed) / data[hovered].runs) * 100)}%
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        className="h-[90px] w-full cursor-crosshair"
+        onMouseMove={handleMouseMove}
+      >
+        <defs>
+          <linearGradient id={`${gradId}-ok`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.55" />
+          </linearGradient>
+          <linearGradient id={`${gradId}-fail`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#ef4444" stopOpacity="0.5" />
+          </linearGradient>
+        </defs>
+
+        {/* Gridlines */}
+        {gridVals.map((v) => {
+          const y = PAD_T + CHART_H - (v / maxRuns) * CHART_H;
+          return (
+            <g key={v}>
+              <line
+                x1={PAD_L} y1={y} x2={W - PAD_R} y2={y}
+                stroke="currentColor" strokeOpacity="0.07" strokeWidth="1"
+              />
+              <text x={PAD_L} y={y - 2} fontSize="7" fill="currentColor" fillOpacity="0.35" fontFamily="monospace">
+                {v}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((d, i) => {
+          const x = PAD_L + i * barW + BAR_GAP / 2;
+          const w = barW - BAR_GAP;
+          const isHov = hovered === i;
+
+          const totalH = (d.runs / maxRuns) * CHART_H;
+          const failH = (d.failed / maxRuns) * CHART_H;
+          const okH = totalH - failH;
+
+          const totalY = PAD_T + CHART_H - totalH;
+          const failY = PAD_T + CHART_H - failH;
+
+          return (
+            <g key={d.date} opacity={hovered !== null && !isHov ? 0.45 : 1} style={{ transition: "opacity 0.1s" }}>
+              {/* Success portion */}
+              {okH > 0 && (
+                <rect
+                  x={x} y={totalY} width={w} height={okH}
+                  fill={`url(#${gradId}-ok)`}
+                  rx="1.5"
+                />
+              )}
+              {/* Failed portion stacked on top */}
+              {failH > 0 && (
+                <rect
+                  x={x} y={failY} width={w} height={failH}
+                  fill={`url(#${gradId}-fail)`}
+                  rx="1.5"
+                />
+              )}
+              {/* Hover highlight overlay */}
+              {isHov && (
+                <rect
+                  x={x} y={PAD_T} width={w} height={CHART_H}
+                  fill="currentColor" fillOpacity="0.04" rx="1.5"
+                />
+              )}
+            </g>
+          );
+        })}
+
+        {/* Rolling average trend line */}
+        {avgPath && (
+          <path
+            d={avgPath}
+            fill="none"
+            stroke="hsl(var(--primary))"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="4 2"
+            opacity="0.5"
+          />
+        )}
+
+        {/* X-axis date labels */}
+        {labelIdxs.map((i) => {
+          const x = PAD_L + (i + 0.5) * barW;
+          const anchor = i === 0 ? "start" : i === data.length - 1 ? "end" : "middle";
+          return (
+            <text
+              key={i}
+              x={i === 0 ? PAD_L : i === data.length - 1 ? W - PAD_R : x}
+              y={H - 3}
+              fontSize="7.5"
+              textAnchor={anchor}
+              fill="currentColor"
+              fillOpacity="0.4"
+              fontFamily="sans-serif"
+            >
+              {fmtShort(data[i].date)}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 // ─── SVG Sparkline ─────────────────────────────────────────────────────────
 
 interface SparklineProps {
@@ -163,9 +410,15 @@ export function UsageCharts({ history }: { history: DayUsage[] }) {
 
   const totalRuns = runs.reduce((a, b) => a + b, 0);
   const totalFailed = failed.reduce((a, b) => a + b, 0);
+  const totalSuccessful = totalRuns - totalFailed;
   const totalCost = costs.reduce((a, b) => a + b, 0);
-  const totalCancelled = 0;
   const isEmpty = totalRuns === 0;
+  const successRate = totalRuns > 0 ? Math.round((totalSuccessful / totalRuns) * 100) : null;
+
+  // Peak day
+  const peakIdx = sliced.reduce((best, d, i) => (d.runs > (sliced[best]?.runs ?? 0) ? i : best), 0);
+  const peakDay = sliced[peakIdx];
+  const avgPerDay = totalRuns > 0 ? (totalRuns / sliced.filter((d) => d.runs > 0).length).toFixed(1) : null;
 
   // "vs prior period" comparison
   const priorSlice = period === "7d" ? history.slice(-14, -7) : history.slice(0, 15);
@@ -201,33 +454,55 @@ export function UsageCharts({ history }: { history: DayUsage[] }) {
           <PeriodSelector value={period} onChange={setPeriod} />
         </div>
 
-        <Sparkline
-          data={runs}
-          dates={dates}
-          color="hsl(var(--primary))"
-          gradId={`${uid}-runs`}
-          formatValue={(v) => `${v} run${v !== 1 ? "s" : ""}`}
-          isEmpty={isEmpty}
-        />
+        <RunsBarChart data={sliced} gradId={`${uid}-runs`} isEmpty={isEmpty} />
 
+        {/* Stats row */}
+        {!isEmpty && (
+          <div className="mt-3 grid grid-cols-4 gap-2 border-t border-border/50 pt-3">
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">Success</p>
+              <p className="mt-0.5 text-xs font-semibold text-green-600">{totalSuccessful.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">Failed</p>
+              <p className={`mt-0.5 text-xs font-semibold ${totalFailed > 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                {totalFailed.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">Rate</p>
+              <p className={`mt-0.5 text-xs font-semibold ${successRate !== null && successRate < 80 ? "text-red-500" : "text-foreground"}`}>
+                {successRate !== null ? `${successRate}%` : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50">Peak day</p>
+              <p className="mt-0.5 text-xs font-semibold">
+                {peakDay && peakDay.runs > 0 ? `${peakDay.runs} · ${fmtShort(peakDay.date)}` : "—"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Legend */}
         {!isEmpty && (
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-sm bg-primary opacity-70" />
-              Runs {totalRuns}
+              Successful
             </span>
             {totalFailed > 0 && (
               <span className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-sm bg-red-500 opacity-70" />
-                Failed {totalFailed}
+                Failed
               </span>
             )}
-            {totalCancelled > 0 && (
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-muted-foreground opacity-50" />
-                Cancelled {totalCancelled}
-              </span>
-            )}
+            <span className="flex items-center gap-1">
+              <svg width="14" height="6" viewBox="0 0 14 6" fill="none">
+                <path d="M0 3 Q3.5 1 7 3 Q10.5 5 14 3" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="3 1.5" opacity="0.5"/>
+              </svg>
+              7-day avg{avgPerDay ? ` · ${avgPerDay}/day` : ""}
+            </span>
           </div>
         )}
       </div>
