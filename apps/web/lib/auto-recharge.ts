@@ -57,7 +57,6 @@ export async function upsertAutoRechargeConfig(
   settings: AutoRechargeSettings,
 ): Promise<void> {
   const service = createServiceClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (service.from("auto_recharge_configs") as any).upsert(
     {
       user_id: userId,
@@ -98,7 +97,6 @@ export async function maybeFireAutoRecharge(userId: string): Promise<void> {
   if (balance.total >= Number(cfg.threshold_usd)) return;
 
   // Mark as triggered before charging to prevent double-fires under concurrency
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (service.from("auto_recharge_configs") as any)
     .update({ last_triggered_at: new Date().toISOString() })
     .eq("user_id", userId);
