@@ -42,16 +42,19 @@ const OPERATING_POINTS = [
 
 const WORKFLOW_STEPS = [
   {
+    num: "01",
     label: "Define",
     title: "Describe the operational outcome",
     body: "Start from a plain-language request, a blank graph, or an existing workflow pattern. Corelyx turns the work into validated triggers, branches, connector calls, and approval points.",
   },
   {
+    num: "02",
     label: "Review",
     title: "Inspect the graph before it runs",
     body: "Operators can see where data moves, which systems are called, and which steps require a human decision. The visual graph stays tied to the executable schema.",
   },
   {
+    num: "03",
     label: "Operate",
     title: "Run with a traceable record",
     body: "Launch manually, schedule work, or respond to events. Each run keeps node status, outputs, failures, approvals, and compliance context in one place.",
@@ -139,11 +142,11 @@ const TRUST_ITEMS = [
 ];
 
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 20 },
   visible: (i: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.55, delay: i * 0.1, ease: "easeOut" },
+    transition: { duration: 0.5, delay: i * 0.1, ease: "easeOut" },
   }),
 };
 
@@ -174,7 +177,7 @@ function Reveal({
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#090909] text-[#f6f0e8]">
+    <main className="min-h-screen overflow-x-hidden bg-white text-[#111318]">
       <SiteHeader />
       <HeroSection />
       <TrustBar />
@@ -191,40 +194,38 @@ export default function LandingPage() {
 function SiteHeader() {
   return (
     <motion.header
-      initial={{ opacity: 0, y: -16 }}
+      initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#090909]/[0.88] backdrop-blur-xl"
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.07] bg-[#07080a]/90 backdrop-blur-xl"
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-0 items-center gap-3">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8">
+        <Link href="/" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-7 w-7 object-contain" />
-          <span className="text-base font-semibold text-white">Corelyx</span>
-          <span className="hidden rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-[#b9b0a6] sm:inline">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-4 w-auto mr-1" /> Made in Austria
-          </span>
+          <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-6 w-6 object-contain" />
+          <span className="text-sm font-semibold text-white">Corelyx</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 text-sm text-[#b9b0a6] md:flex">
-          <a href="#workflow" className="transition-colors hover:text-white">Workflow</a>
-          <a href="#compliance" className="transition-colors hover:text-white">Compliance</a>
-          <a href="#integrations" className="transition-colors hover:text-white">Integrations</a>
-          <Link href="/security" className="transition-colors hover:text-white">Security</Link>
-          <Link href="/pricing" className="transition-colors hover:text-white">Pricing</Link>
+        <nav className="hidden items-center gap-7 text-sm text-white/40 md:flex">
+          <a href="#workflow" className="transition-colors hover:text-white/70">How it works</a>
+          <a href="#compliance" className="transition-colors hover:text-white/70">Compliance</a>
+          <a href="#integrations" className="transition-colors hover:text-white/70">Integrations</a>
+          <Link href="/security" className="transition-colors hover:text-white/70">Security</Link>
+          <Link href="/pricing" className="transition-colors hover:text-white/70">Pricing</Link>
         </nav>
 
-        <div className="flex items-center gap-2">
-          <Link href="/login" className="hidden rounded-md px-3 py-2 text-sm text-[#d5cec4] transition-colors hover:text-white sm:inline-flex">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/login"
+            className="hidden text-sm text-white/40 transition-colors hover:text-white/70 sm:block"
+          >
             Sign in
           </Link>
           <Link
             href="/signup"
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-[#f05a28] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#ff7040]"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#f05a28] px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90"
           >
             Start free
-            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </div>
@@ -234,180 +235,221 @@ function SiteHeader() {
 
 function HeroSection() {
   return (
-    <section className="relative isolate min-h-[78svh] overflow-hidden px-4 pt-28 sm:px-6 lg:px-8">
-      <HeroScene />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#090909] to-transparent" />
+    <section className="relative isolate overflow-hidden bg-[#07080a] px-5 pt-28 pb-32 sm:px-8 sm:pt-36 sm:pb-40">
+      {/* Subtle dot grid */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:48px_48px]"
+      />
+      {/* Orange glow top-center */}
+      <div
+        aria-hidden="true"
+        className="absolute -top-32 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-[#f05a28]/[0.07] blur-3xl"
+      />
 
-      <div className="relative z-10 mx-auto flex max-w-7xl flex-col justify-center pb-16 pt-8 sm:pt-14 lg:pb-20">
-        <motion.p
-          initial="hidden"
-          animate="visible"
-          custom={0}
-          variants={fadeUp}
-          className="mb-6 max-w-max border-l-2 border-[#f05a28] pl-3 text-sm font-medium text-[#d9d1c6]"
-        >
-          The AI automation platform that keeps your data in Europe.
-        </motion.p>
+      <div className="relative z-10 mx-auto max-w-6xl">
+        <div className="grid gap-16 lg:grid-cols-[1fr_520px] lg:items-center">
+          {/* Left: text */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-xs text-white/40"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[#75d7a3]" />
+              EU-hosted · Made in Austria
+            </motion.div>
 
-        <motion.h1
-          initial="hidden"
-          animate="visible"
-          custom={1}
-          variants={fadeUp}
-          className="max-w-4xl text-5xl font-semibold leading-none text-white sm:text-7xl lg:text-8xl"
-        >
-          Corelyx
-        </motion.h1>
+            <motion.h1
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.08, ease: "easeOut" }}
+              className="text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-[56px]"
+            >
+              AI automation built
+              <br />
+              <span className="text-white/30">for GDPR compliance.</span>
+            </motion.h1>
 
-        <motion.p
-          initial="hidden"
-          animate="visible"
-          custom={2}
-          variants={fadeUp}
-          className="mt-7 max-w-2xl text-lg leading-8 text-[#d7cfc3]"
-        >
-          Build agent workflows that are GDPR-ready by design — no legal review needed before you go live. Describe the job, inspect the graph, approve the run.
-        </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.16, ease: "easeOut" }}
+              className="mt-6 max-w-md text-base leading-7 text-white/40 sm:text-lg sm:leading-8"
+            >
+              Build agent workflows visually, inspect before running, and gate
+              sensitive steps with human approval. Compliance ships with the
+              product.
+            </motion.p>
 
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          custom={3}
-          variants={fadeUp}
-          className="mt-9 flex flex-col gap-3 sm:flex-row"
-        >
-          <Link
-            href="/signup"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#efe8dd]"
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.24, ease: "easeOut" }}
+              className="mt-8 flex flex-col gap-3 sm:flex-row"
+            >
+              <Link
+                href="/signup"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-[#111318] transition-colors hover:bg-white/90"
+              >
+                Build a workflow
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 text-sm font-medium text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white/70"
+              >
+                <CirclePlay className="h-4 w-4" />
+                Open workspace
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.34 }}
+              className="mt-7 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2"
+            >
+              {OPERATING_POINTS.map((point) => (
+                <div key={point} className="flex items-center gap-2 text-sm text-white/30">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-[#75d7a3]" />
+                  <span>{point}</span>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right: animated UI — desktop only */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="hidden lg:block"
           >
-            Build a workflow
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-white/[0.18] bg-white/[0.06] px-5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.12]"
-          >
-            <CirclePlay className="h-4 w-4" />
-            Open workspace
-          </Link>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          custom={4}
-          variants={fadeUp}
-          className="mt-8 grid max-w-2xl gap-3 text-sm text-[#c9c1b5] sm:grid-cols-3"
-        >
-          {OPERATING_POINTS.map((point) => (
-            <div key={point} className="flex items-start gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#75d7a3]" />
-              <span>{point}</span>
-            </div>
-          ))}
-        </motion.div>
+            <HeroCard />
+          </motion.div>
+        </div>
       </div>
     </section>
   );
 }
 
-function HeroScene() {
+function HeroCard() {
   return (
-    <div aria-hidden="true" className="absolute inset-0 z-0">
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(115deg, rgba(9,9,9,0.98) 0%, rgba(9,9,9,0.82) 34%, rgba(9,9,9,0.42) 64%, rgba(9,9,9,0.84) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 80px), repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 80px)",
-        }}
-      />
+    <div className="rounded-2xl border border-white/[0.08] bg-[#0f1014] p-1 shadow-[0_32px_80px_rgba(0,0,0,0.5)]">
+      {/* Window chrome */}
+      <div className="flex h-10 items-center gap-2 rounded-t-xl border-b border-white/[0.06] px-4">
+        <span className="h-2.5 w-2.5 rounded-full bg-[#ff6b47]/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#f0c15a]/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#6fdc96]/70" />
+        <span className="ml-3 text-[11px] text-white/20">workflow / lead-ops / editor</span>
+        <span className="ml-auto rounded border border-white/[0.06] bg-white/[0.03] px-2 py-0.5 text-[10px] text-[#75d7a3]/60">
+          🇦🇹 EU
+        </span>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, x: 60, rotate: -10 }}
-        animate={{ opacity: 1, x: 0, rotate: -7 }}
-        transition={{ duration: 0.9, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute right-[-260px] top-20 hidden h-[620px] w-[980px] lg:block"
-      >
-        <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute inset-0"
+      {/* Canvas */}
+      <div className="relative h-[360px] overflow-hidden rounded-b-xl bg-[#0b0c0f]">
+        {/* Grid */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:32px_32px]"
+        />
+
+        {/* Flow lines */}
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 520 360"
         >
-          <div className="absolute inset-0 rounded-lg border border-white/[0.12] bg-[#121212]/[0.88] shadow-[0_34px_120px_rgba(0,0,0,0.55)]" />
-          <div className="absolute left-0 right-0 top-0 flex h-12 items-center gap-2 border-b border-white/10 px-5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ff6b47]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#f0c15a]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#6fdc96]" />
-            <span className="ml-4 text-xs text-[#9d9489]">program/run-console</span>
-            <span className="ml-auto rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#9d9489]">
-              🇦🇹 EU infrastructure
+          <defs>
+            <marker id="arr-g" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(117,215,163,0.5)" />
+            </marker>
+            <marker id="arr-o" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(240,90,40,0.5)" />
+            </marker>
+            <marker id="arr-b" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(127,183,255,0.5)" />
+            </marker>
+            <marker id="arr-p" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(243,154,194,0.5)" />
+            </marker>
+          </defs>
+          <path d="M172,88 C210,88 210,148 248,148" stroke="rgba(117,215,163,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-g)" className="edge-animate" />
+          <path d="M172,88 C210,88 210,228 248,228" stroke="rgba(240,90,40,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-o)" className="edge-animate" />
+          <path d="M396,148 C430,148 430,148 450,148" stroke="rgba(127,183,255,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-b)" className="edge-animate" />
+          <path d="M396,228 C430,228 430,288 450,288" stroke="rgba(243,154,194,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-p)" className="edge-animate" />
+        </svg>
+
+        {/* Nodes */}
+        <FlowNode className="left-8 top-[60px]" tone="green" title="Gmail trigger" subtitle="new inbound lead" floatDelay={0} />
+        <FlowNode className="left-[248px] top-[116px]" tone="orange" title="Classify intent" subtitle="model: fast" floatDelay={0.5} />
+        <FlowNode className="left-[248px] top-[196px]" tone="blue" title="CRM update" subtitle="HubSpot contact" floatDelay={1} />
+        <FlowNode className="left-[248px] top-[260px] opacity-50" tone="pink" title="Approval gate" subtitle="Art. 22 · waiting" floatDelay={1.5} />
+
+        {/* Run panel */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="absolute right-4 top-4 w-[148px] rounded-xl border border-white/[0.08] bg-[#131417] p-3"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[10px] text-white/30">Run health</span>
+            <span className="flex items-center gap-1 rounded-full bg-[#1a3228] px-2 py-0.5 text-[10px] text-[#75d7a3]">
+              <motion.span
+                className="inline-block h-1.5 w-1.5 rounded-full bg-[#75d7a3]"
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity }}
+              />
+              live
             </span>
           </div>
-
-          <div className="absolute left-8 top-20 h-[460px] w-[590px]">
-            <AnchoredDataLine x1={160} y1={46} x2={230} y2={38} dotDelay={0} />
-            <AnchoredDataLine x1={390} y1={38} x2={445} y2={116} dotDelay={0.5} />
-            <AnchoredDataLine x1={310} y1={76} x2={236} y2={230} dotDelay={1} />
-            <AnchoredDataLine x1={316} y1={268} x2={402} y2={348} dotDelay={1.5} />
-            <SceneNode className="left-0 top-8" tone="green" title="Gmail trigger" subtitle="new inbound lead" floatDelay={0} />
-            <SceneNode className="left-[230px] top-0" tone="orange" title="Classify intent" subtitle="model: fast" floatDelay={0.6} />
-            <SceneNode className="left-[445px] top-[78px]" tone="blue" title="CRM update" subtitle="HubSpot contact" floatDelay={1.2} />
-            <SceneNode className="left-[156px] top-[230px]" tone="pink" title="Approval gate" subtitle="Art. 22 review" floatDelay={1.8} />
-            <SceneNode className="left-[402px] top-[310px]" tone="green" title="Slack summary" subtitle="#sales-ops" floatDelay={0.9} />
-          </div>
-
-          <div className="absolute right-8 top-20 w-[270px] rounded-lg border border-white/10 bg-[#191716] p-4">
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs text-[#a99f93]">Run health</span>
-              <span className="rounded bg-[#1f3a2b] px-2 py-1 text-xs text-[#82e6a8] flex items-center gap-1.5">
-                <motion.span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-[#82e6a8]"
-                  animate={{ opacity: [1, 0.3, 1] }}
-                  transition={{ duration: 1.2, repeat: Infinity }}
-                />
-                live
-              </span>
-            </div>
-            <MetricRow label="Nodes complete" value="11 / 14" />
-            <MetricRow label="Approvals waiting" value="1" />
-            <MetricRow label="Art. 30 record" value="auto-filed" />
-          </div>
-
-          <div className="absolute bottom-8 right-8 w-[270px] rounded-lg border border-white/10 bg-[#111111] p-4">
-            <div className="flex items-center gap-2 text-xs text-[#a99f93]">
-              <KeyRound className="h-4 w-4 text-[#f05a28]" />
-              EU-jurisdiction credential route
-            </div>
-            <div className="mt-4 space-y-2 font-mono text-[11px] text-[#8f877e]">
-              <motion.p
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2.4, repeat: Infinity, delay: 0 }}
-              >
-                vault.lookup(connection_id)
-              </motion.p>
-              <motion.p
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2.4, repeat: Infinity, delay: 0.8 }}
-              >
-                proxy.execute(provider_action)
-              </motion.p>
-              <motion.p
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2.4, repeat: Infinity, delay: 1.6 }}
-              >
-                return sanitized_result
-              </motion.p>
-            </div>
+          <div className="space-y-2.5">
+            {[
+              { label: "Complete", value: "11 / 14" },
+              { label: "Waiting", value: "1" },
+              { label: "Art. 30", value: "filed" },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between border-b border-white/[0.05] pb-2.5 last:border-b-0 last:pb-0">
+                <span className="text-[10px] text-white/25">{label}</span>
+                <span className="font-mono text-[11px] text-white/60">{value}</span>
+              </div>
+            ))}
           </div>
         </motion.div>
-      </motion.div>
 
-      <div className="absolute bottom-[-1px] left-0 right-0 h-px bg-white/10" />
+        {/* Credential banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+          className="absolute bottom-4 right-4 w-[148px] rounded-xl border border-white/[0.08] bg-[#131417] p-3"
+        >
+          <div className="flex items-center gap-1.5 text-[10px] text-white/30">
+            <KeyRound className="h-3 w-3 text-[#f05a28]/70" />
+            EU credential route
+          </div>
+          <div className="mt-2.5 space-y-1.5 font-mono text-[9px] text-white/20">
+            {["vault.lookup(id)", "proxy.execute(action)", "return sanitized"].map((line, i) => (
+              <motion.p
+                key={line}
+                animate={{ opacity: [0.4, 0.9, 0.4] }}
+                transition={{ duration: 2.4, repeat: Infinity, delay: i * 0.8 }}
+              >
+                {line}
+              </motion.p>
+            ))}
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }
 
-function SceneNode({
+function FlowNode({
   className,
   tone,
   title,
@@ -421,79 +463,45 @@ function SceneNode({
   floatDelay: number;
 }) {
   const tones = {
-    green: "border-[#75d7a3]/[0.35] bg-[#132218] text-[#75d7a3]",
-    orange: "border-[#f05a28]/40 bg-[#271711] text-[#ff8a5f]",
-    blue: "border-[#7fb7ff]/[0.35] bg-[#101b2a] text-[#9dc7ff]",
-    pink: "border-[#f39ac2]/[0.35] bg-[#28141e] text-[#f6a7c7]",
+    green: "border-[#75d7a3]/20 bg-[#0f1c15]",
+    orange: "border-[#f05a28]/20 bg-[#1a100a]",
+    blue: "border-[#7fb7ff]/20 bg-[#0e1520]",
+    pink: "border-[#f39ac2]/20 bg-[#1a0f17]",
+  };
+  const dots = {
+    green: "bg-[#75d7a3]",
+    orange: "bg-[#f05a28]",
+    blue: "bg-[#7fb7ff]",
+    pink: "bg-[#f39ac2]",
   };
 
   return (
     <motion.div
-      className={`absolute z-10 flex h-[76px] w-40 flex-col justify-center rounded-lg border p-3 shadow-[0_18px_44px_rgba(0,0,0,0.32)] ${tones[tone]} ${className}`}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: 0.15 + floatDelay * 0.08, ease: "easeOut" }}
-    >
-      <p className="text-sm font-semibold text-white">{title}</p>
-      <p className="mt-1 text-xs opacity-80">{subtitle}</p>
-    </motion.div>
-  );
-}
-
-function AnchoredDataLine({
-  x1,
-  y1,
-  x2,
-  y2,
-  dotDelay,
-}: {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  dotDelay: number;
-}) {
-  const length = Math.hypot(x2 - x1, y2 - y1);
-  const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
-
-  return (
-    <div
-      className="absolute z-0 h-px bg-white/20"
-      style={{
-        left: x1,
-        top: y1,
-        width: length,
-        transform: `rotate(${angle}deg)`,
-        transformOrigin: "0 50%",
+      className={`absolute z-10 w-[148px] rounded-xl border p-3 shadow-[0_8px_32px_rgba(0,0,0,0.3)] ${tones[tone]} ${className}`}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: [0, -4, 0] }}
+      transition={{
+        opacity: { duration: 0.4, delay: 0.2 + floatDelay * 0.1 },
+        y: { duration: 6 + floatDelay, repeat: Infinity, ease: "easeInOut", delay: floatDelay * 0.5 },
       }}
     >
-      <motion.span
-        className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#f05a28]"
-        style={{ left: 0 }}
-        animate={{ left: ["0%", "100%"] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "linear", delay: dotDelay, repeatDelay: 1 }}
-      />
-    </div>
-  );
-}
-
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mb-3 flex items-center justify-between border-b border-white/[0.08] pb-3 last:mb-0 last:border-b-0 last:pb-0">
-      <span className="text-xs text-[#8f877e]">{label}</span>
-      <span className="font-mono text-sm text-white">{value}</span>
-    </div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className={`h-1.5 w-1.5 rounded-full ${dots[tone]}`} />
+      </div>
+      <p className="text-[11px] font-semibold text-white/80">{title}</p>
+      <p className="mt-0.5 text-[10px] text-white/30">{subtitle}</p>
+    </motion.div>
   );
 }
 
 function TrustBar() {
   return (
-    <section className="border-y border-white/10 bg-[#0d0d0c]">
-      <div className="mx-auto grid max-w-7xl gap-y-6 px-4 py-6 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
-        {TRUST_ITEMS.map((item) => (
-          <div key={item.label} className="border-l border-white/10 pl-4">
-            <p className="text-sm font-semibold text-white">{item.label}</p>
-            <p className="mt-1 text-sm leading-6 text-[#a9a096]">{item.detail}</p>
+    <section className="border-b border-[#e8eaed] bg-white">
+      <div className="mx-auto grid max-w-6xl gap-y-6 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
+        {TRUST_ITEMS.map((item, i) => (
+          <div key={item.label} className={i > 0 ? "lg:border-l lg:border-[#e8eaed] lg:pl-8" : ""}>
+            <p className="text-sm font-semibold text-[#111318]">{item.label}</p>
+            <p className="mt-1 text-sm text-[#6b7280]">{item.detail}</p>
           </div>
         ))}
       </div>
@@ -503,32 +511,27 @@ function TrustBar() {
 
 function WorkflowSection() {
   return (
-    <section id="workflow" className="bg-[#f7f8fa] px-4 py-20 text-[#16181d] sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
-          <Reveal>
-            <SectionKicker>Workflow</SectionKicker>
-            <h2 className="mt-4 max-w-xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-              A visual graph with operational guardrails.
-            </h2>
-          </Reveal>
-          <Reveal i={1}>
-            <p className="max-w-2xl text-base leading-7 text-[#4f5863]">
-              Corelyx uses the visual editor as the planning surface and the validated workflow schema as the execution contract. Teams can review what was generated before trusting it in production.
-            </p>
-          </Reveal>
-        </div>
+    <section id="workflow" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <p className="mb-3 text-sm font-medium text-[#f05a28]">How it works</p>
+          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+            A visual graph with operational guardrails.
+          </h2>
+          <p className="mt-5 max-w-xl text-base leading-7 text-[#6b7280]">
+            Corelyx uses the visual editor as the planning surface and the validated
+            workflow schema as the execution contract. Teams can review what was
+            generated before trusting it in production.
+          </p>
+        </Reveal>
 
-        <div className="mt-12 grid gap-8 md:grid-cols-3">
+        <div className="mt-16 grid gap-px bg-[#e8eaed] rounded-2xl overflow-hidden sm:grid-cols-3">
           {WORKFLOW_STEPS.map((step, index) => (
-            <Reveal key={step.label} i={index}>
-              <article className="relative border-t border-[#cfd6df] pt-5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-sm font-semibold text-[#b9441e]">{step.label}</span>
-                  <GitBranch className="h-4 w-4 text-[#8a94a3]" />
-                </div>
-                <h3 className="mt-6 text-lg font-semibold text-[#111317]">{step.title}</h3>
-                <p className="mt-3 leading-7 text-[#58606b]">{step.body}</p>
+            <Reveal key={step.label} i={index * 0.15}>
+              <article className="bg-white p-8 h-full">
+                <span className="font-mono text-xs font-medium text-[#d1d5db]">{step.num}</span>
+                <h3 className="mt-5 text-base font-semibold text-[#111318]">{step.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-[#6b7280]">{step.body}</p>
               </article>
             </Reveal>
           ))}
@@ -540,30 +543,31 @@ function WorkflowSection() {
 
 function ControlSection() {
   return (
-    <section id="control" className="bg-[#171a20] px-4 py-20 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
+    <section id="control" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid gap-16 lg:grid-cols-[1fr_1fr] lg:items-start">
           <Reveal>
-            <SectionKicker dark>Control Plane</SectionKicker>
-            <h2 className="mt-4 max-w-xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-              Built for teams that are accountable for automation.
+            <p className="mb-3 text-sm font-medium text-[#f05a28]">Control plane</p>
+            <h2 className="max-w-sm text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+              Built for teams accountable for automation.
             </h2>
-            <p className="mt-6 max-w-xl leading-7 text-[#c7ced8]">
-              Corelyx keeps routine steps fast and sensitive steps reviewable, with enough evidence to understand what happened after the run.
+            <p className="mt-5 max-w-sm text-base leading-7 text-[#6b7280]">
+              Corelyx keeps routine steps fast and sensitive steps reviewable,
+              with enough evidence to understand what happened after the run.
             </p>
           </Reveal>
 
-          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             {CONTROL_FEATURES.map((feature, i) => {
               const Icon = feature.icon;
               return (
-                <Reveal key={feature.title} i={i * 0.25}>
-                  <article className="border-t border-white/10 pt-5">
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-5 w-5 text-[#f27a4a]" />
-                      <h3 className="text-base font-semibold">{feature.title}</h3>
+                <Reveal key={feature.title} i={i * 0.1}>
+                  <article className="rounded-2xl border border-[#e8eaed] bg-white p-6">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff4f0]">
+                      <Icon className="h-[18px] w-[18px] text-[#f05a28]" strokeWidth={1.75} />
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-[#c7ced8]">{feature.body}</p>
+                    <h3 className="mt-4 text-sm font-semibold text-[#111318]">{feature.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[#6b7280]">{feature.body}</p>
                   </article>
                 </Reveal>
               );
@@ -577,73 +581,79 @@ function ControlSection() {
 
 function ComplianceSection() {
   return (
-    <section id="compliance" className="bg-white px-4 py-20 text-[#16181d] sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
+    <section id="compliance" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
         <Reveal>
-          <SectionKicker>Governance</SectionKicker>
-          <div className="mt-4 grid gap-6 lg:grid-cols-[0.9fr_1fr] lg:items-end">
-            <h2 className="max-w-xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+          <p className="mb-3 text-sm font-medium text-[#f05a28]">Governance</p>
+          <div className="grid gap-8 lg:grid-cols-2 lg:items-end">
+            <h2 className="text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
               Compliance material that stays close to the product.
             </h2>
-            <p className="max-w-2xl text-base leading-7 text-[#4f5863]">
-              Corelyx is designed for EU-facing workflow operations. The product supports DPA review, subprocessor visibility, DPIA preparation, data exports, and audit review without turning every workflow into a separate legal project.
+            <p className="text-base leading-7 text-[#6b7280]">
+              Corelyx is designed for EU-facing workflow operations. The product
+              supports DPA review, subprocessor visibility, DPIA preparation, data
+              exports, and audit review without turning every workflow into a
+              separate legal project.
             </p>
           </div>
         </Reveal>
 
-        <div className="mt-10 divide-y divide-[#dde2e8] border-y border-[#dde2e8]">
+        <div className="mt-12 divide-y divide-[#e8eaed]">
           {COMPLIANCE_CARDS.map((card, i) => {
             const Icon = card.icon;
             return (
-              <Reveal key={card.title} i={i * 0.12}>
-                <article className="grid gap-4 py-6 sm:grid-cols-[180px_1fr] sm:items-start lg:grid-cols-[180px_260px_1fr]">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center">
-                      <Icon className="h-5 w-5 text-[#b9441e]" />
-                    </div>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[#58606b]">{card.tag}</span>
+              <Reveal key={card.title} i={i * 0.1}>
+                <article className="grid gap-4 py-7 sm:grid-cols-[160px_1fr_2fr] sm:items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-[#e8eaed] bg-[#f8f9fb] px-2.5 py-1 text-xs font-medium text-[#6b7280]">
+                      {card.tag}
+                    </span>
                   </div>
-                  <h3 className="text-base font-semibold leading-snug text-[#111317]">{card.title}</h3>
-                  <p className="text-sm leading-6 text-[#58606b]">{card.body}</p>
+                  <h3 className="text-sm font-semibold text-[#111318]">{card.title}</h3>
+                  <p className="text-sm leading-6 text-[#6b7280]">{card.body}</p>
                 </article>
               </Reveal>
             );
           })}
         </div>
 
-        <Reveal i={1}>
-          <div className="mt-10 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+        <Reveal i={0.5}>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {GOVERNANCE_LINKS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="group border-t border-[#dde2e8] pt-4"
+                className="group rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] p-5 transition-colors hover:bg-[#f1f3f6]"
               >
-                <p className="flex items-center justify-between gap-3 text-sm font-semibold text-[#111317]">
+                <p className="flex items-start justify-between gap-2 text-sm font-semibold text-[#111318]">
                   {item.title}
-                  <ArrowRight className="h-4 w-4 shrink-0 text-[#8a94a3] transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9ca3af] transition-transform group-hover:translate-x-0.5" />
                 </p>
-                <p className="mt-2 text-sm leading-6 text-[#58606b]">{item.body}</p>
+                <p className="mt-2 text-sm leading-6 text-[#6b7280]">{item.body}</p>
               </Link>
             ))}
           </div>
         </Reveal>
 
-        <Reveal i={1.2}>
-          <div className="mt-8 flex flex-wrap items-center gap-4 border-y border-[#dde2e8] py-5">
-            <LockKeyhole className="h-5 w-5 shrink-0 text-[#257b57]" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-[#111317]">Credential access stays server-side.</p>
-              <p className="mt-1 text-sm leading-6 text-[#58606b]">
-                Connector calls use the established token and Vault helpers, so secrets are not sent to browser clients.
-              </p>
+        <Reveal i={0.7}>
+          <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#edfbf4]">
+                <LockKeyhole className="h-4 w-4 text-[#257b57]" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#111318]">Credential access stays server-side.</p>
+                <p className="mt-1 text-sm leading-6 text-[#6b7280]">
+                  Connector calls use established token and Vault helpers. Secrets are never sent to browser clients.
+                </p>
+              </div>
             </div>
             <Link
               href="/security"
-              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-[#111317] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2a2f36]"
+              className="inline-flex shrink-0 h-9 items-center gap-2 rounded-full bg-[#111318] px-4 text-sm font-medium text-white transition-colors hover:bg-[#1f2329]"
             >
               Security model
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </Reveal>
@@ -656,42 +666,43 @@ function IntegrationsSection() {
   const doubled = [...INTEGRATIONS, ...INTEGRATIONS];
 
   return (
-    <section id="integrations" className="bg-[#f7f8fa] px-4 py-20 text-[#16181d] sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+    <section id="integrations" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
           <Reveal>
-            <SectionKicker>Integrations</SectionKicker>
-            <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-              Connect common work tools through a controlled runtime.
+            <p className="mb-3 text-sm font-medium text-[#f05a28]">Integrations</p>
+            <h2 className="max-w-sm text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+              Connect common work tools.
             </h2>
           </Reveal>
-          <Reveal i={1}>
+          <Reveal i={0.2}>
             <Link
               href="/signup"
-              className="inline-flex h-11 w-max items-center gap-2 rounded-md bg-[#111317] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2a2f36]"
+              className="inline-flex h-10 w-max items-center gap-2 rounded-full bg-[#111318] px-5 text-sm font-medium text-white transition-colors hover:bg-[#1f2329]"
             >
               Connect tools
-              <Cable className="h-4 w-4" />
+              <Cable className="h-3.5 w-3.5" />
             </Link>
           </Reveal>
         </div>
 
-        <div className="relative mt-12 overflow-hidden border-y border-[#dde2e8] py-5">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#f7f8fa] to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#f7f8fa] to-transparent" />
-          <div className="flex animate-marquee items-center gap-8" style={{ width: "max-content" }}>
+        <div className="relative mt-12 overflow-hidden rounded-2xl border border-[#e8eaed] bg-white py-5">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-white to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-white to-transparent" />
+          <div className="flex animate-marquee items-center gap-8 px-6" style={{ width: "max-content" }}>
             {doubled.map((name, i) => (
               <div key={`${name}-${i}`} className="flex items-center gap-8 whitespace-nowrap">
-                <span className="text-base font-semibold text-[#313841]">{name}</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-[#c2cad4]" />
+                <span className="text-sm font-medium text-[#6b7280]">{name}</span>
+                <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
               </div>
             ))}
           </div>
         </div>
 
-        <Reveal i={1}>
-          <p className="mt-6 max-w-2xl text-sm leading-6 text-[#58606b]">
-            Connector requests run server-side. Browser clients receive the result they need, not the credential material used to fetch it.
+        <Reveal i={0.3}>
+          <p className="mt-6 max-w-lg text-sm leading-6 text-[#9ca3af]">
+            Connector requests run server-side. Browser clients receive the result
+            they need, not the credential material used to fetch it.
           </p>
         </Reveal>
       </div>
@@ -701,34 +712,42 @@ function IntegrationsSection() {
 
 function FinalCta() {
   return (
-    <section className="bg-white px-4 py-16 text-[#16181d] sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-8 border-t border-[#dde2e8] pt-10 lg:grid-cols-[1fr_auto] lg:items-center">
-        <Reveal>
-          <SectionKicker>Get started</SectionKicker>
-          <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-            Build one controlled workflow, then expand from there.
-          </h2>
-          <p className="mt-4 max-w-2xl leading-7 text-[#58606b]">
-            Start with a recurring operational task, inspect the generated graph, and add approval steps where the workflow touches sensitive data or external systems.
-          </p>
-        </Reveal>
-        <Reveal i={1}>
-          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-            <Link
-              href="/signup"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#e6531f] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#c94316]"
-            >
-              Create an account
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[#cfd6df] bg-white px-5 text-sm font-semibold text-[#111317] transition-colors hover:bg-[#eef2f6]"
-            >
-              View pricing
-            </Link>
-          </div>
-        </Reveal>
+    <section className="bg-[#07080a] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -mt-24 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-[#f05a28]/[0.05] blur-3xl"
+        />
+        <div className="relative grid gap-12 lg:grid-cols-[1fr_auto] lg:items-center">
+          <Reveal>
+            <p className="mb-4 text-sm font-medium text-[#f05a28]">Get started</p>
+            <h2 className="max-w-xl text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
+              Build one controlled workflow, then expand.
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-white/40">
+              Start with a recurring operational task, inspect the generated graph,
+              and add approval steps where the workflow touches sensitive data or
+              external systems.
+            </p>
+          </Reveal>
+          <Reveal i={0.2}>
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <Link
+                href="/signup"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-[#111318] transition-colors hover:bg-white/90"
+              >
+                Create an account
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 text-sm font-medium text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white/70"
+              >
+                View pricing
+              </Link>
+            </div>
+          </Reveal>
+        </div>
       </div>
     </section>
   );
@@ -736,40 +755,39 @@ function FinalCta() {
 
 function SiteFooter() {
   return (
-    <footer className="border-t border-[#dde2e8] bg-white px-4 py-8 text-sm text-[#58606b] sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain" />
-            <span className="font-medium text-[#111317]">© {new Date().getFullYear()} Corelyx</span>
+    <footer className="border-t border-[#e8eaed] bg-white px-5 py-10 sm:px-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain opacity-60" />
+              <span className="text-sm font-semibold text-[#111318]">Corelyx</span>
+            </div>
+            <p className="mt-2 text-xs text-[#9ca3af]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/austria-heart-removebg.png" alt="Austria Flag" className="mr-1 inline-block h-3 w-auto" />
+              Built in Austria · Hosted in the EU
+            </p>
+            <p className="mt-1 text-xs text-[#9ca3af]">
+              © {new Date().getFullYear()} Corelyx
+            </p>
           </div>
-          <p className="text-xs text-[#6b7480]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/austria-heart-removebg.png" alt="Austria Flag" className="inline-block h-3 w-auto mr-1" /> Built in Austria. Hosted in the EU.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-2">
-          <Link href="/pricing" className="hover:text-[#111317]">Pricing</Link>
-          <Link href="/privacy" className="hover:text-[#111317]">Privacy</Link>
-          <Link href="/terms" className="hover:text-[#111317]">Terms</Link>
-          <Link href="/dpa" className="hover:text-[#111317]">DPA</Link>
-          <Link href="/subprocessors" className="hover:text-[#111317]">Subprocessors</Link>
-          <Link href="/security" className="hover:text-[#111317]">Security</Link>
-          <Link href="/dpia-template" className="hover:text-[#111317]">DPIA</Link>
-          <Link href="/data-export-schema" className="hover:text-[#111317]">Export schema</Link>
-          <Link href="/impressum" className="hover:text-[#111317]">Impressum</Link>
-          <Link href="/login" className="hover:text-[#111317]">Sign in</Link>
+
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#6b7280]">
+            <Link href="/pricing" className="transition-colors hover:text-[#111318]">Pricing</Link>
+            <Link href="/security" className="transition-colors hover:text-[#111318]">Security</Link>
+            <Link href="/privacy" className="transition-colors hover:text-[#111318]">Privacy</Link>
+            <Link href="/terms" className="transition-colors hover:text-[#111318]">Terms</Link>
+            <Link href="/dpa" className="transition-colors hover:text-[#111318]">DPA</Link>
+            <Link href="/subprocessors" className="transition-colors hover:text-[#111318]">Subprocessors</Link>
+            <Link href="/dpia-template" className="transition-colors hover:text-[#111318]">DPIA</Link>
+            <Link href="/data-export-schema" className="transition-colors hover:text-[#111318]">Export schema</Link>
+            <Link href="/impressum" className="transition-colors hover:text-[#111318]">Impressum</Link>
+            <Link href="/login" className="transition-colors hover:text-[#111318]">Sign in</Link>
+          </div>
         </div>
       </div>
     </footer>
-  );
-}
-
-function SectionKicker({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
-  return (
-    <p className={`text-sm font-semibold uppercase tracking-wide ${dark ? "text-[#f27a4a]" : "text-[#b9441e]"}`}>
-      {children}
-    </p>
   );
 }
