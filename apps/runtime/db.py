@@ -366,7 +366,7 @@ async def get_approval(db: Client, node_execution_id: str) -> Optional[dict]:
         .maybe_single()
         .execute()
     )
-    return result.data
+    return result.data if result is not None else None
 
 
 # ─── Resource Locking ─────────────────────────────────────────────────────────
@@ -427,7 +427,7 @@ async def get_existing_lock(
         .maybe_single()
         .execute()
     )
-    return result.data
+    return result.data if result is not None else None
 
 
 async def cleanup_stale_locks(db: Client) -> int:
