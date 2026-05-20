@@ -98,21 +98,23 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  let user = null;
+  // getSession reads from cookie — no network call, safe for Edge middleware latency constraints.
+  // Route handlers that need server-verified identity must call supabase.auth.getUser() themselves.
+  let session = null;
   try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
+    const { data } = await supabase.auth.getSession();
+    session = data.session;
   } catch {
-    user = null;
+    session = null;
   }
 
-  if (!user && !isPublic) {
+  if (!session && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return redirectWithSecurity(url);
   }
 
-  if (user && (pathname === "/login" || pathname === "/signup")) {
+  if (session && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return redirectWithSecurity(url);
