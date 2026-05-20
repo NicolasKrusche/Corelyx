@@ -141,7 +141,7 @@ export function RunPanel({ programId }: { programId: string }) {
     <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-4">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-300 bg-indigo-500/10 text-indigo-600">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-300 bg-indigo-500/10 text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400">
             <Play className="h-4 w-4 fill-current" />
           </span>
           <div>
@@ -175,7 +175,7 @@ export function RunPanel({ programId }: { programId: string }) {
             type="button"
             onClick={allPassed ? startRun : runPreflight}
             disabled={state === "checking" || state === "starting" || applyingFixId !== null}
-            className="h-10 bg-black px-5 text-white hover:bg-black/90"
+            className="h-10 bg-foreground px-5 text-background hover:bg-foreground/90"
           >
             {state === "checking" || state === "starting" ? <Spinner /> : <Play className="h-4 w-4 fill-current" />}
             {state === "starting" ? "Starting" : "Check & run"}
