@@ -208,7 +208,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               <h1 className="truncate text-3xl font-semibold tracking-normal">{program.name}</h1>
               <Badge variant="secondary">{program.is_active ? "Active" : "Inactive"}</Badge>
               {aiGenerated && (
-                <Badge variant="outline" className="border-indigo-300 bg-indigo-500/10 text-indigo-600">
+                <Badge variant="outline" className="border-indigo-300 bg-indigo-500/10 text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400">
                   <Sparkles className="mr-1 h-3 w-3" />
                   AI-generated
                 </Badge>
@@ -275,7 +275,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
       </section>
 
       {aiGenerated && !program.is_active && (
-        <div className="flex items-center gap-3 rounded-lg border border-indigo-300 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-950 dark:text-indigo-100">
+        <div className="flex items-center gap-3 rounded-lg border border-indigo-300 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/40 dark:text-indigo-100">
           <Sparkles className="h-4 w-4 shrink-0 text-indigo-600" />
           <p className="min-w-0 flex-1">
             <span className="font-semibold">Review this AI-generated workflow before activation.</span>{" "}
@@ -285,7 +285,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             )}
           </p>
           <button type="button" className="text-sm text-foreground">Dismiss</button>
-          <Link href={`/programs/${program.id}/editor`} className="text-sm font-medium text-indigo-600">{"Review ->"}</Link>
+          <Link href={`/programs/${program.id}/editor`} className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{"Review ->"}</Link>
         </div>
       )}
 
@@ -298,7 +298,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             <span className="rounded bg-background/70 px-1 font-mono text-xs">{program.conflict_policy}</span>
           </p>
           <button type="button" className="text-sm text-foreground">Snooze</button>
-          <Link href={`/programs/${id}/conflicts`} className="text-sm font-medium text-indigo-600">{"View conflicts ->"}</Link>
+          <Link href={`/programs/${id}/conflicts`} className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{"View conflicts ->"}</Link>
         </div>
       )}
 
@@ -345,7 +345,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                   nodes.map((node, i) => (
                     <div key={`${node.id}-${i}`} className="flex items-center gap-4 border-b border-border px-6 py-5 last:border-b-0">
                       <span className="text-xs text-muted-foreground">#{i + 1}</span>
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-300 bg-indigo-500/10 text-indigo-600">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-300 bg-indigo-500/10 text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400">
                         <NodeGlyph type={node.type} />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -353,7 +353,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                         <p className="text-sm text-muted-foreground">{node.description || "No description."}</p>
                       </div>
                       <span className="font-mono text-xs text-muted-foreground">{node.type === "trigger" ? "trigger.manual" : node.type}</span>
-                      <Badge variant="outline" className="border-indigo-300 bg-indigo-500/10 text-indigo-600">{node.type}</Badge>
+                      <Badge variant="outline" className="border-indigo-300 bg-indigo-500/10 text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400">{node.type}</Badge>
                     </div>
                   ))
                 )}

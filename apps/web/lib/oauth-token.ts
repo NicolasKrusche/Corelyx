@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@flowos/db";
 import { vaultStore, vaultRetrieve, vaultDelete } from "@/lib/vault";
+import { getActiveWorkspace } from "@/lib/workspaces";
 
 type Client = SupabaseClient<Database>;
 
@@ -115,6 +116,10 @@ export async function upsertOAuthConnection(
     `${params.provider} OAuth tokens for user ${params.userId}`,
   );
 
+  // Resolve workspace for this user — required by the NOT NULL constraint on connections.workspace_id
+  const workspace = await getActiveWorkspace(params.userId);
+  if (!workspace) throw new Error(`No active workspace found for user ${params.userId}`);
+
   // Look up any existing connections rows for this user + label
   const { data: existing } = await supabase
     .from("connections")
@@ -151,6 +156,7 @@ export async function upsertOAuthConnection(
   } else {
     const { error } = await supabase.from("connections").insert({
       user_id: params.userId,
+      workspace_id: workspace.workspaceId,
       name: params.label,
       provider: params.provider,
       auth_type: "oauth",
