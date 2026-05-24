@@ -1845,40 +1845,48 @@ function SettingsModal({
                 <div className="grid gap-4 xl:grid-cols-2">
                   <section className={panelClass}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Plan</p>
-                    <p className="mt-3 text-sm text-muted-foreground">Current plan: {tierLabel}. Compare plans or upgrade anytime.</p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Link
-                        href="/plan"
-                        onClick={onClose}
-                        className={cn(primaryBtnClass, "inline-flex")}
-                      >
-                        {tier === "free" ? "Upgrade plan" : "Compare plans"}
-                      </Link>
-                      {hasPaidSubscription && (
-                        <a
-                          href="/api/billing/portal"
-                          className={neutralBtnClass}
-                        >
-                          Manage subscription
-                        </a>
-                      )}
-                    </div>
-                    {hasPaidSubscription && (
-                      <div className="mt-4 border-t border-border pt-4">
-                        <button
-                          type="button"
-                          onClick={() => { void handleUnsubscribe(); }}
-                          disabled={unsubscribeLoading}
-                          className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
-                        >
-                          {unsubscribeLoading ? "Unsubscribing..." : "Unsubscribe"}
-                        </button>
-                        {unsubscribeStatus && (
-                          <p className={cn("mt-2 text-xs", unsubscribeStatus.type === "success" ? "text-green-600" : "text-red-600")}>
-                            {unsubscribeStatus.message}
-                          </p>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {tier === "unlimited"
+                        ? "Unlimited access — all features are unlocked, no plan limits apply."
+                        : `Current plan: ${tierLabel}. Compare plans or upgrade anytime.`}
+                    </p>
+                    {tier !== "unlimited" && (
+                      <>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <Link
+                            href="/plan"
+                            onClick={onClose}
+                            className={cn(primaryBtnClass, "inline-flex")}
+                          >
+                            {tier === "free" ? "Upgrade plan" : "Compare plans"}
+                          </Link>
+                          {hasPaidSubscription && (
+                            <a
+                              href="/api/billing/portal"
+                              className={neutralBtnClass}
+                            >
+                              Manage subscription
+                            </a>
+                          )}
+                        </div>
+                        {hasPaidSubscription && (
+                          <div className="mt-4 border-t border-border pt-4">
+                            <button
+                              type="button"
+                              onClick={() => { void handleUnsubscribe(); }}
+                              disabled={unsubscribeLoading}
+                              className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                            >
+                              {unsubscribeLoading ? "Unsubscribing..." : "Unsubscribe"}
+                            </button>
+                            {unsubscribeStatus && (
+                              <p className={cn("mt-2 text-xs", unsubscribeStatus.type === "success" ? "text-green-600" : "text-red-600")}>
+                                {unsubscribeStatus.message}
+                              </p>
+                            )}
+                          </div>
                         )}
-                      </div>
+                      </>
                     )}
                   </section>
 

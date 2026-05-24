@@ -94,7 +94,7 @@ export default async function CreditsPage() {
     service.from("credit_purchases").select("id, amount_usd, created_at, stripe_session_id").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
   ]);
 
-  const isUnlimited = creditBalance.total === Infinity;
+  const isUnlimited = tier === "unlimited" || creditBalance.total === Infinity;
   const includedTotal = ent.includedAiCreditsUsd;
   const includedUsed = includedTotal === null ? 0 : Math.max(0, includedTotal - creditBalance.availableIncluded);
   const runsLeft = runUsage.total === null ? null : Math.max(0, runUsage.total - runUsage.current);
@@ -251,12 +251,14 @@ export default async function CreditsPage() {
                 Usage logs
               </Link>
             </Button>
-            <Button asChild size="sm" className="gap-1.5">
-              <Link href="/plan">
-                <Rocket className="h-3.5 w-3.5" />
-                Upgrade plan
-              </Link>
-            </Button>
+            {!isUnlimited && (
+              <Button asChild size="sm" className="gap-1.5">
+                <Link href="/plan">
+                  <Rocket className="h-3.5 w-3.5" />
+                  Upgrade plan
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -297,20 +299,24 @@ export default async function CreditsPage() {
           )}
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <Link
-              href="#topup"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-sm font-semibold hover:bg-white/20 transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add credits
-            </Link>
-            <Link
-              href="/plan"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-sm font-semibold hover:bg-white/20 transition-colors"
-            >
-              <Rocket className="h-3.5 w-3.5" />
-              Upgrade plan
-            </Link>
+            {!isUnlimited && (
+              <>
+                <Link
+                  href="#topup"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-sm font-semibold hover:bg-white/20 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add credits
+                </Link>
+                <Link
+                  href="/plan"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-sm font-semibold hover:bg-white/20 transition-colors"
+                >
+                  <Rocket className="h-3.5 w-3.5" />
+                  Upgrade plan
+                </Link>
+              </>
+            )}
             <Link
               href="#activity"
               className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-3.5 py-2 text-sm font-semibold hover:bg-white/20 transition-colors"
@@ -456,6 +462,17 @@ export default async function CreditsPage() {
       )}
 
       {/* ── Plans ── */}
+      {isUnlimited ? (
+        <section className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-5 flex items-center gap-4">
+          <span className="text-2xl leading-none">∞</span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Unlimited access</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              This account has unrestricted access to all Corelyx features — no plan limits apply.
+            </p>
+          </div>
+        </section>
+      ) : (
       <section>
         <div className="mb-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Plans</p>
@@ -528,6 +545,7 @@ export default async function CreditsPage() {
           ))}
         </div>
       </section>
+      )}
 
       {/* ── Activity Ledger ── */}
       <section id="activity">
