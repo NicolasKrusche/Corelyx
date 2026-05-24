@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { generateToken, hashToken, tokenPrefix } from "@/lib/personal-tokens";
+import { isAdminEmail } from "@/lib/admin";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDb = { from(table: string): any };
@@ -37,15 +38,20 @@ export async function POST(request: Request) {
 
   const db = createServiceClient() as unknown as AnyDb;
 
-  // Free-tier users cannot create personal API tokens
-  const { data: profile } = await db
-    .from("profiles")
-    .select("tier")
-    .eq("id", user.id)
-    .single();
+  // Free-tier users cannot create personal API tokens (admins are always allowed)
+  const isAdmin = isAdminEmail(user.email ?? undefined);
+  if (!isAdmin) {
+    const { data: profile } = await db
+      .from("profiles")
+      .select("tier, is_admin")
+      .eq("id", user.id)
+      .single();
 
-  if ((profile as { tier?: string } | null)?.tier === "free") {
-    return apiError("Personal API tokens are not available on the free plan. Upgrade to create tokens.", 403, "PLAN_LIMIT");
+    const profileData = profile as { tier?: string; is_admin?: boolean } | null;
+    const effectiveTier = profileData?.is_admin ? "unlimited" : (profileData?.tier ?? "free");
+    if (effectiveTier === "free") {
+      return apiError("Personal API tokens are not available on the free plan. Upgrade to create tokens.", 403, "PLAN_LIMIT");
+    }
   }
 
   // Enforce a per-user limit (10 tokens max)

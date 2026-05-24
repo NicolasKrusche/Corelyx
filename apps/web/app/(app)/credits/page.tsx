@@ -14,6 +14,7 @@ import { getUsageHistory } from "@/lib/usage-history";
 import { getTranslations } from "next-intl/server";
 import { Download, History, Rocket, Plus, Check, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isAdminEmail } from "@/lib/admin";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
@@ -77,8 +78,9 @@ export default async function CreditsPage() {
     service.from("profiles").select("tier, stripe_payment_method_id").eq("id", user.id).single(),
   ]);
 
-  const profileData = profileRes.data as { tier?: string; stripe_payment_method_id?: string | null } | null;
-  const tier = parseTier(profileData?.tier);
+  const profileData = profileRes.data as { tier?: string; stripe_payment_method_id?: string | null; is_admin?: boolean } | null;
+  const isAdmin = isAdminEmail(user.email ?? undefined) || profileData?.is_admin === true;
+  const tier = isAdmin ? "unlimited" : parseTier(profileData?.tier);
   const hasSavedPaymentMethod = Boolean(profileData?.stripe_payment_method_id);
   const ent = getEntitlements(tier);
   const workspaceId = ws?.workspaceId ?? null;
