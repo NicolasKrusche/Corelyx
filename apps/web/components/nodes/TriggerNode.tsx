@@ -37,14 +37,15 @@ export function TriggerNode({ data, selected }: NodeProps) {
         validationState={nodeData.validationState ?? "valid"}
         status={nodeData.status}
         accentColor="bg-green-500"
+        accentRing="ring-green-500/50 shadow-green-500/20"
       >
         {/* Type badge */}
         <div className="flex items-center gap-1.5 mb-1">
-          <span className="inline-flex items-center rounded-sm bg-green-500/15 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:text-green-400 uppercase tracking-wide">
+          <span className="inline-flex items-center rounded-sm bg-green-500/15 px-1.5 py-0.5 text-[10px] font-medium text-green-400 uppercase tracking-wide">
             Trigger
           </span>
           {triggerType && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center rounded-sm bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
               {TRIGGER_TYPE_LABEL[triggerType]}
             </span>
           )}
@@ -79,7 +80,7 @@ export function TriggerNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-green-500 !border-2 !border-background !w-3 !h-3"
+        className="!bg-green-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(34,197,94,0.6)]"
       />
     </>
   );

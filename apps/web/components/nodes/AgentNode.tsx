@@ -30,7 +30,7 @@ export function AgentNode({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-purple-500 !border-2 !border-background !w-3 !h-3"
+        className="!bg-purple-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(168,85,247,0.6)]"
       />
 
       <NodeShell
@@ -38,20 +38,21 @@ export function AgentNode({ data, selected }: NodeProps) {
         validationState={nodeData.validationState ?? "valid"}
         status={nodeData.status}
         accentColor="bg-purple-500"
+        accentRing="ring-purple-500/50 shadow-purple-500/20"
       >
         {/* Type badge */}
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-          <span className="inline-flex items-center rounded-sm bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-400 uppercase tracking-wide">
+          <span className="inline-flex items-center rounded-sm bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-purple-400 uppercase tracking-wide">
             Agent
           </span>
           {isUnassigned && (
-            <span className="inline-flex items-center rounded-sm bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+            <span className="inline-flex items-center rounded-sm bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
               No model
             </span>
           )}
           {requiresApproval && (
-            <span className="inline-flex items-center rounded-sm bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400">
-              Needs approval
+            <span className="inline-flex items-center rounded-sm bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+              Approval
             </span>
           )}
         </div>
@@ -92,7 +93,7 @@ export function AgentNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-purple-500 !border-2 !border-background !w-3 !h-3"
+        className="!bg-purple-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(168,85,247,0.6)]"
       />
     </>
   );

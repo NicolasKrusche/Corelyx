@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
 import { useAdvancedMode } from "@/lib/advanced-mode";
+import { useRawSchemaMode } from "@/lib/raw-schema-mode";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SettingsSupportTab } from "@/components/settings-support-tab";
@@ -80,8 +81,11 @@ function NavItem({
       <span className="flex h-full w-12 shrink-0 items-center justify-center">{icon}</span>
       <span className="min-w-0 flex-1 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">{label}</span>
       {badge != null && badge > 0 && (
-        <span className="absolute right-1 top-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ backgroundColor: "var(--sb-badge)" }}>
-          {badge > 99 ? "99+" : badge}
+        <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] shrink-0 items-center justify-center">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-40 [animation-duration:2s]" style={{ backgroundColor: "var(--sb-badge)" }} />
+          <span className="relative inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white" style={{ backgroundColor: "var(--sb-badge)" }}>
+            {badge > 99 ? "99+" : badge}
+          </span>
         </span>
       )}
     </Link>
@@ -389,7 +393,17 @@ export function Sidebar({
         () => { void fetchSidebarData(); },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    // Also listen for a direct browser event fired by the seed button and
+    // approval card — this handles UPDATE events that realtime may miss
+    // (approvals table doesn't have REPLICA IDENTITY FULL).
+    const onApprovalChanged = () => { void fetchSidebarData(); };
+    window.addEventListener("approval-changed", onApprovalChanged);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("approval-changed", onApprovalChanged);
+    };
   }, [fetchSidebarData, userId]);
 
   // Clear failed-run badge locally when visiting /runs — no network call needed
@@ -708,10 +722,8 @@ export function Sidebar({
           icon={<RunsIcon />} badge={failedRuns} isDark={isDark} />
         <NavItem href="/approvals" label={tNav("approvals")} active={pathname.startsWith("/approvals")}
           icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} />
-        {advanced && (
-          <NavItem href="/logs" label={tNav("logs")} active={pathname.startsWith("/logs")}
-            icon={<LogsIcon />} isDark={isDark} />
-        )}
+        <NavItem href="/logs" label={tNav("logs")} active={pathname.startsWith("/logs")}
+          icon={<LogsIcon />} isDark={isDark} />
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
@@ -744,7 +756,7 @@ export function Sidebar({
       </nav>
 
       <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>
-        <div className={cn("overflow-hidden transition-all duration-200", usageOpen ? "mb-2 max-h-[280px] opacity-100 pointer-events-auto" : "max-h-0 opacity-0 pointer-events-none")}>
+        <div className={cn("overflow-hidden transition-all duration-200", usageOpen ? "mb-2 max-h-[400px] opacity-100 pointer-events-auto" : "max-h-0 opacity-0 pointer-events-none")}>
           <div className={cn(
             "rounded-2xl border px-3 py-3",
             isDark ? "border-white/10 bg-white/5 text-blue-50" : "border-black/10 bg-black/5 text-gray-900"
@@ -972,6 +984,7 @@ export function Sidebar({
           onAccentChange={setAccent}
           aiCreditsAvailable={aiCreditsAvailable}
           aiCreditsPurchased={aiCreditsPurchased}
+          activeWorkspaceId={activeWorkspaceId}
           initialTab={settingsInitialTab}
           onClose={handleCloseSettings}
         />
@@ -1027,6 +1040,7 @@ function SettingsModal({
   onAccentChange,
   aiCreditsAvailable,
   aiCreditsPurchased,
+  activeWorkspaceId,
   initialTab,
   onClose,
 }: {
@@ -1051,6 +1065,7 @@ function SettingsModal({
   onAccentChange: (next: AccentColor) => void;
   aiCreditsAvailable: number | null;
   aiCreditsPurchased: number;
+  activeWorkspaceId: string | null;
   initialTab?: AccountSettingsSection;
   onClose: () => void;
 }) {
@@ -1101,6 +1116,146 @@ function SettingsModal({
   const [dsarDescription, setDsarDescription] = useState("");
   const [dsarLoading, setDsarLoading] = useState(false);
   const [dsarStatus, setDsarStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Raw schema mode toggle (Developer tab)
+  const [rawSchemaEnabled, setRawSchemaEnabled] = useRawSchemaMode();
+
+  // Execution defaults (Developer tab)
+  const [defaultExecutionMode, setDefaultExecutionMode] = useState<"autonomous" | "supervised" | "manual" | null>(null);
+  const [defaultConflictPolicy, setDefaultConflictPolicy] = useState<"queue" | "skip" | "fail" | null>(null);
+  const [execDefaultsLoading, setExecDefaultsLoading] = useState(false);
+  const [execDefaultsSaving, setExecDefaultsSaving] = useState(false);
+  const [execDefaultsStatus, setExecDefaultsStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Personal API tokens (Developer tab)
+  type ApiToken = { id: string; name: string; token_prefix: string; last_used_at: string | null; created_at: string };
+  const [apiTokens, setApiTokens] = useState<ApiToken[]>([]);
+  const [tokensLoading, setTokensLoading] = useState(false);
+  const [newTokenName, setNewTokenName] = useState("");
+  const [creatingToken, setCreatingToken] = useState(false);
+  const [newlyCreatedToken, setNewlyCreatedToken] = useState<{ id: string; name: string; plaintext: string } | null>(null);
+  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tab !== "advanced" || !activeWorkspaceId) return;
+    let cancelled = false;
+    setExecDefaultsLoading(true);
+    fetch("/api/workspaces")
+      .then((r) => r.json())
+      .then((data: { workspaces?: Array<{ id: string; default_execution_mode?: string; default_conflict_policy?: string }> }) => {
+        if (cancelled) return;
+        const ws = data.workspaces?.find((w) => w.id === activeWorkspaceId);
+        if (ws) {
+          setDefaultExecutionMode((ws.default_execution_mode as "autonomous" | "supervised" | "manual") ?? "supervised");
+          setDefaultConflictPolicy((ws.default_conflict_policy as "queue" | "skip" | "fail") ?? "queue");
+        }
+      })
+      .catch(() => { /* keep defaults null */ })
+      .finally(() => { if (!cancelled) setExecDefaultsLoading(false); });
+    return () => { cancelled = true; };
+  }, [tab, activeWorkspaceId]);
+
+  async function saveExecDefaults(mode?: "autonomous" | "supervised" | "manual", policy?: "queue" | "skip" | "fail") {
+    if (!activeWorkspaceId) return;
+    setExecDefaultsSaving(true);
+    setExecDefaultsStatus(null);
+    try {
+      const res = await fetch("/api/workspaces", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_settings",
+          workspace_id: activeWorkspaceId,
+          ...(mode !== undefined ? { default_execution_mode: mode } : {}),
+          ...(policy !== undefined ? { default_conflict_policy: policy } : {}),
+        }),
+      });
+      if (res.ok) {
+        setExecDefaultsStatus({ type: "success", message: "Saved." });
+        setTimeout(() => setExecDefaultsStatus(null), 2500);
+      } else {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setExecDefaultsStatus({ type: "error", message: body.error ?? "Failed to save." });
+      }
+    } catch {
+      setExecDefaultsStatus({ type: "error", message: "Network error." });
+    } finally {
+      setExecDefaultsSaving(false);
+    }
+  }
+
+  // ── Token helpers ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (tab !== "advanced") return;
+    let cancelled = false;
+    setTokensLoading(true);
+    setTokenError(null);
+    fetch("/api/user/tokens")
+      .then((r) => r.json())
+      .then((data: { tokens?: ApiToken[] }) => {
+        if (!cancelled) setApiTokens(data.tokens ?? []);
+      })
+      .catch(() => { if (!cancelled) setTokenError("Failed to load tokens."); })
+      .finally(() => { if (!cancelled) setTokensLoading(false); });
+    return () => { cancelled = true; };
+  }, [tab]);
+
+  async function handleCreateToken(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newTokenName.trim()) return;
+    setCreatingToken(true);
+    setTokenError(null);
+    try {
+      const res = await fetch("/api/user/tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newTokenName.trim() }),
+      });
+      const body = await res.json() as { token?: { id: string; name: string; token_prefix: string; created_at: string; plaintext: string }; error?: string };
+      if (!res.ok) {
+        setTokenError(body.error ?? "Failed to create token.");
+        return;
+      }
+      if (body.token) {
+        setApiTokens((prev) => [{ id: body.token!.id, name: body.token!.name, token_prefix: body.token!.token_prefix, last_used_at: null, created_at: body.token!.created_at }, ...prev]);
+        setNewlyCreatedToken({ id: body.token.id, name: body.token.name, plaintext: body.token.plaintext });
+        setNewTokenName("");
+      }
+    } catch {
+      setTokenError("Network error. Please try again.");
+    } finally {
+      setCreatingToken(false);
+    }
+  }
+
+  async function handleRevokeToken(tokenId: string) {
+    setRevokingTokenId(tokenId);
+    setTokenError(null);
+    try {
+      const res = await fetch(`/api/user/tokens/${tokenId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setTokenError(body.error ?? "Failed to revoke token.");
+        return;
+      }
+      setApiTokens((prev) => prev.filter((t) => t.id !== tokenId));
+      if (newlyCreatedToken?.id === tokenId) setNewlyCreatedToken(null);
+    } catch {
+      setTokenError("Network error. Please try again.");
+    } finally {
+      setRevokingTokenId(null);
+    }
+  }
+
+  async function copyToken(text: string, tokenId: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedTokenId(tokenId);
+      setTimeout(() => setCopiedTokenId((v) => (v === tokenId ? null : v)), 2000);
+    } catch { /* ignore */ }
+  }
 
   const memberSince = createdAt
     ? new Date(createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
@@ -1940,45 +2095,284 @@ function SettingsModal({
             )}
 
             {tab === "advanced" && (
-              <div className="space-y-6">
-                <section className={panelClass}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Advanced mode</p>
-                  <label className="mt-4 flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={advanced}
-                      onChange={(e) => onAdvancedChange(e.target.checked)}
-                      className="h-4 w-4 rounded border-border"
-                    />
-                    <span>Enable advanced mode</span>
-                  </label>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Show extra controls and power-user options throughout the app.
-                  </p>
-                </section>
+              <div className="space-y-5">
 
-                <section className={subPanelClass}>
-                  <p className="text-sm font-medium text-foreground">Current status</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {advanced ? "Advanced mode is enabled for this workspace." : "Advanced mode is currently turned off."}
-                  </p>
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                {/* ── Raw schema editor toggle ────────────────────── */}
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Raw schema editor</p>
+                  <div className="mt-3 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">Enable in workflow editor</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                        Adds a <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded">{"{ }"}</code> button to the editor toolbar — opens a live JSON panel where you can read and write the raw workflow schema directly.
+                      </p>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setTab("legal")}
-                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      role="switch"
+                      aria-checked={rawSchemaEnabled}
+                      onClick={() => setRawSchemaEnabled(!rawSchemaEnabled)}
+                      className={cn(
+                        "relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors duration-200 overflow-hidden",
+                        rawSchemaEnabled ? "bg-primary" : "bg-muted border border-border"
+                      )}
                     >
-                      Legal and privacy tools
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRedeemUnlockClicks((v) => Math.min(5, v + 1))}
-                      className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground"
-                    >
-                      build info
+                      <span
+                        className={cn(
+                          "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+                          rawSchemaEnabled ? "translate-x-5" : "translate-x-0"
+                        )}
+                      />
                     </button>
                   </div>
                 </section>
+
+                {/* ── Execution defaults ─────────────────────────── */}
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Execution defaults</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                    Applied to new workflows in this workspace. Individual workflows can override these.
+                  </p>
+
+                  {execDefaultsLoading ? (
+                    <p className="mt-4 text-xs text-muted-foreground animate-pulse">Loading…</p>
+                  ) : (
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      {/* Execution mode */}
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                          Execution mode
+                        </label>
+                        <select
+                          value={defaultExecutionMode ?? "supervised"}
+                          disabled={execDefaultsSaving}
+                          onChange={(e) => {
+                            const val = e.target.value as "autonomous" | "supervised" | "manual";
+                            setDefaultExecutionMode(val);
+                            void saveExecDefaults(val, undefined);
+                          }}
+                          className={cn(fieldClass, "disabled:opacity-50")}
+                        >
+                          <option value="autonomous">Autonomous — runs without pausing</option>
+                          <option value="supervised">Supervised — pauses at risky steps</option>
+                          <option value="manual">Manual — every step needs approval</option>
+                        </select>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {defaultExecutionMode === "autonomous" && "Agents run end-to-end with no interruptions."}
+                          {defaultExecutionMode === "supervised" && "Agents pause when a step is flagged as high-risk."}
+                          {(defaultExecutionMode === "manual" || defaultExecutionMode === null) && "Every node requires human sign-off before proceeding."}
+                        </p>
+                      </div>
+
+                      {/* Conflict policy */}
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                          Conflict policy
+                        </label>
+                        <select
+                          value={defaultConflictPolicy ?? "queue"}
+                          disabled={execDefaultsSaving}
+                          onChange={(e) => {
+                            const val = e.target.value as "queue" | "skip" | "fail";
+                            setDefaultConflictPolicy(val);
+                            void saveExecDefaults(undefined, val);
+                          }}
+                          className={cn(fieldClass, "disabled:opacity-50")}
+                        >
+                          <option value="queue">Queue — wait for the running execution to finish</option>
+                          <option value="skip">Skip — drop the new trigger silently</option>
+                          <option value="fail">Fail — reject with an error if already running</option>
+                        </select>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {defaultConflictPolicy === "queue" && "Incoming triggers wait in line behind the current run."}
+                          {defaultConflictPolicy === "skip" && "Duplicate triggers are silently discarded."}
+                          {(defaultConflictPolicy === "fail" || defaultConflictPolicy === null) && "A concurrent trigger immediately errors out."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {execDefaultsStatus && (
+                    <p className={cn("mt-3 text-xs", execDefaultsStatus.type === "success" ? "text-green-600" : "text-red-600")}>
+                      {execDefaultsStatus.message}
+                    </p>
+                  )}
+                </section>
+
+                {/* ── Corelyx API tokens ────────────────────────── */}
+                <section className={panelClass}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Corelyx AI Keys</p>
+                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                        Personal API tokens for calling Corelyx from scripts, CI, or external agents.
+                        Each token grants full API access as you — treat them like passwords.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* One-time plaintext reveal */}
+                  {newlyCreatedToken && (
+                    <div className="mt-4 rounded-xl border border-green-500/30 bg-green-500/[0.07] p-4">
+                      <p className="text-xs font-semibold text-green-400 mb-2">Token created — copy it now. This is the only time it will be shown.</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 min-w-0 truncate rounded-lg bg-black/30 border border-white/10 px-3 py-2 font-mono text-[11px] text-green-300 select-all">
+                          {newlyCreatedToken.plaintext}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => void copyToken(newlyCreatedToken.plaintext, newlyCreatedToken.id + "-plain")}
+                          className="shrink-0 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-xs font-semibold text-green-400 hover:bg-green-500/20 transition-colors"
+                        >
+                          {copiedTokenId === newlyCreatedToken.id + "-plain" ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNewlyCreatedToken(null)}
+                        className="mt-2.5 text-[10px] text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2"
+                      >
+                        I&apos;ve saved it — dismiss
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Existing tokens */}
+                  {tokensLoading ? (
+                    <p className="mt-4 text-xs text-muted-foreground animate-pulse">Loading tokens…</p>
+                  ) : apiTokens.length > 0 ? (
+                    <ul className="mt-4 divide-y divide-border rounded-xl border border-border overflow-hidden">
+                      {apiTokens.map((token) => (
+                        <li key={token.id} className="flex items-center gap-3 bg-secondary/20 px-4 py-3 first:rounded-t-xl last:rounded-b-xl">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">{token.name}</p>
+                            <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                              {token.token_prefix}
+                              {token.last_used_at
+                                ? <span className="font-sans not-italic ml-2 opacity-70">· last used {new Date(token.last_used_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                : <span className="font-sans not-italic ml-2 opacity-50">· never used</span>
+                              }
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={revokingTokenId === token.id}
+                            onClick={() => void handleRevokeToken(token.id)}
+                            className="shrink-0 rounded-lg border border-red-500/30 px-2.5 py-1.5 text-[11px] font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-40 transition-colors"
+                          >
+                            {revokingTokenId === token.id ? "Revoking…" : "Revoke"}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : !newlyCreatedToken ? (
+                    <p className="mt-4 text-xs text-muted-foreground">No tokens yet. Create one below.</p>
+                  ) : null}
+
+                  {/* Create new token */}
+                  {apiTokens.length < 10 && (
+                    <form onSubmit={(e) => void handleCreateToken(e)} className="mt-4 flex gap-2">
+                      <input
+                        type="text"
+                        value={newTokenName}
+                        onChange={(e) => setNewTokenName(e.target.value)}
+                        placeholder="Token name, e.g. My CI pipeline"
+                        maxLength={80}
+                        className={cn(fieldClass, "flex-1 min-w-0")}
+                        disabled={creatingToken}
+                      />
+                      <button
+                        type="submit"
+                        disabled={creatingToken || !newTokenName.trim()}
+                        className={cn(primaryBtnClass, "shrink-0")}
+                      >
+                        {creatingToken ? "Generating…" : "Generate"}
+                      </button>
+                    </form>
+                  )}
+                  {apiTokens.length >= 10 && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Maximum of 10 tokens reached. Revoke an existing token to create a new one.
+                    </p>
+                  )}
+
+                  {tokenError && (
+                    <p className="mt-2 text-xs text-red-500">{tokenError}</p>
+                  )}
+                </section>
+
+                {/* ── Quick-access links ─────────────────────────── */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Quick access</p>
+
+                  {/* API Keys */}
+                  <a
+                    href="/api-keys"
+                    className="flex items-start gap-4 rounded-xl border border-border bg-white/[0.02] px-4 py-4 transition-colors hover:bg-white/[0.05] hover:border-white/20 group"
+                  >
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-white/[0.04] text-muted-foreground group-hover:text-foreground transition-colors">
+                      <KeyIcon />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">API Keys</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                        Add your own Anthropic, OpenAI, or other LLM provider keys. BYOK — costs go to your account.
+                      </p>
+                    </div>
+                  </a>
+
+                  {/* Env Vars */}
+                  <a
+                    href="/env-vars"
+                    className="mt-2 flex items-start gap-4 rounded-xl border border-border bg-white/[0.02] px-4 py-4 transition-colors hover:bg-white/[0.05] hover:border-white/20 group"
+                  >
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-white/[0.04] text-muted-foreground group-hover:text-foreground transition-colors">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5 10 12l-3.25 4.5M13.5 16.5h3.75M3.75 21h16.5A1.75 1.75 0 0 0 22 19.25V4.75A1.75 1.75 0 0 0 20.25 3H3.75A1.75 1.75 0 0 0 2 4.75v14.5A1.75 1.75 0 0 0 3.75 21Z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Environment Variables</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                        Encrypted workspace secrets referenced in any workflow node as <code className="font-mono">$env.NAME</code>.
+                      </p>
+                    </div>
+                  </a>
+
+                  {/* Logs */}
+                  <a
+                    href="/logs"
+                    className="mt-2 flex items-start gap-4 rounded-xl border border-border bg-white/[0.02] px-4 py-4 transition-colors hover:bg-white/[0.05] hover:border-white/20 group"
+                  >
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-white/[0.04] text-muted-foreground group-hover:text-foreground transition-colors">
+                      <LogsIcon />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Logs</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                        Full audit trail of all runs, node executions, approval decisions, and system events.
+                      </p>
+                    </div>
+                  </a>
+                </div>
+
+                {/* Hidden code redemption easter egg */}
+                <div className="pt-1 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setTab("legal")}
+                    className="text-xs text-muted-foreground/50 underline underline-offset-2 hover:text-muted-foreground"
+                  >
+                    Legal and privacy tools
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRedeemUnlockClicks((v) => Math.min(5, v + 1))}
+                    className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground/60"
+                  >
+                    build info
+                  </button>
+                </div>
 
                 {redeemUnlocked && (
                   <section className={panelClass}>

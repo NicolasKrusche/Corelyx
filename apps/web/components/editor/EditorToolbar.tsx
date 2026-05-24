@@ -32,6 +32,9 @@ interface EditorToolbarProps {
   onAiEdit: () => void;
   /** Present only when the trigger is a webhook — shows the Test button. */
   onTestWebhook?: () => void;
+  /** Raw schema editor — only present when the user has the dev toggle enabled. */
+  showRawSchema?: boolean;
+  onToggleRawSchema?: () => void;
 }
 
 // ─── Icons (inline SVG, no icon library dep) ─────────────────────────────────
@@ -119,6 +122,8 @@ export function EditorToolbar({
   onHistory,
   onAiEdit,
   onTestWebhook,
+  showRawSchema,
+  onToggleRawSchema,
 }: EditorToolbarProps) {
   const hasErrors = validationResult && !validationResult.valid;
   const isValid = validationResult?.valid === true;
@@ -299,6 +304,19 @@ export function EditorToolbar({
         </svg>
         Edit with AI
       </Button>
+
+      {/* Raw schema editor toggle — only visible when user has developer mode on */}
+      {onToggleRawSchema && (
+        <Button
+          variant={showRawSchema ? "default" : "outline"}
+          size="sm"
+          onClick={onToggleRawSchema}
+          className="gap-1 font-mono text-xs px-2.5"
+          title="Toggle raw schema editor"
+        >
+          {"{ }"}
+        </Button>
+      )}
 
       {/* Spacer pushes remaining buttons to the right */}
       <div className="flex-1" />
