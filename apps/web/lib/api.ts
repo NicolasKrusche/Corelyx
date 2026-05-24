@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@flowos/db";
 import { createServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import { genericErrorMessage, redactSecretText } from "@/lib/redaction";
 
 export async function writeNotification(
@@ -27,6 +28,20 @@ export function apiError(message: string, status: number, code?: string) {
 }
 
 export async function getAuthUser(): Promise<User | null> {
+  // If a valid personal API token was presented, middleware injects x-token-user-id.
+  // We resolve the full user from that rather than requiring a Supabase session cookie.
+  try {
+    const headersList = await headers();
+    const tokenUserId = headersList.get("x-token-user-id");
+    if (tokenUserId) {
+      const service = createServiceClient();
+      const { data: { user }, error } = await service.auth.admin.getUserById(tokenUserId);
+      if (!error && user) return user;
+    }
+  } catch {
+    // Fall through to cookie-based auth
+  }
+
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;

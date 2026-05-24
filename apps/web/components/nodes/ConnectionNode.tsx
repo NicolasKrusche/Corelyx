@@ -52,26 +52,27 @@ export function ConnectionNode({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-slate-500 !border-2 !border-background !w-3 !h-3"
+        className="!bg-blue-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(59,130,246,0.6)]"
       />
 
       <NodeShell
         selected={selected ?? false}
         validationState={nodeData.validationState ?? "valid"}
         status={nodeData.status}
-        accentColor="bg-slate-500"
+        accentColor="bg-blue-500"
+        accentRing="ring-blue-500/50 shadow-blue-500/20"
       >
         {/* Type badge */}
         <div className="flex items-center gap-1.5 mb-1">
-          <span className="inline-flex items-center rounded-sm bg-slate-500/15 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-            {httpConfig ? "HTTP Connector" : "Connection"}
+          <span className="inline-flex items-center rounded-sm bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-400 uppercase tracking-wide">
+            {httpConfig ? "HTTP" : "Connection"}
           </span>
           {httpConfig ? (
-            <span className="inline-flex items-center rounded-sm bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+            <span className="inline-flex items-center rounded-sm bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
               {httpConfig.method}
             </span>
           ) : (
-            <span className="inline-flex items-center rounded-sm bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">
+            <span className="inline-flex items-center rounded-sm bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
               {oauthConfig
                 ? (SCOPE_LABEL[oauthConfig.scope_access] ?? oauthConfig.scope_access)
                 : "Read"}
@@ -120,7 +121,7 @@ export function ConnectionNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-slate-500 !border-2 !border-background !w-3 !h-3"
+        className="!bg-blue-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(59,130,246,0.6)]"
       />
     </>
   );

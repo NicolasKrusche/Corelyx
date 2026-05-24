@@ -13,7 +13,7 @@ function StatusIcon({ status }: { status: NodeStatus | undefined }) {
   if (status === "running") {
     return (
       <span
-        className="inline-block h-3 w-3 rounded-full border-2 border-blue-400 border-t-transparent animate-spin"
+        className="inline-block h-2.5 w-2.5 rounded-full border-[1.5px] border-blue-400 border-t-transparent animate-spin"
         aria-label="Running"
       />
     );
@@ -22,11 +22,11 @@ function StatusIcon({ status }: { status: NodeStatus | undefined }) {
   if (status === "success") {
     return (
       <svg
-        className="h-3.5 w-3.5 text-green-500"
+        className="h-3 w-3 text-green-400"
         viewBox="0 0 16 16"
         fill="none"
         stroke="currentColor"
-        strokeWidth={2}
+        strokeWidth={2.5}
         aria-label="Success"
       >
         <path d="M3 8l3.5 3.5 6.5-7" strokeLinecap="round" strokeLinejoin="round" />
@@ -37,11 +37,11 @@ function StatusIcon({ status }: { status: NodeStatus | undefined }) {
   if (status === "failed") {
     return (
       <svg
-        className="h-3.5 w-3.5 text-red-500"
+        className="h-3 w-3 text-red-400"
         viewBox="0 0 16 16"
         fill="none"
         stroke="currentColor"
-        strokeWidth={2}
+        strokeWidth={2.5}
         aria-label="Failed"
       >
         <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
@@ -52,7 +52,7 @@ function StatusIcon({ status }: { status: NodeStatus | undefined }) {
   if (status === "waiting_approval") {
     return (
       <svg
-        className="h-3.5 w-3.5 text-yellow-500"
+        className="h-3 w-3 text-amber-400"
         viewBox="0 0 16 16"
         fill="none"
         stroke="currentColor"
@@ -68,7 +68,7 @@ function StatusIcon({ status }: { status: NodeStatus | undefined }) {
   if (status === "skipped") {
     return (
       <svg
-        className="h-3.5 w-3.5 text-slate-400"
+        className="h-3 w-3 text-slate-400"
         viewBox="0 0 16 16"
         fill="none"
         stroke="currentColor"
@@ -89,7 +89,10 @@ export interface NodeShellProps {
   selected: boolean;
   validationState: NodeValidationState;
   status?: NodeStatus;
-  accentColor?: string; // Tailwind bg+text class, e.g. "bg-green-500/10 text-green-700"
+  /** Tailwind bg class for the left accent bar, e.g. "bg-green-500" */
+  accentColor?: string;
+  /** Tailwind color classes for the selection ring glow, e.g. "ring-green-500/40 shadow-green-500/20" */
+  accentRing?: string;
   children: React.ReactNode;
   className?: string;
 }
@@ -101,39 +104,57 @@ export function NodeShell({
   validationState,
   status,
   accentColor,
+  accentRing = "ring-blue-500/50 shadow-blue-500/20",
   children,
   className,
 }: NodeShellProps) {
-  const borderClass = cn(
-    "border-2",
-    validationState === "error" && "border-red-500",
-    validationState === "warning" && "border-yellow-400",
-    validationState === "unassigned" && "border-slate-400 border-dashed",
-    validationState === "valid" && selected && "border-blue-500",
-    validationState === "valid" && !selected && "border-slate-200 dark:border-slate-700"
-  );
+  const isError   = validationState === "error";
+  const isWarning = validationState === "warning";
+  const isUnassigned = validationState === "unassigned";
 
   return (
     <div
       className={cn(
-        "relative rounded-lg bg-card text-card-foreground shadow-sm transition-shadow dark:bg-zinc-900/95 dark:text-zinc-50",
-        "dark:[&_.text-muted-foreground]:text-zinc-300",
-        "w-[200px] min-h-[80px] px-3 py-2.5",
+        // Glass base
+        "relative rounded-xl overflow-hidden",
+        "bg-[rgba(20,22,30,0.82)] dark:bg-[rgba(14,16,22,0.88)]",
+        "backdrop-blur-md",
+        // Size
+        "w-[220px] min-h-[88px] pl-5 pr-3.5 py-3",
         "flex flex-col gap-1",
-        borderClass,
-        selected && "shadow-md",
+        // Default border
+        "border border-white/[0.09]",
+        // Drop shadow
+        "shadow-[0_8px_32px_rgba(0,0,0,0.45),0_1px_2px_rgba(0,0,0,0.3)]",
+        // Validation ring overrides
+        isError      && "border-red-500/60 shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(239,68,68,0.35)]",
+        isWarning    && "border-yellow-400/60 shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(250,204,21,0.30)]",
+        isUnassigned && "border-white/[0.06] border-dashed",
+        // Selection ring
+        selected && !isError && !isWarning && cn(
+          "border-white/[0.2]",
+          `shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(96,165,250,0.4),0_0_16px_rgba(96,165,250,0.15)]`
+        ),
         className
       )}
     >
+      {/* Colored left accent bar */}
+      {accentColor && (
+        <div
+          className={cn(
+            "absolute left-0 top-0 bottom-0 w-[3px]",
+            accentColor
+          )}
+        />
+      )}
+
+      {/* Subtle top highlight gloss */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
       {/* Status indicator — top right */}
-      <div className="absolute top-2 right-2 flex items-center">
+      <div className="absolute top-2.5 right-2.5 flex items-center">
         <StatusIcon status={status} />
       </div>
-
-      {/* Accent strip (optional) */}
-      {accentColor && (
-        <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-lg", accentColor)} />
-      )}
 
       {children}
     </div>

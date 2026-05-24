@@ -26,6 +26,8 @@ const UpdateWorkspaceSchema = z.discriminatedUnion("action", [
     description: z.string().max(300).nullable().optional(),
     default_program_visibility: z.enum(["workspace", "restricted"]).optional(),
     members_can_create_programs: z.boolean().optional(),
+    default_execution_mode: z.enum(["autonomous", "supervised", "manual"]).optional(),
+    default_conflict_policy: z.enum(["queue", "skip", "fail"]).optional(),
   }),
 ]);
 
@@ -290,12 +292,14 @@ export async function PATCH(request: Request) {
     if (parsed.data.description !== undefined) patch.description = parsed.data.description;
     if (parsed.data.default_program_visibility !== undefined) patch.default_program_visibility = parsed.data.default_program_visibility;
     if (parsed.data.members_can_create_programs !== undefined) patch.members_can_create_programs = parsed.data.members_can_create_programs;
+    if (parsed.data.default_execution_mode !== undefined) patch.default_execution_mode = parsed.data.default_execution_mode;
+    if (parsed.data.default_conflict_policy !== undefined) patch.default_conflict_policy = parsed.data.default_conflict_policy;
 
     const { data, error } = await service
       .from("workspaces")
       .update(patch as never)
       .eq("id", parsed.data.workspace_id)
-      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
+      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, default_execution_mode, default_conflict_policy, created_by, created_at, updated_at")
       .single();
 
     if (error || !data) return apiError(error?.message ?? "Settings could not be updated.", 500);

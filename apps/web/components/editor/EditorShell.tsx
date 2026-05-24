@@ -38,6 +38,8 @@ import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
 import type { NodeVariant, TriggerSubtype, StepSubtype } from "@/components/editor/NodePalettePanel";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
+import { RawSchemaPanel } from "@/components/editor/RawSchemaPanel";
+import { useRawSchemaMode } from "@/lib/raw-schema-mode";
 
 import type { ProgramSchema, Node as SchemaNode, TriggerConfig, StepConfig } from "@flowos/schema";
 import type { ValidationResult } from "@/lib/validation";
@@ -306,6 +308,8 @@ export function EditorShell({
   const [showHistory, setShowHistory] = React.useState(false);
   const [showPalette, setShowPalette] = React.useState(false);
   const [showAiEdit, setShowAiEdit] = React.useState(false);
+  const [showRawSchema, setShowRawSchema] = React.useState(false);
+  const [rawSchemaEnabled] = useRawSchemaMode();
   const [contextMenu, setContextMenu] = React.useState<EditorContextMenu>(null);
   const [contextAddPosition, setContextAddPosition] = React.useState<{ x: number; y: number } | null>(null);
 
@@ -1353,9 +1357,15 @@ export function EditorShell({
           const opening = !showAiEdit;
           setShowAiEdit(opening);
           setAiEditError(null);
-          if (opening) setShowPalette(false);
+          if (opening) { setShowPalette(false); setShowRawSchema(false); }
         }}
         onTestWebhook={hasWebhookTrigger ? () => setShowWebhookTest(true) : undefined}
+        showRawSchema={rawSchemaEnabled && showRawSchema}
+        onToggleRawSchema={rawSchemaEnabled ? () => {
+          const opening = !showRawSchema;
+          setShowRawSchema(opening);
+          if (opening) { setShowPalette(false); setShowAiEdit(false); }
+        } : undefined}
       />
 
       {/* Node palette panel — slides in from left */}
@@ -1380,10 +1390,23 @@ export function EditorShell({
         />
       )}
 
-      {/* Canvas area — below toolbar, offset left when a left panel is open */}
+      {/* Raw schema panel — slides in from left (dev mode only) */}
+      {rawSchemaEnabled && showRawSchema && !isMobile && (
+        <RawSchemaPanel
+          schema={state.schema}
+          onApply={(schema) => {
+            dispatch({ type: "RESTORE_VERSION", schema });
+          }}
+          onClose={() => setShowRawSchema(false)}
+        />
+      )}
+
+      {/* Canvas area — below toolbar, offset left when a left panel is open.
+          The grid goes on the container div itself so React Flow's colorMode
+          background can't paint over it. ReactFlow is forced transparent. */}
       <div
-        className="relative h-[calc(100vh-56px)] mt-14 transition-[padding-left] duration-200"
-        style={{ paddingLeft: !isMobile ? (showPalette ? 240 : showAiEdit ? 288 : 0) : 0 }}
+        className="relative h-[calc(100vh-56px)] mt-14 transition-[padding-left] duration-200 editor-static-grid"
+        style={{ paddingLeft: !isMobile ? (rawSchemaEnabled && showRawSchema ? 420 : showPalette ? 240 : showAiEdit ? 288 : 0) : 0 }}
       >
         {/* Mobile banner */}
         {isMobile && (
@@ -1404,8 +1427,6 @@ export function EditorShell({
             </button>
           </div>
         )}
-
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 editor-static-grid" />
 
         <ReactFlow
           nodes={rfNodes}
@@ -1441,7 +1462,8 @@ export function EditorShell({
             strokeWidth: 2,
             opacity: 0.75,
           }}
-          className="relative z-10 bg-transparent"
+          className="relative z-10"
+          style={{ background: "transparent" }}
         >
           <Controls className="!border-border !bg-background !shadow-sm" />
           <MiniMap
