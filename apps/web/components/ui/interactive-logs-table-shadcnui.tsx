@@ -364,9 +364,9 @@ export function InteractiveLogsTable({
     filters.level.length + filters.service.length + filters.status.length;
 
   return (
-    <main className="h-full w-full bg-background rounded-xl border border-border overflow-hidden">
+    <main className="h-full w-full glass-card rounded-xl border overflow-hidden">
       <div className="flex h-full flex-col">
-        <div className="border-b border-border bg-card p-6">
+        <div className="border-b border-white/[0.06] bg-white/[0.02] p-6">
           <div className="space-y-4">
             <div>
               <h1 className="text-2xl font-semibold text-foreground">{title}</h1>

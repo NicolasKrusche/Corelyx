@@ -423,11 +423,11 @@ export function WorkspacesClient() {
       <div className="grid gap-5 lg:grid-cols-[310px_minmax(0,1fr)]">
         <aside className="space-y-3">
           {loadingWorkspaces && workspaces.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+            <div className="rounded-xl border glass-card p-5 text-sm text-muted-foreground">
               Loading workspaces...
             </div>
           ) : workspaces.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card/60 p-5 text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed glass-card p-5 text-sm text-muted-foreground">
               No workspaces yet.
             </div>
           ) : (
@@ -473,12 +473,12 @@ export function WorkspacesClient() {
 
         <main className="min-w-0 space-y-5">
           {!selectedWorkspace ? (
-            <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+            <div className="rounded-xl border glass-card p-6 text-sm text-muted-foreground">
               Select or create a workspace to manage people.
             </div>
           ) : (
             <>
-              <section className="rounded-xl border border-border bg-card p-5">
+              <section className="rounded-xl border glass-card p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -523,7 +523,7 @@ export function WorkspacesClient() {
               </section>
 
               {canManage && (
-                <section className="rounded-xl border border-border bg-card p-5">
+                <section className="rounded-xl border glass-card p-5">
                   <div className="mb-4 flex items-center gap-2">
                     <Settings className="h-4 w-4 text-primary" />
                     <h3 className="text-sm font-semibold">Workspace settings</h3>
@@ -618,7 +618,7 @@ export function WorkspacesClient() {
               )}
 
               {canManage && (
-                <section className="rounded-xl border border-border bg-card p-5">
+                <section className="rounded-xl border glass-card p-5">
                   <div className="mb-4 flex items-center gap-2">
                     <UserPlus className="h-4 w-4 text-primary" />
                     <h3 className="text-sm font-semibold">Add people</h3>
@@ -655,7 +655,7 @@ export function WorkspacesClient() {
                 </section>
               )}
 
-              <section className="rounded-xl border border-border bg-card">
+              <section className="rounded-xl border glass-card">
                 <div className="flex items-center gap-2 border-b border-border px-5 py-4">
                   <Users className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-semibold">People</h3>
@@ -729,7 +729,7 @@ export function WorkspacesClient() {
               </section>
 
               {(membersState?.invitations?.length ?? 0) > 0 && (
-                <section className="rounded-xl border border-border bg-card">
+                <section className="rounded-xl border glass-card">
                   <div className="border-b border-border px-5 py-4">
                     <h3 className="text-sm font-semibold">Pending invitations</h3>
                   </div>

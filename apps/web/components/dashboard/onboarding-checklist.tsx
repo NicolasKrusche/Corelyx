@@ -106,8 +106,8 @@ export function OnboardingChecklist({ hasPrograms, hasConnections, hasApiKeys }:
                 key={step.label}
                 className={`flex gap-3 rounded-xl border p-4 transition-colors ${
                   step.done
-                    ? "border-border/40 bg-card/30 opacity-60"
-                    : "border-border bg-card hover:border-primary/20"
+                    ? "border-border/40 bg-white/[0.02] opacity-60"
+                    : "border glass-card hover:border-primary/20"
                 }`}
               >
                 {/* Icon */}

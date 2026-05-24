@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CheckCircle, XCircle, ChevronDown, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ApprovalRow = {
   id: string;
@@ -16,6 +15,7 @@ type ApprovalRow = {
     node_label?: string;
     input?: unknown;
     program_id?: string;
+    reason?: string;
   } | null;
   decision_note: string | null;
   decided_at: string | null;
@@ -35,7 +35,15 @@ type ApprovalRow = {
   };
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
 export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
   const router = useRouter();
@@ -43,12 +51,14 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
   const [submitting, setSubmitting] = useState<"approved" | "rejected" | null>(null);
   const [decided, setDecided] = useState<"approved" | "rejected" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [contextOpen, setContextOpen] = useState(false);
 
   const programName =
     approval.node_executions?.runs?.programs?.name ?? "Unknown program";
   const runId = approval.node_executions?.run_id;
   const programId = approval.node_executions?.runs?.program_id;
   const nodeLabel = approval.context?.node_label ?? approval.node_executions?.node_id;
+  const reason = approval.context?.reason;
 
   async function decide(decision: "approved" | "rejected") {
     setSubmitting(decision);
@@ -61,6 +71,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
       });
       if (res.ok) {
         setDecided(decision);
+        window.dispatchEvent(new CustomEvent("approval-changed"));
         router.refresh();
       } else {
         const body = await res.json().catch(() => ({}));
@@ -75,105 +86,116 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
 
   if (decided) {
     return (
-      <div className="rounded-lg border border-border p-4">
-        <p className="text-sm">
-          <span
-            className={
-              decided === "approved"
-                ? "text-green-600 dark:text-green-400 font-medium"
-                : "text-destructive font-medium"
-            }
-          >
+      <div className="rounded-2xl border glass-card px-5 py-4 flex items-center gap-3">
+        {decided === "approved"
+          ? <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+          : <XCircle className="h-4 w-4 text-destructive shrink-0" />}
+        <p className="text-sm text-muted-foreground">
+          <span className={decided === "approved" ? "text-green-500 font-medium" : "text-destructive font-medium"}>
             {decided === "approved" ? "Approved" : "Rejected"}
-          </span>{" "}
-          — thank you.
+          </span>
+          {" "}— decision recorded.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border p-5 space-y-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium">{nodeLabel}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Program:{" "}
-            {programId ? (
-              <Link
-                href={`/programs/${programId}`}
-                className="hover:underline"
-              >
-                {programName}
-              </Link>
-            ) : (
-              programName
-            )}
-            {runId && programId && (
-              <>
-                {" · "}
-                <Link
-                  href={`/programs/${programId}/runs/${runId}`}
-                  className="hover:underline"
-                >
-                  View run
+    <div className="rounded-2xl border glass-card overflow-hidden">
+      {/* Header bar */}
+      <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+        <div className="flex items-start gap-3 min-w-0">
+          {/* Pulsing indicator */}
+          <span className="relative mt-1 flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-50 [animation-duration:2s]" />
+            <span className="relative h-2 w-2 rounded-full bg-amber-400" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-tight">{nodeLabel}</p>
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              {programId ? (
+                <Link href={`/programs/${programId}`} className="hover:text-foreground transition-colors">
+                  {programName}
                 </Link>
-              </>
-            )}
-          </p>
+              ) : programName}
+              {runId && programId && (
+                <>
+                  {" · "}
+                  <Link href={`/programs/${programId}/runs/${runId}`} className="hover:text-foreground transition-colors">
+                    View run
+                  </Link>
+                </>
+              )}
+            </p>
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground shrink-0">
-          {new Date(approval.created_at).toLocaleString()}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground/50">
+          <Clock className="h-3 w-3" />
+          {timeAgo(approval.created_at)}
+        </div>
       </div>
 
-      {/* Context / input for review */}
-      {approval.context?.input != null && (
-        <details>
-          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none">
-            Input context
-          </summary>
-          <pre className="mt-1 p-2 rounded bg-muted text-xs overflow-x-auto max-h-48">
-            {JSON.stringify(approval.context.input, null, 2)}
-          </pre>
-        </details>
+      {/* Reason */}
+      {reason && (
+        <div className="mx-5 mb-4 rounded-xl bg-white/[0.03] border border-white/[0.06] px-3.5 py-2.5">
+          <p className="text-xs text-muted-foreground leading-relaxed">{reason}</p>
+        </div>
       )}
 
-      {/* Note textarea */}
-      <div>
-        <label className="block text-xs text-muted-foreground mb-1">
-          Note (optional)
-        </label>
+      {/* Input context collapsible */}
+      {approval.context?.input != null && (
+        <div className="mx-5 mb-4">
+          <button
+            onClick={() => setContextOpen(o => !o)}
+            className="flex w-full items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          >
+            <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${contextOpen ? "rotate-180" : ""}`} />
+            Input context
+          </button>
+          {contextOpen && (
+            <pre className="mt-2 rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-xs text-muted-foreground overflow-x-auto max-h-48 leading-relaxed">
+              {JSON.stringify(approval.context.input, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
+
+      {/* Divider */}
+      <div className="mx-5 h-px bg-white/[0.06]" />
+
+      {/* Note + actions */}
+      <div className="px-5 py-4 space-y-3">
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Add a note for your decision…"
+          placeholder="Add a note for your decision (optional)…"
           rows={2}
-          className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-white/20 resize-none transition-colors"
         />
-      </div>
 
-      {/* Error */}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
 
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <Button
-          onClick={() => decide("approved")}
-          disabled={submitting !== null}
-          className="bg-green-600 hover:bg-green-700 text-white"
-        >
-          {submitting === "approved" ? "Approving…" : "Approve"}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => decide("rejected")}
-          disabled={submitting !== null}
-          className="border-destructive text-destructive hover:bg-destructive/10"
-        >
-          {submitting === "rejected" ? "Rejecting…" : "Reject"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => decide("approved")}
+            disabled={submitting !== null}
+            size="sm"
+            className="gap-1.5 bg-green-600 hover:bg-green-500 text-white border-0"
+          >
+            <CheckCircle className="h-3.5 w-3.5" />
+            {submitting === "approved" ? "Approving…" : "Approve"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => decide("rejected")}
+            disabled={submitting !== null}
+            className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50"
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            {submitting === "rejected" ? "Rejecting…" : "Reject"}
+          </Button>
+        </div>
       </div>
     </div>
   );

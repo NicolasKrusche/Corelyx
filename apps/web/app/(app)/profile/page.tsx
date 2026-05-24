@@ -35,7 +35,7 @@ export default async function ProfilePage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+      <div className="rounded-xl border glass-card p-6 space-y-6">
         <div className="flex items-center gap-4">
           <div
             className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-xl font-bold text-foreground border border-border shrink-0"
@@ -62,7 +62,7 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+      <div className="rounded-xl border glass-card p-6 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Plan</p>
@@ -80,7 +80,7 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+      <div className="rounded-xl border glass-card p-6 space-y-3">
         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Account</p>
         <div className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-2 text-sm">
           <span className="text-muted-foreground">Email</span>

@@ -53,7 +53,7 @@ export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymen
 
   if (loading) {
     return (
-      <div className="animate-pulse rounded-2xl border border-border bg-card p-5">
+      <div className="animate-pulse rounded-2xl border glass-card p-5">
         <div className="h-4 w-32 rounded bg-muted" />
         <div className="mt-2 h-3 w-48 rounded bg-muted" />
       </div>
@@ -61,7 +61,7 @@ export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymen
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-2xl border glass-card p-5">
       <div className="flex items-center justify-between">
         <div>
           <p className="flex items-center gap-1.5 font-semibold text-sm">

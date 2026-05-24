@@ -261,7 +261,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <section className="grid overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:grid-cols-6">
+      <section className="grid overflow-hidden rounded-lg border glass-card shadow-sm lg:grid-cols-6">
         {stats.map(({ label, value, sub, icon: Icon, warn, small }) => (
           <div key={label} className="border-b border-border p-5 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
             <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -304,7 +304,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <main className="space-y-4">
-          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -398,7 +398,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
         </main>
 
         <aside className="space-y-4 lg:sticky lg:top-6">
-          <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold">Operations</h2>
               <span className="text-xs text-muted-foreground">last 7d</span>
@@ -440,7 +440,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
 
           <SharePanel programId={program.id} />
 
-          <details className="rounded-lg border border-border bg-card shadow-sm">
+          <details className="rounded-lg border glass-card shadow-sm">
             <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-4">
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                 <Code2 className="h-4 w-4" />

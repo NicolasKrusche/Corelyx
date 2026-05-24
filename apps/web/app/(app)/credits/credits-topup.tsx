@@ -117,7 +117,7 @@ export function PastPurchasesLink() {
   return (
     <Link
       href="#activity"
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+      className="inline-flex items-center gap-1.5 rounded-lg border glass-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
     >
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="opacity-60">
         <path d="M6 1v5l3 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>

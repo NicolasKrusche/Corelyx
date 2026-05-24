@@ -80,7 +80,7 @@ export function WelcomeHero() {
           <Link
             key={href}
             href={href}
-            className="group flex flex-col gap-3 rounded-xl border border-border bg-card/80 p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-sm"
+            className="group flex flex-col gap-3 rounded-xl border glass-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm"
           >
             <div
               className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${iconClass} transition-transform group-hover:scale-110`}

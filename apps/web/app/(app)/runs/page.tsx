@@ -250,7 +250,7 @@ export default async function RunsPage({
       {/* ── Stats cards ── */}
       {runs24h.length > 0 && (
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+          <div className="rounded-xl border glass-card px-4 py-3.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1.5">Total Runs · 24H</p>
             <div className="flex items-center gap-1.5">
               <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
@@ -260,14 +260,14 @@ export default async function RunsPage({
             <p className="text-xl font-black tabular-nums mt-1.5">{runs24h.length}</p>
             <p className="text-[11px] text-muted-foreground/50 mt-0.5">{okRuns.length} completed cleanly</p>
           </div>
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+          <div className="rounded-xl border glass-card px-4 py-3.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1.5">Success Rate</p>
             <p className={`text-xl font-black tabular-nums ${successRate !== null && successRate < 50 ? "text-red-400" : successRate !== null && successRate < 80 ? "text-yellow-500" : "text-foreground"}`}>
               {successRate !== null ? `${successRate}%` : "—"}
             </p>
             <p className="text-[11px] text-muted-foreground/50 mt-0.5">{okRuns.length} of {runs24h.length} completed</p>
           </div>
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+          <div className="rounded-xl border glass-card px-4 py-3.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1.5">Failed</p>
             <p className={`text-xl font-black tabular-nums ${failedRuns24h.length > 0 ? "text-red-400" : "text-foreground"}`}>
               {failedRuns24h.length}
@@ -276,7 +276,7 @@ export default async function RunsPage({
               {failedRuns24h.length > 0 ? `across ${new Set(failedRuns24h.map((r) => r.program_id)).size} program${new Set(failedRuns24h.map((r) => r.program_id)).size !== 1 ? "s" : ""}` : "no failures"}
             </p>
           </div>
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+          <div className="rounded-xl border glass-card px-4 py-3.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1.5">P50 / P95 Duration</p>
             <p className="text-xl font-black tabular-nums">
               {durations.length > 0 ? formatDuration(p50ms) : "—"}
@@ -285,7 +285,7 @@ export default async function RunsPage({
               {durations.length > 0 ? `P95 ${formatDuration(p95ms)}` : "no data"}
             </p>
           </div>
-          <div className="rounded-xl border border-border bg-card px-4 py-3.5">
+          <div className="rounded-xl border glass-card px-4 py-3.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1.5">Concurrency</p>
             <p className="text-xl font-black tabular-nums">{runningNow}</p>
             <p className="text-[11px] text-muted-foreground/50 mt-0.5">/ 5 max · queue policy: queue</p>
@@ -295,7 +295,7 @@ export default async function RunsPage({
 
       {/* ── Run volume chart ── */}
       {runs.length > 0 && (
-        <section className="rounded-xl border border-border bg-card px-5 py-4">
+        <section className="rounded-xl border glass-card px-5 py-4">
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Run Volume · Last 24H</p>
@@ -337,7 +337,7 @@ export default async function RunsPage({
       {/* ── Filters ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Status tabs */}
-        <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shrink-0 flex-wrap">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border glass-card p-1 shrink-0 flex-wrap">
           {STATUS_FILTERS.map(({ label, value }) => {
             const count = filterCounts[value] ?? 0;
             const filterParams = new URLSearchParams();
@@ -392,7 +392,7 @@ export default async function RunsPage({
                 className={`rounded-lg border px-3 py-1.5 font-medium transition-colors ${
                   groupByError
                     ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border bg-card hover:bg-accent"
+                    : "border glass-card hover:bg-accent"
                 }`}
               >
                 Group: {groupByError ? "error type" : "none"}
@@ -410,7 +410,7 @@ export default async function RunsPage({
             return (
               <Link
                 href={sortHref}
-                className="border border-border bg-card rounded-lg px-3 py-1.5 font-medium hover:bg-accent transition-colors inline-flex items-center gap-1"
+                className="border glass-card rounded-lg px-3 py-1.5 font-medium hover:bg-accent transition-colors inline-flex items-center gap-1"
               >
                 <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/60">
                   <path d="M2 4.75a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75ZM4 8a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 8Zm2.75 2.5a.75.75 0 0 0 0 1.5h2.5a.75.75 0 0 0 0-1.5h-2.5Z"/>
@@ -424,8 +424,8 @@ export default async function RunsPage({
 
       {/* ── No runs ── */}
       {runs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/50 px-8 py-16 text-center">
-          <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card text-muted-foreground/40">
+        <div className="rounded-2xl border border-dashed bg-white/[0.02] backdrop-blur-md px-8 py-16 text-center">
+          <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border glass-card text-muted-foreground/40">
             <svg viewBox="0 0 16 16" fill="currentColor" className="h-5 w-5">
               <path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531L5.305 13.533A1.5 1.5 0 0 1 3 12.267V3.732Z" />
             </svg>
@@ -461,7 +461,7 @@ export default async function RunsPage({
               </h2>
               <p className="text-[11px] text-muted-foreground/40">Same root cause grouped together. Resolve one, retry the rest.</p>
             </div>
-            <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden">
+            <div className="rounded-xl border glass-card divide-y divide-border/60 overflow-hidden">
               {errorGroups.map((group) => (
                 <div key={group.fingerprint} className="flex items-center gap-3 px-4 py-3.5">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-red-500/20 bg-red-500/10">

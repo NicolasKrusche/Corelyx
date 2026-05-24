@@ -66,7 +66,7 @@ export function ExecutionControls({ programId, executionMode, conflictPolicy }: 
   };
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
       <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
         <div>
           <h2 className="text-sm font-semibold">Execution</h2>

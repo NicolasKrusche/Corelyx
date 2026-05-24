@@ -129,14 +129,14 @@ const ACCENT: Record<Announcement["type"], string> = {
   release:     "border-primary bg-primary/5 [&_[data-badge]]:bg-primary [&_[data-badge]]:text-primary-foreground",
   feature:     "border-blue-500/40 bg-blue-500/5 [&_[data-badge]]:bg-blue-500 [&_[data-badge]]:text-white",
   update:      "border-violet-500/40 bg-violet-500/5 [&_[data-badge]]:bg-violet-500 [&_[data-badge]]:text-white",
-  info:        "border-border bg-card [&_[data-badge]]:bg-muted [&_[data-badge]]:text-foreground",
+  info:        "border glass-card [&_[data-badge]]:bg-muted [&_[data-badge]]:text-foreground",
   maintenance: "border-yellow-500/40 bg-yellow-500/5 [&_[data-badge]]:bg-yellow-500 [&_[data-badge]]:text-black",
 };
 
 const ALERT_STYLE: Record<Alert["kind"], string> = {
   error:   "border-destructive/30 bg-destructive/5",
   warning: "border-yellow-500/30 bg-yellow-500/5",
-  info:    "border-border bg-card",
+  info:    "border glass-card",
 };
 
 const ALERT_DOT: Record<Alert["kind"], string> = {
@@ -306,7 +306,7 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
                         <span className="mt-1 block text-[10px] text-muted-foreground/60">{formatDate(item.created_at)}</span>
                       </span>
                     );
-                    const cls = "flex items-start gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:brightness-95";
+                    const cls = "flex items-start gap-3 rounded-xl border glass-card p-3 transition-colors hover:brightness-95";
                     return item.href ? (
                       <Link key={item.id} href={item.href} onClick={() => setOpen(false)} className={cls}>
                         <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />

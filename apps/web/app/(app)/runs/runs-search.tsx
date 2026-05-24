@@ -69,7 +69,7 @@ export function RunsSearch({ currentQ, currentSince }: Props) {
           defaultValue={currentQ}
           onChange={handleInput}
           placeholder="Search program or error…"
-          className="h-8 w-full rounded-lg border border-border bg-card pl-8 pr-8 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-8 w-full rounded-lg border glass-card pl-8 pr-8 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
         />
         {currentQ && (
           <button
@@ -86,7 +86,7 @@ export function RunsSearch({ currentQ, currentSince }: Props) {
       </div>
 
       {/* Date presets */}
-      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shrink-0">
+      <div className="inline-flex items-center gap-0.5 rounded-lg border glass-card p-1 shrink-0">
         {DATE_PRESETS.map(({ label, value }) => (
           <a
             key={label}

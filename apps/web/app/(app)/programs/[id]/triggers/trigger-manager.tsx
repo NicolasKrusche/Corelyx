@@ -105,7 +105,7 @@ function NewTriggerForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-border p-4 space-y-4 bg-card">
+    <form onSubmit={handleSubmit} className="rounded-lg border glass-card p-4 space-y-4">
       <h3 className="text-sm font-medium">Add Trigger</h3>
 
       {/* Type selector */}
