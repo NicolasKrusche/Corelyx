@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 // Bump this key whenever you want the modal to reappear for all users.
-const WHATS_NEW_KEY = "corelyx-whats-new-v20260519";
+const WHATS_NEW_KEY = "corelyx-whats-new-v20260525";
 
 type Update = {
   icon: string;
@@ -13,19 +13,24 @@ type Update = {
 
 const UPDATES: Update[] = [
   {
-    icon: "⚡",
-    title: "Auto-recharge",
-    description: "Set a balance threshold and Corelyx will automatically top up your credits using your saved payment method — no manual top-ups needed.",
+    icon: "🔑",
+    title: "Corelyx AI Keys",
+    description: "Generate personal API tokens and call Corelyx from scripts, CI pipelines, or external agents. Tokens are shown once — store them safely. Manage them in Settings → Developer.",
   },
   {
     icon: "✨",
-    title: "Generate programs with the Corelyx AI key",
-    description: "Use your platform credits to generate workflows with Genesis — no API key required. A flat fee applies per generation.",
+    title: "Glassmorphism editor nodes",
+    description: "Workflow nodes got a full visual refresh — frosted glass, coloured accent bars per node type, and glow handles. The canvas now has a persistent dot grid too.",
   },
   {
-    icon: "📋",
-    title: "GDPR data request tracking",
-    description: "View and manage your data subject requests directly in the app under Support → Data Requests. Reply to follow-up questions without leaving Corelyx.",
+    icon: "{ }",
+    title: "Raw schema editor",
+    description: "Enable the raw schema editor in Settings → Developer to get a live JSON panel in the workflow editor. Read, edit, and apply the full workflow schema directly.",
+  },
+  {
+    icon: "⚙️",
+    title: "Execution defaults",
+    description: "Set workspace-level defaults for execution mode and conflict policy in Settings → Developer. New workflows inherit these automatically.",
   },
 ];
 
