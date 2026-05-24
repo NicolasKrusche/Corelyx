@@ -188,14 +188,14 @@ export function TriggerEventLog({ events, programId }: Props) {
       </div>
 
       {events.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 px-6 py-10 text-center">
+        <div className="rounded-xl border border-dashed bg-white/[0.02] backdrop-blur-md px-6 py-10 text-center">
           <p className="text-sm font-medium">No trigger activity yet</p>
           <p className="mt-1 text-xs text-muted-foreground/60">
             Events will appear here the first time a trigger fires.
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border/60">
+        <div className="overflow-hidden rounded-xl border glass-card divide-y divide-border/60">
           {events.map((ev) => (
             <EventRow key={ev.id} ev={ev} programId={programId} />
           ))}

@@ -741,7 +741,7 @@ function ProviderLogo({ provider, size = 26 }: { provider: string; size?: number
   return (
     <div
       style={{ width: size, height: size }}
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/50 bg-card p-0.5"
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/50 glass-card p-0.5"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -1054,7 +1054,7 @@ export default function ConnectionsPage() {
     if (!activeProvider) return null;
 
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-card/60 px-5 py-8 text-center">
+      <div className="rounded-2xl border border-dashed glass-card px-5 py-8 text-center">
         <p className="text-sm font-medium">{title}</p>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         {actionLabel && (
@@ -1109,7 +1109,7 @@ export default function ConnectionsPage() {
               key={connection.id}
               className={cn(
                 "rounded-2xl border px-4 py-4 transition-colors",
-                highlight ? "border-primary/50 bg-primary/5" : "border-border/70 bg-card",
+                highlight ? "border-primary/50 bg-primary/5" : "border-border/70 glass-card",
               )}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1182,13 +1182,13 @@ export default function ConnectionsPage() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
+          <div className="rounded-xl border border-border/70 glass-card px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
               Accounts
             </p>
             <p className="mt-2 text-lg font-semibold">{activeProviderConnections.length}</p>
           </div>
-          <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
+          <div className="rounded-xl border border-border/70 glass-card px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
               Primary
             </p>
@@ -1198,7 +1198,7 @@ export default function ConnectionsPage() {
                 : "Not selected"}
             </p>
           </div>
-          <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
+          <div className="rounded-xl border border-border/70 glass-card px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
               Health
             </p>
@@ -1208,7 +1208,7 @@ export default function ConnectionsPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/70 bg-card px-5 py-4">
+        <div className="rounded-2xl border border-border/70 glass-panel px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold">Quick actions</p>
@@ -1268,7 +1268,7 @@ export default function ConnectionsPage() {
             {activeProviderConnections.map((connection) => {
               const isPrimary = isPrimaryConnectionName(connection.provider, connection.name);
               return (
-                <div key={connection.id} className="rounded-xl border border-border/70 bg-card px-4 py-3">
+                <div key={connection.id} className="rounded-xl border border-border/70 glass-card px-4 py-3">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">
                       {getConnectionIdentity(connection.metadata, connection.name)}
@@ -1299,7 +1299,7 @@ export default function ConnectionsPage() {
 
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-border/70 bg-card px-5 py-4">
+        <div className="rounded-2xl border border-border/70 glass-panel px-5 py-4">
           <p className="text-sm font-semibold">How primary works</p>
           <p className="mt-1 text-sm text-muted-foreground">
             The primary account becomes the default {activeProvider.label} connection used anywhere the app refers to <span className="font-mono">{getPrimaryConnectionName(activeProvider.id)}</span>.
@@ -1324,7 +1324,7 @@ export default function ConnectionsPage() {
             const isPrimary = isPrimaryConnectionName(connection.provider, connection.name);
 
             return (
-              <div key={connection.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div key={connection.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 glass-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-medium">
@@ -1369,19 +1369,19 @@ export default function ConnectionsPage() {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
+          <div className="rounded-xl border border-border/70 glass-card px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
               Healthy
             </p>
             <p className="mt-2 text-lg font-semibold">{healthyConnectionCount}</p>
           </div>
-          <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
+          <div className="rounded-xl border border-border/70 glass-card px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
               Needs attention
             </p>
             <p className="mt-2 text-lg font-semibold">{attentionConnectionCount}</p>
           </div>
-          <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
+          <div className="rounded-xl border border-border/70 glass-card px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
               Last check
             </p>
@@ -1393,7 +1393,7 @@ export default function ConnectionsPage() {
 
         <div className="space-y-3">
           {activeProviderConnections.map((connection) => (
-            <div key={connection.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div key={connection.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 glass-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-medium">
@@ -1448,7 +1448,7 @@ export default function ConnectionsPage() {
 
         <div className="space-y-3">
           {activeProviderConnections.map((connection) => (
-            <div key={connection.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div key={connection.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 glass-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
                   {getConnectionIdentity(connection.metadata, connection.name)}
@@ -1498,7 +1498,7 @@ export default function ConnectionsPage() {
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
             Connected - {sortedConnections.length}
           </h2>
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="overflow-hidden rounded-xl border glass-card">
             {sortedConnections.map((connection, index) => {
               const isPrimary = isPrimaryConnectionName(connection.provider, connection.name);
               const identity = getConnectionIdentity(connection.metadata, connection.name);
@@ -1559,7 +1559,7 @@ export default function ConnectionsPage() {
                   key={provider.id}
                   type="button"
                   onClick={() => openProvider(provider.id)}
-                  className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-all hover:border-border/80 hover:bg-accent/30"
+                  className="group flex items-center gap-3 rounded-xl border glass-card px-4 py-3.5 text-left transition-all hover:border-border/80 hover:bg-accent/30"
                 >
                   <ProviderLogo provider={provider.id} />
                   <div className="min-w-0 flex-1">
@@ -1615,7 +1615,7 @@ export default function ConnectionsPage() {
                       key={provider.id}
                       type="button"
                       onClick={() => openProvider(provider.id)}
-                      className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-all hover:border-border/80 hover:bg-accent/30"
+                      className="group flex items-center gap-3 rounded-xl border glass-card px-4 py-3.5 text-left transition-all hover:border-border/80 hover:bg-accent/30"
                     >
                       <ProviderLogo provider={provider.id} />
                       <div className="min-w-0 flex-1">
@@ -1640,7 +1640,7 @@ export default function ConnectionsPage() {
                 })}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-card/50 px-5 py-10 text-center">
+              <div className="rounded-2xl border border-dashed border-border/70 bg-white/[0.02] backdrop-blur-md px-5 py-10 text-center">
                 <Search className="mx-auto h-5 w-5 text-muted-foreground/50" />
                 <p className="mt-3 text-sm font-medium text-foreground">
                   {hasProviderSearch ? "No connectors match your search" : "Search to add a connector"}
@@ -1708,7 +1708,7 @@ export default function ConnectionsPage() {
                       type="button"
                       onClick={() => openProvider(provider.id)}
                       className={cn(
-                        "group flex items-center gap-3 rounded-xl border bg-card px-4 py-3.5 text-left transition-all",
+                        "group flex items-center gap-3 rounded-xl border glass-card px-4 py-3.5 text-left transition-all",
                         isPro
                           ? "border-amber-500/15 hover:border-amber-500/30 hover:bg-amber-500/5"
                           : "border-border hover:border-border/80 hover:bg-accent/30",
@@ -1813,7 +1813,7 @@ export default function ConnectionsPage() {
             <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
               <aside className="flex h-full min-h-0 flex-col border-b border-border/60 bg-muted/25 lg:border-b-0 lg:border-r">
                 <div className="flex-1 overflow-y-auto px-4 py-5">
-                  <div className="rounded-2xl border border-border/70 bg-card px-4 py-4">
+                  <div className="rounded-2xl border border-border/70 glass-panel px-4 py-4">
                     <div className="flex items-center gap-3">
                       <ProviderLogo provider={activeProvider.id} size={38} />
                       <div className="min-w-0">

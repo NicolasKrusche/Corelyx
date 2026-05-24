@@ -430,7 +430,7 @@ export function UsageCharts({ history }: { history: DayUsage[] }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {/* Runs chart */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border glass-panel p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -508,7 +508,7 @@ export function UsageCharts({ history }: { history: DayUsage[] }) {
       </div>
 
       {/* AI spend chart */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border glass-panel p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">

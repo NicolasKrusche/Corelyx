@@ -141,12 +141,12 @@ export default function EnvVarsPage() {
 
       {/* List */}
       {loading ? (
-        <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <div className="rounded-xl border glass-card p-8 text-center">
           <p className="text-xs text-muted-foreground/50">Loading…</p>
         </div>
       ) : vars.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-14 text-center">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-border bg-card text-muted-foreground/40 mb-4">
+        <div className="rounded-xl border border-dashed bg-white/[0.02] backdrop-blur-md p-14 text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl border glass-card text-muted-foreground/40 mb-4">
             <TerminalIcon />
           </div>
           <p className="text-sm font-medium mb-1">No variables yet</p>
@@ -157,7 +157,7 @@ export default function EnvVarsPage() {
           <Button size="sm" onClick={() => setAddOpen(true)}>Add first variable</Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden">
+        <div className="rounded-xl border glass-card divide-y divide-border/60 overflow-hidden">
           {vars.map((v) => (
             <div key={v.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-accent/30 transition-colors">
               {/* Name */}

@@ -321,7 +321,7 @@ export default async function CreditsPage() {
         </div>
 
         {/* This Cycle's Allowance */}
-        <div className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
+        <div className="rounded-2xl border glass-panel p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
               This Cycle&apos;s Allowance
@@ -419,7 +419,7 @@ export default async function CreditsPage() {
       {!isUnlimited && (
         <div id="topup" className="grid gap-4 lg:grid-cols-2">
           {/* Top up */}
-          <section className="rounded-2xl border border-border bg-card p-5">
+          <section className="rounded-2xl border glass-panel p-5">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <p className="flex items-center gap-1.5 font-semibold">
@@ -437,7 +437,7 @@ export default async function CreditsPage() {
           <div className="space-y-4">
             <AutoRechargeSettings hasSavedPaymentMethod={hasSavedPaymentMethod} />
 
-            <section className="rounded-2xl border border-border bg-card p-5">
+            <section className="rounded-2xl border glass-panel p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="flex items-center gap-1.5 text-sm font-semibold">
@@ -468,10 +468,10 @@ export default async function CreditsPage() {
               key={plan.id}
               className={`relative flex flex-col rounded-2xl border p-6 ${
                 plan.primary
-                  ? "border-primary bg-card shadow-md shadow-primary/10"
+                  ? "border-primary glass-card shadow-md shadow-primary/10"
                   : plan.current
-                  ? "border-border bg-card"
-                  : "border-border bg-card/60"
+                  ? "glass-card"
+                  : "glass-card"
               }`}
             >
               {plan.badge && (
@@ -552,7 +552,7 @@ export default async function CreditsPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="overflow-hidden rounded-2xl border glass-panel">
           {/* Table header */}
           <div className="hidden grid-cols-[120px_1fr_100px_80px_100px_24px] gap-4 border-b border-border/60 px-5 py-2.5 sm:grid">
             {["DATE", "EVENT", "AMOUNT", "TYPE", "BALANCE"].map((h) => (

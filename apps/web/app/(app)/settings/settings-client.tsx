@@ -417,7 +417,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
         description="Download a copy of your personal data or request corrections to billing contact information."
       >
         <div className="space-y-3">
-          <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <div className="rounded-lg border glass-card p-4 space-y-2">
             <p className="text-sm font-medium">Export your data</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Download a full copy of your account data including programs, runs, logs, connections metadata, and API key metadata. Secrets and tokens are never included.
@@ -436,7 +436,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
               View export schema
             </Link>
           </div>
-          <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+          <div className="rounded-lg border glass-card p-4 space-y-1">
             <p className="text-sm font-medium">Billing contact data</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
               To correct billing contact information held by our payment processor, email{" "}
@@ -485,7 +485,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
         <div className="flex flex-col gap-2">
           <Link
             href="/privacy"
-            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+            className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
             <span className="font-medium">Privacy Policy</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
@@ -494,7 +494,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
           </Link>
           <Link
             href="/terms"
-            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+            className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
             <span className="font-medium">Terms of Service</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
@@ -503,7 +503,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
           </Link>
           <Link
             href="/impressum"
-            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+            className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
             <span className="font-medium">Impressum</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
@@ -512,7 +512,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
           </Link>
           <Link
             href="/subprocessors"
-            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+            className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
             <span className="font-medium">Subprocessor Registry</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
@@ -521,7 +521,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
           </Link>
           <Link
             href="/dpa"
-            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+            className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
             <span className="font-medium">Data Processing Agreement</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
@@ -530,7 +530,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
           </Link>
           <Link
             href="/security"
-            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+            className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
             <span className="font-medium">Security Policy</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
@@ -539,7 +539,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
           </Link>
           <Link
             href="/dpia-template"
-            className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
+            className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
             <span className="font-medium">DPIA Template</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">

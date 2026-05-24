@@ -314,7 +314,7 @@ function BuildingCanvas() {
 
       {/* Status overlay */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-6">
-        <div className="pointer-events-auto max-w-lg w-full mx-4 rounded-xl border border-border bg-card/95 backdrop-blur px-4 py-3 shadow-lg">
+        <div className="pointer-events-auto max-w-lg w-full mx-4 rounded-xl border glass-card px-4 py-3 shadow-lg">
           <div className="flex items-center gap-3">
             {!error && <Spinner />}
             <div className="flex-1 min-w-0">
@@ -341,7 +341,7 @@ function BuildingCanvas() {
 
       {/* Thoughts panel */}
       {thoughts.length > 0 && !error && (
-        <div className="pointer-events-auto absolute left-4 bottom-4 z-10 max-w-sm rounded-xl border border-border bg-card/95 backdrop-blur px-4 py-3 shadow-lg">
+        <div className="pointer-events-auto absolute left-4 bottom-4 z-10 max-w-sm rounded-xl border glass-card px-4 py-3 shadow-lg">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Thinking through the build
           </p>

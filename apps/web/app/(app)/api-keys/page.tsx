@@ -122,12 +122,12 @@ export default function ApiKeysPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <div className="rounded-xl border glass-card p-8 text-center">
           <p className="text-xs text-muted-foreground/50">Loading…</p>
         </div>
       ) : keys.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-14 text-center">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-border bg-card text-muted-foreground/40 mb-4">
+        <div className="rounded-xl border border-dashed bg-white/[0.02] backdrop-blur-md p-14 text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl border glass-card text-muted-foreground/40 mb-4">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
             </svg>
@@ -137,7 +137,7 @@ export default function ApiKeysPage() {
           <Button size="sm" onClick={() => setDialogOpen(true)}>{t("addFirstKey")}</Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden">
+        <div className="rounded-xl border glass-card divide-y divide-border/60 overflow-hidden">
           {keys.map((key) => {
             const providerLabel = PROVIDERS.find((p) => p.value === key.provider)?.label ?? key.provider;
             const colorCls = PROVIDER_COLORS[key.provider] ?? "bg-muted/60 text-muted-foreground border-border";

@@ -277,28 +277,28 @@ export default async function DashboardPage({
 
       {/* ── Stats cards ── */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
+        <div className="rounded-xl border glass-card px-5 py-4">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("programs")}</p>
           <p className="text-2xl font-black tabular-nums">{programs.length}</p>
           <p className="mt-1 text-[11px] text-muted-foreground/60">
             {programs.filter((p) => p.execution_mode === "autonomous").length} autonomous · {programs.filter((p) => p.execution_mode !== "autonomous").length} manual
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
+        <div className="rounded-xl border glass-card px-5 py-4">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("active")}</p>
           <p className="text-2xl font-black tabular-nums">{activePrograms}</p>
           <p className="mt-1 text-[11px] text-muted-foreground/60">
             {activePrograms === 0 ? "none currently running" : `${activePrograms} running now`}
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
+        <div className="rounded-xl border glass-card px-5 py-4">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("connections")}</p>
           <p className={`text-2xl font-black tabular-nums ${connectionCount > 0 ? "text-green-500" : ""}`}>{connectionCount}</p>
           <p className="mt-1 text-[11px] text-muted-foreground/60">
             {connectionCount === 0 ? "none connected" : "all healthy"}
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card px-5 py-4">
+        <div className="rounded-xl border glass-card px-5 py-4">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{t("runsThisMonth")}</p>
           <p className={`text-2xl font-black tabular-nums ${runUsage.total && runUsage.current / runUsage.total >= 0.8 ? "text-yellow-500" : ""}`}>
             {runUsage.current}
@@ -353,7 +353,7 @@ export default async function DashboardPage({
               <Link
                 key={program.id}
                 href={`/programs/${program.id}`}
-                className="group flex flex-col rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+                className="group flex flex-col rounded-2xl border glass-card p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${iconStyle}`}>
@@ -378,7 +378,10 @@ export default async function DashboardPage({
                   )}
                   {program.is_active && !hasFailed && (
                     <span className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-600">
-                      <span className="h-1 w-1 rounded-full bg-green-500" />
+                      <span className="relative flex h-1 w-1">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-50 [animation-duration:2.5s]" />
+                        <span className="relative h-1 w-1 rounded-full bg-green-500" />
+                      </span>
                       Healthy
                     </span>
                   )}
@@ -401,7 +404,12 @@ export default async function DashboardPage({
 
                 <div className="mt-3 border-t border-border/60 pt-3 flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                    <span className={`h-1.5 w-1.5 rounded-full ${hasFailed ? "bg-red-500" : program.is_active ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                    <span className="relative flex h-1.5 w-1.5 shrink-0">
+                      {program.is_active && !hasFailed && (
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-40 [animation-duration:2.5s]" />
+                      )}
+                      <span className={`relative h-1.5 w-1.5 rounded-full ${hasFailed ? "bg-red-500" : program.is_active ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                    </span>
                     {hasFailed ? `Failed · ${program.last_run_at ? timeAgo(program.last_run_at) : "—"}` : program.last_run_at ? `Last run ${timeAgo(program.last_run_at)}` : "Never run"}
                   </span>
                   {stats.total > 0 && (
@@ -415,9 +423,9 @@ export default async function DashboardPage({
           {pinnedPrograms.length < 3 && (
             <Link
               href="/programs/new"
-              className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 p-5 text-center transition-colors hover:border-primary/40 hover:bg-card min-h-[180px]"
+              className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] backdrop-blur-md p-5 text-center transition-all hover:border-primary/40 hover:bg-white/[0.05] min-h-[180px]"
             >
-              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground group-hover:text-primary group-hover:border-primary/30 transition-colors">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl border glass-card text-muted-foreground group-hover:text-primary group-hover:border-primary/30 transition-colors">
                 <Plus className="h-5 w-5" />
               </div>
               <div>
@@ -445,7 +453,7 @@ export default async function DashboardPage({
           </span>
         </p>
 
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-2xl border glass-panel overflow-hidden">
           <div className="grid grid-cols-1 divide-y divide-border/40 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
             {/* ── Program list with folders ── */}
             <div className="lg:col-span-3">

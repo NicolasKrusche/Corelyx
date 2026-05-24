@@ -654,21 +654,21 @@ function NewProgramPageInner() {
               type="button"
               disabled={isCreatingScratch}
               onClick={() => { void handleCreateBlankProgram(); }}
-              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-full border glass-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isCreatingScratch ? "Opening editor..." : "Start from scratch"}
             </button>
             <button
               type="button"
               onClick={() => navigateImportSource("browse")}
-              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
+              className="flex items-center gap-1.5 rounded-full border glass-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
             >
               Browse
             </button>
             <button
               type="button"
               onClick={() => navigateImportSource("json")}
-              className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
+              className="flex items-center gap-1.5 rounded-full border glass-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
             >
               Import JSON
             </button>
@@ -1057,7 +1057,7 @@ function NewProgramPageInner() {
               {generatingMessage}
             </div>
             {generationThoughts.length > 0 && (
-              <div className="mx-auto mt-5 max-w-md space-y-2 rounded-lg border border-border bg-card/70 p-4 text-left">
+              <div className="mx-auto mt-5 max-w-md space-y-2 rounded-lg border glass-card p-4 text-left">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Thinking through the build</p>
                 <div className="space-y-2">
                   {generationThoughts.map((thought, index) => (

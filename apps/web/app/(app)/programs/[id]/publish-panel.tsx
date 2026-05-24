@@ -87,7 +87,7 @@ export function PublishPanel({
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
       <div className="flex items-center justify-between gap-4 px-5 py-4">
         <div>
           <div className="flex items-center gap-2">

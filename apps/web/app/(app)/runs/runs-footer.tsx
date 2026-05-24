@@ -51,7 +51,7 @@ export function RunsFooter({
   }
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground/60">
+    <div className="flex items-center justify-between rounded-xl border glass-card px-4 py-3 text-xs text-muted-foreground/60">
       <span>
         Showing {totalShown} run{totalShown !== 1 ? "s" : ""}
         {filterLabel && <> · filtered to <span className="font-medium text-foreground/70">{filterLabel}</span></>}
@@ -81,7 +81,7 @@ export function RunsFooter({
                 ? "border-green-500/30 bg-green-500/10 text-green-500 cursor-default"
                 : retrying
                 ? "border-border bg-muted/40 opacity-60 cursor-not-allowed"
-                : "border-border bg-card text-foreground hover:bg-accent"
+                : "border glass-card text-foreground hover:bg-accent"
             )}
           >
             {retrying && (

@@ -138,7 +138,7 @@ export default function ProgramSettingsPage() {
         <Field label="Execution mode" description="Controls how much human oversight is required during a run.">
           <div className="space-y-2">
             {(["autonomous", "supervised", "manual"] as const).map((mode) => (
-              <label key={mode} className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 cursor-pointer hover:bg-accent transition-colors">
+              <label key={mode} className="flex items-start gap-3 rounded-lg border glass-card px-4 py-3 cursor-pointer hover:bg-accent transition-colors">
                 <input
                   type="radio"
                   name="execution_mode"
@@ -163,7 +163,7 @@ export default function ProgramSettingsPage() {
         <Field label="Conflict policy" description="What to do when a run is triggered while another run of this program is already active.">
           <div className="space-y-2">
             {(["queue", "skip", "fail"] as const).map((policy) => (
-              <label key={policy} className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 cursor-pointer hover:bg-accent transition-colors">
+              <label key={policy} className="flex items-start gap-3 rounded-lg border glass-card px-4 py-3 cursor-pointer hover:bg-accent transition-colors">
                 <input
                   type="radio"
                   name="conflict_policy"

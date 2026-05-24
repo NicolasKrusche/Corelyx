@@ -47,7 +47,7 @@ export function RunsLiveButton({ hasActive }: { hasActive: boolean }) {
         "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
         active
           ? "border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400"
-          : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground"
+          : "border glass-card text-muted-foreground hover:bg-accent hover:text-foreground"
       )}
       title={active ? "Click to stop auto-refresh" : "Click to auto-refresh every 10 seconds"}
     >
@@ -88,7 +88,7 @@ export function ExportRunsButton({ runs }: { runs: RunExport[] }) {
     <button
       type="button"
       onClick={handleExport}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+      className="inline-flex items-center gap-1.5 rounded-lg border glass-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
     >
       <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
         <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/>

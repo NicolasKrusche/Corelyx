@@ -30,7 +30,7 @@ export default async function SupportPage() {
       </div>
       <Link
         href="/support/data-requests"
-        className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 hover:bg-accent transition-colors"
+        className="flex items-center justify-between rounded-2xl border glass-card px-5 py-4 hover:bg-accent transition-colors"
       >
         <div>
           <p className="font-semibold text-sm">GDPR data requests</p>
@@ -46,7 +46,7 @@ export default async function SupportPage() {
       <SettingsSupportTab
         tier={tier}
         userId={user.id}
-        panelClass="rounded-2xl border border-border bg-card p-5"
+        panelClass="rounded-2xl border glass-panel p-5"
         fieldClass="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
         primaryBtnClass="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
         neutralBtnClass="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold hover:bg-accent disabled:opacity-40"

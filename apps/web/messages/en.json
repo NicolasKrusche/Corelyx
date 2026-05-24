@@ -35,7 +35,7 @@
       "danger": { "label": "Danger zone", "caption": "Delete this account" },
       "general": { "label": "General", "caption": "Theme and preferences" },
       "language": { "label": "Language", "caption": "Translation and locale" },
-      "advanced": { "label": "Advanced", "caption": "Power-user controls" },
+      "advanced": { "label": "Developer", "caption": "API keys, env vars, logs" },
       "compliance": { "label": "EU Compliance", "caption": "GDPR and legal docs" },
       "codeManager": { "label": "Admin Tools", "caption": "Codes and DSR queue" }
     }

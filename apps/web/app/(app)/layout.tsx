@@ -66,6 +66,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single();
   const profile = profileRaw as AppLayoutProfile | null;
 
+  // New users who haven't completed onboarding yet
+  if (!profile?.display_name && !profile?.username) redirect("/onboarding");
+
   // Fetch XP stats for skill level calculation (parallel, best-effort)
   const [{ count: runCount }, { count: programCount }, { count: connectionCount }] = await Promise.all([
     supabase.from("runs").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
@@ -83,7 +86,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isAdmin = isAdminEmail(appUser.email ?? undefined) || profile?.is_admin === true;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <WhatsNewModal />
       <CommandPalette />
       <Sidebar
@@ -102,6 +105,32 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <main className="relative ml-0 min-h-screen px-6 py-14 lg:ml-56 lg:mr-56 lg:px-0 lg:py-8">
         <div className="app-bg-gradient pointer-events-none fixed inset-0 -z-10 bg-background" />
+        {/* Animated ambient orbs */}
+        <div className="orb-primary" aria-hidden="true" />
+        <div className="orb-blue" aria-hidden="true" />
+        <div className="orb-violet" aria-hidden="true" />
+        {/* Marble texture — SVG turbulence rendered inline so the filter applies correctly */}
+        <svg
+          className="pointer-events-none fixed inset-0 -z-[9] h-full w-full"
+          style={{
+            opacity: 0.09,
+            maskImage: "linear-gradient(to bottom, black 0%, black 35%, transparent 70%)",
+            WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 35%, transparent 70%)",
+          }}
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <filter id="marble-noise" x="0%" y="0%" width="100%" height="100%" colorInterpolationFilters="linearRGB">
+            <feTurbulence type="turbulence" baseFrequency="0.008 0.005" numOctaves="6" seed="42" stitchTiles="stitch" result="turbulence" />
+            <feColorMatrix type="saturate" values="0" in="turbulence" result="grey" />
+            <feComponentTransfer in="grey">
+              <feFuncR type="linear" slope="5" intercept="-2" />
+              <feFuncG type="linear" slope="5" intercept="-2" />
+              <feFuncB type="linear" slope="5" intercept="-2" />
+            </feComponentTransfer>
+          </filter>
+          <rect width="100%" height="100%" filter="url(#marble-noise)" />
+        </svg>
         <div className="w-full">
           <WelcomeOfferBanner
             createdAt={profile?.created_at ?? appUser.created_at}

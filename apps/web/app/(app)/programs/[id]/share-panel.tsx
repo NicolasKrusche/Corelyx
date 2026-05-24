@@ -75,7 +75,7 @@ export function SharePanel({ programId }: { programId: string }) {
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold">Access</h2>
         <Button asChild variant="outline" size="sm" className="h-8">

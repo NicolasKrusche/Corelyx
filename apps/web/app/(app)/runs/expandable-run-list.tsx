@@ -82,7 +82,7 @@ export function ExpandableRunList({ runs }: { runs: RunRow[] }) {
   const hiddenCount = runs.length - INITIAL_VISIBLE;
 
   return (
-    <div className="rounded-xl border border-border bg-card divide-y divide-border/60 overflow-hidden">
+    <div className="rounded-xl border glass-card divide-y divide-border/60 overflow-hidden">
       {/* Column headers */}
       <div className="hidden sm:grid grid-cols-[90px_1fr_130px_100px_80px_24px] gap-3 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 border-b border-border/60">
         <span>Status</span>

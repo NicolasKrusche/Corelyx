@@ -291,7 +291,7 @@ export function BrowseClient({
       )}
 
       {/* Search + filter */}
-      <div className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm">
+      <div className="rounded-2xl border glass-panel p-4 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold">Find a starting point</p>
@@ -426,7 +426,7 @@ export function BrowseClient({
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-border bg-card p-5 animate-pulse space-y-3">
+            <div key={i} className="rounded-lg border glass-card p-5 animate-pulse space-y-3">
               <div className="h-4 bg-muted rounded w-2/3" />
               <div className="h-3 bg-muted rounded w-full" />
               <div className="h-3 bg-muted rounded w-4/5" />
@@ -500,7 +500,7 @@ function ProgramCard({
   const summary = program.node_summary;
 
   return (
-    <div className="rounded-lg border border-border bg-card flex flex-col p-5 gap-3 hover:border-foreground/20 transition-colors">
+    <div className="rounded-lg border glass-card flex flex-col p-5 gap-3 hover:border-foreground/20 transition-colors">
       {/* Name + tags */}
       <div className="space-y-1.5">
         <h2 className="text-sm font-semibold leading-snug line-clamp-2">{program.name}</h2>
@@ -694,7 +694,7 @@ function FilterSelect({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-full overflow-hidden rounded-xl border glass-card shadow-lg">
           <ul role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto py-1">
             <li
               role="option"
