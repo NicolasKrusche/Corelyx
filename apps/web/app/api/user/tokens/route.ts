@@ -37,6 +37,17 @@ export async function POST(request: Request) {
 
   const db = createServiceClient() as unknown as AnyDb;
 
+  // Free-tier users cannot create personal API tokens
+  const { data: profile } = await db
+    .from("profiles")
+    .select("tier")
+    .eq("id", user.id)
+    .single();
+
+  if ((profile as { tier?: string } | null)?.tier === "free") {
+    return apiError("Personal API tokens are not available on the free plan. Upgrade to create tokens.", 403, "PLAN_LIMIT");
+  }
+
   // Enforce a per-user limit (10 tokens max)
   const { count } = await db
     .from("personal_api_tokens")

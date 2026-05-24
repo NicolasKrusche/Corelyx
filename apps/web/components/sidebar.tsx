@@ -2211,6 +2211,25 @@ function SettingsModal({
                     </div>
                   </div>
 
+                  {tier === "free" ? (
+                    <div className="mt-4 flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-4">
+                      <span className="mt-0.5 text-base leading-none">🔒</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">Paid plan required</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                          Personal API tokens are available on paid plans. Upgrade to generate tokens and access the Corelyx API programmatically.
+                        </p>
+                        <Link
+                          href="/plan"
+                          onClick={onClose}
+                          className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+                        >
+                          View plans →
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (<>
+
                   {/* One-time plaintext reveal */}
                   {newlyCreatedToken && (
                     <div className="mt-4 rounded-xl border border-green-500/30 bg-green-500/[0.07] p-4">
@@ -2299,6 +2318,7 @@ function SettingsModal({
                   {tokenError && (
                     <p className="mt-2 text-xs text-red-500">{tokenError}</p>
                   )}
+                  </>)}
                 </section>
 
                 {/* ── Quick-access links ─────────────────────────── */}
