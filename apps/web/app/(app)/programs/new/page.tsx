@@ -607,8 +607,30 @@ function NewProgramPageInner() {
   };
 
   const handleInlineGenerate = async () => {
-    const selection = await ensureModelSelection();
+    if (description.trim().length < 10) {
+      setInlineMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Please describe your workflow in a bit more detail before generating." },
+      ]);
+      return;
+    }
+
+    setInlinePhase("generating");
+
+    let selection: { keyId: string; modelId: string } | null = null;
+    try {
+      selection = await ensureModelSelection();
+    } catch {
+      setInlinePhase("connections");
+      setInlineMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Could not reach the server. Check your connection and try again." },
+      ]);
+      return;
+    }
+
     if (!selection) {
+      setInlinePhase("connections");
       setInlineMessages((prev) => [
         ...prev,
         {
@@ -629,6 +651,7 @@ function NewProgramPageInner() {
     try {
       sessionStorage.setItem("flowos.genesis.pending", JSON.stringify(payload));
     } catch {
+      setInlinePhase("connections");
       setInlineMessages((prev) => [
         ...prev,
         {
