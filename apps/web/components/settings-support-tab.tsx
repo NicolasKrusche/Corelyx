@@ -151,6 +151,7 @@ export function SettingsSupportTab({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, selected?.id, userId]);
 
   useEffect(() => {
