@@ -33,7 +33,7 @@ export type RunStatus = "success" | "failed" | "partial" | "running" | "waiting_
 
 // ─── NODES ────────────────────────────────────────────────────────────────
 
-export type Node = TriggerNode | AgentNode | StepNode | ConnectionNode;
+export type Node = TriggerNode | AgentNode | StepNode | ConnectionNode | NoteNode | GroupNode;
 
 export interface NodeBase {
   id: string;
@@ -164,6 +164,33 @@ export interface ConnectionNode extends NodeBase {
   // OAuth connectors point to a named connected app; HTTP connectors can be null.
   connection: string | null;
   config: ConnectionConfig;
+}
+
+// NOTE NODE — purely visual, never executed
+
+export interface NoteNode extends NodeBase {
+  type: "note";
+  connection: null;
+  config: NoteConfig;
+}
+
+export interface NoteConfig {
+  content: string;
+  color: "yellow" | "blue" | "pink" | "green";
+}
+
+// GROUP NODE — frame container, never executed
+
+export interface GroupNode extends NodeBase {
+  type: "group";
+  connection: null;
+  config: GroupConfig;
+}
+
+export interface GroupConfig {
+  childIds: string[];
+  width: number;
+  height: number;
 }
 
 // ─── EDGES ────────────────────────────────────────────────────────────────

@@ -4,6 +4,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ProgramSchema } from "@flowos/schema";
+import { diffSchemas, getVersionSnapshot } from "@/lib/editor/diff";
+import { VersionDiffOverlay } from "@/components/editor/VersionDiffOverlay";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +21,9 @@ export interface VersionHistoryPanelProps {
   currentVersion: number;
   onRollback: (schema: ProgramSchema) => void;
   onClose: () => void;
+  /** When provided, enables the "Compare" diff button per version row. */
+  currentSchema?: ProgramSchema;
+  enableAdvancedEditor?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -55,11 +60,14 @@ export function VersionHistoryPanel({
   currentVersion,
   onRollback,
   onClose,
+  currentSchema,
+  enableAdvancedEditor = false,
 }: VersionHistoryPanelProps) {
   const [versions, setVersions] = useState<VersionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
+  const [diffVersion, setDiffVersion] = useState<number | null>(null);
 
   // ── Fetch version list on mount ───────────────────────────────────────────
 
@@ -233,30 +241,58 @@ export function VersionHistoryPanel({
                     </p>
                   </div>
 
-                  {/* Right: restore button */}
-                  <Button
-                    variant={isGenesis ? "outline" : "ghost"}
-                    size="sm"
-                    disabled={isCurrent || isRestoring}
-                    onClick={() => void handleRestore(v.version)}
-                    className={cn(
-                      "text-xs shrink-0",
-                      isGenesis &&
-                        "border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  {/* Right: action buttons */}
+                  <div className="flex flex-col gap-1 items-end shrink-0">
+                    <Button
+                      variant={isGenesis ? "outline" : "ghost"}
+                      size="sm"
+                      disabled={isCurrent || isRestoring}
+                      onClick={() => void handleRestore(v.version)}
+                      className={cn(
+                        "text-xs",
+                        isGenesis &&
+                          "border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                      )}
+                    >
+                      {isRestoring
+                        ? "Restoring…"
+                        : isGenesis
+                        ? "↩ Reset to genesis"
+                        : "Restore"}
+                    </Button>
+                    {enableAdvancedEditor && currentSchema && !isCurrent && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDiffVersion(diffVersion === v.version ? null : v.version)}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {diffVersion === v.version ? "Hide diff" : "Compare"}
+                      </Button>
                     )}
-                  >
-                    {isRestoring
-                      ? "Restoring…"
-                      : isGenesis
-                      ? "↩ Reset to genesis"
-                      : "Restore"}
-                  </Button>
+                  </div>
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      {/* Version diff overlay */}
+      {enableAdvancedEditor && currentSchema && diffVersion !== null && (() => {
+        const snapshot = getVersionSnapshot(currentSchema, diffVersion);
+        if (!snapshot) return null;
+        const diff = diffSchemas(snapshot, { nodes: currentSchema.nodes, edges: currentSchema.edges });
+        const vRow = versions.find((v) => v.version === diffVersion);
+        const label = vRow ? `v${diffVersion}` : `v${diffVersion}`;
+        return (
+          <VersionDiffOverlay
+            diff={diff}
+            baseVersionLabel={label}
+            onClose={() => setDiffVersion(null)}
+          />
+        );
+      })()}
 
       {/* Footer error (after initial load) */}
       {restoringVersion === null && error && versions.length > 0 && (

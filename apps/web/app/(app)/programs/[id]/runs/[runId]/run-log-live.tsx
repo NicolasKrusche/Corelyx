@@ -182,7 +182,11 @@ function getNodeTools(node: Node): string[] {
     return [node.config.logic_type];
   }
 
-  return [node.config.trigger_type];
+  if (node.type === "trigger") {
+    return [node.config.trigger_type];
+  }
+
+  return [];
 }
 
 function getPriority(node: Node, status: string | null | undefined) {
@@ -197,7 +201,8 @@ function summarizeNode(node: Node) {
   if (node.type === "agent") return "Run an agent step in this program.";
   if (node.type === "connection") return "Call a connected service.";
   if (node.type === "step") return `Apply ${node.config.logic_type} logic.`;
-  return `Handle the ${node.config.trigger_type} trigger.`;
+  if (node.type === "trigger") return `Handle the ${node.config.trigger_type} trigger.`;
+  return node.description || node.label;
 }
 
 function buildPlanTasks({

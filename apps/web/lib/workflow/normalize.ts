@@ -7,7 +7,7 @@ type FilterStepConfig = Extract<StepConfig, { logic_type: "filter" }>;
 type BranchStepConfig = Extract<StepConfig, { logic_type: "branch" }>;
 type TransformStepConfig = Extract<StepConfig, { logic_type: "transform" }>;
 
-const VALID_NODE_TYPES = new Set(["trigger", "agent", "step", "connection"]);
+const VALID_NODE_TYPES = new Set(["trigger", "agent", "step", "connection", "note", "group"]);
 const VALID_EDGE_TYPES = new Set(["data_flow", "control_flow", "event_subscription"]);
 const VALID_TRIGGER_TYPES = new Set(["cron", "event", "webhook", "manual", "program_output"]);
 const STEP_TYPE_ALIASES = new Set(["transform", "filter", "branch", "delay", "loop", "format", "parse", "deduplicate", "sort"]);
@@ -217,6 +217,23 @@ function normalizeStepConfig(config: MutableRecord): StepConfig {
 function normalizeConfig(type: SchemaNode["type"], config: MutableRecord): SchemaNode["config"] {
   if (type === "trigger") return normalizeTriggerConfig(config);
   if (type === "step") return normalizeStepConfig(config);
+  if (type === "note") {
+    return {
+      content: typeof config.content === "string" ? config.content : "",
+      color: (["yellow", "blue", "pink", "green"] as const).includes(config.color as never)
+        ? (config.color as "yellow" | "blue" | "pink" | "green")
+        : "yellow",
+    };
+  }
+  if (type === "group") {
+    return {
+      childIds: Array.isArray(config.childIds)
+        ? config.childIds.filter((id): id is string => typeof id === "string")
+        : [],
+      width: numberValue(config.width, 400),
+      height: numberValue(config.height, 300),
+    };
+  }
   if (type === "agent") {
     return {
       model: stringValue(config.model, "__USER_ASSIGNED__"),
@@ -290,11 +307,11 @@ export function normalizeProgramDraft(raw: unknown, fallback?: Partial<ProgramSc
     return {
       id: finalId,
       type,
-      label: stringValue(n.label, type === "trigger" ? "Manual Trigger" : type === "step" ? "Workflow Step" : type === "agent" ? "AI Agent" : "Connection"),
+      label: stringValue(n.label, type === "trigger" ? "Manual Trigger" : type === "step" ? "Workflow Step" : type === "agent" ? "AI Agent" : type === "note" ? "Note" : type === "group" ? "Group" : "Connection"),
       description: typeof n.description === "string" ? n.description : "",
       position: normalizePosition(n.position, index),
       status: stringValue(n.status, "idle"),
-      connection: type === "step" || type === "trigger" ? null : typeof n.connection === "string" ? n.connection : null,
+      connection: type === "step" || type === "trigger" || type === "note" || type === "group" ? null : typeof n.connection === "string" ? n.connection : null,
       config: normalizeConfig(type, rawConfig),
     } as SchemaNode;
   });

@@ -54,7 +54,11 @@ export function validatePostGenesis(
   const nodes = schema.nodes as Node[];
   const edges = schema.edges as Edge[];
 
-  const nodeIds = nodes.map((n) => n.id);
+  // Note and group nodes are purely visual — exclude them from all execution
+  // validation rules so they never cause false errors.
+  const execNodes = nodes.filter((n) => n.type !== "note" && n.type !== "group");
+
+  const nodeIds = execNodes.map((n) => n.id);
   const availableConnectionNames = availableConnections.map((c) => c.name);
 
   function error(
@@ -73,14 +77,14 @@ export function validatePostGenesis(
 
   // ─── Graph Integrity ───────────────────────────────────────────────────
 
-  const triggerNodes = nodes.filter((n) => n.type === "trigger");
+  const triggerNodes = execNodes.filter((n) => n.type === "trigger");
   if (triggerNodes.length === 0)
     error("ERR_001", null, "Program has no trigger", "Add a trigger node to define when this program starts");
 
   if (triggerNodes.length > 1)
     error("ERR_002", null, "Program has multiple triggers", "Only one trigger node is allowed. Delete the extra trigger or split into separate programs");
 
-  nodes.forEach((node) => {
+  execNodes.forEach((node) => {
     const connected = edges.some((e) => e.from === node.id || e.to === node.id);
     if (!connected)
       error("ERR_003", node.id, `${node.label} is not connected to anything`, "Draw a connection from this node to another node");
@@ -93,27 +97,27 @@ export function validatePostGenesis(
       error("ERR_004", null, `Edge ${edge.id} references missing target node`, "Delete this edge and redraw it to a valid node", edge.id);
   });
 
-  const cycles = detectCycles(nodes, edges);
+  const cycles = detectCycles(execNodes, edges);
   cycles.forEach((cycle) => {
     const hasBranchNode = cycle.some((id) => {
-      const node = nodes.find((n) => n.id === id);
+      const node = execNodes.find((n) => n.id === id);
       return node?.type === "step" && (node as StepNode).config.logic_type === "branch";
     });
     if (!hasBranchNode)
       error("ERR_005", null, "Circular connection detected with no exit condition", "Add a branch node with an exit condition to break the loop");
   });
 
-  if (nodes.length > 12)
+  if (execNodes.length > 12)
     error("ERR_006", null, "Program exceeds maximum of 12 nodes", "Split this program into two smaller programs and use a program_output trigger to chain them");
 
   // ─── Connection References ─────────────────────────────────────────────
 
-  nodes.forEach((node) => {
+  execNodes.forEach((node) => {
     if (node.connection && !availableConnectionNames.includes(node.connection))
       error("ERR_007", node.id, `${node.label} uses "${node.connection}" which is not connected to this program`, "Go to program settings and add this connection, or change the node to use an available connection");
   });
 
-  nodes.forEach((node) => {
+  execNodes.forEach((node) => {
     const maybeStep = node as unknown as { id: string; label: string; type?: string; connection?: string | null };
     if (maybeStep.type === "step" && maybeStep.connection != null)
       error("ERR_009", maybeStep.id, `Step node ${maybeStep.label} cannot connect to an external app`, "Step nodes are for logic only. Use an agent node to interact with apps");
@@ -123,7 +127,7 @@ export function validatePostGenesis(
 
   edges.forEach((edge) => {
     if (!edge.data_mapping) return;
-    const sourceNode = nodes.find((n) => n.id === edge.from);
+    const sourceNode = execNodes.find((n) => n.id === edge.from);
     if (!sourceNode) return;
     const config = (sourceNode as AgentNode).config;
     const outputSchema = "output_schema" in config ? config.output_schema : null;
@@ -136,7 +140,7 @@ export function validatePostGenesis(
 
   // ─── Scope Conflicts ───────────────────────────────────────────────────
 
-  nodes.forEach((node) => {
+  execNodes.forEach((node) => {
     if (!node.connection) return;
     const connection = availableConnections.find((c) => c.name === node.connection);
     if (!connection) return;
@@ -151,7 +155,7 @@ export function validatePostGenesis(
 
   // ─── Sentinel Warnings ─────────────────────────────────────────────────
 
-  nodes.forEach((node) => {
+  execNodes.forEach((node) => {
     if (node.type !== "agent") return;
     const agentNode = node as AgentNode;
     if (agentNode.config.model === "__USER_ASSIGNED__")
@@ -162,7 +166,7 @@ export function validatePostGenesis(
 
   // Connection nodes with an operation set must have all required params filled.
   // Genesis uses "__USER_ASSIGNED__" as a sentinel for unknown resource IDs.
-  nodes.forEach((node) => {
+  execNodes.forEach((node) => {
     if (node.type !== "connection") return;
     const connNode = node as ConnectionNode;
     if (connNode.config.connector_type === "http") return;
@@ -184,7 +188,7 @@ export function validatePostGenesis(
   // ─── WARN_003: multiple write-access nodes sharing the same connection ────
 
   const writeNodesByConnection = new Map<string, string[]>();
-  nodes.forEach((node) => {
+  execNodes.forEach((node) => {
     if (!node.connection) return;
     const config = (node as AgentNode).config;
     const scopeAccess = "scope_access" in config ? config.scope_access : null;

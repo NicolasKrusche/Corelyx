@@ -1,3 +1,4 @@
+import React from "react";
 import type { ProgramSchema } from "@flowos/schema";
 import type { ValidationResult } from "@/lib/validation";
 
@@ -38,6 +39,18 @@ export type EditorAction =
   | { type: "SYNC_FROM_RF"; schema: ProgramSchema }
   | { type: "UPDATE_NODE_CONFIG"; nodeId: string; config: Record<string, unknown> }
   | { type: "RESTORE_VERSION"; schema: ProgramSchema };
+
+// ─── Dispatch context ─────────────────────────────────────────────────────────
+// Allows deeply-nested node components (NoteNode, GroupNode) to dispatch
+// schema mutations without prop-drilling through React Flow node data.
+
+export const EditorDispatchContext = React.createContext<React.Dispatch<EditorAction> | null>(null);
+
+export function useEditorDispatch(): React.Dispatch<EditorAction> {
+  const ctx = React.useContext(EditorDispatchContext);
+  if (!ctx) throw new Error("useEditorDispatch must be used within an EditorShell");
+  return ctx;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

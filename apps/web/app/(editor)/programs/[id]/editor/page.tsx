@@ -5,6 +5,7 @@ import { validatePostGenesis } from "@/lib/validation";
 import { EditorShell } from "@/components/editor/EditorShell";
 import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { normalizeProgramDraft, validateProgramDraft } from "@/lib/workflow/normalize";
+import { getFeatureFlags } from "@/lib/feature-flags";
 
 export default async function EditorPage({
   params,
@@ -110,6 +111,10 @@ export default async function EditorPage({
 
   const initialValidation = validatePostGenesis(parsedSchema, linkedConnections);
 
+  // ── Feature flags ─────────────────────────────────────────────────────────
+
+  const { enableAdvancedEditor } = getFeatureFlags();
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -120,6 +125,7 @@ export default async function EditorPage({
       apiKeys={apiKeys}
       linkedConnections={linkedConnections}
       allConnections={allConnections}
+      enableAdvancedEditor={enableAdvancedEditor}
     />
   );
 }

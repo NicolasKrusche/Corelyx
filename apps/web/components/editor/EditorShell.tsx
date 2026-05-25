@@ -19,7 +19,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { editorReducer, initialEditorState } from "@/lib/editor/state";
+import { editorReducer, initialEditorState, EditorDispatchContext } from "@/lib/editor/state";
+import { writeClipboard, readClipboard, buildPastePayload } from "@/lib/editor/clipboard";
+import { DebugPanel } from "@/components/editor/DebugPanel";
 import { toReactFlow } from "@/lib/schema";
 import { applyDagreLayout, needsLayout } from "@/lib/schema/layout";
 import { validatePostGenesis } from "@/lib/validation";
@@ -28,6 +30,8 @@ import { TriggerNode } from "@/components/nodes/TriggerNode";
 import { AgentNode } from "@/components/nodes/AgentNode";
 import { StepNode } from "@/components/nodes/StepNode";
 import { ConnectionNode } from "@/components/nodes/ConnectionNode";
+import { NoteNode } from "@/components/nodes/NoteNode";
+import { GroupNode } from "@/components/nodes/GroupNode";
 import { DataFlowEdge } from "@/components/edges/DataFlowEdge";
 import { ControlFlowEdge } from "@/components/edges/ControlFlowEdge";
 import { EventEdge } from "@/components/edges/EventEdge";
@@ -36,7 +40,7 @@ import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
 import { NodeSidebar } from "@/components/sidebars/NodeSidebar";
 import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
-import type { NodeVariant, TriggerSubtype, StepSubtype } from "@/components/editor/NodePalettePanel";
+import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/components/editor/NodePalettePanel";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
 import { RawSchemaPanel } from "@/components/editor/RawSchemaPanel";
 import { useRawSchemaMode } from "@/lib/raw-schema-mode";
@@ -69,6 +73,8 @@ const nodeTypes = {
   agent: AgentNode,
   step: StepNode,
   connection: ConnectionNode,
+  note: NoteNode,
+  group: GroupNode,
 } as const;
 
 const edgeTypes = {
@@ -155,6 +161,22 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
     };
   }
 
+  if (variant.type === "note") {
+    return {
+      id, type: "note", label: "Note", description: "", connection: null,
+      position, status: "idle",
+      config: { content: "", color: (variant as { type: "note"; color: NoteColor }).color },
+    };
+  }
+
+  if (variant.type === "group") {
+    return {
+      id, type: "group", label: "Group", description: "", connection: null,
+      position, status: "idle",
+      config: { childIds: [], width: 400, height: 300 },
+    };
+  }
+
   // connection
   if (variant.subtype === "http") {
     return {
@@ -202,14 +224,18 @@ function includesString(values: readonly string[], value: unknown): value is str
   return typeof value === "string" && values.includes(value);
 }
 
+const NOTE_COLORS = ["yellow", "blue", "pink", "green"] as const;
+
 function isNodeVariant(value: unknown): value is NodeVariant {
   if (!value || typeof value !== "object") return false;
 
-  const variant = value as { type?: unknown; subtype?: unknown };
+  const variant = value as { type?: unknown; subtype?: unknown; color?: unknown };
   if (variant.type === "agent") return true;
+  if (variant.type === "group") return true;
   if (variant.type === "trigger") return includesString(TRIGGER_SUBTYPES, variant.subtype);
   if (variant.type === "step") return includesString(STEP_SUBTYPES, variant.subtype);
   if (variant.type === "connection") return includesString(CONNECTION_SUBTYPES, variant.subtype);
+  if (variant.type === "note") return includesString(NOTE_COLORS, variant.color);
   return false;
 }
 
@@ -255,6 +281,7 @@ interface EditorShellProps {
   apiKeys: ApiKey[];
   linkedConnections: { id: string; name: string; provider: string; scopes: string[] }[];
   allConnections: { id: string; name: string; provider: string; scopes: string[] }[];
+  enableAdvancedEditor?: boolean;
 }
 
 type EditorContextMenu =
@@ -271,6 +298,7 @@ export function EditorShell({
   apiKeys,
   linkedConnections: initialLinkedConnections,
   allConnections,
+  enableAdvancedEditor = false,
 }: EditorShellProps) {
   const router = useRouter();
   const { base } = useTheme();
@@ -309,6 +337,7 @@ export function EditorShell({
   const [showPalette, setShowPalette] = React.useState(false);
   const [showAiEdit, setShowAiEdit] = React.useState(false);
   const [showRawSchema, setShowRawSchema] = React.useState(false);
+  const [showDebugger, setShowDebugger] = React.useState(false);
   const [rawSchemaEnabled] = useRawSchemaMode();
   const [contextMenu, setContextMenu] = React.useState<EditorContextMenu>(null);
   const [contextAddPosition, setContextAddPosition] = React.useState<{ x: number; y: number } | null>(null);
@@ -633,18 +662,41 @@ export function EditorShell({
         return;
       }
 
-      // Copy: Cmd+C
+      // Copy: Cmd+C — write to both in-memory ref AND persistent localStorage clipboard
       if (meta && e.key === "c") {
+        if (isInputFocused()) return; // let browser handle text copy
         if (state.selectedNodeId) {
           const node = state.schema.nodes.find((n) => n.id === state.selectedNodeId);
-          if (node) clipboardRef.current = node;
+          if (node) {
+            clipboardRef.current = node;
+            // Cross-workflow clipboard: collect connected edges between copied nodes
+            const copiedIds = new Set([node.id]);
+            const relatedEdges = state.schema.edges.filter(
+              (edge) => copiedIds.has(edge.from) && copiedIds.has(edge.to)
+            );
+            writeClipboard({ nodes: [node], edges: relatedEdges });
+          }
         }
         return;
       }
 
-      // Paste: Cmd+V
+      // Paste: Cmd+V — prefer localStorage clipboard (cross-workflow) over in-memory
       if (meta && e.key === "v") {
-        if (clipboardRef.current) {
+        if (isInputFocused()) return;
+        const persistent = readClipboard();
+        if (persistent) {
+          const pasted = buildPastePayload(persistent);
+          pasted.nodes.forEach((node) => {
+            dispatch({ type: "UPDATE_NODE", nodeId: node.id, patch: node });
+            skipSyncRef.current = false;
+          });
+          pasted.edges.forEach((edge) => {
+            dispatch({ type: "ADD_EDGE", edge });
+          });
+          if (pasted.nodes.length === 1) {
+            dispatch({ type: "SELECT_NODE", nodeId: pasted.nodes[0].id });
+          }
+        } else if (clipboardRef.current) {
           duplicateNode(clipboardRef.current.id);
         }
         return;
@@ -782,6 +834,22 @@ export function EditorShell({
           })),
         });
       }
+
+      // Sync group frame dimensions back to schema config
+      const dimensionChanges = changes.filter(
+        (c): c is NodeChange & { type: "dimensions"; dimensions?: { width: number; height: number }; resizing?: boolean } =>
+          c.type === "dimensions" && (c as { resizing?: boolean }).resizing === false
+      );
+      dimensionChanges.forEach((c) => {
+        const dims = (c as { dimensions?: { width: number; height: number } }).dimensions;
+        if (dims) {
+          dispatch({
+            type: "UPDATE_NODE_CONFIG",
+            nodeId: c.id,
+            config: { width: dims.width, height: dims.height },
+          });
+        }
+      });
 
       // Handle node removal initiated from RF (e.g. backspace while node selected in RF)
       const removeChanges = changes.filter((c) => c.type === "remove");
@@ -1321,6 +1389,7 @@ export function EditorShell({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
+    <EditorDispatchContext.Provider value={dispatch}>
     <div className="flex flex-col h-screen w-screen overflow-hidden">
       {/* Toolbar — fixed at top */}
       <EditorToolbar
@@ -1366,6 +1435,10 @@ export function EditorShell({
           setShowRawSchema(opening);
           if (opening) { setShowPalette(false); setShowAiEdit(false); }
         } : undefined}
+        showDebugger={enableAdvancedEditor && showDebugger}
+        onToggleDebugger={enableAdvancedEditor ? () => {
+          setShowDebugger((v) => !v);
+        } : undefined}
       />
 
       {/* Node palette panel — slides in from left */}
@@ -1374,6 +1447,7 @@ export function EditorShell({
           onAdd={handleAddNode}
           onDragStart={handlePaletteDragStart}
           onClose={() => setShowPalette(false)}
+          enableAdvancedEditor={enableAdvancedEditor}
         />
       )}
 
@@ -1605,6 +1679,19 @@ export function EditorShell({
           />
         )}
 
+        {/* Step debugger panel */}
+        {enableAdvancedEditor && showDebugger && (
+          <DebugPanel
+            schema={state.schema}
+            nodeExecutions={nodeExecutions}
+            lastRunId={lastRunId}
+            onClose={() => setShowDebugger(false)}
+            onFocusNode={(nodeId) => {
+              dispatch({ type: "SELECT_NODE", nodeId });
+            }}
+          />
+        )}
+
         {/* Version history panel — slides in from right */}
         {showHistory && (
           <VersionHistoryPanel
@@ -1617,6 +1704,8 @@ export function EditorShell({
               setShowHistory(false);
             }}
             onClose={() => setShowHistory(false)}
+            currentSchema={state.schema}
+            enableAdvancedEditor={enableAdvancedEditor}
           />
         )}
       </div>
@@ -1717,6 +1806,7 @@ export function EditorShell({
         </DialogContent>
       </Dialog>
     </div>
+    </EditorDispatchContext.Provider>
   );
 }
 
