@@ -54,7 +54,7 @@ export function getFeatureFlags(): FeatureFlags {
     
     enableNewConnectors: process.env.ENABLE_NEW_CONNECTORS === "true",
     enableGenesisV2: process.env.ENABLE_GENESIS_V2 === "true",
-    enableAdvancedEditor: process.env.ENABLE_ADVANCED_EDITOR === "true",
+    enableAdvancedEditor: true,
     enableBulkOperations: process.env.ENABLE_BULK_OPERATIONS === "true",
     
     maxConcurrentRunsPerUser: parseInt(
