@@ -1,7 +1,6 @@
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { NextResponse } from "next/server";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDb = { from(table: string): any };
 
 /** DELETE /api/user/tokens/[id] — revoke a personal API token */

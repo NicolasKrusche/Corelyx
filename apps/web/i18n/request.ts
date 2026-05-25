@@ -15,11 +15,9 @@ export default getRequestConfig(async () => {
 
   let messages: Record<string, unknown>;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    messages = (await import(`../messages/${locale}.json`)).default;
+    messages = ((await import(`../messages/${locale}.json`)) as { default: Record<string, unknown> }).default;
   } catch {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    messages = (await import("../messages/en.json")).default;
+    messages = ((await import("../messages/en.json")) as { default: Record<string, unknown> }).default;
   }
 
   return { locale, messages };
