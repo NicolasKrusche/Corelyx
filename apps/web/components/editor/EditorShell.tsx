@@ -240,12 +240,21 @@ function isNodeVariant(value: unknown): value is NodeVariant {
 }
 
 function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
+  const cfg = schemaNode.config as Record<string, unknown>;
+  const style =
+    schemaNode.type === "group"
+      ? { width: (cfg.width as number) ?? 400, height: (cfg.height as number) ?? 300 }
+      : schemaNode.type === "note"
+        ? { width: 200, height: 120 }
+        : undefined;
+
   return {
     id: schemaNode.id,
     type: schemaNode.type,
     draggable: true,
     selectable: true,
     position: schemaNode.position,
+    ...(style ? { style } : {}),
     data: {
       label: schemaNode.label,
       description: schemaNode.description,
