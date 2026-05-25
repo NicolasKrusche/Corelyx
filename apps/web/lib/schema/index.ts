@@ -1,3 +1,4 @@
+import type React from "react";
 import type { ProgramSchema, Node as SchemaNode, Edge as SchemaEdge } from "@flowos/schema";
 import type {
   ValidationResult,
@@ -54,12 +55,25 @@ export function toReactFlow(
     const errors = nodeErrorsById.get(node.id) ?? [];
     const warnings = nodeWarningsById.get(node.id) ?? [];
 
+    // Group nodes need explicit style dimensions so NodeResizer works correctly.
+    // Note nodes use a fixed default; their size is free-form via user drag.
+    const style: React.CSSProperties | undefined =
+      node.type === "group"
+        ? {
+            width: (node.config as { width?: number }).width ?? 400,
+            height: (node.config as { height?: number }).height ?? 300,
+          }
+        : node.type === "note"
+          ? { width: 200, height: 120 }
+          : undefined;
+
     return {
       id: node.id,
       type: node.type,
       draggable: true,
       selectable: true,
       position: { x: node.position.x, y: node.position.y },
+      ...(style ? { style } : {}),
       data: {
         label: node.label,
         description: node.description,

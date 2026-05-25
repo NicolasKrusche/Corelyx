@@ -13,11 +13,15 @@ export type ConnectionSubtype =
   | "calendar" | "docs" | "drive" | "airtable" | "hubspot"
   | "typeform" | "asana" | "outlook";
 
+export type NoteColor = "yellow" | "blue" | "pink" | "green";
+
 export type NodeVariant =
   | { type: "trigger"; subtype: TriggerSubtype }
   | { type: "agent" }
   | { type: "step"; subtype: StepSubtype }
-  | { type: "connection"; subtype: ConnectionSubtype };
+  | { type: "connection"; subtype: ConnectionSubtype }
+  | { type: "note"; color: NoteColor }
+  | { type: "group" };
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
@@ -330,6 +334,35 @@ const CATEGORIES: Category[] = [
       },
     ],
   },
+  {
+    id: "annotations",
+    label: "Annotations",
+    color: "text-amber-700 dark:text-amber-400",
+    bgColor: "bg-amber-500/15",
+    templates: [
+      {
+        variant: { type: "note", color: "yellow" } as NodeVariant,
+        label: "Sticky note",
+        description: "Add a visual comment or annotation to the canvas",
+        icon: (
+          <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5 opacity-80">
+            <path d="M2 3a1 1 0 011-1h8l3 3v8a1 1 0 01-1 1H3a1 1 0 01-1-1V3zm9 0v2h2l-2-2zM5 7h6v1H5V7zm0 2.5h4v1H5v-1z" />
+          </svg>
+        ),
+      },
+      {
+        variant: { type: "group" } as NodeVariant,
+        label: "Group frame",
+        description: "Draw a labeled frame to visually group related nodes",
+        icon: (
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5">
+            <rect x="2" y="2" width="12" height="12" rx="2" strokeDasharray="3 2" />
+            <path d="M6 6h4M6 10h4" strokeLinecap="round" />
+          </svg>
+        ),
+      },
+    ],
+  },
 ];
 
 // ─── NodePalettePanel ─────────────────────────────────────────────────────────
@@ -338,9 +371,13 @@ interface NodePalettePanelProps {
   onAdd: (variant: NodeVariant) => void;
   onDragStart?: (event: React.DragEvent<HTMLButtonElement>, variant: NodeVariant) => void;
   onClose: () => void;
+  enableAdvancedEditor?: boolean;
 }
 
-export function NodePalettePanel({ onAdd, onDragStart, onClose }: NodePalettePanelProps) {
+export function NodePalettePanel({ onAdd, onDragStart, onClose, enableAdvancedEditor = false }: NodePalettePanelProps) {
+  const visibleCategories = enableAdvancedEditor
+    ? CATEGORIES
+    : CATEGORIES.filter((cat) => cat.id !== "annotations");
   return (
     <aside
       className={cn(
@@ -367,7 +404,7 @@ export function NodePalettePanel({ onAdd, onDragStart, onClose }: NodePalettePan
 
       {/* Scrollable categories */}
       <div className="flex-1 overflow-y-auto py-2">
-        {CATEGORIES.map((cat) => (
+        {visibleCategories.map((cat) => (
           <div key={cat.id} className="mb-1">
             {/* Category header */}
             <div className={cn("px-3 py-1.5 flex items-center gap-1.5")}>
@@ -383,6 +420,8 @@ export function NodePalettePanel({ onAdd, onDragStart, onClose }: NodePalettePan
                   tpl.variant.type === "trigger" ? `trigger-${tpl.variant.subtype}`
                   : tpl.variant.type === "step" ? `step-${tpl.variant.subtype}`
                   : tpl.variant.type === "connection" ? `conn-${tpl.variant.subtype}`
+                  : tpl.variant.type === "note" ? `note-${tpl.variant.color}`
+                  : tpl.variant.type === "group" ? "group"
                   : "agent";
 
                 return (

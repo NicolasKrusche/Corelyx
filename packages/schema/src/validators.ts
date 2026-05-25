@@ -199,6 +199,29 @@ export const ConnectionNodeZ = NodeBaseZ.extend({
   ]),
 });
 
+// ─── NOTE NODE ────────────────────────────────────────────────────────────
+
+export const NoteNodeZ = NodeBaseZ.extend({
+  type: z.literal("note"),
+  connection: z.null(),
+  config: z.object({
+    content: z.string(),
+    color: z.enum(["yellow", "blue", "pink", "green"]),
+  }),
+});
+
+// ─── GROUP NODE ───────────────────────────────────────────────────────────
+
+export const GroupNodeZ = NodeBaseZ.extend({
+  type: z.literal("group"),
+  connection: z.null(),
+  config: z.object({
+    childIds: z.array(z.string()),
+    width: z.number().positive(),
+    height: z.number().positive(),
+  }),
+});
+
 // ─── NODES UNION ──────────────────────────────────────────────────────────
 
 export const NodeZ = z.discriminatedUnion("type", [
@@ -206,6 +229,8 @@ export const NodeZ = z.discriminatedUnion("type", [
   AgentNodeZ,
   StepNodeZ,
   ConnectionNodeZ,
+  NoteNodeZ,
+  GroupNodeZ,
 ]);
 
 // ─── EDGES ────────────────────────────────────────────────────────────────
@@ -282,7 +307,7 @@ export type ProgramSchemaOutput = z.output<typeof ProgramSchemaZ>;
 // node config values that are not runnable yet.
 
 export const DraftNodeZ = NodeBaseZ.extend({
-  type: z.enum(["trigger", "agent", "step", "connection"]),
+  type: z.enum(["trigger", "agent", "step", "connection", "note", "group"]),
   connection: z.string().nullable(),
   config: z.record(z.unknown()),
 });
