@@ -58,7 +58,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxPrograms: 5,
     runsPerMonth: 75,
     runHistoryDays: 30,
-    genesisUsesPerMonth: null,
+    genesisUsesPerMonth: 5,
     triggers: { manual: true, cron: true, webhook: true, event: false, program: false },
     byok: true,
     hitlApprovals: false,
