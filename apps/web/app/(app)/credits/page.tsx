@@ -111,8 +111,14 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const isUnlimited = tier === "unlimited" || creditBalance.total === Infinity;
   const includedTotal = ent.includedAiCreditsUsd;
   const includedUsed = includedTotal === null ? 0 : Math.max(0, includedTotal - creditBalance.availableIncluded);
-  const runsLeft = runUsage.total === null ? null : Math.max(0, runUsage.total - runUsage.current);
-  const genesisLeft = genesisAccess.maxUses === null ? null : Math.max(0, genesisAccess.maxUses - genesisAccess.usesThisMonth);
+
+  // When previewing a plan, substitute limits from entitlements so the display
+  // reflects the selected plan rather than the user's real DB-stored limits.
+  const runsTotal = previewTier !== null ? ent.runsPerMonth : runUsage.total;
+  const genesisTotal = previewTier !== null ? ent.genesisUsesPerMonth : genesisAccess.maxUses;
+
+  const runsLeft = runsTotal === null ? null : Math.max(0, runsTotal - runUsage.current);
+  const genesisLeft = genesisTotal === null ? null : Math.max(0, genesisTotal - genesisAccess.usesThisMonth);
   const apiKeyCount = apiKeysRes.count ?? 0;
   const purchases = (purchasesRes.data ?? []) as CreditPurchase[];
 
@@ -389,10 +395,10 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                   Genesis AI
                 </span>
                 <span className="text-xs">
-                  {genesisAccess.usesThisMonth} / {genesisAccess.maxUses === null ? "unlimited" : genesisAccess.maxUses}
+                  {genesisAccess.usesThisMonth} / {genesisTotal === null ? "unlimited" : genesisTotal}
                 </span>
               </div>
-              <StatBarMuted value={genesisAccess.usesThisMonth} max={genesisAccess.maxUses} />
+              <StatBarMuted value={genesisAccess.usesThisMonth} max={genesisTotal} />
               <p className="mt-1 text-[11px] text-muted-foreground/60">
                 {genesisAccess.usesThisMonth} generation{genesisAccess.usesThisMonth !== 1 ? "s" : ""} used in {now.toLocaleDateString("en-US", { month: "long" })}
               </p>
@@ -406,10 +412,10 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                   Workflow runs
                 </span>
                 <span className="text-xs">
-                  {runUsage.current} / {runUsage.total === null ? "unlimited" : runUsage.total}
+                  {runUsage.current} / {runsTotal === null ? "unlimited" : runsTotal}
                 </span>
               </div>
-              <StatBarMuted value={runUsage.current} max={runUsage.total} />
+              <StatBarMuted value={runUsage.current} max={runsTotal} />
               <p className="mt-1 text-[11px] text-muted-foreground/60">
                 {runUsage.current} run{runUsage.current !== 1 ? "s" : ""} this cycle
               </p>
