@@ -4,7 +4,6 @@ import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { generateToken, hashToken, tokenPrefix } from "@/lib/personal-tokens";
 import { isAdminEmail } from "@/lib/admin";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDb = { from(table: string): any };
 
 const CreateTokenSchema = z.object({
