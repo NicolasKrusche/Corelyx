@@ -40,7 +40,7 @@ export function StepNode({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-sky-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(14,165,233,0.6)]"
+        className="!bg-sky-500 !border-2 !border-card !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(14,165,233,0.6)]"
       />
 
       <NodeShell
@@ -56,7 +56,7 @@ export function StepNode({ data, selected }: NodeProps) {
             Step
           </span>
           {logicType && (
-            <span className="inline-flex items-center rounded-sm bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
+            <span className="inline-flex items-center rounded-sm bg-black/[0.05] dark:bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
               {LOGIC_TYPE_LABEL[logicType]}
             </span>
           )}
@@ -91,7 +91,7 @@ export function StepNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-sky-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(14,165,233,0.6)]"
+        className="!bg-sky-500 !border-2 !border-card !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(14,165,233,0.6)]"
       />
     </>
   );
