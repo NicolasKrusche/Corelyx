@@ -278,10 +278,19 @@ export async function checkGenesisAccess(userId: string, workspaceId?: string | 
     : 0;
 
   if (usesThisMonth >= ent.genesisUsesPerMonth) {
+    const tierNames: Record<string, string> = {
+      free: "Free", plus: "Solo", pro: "Team", builder: "Scale", unlimited: "Unlimited",
+    };
+    const tierName = tierNames[profile.tier] ?? profile.tier;
+    const nextTierHint = profile.tier === "free"
+      ? "Upgrade to Solo for more Genesis uses."
+      : profile.tier === "plus"
+      ? "Upgrade to Team for unlimited Genesis."
+      : "Contact support to increase your limit.";
     return {
       allowed: false,
-      reason: `Genesis AI limit reached (${usesThisMonth}/${ent.genesisUsesPerMonth} this month on Free plan)`,
-      upgradeMessage: `You've used all ${ent.genesisUsesPerMonth} Genesis AI uses this month on the Free plan. Upgrade to Solo for unlimited Genesis.`,
+      reason: `Genesis AI limit reached (${usesThisMonth}/${ent.genesisUsesPerMonth} this month on ${tierName} plan)`,
+      upgradeMessage: `You've used all ${ent.genesisUsesPerMonth} Genesis AI uses this month on the ${tierName} plan. ${nextTierHint}`,
       usesThisMonth,
       maxUses: ent.genesisUsesPerMonth,
     };
