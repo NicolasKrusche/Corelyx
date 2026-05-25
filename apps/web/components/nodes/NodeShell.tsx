@@ -115,25 +115,25 @@ export function NodeShell({
   return (
     <div
       className={cn(
-        // Glass base
+        // Base
         "relative rounded-xl overflow-hidden",
-        "bg-[rgba(20,22,30,0.82)] dark:bg-[rgba(14,16,22,0.88)]",
-        "backdrop-blur-md",
+        "bg-card dark:bg-[rgba(14,16,22,0.88)]",
+        "dark:backdrop-blur-md",
         // Size
         "w-[220px] min-h-[88px] pl-5 pr-3.5 py-3",
         "flex flex-col gap-1",
         // Default border
-        "border border-white/[0.09]",
+        "border border-border dark:border-white/[0.09]",
         // Drop shadow
-        "shadow-[0_8px_32px_rgba(0,0,0,0.45),0_1px_2px_rgba(0,0,0,0.3)]",
+        "shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_1px_2px_rgba(0,0,0,0.3)]",
         // Validation ring overrides
-        isError      && "border-red-500/60 shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(239,68,68,0.35)]",
-        isWarning    && "border-yellow-400/60 shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(250,204,21,0.30)]",
-        isUnassigned && "border-white/[0.06] border-dashed",
+        isError      && "border-red-500/60 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(239,68,68,0.35)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(239,68,68,0.35)]",
+        isWarning    && "border-yellow-400/60 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(250,204,21,0.30)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(250,204,21,0.30)]",
+        isUnassigned && "border-dashed dark:border-white/[0.06]",
         // Selection ring
         selected && !isError && !isWarning && cn(
-          "border-white/[0.2]",
-          `shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(96,165,250,0.4),0_0_16px_rgba(96,165,250,0.15)]`
+          "border-primary/40 dark:border-white/[0.2]",
+          `shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(96,165,250,0.4)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(96,165,250,0.4),0_0_16px_rgba(96,165,250,0.15)]`
         ),
         className
       )}
@@ -148,8 +148,8 @@ export function NodeShell({
         />
       )}
 
-      {/* Subtle top highlight gloss */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+      {/* Subtle top highlight gloss — dark mode only */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent dark:block hidden" />
 
       {/* Status indicator — top right */}
       <div className="absolute top-2.5 right-2.5 flex items-center">

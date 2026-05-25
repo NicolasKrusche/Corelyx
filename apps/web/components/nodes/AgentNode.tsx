@@ -30,7 +30,7 @@ export function AgentNode({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-purple-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(168,85,247,0.6)]"
+        className="!bg-purple-500 !border-2 !border-card !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(168,85,247,0.6)]"
       />
 
       <NodeShell
@@ -93,7 +93,7 @@ export function AgentNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-purple-500 !border-2 !border-[rgba(14,16,22,0.9)] !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(168,85,247,0.6)]"
+        className="!bg-purple-500 !border-2 !border-card !w-3.5 !h-3.5 !shadow-[0_0_6px_rgba(168,85,247,0.6)]"
       />
     </>
   );
