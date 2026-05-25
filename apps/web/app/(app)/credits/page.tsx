@@ -15,6 +15,7 @@ import { getTranslations } from "next-intl/server";
 import { Download, History, Rocket, Plus, Check, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isAdminEmail } from "@/lib/admin";
+import { PlanPreviewToggle } from "./plan-preview-toggle";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
@@ -67,20 +68,31 @@ type CreditPurchase = {
   stripe_session_id: string | null;
 };
 
-export default async function CreditsPage() {
+export default async function CreditsPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const service = createServiceClient();
-  const [ws, profileRes] = await Promise.all([
+  const [ws, profileRes, resolvedParams] = await Promise.all([
     getActiveWorkspace(user.id),
-    service.from("profiles").select("tier, stripe_payment_method_id").eq("id", user.id).single(),
+    service.from("profiles").select("tier, stripe_payment_method_id, is_admin").eq("id", user.id).single(),
+    searchParams,
   ]);
 
   const profileData = profileRes.data as { tier?: string; stripe_payment_method_id?: string | null; is_admin?: boolean } | null;
   const isAdmin = isAdminEmail(user.email ?? undefined) || profileData?.is_admin === true;
-  const tier = isAdmin ? "unlimited" : parseTier(profileData?.tier);
+  const realTier = isAdmin ? "unlimited" : parseTier(profileData?.tier);
+
+  // Dev-only plan preview — only admins can use ?preview_tier=xxx
+  const VALID_TIERS = ["free", "plus", "pro", "builder", "unlimited"] as const;
+  type ValidTier = typeof VALID_TIERS[number];
+  const previewParam = resolvedParams.preview_tier as string | undefined;
+  const previewTier = isAdmin && previewParam && (VALID_TIERS as readonly string[]).includes(previewParam)
+    ? previewParam as ValidTier
+    : null;
+  const tier = previewTier ?? realTier;
+
   const hasSavedPaymentMethod = Boolean(profileData?.stripe_payment_method_id);
   const ent = getEntitlements(tier);
   const workspaceId = ws?.workspaceId ?? null;
@@ -219,6 +231,11 @@ export default async function CreditsPage() {
 
       {/* ── Header ── */}
       <div>
+        {isAdmin && (
+          <div className="mb-3">
+            <PlanPreviewToggle current={tier} />
+          </div>
+        )}
         <p className="mb-1 text-[11px] text-muted-foreground/60">
           <Link href="/settings" className="hover:text-foreground transition-colors">Settings</Link>
           {" / "}
