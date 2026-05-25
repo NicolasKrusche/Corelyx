@@ -135,10 +135,12 @@ async function checkLiteLLMProxy(): Promise<HealthCheckResult> {
   const proxyUrl = process.env.LITELLM_PROXY_URL;
   
   if (!proxyUrl) {
+    // LiteLLM is optional — the runtime falls back to direct provider URLs.
+    // Not configuring it is a valid deployment choice, not a warning.
     return {
-      status: "warn",
+      status: "pass",
       responseTimeMs: 0,
-      message: "LiteLLM proxy URL not configured",
+      message: "Not configured (optional — runtime uses direct provider URLs)",
     };
   }
   
