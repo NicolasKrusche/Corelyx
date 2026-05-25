@@ -168,7 +168,7 @@ export function OnboardingWizard({
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">What should we call you?</h1>
                 <p className="mt-1.5 text-sm text-muted-foreground">
-                  This is how you'll appear in your workspace and public profile.
+                  This is how you&apos;ll appear in your workspace and public profile.
                 </p>
               </div>
 
