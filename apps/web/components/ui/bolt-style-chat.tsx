@@ -154,6 +154,9 @@ function ChatInput({
   const [message, setMessage] = useState(initialMessage)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const codeInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -216,14 +219,57 @@ function ChatInput({
                   <div className='fixed inset-0 z-40' onClick={() => setShowAttachMenu(false)} />
                   <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-xl border border-border bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl duration-200'>
                     <div className='min-w-[180px] p-1.5'>
+                      <input
+                        ref={fileInputRef}
+                        type='file'
+                        className='hidden'
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            onSend?.(`[Attached file: ${file.name}]`)
+                          }
+                          e.currentTarget.value = ''
+                          setShowAttachMenu(false)
+                        }}
+                      />
+                      <input
+                        ref={imageInputRef}
+                        type='file'
+                        accept='image/*'
+                        className='hidden'
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            onSend?.(`[Attached image: ${file.name}]`)
+                          }
+                          e.currentTarget.value = ''
+                          setShowAttachMenu(false)
+                        }}
+                      />
+                      <input
+                        ref={codeInputRef}
+                        type='file'
+                        accept='.json,.ts,.js,.py,.txt,.md,.sql,.yaml,.yml'
+                        className='hidden'
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            const text = await file.text()
+                            onSend?.(`[Imported code from ${file.name}]:\n\n\`\`\`\n${text.slice(0, 4000)}\n\`\`\``)
+                          }
+                          e.currentTarget.value = ''
+                          setShowAttachMenu(false)
+                        }}
+                      />
                       {[
-                        { icon: <Paperclip className='size-4' />, label: 'Upload file' },
-                        { icon: <ImageIcon className='size-4' />, label: 'Add image' },
-                        { icon: <FileCode className='size-4' />, label: 'Import code' },
+                        { icon: <Paperclip className='size-4' />, label: 'Upload file', ref: fileInputRef },
+                        { icon: <ImageIcon className='size-4' />, label: 'Add image', ref: imageInputRef },
+                        { icon: <FileCode className='size-4' />, label: 'Import code', ref: codeInputRef },
                       ].map((item, i) => (
                         <button
                           key={i}
                           type='button'
+                          onClick={() => item.ref.current?.click()}
                           className='flex w-full items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all duration-150 hover:bg-accent/50 hover:text-foreground'
                         >
                           {item.icon}
@@ -365,14 +411,17 @@ function AnnouncementBadge({ text, href = '#' }: { text: string; href?: string }
     boxShadow: 'inset 0 1px hsl(var(--border) / 0.5), 0 8px 32px -8px hsl(var(--primary) / 0.15)',
   }
 
-  return href !== '#' ? (
-    <a href={href} target='_blank' rel='noopener noreferrer' className={className} style={style}>
+  if (href !== '#') {
+    return (
+      <a href={href} target='_blank' rel='noopener noreferrer' className={className} style={style}>
+        {content}
+      </a>
+    )
+  }
+  return (
+    <span className={className.replace('cursor-pointer', '')} style={style}>
       {content}
-    </a>
-  ) : (
-    <button className={className} style={style}>
-      {content}
-    </button>
+    </span>
   )
 }
 

@@ -249,7 +249,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               <span className="text-muted-foreground">Model <span className="rounded bg-background/70 px-1 font-mono text-xs">{genesisModel}</span></span>
             )}
           </p>
-          <button type="button" className="text-sm text-foreground">Dismiss</button>
           <Link href={`/programs/${program.id}/editor`} className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{"Review ->"}</Link>
         </div>
       )}
@@ -262,7 +261,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             <span className="text-muted-foreground">Concurrent run policy: </span>
             <span className="rounded bg-background/70 px-1 font-mono text-xs">{program.conflict_policy}</span>
           </p>
-          <button type="button" className="text-sm text-foreground">Snooze</button>
           <Link href={`/programs/${id}/conflicts`} className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{"View conflicts ->"}</Link>
         </div>
       )}
