@@ -37,6 +37,7 @@ import { ControlFlowEdge } from "@/components/edges/ControlFlowEdge";
 import { EventEdge } from "@/components/edges/EventEdge";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
+import { RunLogDrawer } from "@/components/editor/RunLogDrawer";
 import { NodeSidebar } from "@/components/sidebars/NodeSidebar";
 import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
@@ -64,6 +65,14 @@ export interface NodeExecutionData {
   error_message: string | null;
   started_at: string | null;
   completed_at: string | null;
+  retry_count: number | null;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+  connector_api_calls: number;
+  model_call_count: number;
+  created_at: string;
 }
 
 // ─── Custom node/edge type registrations ─────────────────────────────────────
@@ -773,6 +782,14 @@ export function EditorShell({
             error_message?: string | null;
             started_at?: string | null;
             completed_at?: string | null;
+            retry_count?: number | null;
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            total_tokens?: number;
+            estimated_cost_usd?: number;
+            connector_api_calls?: number;
+            model_call_count?: number;
+            created_at?: string;
           };
           const row = payload.new as NodeExecPayload | null;
           if (!row?.node_id || !row?.status) return;
@@ -787,7 +804,7 @@ export function EditorShell({
             )
           );
 
-          // Update execution inspector data
+          // Update execution inspector data (includes token/cost metrics for drawer)
           setNodeExecutions((prev) => ({
             ...prev,
             [row.node_id]: {
@@ -797,6 +814,14 @@ export function EditorShell({
               error_message: row.error_message ?? null,
               started_at: row.started_at ?? null,
               completed_at: row.completed_at ?? null,
+              retry_count: row.retry_count ?? null,
+              prompt_tokens: Number(row.prompt_tokens ?? 0),
+              completion_tokens: Number(row.completion_tokens ?? 0),
+              total_tokens: Number(row.total_tokens ?? 0),
+              estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+              connector_api_calls: Number(row.connector_api_calls ?? 0),
+              model_call_count: Number(row.model_call_count ?? 0),
+              created_at: row.created_at ?? new Date(0).toISOString(),
             },
           }));
 
@@ -1093,6 +1118,12 @@ export function EditorShell({
   const [nodeExecutions, setNodeExecutions] = React.useState<Record<string, NodeExecutionData>>({});
   const [lastRunId, setLastRunId] = React.useState<string | null>(null);
 
+  // ── Run log drawer state ──────────────────────────────────────────────────
+
+  const [showRunLog, setShowRunLog] = React.useState(false);
+  const [currentRunStatus, setCurrentRunStatus] = React.useState("idle");
+  const [currentRunStartedAt, setCurrentRunStartedAt] = React.useState<string | null>(null);
+
   // On mount: fetch most recent run and populate nodeExecutions
   useEffect(() => {
     async function fetchLatestRun() {
@@ -1114,6 +1145,14 @@ export function EditorShell({
           error_message: string | null;
           started_at: string | null;
           completed_at: string | null;
+          retry_count?: number | null;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+          estimated_cost_usd?: number;
+          connector_api_calls?: number;
+          model_call_count?: number;
+          created_at?: string;
         }> };
         if (!run.node_executions) return;
 
@@ -1126,6 +1165,14 @@ export function EditorShell({
             error_message: ne.error_message,
             started_at: ne.started_at,
             completed_at: ne.completed_at,
+            retry_count: ne.retry_count ?? null,
+            prompt_tokens: Number(ne.prompt_tokens ?? 0),
+            completion_tokens: Number(ne.completion_tokens ?? 0),
+            total_tokens: Number(ne.total_tokens ?? 0),
+            estimated_cost_usd: Number(ne.estimated_cost_usd ?? 0),
+            connector_api_calls: Number(ne.connector_api_calls ?? 0),
+            model_call_count: Number(ne.model_call_count ?? 0),
+            created_at: ne.created_at ?? new Date(0).toISOString(),
           };
         }
         setNodeExecutions(byNodeId);
@@ -1136,6 +1183,25 @@ export function EditorShell({
     fetchLatestRun();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programId]);
+
+  // ── Subscribe to run status when lastRunId changes ───────────────────────
+
+  useEffect(() => {
+    if (!lastRunId) return;
+    const supabase = createBrowserClient();
+    const channel = supabase
+      .channel(`run-status-${lastRunId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "runs", filter: `id=eq.${lastRunId}` },
+        (payload) => {
+          const row = payload.new as { status?: string } | null;
+          if (row?.status) setCurrentRunStatus(row.status);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [lastRunId]);
 
   // ── Webhook test state ────────────────────────────────────────────────────
 
@@ -1279,13 +1345,15 @@ export function EditorShell({
 
       if (body?.run_id) {
         const runError = body.message ?? body.error ?? "Runtime dispatch failed.";
-        setValidationNotice(
-          body.status === "failed"
-            ? `Run record created, but execution failed: ${runError}`
-            : "Run started."
-        );
+        if (body.status === "failed") {
+          setValidationNotice(`Run record created, but execution failed: ${runError}`);
+        }
+        // Stay on the editor; open the run log drawer instead of navigating away
         setLastRunId(body.run_id);
-        router.push(`/programs/${programId}/runs/${body.run_id}`);
+        setCurrentRunStatus(body.status === "failed" ? "failed" : "running");
+        setCurrentRunStartedAt(new Date().toISOString());
+        setNodeExecutions({});        // clear previous run's data
+        setShowRunLog(true);
         return;
       }
 
@@ -1340,7 +1408,11 @@ export function EditorShell({
       if (res.ok) {
         const { run_id } = await res.json() as { run_id: string };
         setShowWebhookTest(false);
-        router.push(`/programs/${programId}/runs/${run_id}`);
+        setLastRunId(run_id);
+        setCurrentRunStatus("running");
+        setCurrentRunStartedAt(new Date().toISOString());
+        setNodeExecutions({});
+        setShowRunLog(true);
       } else {
         const body = await res.json().catch(() => null) as {
           checks?: PreFlightCheck[];
@@ -1716,6 +1788,19 @@ export function EditorShell({
             onClose={() => setShowHistory(false)}
             currentSchema={state.schema}
             enableAdvancedEditor={enableAdvancedEditor}
+          />
+        )}
+
+        {/* Run log drawer — slides up from the bottom when a run is active */}
+        {showRunLog && lastRunId && (
+          <RunLogDrawer
+            runId={lastRunId}
+            programId={programId}
+            runStatus={currentRunStatus}
+            startedAt={currentRunStartedAt}
+            schemaNodes={state.schema.nodes}
+            nodeExecutions={nodeExecutions}
+            onClose={() => setShowRunLog(false)}
           />
         )}
       </div>
