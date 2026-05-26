@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import type { Edge, Node } from "@flowos/schema";
+import { RunGraphFlow } from "./run-graph-flow";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,328 +201,6 @@ function ErrorBlock({ message }: { message: string }) {
   );
 }
 
-// ─── Run Graph ────────────────────────────────────────────────────────────────
-
-const NODE_W = 184;
-const NODE_H = 58;
-const COL_GAP = 96;
-const ROW_GAP = 20;
-const PAD = 24;
-
-/** Assign a column (depth) to each node using longest-path BFS (Kahn's). */
-function assignColumns(nodes: Node[], edges: Edge[]): Map<string, number> {
-  const adj = new Map<string, string[]>();
-  const inDeg = new Map<string, number>();
-
-  for (const n of nodes) {
-    adj.set(n.id, []);
-    inDeg.set(n.id, 0);
-  }
-  for (const e of edges) {
-    if (adj.has(e.from) && inDeg.has(e.to)) {
-      adj.get(e.from)!.push(e.to);
-      inDeg.set(e.to, (inDeg.get(e.to) ?? 0) + 1);
-    }
-  }
-
-  const col = new Map<string, number>();
-  for (const n of nodes) col.set(n.id, 0);
-
-  const queue: string[] = [];
-  const remaining = new Map(inDeg);
-  for (const [id, deg] of remaining) {
-    if (deg === 0) queue.push(id);
-  }
-
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    const myCol = col.get(id) ?? 0;
-    for (const next of (adj.get(id) ?? [])) {
-      col.set(next, Math.max(col.get(next) ?? 0, myCol + 1));
-      const nd = (remaining.get(next) ?? 1) - 1;
-      remaining.set(next, nd);
-      if (nd <= 0) queue.push(next);
-    }
-  }
-  return col;
-}
-
-type Pos = { x: number; y: number };
-
-function computeLayout(nodes: Node[], edges: Edge[]): Map<string, Pos> {
-  if (nodes.length === 0) return new Map();
-  const col = assignColumns(nodes, edges);
-
-  // Group by column, preserve insertion order within each column
-  const byCol = new Map<number, string[]>();
-  for (const n of nodes) {
-    const c = col.get(n.id) ?? 0;
-    if (!byCol.has(c)) byCol.set(c, []);
-    byCol.get(c)!.push(n.id);
-  }
-
-  const pos = new Map<string, Pos>();
-  for (const [c, ids] of byCol) {
-    ids.forEach((id, row) => {
-      pos.set(id, {
-        x: c * (NODE_W + COL_GAP),
-        y: row * (NODE_H + ROW_GAP),
-      });
-    });
-  }
-  return pos;
-}
-
-const STATUS_STYLES: Record<string, { border: string; bg: string; dot: string; label: string; ring: string }> = {
-  running: {
-    border: "border-yellow-400 dark:border-yellow-500",
-    bg: "bg-yellow-50 dark:bg-yellow-500/10",
-    dot: "bg-yellow-400 animate-pulse",
-    label: "text-yellow-700 dark:text-yellow-300",
-    ring: "ring-2 ring-yellow-400/50 ring-offset-background ring-offset-1",
-  },
-  completed: {
-    border: "border-green-400 dark:border-green-500",
-    bg: "bg-green-50 dark:bg-green-500/10",
-    dot: "bg-green-400",
-    label: "text-green-700 dark:text-green-300",
-    ring: "",
-  },
-  success: {
-    border: "border-green-400 dark:border-green-500",
-    bg: "bg-green-50 dark:bg-green-500/10",
-    dot: "bg-green-400",
-    label: "text-green-700 dark:text-green-300",
-    ring: "",
-  },
-  failed: {
-    border: "border-red-400 dark:border-red-500",
-    bg: "bg-red-50 dark:bg-red-500/10",
-    dot: "bg-red-400",
-    label: "text-red-700 dark:text-red-300",
-    ring: "",
-  },
-  waiting_approval: {
-    border: "border-blue-400 dark:border-blue-500",
-    bg: "bg-blue-50 dark:bg-blue-500/10",
-    dot: "bg-blue-400",
-    label: "text-blue-700 dark:text-blue-300",
-    ring: "",
-  },
-  skipped: {
-    border: "border-border",
-    bg: "bg-muted/20",
-    dot: "bg-muted-foreground/25",
-    label: "text-muted-foreground/60",
-    ring: "",
-  },
-  pending: {
-    border: "border-border",
-    bg: "bg-card",
-    dot: "bg-muted-foreground/30",
-    label: "text-muted-foreground",
-    ring: "",
-  },
-};
-
-function getStatusStyle(status: string) {
-  return STATUS_STYLES[status] ?? STATUS_STYLES.pending;
-}
-
-function edgeStroke(status: string): { color: string; opacity: number; width: number } {
-  switch (status) {
-    case "running":    return { color: "#eab308", opacity: 0.85, width: 2 };
-    case "completed":
-    case "success":    return { color: "#22c55e", opacity: 0.75, width: 1.5 };
-    case "failed":     return { color: "#ef4444", opacity: 0.75, width: 1.5 };
-    case "skipped":    return { color: "#9ca3af", opacity: 0.35, width: 1.5 };
-    default:           return { color: "#9ca3af", opacity: 0.3,  width: 1.5 };
-  }
-}
-
-function RunGraph({
-  nodeMap,
-  edges,
-  execs,
-}: {
-  nodeMap: Record<string, Node>;
-  edges: Edge[];
-  execs: NodeExecutionRow[];
-}) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const nodes = useMemo(() => Object.values(nodeMap), [nodeMap]);
-
-  const execByNode = useMemo(
-    () => new Map(execs.map((e) => [e.node_id, e])),
-    [execs]
-  );
-
-  // Layout is stable for a given nodeMap/edges shape — recompute only when structure changes
-  const nodeKeyStr = useMemo(() => nodes.map((n) => n.id).join(","), [nodes]);
-  const positions = useMemo(
-    () => computeLayout(nodes, edges),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [nodeKeyStr, edges]
-  );
-
-  const { canvasW, canvasH } = useMemo(() => {
-    let maxX = 0;
-    let maxY = 0;
-    for (const p of positions.values()) {
-      maxX = Math.max(maxX, p.x + NODE_W);
-      maxY = Math.max(maxY, p.y + NODE_H);
-    }
-    return { canvasW: maxX + PAD * 2, canvasH: maxY + PAD * 2 };
-  }, [positions]);
-
-  if (nodes.length === 0) return null;
-
-  const selectedExec = selectedId ? execByNode.get(selectedId) : undefined;
-  const selectedNode = selectedId ? nodeMap[selectedId] : undefined;
-
-  return (
-    <div className="space-y-3">
-      {/* Graph canvas */}
-      <div className="overflow-x-auto rounded-xl border border-border bg-muted/10">
-        <div style={{ position: "relative", width: canvasW, height: canvasH, minHeight: NODE_H + PAD * 2 }}>
-          {/* SVG edge layer */}
-          <svg
-            style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}
-            width={canvasW}
-            height={canvasH}
-          >
-            {edges.map((edge, i) => {
-              const from = positions.get(edge.from);
-              const to   = positions.get(edge.to);
-              if (!from || !to) return null;
-
-              const srcStatus = execByNode.get(edge.from)?.status ?? "pending";
-              const { color, opacity, width } = edgeStroke(srcStatus);
-
-              // Right-centre → left-centre
-              const x1 = PAD + from.x + NODE_W;
-              const y1 = PAD + from.y + NODE_H / 2;
-              const x2 = PAD + to.x;
-              const y2 = PAD + to.y + NODE_H / 2;
-              const cpOff = Math.max(40, (x2 - x1) * 0.45);
-
-              return (
-                <g key={i}>
-                  <path
-                    d={`M ${x1} ${y1} C ${x1 + cpOff} ${y1}, ${x2 - cpOff} ${y2}, ${x2} ${y2}`}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={width}
-                    strokeOpacity={opacity}
-                    strokeLinecap="round"
-                  />
-                  {/* Arrowhead */}
-                  <polygon
-                    points={`${x2},${y2} ${x2 - 7},${y2 - 4} ${x2 - 7},${y2 + 4}`}
-                    fill={color}
-                    fillOpacity={opacity}
-                  />
-                </g>
-              );
-            })}
-          </svg>
-
-          {/* Node cards */}
-          {nodes.map((node) => {
-            const p = positions.get(node.id);
-            if (!p) return null;
-
-            const exec   = execByNode.get(node.id);
-            const status = exec?.status ?? "pending";
-            const s      = getStatusStyle(status);
-            const isSelected = selectedId === node.id;
-
-            return (
-              <button
-                key={node.id}
-                onClick={() => setSelectedId(isSelected ? null : node.id)}
-                style={{
-                  position: "absolute",
-                  left: PAD + p.x,
-                  top:  PAD + p.y,
-                  width: NODE_W,
-                  height: NODE_H,
-                }}
-                className={[
-                  "rounded-lg border px-3 flex flex-col justify-center text-left transition-all",
-                  s.border,
-                  s.bg,
-                  s.ring,
-                  isSelected ? "ring-2 ring-ring ring-offset-1 ring-offset-background" : "",
-                  "hover:shadow-md",
-                ].join(" ")}
-              >
-                <div className="flex items-center gap-1.5 overflow-hidden">
-                  <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
-                  <span className="text-xs font-semibold truncate leading-tight">{node.label}</span>
-                </div>
-                <span className={`mt-0.5 ml-3.5 text-[10px] leading-tight ${s.label}`}>
-                  {status === "pending"
-                    ? node.type
-                    : status === "running"
-                      ? "running…"
-                      : status.replace(/_/g, " ")}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Click-to-expand detail panel */}
-      {selectedId && selectedNode && (
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <StatusBadge status={selectedExec?.status ?? "pending"} />
-              <span className="font-medium">{selectedNode.label}</span>
-              <span className="text-xs text-muted-foreground">({selectedNode.type})</span>
-            </div>
-            <button
-              onClick={() => setSelectedId(null)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
-          </div>
-
-          {selectedExec ? (
-            <>
-              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                {selectedExec.started_at && (
-                  <span>duration: {formatDuration(selectedExec.started_at, selectedExec.completed_at)}</span>
-                )}
-                {selectedExec.total_tokens > 0 && (
-                  <span>tokens: {formatInteger(selectedExec.total_tokens)}</span>
-                )}
-                {selectedExec.connector_api_calls > 0 && (
-                  <span>API calls: {formatInteger(selectedExec.connector_api_calls)}</span>
-                )}
-                {selectedExec.estimated_cost_usd > 0 && (
-                  <span>cost: {formatUsd(selectedExec.estimated_cost_usd)}</span>
-                )}
-              </div>
-              {selectedExec.error_message && (
-                <ErrorBlock message={selectedExec.error_message} />
-              )}
-              <JsonViewer label="▸ Input"  data={selectedExec.input_payload} />
-              <JsonViewer label="▸ Output" data={selectedExec.output_payload} />
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground">This node has not executed yet.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main client component ────────────────────────────────────────────────────
 
 const TERMINAL = new Set(["completed", "failed", "cancelled"]);
@@ -652,7 +331,7 @@ export function RunLogLive({
 
   return (
     <div className="space-y-6">
-      {/* ── Run overview graph ─────────────────────────────────────────────── */}
+      {/* ── Run overview — same React Flow graph as the editor ────────────── */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-base font-medium">Run overview</h2>
@@ -670,7 +349,7 @@ export function RunLogLive({
           )}
         </div>
 
-        <RunGraph nodeMap={nodeMap} edges={edges} execs={execs} />
+        <RunGraphFlow nodeMap={nodeMap} edges={edges} execs={execs} />
       </section>
 
       {/* ── Node executions detail ─────────────────────────────────────────── */}
@@ -743,7 +422,7 @@ export function RunLogLive({
 
                   {exec.error_message && <ErrorBlock message={exec.error_message} />}
 
-                  <JsonViewer label="▸ Input"  data={exec.input_payload} defaultOpen={isFailed} />
+                  <JsonViewer label="▸ Input" data={exec.input_payload} defaultOpen={isFailed} />
                   <JsonViewer label="▸ Output" data={exec.output_payload} />
                 </div>
               );
