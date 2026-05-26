@@ -53,6 +53,7 @@ _ALLOWED_STRING_METHODS = {
     "startswith": str.startswith,
     "endswith": str.endswith,
     "split": str.split,
+    "join": str.join,
 }
 
 
@@ -225,9 +226,57 @@ class _ExpressionEvaluator:
         if isinstance(node, ast.Call):
             return self._evaluate_call(node)
 
+        if isinstance(node, ast.ListComp):
+            return self._evaluate_list_comp(node)
+
         raise SafeExpressionError(
             f"Syntax '{type(node).__name__}' is not allowed in workflow expressions"
         )
+
+    def _evaluate_list_comp(self, node: ast.ListComp) -> list:
+        """Evaluate a single-generator list comprehension safely.
+
+        Only one ``for`` clause is permitted (no nested comprehensions).
+        The loop variable is temporarily injected into the data context so
+        the element expression can reference it via ``data['var']`` or by
+        name; it is removed after the loop to avoid leaking into the outer
+        scope.
+        """
+        if len(node.generators) != 1:
+            raise SafeExpressionError(
+                "Only single-generator list comprehensions are allowed"
+            )
+        gen = node.generators[0]
+        if not isinstance(gen.target, ast.Name):
+            raise SafeExpressionError(
+                "List comprehension target must be a simple variable name"
+            )
+
+        var_name = gen.target.id
+        iterable = self.evaluate(gen.iter)
+        if not isinstance(iterable, (list, tuple)):
+            raise SafeExpressionError(
+                "List comprehension iterable must evaluate to a list or tuple"
+            )
+
+        results = []
+        prev = self._context.get(var_name)
+        had_prev = var_name in self._context
+        try:
+            for item in iterable:
+                self._context[var_name] = item
+                # Evaluate optional filter conditions
+                if gen.ifs:
+                    if not all(self.evaluate(cond) for cond in gen.ifs):
+                        continue
+                results.append(self.evaluate(node.elt))
+        finally:
+            if had_prev:
+                self._context[var_name] = prev
+            else:
+                self._context.pop(var_name, None)
+
+        return results
 
     def _evaluate_slice(self, node: ast.AST) -> Any:
         if isinstance(node, ast.Slice):

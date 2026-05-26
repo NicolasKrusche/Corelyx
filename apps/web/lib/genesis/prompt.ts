@@ -468,11 +468,11 @@ AGENT NODE (connection: null):
 Use AGENT for reasoning/summarization/decisions. Use CONNECTION for deterministic API calls.
 
 STEP NODE (connection: ALWAYS null):
-Expressions use Python-like syntax on "data" dict. data['field'], data.get('k',default), len(), and/or/not, ==, !=.
-  filter: {"logic_type":"filter","condition":"len(data.get('emails',[]))>0","pass_schema":null}
-  transform: {"logic_type":"transform","transformation":"{'key':data['key']}","input_schema":null,"output_schema":null}
-  loop: {"logic_type":"loop","over":"data['emails']","item_var":"email"}  → downstream accesses {{loop_id.email}}
-  branch: {"logic_type":"branch","conditions":[{"condition":"data.get('x')==True","target_node_id":"n5"}],"default_branch":"n6"}
+Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node output via its node ID: data['n1'].get('field',''), data['n2']['key'], etc. Never use data.get('field') directly — the flat merge is unreliable. Allowed: data['nX'].get(k,default), len(), str(), int(), float(), and/or/not, ==, !=, list comprehensions [x for x in ...], str.join/split/strip/upper/lower.
+  filter: {"logic_type":"filter","condition":"len(data['n1'].get('emails',[]))>0","pass_schema":null}
+  transform: {"logic_type":"transform","transformation":"{'key':data['n1']['key']}","input_schema":null,"output_schema":null}
+  loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}  → downstream accesses {{loop_id.item}}
+  branch: {"logic_type":"branch","conditions":[{"condition":"data['n1'].get('x')==True","target_node_id":"n5"}],"default_branch":"n6"}
   delay: {"logic_type":"delay","seconds":3600}
   format: {"logic_type":"format","template":"Subject: {subject}","output_key":"text"}
   parse: {"logic_type":"parse","input_key":"raw","format":"json|csv|lines"}
@@ -487,6 +487,7 @@ EVENT TRIGGER SOURCES (use with trigger_type:"event"):
   gmail:    event:"new_email" — fires when Gmail push notification arrives
   slack:    event:"message" | "message.bot_message" | "reaction_added" | "channel_created"
   github:   event:"issues.opened" | "issues.closed" | "pull_request.opened" | "pull_request.merged" | "push"
+            payload:{action,issue:{number,title,state,html_url,body,labels:[{name}],updated_at},repository:{name,full_name},pull_request:{number,title,state,html_url,merged},ref,commits:[{id,message,author:{name}}]}
   typeform: event:"form_response" — fires on every form submission. payload:{form_id,response_id,submitted_at,answers:{field_ref:value}}
   airtable: event:"tableRecords.created" | "tableRecords.updated" | "tableRecords.destroyed" | "tableFields.changed" | "tableData.changed"
             payload:{base_id,webhook_id,changed_tables:{table_id:{createdRecordsById,updatedRecordsById,destroyedRecordIds}}}
