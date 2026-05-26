@@ -8,7 +8,6 @@ import {
 
 const SCOPES_STORED: Record<string, string[]> = {
   sheets: [
-    "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.readonly",
   ],
