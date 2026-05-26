@@ -108,9 +108,16 @@ export function NodeShell({
   children,
   className,
 }: NodeShellProps) {
-  const isError   = validationState === "error";
-  const isWarning = validationState === "warning";
+  const isError      = validationState === "error";
+  const isWarning    = validationState === "warning";
   const isUnassigned = validationState === "unassigned";
+
+  // Execution status flags
+  const isRunning         = status === "running";
+  const isSuccess         = status === "success" || status === "completed";
+  const isExecFailed      = status === "failed";
+  const isWaitingApproval = status === "waiting_approval";
+  const isSkipped         = status === "skipped";
 
   return (
     <div
@@ -126,14 +133,39 @@ export function NodeShell({
         "border border-border dark:border-white/[0.09]",
         // Drop shadow
         "shadow-[0_4px_16px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_1px_2px_rgba(0,0,0,0.3)]",
-        // Validation ring overrides
-        isError      && "border-red-500/60 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(239,68,68,0.35)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(239,68,68,0.35)]",
-        isWarning    && "border-yellow-400/60 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(250,204,21,0.30)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(250,204,21,0.30)]",
-        isUnassigned && "border-dashed dark:border-white/[0.06]",
-        // Selection ring
-        selected && !isError && !isWarning && cn(
+        // ── Execution status rings (take priority over validation) ────────
+        isRunning && [
+          "border-blue-400/80 dark:border-blue-400/70",
+          "shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(96,165,250,0.55),0_0_18px_rgba(96,165,250,0.25)]",
+          "dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(96,165,250,0.6),0_0_24px_rgba(96,165,250,0.3)]",
+          "animate-pulse",
+        ],
+        isSuccess && !isRunning && [
+          "border-green-400/60 dark:border-green-400/50",
+          "shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(74,222,128,0.4)]",
+          "dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(74,222,128,0.4)]",
+        ],
+        isExecFailed && !isRunning && [
+          "border-red-500/70 dark:border-red-500/60",
+          "shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(239,68,68,0.5)]",
+          "dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(239,68,68,0.5)]",
+        ],
+        isWaitingApproval && !isRunning && [
+          "border-amber-400/60 dark:border-amber-400/50",
+          "shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(251,191,36,0.45)]",
+          "dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(251,191,36,0.45)]",
+        ],
+        isSkipped && "opacity-40",
+        // ── Validation rings (only apply when no execution status active) ─
+        !isRunning && !isSuccess && !isExecFailed && !isWaitingApproval && !isSkipped && [
+          isError      && "border-red-500/60 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(239,68,68,0.35)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(239,68,68,0.35)]",
+          isWarning    && "border-yellow-400/60 shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(250,204,21,0.30)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(250,204,21,0.30)]",
+          isUnassigned && "border-dashed dark:border-white/[0.06]",
+        ],
+        // ── Selection ring (skip if execution status already provides glow) ─
+        selected && !isRunning && !isSuccess && !isExecFailed && !isWaitingApproval && !isError && !isWarning && cn(
           "border-primary/40 dark:border-white/[0.2]",
-          `shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(96,165,250,0.4)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(96,165,250,0.4),0_0_16px_rgba(96,165,250,0.15)]`
+          "shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_2px_rgba(96,165,250,0.4)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_0_2px_rgba(96,165,250,0.4),0_0_16px_rgba(96,165,250,0.15)]"
         ),
         className
       )}
