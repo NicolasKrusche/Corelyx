@@ -212,6 +212,13 @@ def _raise_for_status(r: httpx.Response, operation: str) -> None:
             "TOKEN_EXPIRED",
             f"Sheets {operation} failed: OAuth access token is invalid or expired",
         )
+    if r.status_code == 403:
+        raise ConnectorError(
+            "SHEETS_PERMISSION_DENIED",
+            f"Sheets {operation} failed: permission denied. "
+            "This usually means your Google Sheets connection was set up with read-only access. "
+            "Go to Connections, disconnect Google Sheets, and reconnect — the new token will include write permissions.",
+        )
     if r.status_code >= 400:
         raise ConnectorError(
             "SHEETS_API_ERROR",
