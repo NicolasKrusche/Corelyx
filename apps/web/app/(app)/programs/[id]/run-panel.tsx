@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Play, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PreFlightCheck, PreFlightRemediation } from "@/lib/validation/pre-flight";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 type PreFlightResult = {
   result: { valid: boolean };
@@ -57,7 +58,7 @@ export function RunPanel({ programId }: { programId: string }) {
       const res = await fetch(`/api/programs/${programId}/preflight`, { method: "POST" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setFetchError((err as { error?: string }).error ?? "Pre-flight check failed");
+        setFetchError(friendlyResponseMessage(err as { error?: string }, "We could not check this workflow. Please try again."));
         setState("done");
         return;
       }
@@ -66,7 +67,7 @@ export function RunPanel({ programId }: { programId: string }) {
       setPreflight(data);
       setState("done");
     } catch {
-      setFetchError("Network error - could not run pre-flight checks");
+      setFetchError("We could not connect. Check your internet connection and try again.");
       setState("done");
     }
   }
@@ -87,11 +88,11 @@ export function RunPanel({ programId }: { programId: string }) {
         router.push(`/programs/${programId}/runs/${run_id}`);
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
-        setFetchError(err.message ?? err.error ?? "Failed to start run");
+        setFetchError(friendlyResponseMessage(err, "We could not start this workflow. Please try again."));
         setState("done");
       }
     } catch {
-      setFetchError("Network error - could not start run");
+      setFetchError("We could not connect. Check your internet connection and try again.");
       setState("done");
     }
   }
@@ -114,7 +115,7 @@ export function RunPanel({ programId }: { programId: string }) {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setFetchError((err as { error?: string }).error ?? "Failed to apply fix");
+        setFetchError(friendlyResponseMessage(err as { error?: string }, "We could not apply this fix. Please try again."));
         return;
       }
 
@@ -126,7 +127,7 @@ export function RunPanel({ programId }: { programId: string }) {
       }
       setState("done");
     } catch {
-      setFetchError("Network error - could not apply this fix");
+      setFetchError("We could not connect. Check your internet connection and try again.");
     } finally {
       setApplyingFixId(null);
     }
@@ -147,7 +148,7 @@ export function RunPanel({ programId }: { programId: string }) {
           <div>
             <h2 className="text-sm font-semibold">Run program</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Pre-flight checks verify connections, keys, and node configuration before execution.
+              Corelyx checks connections, keys, and workflow steps before it runs.
             </p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
               {summarizeChecks(preflight?.checks ?? null).map((label) => (

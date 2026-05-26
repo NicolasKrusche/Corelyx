@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -29,7 +30,7 @@ export default function UpdatePasswordPage() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      setError(error.message);
+      setError(friendlyErrorMessage(error.message, "We could not update your password. Please try again."));
       setLoading(false);
     } else {
       router.push("/dashboard");

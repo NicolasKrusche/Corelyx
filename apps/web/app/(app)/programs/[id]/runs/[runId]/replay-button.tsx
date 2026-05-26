@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 export function ReplayButton({ runId, programId }: { runId: string; programId: string }) {
   const router = useRouter();
@@ -15,7 +16,7 @@ export function ReplayButton({ runId, programId }: { runId: string; programId: s
       const res = await fetch(`/api/runs/${runId}/replay`, { method: "POST" });
       const data = await res.json() as { run_id?: string; message?: string; error?: string };
       if (!res.ok) {
-        setErrorMsg(data.message ?? data.error ?? "Failed to start replay");
+        setErrorMsg(friendlyResponseMessage(data, "We could not start the re-run. Please try again."));
         setState("error");
         return;
       }
@@ -23,7 +24,7 @@ export function ReplayButton({ runId, programId }: { runId: string; programId: s
         router.push(`/programs/${programId}/runs/${data.run_id}`);
       }
     } catch {
-      setErrorMsg("Network error — please try again.");
+      setErrorMsg("We could not connect. Check your internet connection and try again.");
       setState("error");
     }
   }

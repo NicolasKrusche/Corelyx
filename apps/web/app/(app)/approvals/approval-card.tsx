@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle, XCircle, ChevronDown, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 type ApprovalRow = {
   id: string;
@@ -75,10 +76,10 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
         router.refresh();
       } else {
         const body = await res.json().catch(() => ({}));
-        setError((body as { error?: string }).error ?? "Failed to submit decision");
+        setError(friendlyResponseMessage(body as { error?: string }, "We could not save your decision. Please try again."));
       }
     } catch {
-      setError("Network error — could not submit decision");
+      setError("We could not connect. Check your internet connection and try again.");
     } finally {
       setSubmitting(null);
     }

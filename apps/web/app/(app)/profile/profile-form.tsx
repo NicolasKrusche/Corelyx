@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +53,7 @@ export function ProfileForm({
     } catch (error) {
       setMessage({
         kind: "error",
-        text: error instanceof Error ? error.message : "Failed to upload image.",
+        text: friendlyErrorMessage(error instanceof Error ? error.message : null, "We could not upload the image. Please try again."),
       });
     }
   }
@@ -65,7 +66,7 @@ export function ProfileForm({
     const supabase = createBrowserClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      setMessage({ kind: "error", text: "Not signed in." });
+      setMessage({ kind: "error", text: "Please sign in again to continue." });
       setSaving(false);
       return;
     }
@@ -81,7 +82,7 @@ export function ProfileForm({
     );
 
     if (error) {
-      setMessage({ kind: "error", text: error.message });
+      setMessage({ kind: "error", text: friendlyErrorMessage(error.message, "We could not save your profile. Please try again.") });
     } else {
       setMessage({ kind: "ok", text: "Saved." });
       router.refresh();

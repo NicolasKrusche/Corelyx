@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Node as SchemaNode } from "@flowos/schema";
 import type { NodeExecutionData } from "./EditorShell";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -102,7 +103,10 @@ function ErrorBlock({ message }: { message: string }) {
   const copy = () => navigator.clipboard?.writeText(message).catch(() => {});
   const codeMatch = message.match(/^\[([A-Z_]+)\]\s*/);
   const code = codeMatch?.[1];
-  const body = codeMatch ? message.slice(codeMatch[0].length) : message;
+  const body = friendlyErrorMessage(
+    codeMatch ? message.slice(codeMatch[0].length) : message,
+    "This step could not finish. Check the setup and try again."
+  );
   const action = ACTIONABLE.find((a) => a.test(message));
 
   return (
@@ -124,12 +128,12 @@ function ErrorBlock({ message }: { message: string }) {
             </span>
           )}
           <button onClick={copy} className="ml-auto shrink-0 text-[10px] text-muted-foreground hover:text-foreground border border-border rounded px-1.5 py-0.5">
-            Copy
+            Copy details
           </button>
         </div>
-        <pre className="text-[11px] text-destructive font-mono whitespace-pre-wrap break-all leading-relaxed">
+        <p className="text-[11px] text-destructive whitespace-pre-wrap break-words leading-relaxed">
           {body}
-        </pre>
+        </p>
       </div>
     </div>
   );

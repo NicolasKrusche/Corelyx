@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 type EnvVar = {
   id: string;
@@ -67,7 +68,7 @@ export default function EnvVarsPage() {
 
   function validateName(raw: string): string | null {
     if (!raw) return null;
-    if (!ENV_NAME_RE.test(raw)) return "Must be UPPER_SNAKE_CASE (letters, digits, underscores; cannot start with a digit)";
+    if (!ENV_NAME_RE.test(raw)) return "Use capital letters, numbers, and underscores. The first character must be a letter or underscore.";
     return null;
   }
 
@@ -89,7 +90,7 @@ export default function EnvVarsPage() {
       load();
     } else {
       const data = await res.json() as { error?: string };
-      setSaveError(data.error ?? "Failed to save variable");
+      setSaveError(friendlyResponseMessage(data, "We could not save this variable. Please try again."));
     }
     setSaving(false);
   }
@@ -110,7 +111,7 @@ export default function EnvVarsPage() {
       load();
     } else {
       const data = await res.json() as { error?: string };
-      setEditError(data.error ?? "Failed to update variable");
+      setEditError(friendlyResponseMessage(data, "We could not update this variable. Please try again."));
     }
     setEditing(false);
   }

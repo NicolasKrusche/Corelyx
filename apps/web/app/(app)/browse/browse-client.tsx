@@ -7,6 +7,7 @@ import { ChevronDown, Search, X, TrendingUp, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 const INITIAL_PAGE_SIZE = 15;
 const NEXT_PAGE_SIZE = 6;
@@ -249,14 +250,14 @@ export function BrowseClient({
       const res = await fetch(`/api/browse/${programId}/fork`, { method: "POST" });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setForkError(body.error ?? "Failed to use program");
+        setForkError(friendlyResponseMessage(body, "We could not add this workflow to your account. Please try again."));
         return;
       }
       const data = (await res.json()) as { program: { id: string } };
       setForked((prev) => ({ ...prev, [programId]: data.program.id }));
       router.push(`/programs/${data.program.id}`);
     } catch {
-      setForkError("Failed to use program. Check your network and try again.");
+      setForkError("We could not connect. Check your internet connection and try again.");
     } finally {
       setForking(null);
     }

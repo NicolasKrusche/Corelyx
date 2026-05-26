@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 import type { DsrMessage, DsrRowWithMessages } from "@/app/api/user/data-request/route";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -100,7 +101,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
       await load();
     } else {
       const body = await res.json().catch(() => null) as { error?: string } | null;
-      setError(body?.error ?? "Failed to send. Please try again.");
+      setError(friendlyResponseMessage(body, "We could not send your reply. Please try again."));
     }
     setSubmitting(null);
   }

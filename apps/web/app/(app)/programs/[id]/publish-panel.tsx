@@ -5,6 +5,7 @@ import { Lock, Rocket, Shield, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 type PublishState = {
   is_public: boolean;
@@ -68,7 +69,7 @@ export function PublishPanel({
       const data = (await res.json()) as { program?: PublishState; error?: string };
 
       if (!res.ok) {
-        setError(data.error ?? "Something went wrong");
+        setError(friendlyResponseMessage(data, "We could not update sharing. Please try again."));
         return;
       }
 
@@ -76,7 +77,7 @@ export function PublishPanel({
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch {
-      setError("Network error - please try again");
+      setError("We could not connect. Check your internet connection and try again.");
     } finally {
       setSaving(false);
     }

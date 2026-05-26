@@ -9,6 +9,7 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useRawSchemaMode } from "@/lib/raw-schema-mode";
+import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SettingsSupportTab } from "@/components/settings-support-tab";
@@ -148,7 +149,7 @@ function AiCreditsPurchasePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount_usd: amount }),
       });
-      if (!res.ok) { setError("Failed to create checkout session."); return; }
+      if (!res.ok) { setError("We could not open checkout. Please try again."); return; }
       const { url } = await res.json() as { url: string };
       if (url) window.location.href = url;
     } finally {
@@ -1177,10 +1178,10 @@ function SettingsModal({
         setTimeout(() => setExecDefaultsStatus(null), 2500);
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
-        setExecDefaultsStatus({ type: "error", message: body.error ?? "Failed to save." });
+        setExecDefaultsStatus({ type: "error", message: friendlyResponseMessage(body, "We could not save that setting. Please try again.") });
       }
     } catch {
-      setExecDefaultsStatus({ type: "error", message: "Network error." });
+      setExecDefaultsStatus({ type: "error", message: "We could not connect. Check your internet connection and try again." });
     } finally {
       setExecDefaultsSaving(false);
     }
@@ -1197,7 +1198,7 @@ function SettingsModal({
       .then((data: { tokens?: ApiToken[] }) => {
         if (!cancelled) setApiTokens(data.tokens ?? []);
       })
-      .catch(() => { if (!cancelled) setTokenError("Failed to load tokens."); })
+      .catch(() => { if (!cancelled) setTokenError("We could not load your tokens. Please try again."); })
       .finally(() => { if (!cancelled) setTokensLoading(false); });
     return () => { cancelled = true; };
   }, [tab]);
@@ -1215,7 +1216,7 @@ function SettingsModal({
       });
       const body = await res.json() as { token?: { id: string; name: string; token_prefix: string; created_at: string; plaintext: string }; error?: string };
       if (!res.ok) {
-        setTokenError(body.error ?? "Failed to create token.");
+        setTokenError(friendlyResponseMessage(body, "We could not create the token. Please try again."));
         return;
       }
       if (body.token) {
@@ -1224,7 +1225,7 @@ function SettingsModal({
         setNewTokenName("");
       }
     } catch {
-      setTokenError("Network error. Please try again.");
+      setTokenError("We could not connect. Check your internet connection and try again.");
     } finally {
       setCreatingToken(false);
     }
@@ -1237,13 +1238,13 @@ function SettingsModal({
       const res = await fetch(`/api/user/tokens/${tokenId}`, { method: "DELETE" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string };
-        setTokenError(body.error ?? "Failed to revoke token.");
+        setTokenError(friendlyResponseMessage(body, "We could not remove the token. Please try again."));
         return;
       }
       setApiTokens((prev) => prev.filter((t) => t.id !== tokenId));
       if (newlyCreatedToken?.id === tokenId) setNewlyCreatedToken(null);
     } catch {
-      setTokenError("Network error. Please try again.");
+      setTokenError("We could not connect. Check your internet connection and try again.");
     } finally {
       setRevokingTokenId(null);
     }
@@ -1315,7 +1316,7 @@ function SettingsModal({
     } catch (error) {
       setProfileStatus({
         type: "error",
-        message: error instanceof Error ? error.message : "Failed to upload image.",
+        message: friendlyErrorMessage(error instanceof Error ? error.message : null, "We could not upload the image. Please try again."),
       });
     }
   }
@@ -1335,7 +1336,7 @@ function SettingsModal({
 
     const usernameVal = formUsername.trim().toLowerCase() || null;
     if (usernameVal && !/^[a-zA-Z0-9_]{3,30}$/.test(usernameVal)) {
-      setProfileStatus({ type: "error", message: "Username must be 3–30 characters and contain only letters, numbers, or underscores." });
+      setProfileStatus({ type: "error", message: "Usernames can use 3 to 30 letters, numbers, or underscores." });
       setProfileSaving(false);
       return;
     }
@@ -1358,7 +1359,7 @@ function SettingsModal({
     );
 
     if (error) {
-      setProfileStatus({ type: "error", message: error.message });
+      setProfileStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not save your profile. Please try again.") });
     } else {
       setProfileStatus({ type: "success", message: "Profile saved." });
       router.refresh();
@@ -1391,7 +1392,7 @@ function SettingsModal({
 
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) {
-      setPasswordStatus({ type: "error", message: error.message });
+      setPasswordStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not update your password. Please try again.") });
     } else {
       setPasswordStatus({ type: "success", message: "Password updated successfully." });
       setCurrentPassword("");
@@ -1414,7 +1415,7 @@ function SettingsModal({
     const data = await res.json() as { benefit?: string; error?: string };
 
     if (!res.ok) {
-      setCodeStatus({ type: "error", message: data.error ?? "Invalid code." });
+      setCodeStatus({ type: "error", message: friendlyResponseMessage(data, "That code did not work. Check it and try again.") });
     } else {
       setCodeStatus({ type: "success", message: `Applied: ${data.benefit}` });
       setCode("");
@@ -1432,7 +1433,7 @@ function SettingsModal({
     const body = await res.json().catch(() => ({})) as { unsubscribed?: number; message?: string; error?: string };
 
     if (!res.ok) {
-      setUnsubscribeStatus({ type: "error", message: body.error ?? "Failed to unsubscribe." });
+      setUnsubscribeStatus({ type: "error", message: friendlyResponseMessage(body, "We could not cancel the subscription. Please try again.") });
       setUnsubscribeLoading(false);
       return;
     }
@@ -1455,7 +1456,7 @@ function SettingsModal({
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      setDsarStatus({ type: "error", message: body.error ?? "Failed to submit request." });
+      setDsarStatus({ type: "error", message: friendlyResponseMessage(body, "We could not send your request. Please try again.") });
       setDsarLoading(false);
       return;
     }
@@ -1487,7 +1488,7 @@ function SettingsModal({
     const res = await fetch("/api/settings/account", { method: "DELETE" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      setDeleteStatus({ type: "error", message: body.error ?? "Failed to delete account." });
+      setDeleteStatus({ type: "error", message: friendlyResponseMessage(body, "We could not delete the account. Please try again.") });
       setDeleteLoading(false);
       return;
     }

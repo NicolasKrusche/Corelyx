@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 const CONNECTORS = [
   { id: "gmail",     label: "Gmail",         hint: "Email triggers & sending" },
@@ -103,7 +104,7 @@ export function OnboardingWizard({
     );
 
     if (err) {
-      setError(err.message.includes("username") ? "That username is already taken. Try another." : err.message);
+      setError(err.message.includes("username") ? "That username is already taken. Try another." : friendlyErrorMessage(err.message, "We could not save your profile. Please try again."));
       setSaving(false);
       return false;
     }
@@ -127,7 +128,7 @@ export function OnboardingWizard({
     setSaving(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Could not save workspace name.");
+      setError(friendlyErrorMessage(data.error, "We could not save the workspace name. Please try again."));
       return false;
     }
     return true;

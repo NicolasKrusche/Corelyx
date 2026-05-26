@@ -350,7 +350,7 @@ export function EditorToolbar({
         onClick={onValidate}
         disabled={isValidating}
         className="gap-1.5"
-        title="Validate schema and pre-flight requirements"
+        title="Check the workflow before running it"
       >
         <ValidateIcon />
         {isValidating ? "Validating..." : "Validate"}

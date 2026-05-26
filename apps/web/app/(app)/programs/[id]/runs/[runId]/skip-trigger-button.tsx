@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
 
 export function SkipTriggerButton({ runId }: { runId: string }) {
   const [skipping, setSkipping] = useState(false);
@@ -13,13 +14,13 @@ export function SkipTriggerButton({ runId }: { runId: string }) {
     try {
       const res = await fetch(`/api/runs/${runId}/skip-trigger`, { method: "POST" });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        setError(body.error ?? `HTTP ${res.status}`);
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setError(friendlyResponseMessage(body, "We could not skip the trigger. Please try again."));
         return;
       }
       setDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Request failed");
+      setError(friendlyErrorMessage(e instanceof Error ? e.message : null, "We could not connect. Check your internet connection and try again."));
     } finally {
       setSkipping(false);
     }

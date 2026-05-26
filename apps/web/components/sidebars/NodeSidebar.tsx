@@ -27,6 +27,7 @@ import {
   isUnassignedParamValue,
   type ParamField,
 } from "@/lib/connectors/operation-params";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -778,7 +779,7 @@ function ResourcePicker({
       .then(async (res) => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Failed to load ${resourceType}`);
+          throw new Error(friendlyErrorMessage(body.error, "We could not load those options. Please try again."));
         }
         return res.json();
       })

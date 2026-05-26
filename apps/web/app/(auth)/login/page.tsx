@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { authCallbackUrl, completePostLoginSetup } from "@/lib/auth/client";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { Loader2 } from "lucide-react";
 import { AuthVisualPanel } from "@/components/ui/auth-visual-panel";
 
@@ -32,7 +33,7 @@ export default function LoginPage() {
     setError(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setError(error.message);
+      setError(friendlyErrorMessage(error.message, "Sign-in did not work. Check your email and password, then try again."));
       setLoading(false);
     } else {
       try {
@@ -54,7 +55,7 @@ export default function LoginPage() {
       options: { redirectTo: authCallbackUrl(), skipBrowserRedirect: true },
     });
     if (error) {
-      setError(error.message);
+      setError(friendlyErrorMessage(error.message, "Google sign-in could not be started. Please try again."));
       setLoading(false);
       return;
     }
