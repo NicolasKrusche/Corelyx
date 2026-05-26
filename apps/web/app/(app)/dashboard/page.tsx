@@ -2,7 +2,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, Workflow, Sparkles, Clock3, MoreHorizontal, Download } from "lucide-react";
+import { Plus, Workflow, Sparkles, Clock3, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProgramList, type FolderItem, type ProgramListItem } from "@/components/programs/program-list";
@@ -266,8 +266,8 @@ export default async function DashboardPage({
         </div>
         <div className="hidden sm:flex items-center gap-1 rounded-lg border border-border bg-muted/40 px-1 py-1 text-xs">
           <span className="rounded-md bg-background px-2.5 py-1 font-medium shadow-sm">All</span>
-          <span className="px-2.5 py-1 text-muted-foreground cursor-pointer hover:text-foreground transition-colors">Programs</span>
-          <span className="px-2.5 py-1 text-muted-foreground cursor-pointer hover:text-foreground transition-colors">Runs</span>
+          <Link href="/programs" className="px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors">Programs</Link>
+          <Link href="/runs" className="px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors">Runs</Link>
           <span className="px-2.5 py-1 text-muted-foreground font-mono">⌘K</span>
         </div>
       </section>
@@ -359,9 +359,6 @@ export default async function DashboardPage({
                   <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${iconStyle}`}>
                     {index === 0 ? <Sparkles className="h-5 w-5" /> : index === 1 ? <Workflow className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
                   </div>
-                  <button className="opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 text-muted-foreground hover:bg-muted">
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </button>
                 </div>
 
                 <p className="font-semibold leading-snug">{program.name}</p>
