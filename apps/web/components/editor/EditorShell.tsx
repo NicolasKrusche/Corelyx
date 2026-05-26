@@ -416,6 +416,8 @@ export function EditorShell({
 
   // ── Sync schema → RF nodes/edges when schema changes ─────────────────────
   // We skip the sync when the change originated from RF (to avoid loops).
+  // We also preserve live execution statuses so a schema sync (e.g. auto-save
+  // validation) doesn't overwrite the running/success/failed indicators.
   const skipSyncRef = useRef(false);
 
   useEffect(() => {
@@ -424,8 +426,32 @@ export function EditorShell({
       return;
     }
     const { nodes, edges } = toReactFlow(state.schema, state.validationResult);
-    setRfNodes(nodes);
-    setRfEdges(edges);
+
+    setRfNodes((prev) => {
+      const execStatus = new Map(
+        prev
+          .filter((n) => n.data.status && n.data.status !== "idle")
+          .map((n) => [n.id, n.data.status as string])
+      );
+      if (execStatus.size === 0) return nodes;
+      return nodes.map((n) => {
+        const s = execStatus.get(n.id);
+        return s ? { ...n, data: { ...n.data, status: s } } : n;
+      });
+    });
+
+    setRfEdges((prev) => {
+      const edgeData = new Map(
+        prev
+          .filter((e) => (e.data as Record<string, unknown> | undefined)?.sourceStatus)
+          .map((e) => [e.id, e.data])
+      );
+      if (edgeData.size === 0) return edges;
+      return edges.map((e) => {
+        const d = edgeData.get(e.id);
+        return d ? { ...e, data: { ...e.data, ...d } } : e;
+      });
+    });
   }, [state.schema, state.validationResult]);
 
   // ── Auto-save (2s debounce) ───────────────────────────────────────────────
@@ -756,87 +782,111 @@ export function EditorShell({
     performSave,
   ]);
 
-  // ── Supabase Realtime subscription for node execution status ──────────────
+  // ── Realtime + polling for the active run ────────────────────────────────
+  // Subscribes to node_executions filtered by run_id (reliable) and falls
+  // back to 2 s polling so the graph always reflects live execution state.
+
+  const applyExecRow = React.useCallback(
+    (row: {
+      node_id: string;
+      status: SchemaNode["status"];
+      input_payload?: unknown;
+      output_payload?: unknown;
+      error_message?: string | null;
+      started_at?: string | null;
+      completed_at?: string | null;
+      retry_count?: number | null;
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+      estimated_cost_usd?: number;
+      connector_api_calls?: number;
+      model_call_count?: number;
+      created_at?: string;
+    }) => {
+      if (!row.node_id || !row.status) return;
+
+      // Patch RF node status (skip schema-sync on next tick)
+      skipSyncRef.current = true;
+      setRfNodes((prev) =>
+        prev.map((n) =>
+          n.id === row.node_id ? { ...n, data: { ...n.data, status: row.status } } : n
+        )
+      );
+
+      // Patch outgoing edges with sourceStatus so they colour correctly
+      setRfEdges((prev) =>
+        prev.map((e) =>
+          e.source === row.node_id
+            ? { ...e, data: { ...(e.data ?? {}), sourceStatus: row.status } }
+            : e
+        )
+      );
+
+      // Update drawer / inspector data
+      setNodeExecutions((prev) => ({
+        ...prev,
+        [row.node_id]: {
+          status: row.status,
+          input_payload: row.input_payload ?? null,
+          output_payload: row.output_payload ?? null,
+          error_message: row.error_message ?? null,
+          started_at: row.started_at ?? null,
+          completed_at: row.completed_at ?? null,
+          retry_count: row.retry_count ?? null,
+          prompt_tokens: Number(row.prompt_tokens ?? 0),
+          completion_tokens: Number(row.completion_tokens ?? 0),
+          total_tokens: Number(row.total_tokens ?? 0),
+          estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+          connector_api_calls: Number(row.connector_api_calls ?? 0),
+          model_call_count: Number(row.model_call_count ?? 0),
+          created_at: row.created_at ?? new Date(0).toISOString(),
+        },
+      }));
+    },
+    []
+  );
 
   useEffect(() => {
+    if (!lastRunId) return;
     const supabase = createBrowserClient();
+    const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
+
+    const fetchExecs = async () => {
+      const { data } = await supabase
+        .from("node_executions")
+        .select("*")
+        .eq("run_id", lastRunId);
+      if (data) {
+        for (const row of data) applyExecRow(row as Parameters<typeof applyExecRow>[0]);
+      }
+    };
+
+    fetchExecs();
 
     const channel = supabase
-      .channel(`node_executions:${programId}`)
+      .channel(`editor-run-execs-${lastRunId}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "node_executions",
-          filter: `program_id=eq.${programId}`,
-        },
-        (payload) => {
-          // Update node status and execution data from realtime event
-          type NodeExecPayload = {
-            node_id: string;
-            run_id?: string;
-            status: SchemaNode["status"];
-            input_payload?: unknown;
-            output_payload?: unknown;
-            error_message?: string | null;
-            started_at?: string | null;
-            completed_at?: string | null;
-            retry_count?: number | null;
-            prompt_tokens?: number;
-            completion_tokens?: number;
-            total_tokens?: number;
-            estimated_cost_usd?: number;
-            connector_api_calls?: number;
-            model_call_count?: number;
-            created_at?: string;
-          };
-          const row = payload.new as NodeExecPayload | null;
-          if (!row?.node_id || !row?.status) return;
-
-          // Update RF node visual status
-          skipSyncRef.current = true;
-          setRfNodes((prev) =>
-            prev.map((n) =>
-              n.id === row.node_id
-                ? { ...n, data: { ...n.data, status: row.status } }
-                : n
-            )
-          );
-
-          // Update execution inspector data (includes token/cost metrics for drawer)
-          setNodeExecutions((prev) => ({
-            ...prev,
-            [row.node_id]: {
-              status: row.status,
-              input_payload: row.input_payload ?? null,
-              output_payload: row.output_payload ?? null,
-              error_message: row.error_message ?? null,
-              started_at: row.started_at ?? null,
-              completed_at: row.completed_at ?? null,
-              retry_count: row.retry_count ?? null,
-              prompt_tokens: Number(row.prompt_tokens ?? 0),
-              completion_tokens: Number(row.completion_tokens ?? 0),
-              total_tokens: Number(row.total_tokens ?? 0),
-              estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
-              connector_api_calls: Number(row.connector_api_calls ?? 0),
-              model_call_count: Number(row.model_call_count ?? 0),
-              created_at: row.created_at ?? new Date(0).toISOString(),
-            },
-          }));
-
-          // Track the run ID from the first realtime event we see
-          if (row.run_id) {
-            setLastRunId((prev) => prev ?? row.run_id ?? null);
-          }
-        }
+        { event: "*", schema: "public", table: "node_executions", filter: `run_id=eq.${lastRunId}` },
+        (payload) => applyExecRow(payload.new as Parameters<typeof applyExecRow>[0])
       )
       .subscribe();
 
+    const poll = setInterval(() => {
+      if (TERMINAL_STATUSES.has(currentRunStatus)) {
+        clearInterval(poll);
+        return;
+      }
+      fetchExecs();
+    }, 2000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(poll);
     };
-  }, [programId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastRunId]);
 
   // ── RF event handlers ─────────────────────────────────────────────────────
 
