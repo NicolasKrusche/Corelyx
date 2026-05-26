@@ -629,24 +629,18 @@ function NewProgramPageInner() {
       return;
     }
 
-    if (!selection) {
-      setInlinePhase("connections");
-      setInlineMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: "I need a valid API key before generating. Add one in API Keys, then try Build now again.",
-        },
-      ]);
-      return;
-    }
-
-    const payload = {
-      description,
-      connection_ids: [...selectedIds],
-      api_key_id: selection.keyId,
-      model: selection.modelId,
-    };
+    const payload = selection
+      ? {
+          description,
+          connection_ids: [...selectedIds],
+          api_key_id: selection.keyId,
+          model: selection.modelId,
+        }
+      : {
+          description,
+          connection_ids: [...selectedIds],
+          use_platform_key: true as const,
+        };
 
     try {
       sessionStorage.setItem("flowos.genesis.pending", JSON.stringify(payload));
