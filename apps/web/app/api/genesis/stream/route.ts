@@ -28,7 +28,6 @@ import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
-import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -49,7 +48,6 @@ import {
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
 
-const GENESIS_PLATFORM_RATE_USD = 2.0;
 const PLATFORM_MODEL = "anthropic/claude-sonnet-4-6";
 
 const RequestSchema = z.object({
@@ -156,13 +154,6 @@ export async function POST(request: Request) {
     const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
     if (!platformRawKey) {
       return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
-    }
-    const balance = await getUserCreditBalance(userId);
-    if (balance.total < GENESIS_PLATFORM_RATE_USD) {
-      return sseErrorResponse(
-        `At least $${GENESIS_PLATFORM_RATE_USD.toFixed(2)} in credits is required to use the Corelyx platform key.`,
-        "INSUFFICIENT_CREDITS"
-      );
     }
     keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];
   } else {
@@ -448,7 +439,6 @@ export async function POST(request: Request) {
         });
 
         await incrementGenesisUses(userId, workspaceId);
-        if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_USD);
 
         send({
           type: "done",
