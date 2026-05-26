@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
-import Plan, { type PlanStatus, type PlanTask } from "@/components/ui/agent-plan";
 import type { Edge, Node } from "@flowos/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -115,7 +114,6 @@ function JsonViewer({ label, data, defaultOpen = false }: { label: string; data:
 
 // ─── Error detail block ───────────────────────────────────────────────────────
 
-// Known actionable error patterns → human-readable fix + CTA
 const ACTIONABLE_ERRORS: Array<{
   test: (msg: string) => boolean;
   title: string;
@@ -155,11 +153,9 @@ const ACTIONABLE_ERRORS: Array<{
 
 function ErrorBlock({ message }: { message: string }) {
   const copyToClipboard = () => navigator.clipboard?.writeText(message).catch(() => {});
-  // Parse out a code prefix like [OAUTH_TOKEN_FAILED] if present
   const codeMatch = message.match(/^\[([A-Z_]+)\]\s*/);
   const code = codeMatch?.[1];
   const body = codeMatch ? message.slice(codeMatch[0].length) : message;
-
   const action = ACTIONABLE_ERRORS.find((a) => a.test(message));
 
   return (
@@ -204,135 +200,332 @@ function ErrorBlock({ message }: { message: string }) {
   );
 }
 
-// ─── Main client component ────────────────────────────────────────────────────
+// ─── Run Graph ────────────────────────────────────────────────────────────────
 
-const TERMINAL = new Set(["completed", "failed", "cancelled"]);
-const POLL_INTERVAL_MS = 2000;
+const NODE_W = 184;
+const NODE_H = 58;
+const COL_GAP = 96;
+const ROW_GAP = 20;
+const PAD = 24;
 
-function toPlanStatus(status: string | null | undefined): PlanStatus {
-  if (status === "completed" || status === "success") return "completed";
-  if (status === "running") return "in-progress";
-  if (status === "waiting_approval") return "need-help";
-  if (status === "failed" || status === "cancelled") return "failed";
-  if (status === "skipped") return "skipped";
-  return "pending";
-}
+/** Assign a column (depth) to each node using longest-path BFS (Kahn's). */
+function assignColumns(nodes: Node[], edges: Edge[]): Map<string, number> {
+  const adj = new Map<string, string[]>();
+  const inDeg = new Map<string, number>();
 
-function getNodeTools(node: Node): string[] {
-  if (node.type === "agent") {
-    const model =
-      node.config.model && node.config.model !== "__USER_ASSIGNED__"
-        ? node.config.model
-        : "model";
-    return [model, ...node.config.tools].filter(Boolean);
+  for (const n of nodes) {
+    adj.set(n.id, []);
+    inDeg.set(n.id, 0);
   }
-
-  if (node.type === "connection") {
-    if ("connector_type" in node.config && node.config.connector_type === "http") {
-      return ["http", node.config.method].filter(Boolean);
+  for (const e of edges) {
+    if (adj.has(e.from) && inDeg.has(e.to)) {
+      adj.get(e.from)!.push(e.to);
+      inDeg.set(e.to, (inDeg.get(e.to) ?? 0) + 1);
     }
-    return [
-      node.config.provider ?? node.connection ?? "oauth",
-      node.config.operation ?? "token",
-    ].filter(Boolean);
   }
 
-  if (node.type === "step") {
-    return [node.config.logic_type];
+  const col = new Map<string, number>();
+  for (const n of nodes) col.set(n.id, 0);
+
+  const queue: string[] = [];
+  const remaining = new Map(inDeg);
+  for (const [id, deg] of remaining) {
+    if (deg === 0) queue.push(id);
   }
 
-  if (node.type === "trigger") {
-    return [node.config.trigger_type];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const myCol = col.get(id) ?? 0;
+    for (const next of (adj.get(id) ?? [])) {
+      col.set(next, Math.max(col.get(next) ?? 0, myCol + 1));
+      const nd = (remaining.get(next) ?? 1) - 1;
+      remaining.set(next, nd);
+      if (nd <= 0) queue.push(next);
+    }
+  }
+  return col;
+}
+
+type Pos = { x: number; y: number };
+
+function computeLayout(nodes: Node[], edges: Edge[]): Map<string, Pos> {
+  if (nodes.length === 0) return new Map();
+  const col = assignColumns(nodes, edges);
+
+  // Group by column, preserve insertion order within each column
+  const byCol = new Map<number, string[]>();
+  for (const n of nodes) {
+    const c = col.get(n.id) ?? 0;
+    if (!byCol.has(c)) byCol.set(c, []);
+    byCol.get(c)!.push(n.id);
   }
 
-  return [];
+  const pos = new Map<string, Pos>();
+  for (const [c, ids] of byCol) {
+    ids.forEach((id, row) => {
+      pos.set(id, {
+        x: c * (NODE_W + COL_GAP),
+        y: row * (NODE_H + ROW_GAP),
+      });
+    });
+  }
+  return pos;
 }
 
-function getPriority(node: Node, status: string | null | undefined) {
-  if (status === "failed" || status === "waiting_approval") return "high";
-  if (node.type === "agent" || node.type === "connection") return "high";
-  if (node.type === "trigger") return "medium";
-  return "low";
+const STATUS_STYLES: Record<string, { border: string; bg: string; dot: string; label: string; ring: string }> = {
+  running: {
+    border: "border-yellow-400 dark:border-yellow-500",
+    bg: "bg-yellow-50 dark:bg-yellow-500/10",
+    dot: "bg-yellow-400 animate-pulse",
+    label: "text-yellow-700 dark:text-yellow-300",
+    ring: "ring-2 ring-yellow-400/50 ring-offset-background ring-offset-1",
+  },
+  completed: {
+    border: "border-green-400 dark:border-green-500",
+    bg: "bg-green-50 dark:bg-green-500/10",
+    dot: "bg-green-400",
+    label: "text-green-700 dark:text-green-300",
+    ring: "",
+  },
+  success: {
+    border: "border-green-400 dark:border-green-500",
+    bg: "bg-green-50 dark:bg-green-500/10",
+    dot: "bg-green-400",
+    label: "text-green-700 dark:text-green-300",
+    ring: "",
+  },
+  failed: {
+    border: "border-red-400 dark:border-red-500",
+    bg: "bg-red-50 dark:bg-red-500/10",
+    dot: "bg-red-400",
+    label: "text-red-700 dark:text-red-300",
+    ring: "",
+  },
+  waiting_approval: {
+    border: "border-blue-400 dark:border-blue-500",
+    bg: "bg-blue-50 dark:bg-blue-500/10",
+    dot: "bg-blue-400",
+    label: "text-blue-700 dark:text-blue-300",
+    ring: "",
+  },
+  skipped: {
+    border: "border-border",
+    bg: "bg-muted/20",
+    dot: "bg-muted-foreground/25",
+    label: "text-muted-foreground/60",
+    ring: "",
+  },
+  pending: {
+    border: "border-border",
+    bg: "bg-card",
+    dot: "bg-muted-foreground/30",
+    label: "text-muted-foreground",
+    ring: "",
+  },
+};
+
+function getStatusStyle(status: string) {
+  return STATUS_STYLES[status] ?? STATUS_STYLES.pending;
 }
 
-function summarizeNode(node: Node) {
-  if (node.description) return node.description;
-  if (node.type === "agent") return "Run an agent step in this program.";
-  if (node.type === "connection") return "Call a connected service.";
-  if (node.type === "step") return `Apply ${node.config.logic_type} logic.`;
-  if (node.type === "trigger") return `Handle the ${node.config.trigger_type} trigger.`;
-  return node.description || node.label;
+function edgeStroke(status: string): { color: string; opacity: number; width: number } {
+  switch (status) {
+    case "running":    return { color: "#eab308", opacity: 0.85, width: 2 };
+    case "completed":
+    case "success":    return { color: "#22c55e", opacity: 0.75, width: 1.5 };
+    case "failed":     return { color: "#ef4444", opacity: 0.75, width: 1.5 };
+    case "skipped":    return { color: "#9ca3af", opacity: 0.35, width: 1.5 };
+    default:           return { color: "#9ca3af", opacity: 0.3,  width: 1.5 };
+  }
 }
 
-function buildPlanTasks({
+function RunGraph({
   nodeMap,
   edges,
   execs,
-  runStatus,
 }: {
   nodeMap: Record<string, Node>;
   edges: Edge[];
   execs: NodeExecutionRow[];
-  runStatus: string;
-}): PlanTask[] {
-  const execByNode = new Map(execs.map((exec) => [exec.node_id, exec]));
-  const nodeIdsWithIncoming = new Set(edges.map((edge) => edge.to));
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  return Object.values(nodeMap).map((node) => {
-    const exec = execByNode.get(node.id);
-    const inferredStatus =
-      exec?.status ??
-      (TERMINAL.has(runStatus) && !exec ? "skipped" : node.status);
-    const taskStatus = toPlanStatus(inferredStatus);
-    const dependencies = edges
-      .filter((edge) => edge.to === node.id)
-      .map((edge) => nodeMap[edge.from]?.label ?? edge.from);
-    const tools = getNodeTools(node);
-    const priority = getPriority(node, inferredStatus);
+  const nodes = useMemo(() => Object.values(nodeMap), [nodeMap]);
 
-    return {
-      id: node.id,
-      title: node.label,
-      description: summarizeNode(node),
-      status: taskStatus,
-      priority,
-      level: nodeIdsWithIncoming.has(node.id) ? 1 : 0,
-      dependencies,
-      subtasks: [
-        {
-          id: `${node.id}-input`,
-          title: "Receive input",
-          description: exec?.input_payload
-            ? "Runtime captured input for this node."
-            : "Waiting for upstream data or trigger payload.",
-          status: exec?.started_at ? "completed" : taskStatus,
-          priority,
-        },
-        {
-          id: `${node.id}-execute`,
-          title: `Execute ${node.type}`,
-          description: summarizeNode(node),
-          status: taskStatus,
-          priority,
-          tools,
-        },
-        {
-          id: `${node.id}-output`,
-          title: "Publish output",
-          description: exec?.output_payload
-            ? "Runtime captured output for downstream nodes."
-            : "Output will appear after this node completes.",
-          status: exec?.output_payload
-            ? "completed"
-            : taskStatus === "failed"
-              ? "failed"
-              : "pending",
-          priority,
-        },
-      ],
-    };
-  });
+  const execByNode = useMemo(
+    () => new Map(execs.map((e) => [e.node_id, e])),
+    [execs]
+  );
+
+  // Layout is stable for a given nodeMap/edges shape — recompute only when structure changes
+  const nodeKeyStr = useMemo(() => nodes.map((n) => n.id).join(","), [nodes]);
+  const positions = useMemo(
+    () => computeLayout(nodes, edges),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodeKeyStr, edges]
+  );
+
+  const { canvasW, canvasH } = useMemo(() => {
+    let maxX = 0;
+    let maxY = 0;
+    for (const p of positions.values()) {
+      maxX = Math.max(maxX, p.x + NODE_W);
+      maxY = Math.max(maxY, p.y + NODE_H);
+    }
+    return { canvasW: maxX + PAD * 2, canvasH: maxY + PAD * 2 };
+  }, [positions]);
+
+  if (nodes.length === 0) return null;
+
+  const selectedExec = selectedId ? execByNode.get(selectedId) : undefined;
+  const selectedNode = selectedId ? nodeMap[selectedId] : undefined;
+
+  return (
+    <div className="space-y-3">
+      {/* Graph canvas */}
+      <div className="overflow-x-auto rounded-xl border border-border bg-muted/10">
+        <div style={{ position: "relative", width: canvasW, height: canvasH, minHeight: NODE_H + PAD * 2 }}>
+          {/* SVG edge layer */}
+          <svg
+            style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}
+            width={canvasW}
+            height={canvasH}
+          >
+            {edges.map((edge, i) => {
+              const from = positions.get(edge.from);
+              const to   = positions.get(edge.to);
+              if (!from || !to) return null;
+
+              const srcStatus = execByNode.get(edge.from)?.status ?? "pending";
+              const { color, opacity, width } = edgeStroke(srcStatus);
+
+              // Right-centre → left-centre
+              const x1 = PAD + from.x + NODE_W;
+              const y1 = PAD + from.y + NODE_H / 2;
+              const x2 = PAD + to.x;
+              const y2 = PAD + to.y + NODE_H / 2;
+              const cpOff = Math.max(40, (x2 - x1) * 0.45);
+
+              return (
+                <g key={i}>
+                  <path
+                    d={`M ${x1} ${y1} C ${x1 + cpOff} ${y1}, ${x2 - cpOff} ${y2}, ${x2} ${y2}`}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={width}
+                    strokeOpacity={opacity}
+                    strokeLinecap="round"
+                  />
+                  {/* Arrowhead */}
+                  <polygon
+                    points={`${x2},${y2} ${x2 - 7},${y2 - 4} ${x2 - 7},${y2 + 4}`}
+                    fill={color}
+                    fillOpacity={opacity}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Node cards */}
+          {nodes.map((node) => {
+            const p = positions.get(node.id);
+            if (!p) return null;
+
+            const exec   = execByNode.get(node.id);
+            const status = exec?.status ?? "pending";
+            const s      = getStatusStyle(status);
+            const isSelected = selectedId === node.id;
+
+            return (
+              <button
+                key={node.id}
+                onClick={() => setSelectedId(isSelected ? null : node.id)}
+                style={{
+                  position: "absolute",
+                  left: PAD + p.x,
+                  top:  PAD + p.y,
+                  width: NODE_W,
+                  height: NODE_H,
+                }}
+                className={[
+                  "rounded-lg border px-3 flex flex-col justify-center text-left transition-all",
+                  s.border,
+                  s.bg,
+                  s.ring,
+                  isSelected ? "ring-2 ring-ring ring-offset-1 ring-offset-background" : "",
+                  "hover:shadow-md",
+                ].join(" ")}
+              >
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${s.dot}`} />
+                  <span className="text-xs font-semibold truncate leading-tight">{node.label}</span>
+                </div>
+                <span className={`mt-0.5 ml-3.5 text-[10px] leading-tight ${s.label}`}>
+                  {status === "pending"
+                    ? node.type
+                    : status === "running"
+                      ? "running…"
+                      : status.replace(/_/g, " ")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Click-to-expand detail panel */}
+      {selectedId && selectedNode && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <StatusBadge status={selectedExec?.status ?? "pending"} />
+              <span className="font-medium">{selectedNode.label}</span>
+              <span className="text-xs text-muted-foreground">({selectedNode.type})</span>
+            </div>
+            <button
+              onClick={() => setSelectedId(null)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              ✕
+            </button>
+          </div>
+
+          {selectedExec ? (
+            <>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                {selectedExec.started_at && (
+                  <span>duration: {formatDuration(selectedExec.started_at, selectedExec.completed_at)}</span>
+                )}
+                {selectedExec.total_tokens > 0 && (
+                  <span>tokens: {formatInteger(selectedExec.total_tokens)}</span>
+                )}
+                {selectedExec.connector_api_calls > 0 && (
+                  <span>API calls: {formatInteger(selectedExec.connector_api_calls)}</span>
+                )}
+                {selectedExec.estimated_cost_usd > 0 && (
+                  <span>cost: {formatUsd(selectedExec.estimated_cost_usd)}</span>
+                )}
+              </div>
+              {selectedExec.error_message && (
+                <ErrorBlock message={selectedExec.error_message} />
+              )}
+              <JsonViewer label="▸ Input"  data={selectedExec.input_payload} />
+              <JsonViewer label="▸ Output" data={selectedExec.output_payload} />
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">This node has not executed yet.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
+
+// ─── Main client component ────────────────────────────────────────────────────
+
+const TERMINAL = new Set(["completed", "failed", "cancelled"]);
+const POLL_INTERVAL_MS = 2000;
 
 export function RunLogLive({
   runId,
@@ -359,8 +552,7 @@ export function RunLogLive({
 
   const isTerminal = TERMINAL.has(runStatus);
 
-  // Refresh the server component once the run reaches a terminal state so the
-  // metadata grid (tokens, cost, duration) reflects the final values.
+  // Refresh server component once run reaches terminal so metadata reflects final values
   useEffect(() => {
     if (isTerminal && !prevTerminalRef.current) {
       router.refresh();
@@ -368,7 +560,7 @@ export function RunLogLive({
     prevTerminalRef.current = isTerminal;
   }, [isTerminal, router]);
 
-  // Tick a live elapsed timer every second while the run is active.
+  // Live elapsed timer while run is active
   useEffect(() => {
     if (isTerminal || !startedAt) {
       setElapsed("");
@@ -380,24 +572,20 @@ export function RunLogLive({
     return () => clearInterval(id);
   }, [isTerminal, startedAt]);
 
-  const planTasks = useMemo(
-    () => buildPlanTasks({ nodeMap, edges, execs, runStatus }),
-    [edges, execs, nodeMap, runStatus]
-  );
-
   // Merge incoming exec rows (insert or update)
   const mergeExec = (updated: NodeExecutionRow) =>
     setExecs((prev) => {
       const idx = prev.findIndex((e) => e.id === updated.id);
-      if (idx === -1) return [...prev, updated].sort(
-        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
+      if (idx === -1) {
+        return [...prev, updated].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      }
       const next = [...prev];
       next[idx] = updated;
       return next;
     });
 
-  // Fetch all current node_executions from Supabase
   const fetchExecs = async () => {
     const { data } = await supabase
       .from("node_executions")
@@ -407,7 +595,6 @@ export function RunLogLive({
     if (data && data.length > 0) setExecs(data.map(normalizeNodeExecutionRow));
   };
 
-  // Fetch current run status
   const fetchRunStatus = async () => {
     const { data } = await supabase
       .from("runs")
@@ -419,13 +606,11 @@ export function RunLogLive({
   };
 
   useEffect(() => {
-    // Always do an immediate fetch in case the page loaded before runtime wrote rows
     fetchExecs();
     fetchRunStatus();
 
     if (isTerminal) return;
 
-    // ── Realtime subscriptions ─────────────────────────────────────────────
     const channel = supabase
       .channel(`run-log-${runId}`)
       .on(
@@ -443,7 +628,6 @@ export function RunLogLive({
       )
       .subscribe();
 
-    // ── Polling fallback (in case Realtime isn't enabled on the table) ─────
     pollRef.current = setInterval(async () => {
       await fetchExecs();
       await fetchRunStatus();
@@ -461,7 +645,6 @@ export function RunLogLive({
     if (isTerminal && pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
-      // Final fetch to make sure we have the complete picture
       fetchExecs();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -469,6 +652,7 @@ export function RunLogLive({
 
   return (
     <div className="space-y-6">
+      {/* ── Run overview graph ─────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-base font-medium">Run overview</h2>
@@ -485,97 +669,87 @@ export function RunLogLive({
             </span>
           )}
         </div>
-        <Plan
-          tasks={planTasks}
-          interactive={false}
-          className="p-0"
-          emptyMessage="No plan steps available for this run."
-        />
+
+        <RunGraph nodeMap={nodeMap} edges={edges} execs={execs} />
       </section>
 
+      {/* ── Node executions detail ─────────────────────────────────────────── */}
       <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        <h2 className="text-base font-medium">Node executions</h2>
-        <StatusBadge status={runStatus} />
-      </div>
-
-      {execs.length === 0 ? (
-        <div className="text-sm text-muted-foreground">
-          {isTerminal ? "No node executions recorded." : "Waiting for execution to start…"}
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-medium">Node executions</h2>
+          <StatusBadge status={runStatus} />
         </div>
-      ) : (
-        <div className="space-y-2">
-          {execs.map((exec) => {
-            const node = nodeMap[exec.node_id];
-            const label = node?.label ?? exec.node_id;
-            const duration = formatDuration(exec.started_at, exec.completed_at);
-            const isFailed = exec.status === "failed";
 
-            return (
-              <div
-                key={exec.id}
-                className={`rounded-lg border p-4 space-y-2 ${isFailed ? "border-destructive/50" : "border-border"}`}
-              >
-                {/* Header row */}
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <StatusBadge status={exec.status} />
-                    <span className="text-sm font-medium">{label}</span>
-                    {node && (
-                      <span className="text-xs text-muted-foreground">
-                        ({node.type})
-                      </span>
-                    )}
+        {execs.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            {isTerminal ? "No node executions recorded." : "Waiting for execution to start…"}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {execs.map((exec) => {
+              const node = nodeMap[exec.node_id];
+              const label = node?.label ?? exec.node_id;
+              const duration = formatDuration(exec.started_at, exec.completed_at);
+              const isFailed = exec.status === "failed";
+
+              return (
+                <div
+                  key={exec.id}
+                  className={`rounded-lg border p-4 space-y-2 ${isFailed ? "border-destructive/50" : "border-border"}`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusBadge status={exec.status} />
+                      <span className="text-sm font-medium">{label}</span>
+                      {node && (
+                        <span className="text-xs text-muted-foreground">({node.type})</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground shrink-0 text-right">
+                      {exec.started_at
+                        ? `${new Date(exec.started_at).toLocaleTimeString()} · ${duration}`
+                        : "—"}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground shrink-0 text-right">
-                    {exec.started_at
-                      ? `${new Date(exec.started_at).toLocaleTimeString()} · ${duration}`
-                      : "—"}
-                  </div>
-                </div>
 
-                {/* Node ID (always visible for debugging) */}
-                <p className="text-[10px] text-muted-foreground font-mono">
-                  node: {exec.node_id}
-                </p>
-
-                {/* Retry info */}
-                {exec.retry_count != null && exec.retry_count > 0 && (
-                  <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                    ⟳ Retried {exec.retry_count} time{exec.retry_count !== 1 ? "s" : ""}
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    node: {exec.node_id}
                   </p>
-                )}
 
-                {/* Error — full detail, never truncated */}
-                {(exec.total_tokens > 0 || exec.connector_api_calls > 0 || exec.model_call_count > 0) && (
-                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-                    {exec.total_tokens > 0 && (
-                      <span>
-                        tokens: {formatInteger(exec.total_tokens)} ({formatInteger(exec.prompt_tokens)} in / {formatInteger(exec.completion_tokens)} out)
-                      </span>
-                    )}
-                    {exec.model_call_count > 0 && (
-                      <span>model calls: {formatInteger(exec.model_call_count)}</span>
-                    )}
-                    {exec.connector_api_calls > 0 && (
-                      <span>connector API calls: {formatInteger(exec.connector_api_calls)}</span>
-                    )}
-                    {exec.estimated_cost_usd > 0 && (
-                      <span>estimated cost: {formatUsd(exec.estimated_cost_usd)}</span>
-                    )}
-                  </div>
-                )}
+                  {exec.retry_count != null && exec.retry_count > 0 && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      ⟳ Retried {exec.retry_count} time{exec.retry_count !== 1 ? "s" : ""}
+                    </p>
+                  )}
 
-                {exec.error_message && <ErrorBlock message={exec.error_message} />}
+                  {(exec.total_tokens > 0 || exec.connector_api_calls > 0 || exec.model_call_count > 0) && (
+                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                      {exec.total_tokens > 0 && (
+                        <span>
+                          tokens: {formatInteger(exec.total_tokens)} ({formatInteger(exec.prompt_tokens)} in / {formatInteger(exec.completion_tokens)} out)
+                        </span>
+                      )}
+                      {exec.model_call_count > 0 && (
+                        <span>model calls: {formatInteger(exec.model_call_count)}</span>
+                      )}
+                      {exec.connector_api_calls > 0 && (
+                        <span>connector API calls: {formatInteger(exec.connector_api_calls)}</span>
+                      )}
+                      {exec.estimated_cost_usd > 0 && (
+                        <span>estimated cost: {formatUsd(exec.estimated_cost_usd)}</span>
+                      )}
+                    </div>
+                  )}
 
-                {/* Input / Output — open by default when failed so context is immediate */}
-                <JsonViewer label="▸ Input" data={exec.input_payload} defaultOpen={isFailed} />
-                <JsonViewer label="▸ Output" data={exec.output_payload} />
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  {exec.error_message && <ErrorBlock message={exec.error_message} />}
+
+                  <JsonViewer label="▸ Input"  data={exec.input_payload} defaultOpen={isFailed} />
+                  <JsonViewer label="▸ Output" data={exec.output_payload} />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );
