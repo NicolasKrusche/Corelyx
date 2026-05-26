@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
-import { ArrowRight, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  KeyRound,
+  PlayCircle,
+  Plug,
+  Route,
+  ShieldCheck,
+  Sparkles,
+  Workflow,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +31,36 @@ const CONNECTORS = [
   { id: "typeform",  label: "Typeform",      hint: "Form submission triggers" },
 ];
 
-const STEPS = ["You", "Workspace", "Connect", "Build"];
+const STEPS = ["Intro", "You", "Workspace", "Connect", "Build"];
+
+const INTRO_POINTS = [
+  {
+    Icon: Workflow,
+    title: "Workflows are visual graphs",
+    body: "A trigger starts the run, steps transform or send data, and edges show what happens next.",
+  },
+  {
+    Icon: Sparkles,
+    title: "Genesis can draft the graph",
+    body: "Describe the outcome you want. Keep the first version small, then refine nodes after it works.",
+  },
+  {
+    Icon: Plug,
+    title: "Connections power real actions",
+    body: "Connect apps or add API keys before running steps that read email, post messages, or call models.",
+  },
+  {
+    Icon: PlayCircle,
+    title: "Test before activating",
+    body: "Use validation, run history, and logs to confirm data looks right before a workflow runs on its own.",
+  },
+] as const;
+
+const SAFETY_NOTES = [
+  { Icon: Route, text: "Manual, scheduled, webhook, and app triggers can start workflows." },
+  { Icon: KeyRound, text: "Credentials stay in Connections and API keys, not inside prompts or node text." },
+  { Icon: ShieldCheck, text: "Runs are easier to debug when every step has one clear job." },
+] as const;
 
 function slugify(val: string) {
   return val.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 30);
@@ -97,26 +136,30 @@ export function OnboardingWizard({
   async function handleContinue() {
     setError(null);
     if (step === 0) {
-      const ok = await saveProfile();
-      if (ok) setStep(1);
+      setStep(1);
     } else if (step === 1) {
-      const ok = await saveWorkspace();
+      const ok = await saveProfile();
       if (ok) setStep(2);
     } else if (step === 2) {
-      setStep(3);
+      const ok = await saveWorkspace();
+      if (ok) setStep(3);
+    } else if (step === 3) {
+      setStep(4);
     }
   }
 
   async function handleSkip() {
     setError(null);
     if (step === 0) {
+      setStep(1);
+    } else if (step === 1) {
       const defaultHandle = slugify(emailName);
       const ok = await saveProfile(emailName, defaultHandle);
-      if (ok) setStep(1);
-    } else if (step === 1) {
-      setStep(2);
+      if (ok) setStep(2);
     } else if (step === 2) {
       setStep(3);
+    } else if (step === 3) {
+      setStep(4);
     } else {
       router.push("/dashboard");
     }
@@ -132,7 +175,7 @@ export function OnboardingWizard({
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-[520px]">
+      <div className="w-full max-w-[620px]">
 
         {/* Logo */}
         <div className="mb-10 flex items-center gap-2.5">
@@ -162,8 +205,50 @@ export function OnboardingWizard({
             Step {String(step + 1).padStart(2, "0")}
           </p>
 
-          {/* ── Step 0: Identity ── */}
           {step === 0 && (
+            <div className="space-y-6">
+              <div>
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Recommended: 2 minutes
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight">A quick map before you build.</h1>
+                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                  Corelyx is easiest when you know the basic loop: connect tools, draft a graph, test one clean path, then activate it.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {INTRO_POINTS.map(({ Icon, title, body }) => (
+                  <div key={title} className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3.5">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{title}</p>
+                      <p className="mt-1 text-[11px] leading-5 text-muted-foreground/70">{body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+                {SAFETY_NOTES.map(({ Icon, text }) => (
+                  <div key={text} className="flex items-start gap-2.5 text-[12px] leading-5 text-muted-foreground">
+                    <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[11px] leading-5 text-muted-foreground/60">
+                You can skip this introduction, but it is worth reading once. It prevents the usual first-workflow confusion without turning setup into a lecture.
+              </p>
+            </div>
+          )}
+
+          {/* Step 1: Identity */}
+          {step === 1 && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">What should we call you?</h1>
@@ -212,8 +297,8 @@ export function OnboardingWizard({
             </div>
           )}
 
-          {/* ── Step 1: Workspace ── */}
-          {step === 1 && (
+          {/* Step 2: Workspace */}
+          {step === 2 && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Name your workspace.</h1>
@@ -237,8 +322,8 @@ export function OnboardingWizard({
             </div>
           )}
 
-          {/* ── Step 2: Connectors ── */}
-          {step === 2 && (
+          {/* Step 3: Connectors */}
+          {step === 3 && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Connect your first app.</h1>
@@ -266,8 +351,8 @@ export function OnboardingWizard({
             </div>
           )}
 
-          {/* ── Step 3: First workflow ── */}
-          {step === 3 && (
+          {/* Step 4: First workflow */}
+          {step === 4 && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Build your first workflow.</h1>
@@ -308,7 +393,7 @@ export function OnboardingWizard({
             </div>
 
             <div className="flex items-center gap-2">
-              {step < 3 && (
+              {step < 4 && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -316,13 +401,13 @@ export function OnboardingWizard({
                   disabled={saving}
                   className="text-muted-foreground"
                 >
-                  {step === 2 ? "Connect later" : "Skip"}
+                  {step === 0 ? "Skip intro" : step === 3 ? "Connect later" : "Skip"}
                 </Button>
               )}
 
-              {step < 3 ? (
+              {step < 4 ? (
                 <Button onClick={handleContinue} disabled={saving} className="gap-1.5">
-                  {saving ? "Saving…" : "Continue"}
+                  {saving ? "Saving..." : step === 0 ? "Start guided setup" : "Continue"}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               ) : (
