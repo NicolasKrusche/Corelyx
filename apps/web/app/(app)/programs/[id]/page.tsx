@@ -6,8 +6,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bot,
-  Box,
-  Braces,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -18,7 +16,6 @@ import {
   ExternalLink,
   Eye,
   FileJson,
-  GitBranch,
   History,
   MoreHorizontal,
   Network,
@@ -142,24 +139,17 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   const serviceClient = createServiceClient();
 
   const [
-    triggerRowsResult,
     linkedConnsResult,
     completedRunsResult,
-    totalRunsResult,
     failedRunsResult,
     creatorResult,
   ] = await Promise.all([
-    serviceClient.from("triggers").select("id, type, is_active").eq("program_id", id),
     serviceClient.from("program_connections").select("connection_id").eq("program_id", id),
     serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id).eq("status", "completed"),
-    serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id),
     serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id).eq("status", "failed"),
     serviceClient.from("profiles").select("display_name").eq("id", program.user_id).maybeSingle(),
   ]);
 
-  const triggerRows = triggerRowsResult.data ?? [];
-  const dbTriggerCount = triggerRows.length;
-  const activeTriggerCount = triggerRows.filter((t: { is_active: boolean }) => t.is_active).length;
   const connectionIds = (linkedConnsResult.data ?? []).map((r: { connection_id: string }) => r.connection_id);
 
   let conflictingProgramCount = 0;
@@ -173,21 +163,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   }
 
   const completedRuns = completedRunsResult.count ?? 0;
-  const totalRuns = totalRunsResult.count ?? 0;
   const failedRuns = failedRunsResult.count ?? 0;
   const creatorName = (creatorResult.data as { display_name?: string | null } | null)?.display_name ?? "Nicolas";
-  const successRate = totalRuns === 0 ? "-" : `${Math.round((completedRuns / totalRuns) * 100)}%`;
-  const actionNodeCount = Math.max(0, nodes.length - activeTriggerCount);
   const firstNode = nodes[0];
-
-  const stats = [
-    { label: "Nodes", value: nodes.length, sub: `${activeTriggerCount || 1} trigger · ${actionNodeCount} actions`, icon: Box },
-    { label: "Edges", value: edges.length, sub: edges.length === 0 ? "no connections" : `${edges.length} connections`, icon: GitBranch },
-    { label: "Triggers", value: activeTriggerCount, sub: dbTriggerCount === 0 ? "none configured" : `${dbTriggerCount} configured`, icon: Zap, warn: activeTriggerCount === 0 },
-    { label: "Schema", value: `v${program.schema_version ?? 1}`, sub: relativeTime(program.updated_at), icon: Braces },
-    { label: "Last run", value: program.last_run_at ? formatDate(program.last_run_at) : "Never", sub: program.last_run_at ? "latest execution" : "no history", icon: Clock3, small: true },
-    { label: "Success rate", value: successRate, sub: `/ ${totalRuns} runs`, icon: CheckCircle2, small: true },
-  ];
 
   return (
     <div className="w-full space-y-4 pb-10">
@@ -260,19 +238,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
-
-      <section className="grid overflow-hidden rounded-lg border glass-card shadow-sm lg:grid-cols-6">
-        {stats.map(({ label, value, sub, icon: Icon, warn, small }) => (
-          <div key={label} className="border-b border-border p-5 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
-            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </p>
-            <p className={`mt-2 font-semibold text-foreground ${small ? "text-base" : "text-2xl"}`}>{value}</p>
-            <p className={`mt-1 text-xs ${warn ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`}>{sub}</p>
-          </div>
-        ))}
-      </section>
 
       {aiGenerated && !program.is_active && (
         <div className="flex items-center gap-3 rounded-lg border border-indigo-300 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/40 dark:text-indigo-100">
