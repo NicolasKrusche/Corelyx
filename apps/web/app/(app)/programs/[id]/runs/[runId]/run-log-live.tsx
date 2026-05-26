@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import Plan, { type PlanStatus, type PlanTask } from "@/components/ui/agent-plan";
 import type { Edge, Node } from "@flowos/schema";
@@ -114,6 +115,44 @@ function JsonViewer({ label, data, defaultOpen = false }: { label: string; data:
 
 // ─── Error detail block ───────────────────────────────────────────────────────
 
+// Known actionable error patterns → human-readable fix + CTA
+const ACTIONABLE_ERRORS: Array<{
+  test: (msg: string) => boolean;
+  title: string;
+  detail: string;
+  cta: string;
+  href: string;
+}> = [
+  {
+    test: (m) => /permission.?denied|read.?only access|write permission/i.test(m) && /reconnect/i.test(m),
+    title: "Connection needs write access",
+    detail: "Your Google Sheets connection was set up with read-only permissions. You need to reconnect it so the app can write to your spreadsheet.",
+    cta: "Reconnect Google Sheets →",
+    href: "/connections",
+  },
+  {
+    test: (m) => /token is expired|could not be refreshed|please reconnect your/i.test(m),
+    title: "Connection expired",
+    detail: "Your OAuth token has expired and could not be refreshed automatically. Reconnect the connection to get a fresh token.",
+    cta: "Go to Connections →",
+    href: "/connections",
+  },
+  {
+    test: (m) => /connection.*not found/i.test(m),
+    title: "Connection not found",
+    detail: "The connection referenced by this node no longer exists or hasn't been linked to this program.",
+    cta: "Manage Connections →",
+    href: "/connections",
+  },
+  {
+    test: (m) => /api key not found|api key.*invalid|invalid.*api key/i.test(m),
+    title: "API key missing or invalid",
+    detail: "The API key used by this node is missing or has been revoked. Add a valid key in API Keys settings.",
+    cta: "Go to API Keys →",
+    href: "/api-keys",
+  },
+];
+
 function ErrorBlock({ message }: { message: string }) {
   const copyToClipboard = () => navigator.clipboard?.writeText(message).catch(() => {});
   // Parse out a code prefix like [OAUTH_TOKEN_FAILED] if present
@@ -121,26 +160,46 @@ function ErrorBlock({ message }: { message: string }) {
   const code = codeMatch?.[1];
   const body = codeMatch ? message.slice(codeMatch[0].length) : message;
 
+  const action = ACTIONABLE_ERRORS.find((a) => a.test(message));
+
   return (
-    <div className="mt-2 rounded border border-destructive/40 bg-destructive/5 p-3 space-y-1">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          {code && (
-            <span className="font-mono text-[10px] font-semibold bg-destructive/15 text-destructive px-1.5 py-0.5 rounded">
-              {code}
-            </span>
-          )}
+    <div className="mt-2 space-y-2">
+      {action && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10 p-3 space-y-2">
+          <p className="text-xs font-semibold text-amber-900 dark:text-amber-300">
+            ⚠ {action.title}
+          </p>
+          <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
+            {action.detail}
+          </p>
+          <Link
+            href={action.href}
+            className="inline-flex items-center text-xs font-medium text-amber-900 dark:text-amber-300 underline underline-offset-2 hover:opacity-80"
+          >
+            {action.cta}
+          </Link>
         </div>
-        <button
-          onClick={copyToClipboard}
-          className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground border border-border rounded px-1.5 py-0.5"
-        >
-          Copy
-        </button>
+      )}
+      <div className="rounded border border-destructive/40 bg-destructive/5 p-3 space-y-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {code && (
+              <span className="font-mono text-[10px] font-semibold bg-destructive/15 text-destructive px-1.5 py-0.5 rounded">
+                {code}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={copyToClipboard}
+            className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground border border-border rounded px-1.5 py-0.5"
+          >
+            Copy
+          </button>
+        </div>
+        <pre className="text-xs text-destructive font-mono whitespace-pre-wrap break-all leading-relaxed">
+          {body}
+        </pre>
       </div>
-      <pre className="text-xs text-destructive font-mono whitespace-pre-wrap break-all leading-relaxed">
-        {body}
-      </pre>
     </div>
   );
 }
