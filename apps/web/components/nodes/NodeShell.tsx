@@ -114,7 +114,7 @@ export function NodeShell({
 
   // Execution status flags
   const isRunning         = status === "running";
-  const isSuccess         = status === "success" || status === "completed";
+  const isSuccess         = status === "success";
   const isExecFailed      = status === "failed";
   const isWaitingApproval = status === "waiting_approval";
   const isSkipped         = status === "skipped";
