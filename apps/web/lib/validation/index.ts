@@ -60,6 +60,7 @@ export function validatePostGenesis(
 
   const nodeIds = execNodes.map((n) => n.id);
   const availableConnectionNames = availableConnections.map((c) => c.name);
+  const availableConnectionProviders = availableConnections.map((c) => c.provider);
 
   function error(
     code: string,
@@ -113,7 +114,15 @@ export function validatePostGenesis(
   // ─── Connection References ─────────────────────────────────────────────
 
   execNodes.forEach((node) => {
-    if (node.connection && !availableConnectionNames.includes(node.connection))
+    if (!node.connection) return;
+    const nameMatch = availableConnectionNames.includes(node.connection);
+    // Genesis sometimes generates "provider:alias" style refs (e.g. "sheets:primary")
+    // instead of the exact connection name. Accept these when the provider prefix
+    // matches a linked connection's provider.
+    const providerAliasMatch =
+      /^[\w-]+:[\w-]+$/.test(node.connection) &&
+      availableConnectionProviders.includes(node.connection.split(":")[0]!);
+    if (!nameMatch && !providerAliasMatch)
       error("ERR_007", node.id, `${node.label} uses "${node.connection}" which is not connected to this program`, "Go to program settings and add this connection, or change the node to use an available connection");
   });
 
