@@ -4,6 +4,14 @@ import React from "react";
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@xyflow/react";
 import type { EdgeProps } from "@xyflow/react";
 
+function edgeColor(sourceStatus?: string, selected?: boolean): string {
+  if (selected) return "#1d4ed8";
+  if (sourceStatus === "running")  return "#3b82f6";
+  if (sourceStatus === "success")  return "#22c55e";
+  if (sourceStatus === "failed")   return "#ef4444";
+  return "#6b7280"; // neutral by default
+}
+
 export function DataFlowEdge({
   id,
   sourceX,
@@ -15,6 +23,7 @@ export function DataFlowEdge({
   label,
   markerEnd,
   selected,
+  data,
 }: EdgeProps) {
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -26,23 +35,20 @@ export function DataFlowEdge({
     borderRadius: 12,
   });
 
+  const sourceStatus = (data as Record<string, unknown> | undefined)?.sourceStatus as string | undefined;
+  const color = edgeColor(sourceStatus, selected);
+  const isActive = !!sourceStatus && sourceStatus !== "idle";
+
   return (
     <>
-      <path
-        d={edgePath}
-        fill="none"
-        stroke={selected ? "#3b82f6" : "#60a5fa"}
-        strokeWidth={selected ? 12 : 8}
-        strokeOpacity={selected ? 0.22 : 0.13}
-        strokeLinecap="round"
-      />
       <BaseEdge
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: selected ? "#3b82f6" : "#60a5fa",
-          strokeWidth: selected ? 2.5 : 2,
+          stroke: color,
+          strokeWidth: selected ? 2 : isActive ? 2 : 1.5,
+          strokeOpacity: isActive || selected ? 0.9 : 0.45,
           strokeLinecap: "round",
         }}
       />
