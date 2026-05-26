@@ -100,12 +100,12 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   sheets: {
     tier: 1,
     full: `SHEETS:
-  read_range: params={spreadsheet_id,range(both REQUIRED)} → output:{values:[[row],...]}
-  write_range: params={spreadsheet_id,range,values:[[...]](all REQUIRED)} → output:{updated_cells}
-  append_row: params={spreadsheet_id,range,values:[...](all REQUIRED)} → output:{updated_range}
-  list_sheets: params={spreadsheet_id(REQUIRED)} → output:{sheets:[{title,sheet_id}]}
-  create_sheet: params={spreadsheet_id(REQUIRED),title?,index?} → output:{sheet_id,title}
-  clear_range: params={spreadsheet_id,range(both REQUIRED)}`,
+  read_range: params={spreadsheet_id,range(both REQUIRED)} → output:{values:[[row],...]} scope_access:"read" scope_required:["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  write_range: params={spreadsheet_id,range,values:[[...]](all REQUIRED)} → output:{updated_cells} scope_access:"write" scope_required:["https://www.googleapis.com/auth/spreadsheets"]
+  append_row: params={spreadsheet_id,range,values:[...](all REQUIRED)} → output:{updated_range} scope_access:"write" scope_required:["https://www.googleapis.com/auth/spreadsheets"]
+  list_sheets: params={spreadsheet_id(REQUIRED)} → output:{sheets:[{title,sheet_id}]} scope_access:"read" scope_required:["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  create_sheet: params={spreadsheet_id(REQUIRED),title?,index?} → output:{sheet_id,title} scope_access:"write" scope_required:["https://www.googleapis.com/auth/spreadsheets"]
+  clear_range: params={spreadsheet_id,range(both REQUIRED)} scope_access:"write" scope_required:["https://www.googleapis.com/auth/spreadsheets"]`,
     gapReference: `SHEETS gaps:
     delete row / column → HTTP POST https://sheets.googleapis.com/v4/spreadsheets/{id}:batchUpdate body:{requests:[{deleteDimension:{range:{sheetId,dimension:"ROWS",startIndex,endIndex}}}]}
     create new spreadsheet (file, not tab) → HTTP POST https://sheets.googleapis.com/v4/spreadsheets body:{properties:{title}}
