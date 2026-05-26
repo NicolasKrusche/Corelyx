@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { ProgramSchema } from "@flowos/schema";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 interface RawSchemaPanelProps {
   schema: ProgramSchema;
@@ -30,7 +31,7 @@ export function RawSchemaPanel({ schema, onApply, onClose }: RawSchemaPanelProps
       userEditingRef.current = false;
       onApply(parsed);
     } catch (err) {
-      setError((err as Error).message);
+      setError(friendlyErrorMessage((err as Error).message, "This JSON could not be applied. Check the formatting and try again."));
     }
   }
 
@@ -40,7 +41,7 @@ export function RawSchemaPanel({ schema, onApply, onClose }: RawSchemaPanelProps
       setText(JSON.stringify(parsed, null, 2));
       setError(null);
     } catch (err) {
-      setError("Invalid JSON — " + (err as Error).message);
+      setError(friendlyErrorMessage((err as Error).message, "This does not look like valid JSON. Check the formatting and try again."));
     }
   }
 
@@ -131,7 +132,7 @@ export function RawSchemaPanel({ schema, onApply, onClose }: RawSchemaPanelProps
       {/* Footer */}
       <div className="border-t border-border px-3 py-2.5 shrink-0 space-y-1.5">
         {error && (
-          <p className="text-[10px] text-red-600 font-mono leading-snug break-all">{error}</p>
+          <p className="text-[10px] text-red-600 leading-snug">{error}</p>
         )}
         <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] text-muted-foreground">

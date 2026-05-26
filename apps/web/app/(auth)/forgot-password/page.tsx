@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { authCallbackUrl } from "@/lib/auth/client";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ export default function ForgotPasswordPage() {
     const json = (await res.json()) as { ok?: boolean; error?: string };
 
     if (!res.ok) {
-      setError(json.error ?? "Something went wrong. Please try again.");
+      setError(friendlyErrorMessage(json.error, "We could not send the reset email. Please try again."));
       setLoading(false);
     } else {
       setDone(true);

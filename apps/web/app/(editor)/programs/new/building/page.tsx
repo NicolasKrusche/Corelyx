@@ -22,6 +22,7 @@ import { ControlFlowEdge } from "@/components/edges/ControlFlowEdge";
 import { EventEdge } from "@/components/edges/EventEdge";
 import { applyDagreLayout } from "@/lib/schema/layout";
 import { Button } from "@/components/ui/button";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 const NODE_TYPES = {
   trigger: TriggerNode,
@@ -200,13 +201,13 @@ function BuildingCanvas() {
       });
 
       if (!res.ok || !res.body) {
-        let message = `Failed to open stream (status ${res.status}).`;
+        let message = "We could not start building the workflow. Please try again.";
         try {
           const body = (await res.clone().json()) as { error?: unknown; message?: unknown };
           if (typeof body.message === "string") {
-            message = body.message;
+            message = friendlyErrorMessage(body.message, message);
           } else if (typeof body.error === "string") {
-            message = body.error;
+            message = friendlyErrorMessage(body.error, message);
           }
         } catch {
           // Keep the status message when the response is not JSON.
@@ -240,7 +241,7 @@ function BuildingCanvas() {
         }
       }
     } catch (err) {
-      setError((err as Error).message ?? "Stream failed.");
+      setError(friendlyErrorMessage((err as Error).message, "We could not connect. Check your internet connection and try again."));
     } finally {
       streamStarted = false;
     }
@@ -285,7 +286,7 @@ function BuildingCanvas() {
         return;
       }
       case "error": {
-        setError(typeof event.message === "string" ? event.message : "Generation failed.");
+        setError(friendlyErrorMessage(typeof event.message === "string" ? event.message : null, "We could not build the workflow. Please try again."));
         return;
       }
     }

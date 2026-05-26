@@ -26,7 +26,7 @@ export function CreditsTopUp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount_usd: selected }),
       });
-      if (!res.ok) { setError("Failed to start checkout. Please try again."); return; }
+      if (!res.ok) { setError("We could not open checkout. Please try again."); return; }
       const { url } = await res.json() as { url: string };
       if (url) window.location.href = url;
     } finally {

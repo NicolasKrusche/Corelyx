@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 type Program = {
   id: string;
@@ -71,7 +72,7 @@ export default function ProgramSettingsPage() {
 
     setSaveStatus(res.ok
       ? { type: "success", message: "Settings saved." }
-      : { type: "error", message: "Failed to save settings." }
+      : { type: "error", message: "We could not save these settings. Please try again." }
     );
     setSaving(false);
   }
@@ -85,7 +86,7 @@ export default function ProgramSettingsPage() {
     const res = await fetch(`/api/programs/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      setDeleteError(body.error ?? "Failed to delete program.");
+      setDeleteError(friendlyResponseMessage(body, "We could not delete this workflow. Please try again."));
       setDeleting(false);
       return;
     }

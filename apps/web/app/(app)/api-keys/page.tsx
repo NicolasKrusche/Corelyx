@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 type ApiKey = {
   id: string;
@@ -87,8 +88,8 @@ export default function ApiKeysPage() {
       setForm({ name: "", provider: "anthropic", customProvider: "", key: "" });
       load();
     } else {
-      const data = await res.json();
-      setError(data.error ?? "Failed to save key");
+      const data = await res.json() as { error?: string };
+      setError(friendlyResponseMessage(data, "We could not save this API key. Please try again."));
     }
     setSaving(false);
   }

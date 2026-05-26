@@ -50,6 +50,7 @@ import type { ProgramSchema, Node as SchemaNode, TriggerConfig, StepConfig } fro
 import type { ValidationResult } from "@/lib/validation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -507,10 +508,7 @@ export function EditorShell({
           dispatch({ type: "MARK_SAVED" });
           return true;
         } else {
-          const message =
-            body?.message ??
-            body?.error ??
-            "Could not save the draft.";
+          const message = friendlyResponseMessage(body, "We could not save your changes. Please try again.");
           setValidationNotice(message);
           setPreFlightChecks([
             makePreFlightErrorCheck(
@@ -523,12 +521,12 @@ export function EditorShell({
           return false;
         }
       } catch {
-        setValidationNotice("Could not reach the server while saving.");
+        setValidationNotice("We could not connect while saving.");
         setPreFlightChecks([
           makePreFlightErrorCheck(
             "Save failed",
-            "Could not reach the server while saving.",
-            "Check your connection and try Save again."
+            "We could not connect while saving.",
+            "Check your internet connection and try Save again."
           ),
         ]);
         dispatch({ type: "SET_SAVING", saving: false });
@@ -585,12 +583,12 @@ export function EditorShell({
       if (state.isDirty) {
         const saved = await performSave(state.schema);
         if (!saved) {
-          setValidationNotice("Validation could not finish because saving failed.");
+          setValidationNotice("We could not check the workflow because saving failed.");
           setPreFlightChecks([
             makePreFlightErrorCheck(
               "Save failed",
-              "Could not save the latest editor changes before validation.",
-              "Check your connection and try Validate again."
+              "We could not save your latest changes before checking the workflow.",
+              "Check your internet connection and try again."
             ),
           ]);
           return;
@@ -607,13 +605,13 @@ export function EditorShell({
       } | null;
 
       if (!res.ok) {
-        const message = body?.error ?? "Could not complete validation.";
-        setValidationNotice("Validation could not finish.");
+        const message = friendlyResponseMessage(body, "We could not check the workflow. Please try again.");
+        setValidationNotice("We could not check the workflow.");
         setPreFlightChecks([
           makePreFlightErrorCheck(
-            "Validation error",
+            "Check failed",
             message,
-            "Save the program, check your connection, and try again."
+            "Save your changes, check your internet connection, and try again."
           ),
         ]);
         return;
@@ -628,7 +626,7 @@ export function EditorShell({
       if (failedChecks.length > 0) {
         setPreFlightChecks(checks);
         setValidationNotice(
-          `Pre-flight found ${failedChecks.length} issue${failedChecks.length === 1 ? "" : "s"}.`
+          `We found ${failedChecks.length} issue${failedChecks.length === 1 ? "" : "s"} to fix before this can run.`
         );
         return;
       }
@@ -640,12 +638,12 @@ export function EditorShell({
           : "Validation passed. Ready to run."
       );
     } catch {
-      setValidationNotice("Validation could not finish.");
+      setValidationNotice("We could not check the workflow.");
       setPreFlightChecks([
         makePreFlightErrorCheck(
-          "Connection error",
-          "Could not reach the validation service.",
-          "Check your connection and try again."
+          "Connection problem",
+          "We could not connect to Corelyx.",
+          "Check your internet connection and try again."
         ),
       ]);
     } finally {
@@ -846,6 +844,12 @@ export function EditorShell({
     },
     []
   );
+
+  const [nodeExecutions, setNodeExecutions] = React.useState<Record<string, NodeExecutionData>>({});
+  const [lastRunId, setLastRunId] = React.useState<string | null>(null);
+  const [showRunLog, setShowRunLog] = React.useState(false);
+  const [currentRunStatus, setCurrentRunStatus] = React.useState("idle");
+  const [currentRunStartedAt, setCurrentRunStartedAt] = React.useState<string | null>(null);
 
   useEffect(() => {
     if (!lastRunId) return;
@@ -1165,14 +1169,7 @@ export function EditorShell({
 
   // ── Node execution inspector state ───────────────────────────────────────
 
-  const [nodeExecutions, setNodeExecutions] = React.useState<Record<string, NodeExecutionData>>({});
-  const [lastRunId, setLastRunId] = React.useState<string | null>(null);
-
   // ── Run log drawer state ──────────────────────────────────────────────────
-
-  const [showRunLog, setShowRunLog] = React.useState(false);
-  const [currentRunStatus, setCurrentRunStatus] = React.useState("idle");
-  const [currentRunStartedAt, setCurrentRunStartedAt] = React.useState<string | null>(null);
 
   // On mount: fetch most recent run and populate nodeExecutions
   useEffect(() => {
@@ -1303,7 +1300,7 @@ export function EditorShell({
     )[0];
 
     if (!bestKey) {
-      setAiEditError("No API key found. Add one in API Keys settings first.");
+      setAiEditError("Add an API key before asking AI to edit this workflow.");
       return;
     }
 
@@ -1329,17 +1326,13 @@ export function EditorShell({
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        const msg =
-          (data as { message?: string } | null)?.message ??
-          (data as { error?: string } | null)?.error ??
-          "Edit failed. Please try again.";
-        setAiEditError(msg);
+        setAiEditError(friendlyResponseMessage(data as { message?: string; error?: string } | null, "The AI edit did not work. Please try again."));
         return;
       }
 
       const payload = data as { schema?: ProgramSchema; validation?: ValidationResult };
       if (!payload.schema) {
-        setAiEditError("The AI response did not include a workflow schema.");
+        setAiEditError("The AI reply did not include a workflow we can use. Try asking again with a little more detail.");
         return;
       }
 
@@ -1351,7 +1344,7 @@ export function EditorShell({
       setShowAiEdit(false);
       setAiEditPrompt("");
     } catch {
-      setAiEditError("Could not reach the server. Check your connection.");
+      setAiEditError("We could not connect. Check your internet connection and try again.");
     } finally {
       setAiEditLoading(false);
     }
@@ -1394,9 +1387,9 @@ export function EditorShell({
       } | null;
 
       if (body?.run_id) {
-        const runError = body.message ?? body.error ?? "Runtime dispatch failed.";
+        const runError = friendlyResponseMessage(body, "The workflow could not start.");
         if (body.status === "failed") {
-          setValidationNotice(`Run record created, but execution failed: ${runError}`);
+          setValidationNotice(`The run was created, but it could not start: ${runError}`);
         }
         // Stay on the editor; open the run log drawer instead of navigating away
         setLastRunId(body.run_id);
@@ -1412,25 +1405,25 @@ export function EditorShell({
       } else {
         if (body?.checks) {
           setPreFlightChecks(body.checks as PreFlightCheck[]);
-          setValidationNotice("Run is blocked by pre-flight validation.");
+          setValidationNotice("Fix the highlighted issues before running this workflow.");
         } else {
-          const message = body?.message ?? body?.error ?? "Failed to start run";
+          const message = friendlyResponseMessage(body, "The workflow could not start. Please try again.");
           setValidationNotice(message);
           setPreFlightChecks([{
             code: "PRE_001",
-            label: "Error",
+            label: "Run blocked",
             status: "fail",
             failures: [{ node_id: null, message, fix_suggestion: "" }],
           }]);
         }
       }
     } catch {
-      setValidationNotice("Could not reach the server to start the run.");
+      setValidationNotice("We could not connect to start the workflow.");
       setPreFlightChecks([{
         code: "PRE_001",
-        label: "Connection error",
+        label: "Connection problem",
         status: "fail",
-        failures: [{ node_id: null, message: "Could not reach the server.", fix_suggestion: "Make sure the runtime service is running." }],
+        failures: [{ node_id: null, message: "We could not connect to Corelyx.", fix_suggestion: "Check your internet connection and try again." }],
       }]);
     } finally {
       setIsRunning(false);
@@ -1473,10 +1466,10 @@ export function EditorShell({
         if (body?.checks) {
           setPreFlightChecks(body.checks);
         } else {
-          const message = body?.message ?? body?.error ?? "Failed to start test run";
+          const message = friendlyResponseMessage(body, "The test run could not start. Please try again.");
           setPreFlightChecks([{
             code: "PRE_001",
-            label: "Error",
+            label: "Test blocked",
             status: "fail",
             failures: [{ node_id: null, message, fix_suggestion: "" }],
           }]);
@@ -1486,9 +1479,9 @@ export function EditorShell({
       setShowWebhookTest(false);
       setPreFlightChecks([{
         code: "PRE_001",
-        label: "Connection error",
+        label: "Connection problem",
         status: "fail",
-        failures: [{ node_id: null, message: "Could not reach the server.", fix_suggestion: "Make sure the runtime service is running." }],
+        failures: [{ node_id: null, message: "We could not connect to Corelyx.", fix_suggestion: "Check your internet connection and try again." }],
       }]);
     } finally {
       setIsRunning(false);

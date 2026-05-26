@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 import {
   getNextSecondaryConnectionName,
   getPrimaryConnectionName,
@@ -911,14 +912,14 @@ export default function ConnectionsPage() {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setApiKeyError(data.error ?? "Failed to save. Please try again.");
+        setApiKeyError(friendlyResponseMessage(data, "We could not save this API key. Please try again."));
         return;
       }
       setApiKeyProvider(null);
       setApiKeyValue("");
       await load();
     } catch {
-      setApiKeyError("Network error. Please try again.");
+      setApiKeyError("We could not connect. Check your internet connection and try again.");
     } finally {
       setApiKeySubmitting(false);
     }

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CronBuilder } from "@/components/triggers/cron-builder";
+import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ function NewTriggerForm({
       config = { trigger_type: "webhook" };
     } else if (type === "program") {
       if (!sourceProgramId.trim()) {
-        setError("Source program ID is required");
+        setError("Choose the workflow that should start this one.");
         return;
       }
       config = { trigger_type: "program_output", source_program_id: sourceProgramId.trim() };
@@ -92,7 +93,7 @@ function NewTriggerForm({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError((data as { error?: string }).error ?? "Failed to create trigger");
+        setError(friendlyResponseMessage(data as { error?: string }, "We could not create this trigger. Please try again."));
         return;
       }
       const data = await res.json() as { trigger: TriggerRow };

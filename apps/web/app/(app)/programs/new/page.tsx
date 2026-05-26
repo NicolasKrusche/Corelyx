@@ -13,6 +13,7 @@ import { BoltStyleChat } from "@/components/ui/bolt-style-chat";
 import type { ValidationResult } from "@/lib/validation";
 import { TEMPLATES } from "@/lib/templates";
 import { writeClientLog } from "@/lib/client-logs";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 type Connection = {
   id: string;
@@ -90,11 +91,11 @@ const REFINEMENT_THINKING_UPDATES = [
 function getGenesisErrorMessage(payload: unknown, fallback: string) {
   if (payload && typeof payload === "object") {
     const record = payload as Record<string, unknown>;
-    if (typeof record.message === "string") return record.message;
-    if (typeof record.error === "string") return record.error;
+    if (typeof record.message === "string") return friendlyErrorMessage(record.message, fallback);
+    if (typeof record.error === "string") return friendlyErrorMessage(record.error, fallback);
   }
 
-  if (payload instanceof Error) return payload.message;
+  if (payload instanceof Error) return friendlyErrorMessage(payload.message, fallback);
   return fallback;
 }
 
@@ -473,8 +474,7 @@ function NewProgramPageInner() {
         responseStatus: res.status,
         payload: data,
       });
-      const msg =
-        typeof data.error === "string" ? data.error : data.message ?? "Refinement failed. Please try again.";
+      const msg = getGenesisErrorMessage(data, "The requested change did not work. Please try again.");
       setRefinementError(msg);
       setIsRefining(false);
       setStep("result");
@@ -624,7 +624,7 @@ function NewProgramPageInner() {
       setInlinePhase("connections");
       setInlineMessages((prev) => [
         ...prev,
-        { role: "assistant", text: "Could not reach the server. Check your connection and try again." },
+        { role: "assistant", text: "We could not connect. Check your internet connection and try again." },
       ]);
       return;
     }

@@ -54,7 +54,7 @@ export function GenesisPrompt() {
         typeof data?.message === "string"
           ? data.message
           : typeof data?.error === "string"
-          ? data.error
+          ? "We could not create the workflow. Please try again."
           : "Could not create a blank workflow. Please try again.";
       setCreateError(message);
       setIsCreatingScratch(false);

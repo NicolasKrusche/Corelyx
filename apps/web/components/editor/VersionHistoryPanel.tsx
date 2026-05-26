@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { ProgramSchema } from "@flowos/schema";
 import { diffSchemas, getVersionSnapshot } from "@/lib/editor/diff";
 import { VersionDiffOverlay } from "@/components/editor/VersionDiffOverlay";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,13 +82,13 @@ export function VersionHistoryPanel({
         const res = await fetch(`/api/programs/${programId}/versions`);
         if (!res.ok) {
           const json = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(json.error ?? `HTTP ${res.status}`);
+          throw new Error(json.error ?? "");
         }
         const json = (await res.json()) as { versions: VersionRow[] };
         if (!cancelled) setVersions(json.versions);
       } catch (err) {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to load versions");
+          setError(friendlyErrorMessage(err instanceof Error ? err.message : null, "We could not load version history. Please try again."));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -113,7 +114,7 @@ export function VersionHistoryPanel({
         });
         if (!res.ok) {
           const json = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(json.error ?? `HTTP ${res.status}`);
+          throw new Error(json.error ?? "");
         }
         const json = (await res.json()) as {
           schema: ProgramSchema;
@@ -127,7 +128,7 @@ export function VersionHistoryPanel({
           setVersions(listJson.versions);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Rollback failed");
+        setError(friendlyErrorMessage(err instanceof Error ? err.message : null, "We could not restore that version. Please try again."));
       } finally {
         setRestoringVersion(null);
       }
@@ -184,7 +185,7 @@ export function VersionHistoryPanel({
                   .then((r) => r.json() as Promise<{ versions: VersionRow[] }>)
                   .then(({ versions: v }) => setVersions(v))
                   .catch((err: unknown) =>
-                    setError(err instanceof Error ? err.message : "Failed to load versions")
+                    setError(friendlyErrorMessage(err instanceof Error ? err.message : null, "We could not load version history. Please try again."))
                   )
                   .finally(() => setIsLoading(false));
               }}

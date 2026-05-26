@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { authCallbackUrl, completePostLoginSetup } from "@/lib/auth/client";
+import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { Loader2 } from "lucide-react";
 import { AuthVisualPanel } from "@/components/ui/auth-visual-panel";
 
@@ -29,7 +30,7 @@ export default function SignupPage() {
     const json = (await res.json()) as { ok?: boolean; error?: string };
 
     if (!res.ok || !json.ok) {
-      setError(json.error ?? "Could not create account. Please try again.");
+      setError(friendlyErrorMessage(json.error, "We could not create your account. Please try again."));
       setLoading(false);
       return;
     }
@@ -60,7 +61,7 @@ export default function SignupPage() {
       options: { redirectTo: authCallbackUrl(), skipBrowserRedirect: true },
     });
     if (error) {
-      setError(error.message);
+      setError(friendlyErrorMessage(error.message, "Google sign-up could not be started. Please try again."));
       setLoading(false);
       return;
     }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAdvancedMode } from "@/lib/advanced-mode";
+import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
 import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
@@ -126,7 +127,7 @@ function RedeemSection() {
     const data = await res.json() as { benefit?: string; error?: string };
 
     if (!res.ok) {
-      setStatus({ type: "error", message: data.error ?? "Invalid code." });
+      setStatus({ type: "error", message: friendlyResponseMessage(data, "That code did not work. Check it and try again.") });
     } else {
       setStatus({ type: "success", message: `Applied: ${data.benefit}` });
       setCode("");
@@ -193,7 +194,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
     const supabase = createBrowserClient();
     const { error } = await supabase.auth.updateUser({ email: newEmail });
     if (error) {
-      setEmailStatus({ type: "error", message: error.message });
+      setEmailStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not update your email. Please try again.") });
     } else {
       setEmailStatus({
         type: "success",
@@ -230,7 +231,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
 
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) {
-      setPasswordStatus({ type: "error", message: error.message });
+      setPasswordStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not update your password. Please try again.") });
     } else {
       setPasswordStatus({ type: "success", message: "Password updated successfully." });
       setCurrentPassword("");
@@ -250,7 +251,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
     const res = await fetch("/api/settings/account", { method: "DELETE" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      setDeleteStatus({ type: "error", message: body.error ?? "Failed to delete account." });
+      setDeleteStatus({ type: "error", message: friendlyResponseMessage(body, "We could not delete the account. Please try again.") });
       setDeleteLoading(false);
       return;
     }

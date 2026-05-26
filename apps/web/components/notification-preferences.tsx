@@ -92,7 +92,7 @@ export function NotificationPreferences({ panelClass }: { panelClass: string }) 
           <span className="text-xs text-primary">Saved</span>
         )}
         {status === "error" && (
-          <span className="text-xs text-destructive">Failed to save</span>
+          <span className="text-xs text-destructive">Could not save</span>
         )}
       </div>
 
