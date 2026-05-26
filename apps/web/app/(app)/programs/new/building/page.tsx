@@ -36,12 +36,9 @@ const EDGE_TYPES = {
   event_subscription: EventEdge,
 };
 
-type GenesisPayload = {
-  description: string;
-  connection_ids: string[];
-  api_key_id: string;
-  model: string;
-};
+type GenesisPayload =
+  | { description: string; connection_ids: string[]; api_key_id: string; model: string }
+  | { description: string; connection_ids: string[]; use_platform_key: true };
 
 type IncomingNode = {
   id: string;
