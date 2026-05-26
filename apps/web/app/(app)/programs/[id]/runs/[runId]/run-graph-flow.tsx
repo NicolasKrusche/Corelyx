@@ -174,10 +174,7 @@ export function RunGraphFlow({ nodeMap, edges, execs }: RunGraphFlowProps) {
         style={{ background: "transparent" }}
         className="relative z-10"
       >
-        <Controls
-          showInteractiveButton={false}
-          className="!border-border !bg-background !shadow-sm"
-        />
+        <Controls className="!border-border !bg-background !shadow-sm" />
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
