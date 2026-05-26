@@ -28,6 +28,7 @@ import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
+import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -48,12 +49,19 @@ import {
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
 
+const GENESIS_PLATFORM_RATE_USD = 2.0;
+const PLATFORM_MODEL = "anthropic/claude-sonnet-4-6";
+
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
   connection_ids: z.array(z.string().uuid()).max(10),
-  api_key_id: z.string().uuid(),
-  model: z.string().min(1),
-});
+  api_key_id: z.string().uuid().optional(),
+  use_platform_key: z.boolean().optional(),
+  model: z.string().min(1).optional(),
+}).refine(
+  (d) => d.use_platform_key === true || (!!d.api_key_id && !!d.model),
+  { message: "Either use_platform_key or both api_key_id and model are required" }
+);
 
 type StreamEvent =
   | { type: "meta"; program_name: string }
@@ -76,7 +84,9 @@ export async function POST(request: Request) {
   const parsed = RequestSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  const { description, connection_ids, api_key_id, model } = parsed.data;
+  const { description, connection_ids, api_key_id, use_platform_key } = parsed.data;
+  const usePlatformKey = use_platform_key === true;
+  const model = usePlatformKey ? PLATFORM_MODEL : parsed.data.model!;
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const startedAt = Date.now();
   const sanitizedDescription = sanitizeTextForLlm(description);
@@ -138,22 +148,39 @@ export async function POST(request: Request) {
     selectedProviders.length > 0 ? selectedProviders : null
   );
 
-  // Resolve API keys — preferred first, then fallbacks sorted by provider priority
+  // Resolve API keys
   const serviceClient = createServiceClient();
-  const { data: allKeyRows, error: keysError } = await serviceClient
-    .from("api_keys")
-    .select("id, vault_secret_id, provider")
-    .eq("workspace_id", workspaceId)
-    .eq("is_valid", true);
+  let keyCandidates: GenesisApiKeyRow[];
 
-  const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
-  if (keysError || validKeyRows.length === 0) {
-    return sseErrorResponse("API key not found. Please add a valid API key.", "API_KEY_INVALID");
-  }
+  if (usePlatformKey) {
+    const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
+    if (!platformRawKey) {
+      return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
+    }
+    const balance = await getUserCreditBalance(userId);
+    if (balance.total < GENESIS_PLATFORM_RATE_USD) {
+      return sseErrorResponse(
+        `At least $${GENESIS_PLATFORM_RATE_USD.toFixed(2)} in credits is required to use the Corelyx platform key.`,
+        "INSUFFICIENT_CREDITS"
+      );
+    }
+    keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];
+  } else {
+    const { data: allKeyRows, error: keysError } = await serviceClient
+      .from("api_keys")
+      .select("id, vault_secret_id, provider")
+      .eq("workspace_id", workspaceId)
+      .eq("is_valid", true);
 
-  const keyCandidates = sortApiKeyFallbacks(api_key_id, validKeyRows);
-  if (keyCandidates.length === 0) {
-    return sseErrorResponse("Selected API key not found or invalid.", "API_KEY_INVALID");
+    const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
+    if (keysError || validKeyRows.length === 0) {
+      return sseErrorResponse("API key not found. Please add a valid API key.", "API_KEY_INVALID");
+    }
+
+    keyCandidates = sortApiKeyFallbacks(api_key_id!, validKeyRows);
+    if (keyCandidates.length === 0) {
+      return sseErrorResponse("Selected API key not found or invalid.", "API_KEY_INVALID");
+    }
   }
 
   const encoder = new TextEncoder();
@@ -184,7 +211,9 @@ export async function POST(request: Request) {
         try {
           const filterKeyRow = pickEuComplianceFilterKey(keyCandidates);
           if (filterKeyRow) {
-            const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
+            const filterApiKey = filterKeyRow.id === "platform"
+                ? filterKeyRow.vault_secret_id
+                : await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
             euComplianceContext = await runEuComplianceFilter(
               sanitizedDescription.value,
               filterKeyRow,
@@ -206,7 +235,9 @@ export async function POST(request: Request) {
 
           let currentApiKey: string;
           try {
-            currentApiKey = await vaultRetrieve(serviceClient, currentKeyRow.vault_secret_id);
+            currentApiKey = currentKeyRow.id === "platform"
+              ? currentKeyRow.vault_secret_id
+              : await vaultRetrieve(serviceClient, currentKeyRow.vault_secret_id);
           } catch {
             continue;
           }
@@ -417,6 +448,7 @@ export async function POST(request: Request) {
         });
 
         await incrementGenesisUses(userId, workspaceId);
+        if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_USD);
 
         send({
           type: "done",
