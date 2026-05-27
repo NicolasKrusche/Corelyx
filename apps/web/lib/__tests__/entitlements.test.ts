@@ -56,7 +56,7 @@ describe("getEntitlements", () => {
     expect(ent.maxPrograms).toBe(5);
     expect(ent.runsPerMonth).toBe(75);
     expect(ent.runHistoryDays).toBe(30);
-    expect(ent.genesisUsesPerMonth).toBeNull();
+    expect(ent.genesisUsesPerMonth).toBe(5);
     expect(ent.byok).toBe(true);
     expect(ent.hitlApprovals).toBe(false);
     expect(ent.conflictDetection).toBe(false);
@@ -176,9 +176,9 @@ describe("ENTITLEMENTS record", () => {
     expect(ENTITLEMENTS.unlimited.runHistoryDays).toBeNull();
   });
 
-  it("free is the only tier with genesisUsesPerMonth !== null", () => {
+  it("free and plus are the tiers with fixed Genesis monthly limits", () => {
     expect(ENTITLEMENTS.free.genesisUsesPerMonth).not.toBeNull();
-    expect(ENTITLEMENTS.plus.genesisUsesPerMonth).toBeNull();
+    expect(ENTITLEMENTS.plus.genesisUsesPerMonth).toBe(5);
     expect(ENTITLEMENTS.pro.genesisUsesPerMonth).toBeNull();
     expect(ENTITLEMENTS.builder.genesisUsesPerMonth).toBeNull();
     expect(ENTITLEMENTS.unlimited.genesisUsesPerMonth).toBeNull();

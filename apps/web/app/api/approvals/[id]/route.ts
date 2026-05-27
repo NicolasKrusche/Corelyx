@@ -78,6 +78,13 @@ export async function POST(
       status: decision,
       decision_note: note ?? null,
       decided_at: now,
+      approver_id: user.id,
+      decision,
+      decision_timestamp: now,
+      final_executed_action: {
+        node_execution_status: decision === "approved" ? "running" : "failed",
+        decision_note: note ?? null,
+      },
     } as unknown as never)
     .eq("id", approvalId);
 
@@ -87,7 +94,15 @@ export async function POST(
   const nodeExecStatus = decision === "approved" ? "running" : "failed";
   const { error: updateExecError } = await serviceClient
     .from("node_executions")
-    .update({ status: nodeExecStatus } as unknown as never)
+    .update({
+      status: nodeExecStatus,
+      approval_decision: {
+        decision,
+        decided_at: now,
+        decision_note: note ?? null,
+      },
+      approver_id: user.id,
+    } as unknown as never)
     .eq("id", approval.node_execution_id);
 
   if (updateExecError) return apiError(updateExecError.message, 500);

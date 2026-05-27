@@ -1428,7 +1428,7 @@ export function EditorShell({
     } finally {
       setIsRunning(false);
     }
-  }, [performSave, programId, router, state.isDirty, state.schema]);
+  }, [performSave, programId, state.isDirty, state.schema]);
 
   // ── Test webhook ──────────────────────────────────────────────────────────
 
@@ -1486,7 +1486,7 @@ export function EditorShell({
     } finally {
       setIsRunning(false);
     }
-  }, [webhookPayload, programId, router]);
+  }, [webhookPayload, programId]);
 
   // ── Back navigation ───────────────────────────────────────────────────────
 

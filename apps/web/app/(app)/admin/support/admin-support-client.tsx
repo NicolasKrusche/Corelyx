@@ -122,17 +122,19 @@ export function AdminSupportClient() {
     void fetchTeam();
   }, []);
 
+  const selectedId = selected?.id;
+
   useEffect(() => {
-    if (!selected) return;
-    void fetchMessages(selected.id);
-    void fetchGrants(selected.id);
+    if (!selectedId) return;
+    void fetchMessages(selectedId);
+    void fetchGrants(selectedId);
 
     const supabase = createBrowserClient();
     const channel = supabase
-      .channel(`admin-support-${selected.id}`)
+      .channel(`admin-support-${selectedId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "support_messages", filter: `ticket_id=eq.${selected.id}` },
+        { event: "INSERT", schema: "public", table: "support_messages", filter: `ticket_id=eq.${selectedId}` },
         (payload) => {
           const msg = payload.new as Message;
           setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
@@ -141,7 +143,7 @@ export function AdminSupportClient() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected?.id]);
+  }, [selectedId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Optional
 
 # Force UTF-8 stdout/stderr on Windows so Unicode chars in log output don't crash
@@ -32,6 +33,11 @@ from db import (
     update_run,
 )
 from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
+from compliance import (
+    load_program_connection_providers,
+    load_workspace_policy,
+    validate_schema_policy,
+)
 from internal_auth import (
     INTERNAL_SERVICE_TOKEN_HEADER,
     _get_internal_service_secret,
@@ -70,6 +76,14 @@ else:
 scheduler = AsyncIOScheduler()
 
 
+def _retention_expiry(policy: dict[str, Any]) -> str:
+    try:
+        retention_days = max(1, int(policy.get("execution_log_retention_days") or 90))
+    except (TypeError, ValueError):
+        retention_days = 90
+    return (datetime.now(timezone.utc) + timedelta(days=retention_days)).isoformat()
+
+
 def parse_cron(expression: str) -> dict:
     """Split a 5-field cron string into APScheduler kwargs."""
     fields = expression.strip().split()
@@ -92,6 +106,8 @@ async def trigger_workflow(workflow_id: str) -> None:
     if not program_data:
         return
     schema = parse_schema(program_data.get("schema") or {})
+    workspace_policy = load_workspace_policy(db, program_data.get("workspace_id"))
+    retention_expiry = _retention_expiry(workspace_policy)
     run_result = (
         db.table("runs")
         .insert({
@@ -100,6 +116,11 @@ async def trigger_workflow(workflow_id: str) -> None:
             "trigger_payload": None,
             "status": "running",
             "started_at": "now()",
+            "user_id": program_data.get("user_id"),
+            "workflow_version": program_data.get("schema_version") or 1,
+            "trigger_source": "cron",
+            "data_region": workspace_policy.get("data_region"),
+            "retention_expiry": retention_expiry,
         })
         .execute()
     )
@@ -111,6 +132,8 @@ async def trigger_workflow(workflow_id: str) -> None:
             run_id,
             status="failed",
             error_message="Processing is restricted for this account.",
+            data_region=workspace_policy.get("data_region"),
+            retention_expiry=retention_expiry,
             completed_at="now()",
         )
         await _notify_complete(run_id, workflow_id, user_id, "failed")
@@ -119,7 +142,36 @@ async def trigger_workflow(workflow_id: str) -> None:
     error_message: str | None = None
     executor: ProgramExecutor | None = None
     try:
-        executor = ProgramExecutor(schema, run_id, workflow_id, user_id)
+        connection_providers = load_program_connection_providers(db, workflow_id)
+        policy_blocks = validate_schema_policy(
+            schema,
+            workspace_policy.get("compliance_mode", "standard"),
+            connection_providers,
+        )
+        if policy_blocks:
+            await update_run(
+                db,
+                run_id,
+                status="failed",
+                error_message=policy_blocks[0]["reason"],
+                policy_checks={"runtime_policy": "blocked"},
+                block_warning_reasons=policy_blocks,
+                data_region=workspace_policy.get("data_region"),
+                retention_expiry=retention_expiry,
+                completed_at="now()",
+            )
+            await _notify_complete(run_id, workflow_id, user_id, "failed")
+            return
+        executor = ProgramExecutor(
+            schema,
+            run_id,
+            workflow_id,
+            user_id,
+            workspace_id=program_data.get("workspace_id"),
+            compliance_mode=workspace_policy.get("compliance_mode", "standard"),
+            data_region=workspace_policy.get("data_region"),
+            execution_log_retention_days=workspace_policy.get("execution_log_retention_days", 90),
+        )
         await executor.execute(None)
         final_status = "completed"
     except ExecutionError as e:
@@ -134,6 +186,8 @@ async def trigger_workflow(workflow_id: str) -> None:
             status=final_status,
             error_message=error_message,
             completed_at="now()",
+            data_region=workspace_policy.get("data_region"),
+            retention_expiry=retention_expiry,
             **telemetry,
         )
         await release_run_locks(db, run_id)
@@ -255,7 +309,7 @@ async def execute_program(
     program_id_db: str = run_row["program_id"]
     program_lookup = (
         db.table("programs")
-        .select("id, user_id, schema")
+        .select("id, user_id, schema, workspace_id, schema_version")
         .eq("id", program_id_db)
         .limit(1)
         .execute()
@@ -271,6 +325,29 @@ async def execute_program(
             detail="Processing is restricted for this account.",
         )
     schema = parse_schema(program_row.get("schema") or {})
+    workspace_policy = load_workspace_policy(db, program_row.get("workspace_id"))
+    connection_providers = load_program_connection_providers(db, program_id_db)
+    policy_blocks = validate_schema_policy(
+        schema,
+        workspace_policy.get("compliance_mode", "standard"),
+        connection_providers,
+    )
+    if policy_blocks:
+        await update_run(
+            db,
+            body.run_id,
+            status="failed",
+            error_message=policy_blocks[0]["reason"],
+            user_id=user_id_db,
+            workflow_version=program_row.get("schema_version") or 1,
+            trigger_source=body.triggered_by,
+            data_region=workspace_policy.get("data_region"),
+            retention_expiry=_retention_expiry(workspace_policy),
+            policy_checks={"runtime_policy": "blocked"},
+            block_warning_reasons=policy_blocks,
+            completed_at="now()",
+        )
+        raise HTTPException(status_code=422, detail=policy_blocks[0]["reason"])
 
     background_tasks.add_task(
         _run_program,
@@ -280,6 +357,8 @@ async def execute_program(
         user_id_db,
         body.trigger_payload,
         body.connections,
+        program_row.get("workspace_id"),
+        workspace_policy,
     )
     return {"status": "started", "run_id": body.run_id}
 
@@ -319,11 +398,24 @@ async def _run_program(
     user_id: str,
     trigger_payload: Optional[dict[str, Any]],
     connection_name_to_id: dict[str, str] | None = None,
+    workspace_id: str | None = None,
+    workspace_policy: dict[str, Any] | None = None,
 ) -> None:
     db = get_db()
     final_status = "failed"
     error_message: str | None = None
-    executor = ProgramExecutor(schema, run_id, program_id, user_id, connection_name_to_id=connection_name_to_id)
+    policy = workspace_policy or load_workspace_policy(db, workspace_id)
+    executor = ProgramExecutor(
+        schema,
+        run_id,
+        program_id,
+        user_id,
+        connection_name_to_id=connection_name_to_id,
+        workspace_id=workspace_id,
+        compliance_mode=policy.get("compliance_mode", "standard"),
+        data_region=policy.get("data_region"),
+        execution_log_retention_days=policy.get("execution_log_retention_days", 90),
+    )
     try:
         await asyncio.wait_for(executor.execute(trigger_payload), timeout=RUN_TIMEOUT_SECONDS)
         final_status = "completed"
@@ -340,6 +432,8 @@ async def _run_program(
             status=final_status,
             error_message=error_message,
             completed_at="now()",
+            data_region=policy.get("data_region"),
+            retention_expiry=executor.retention_expiry,
             **executor.run_telemetry_payload(),
         )
         await release_run_locks(db, run_id)

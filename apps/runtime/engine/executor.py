@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import ipaddress
 import json
 import os
 import re
 import socket
 import time
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 from typing import Any, Callable
 
@@ -57,6 +59,7 @@ from engine.credential_lock import (
     get_token_refresh_manager,
 )
 from internal_auth import build_internal_service_headers
+from compliance import get_provider, policy_block_reason, provider_for_model
 
 TelemetryPayload = dict[str, int | float]
 
@@ -400,6 +403,10 @@ class ProgramExecutor:
         conflict_policy: str = "queue",
         connection_name_to_id: dict[str, str] | None = None,
         is_paid_plan: bool = False,
+        workspace_id: str | None = None,
+        compliance_mode: str = "standard",
+        data_region: str | None = None,
+        execution_log_retention_days: int = 90,
     ) -> None:
         self.schema = schema
         self.run_id = run_id
@@ -407,6 +414,16 @@ class ProgramExecutor:
         self.user_id = user_id
         self.execution_mode = execution_mode
         self.conflict_policy = conflict_policy
+        self.workspace_id = workspace_id
+        self.compliance_mode = compliance_mode if compliance_mode in {"standard", "eu_only"} else "standard"
+        self.data_region = data_region or "eu-central-1"
+        try:
+            retention_days = max(1, int(execution_log_retention_days))
+        except (TypeError, ValueError):
+            retention_days = 90
+        self.retention_expiry = (
+            datetime.now(timezone.utc) + timedelta(days=retention_days)
+        ).isoformat()
         self.db = get_db()
         self.node_map: dict[str, SchemaNode] = {n.id: n for n in schema.nodes}
         self.edges_from: dict[str, list] = {}
@@ -506,6 +523,61 @@ class ProgramExecutor:
             ),
         }
 
+    @staticmethod
+    def _payload_hash(value: Any) -> str:
+        try:
+            encoded = json.dumps(value, sort_keys=True, default=str, separators=(",", ":"))
+        except Exception:
+            encoded = str(value)
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _approval_data_summary(input_data: dict) -> str:
+        keys = [str(key) for key in list(input_data.keys())[:12]]
+        return f"Input contains {len(input_data)} top-level field(s): {', '.join(keys) if keys else 'none'}."
+
+    @staticmethod
+    def _approval_risk_flags(node: SchemaNode) -> list[str]:
+        flags: list[str] = []
+        if node.type == "agent":
+            flags.append("ai_model_call")
+        if node.type == "connection":
+            flags.append("external_system_write")
+        return flags
+
+    async def _enforce_provider_policy(
+        self,
+        provider_id: str,
+        node_id: str,
+        *,
+        model_id: str | None = None,
+    ) -> None:
+        provider = get_provider(provider_id)
+        reason = policy_block_reason(provider.id, self.compliance_mode)
+        await update_node_execution(
+            self.db,
+            self.run_id,
+            node_id,
+            provider_id=provider.id,
+            model_id=model_id,
+            data_region=self.data_region,
+            retention_expiry=self.retention_expiry,
+            policy_checks={
+                "workspace_compliance_mode": self.compliance_mode,
+                "provider_status": provider.status,
+                "provider_eu_only_supported": provider.eu_only_supported,
+                "dpa_available": provider.dpa_available,
+                "scc_available": provider.scc_available,
+            },
+            block_warning_reasons=[reason] if reason else [],
+        )
+        if reason:
+            print(
+                f"[runtime/compliance] Blocking node {node_id}: {reason}",
+                flush=True,
+            )
+            raise ExecutionError("COMPLIANCE_BLOCKED", reason, node_id)
+
     async def execute(self, trigger_payload: dict | None = None) -> dict[str, Any]:
         """Run the program. Returns final state."""
         # Clean up stale locks before starting
@@ -554,6 +626,8 @@ class ProgramExecutor:
                 started_at="now()",
                 completed_at="now()",
                 output_payload=state[trigger_node.id],
+                data_region=self.data_region,
+                retention_expiry=self.retention_expiry,
                 **self._node_telemetry_payload(trigger_node.id),
             )
 
@@ -621,6 +695,9 @@ class ProgramExecutor:
                         status="failed",
                         error_message=e.message,
                         completed_at="now()",
+                        data_region=self.data_region,
+                        retention_expiry=self.retention_expiry,
+                        block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
                         **self._node_telemetry_payload(edge.to),
                     )
                     if target_node.type == "agent":
@@ -658,6 +735,8 @@ class ProgramExecutor:
                 nid,
                 status="skipped",
                 completed_at="now()",
+                data_region=self.data_region,
+                retention_expiry=self.retention_expiry,
             )
 
         return descendants
@@ -746,6 +825,9 @@ class ProgramExecutor:
                     await update_node_execution(
                         self.db, self.run_id, nid,
                         status="failed", error_message=e.message, completed_at="now()",
+                        data_region=self.data_region,
+                        retention_expiry=self.retention_expiry,
+                        block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
                         **self._node_telemetry_payload(nid),
                     )
                     out = {}
@@ -761,6 +843,8 @@ class ProgramExecutor:
                 status="completed",
                 completed_at="now()",
                 output_payload={"iterations": results, "count": len(items)},
+                data_region=self.data_region,
+                retention_expiry=self.retention_expiry,
                 **self._node_telemetry_payload(nid),
             )
 
@@ -820,6 +904,8 @@ class ProgramExecutor:
             status="running",
             started_at="now()",
             input_payload=log_input,
+            data_region=self.data_region,
+            retention_expiry=self.retention_expiry,
         )
 
         # In manual mode: pause each node and wait for step-through approval
@@ -832,6 +918,8 @@ class ProgramExecutor:
                     node.id,
                     status="skipped",
                     completed_at="now()",
+                    data_region=self.data_region,
+                    retention_expiry=self.retention_expiry,
                     **self._node_telemetry_payload(node.id),
                 )
                 return {}
@@ -867,6 +955,8 @@ class ProgramExecutor:
                 status="completed",
                 completed_at="now()",
                 output_payload=output,
+                data_region=self.data_region,
+                retention_expiry=self.retention_expiry,
                 **self._node_telemetry_payload(node.id),
             )
             return output
@@ -890,6 +980,8 @@ class ProgramExecutor:
                     node.id,
                     status="skipped",
                     completed_at="now()",
+                    data_region=self.data_region,
+                    retention_expiry=self.retention_expiry,
                     **self._node_telemetry_payload(node.id),
                 )
                 return {}
@@ -905,13 +997,15 @@ class ProgramExecutor:
 
         # Fetch API key from Next.js internal endpoint (keeps key off this service)
         api_key, provider = await self._fetch_api_key(cfg.api_key_ref)
+        provider_id = "openrouter" if use_platform_key else provider_for_model(cfg.model, provider)
+        await self._enforce_provider_policy(provider_id, node.id, model_id=cfg.model)
 
         # Execute with retry and circuit breaker protection
         circuit = get_llm_circuit()
         try:
             return await circuit.call(
                 self._with_retry,
-                lambda: self._call_llm(cfg, api_key, provider, input_data, node.id, deduct_credits=use_platform_key),
+                lambda: self._call_llm(cfg, api_key, provider_id, input_data, node.id, deduct_credits=use_platform_key),
                 cfg.retry,
                 node.id,
             )
@@ -977,6 +1071,22 @@ class ProgramExecutor:
         sanitized_input_data = sanitize_value_for_llm(input_data)
         _system = sanitized_system.value
         llm_input_json = json.dumps(sanitized_input_data.value)
+        await update_node_execution(
+            self.db,
+            self.run_id,
+            node_id,
+            provider_id=provider,
+            model_id=cfg.model,
+            prompt_hash=self._payload_hash({"system": _system, "input": llm_input_json}),
+            stored_full_prompt=False,
+            tool_calls=cfg.tools,
+            data_region=self.data_region,
+            retention_expiry=self.retention_expiry,
+            policy_checks={
+                "workspace_compliance_mode": self.compliance_mode,
+                "llm_provider_policy_checked": True,
+            },
+        )
         if "anthropic" in base_url and (litellm_url is None or "litellm" not in base_url):
             # Anthropic uses x-api-key, not Bearer
             headers.pop("Authorization", None)
@@ -1202,6 +1312,7 @@ class ProgramExecutor:
         
         cfg = node.config
         if isinstance(cfg, HttpConnectionConfig):
+            await self._enforce_provider_policy("generic_http", node.id)
             retry_cfg = cfg.retry or RetryConfig(
                 max_attempts=1,
                 backoff="none",
@@ -1218,6 +1329,8 @@ class ProgramExecutor:
             if not connection_name:
                 raise ExecutionError("OAUTH_CONFIG_INVALID", "OAuth connection node has no connection reference")
             connection_id = self._resolve_connection_id(connection_name)
+            provider_id = self._provider_for_connection(connection_id)
+            await self._enforce_provider_policy(provider_id, node.id)
             
             # Fetch OAuth token with circuit breaker protection
             circuit = get_oauth_token_circuit()
@@ -1232,7 +1345,7 @@ class ProgramExecutor:
 
             # If the node specifies a native operation, dispatch to the connector.
             if cfg.operation:
-                connector = get_connector(self._provider_for_connection(connection_id))
+                connector = get_connector(provider_id)
                 if connector is None:
                     raise ExecutionError(
                         "CONNECTOR_NOT_FOUND",
@@ -1286,7 +1399,6 @@ class ProgramExecutor:
                             self._record_telemetry(node.id, connector_api_calls=1)
                             result = await connector.execute(cfg.operation, resolved_params, access_token)
                         except ConnectorError as retry_exc:
-                            provider = self._provider_for_connection(connection_id)
                             # Mark connection invalid so pre-flight blocks future runs
                             try:
                                 self.db.table("connections").update({"is_valid": False}).eq("id", connection_id).execute()
@@ -1295,7 +1407,7 @@ class ProgramExecutor:
                             raise ExecutionError(
                                 "CONNECTION_AUTH_FAILED",
                                 f"OAuth token is invalid for connection '{connection_name}' "
-                                f"and could not be refreshed. Please reconnect your {provider} account.",
+                                f"and could not be refreshed. Please reconnect your {provider_id} account.",
                             ) from retry_exc
                     else:
                         raise ExecutionError(exc.code, exc.message) from exc
@@ -1491,6 +1603,10 @@ class ProgramExecutor:
                 "reason": reason,
                 "execution_mode": self.execution_mode,
                 "timeout_hours": timeout_hours,
+                "requested_action": f"{reason}: {node.label}",
+                "ai_generated_recommendation": input_data.get("text") if isinstance(input_data.get("text"), str) else None,
+                "data_summary": self._approval_data_summary(input_data),
+                "risk_flags": self._approval_risk_flags(node),
             },
         )
 

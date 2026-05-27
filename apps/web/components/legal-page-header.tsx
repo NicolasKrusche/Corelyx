@@ -55,10 +55,13 @@ export async function LegalPageHeader({
         </Link>
         <div className="flex items-center gap-5">
           <nav className="hidden items-center gap-4 text-xs text-muted-foreground/60 md:flex">
+            <Link href="/trust" className="transition-colors hover:text-foreground">Trust</Link>
             <Link href="/privacy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/dpa" className="transition-colors hover:text-foreground">DPA</Link>
             <Link href="/subprocessors" className="transition-colors hover:text-foreground">Subprocessors</Link>
+            <Link href="/data-residency" className="transition-colors hover:text-foreground">Residency</Link>
+            <Link href="/ai-act" className="transition-colors hover:text-foreground">AI Act</Link>
             <Link href="/security" className="transition-colors hover:text-foreground">Security</Link>
           </nav>
           <Link

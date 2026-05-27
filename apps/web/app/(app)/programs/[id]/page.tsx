@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Eye,
   FileJson,
+  FileText,
   History,
   MoreHorizontal,
   Network,
@@ -23,11 +24,10 @@ import {
   RefreshCw,
   Settings,
   Sparkles,
-  Trash2,
   UserRound,
-  Workflow,
   Zap,
 } from "lucide-react";
+import { ProgramSchemaZ, type ProgramSchema } from "@flowos/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RunPanel } from "./run-panel";
@@ -38,6 +38,14 @@ import { DeleteProgramButton } from "@/components/programs/delete-program-button
 import type { Json } from "@flowos/db";
 import { createServiceClient } from "@/lib/api";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
+import { loadWorkflowProviderContext, loadWorkspaceComplianceSettings } from "@/lib/compliance/server";
+import {
+  buildDataFlowPreview,
+  validateWorkflowCompliance,
+  type ComplianceCheck,
+  type ComplianceCheckStatus,
+  type DataFlowPreviewItem,
+} from "@/lib/compliance/workflow";
 
 type SchemaNode = { id: string; label: string; description: string; type: string };
 
@@ -93,6 +101,36 @@ function NodeGlyph({ type }: { type: string }) {
   return <Circle className="h-4 w-4" />;
 }
 
+function complianceStatusClass(status: ComplianceCheckStatus) {
+  if (status === "passed") return "border-emerald-300 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-300";
+  if (status === "warning") return "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200";
+  if (status === "needs_reviewer") return "border-blue-300 bg-blue-500/10 text-blue-700 dark:border-blue-500/40 dark:text-blue-300";
+  return "border-red-300 bg-red-500/10 text-red-700 dark:border-red-500/40 dark:text-red-300";
+}
+
+function ComplianceStatusIcon({ status }: { status: ComplianceCheckStatus }) {
+  if (status === "passed") return <CheckCircle2 className="h-4 w-4" />;
+  return <AlertTriangle className="h-4 w-4" />;
+}
+
+function statusLabel(status: ComplianceCheckStatus) {
+  if (status === "needs_reviewer") return "Needs reviewer";
+  return status[0].toUpperCase() + status.slice(1);
+}
+
+function DataFlowLabels({ item }: { item: DataFlowPreviewItem }) {
+  const labels = item.labels.slice(0, 5);
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {labels.map((label) => (
+        <Badge key={label} variant="outline" className="rounded-md px-2 py-0.5 text-[11px]">
+          {label}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
 export default async function ProgramPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createServerClient();
@@ -105,7 +143,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
 
   const { data, error } = await supabase
     .from("programs")
-    .select("id, user_id, name, description, execution_mode, conflict_policy, is_active, schema, schema_version, last_run_at, created_at, updated_at, is_public, tags, fork_count, published_at, public_author_name, visibility, workspace_id")
+    .select("id, user_id, name, description, execution_mode, conflict_policy, is_active, schema, schema_version, last_run_at, created_at, updated_at, is_public, tags, fork_count, published_at, public_author_name, visibility, workspace_id, ai_use_case_category, ai_act_risk_level, customer_role, human_oversight_required, transparency_notice_required, high_risk_documentation_required, prohibited_reason, reviewer, reviewed_at, ai_act_notes, legal_review_override")
     .eq("id", id)
     .single();
 
@@ -131,6 +169,17 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     public_author_name: string | null;
     visibility: string;
     workspace_id: string;
+    ai_use_case_category?: string | null;
+    ai_act_risk_level?: "prohibited" | "high_risk" | "transparency" | "gpai_related" | "limited_or_minimal" | "unknown" | null;
+    customer_role?: "provider" | "deployer" | "distributor" | "importer" | "product_manufacturer" | "unknown" | null;
+    human_oversight_required?: boolean | null;
+    transparency_notice_required?: boolean | null;
+    high_risk_documentation_required?: boolean | null;
+    prohibited_reason?: string | null;
+    reviewer?: string | null;
+    reviewed_at?: string | null;
+    ai_act_notes?: string | null;
+    legal_review_override?: boolean | null;
   };
 
   const program = data as ProgramRow;
@@ -166,6 +215,34 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   const failedRuns = failedRunsResult.count ?? 0;
   const creatorName = (creatorResult.data as { display_name?: string | null } | null)?.display_name ?? "Nicolas";
   const firstNode = nodes[0];
+  const parsedComplianceSchema = ProgramSchemaZ.safeParse(program.schema);
+  let complianceChecks: ComplianceCheck[] = [
+    {
+      id: "schema-validation",
+      label: "Schema validation",
+      status: "blocked",
+      message: "Workflow schema could not be validated, so compliance checks cannot run.",
+    },
+  ];
+  let dataFlowPreview: DataFlowPreviewItem[] = [];
+  let workspaceComplianceMode = "standard";
+  if (parsedComplianceSchema.success) {
+    const complianceSchema = parsedComplianceSchema.data as unknown as ProgramSchema;
+    const workspaceCompliance = await loadWorkspaceComplianceSettings(program.workspace_id, serviceClient as never);
+    const providerContext = await loadWorkflowProviderContext(program.id, program.workspace_id, serviceClient as never);
+    workspaceComplianceMode = workspaceCompliance.compliance_mode;
+    complianceChecks = validateWorkflowCompliance(
+      complianceSchema,
+      workspaceCompliance,
+      providerContext,
+      program
+    );
+    dataFlowPreview = buildDataFlowPreview(
+      complianceSchema,
+      workspaceCompliance,
+      providerContext
+    );
+  }
 
   return (
     <div className="w-full space-y-4 pb-10">
@@ -344,6 +421,119 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
           )}
 
           <RunPanel programId={program.id} />
+
+          <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold">Publish checklist</h2>
+                  <Badge variant="outline" className="rounded-md">
+                    {workspaceComplianceMode === "eu_only" ? "EU-only mode" : "Standard mode"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  GDPR transfer, DPA, AI Act, approval, logging, secrets, and model-provider checks.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm" className="h-9">
+                  <Link href={`/api/programs/${program.id}/compliance/export?format=json`} target="_blank">
+                    <FileJson className="h-4 w-4" />
+                    JSON export
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="h-9">
+                  <Link href={`/api/programs/${program.id}/compliance/export?format=html`} target="_blank">
+                    <FileText className="h-4 w-4" />
+                    HTML report
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="divide-y divide-border">
+              {complianceChecks.map((check) => (
+                <div key={check.id} className="flex items-start gap-3 px-5 py-4">
+                  <span className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${complianceStatusClass(check.status)}`}>
+                    <ComplianceStatusIcon status={check.status} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">{check.label}</p>
+                      <Badge variant="outline" className={`rounded-md ${complianceStatusClass(check.status)}`}>
+                        {statusLabel(check.status)}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{check.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold">Data-flow preview</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Trigger, node, provider, region, data categories, transfer basis, retention, and approval visibility.
+                </p>
+              </div>
+            </div>
+            {dataFlowPreview.length === 0 ? (
+              <div className="p-6 text-sm text-muted-foreground">
+                No data-flow preview is available until the workflow schema validates.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[920px] text-left text-sm">
+                  <thead className="border-b border-border bg-muted/50 text-xs uppercase tracking-normal text-muted-foreground">
+                    <tr>
+                      <th className="px-5 py-3 font-medium">Node/action</th>
+                      <th className="px-5 py-3 font-medium">Provider</th>
+                      <th className="px-5 py-3 font-medium">Region</th>
+                      <th className="px-5 py-3 font-medium">Data</th>
+                      <th className="px-5 py-3 font-medium">Transfer</th>
+                      <th className="px-5 py-3 font-medium">Controls</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {dataFlowPreview.map((item) => (
+                      <tr key={item.node_id}>
+                        <td className="px-5 py-4 align-top">
+                          <p className="font-medium">{item.node_label}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{item.action}</p>
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <p className="font-medium">{item.provider.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{item.provider.category}</p>
+                        </td>
+                        <td className="px-5 py-4 align-top text-xs text-muted-foreground">{item.region}</td>
+                        <td className="px-5 py-4 align-top">
+                          <p className="text-xs text-muted-foreground">{item.data_categories.join(", ")}</p>
+                          <p className="mt-1 text-xs">
+                            Personal data: {item.personal_data_may_be_processed ? "may be processed" : "not expected"}
+                          </p>
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <p className={item.leaves_eea ? "text-xs font-medium text-amber-700 dark:text-amber-300" : "text-xs font-medium text-emerald-700 dark:text-emerald-300"}>
+                            {item.leaves_eea ? "Possible third-country transfer" : "No EEA exit indicated"}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">{item.transfer_basis}</p>
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <DataFlowLabels item={item} />
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Approval: {item.human_approval_gate ? "yes" : "no"} · Model: {item.model_name ?? "no"}
+                          </p>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
           {userCanEdit && (
             <PublishPanel

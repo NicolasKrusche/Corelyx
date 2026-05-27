@@ -3,16 +3,16 @@ import LandingPage from "./_landing/LandingPage";
 
 const SITE_URL = "https://www.corelyx.app";
 const DESCRIPTION =
-  "Build AI agent workflows visually, inspect before running, and gate sensitive steps with human approval. GDPR-native automation built for EU-facing teams.";
+  "Build AI agent workflows visually, inspect before running, and gate sensitive steps with human approval. EU-first automation controls for EU-facing teams.";
 
 export const metadata: Metadata = {
-  title: "Corelyx — AI Automation Built for GDPR Compliance",
+  title: "Corelyx — EU-First AI Automation Controls",
   description: DESCRIPTION,
   alternates: {
     canonical: SITE_URL,
   },
   openGraph: {
-    title: "Corelyx — AI Automation Built for GDPR Compliance",
+    title: "Corelyx — EU-First AI Automation Controls",
     description: DESCRIPTION,
     url: SITE_URL,
   },
@@ -62,9 +62,9 @@ const jsonLd = {
       publisher: { "@id": `${SITE_URL}/#organization` },
       featureList: [
         "Visual AI workflow editor",
-        "GDPR-native architecture",
+        "EU-first automation infrastructure",
         "Human approval gates",
-        "EU-hosted runtime",
+        "EU-only mode for eligible workflows",
         "60+ OAuth connectors",
         "Run-level audit logs",
         "Data Processing Agreement included",

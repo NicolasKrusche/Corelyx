@@ -174,6 +174,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         "All 200+ connectors",
         "BYOK (bring your own API key)",
         "€2.50 platform AI credits / month",
+        "5 Genesis AI uses / month",
         "30-day run history",
         "Webhook triggers",
         "Email support",

@@ -1,4 +1,6 @@
 from __future__ import annotations
+import hashlib
+import json
 import os
 import re
 from datetime import datetime, timezone, timedelta
@@ -12,6 +14,39 @@ TELEMETRY_COLUMNS = {
     "estimated_cost_usd",
     "connector_api_calls",
     "model_call_count",
+}
+
+COMPLIANCE_COLUMNS = {
+    "user_id",
+    "workflow_version",
+    "trigger_source",
+    "data_region",
+    "policy_checks",
+    "block_warning_reasons",
+    "retention_expiry",
+    "provider_id",
+    "model_id",
+    "prompt_hash",
+    "input_hash",
+    "output_hash",
+    "stored_full_prompt",
+    "stored_full_input",
+    "stored_full_output",
+    "tool_calls",
+    "approval_request",
+    "approval_decision",
+    "approver_id",
+}
+
+APPROVAL_EVIDENCE_COLUMNS = {
+    "requested_action",
+    "ai_generated_recommendation",
+    "data_summary",
+    "risk_flags",
+    "approver_id",
+    "decision",
+    "decision_timestamp",
+    "final_executed_action",
 }
 
 EXECUTION_LOG_VERBOSITY_MODES = {"NONE", "ERRORS_ONLY", "METADATA_ONLY", "FULL"}
@@ -185,6 +220,21 @@ def apply_execution_log_policy(
     return redact_secrets(value)
 
 
+def hash_payload(value: Any) -> str:
+    try:
+        encoded = json.dumps(value, sort_keys=True, default=str, separators=(",", ":"))
+    except Exception:
+        encoded = str(value)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _looks_like_missing_column_error(error: object, columns: set[str]) -> bool:
+    text = str(error).lower()
+    if not any(column.lower() in text for column in columns):
+        return False
+    return any(marker in text for marker in ("column", "schema cache", "could not find"))
+
+
 def get_db() -> Client:
     url = os.environ["SUPABASE_URL"]
     key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -233,9 +283,22 @@ async def create_run(
 
 
 async def update_run(db: Client, run_id: str, **kwargs: Any) -> None:
-    result = db.table("runs").update(kwargs).eq("id", run_id).execute()
-    if hasattr(result, "error") and result.error and any(k in TELEMETRY_COLUMNS for k in kwargs):
-        fallback = {k: v for k, v in kwargs.items() if k not in TELEMETRY_COLUMNS}
+    fallback_columns = TELEMETRY_COLUMNS | COMPLIANCE_COLUMNS
+    try:
+        result = db.table("runs").update(kwargs).eq("id", run_id).execute()
+    except Exception as exc:
+        if any(k in fallback_columns for k in kwargs) and _looks_like_missing_column_error(exc, fallback_columns):
+            fallback = {k: v for k, v in kwargs.items() if k not in fallback_columns}
+            if fallback and fallback != kwargs:
+                db.table("runs").update(fallback).eq("id", run_id).execute()
+                print(
+                    f"[db] WARNING: update_run compliance metadata skipped for run {run_id} (likely missing migration)",
+                    flush=True,
+                )
+                return
+        raise
+    if hasattr(result, "error") and result.error and any(k in fallback_columns for k in kwargs):
+        fallback = {k: v for k, v in kwargs.items() if k not in fallback_columns}
         if fallback and fallback != kwargs:
             retry = db.table("runs").update(fallback).eq("id", run_id).execute()
             if not (hasattr(retry, "error") and retry.error):
@@ -306,18 +369,43 @@ async def update_node_execution(
     if not isinstance(status, str):
         status = None
     if "input_payload" in kwargs:
+        raw_input = kwargs["input_payload"]
+        kwargs.setdefault("input_hash", hash_payload(raw_input))
+        kwargs.setdefault("stored_full_input", get_execution_log_verbosity() == "FULL")
         kwargs["input_payload"] = apply_execution_log_policy(kwargs["input_payload"], status=status)
     if "output_payload" in kwargs:
+        raw_output = kwargs["output_payload"]
+        kwargs.setdefault("output_hash", hash_payload(raw_output))
+        kwargs.setdefault("stored_full_output", get_execution_log_verbosity() == "FULL")
         kwargs["output_payload"] = apply_execution_log_policy(kwargs["output_payload"], status=status)
-    result = (
-        db.table("node_executions")
-        .update(kwargs)
-        .eq("run_id", run_id)
-        .eq("node_id", node_id)
-        .execute()
-    )
-    if hasattr(result, "error") and result.error and any(k in TELEMETRY_COLUMNS for k in kwargs):
-        fallback = {k: v for k, v in kwargs.items() if k not in TELEMETRY_COLUMNS}
+    fallback_columns = TELEMETRY_COLUMNS | COMPLIANCE_COLUMNS
+    try:
+        result = (
+            db.table("node_executions")
+            .update(kwargs)
+            .eq("run_id", run_id)
+            .eq("node_id", node_id)
+            .execute()
+        )
+    except Exception as exc:
+        if any(k in fallback_columns for k in kwargs) and _looks_like_missing_column_error(exc, fallback_columns):
+            fallback = {k: v for k, v in kwargs.items() if k not in fallback_columns}
+            if fallback and fallback != kwargs:
+                (
+                    db.table("node_executions")
+                    .update(fallback)
+                    .eq("run_id", run_id)
+                    .eq("node_id", node_id)
+                    .execute()
+                )
+                print(
+                    f"[db] WARNING: update_node_execution compliance metadata skipped (run={run_id}, node={node_id})",
+                    flush=True,
+                )
+                return
+        raise
+    if hasattr(result, "error") and result.error and any(k in fallback_columns for k in kwargs):
+        fallback = {k: v for k, v in kwargs.items() if k not in fallback_columns}
         if fallback and fallback != kwargs:
             retry = (
                 db.table("node_executions")
@@ -340,18 +428,29 @@ async def create_approval(
     db: Client, node_execution_id: str, user_id: str, context: dict
 ) -> dict:
     safe_context = redact_secrets(context)
-    result = (
-        db.table("approvals")
-        .insert(
-            {
-                "node_execution_id": node_execution_id,
-                "user_id": user_id,
-                "status": "pending",
-                "context": safe_context,
-            }
-        )
-        .execute()
-    )
+    payload = {
+        "node_execution_id": node_execution_id,
+        "user_id": user_id,
+        "status": "pending",
+        "context": safe_context,
+        "requested_action": safe_context.get("requested_action"),
+        "ai_generated_recommendation": safe_context.get("ai_generated_recommendation"),
+        "data_summary": safe_context.get("data_summary"),
+        "risk_flags": safe_context.get("risk_flags"),
+    }
+    try:
+        result = db.table("approvals").insert(payload).execute()
+    except Exception as exc:
+        # Older databases without the approval-evidence migration reject the
+        # extra columns. Keep approvals working and let the migration add the
+        # richer evidence fields where available.
+        if not _looks_like_missing_column_error(exc, APPROVAL_EVIDENCE_COLUMNS):
+            raise
+        fallback = {k: v for k, v in payload.items() if k not in APPROVAL_EVIDENCE_COLUMNS}
+        result = db.table("approvals").insert(fallback).execute()
+    if hasattr(result, "error") and result.error:
+        fallback = {k: v for k, v in payload.items() if k not in APPROVAL_EVIDENCE_COLUMNS}
+        result = db.table("approvals").insert(fallback).execute()
     if not result.data:
         raise RuntimeError(f"DB insert for approval (node_exec={node_execution_id}) returned no data")
     return result.data[0]

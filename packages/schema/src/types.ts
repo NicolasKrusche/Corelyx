@@ -27,6 +27,29 @@ export interface ProgramMetadata {
   last_run_id: string | null;
   last_run_status: RunStatus | null;
   last_run_timestamp: string | null;
+  ai_use_case_category?: string | null;
+  ai_act_risk_level?:
+    | "prohibited"
+    | "high_risk"
+    | "transparency"
+    | "gpai_related"
+    | "limited_or_minimal"
+    | "unknown";
+  customer_role?:
+    | "provider"
+    | "deployer"
+    | "distributor"
+    | "importer"
+    | "product_manufacturer"
+    | "unknown";
+  human_oversight_required?: boolean;
+  transparency_notice_required?: boolean;
+  high_risk_documentation_required?: boolean;
+  prohibited_reason?: string | null;
+  reviewer?: string | null;
+  reviewed_at?: string | null;
+  ai_act_notes?: string | null;
+  legal_review_override?: boolean;
 }
 
 export type RunStatus = "success" | "failed" | "partial" | "running" | "waiting_approval";

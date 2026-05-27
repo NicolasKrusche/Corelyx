@@ -3,7 +3,7 @@
 **Status:** Internal compliance document
 **Last updated:** 2026-04-28
 **Owner:** Founding team (DPO TBA)
-**Related:** [compliance_plan.md](compliance_plan.md) §4.6
+**Related:** [docs/soa.md](docs/soa.md), [docs/risk-register.md](docs/risk-register.md)
 
 This is the internal record required under the EU AI Act (active since 2 August 2025) for all AI systems Corelyx deploys. Every system that calls a General-Purpose AI model is listed here. Update this file whenever a new model, provider, or use case is introduced.
 
@@ -24,7 +24,7 @@ This is the internal record required under the EU AI Act (active since 2 August 
 | Output | A structured JSON program schema. The user must inspect the resulting graph in the editor before activating. |
 | Human oversight (AI Act Art. 14) | Mandatory inspect step: the program is created `is_active=false`. The program detail page surfaces a non-dismissible review banner ("Corelyx generated this workflow from your description. Review every node, parameter, and connection before activating it.") and an "AI-generated" badge. Activation requires explicit user action. |
 | Transparency (AI Act Art. 50) | Programs created via Genesis carry `metadata.genesis_model = "<model id>"` in their schema. The UI labels them as AI-generated (badge + banner). The program detail page shows the model used. |
-| Cross-border transfer | Yes — most providers process on US infrastructure. Mitigations: (1) PII sanitization layer; (2) per-provider DPA/SCCs (status tracked in [SUBPROCESSORS.md](SUBPROCESSORS.md)); (3) BYOK means the user's own contract with the provider governs their data. |
+| Cross-border transfer | Possible. Provider defaults, customer-selected model providers, and customer account settings may involve processing outside the EEA. Mitigations: (1) PII sanitization layer; (2) per-provider DPA/SCC and transfer-basis status tracked in the provider registry and `/subprocessors`; (3) BYOK means the user's own contract with the provider governs their data; (4) EU-only workspace mode blocks or warns on unresolved provider risk before publish/run. |
 | Logging | Each Genesis call writes an `app_log` row with: model used, model fallback chain, validation outcome, PII redaction counts (categorized, no values), execution duration. Log retention: 90 days for metadata, 30 days for raw description preview. |
 | Bypass / override paths | None. There is no API endpoint that creates an active AI-generated program in a single call. |
 | Known limitations | Output may invent operation parameters that do not exist in the connector implementation; the post-genesis validator (`validatePostGenesis`) catches the most common cases but not all. Capability gaps (e.g. operations not in the prompt's reference) are bridged via HTTP nodes or agent steps. |

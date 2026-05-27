@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
+import { isAdminEmail } from "@/lib/admin";
+import { ProgramSchemaZ } from "@flowos/schema";
+import type { ProgramSchema } from "@flowos/schema";
+import {
+  loadWorkflowProviderContext,
+  loadWorkspaceComplianceSettings,
+} from "@/lib/compliance/server";
+import {
+  hasBlockingComplianceChecks,
+  validateWorkflowCompliance,
+} from "@/lib/compliance/workflow";
 
 /**
  * POST /api/programs/[id]/publish
@@ -68,7 +79,7 @@ export async function POST(
 
   const { data: program, error: progError } = await db
     .from("programs")
-    .select("id, schema, is_public")
+    .select("id, schema, is_public, workspace_id, schema_version, ai_use_case_category, ai_act_risk_level, customer_role, human_oversight_required, transparency_notice_required, high_risk_documentation_required, prohibited_reason, reviewer, reviewed_at, ai_act_notes, legal_review_override")
     .eq("id", params.id)
     .single();
 
@@ -76,6 +87,60 @@ export async function POST(
 
   // Gate: must have at least one successful run before publishing
   if (publish) {
+    const userIsAdmin = isAdminEmail(user.email ?? undefined);
+    const programForCompliance = program as unknown as {
+      schema: unknown;
+      workspace_id: string;
+      id: string;
+      name?: string;
+      schema_version: number | null;
+      ai_use_case_category: string | null;
+      ai_act_risk_level: "prohibited" | "high_risk" | "transparency" | "gpai_related" | "limited_or_minimal" | "unknown";
+      customer_role: "provider" | "deployer" | "distributor" | "importer" | "product_manufacturer" | "unknown";
+      human_oversight_required: boolean;
+      transparency_notice_required: boolean;
+      high_risk_documentation_required: boolean;
+      prohibited_reason: string | null;
+      reviewer: string | null;
+      reviewed_at: string | null;
+      ai_act_notes: string | null;
+      legal_review_override: boolean;
+    };
+    programForCompliance.legal_review_override =
+      programForCompliance.legal_review_override === true && userIsAdmin;
+    const parsedSchema = ProgramSchemaZ.safeParse(programForCompliance.schema);
+    if (!parsedSchema.success) {
+      return NextResponse.json(
+        {
+          error: "WORKFLOW_NOT_RUNNABLE",
+          message: "Complete required node settings before publishing this workflow.",
+          details: parsedSchema.error.flatten(),
+        },
+        { status: 422 }
+      );
+    }
+
+    const [workspaceCompliance, providerContext] = await Promise.all([
+      loadWorkspaceComplianceSettings(programForCompliance.workspace_id, db as never),
+      loadWorkflowProviderContext(params.id, programForCompliance.workspace_id, db as never),
+    ]);
+    const complianceChecks = validateWorkflowCompliance(
+      parsedSchema.data as unknown as ProgramSchema,
+      workspaceCompliance,
+      providerContext,
+      programForCompliance
+    );
+    if (hasBlockingComplianceChecks(complianceChecks)) {
+      return NextResponse.json(
+        {
+          error: "COMPLIANCE_CHECKS_FAILED",
+          message: "Resolve the blocked or reviewer-required compliance checks before publishing.",
+          compliance_checks: complianceChecks,
+        },
+        { status: 422 }
+      );
+    }
+
     const { count } = await db
       .from("runs")
       .select("id", { count: "exact", head: true })
