@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
@@ -17,7 +17,7 @@ const inter = Inter({
 
 // Hardcode the canonical domain — never rely solely on env var for metadataBase
 // because it may not be set at build time, breaking absolute OG image URLs.
-const SITE_URL = "https://corelyx.app";
+const SITE_URL = "https://www.corelyx.app";
 
 const OG_DESCRIPTION =
   "Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself.";
