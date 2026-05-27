@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import LandingPage from "./_landing/LandingPage";
 
-const SITE_URL = "https://corelyx.app";
+const SITE_URL = "https://www.corelyx.app";
 const DESCRIPTION =
   "Build AI agent workflows visually, inspect before running, and gate sensitive steps with human approval. GDPR-native automation built for EU-facing teams.";
 

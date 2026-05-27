@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 import {
@@ -20,8 +20,8 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
     "How Corelyx processes personal data, including its processor inventory, legal bases, and data transfer notes.",
-  alternates: { canonical: "https://corelyx.app/privacy" },
-  openGraph: { url: "https://corelyx.app/privacy" },
+  alternates: { canonical: "https://www.corelyx.app/privacy" },
+  openGraph: { url: "https://www.corelyx.app/privacy" },
 };
 
 const sections = [

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 import {
@@ -9,8 +9,8 @@ import {
 export const metadata: Metadata = {
   title: "Impressum",
   description: "Provider identification and contact information for the Corelyx website.",
-  alternates: { canonical: "https://corelyx.app/impressum" },
-  openGraph: { url: "https://corelyx.app/impressum" },
+  alternates: { canonical: "https://www.corelyx.app/impressum" },
+  openGraph: { url: "https://www.corelyx.app/impressum" },
 };
 
 export default async function ImpressumPage() {
