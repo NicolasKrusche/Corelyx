@@ -1,6 +1,6 @@
-import type { MetadataRoute } from "next";
+﻿import type { MetadataRoute } from "next";
 
-const BASE = "https://corelyx.app";
+const BASE = "https://www.corelyx.app";
 
 // Hardcoded lastmod dates — update when page content significantly changes.
 // Using dynamic Date.now() causes Googlebot to see every page as "updated today"

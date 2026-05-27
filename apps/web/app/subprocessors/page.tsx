@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 import {
@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   title: "Subprocessors",
   description:
     "Public subprocessor registry for Corelyx infrastructure, connected services, and optional AI model providers.",
-  alternates: { canonical: "https://corelyx.app/subprocessors" },
-  openGraph: { url: "https://corelyx.app/subprocessors" },
+  alternates: { canonical: "https://www.corelyx.app/subprocessors" },
+  openGraph: { url: "https://www.corelyx.app/subprocessors" },
 };
 
 function RegistrySection({
