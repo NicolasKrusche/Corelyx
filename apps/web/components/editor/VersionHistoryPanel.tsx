@@ -204,7 +204,11 @@ export function VersionHistoryPanel({
         {!isLoading && !error && versions.length > 0 && (
           <ul className="divide-y divide-border">
             {versions.map((v) => {
-              const isCurrent = v.version === currentVersion;
+              // The versions list is fetched from the DB ordered by version DESC,
+              // so versions[0] is always the latest saved snapshot. Use that as
+              // the source of truth rather than the schema-embedded version_history
+              // (which uses a separate numbering system and goes stale after rollbacks).
+              const isCurrent = v.version === versions[0].version;
               const isGenesis = v.version === 0;
               const isRestoring = restoringVersion === v.version;
 

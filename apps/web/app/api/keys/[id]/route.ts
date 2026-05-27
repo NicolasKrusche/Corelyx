@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { vaultRetrieve, vaultDelete } from "@/lib/vault";
 import { canContributeToWorkspace, getWorkspaceRole } from "@/lib/workspaces";
+import { serverLog } from "@/lib/server-log";
 
 // DELETE /api/keys/:id
 export async function DELETE(
@@ -34,8 +35,7 @@ export async function DELETE(
     const serviceClient = createServiceClient();
     await vaultDelete(serviceClient, keyRow.vault_secret_id);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown vault deletion error";
-    console.error(`[keys.delete] Vault delete failed for key ${params.id}: ${message}`);
+    serverLog({ level: "error", event: "keys.delete.vault_failed", message: "Vault delete failed; key row not removed." });
     return apiError("Failed to delete key secret from vault. Key was not deleted.", 502);
   }
 

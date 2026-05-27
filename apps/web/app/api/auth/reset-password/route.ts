@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
+import { serverLog } from "@/lib/server-log";
 
 export async function POST(req: NextRequest) {
   const limited = await enforcePublicEndpointRateLimit(req, "reset-password", 5, 60_000);
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       // Log but always return ok to prevent email enumeration
-      console.error("[auth/reset-password] generateLink error:", error.message);
+      serverLog({ level: "error", event: "auth.reset_password.generate_link_failed", message: "generateLink returned an error; returning ok to prevent email enumeration." });
       return NextResponse.json({ ok: true });
     }
 
@@ -38,13 +39,13 @@ export async function POST(req: NextRequest) {
     try {
       await sendPasswordResetEmail({ to: email, resetUrl });
     } catch (emailErr) {
-      console.error("[auth/reset-password] Resend error:", emailErr);
+      serverLog({ level: "error", event: "auth.reset_password.email_send_failed", message: "Password reset email could not be sent via Resend." });
       // Still return ok — user can contact support if needed
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[auth/reset-password] Unexpected error:", err);
+    serverLog({ level: "error", event: "auth.reset_password.unexpected_error", message: "Unexpected error in reset-password handler." });
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

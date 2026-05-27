@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { vaultStore, vaultDelete } from "@/lib/vault";
+import { serverLog } from "@/lib/server-log";
 import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 
 // DELETE /api/env-vars/[id] — remove an env var and its vault secret.
@@ -40,7 +41,7 @@ export async function DELETE(
   try {
     await vaultDelete(serviceClient, row.vault_secret_id);
   } catch (err) {
-    console.error("[env-vars/delete] vault delete failed:", err);
+    serverLog({ level: "error", event: "env_vars.delete.vault_failed", message: "Vault delete failed; env var row not removed." });
     return apiError("Failed to remove value from vault. The variable was not deleted.", 500);
   }
 

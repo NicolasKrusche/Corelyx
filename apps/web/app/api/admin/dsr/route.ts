@@ -5,6 +5,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { writeAppLog } from "@/lib/app-logs";
 import { sendDsrResponseEmail } from "@/lib/email";
 import { createServerClient } from "@/lib/supabase/server";
+import { serverLog } from "@/lib/server-log";
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
   access: "Right of Access (Art. 15 GDPR)",
@@ -151,7 +152,7 @@ export async function PATCH(request: Request) {
         typeLabel: REQUEST_TYPE_LABELS[row.request_type] ?? row.request_type,
         status: row.status as "completed" | "rejected" | "waiting_on_user",
         responseSummary,
-      }).catch((err) => console.warn("[admin/dsr] response email failed:", err));
+      }).catch(() => serverLog({ level: "warn", event: "admin.dsr.response_email_failed", message: "DSR response email could not be sent." }));
     }
   }
 

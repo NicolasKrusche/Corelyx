@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { getStripeClient } from "@/lib/stripe";
 import { vaultDelete } from "@/lib/vault";
+import { serverLog } from "@/lib/server-log";
 
 const CANCELABLE_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "paused"]);
 
@@ -144,7 +145,7 @@ export async function DELETE() {
   });
 
   if (auditError) {
-    console.warn("[account-deletion] failed to write deletion audit:", auditError.message);
+    serverLog({ level: "warn", event: "account.deletion.audit_write_failed", message: "Failed to write deletion audit log entry." });
   }
 
   return NextResponse.json({

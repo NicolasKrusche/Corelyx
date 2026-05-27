@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
+export type AiEditMode = "personal" | "platform";
+
 interface AiEditPanelProps {
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -13,6 +15,10 @@ interface AiEditPanelProps {
   loading: boolean;
   error: string | null;
   hasApiKeys: boolean;
+  mode: AiEditMode;
+  onModeChange: (mode: AiEditMode) => void;
+  /** Display cost in USD for the platform key path (e.g. 20.0) */
+  platformRateUsd: number;
 }
 
 export function AiEditPanel({
@@ -23,7 +29,14 @@ export function AiEditPanel({
   loading,
   error,
   hasApiKeys,
+  mode,
+  onModeChange,
+  platformRateUsd,
 }: AiEditPanelProps) {
+  const canSubmitPersonal = hasApiKeys && mode === "personal";
+  const canSubmitPlatform = mode === "platform";
+  const canSubmit = canSubmitPersonal || canSubmitPlatform;
+
   return (
     <aside
       className={cn(
@@ -56,9 +69,61 @@ export function AiEditPanel({
 
       {/* Body */}
       <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto">
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Describe the change you want. Genesis will update the program while preserving what stays the same. This counts toward your Genesis AI usage.
-        </p>
+
+        {/* Mode selector */}
+        <div className="flex rounded-lg border border-border overflow-hidden text-[11px] font-medium">
+          <button
+            type="button"
+            disabled={!hasApiKeys}
+            onClick={() => onModeChange("personal")}
+            className={cn(
+              "flex-1 py-1.5 transition-colors",
+              mode === "personal"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:text-foreground",
+              !hasApiKeys && "opacity-40 cursor-not-allowed"
+            )}
+          >
+            My API key
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("platform")}
+            className={cn(
+              "flex-1 py-1.5 border-l border-border transition-colors",
+              mode === "platform"
+                ? "bg-purple-600 text-white"
+                : "bg-background text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Corelyx AI
+          </button>
+        </div>
+
+        {mode === "personal" && !hasApiKeys && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            No API key found.{" "}
+            <a href="/api-keys" className="underline font-medium">
+              Add one
+            </a>{" "}
+            or switch to Corelyx AI below.
+          </p>
+        )}
+
+        {mode === "platform" && (
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Uses the Corelyx platform model.{" "}
+            <span className="font-medium text-foreground">${platformRateUsd.toFixed(2)} in credits</span>{" "}
+            will be deducted from your balance.
+          </p>
+        )}
+
+        {mode === "personal" && (
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Runs against your own API key. This counts toward your Genesis AI usage.
+          </p>
+        )}
+
         <Textarea
           rows={6}
           className="text-sm resize-none"
@@ -67,21 +132,13 @@ export function AiEditPanel({
           onChange={(e) => onPromptChange(e.target.value)}
           disabled={loading}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !loading && prompt.trim()) {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !loading && prompt.trim() && canSubmit) {
               e.preventDefault();
               onSubmit();
             }
           }}
         />
-        {!hasApiKeys && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            No API key found. Add one in{" "}
-            <a href="/api-keys" className="underline font-medium">
-              API Keys
-            </a>{" "}
-            before using Edit with AI.
-          </p>
-        )}
+
         {error && (
           <p className="text-[11px] text-destructive">{error}</p>
         )}
@@ -91,8 +148,13 @@ export function AiEditPanel({
       <div className="px-3 py-2.5 border-t border-border shrink-0 space-y-1.5">
         <Button
           onClick={onSubmit}
-          disabled={loading || !prompt.trim() || !hasApiKeys}
-          className="w-full gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+          disabled={loading || !prompt.trim() || !canSubmit}
+          className={cn(
+            "w-full gap-1.5",
+            mode === "platform"
+              ? "bg-purple-600 hover:bg-purple-700 text-white"
+              : "bg-primary hover:bg-primary/90 text-primary-foreground"
+          )}
           size="sm"
         >
           {loading ? (
@@ -103,6 +165,8 @@ export function AiEditPanel({
               </svg>
               Editing…
             </>
+          ) : mode === "platform" ? (
+            `Apply edit · $${platformRateUsd.toFixed(2)}`
           ) : (
             "Apply edit"
           )}

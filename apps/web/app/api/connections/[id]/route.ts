@@ -3,6 +3,7 @@ import type { ProgramSchema } from "@flowos/schema";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { vaultDelete } from "@/lib/vault";
+import { serverLog } from "@/lib/server-log";
 import { getValidOAuthToken } from "@/lib/oauth-token";
 import { getPrimaryConnectionName } from "@/lib/connection-utils";
 import { canContributeToWorkspace, getWorkspaceRole } from "@/lib/workspaces";
@@ -57,8 +58,7 @@ export async function DELETE(
     const serviceClient = createServiceClient();
     await vaultDelete(serviceClient, row.vault_secret_id);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown vault deletion error";
-    console.error(`[connections.delete] Vault delete failed for connection ${params.id}: ${message}`);
+    serverLog({ level: "error", event: "connections.delete.vault_failed", message: "Vault delete failed; connection row not removed." });
     return apiError("Failed to delete connection secret from vault. Connection was not deleted.", 502);
   }
 
