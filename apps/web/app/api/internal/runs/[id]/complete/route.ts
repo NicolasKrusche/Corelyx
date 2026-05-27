@@ -12,6 +12,7 @@ import {
 } from "@/lib/runtime-dispatch";
 import { getProcessingRestriction } from "@/lib/compliance";
 import { recordTriggerEvent } from "@/lib/trigger-events";
+import { serverLog } from "@/lib/server-log";
 
 /**
  * POST /api/internal/runs/[id]/complete
@@ -94,7 +95,7 @@ export async function POST(
         });
       }
     } catch (err) {
-      console.error("[complete] Failed to send failure email:", err);
+      serverLog({ level: "error", event: "runs.complete.failure_email_send_failed", message: "Run failure notification email could not be sent." });
     }
   }
 

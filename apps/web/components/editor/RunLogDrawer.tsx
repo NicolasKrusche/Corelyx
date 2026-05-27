@@ -151,7 +151,9 @@ interface RunLogDrawerProps {
   onClose: () => void;
 }
 
-const TERMINAL = new Set(["completed", "failed", "cancelled"]);
+// Covers runtime values ("completed", "cancelled") and schema-defined terminal
+// states ("success", "partial") so the Live badge and elapsed timer stop reliably.
+const TERMINAL = new Set(["completed", "success", "partial", "failed", "cancelled"]);
 
 // ─── RunLogDrawer ─────────────────────────────────────────────────────────────
 

@@ -32,11 +32,14 @@ import {
 import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, writeAppLog } from "@/lib/app-logs";
+import { serverLog } from "@/lib/server-log";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
 
-// Fixed credit charge per Genesis generation/refinement using the Corelyx platform key.
+// Fixed credit charge per Genesis generation using the Corelyx platform key.
 const GENESIS_PLATFORM_RATE_USD = 2.0;
+// AI edit (refinement) via platform key — flat $1.00 per edit.
+const GENESIS_EDIT_PLATFORM_RATE_USD = 1.0;
 import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
@@ -266,10 +269,13 @@ export async function POST(request: Request) {
       return loggedApiError("Platform AI key is not available.", 503, "genesis.platform_key_unavailable");
     }
     // Check the user has enough credits before we spend anything.
+    // Refinements (existing_schema present) cost 10× the standard generation rate.
+    const isRefinement = !!parsed.data.existing_schema;
+    const requiredCredits = isRefinement ? GENESIS_EDIT_PLATFORM_RATE_USD : GENESIS_PLATFORM_RATE_USD;
     const balance = await getUserCreditBalance(userId);
-    if (balance.total < GENESIS_PLATFORM_RATE_USD) {
+    if (balance.total < requiredCredits) {
       return NextResponse.json(
-        { error: "INSUFFICIENT_CREDITS", message: `At least $${GENESIS_PLATFORM_RATE_USD.toFixed(2)} in credits is required to use the Corelyx platform key.` },
+        { error: "INSUFFICIENT_CREDITS", message: `At least $${requiredCredits.toFixed(2)} in credits is required to use the Corelyx platform key for ${isRefinement ? "AI edits" : "generation"}.` },
         { status: 402 }
       );
     }
@@ -383,7 +389,7 @@ export async function POST(request: Request) {
       );
     }
   } catch (err) {
-    console.warn("[genesis] EU compliance pre-filter skipped:", (err as Error).message);
+    serverLog({ level: "warn", event: "genesis.eu_compliance_filter.skipped", message: "EU compliance pre-filter skipped due to an error." });
   }
 
   // Step 2: Build the Genesis user message including any EU compliance context.
@@ -414,7 +420,7 @@ export async function POST(request: Request) {
         ? currentKeyRow.vault_secret_id
         : await vaultRetrieve(serviceClient, currentKeyRow.vault_secret_id);
     } catch (err) {
-      console.warn(`[genesis] Vault retrieve failed for key ${currentKeyRow.id}:`, (err as Error).message);
+      serverLog({ level: "warn", event: "genesis.vault.retrieve_failed", message: "Vault retrieve failed for a key candidate; skipping." });
       continue;
     }
 
@@ -481,7 +487,7 @@ export async function POST(request: Request) {
           // Key-level failure — skip remaining models for this key and try next key
           if (isKeyError(err)) {
             const errMsg = (err as Error).message ?? String(err);
-            console.warn(`[genesis] Key error for provider=${currentKeyRow.provider}, trying next key:`, errMsg);
+            serverLog({ level: "warn", event: "genesis.key.auth_error_fallback", message: "API key auth error; falling back to next key candidate.", details: { provider: currentKeyRow.provider } });
             break modelAttemptLoop;
           }
 
@@ -527,7 +533,7 @@ export async function POST(request: Request) {
 
           const errMsg = (err as Error).message ?? String(err);
           const causeMsg = (err as { cause?: { message?: string } })?.cause?.message;
-          console.error(`[genesis] Model call failed — provider=${currentKeyRow.provider} model=${candidateModel}:`, causeMsg ?? errMsg);
+          serverLog({ level: "error", event: "genesis.model.call_failed", message: "Model call failed.", details: { provider: currentKeyRow.provider, model: candidateModel } });
           if (isPromptTooLarge(err)) {
             if (keyIndex < keyCandidates.length - 1) break modelAttemptLoop; // try next key
             return loggedApiError(
@@ -588,12 +594,12 @@ export async function POST(request: Request) {
   } catch {
     // Layer 2 — structural repair
     try {
-      console.warn("[genesis] Layer-1 parse failed — attempting jsonrepair");
+      serverLog({ level: "warn", event: "genesis.parse.layer1_failed", message: "Layer-1 JSON parse failed; attempting jsonrepair." });
       parsed_schema = JSON.parse(jsonrepair(extractJson(rawText)));
       parseOk = true;
     } catch {
       // Layer 3 — repair prompt
-      console.warn("[genesis] jsonrepair failed — sending repair prompt to model");
+      serverLog({ level: "warn", event: "genesis.parse.jsonrepair_failed", message: "jsonrepair failed; sending repair prompt to model." });
       try {
         const repairPrompt =
           `The text below is a malformed or truncated JSON schema. ` +
@@ -629,13 +635,13 @@ export async function POST(request: Request) {
         parsed_schema = tryParse(repairedText);
         parseOk = true;
       } catch (repairErr) {
-        console.error("[genesis] All three parse layers failed:", (repairErr as Error).message);
+        serverLog({ level: "error", event: "genesis.parse.all_layers_failed", message: "All three parse layers failed." });
       }
     }
   }
 
   if (!parseOk) {
-    console.error(`[genesis] Failed to parse JSON. Output length: ${rawText?.length ?? 0}`);
+    serverLog({ level: "error", event: "genesis.parse.failed", message: "Failed to parse model output as JSON.", details: { output_length: rawText?.length ?? 0 } });
     await logGenesis(
       "error",
       "genesis.invalid_json",
@@ -689,7 +695,7 @@ export async function POST(request: Request) {
   const draftResult = validateProgramDraft(parsed_schema);
   if (!draftResult.success) {
     const message = getDraftValidationMessage(draftResult.error);
-    console.error("[genesis] Draft validation failed:", JSON.stringify(draftResult.error.flatten(), null, 2));
+    serverLog({ level: "error", event: "genesis.validation.draft_failed", message: "Draft schema validation failed after generation." });
     await logGenesis(
       "error",
       "genesis.draft_validation_failed",
@@ -769,7 +775,7 @@ export async function POST(request: Request) {
       change_summary: `Refined — ${refinement!.slice(0, 120)}`,
     } as unknown as never);
     if (versionErr) {
-      console.error("[genesis] Failed to store refinement version:", versionErr.message);
+      serverLog({ level: "error", event: "genesis.refinement.version_insert_failed", message: "Failed to store refinement version snapshot." });
       await logGenesis(
         "warning",
         "genesis.refinement_version_snapshot_failed",
@@ -794,7 +800,7 @@ export async function POST(request: Request) {
       existing_program_id
     );
     await incrementGenesisUses(userId, workspaceId);
-    if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_USD);
+    if (usePlatformKey) await deductUserCredits(userId, GENESIS_EDIT_PLATFORM_RATE_USD);
     return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
   }
 
@@ -837,7 +843,7 @@ export async function POST(request: Request) {
     created_by: userId,
   } as unknown as never);
   if (membershipErr) {
-    console.error("[genesis] Failed to grant creator editor access:", membershipErr.message);
+    serverLog({ level: "error", event: "genesis.create.membership_insert_failed", message: "Failed to insert creator membership; program was created." });
     await logGenesis(
       "warning",
       "genesis.creator_membership_failed",
@@ -854,7 +860,7 @@ export async function POST(request: Request) {
       toProgramConnectionLinks(program.id, connectionRows) as unknown as never
     );
     if (connLinkErr) {
-      console.error("[genesis] Failed to link connections:", connLinkErr.message);
+      serverLog({ level: "error", event: "genesis.create.connection_link_failed", message: "Failed to link connections to generated program." });
       await logGenesis(
         "warning",
         "genesis.connection_link_failed",
@@ -874,7 +880,7 @@ export async function POST(request: Request) {
     change_summary: "Genesis - AI-generated from description",
   } as unknown as never);
   if (versionErr) {
-    console.error("[genesis] Failed to store version snapshot:", versionErr.message);
+    serverLog({ level: "error", event: "genesis.create.version_insert_failed", message: "Failed to store genesis version snapshot." });
     await logGenesis(
       "warning",
       "genesis.version_snapshot_failed",

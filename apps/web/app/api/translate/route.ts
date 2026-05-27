@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
+import { serverLog } from "@/lib/server-log";
 
 // DeepL is an EU-based (German) translation provider, GDPR-compliant.
 // Free tier: api-free.deepl.com (500K chars/month). Paid: api.deepl.com.
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
     } catch {
       // ignore
     }
-    console.error("[translate] DeepL error:", errMsg);
+    serverLog({ level: "error", event: "translate.deepl_error", message: "DeepL API returned a non-OK response." });
     return apiError(errMsg, 502);
   }
 

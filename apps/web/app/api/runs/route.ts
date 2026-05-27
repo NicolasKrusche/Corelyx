@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { serverLog } from "@/lib/server-log";
 import {
   buildRuntimeExecuteHeaders,
   formatRuntimeRejection,
@@ -174,7 +175,7 @@ export async function POST(request: Request) {
     .single();
 
   if (runError || !runRaw) {
-    console.error("[/api/runs] insert failed:", runError);
+    serverLog({ level: "error", event: "runs.create.insert_failed", message: "Run row insert failed." });
     return apiError(`Failed to create run${runError?.message ? `: ${runError.message}` : ""}`, 500);
   }
 

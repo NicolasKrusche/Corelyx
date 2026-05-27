@@ -6,6 +6,7 @@ import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { checkProgramLimit } from "@/lib/limits";
+import { serverLog } from "@/lib/server-log";
 import {
   getDraftValidationMessage,
   normalizeProgramDraft,
@@ -176,14 +177,14 @@ export async function POST(request: Request) {
     created_by: user.id,
   } as unknown as never);
   if (membershipError) {
-    console.error("[program import] Failed to grant creator editor access:", membershipError.message);
+    serverLog({ level: "error", event: "programs.import.membership_insert_failed", message: "Failed to insert creator membership; program was imported." });
   }
 
   if (matchedConnections.length > 0) {
     const { error: linkError } = await serviceClient.from("program_connections").insert(
       matchedConnections.map((conn) => ({ program_id: program.id, connection_id: conn.id })) as unknown as never
     );
-    if (linkError) console.error("[program import] Failed to link connections:", linkError.message);
+    if (linkError) serverLog({ level: "error", event: "programs.import.connection_link_failed", message: "Failed to link connections to imported program." });
   }
 
   const { error: versionErr } = await serviceClient.from("program_versions").insert({
@@ -193,7 +194,7 @@ export async function POST(request: Request) {
     change_summary: "Imported from JSON",
   } as unknown as never);
 
-  if (versionErr) console.error("[program import] Failed to store version snapshot:", versionErr.message);
+  if (versionErr) serverLog({ level: "error", event: "programs.import.version_insert_failed", message: "Failed to store version snapshot for imported program." });
 
   const linkedConnectionNames = new Set(matchedConnections.map((conn) => conn.name));
   const missingConnectionNames = referencedConnectionNames.filter((name) => !linkedConnectionNames.has(name));
