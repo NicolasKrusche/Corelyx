@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
 import { sendDuplicateSignupEmail, sendWelcomeEmail } from "@/lib/email";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
+import { serverLog } from "@/lib/server-log";
 
 export async function POST(req: NextRequest) {
   const limited = await enforcePublicEndpointRateLimit(req, "signup", 10, 60_000);
@@ -44,12 +45,12 @@ export async function POST(req: NextRequest) {
     try {
       await sendWelcomeEmail({ to: email });
     } catch (emailErr) {
-      console.warn("[auth/signup] Welcome email failed:", emailErr);
+      serverLog({ level: "warn", event: "auth.signup.welcome_email_failed", message: "Welcome email could not be sent; signup succeeded." });
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[auth/signup] Unexpected error:", err);
+    serverLog({ level: "error", event: "auth.signup.unexpected_error", message: "Unexpected error in signup handler." });
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

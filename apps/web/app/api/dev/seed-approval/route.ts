@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { serverLog } from "@/lib/server-log";
 
 // POST /api/dev/seed-approval
 // Dev-only: creates a fake program → run → node_execution → approval
@@ -41,7 +42,7 @@ export async function POST() {
     .single();
 
   if (programErr || !program) {
-    console.error("[seed-approval] program insert failed:", programErr);
+    serverLog({ level: "error", event: "dev.seed_approval.program_insert_failed", message: "Dev seed: program insert failed." });
     return apiError(programErr?.message ?? "Failed to create program", 500);
   }
 
@@ -58,7 +59,7 @@ export async function POST() {
     .single();
 
   if (runErr || !run) {
-    console.error("[seed-approval] run insert failed:", runErr);
+    serverLog({ level: "error", event: "dev.seed_approval.run_insert_failed", message: "Dev seed: run insert failed." });
     return apiError(runErr?.message ?? "Failed to create run", 500);
   }
 
@@ -80,7 +81,7 @@ export async function POST() {
     .single();
 
   if (nodeErr || !nodeExec) {
-    console.error("[seed-approval] node_execution insert failed:", nodeErr);
+    serverLog({ level: "error", event: "dev.seed_approval.node_execution_insert_failed", message: "Dev seed: node_execution insert failed." });
     return apiError(nodeErr?.message ?? "Failed to create node execution", 500);
   }
 
@@ -106,7 +107,7 @@ export async function POST() {
     .single();
 
   if (approvalErr || !approval) {
-    console.error("[seed-approval] approval insert failed:", approvalErr);
+    serverLog({ level: "error", event: "dev.seed_approval.approval_insert_failed", message: "Dev seed: approval insert failed." });
     return apiError(approvalErr?.message ?? "Failed to create approval", 500);
   }
 

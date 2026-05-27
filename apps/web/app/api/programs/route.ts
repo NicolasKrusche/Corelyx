@@ -6,6 +6,7 @@ import { checkProgramLimit } from "@/lib/limits";
 import { buildBlankProgramSchema } from "@/lib/programs/blank-schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
+import { serverLog } from "@/lib/server-log";
 
 const CreateProgramBodyZ = z.object({
   mode: z.literal("blank").default("blank"),
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
     created_by: user.id,
   } as unknown as never);
   if (membershipError) {
-    console.error("[/api/programs] Failed to grant creator editor access:", membershipError.message);
+    serverLog({ level: "error", event: "programs.create.membership_insert_failed", message: "Failed to insert creator membership; program was created." });
   }
 
   const validation = validatePostGenesis(schema, []);
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
   } as unknown as never);
 
   if (versionError) {
-    console.error("[/api/programs] Failed to store blank program snapshot:", versionError.message);
+    serverLog({ level: "error", event: "programs.create.version_insert_failed", message: "Failed to store initial version snapshot; program was created." });
   }
 
   return NextResponse.json(

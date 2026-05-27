@@ -43,6 +43,7 @@ import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
 import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/components/editor/NodePalettePanel";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
+import type { AiEditMode } from "@/components/editor/AiEditPanel";
 import { RawSchemaPanel } from "@/components/editor/RawSchemaPanel";
 import { useRawSchemaMode } from "@/lib/raw-schema-mode";
 
@@ -377,6 +378,7 @@ export function EditorShell({
   const [aiEditPrompt, setAiEditPrompt] = React.useState("");
   const [aiEditLoading, setAiEditLoading] = React.useState(false);
   const [aiEditError, setAiEditError] = React.useState<string | null>(null);
+  const [aiEditMode, setAiEditMode] = React.useState<"personal" | "platform">("personal");
 
   const [isValidating, setIsValidating] = React.useState(false);
   const [validationNotice, setValidationNotice] = React.useState<string | null>(null);
@@ -851,10 +853,18 @@ export function EditorShell({
   const [currentRunStatus, setCurrentRunStatus] = React.useState("idle");
   const [currentRunStartedAt, setCurrentRunStartedAt] = React.useState<string | null>(null);
 
+  // Ref mirror so the poll interval always reads the latest status without
+  // needing to be recreated on every status change (avoids stale closure bug).
+  const currentRunStatusRef = React.useRef(currentRunStatus);
+  React.useEffect(() => { currentRunStatusRef.current = currentRunStatus; }, [currentRunStatus]);
+
   useEffect(() => {
     if (!lastRunId) return;
     const supabase = createBrowserClient();
-    const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
+    // Covers both runtime values ("completed", "cancelled") and schema-defined
+    // terminal states ("success", "partial") so the poll stops regardless of
+    // which value the runtime or a future code path writes.
+    const TERMINAL_STATUSES = new Set(["completed", "success", "partial", "failed", "cancelled"]);
 
     const fetchExecs = async () => {
       const { data } = await supabase
@@ -878,7 +888,7 @@ export function EditorShell({
       .subscribe();
 
     const poll = setInterval(() => {
-      if (TERMINAL_STATUSES.has(currentRunStatus)) {
+      if (TERMINAL_STATUSES.has(currentRunStatusRef.current)) {
         clearInterval(poll);
         return;
       }
@@ -1295,32 +1305,48 @@ export function EditorShell({
     const prompt = aiEditPrompt.trim();
     if (!prompt) return;
 
-    const bestKey = [...apiKeys].sort(
-      (a, b) => (PROVIDER_PRIORITY[a.provider] ?? 99) - (PROVIDER_PRIORITY[b.provider] ?? 99)
-    )[0];
-
-    if (!bestKey) {
-      setAiEditError("Add an API key before asking AI to edit this workflow.");
-      return;
-    }
-
-    const model = DEFAULT_MODELS[bestKey.provider] ?? "claude-sonnet-4-6";
     setAiEditLoading(true);
     setAiEditError(null);
+
+    let requestBody: Record<string, unknown>;
+
+    if (aiEditMode === "platform") {
+      requestBody = {
+        description: state.schema.program_name,
+        connection_ids: linkedConnections.map((c) => c.id),
+        use_platform_key: true,
+        existing_schema: state.schema,
+        refinement: prompt,
+        existing_program_id: programId,
+      };
+    } else {
+      const bestKey = [...apiKeys].sort(
+        (a, b) => (PROVIDER_PRIORITY[a.provider] ?? 99) - (PROVIDER_PRIORITY[b.provider] ?? 99)
+      )[0];
+
+      if (!bestKey) {
+        setAiEditError("Add an API key, or switch to Corelyx AI to edit this workflow.");
+        setAiEditLoading(false);
+        return;
+      }
+
+      const model = DEFAULT_MODELS[bestKey.provider] ?? "claude-sonnet-4-6";
+      requestBody = {
+        description: state.schema.program_name,
+        connection_ids: linkedConnections.map((c) => c.id),
+        api_key_id: bestKey.id,
+        model,
+        existing_schema: state.schema,
+        refinement: prompt,
+        existing_program_id: programId,
+      };
+    }
 
     try {
       const res = await fetch("/api/genesis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: state.schema.program_name,
-          connection_ids: linkedConnections.map((c) => c.id),
-          api_key_id: bestKey.id,
-          model,
-          existing_schema: state.schema,
-          refinement: prompt,
-          existing_program_id: programId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await res.json().catch(() => null);
@@ -1349,7 +1375,7 @@ export function EditorShell({
       setAiEditLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiEditPrompt, apiKeys, linkedConnections, programId, state.schema]);
+  }, [aiEditMode, aiEditPrompt, apiKeys, linkedConnections, programId, state.schema]);
 
   // ── Run ───────────────────────────────────────────────────────────────────
 
@@ -1551,7 +1577,12 @@ export function EditorShell({
           const opening = !showAiEdit;
           setShowAiEdit(opening);
           setAiEditError(null);
-          if (opening) { setShowPalette(false); setShowRawSchema(false); }
+          if (opening) {
+            setShowPalette(false);
+            setShowRawSchema(false);
+            // Default to platform mode when no personal API keys are available
+            if (apiKeys.length === 0) setAiEditMode("platform");
+          }
         }}
         onTestWebhook={hasWebhookTrigger ? () => setShowWebhookTest(true) : undefined}
         showRawSchema={rawSchemaEnabled && showRawSchema}
@@ -1586,6 +1617,9 @@ export function EditorShell({
           loading={aiEditLoading}
           error={aiEditError}
           hasApiKeys={apiKeys.length > 0}
+          mode={aiEditMode}
+          onModeChange={(m: AiEditMode) => { setAiEditMode(m); setAiEditError(null); }}
+          platformRateUsd={1}
         />
       )}
 

@@ -6,6 +6,7 @@ import { verifyGooglePubSubOidc } from "@/lib/pubsub-auth";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import { readBoundedJsonBody } from "@/lib/request-body";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
+import { serverLog } from "@/lib/server-log";
 
 type GmailConnectionRow = {
   id: string;
@@ -34,13 +35,13 @@ export async function POST(request: Request) {
 
   const audience = process.env.PUBSUB_GMAIL_WEBHOOK_AUDIENCE;
   if (!audience) {
-    console.error("[gmail-webhook] PUBSUB_GMAIL_WEBHOOK_AUDIENCE not configured");
+    serverLog({ level: "error", event: "webhooks.gmail.missing_config", message: "PUBSUB_GMAIL_WEBHOOK_AUDIENCE env var is not set." });
     return apiError("Webhook not configured", 500);
   }
 
   const serviceAccountEmail = process.env.PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL;
   if (!serviceAccountEmail) {
-    console.error("[gmail-webhook] PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL not configured");
+    serverLog({ level: "error", event: "webhooks.gmail.missing_config", message: "PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL env var is not set." });
     return apiError("Webhook not configured", 500);
   }
 
