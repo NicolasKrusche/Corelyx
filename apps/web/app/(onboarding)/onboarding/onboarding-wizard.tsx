@@ -427,7 +427,7 @@ export function OnboardingWizard({
         </div>
 
         <p className="mt-6 text-center text-[11px] text-muted-foreground/40">
-          GDPR-native · Data never leaves the EU
+          EU-first controls · EU-only mode for eligible workflows
         </p>
       </div>
     </div>

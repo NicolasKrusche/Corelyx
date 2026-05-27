@@ -17,6 +17,11 @@ import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import { resolveWorkspaceEnvVars } from "@/lib/env-vars";
+import { loadWorkspaceComplianceSettings } from "@/lib/compliance/server";
+import {
+  hasBlockingComplianceChecks,
+  validateWorkflowCompliance,
+} from "@/lib/compliance/workflow";
 
 // POST /api/runs — create a run and dispatch to runtime
 export async function POST(request: Request) {
@@ -39,7 +44,7 @@ export async function POST(request: Request) {
 
   const { data: program, error: progError } = await supabase
     .from("programs")
-    .select("id, schema, user_id, workspace_id")
+    .select("id, schema, user_id, workspace_id, schema_version")
     .eq("id", program_id)
     .single();
 
@@ -68,7 +73,7 @@ export async function POST(request: Request) {
     });
   }
 
-  type ProgramRow = { id: string; schema: unknown; user_id: string };
+  type ProgramRow = { id: string; schema: unknown; user_id: string; schema_version: number | null };
   const prog = program as unknown as ProgramRow;
   const schema = prog.schema as unknown as ProgramSchema;
   const executableSchema = ProgramSchemaZ.safeParse(schema);
@@ -126,14 +131,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Pre-flight checks failed", checks }, { status: 422 });
   }
 
+  const workspaceCompliance = await loadWorkspaceComplianceSettings(programWorkspaceId, serviceClient);
+  const complianceChecks = validateWorkflowCompliance(
+    runnableSchema,
+    workspaceCompliance,
+    { connections, apiKeys }
+  );
+  if (hasBlockingComplianceChecks(complianceChecks)) {
+    return NextResponse.json(
+      {
+        error: "Compliance checks failed",
+        message: "This workflow cannot run until blocked compliance checks are resolved.",
+        compliance_checks: complianceChecks,
+      },
+      { status: 422 }
+    );
+  }
+
+  const retentionExpiry = new Date(
+    Date.now() + workspaceCompliance.execution_log_retention_days * 24 * 60 * 60 * 1000
+  ).toISOString();
+
   // fix: select only id to tolerate envs where migration 20240006 (telemetry columns) not yet applied
   const { data: runRaw, error: runError } = await serviceClient
     .from("runs")
     .insert({
       program_id,
+      user_id: user.id,
+      workflow_version: prog.schema_version ?? null,
       triggered_by: "manual",
+      trigger_source: "manual",
       status: "running",
       started_at: new Date().toISOString(),
+      data_region: workspaceCompliance.data_region,
+      policy_checks: complianceChecks,
+      block_warning_reasons: complianceChecks
+        .filter((check) => check.status !== "passed")
+        .map((check) => ({ id: check.id, status: check.status, message: check.message })),
+      retention_expiry: retentionExpiry,
     } as unknown as never)
     .select("id")
     .single();
@@ -164,6 +199,8 @@ export async function POST(request: Request) {
       triggered_by: "manual",
       connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
       env_vars: envVars,
+      compliance_mode: workspaceCompliance.compliance_mode,
+      data_region: workspaceCompliance.data_region,
     });
     const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {

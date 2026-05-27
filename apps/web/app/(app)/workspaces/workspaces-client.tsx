@@ -17,6 +17,15 @@ type Workspace = {
   description: string | null;
   default_program_visibility: "workspace" | "restricted";
   members_can_create_programs: boolean;
+  compliance_mode: "standard" | "eu_only";
+  execution_log_retention_days: number;
+  prompt_retention_days: number;
+  output_retention_days: number;
+  approval_record_retention_days: number;
+  secret_rotation_reminder_days: number;
+  store_full_prompts: boolean;
+  store_full_outputs: boolean;
+  data_region: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -92,6 +101,15 @@ export function WorkspacesClient() {
   const [settingsDescription, setSettingsDescription] = useState("");
   const [settingsDefaultVisibility, setSettingsDefaultVisibility] = useState<"workspace" | "restricted">("workspace");
   const [settingsMembersCanCreate, setSettingsMembersCanCreate] = useState(true);
+  const [settingsComplianceMode, setSettingsComplianceMode] = useState<"standard" | "eu_only">("standard");
+  const [executionLogRetentionDays, setExecutionLogRetentionDays] = useState(90);
+  const [promptRetentionDays, setPromptRetentionDays] = useState(0);
+  const [outputRetentionDays, setOutputRetentionDays] = useState(0);
+  const [approvalRetentionDays, setApprovalRetentionDays] = useState(365);
+  const [secretRotationDays, setSecretRotationDays] = useState(90);
+  const [storeFullPrompts, setStoreFullPrompts] = useState(false);
+  const [storeFullOutputs, setStoreFullOutputs] = useState(false);
+  const [dataRegion, setDataRegion] = useState("eu-central-1");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -164,6 +182,15 @@ export function WorkspacesClient() {
     setSettingsDescription(selectedWorkspace.description ?? "");
     setSettingsDefaultVisibility(selectedWorkspace.default_program_visibility ?? "workspace");
     setSettingsMembersCanCreate(selectedWorkspace.members_can_create_programs ?? true);
+    setSettingsComplianceMode(selectedWorkspace.compliance_mode ?? "standard");
+    setExecutionLogRetentionDays(selectedWorkspace.execution_log_retention_days ?? 90);
+    setPromptRetentionDays(selectedWorkspace.prompt_retention_days ?? 0);
+    setOutputRetentionDays(selectedWorkspace.output_retention_days ?? 0);
+    setApprovalRetentionDays(selectedWorkspace.approval_record_retention_days ?? 365);
+    setSecretRotationDays(selectedWorkspace.secret_rotation_reminder_days ?? 90);
+    setStoreFullPrompts(selectedWorkspace.store_full_prompts ?? false);
+    setStoreFullOutputs(selectedWorkspace.store_full_outputs ?? false);
+    setDataRegion(selectedWorkspace.data_region ?? "eu-central-1");
     void loadMembers(selectedWorkspace.id);
   }, [selectedWorkspace, loadMembers]);
 
@@ -253,6 +280,15 @@ export function WorkspacesClient() {
         description: settingsDescription.trim() || null,
         default_program_visibility: settingsDefaultVisibility,
         members_can_create_programs: settingsMembersCanCreate,
+        compliance_mode: settingsComplianceMode,
+        execution_log_retention_days: executionLogRetentionDays,
+        prompt_retention_days: promptRetentionDays,
+        output_retention_days: outputRetentionDays,
+        approval_record_retention_days: approvalRetentionDays,
+        secret_rotation_reminder_days: secretRotationDays,
+        store_full_prompts: storeFullPrompts,
+        store_full_outputs: storeFullOutputs,
+        data_region: dataRegion.trim() || "eu-central-1",
       }),
     });
     const body = await res.json().catch(() => null) as { workspace?: Workspace; error?: string } | null;
@@ -446,6 +482,9 @@ export function WorkspacesClient() {
                 >
                   <div className="flex items-start gap-3">
                     {workspace.logo_url ? (
+                      // Workspace logos are user-uploaded storage URLs; Next Image
+                      // optimization is not configured for arbitrary tenant domains.
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={workspace.logo_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
                     ) : (
                       <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -532,6 +571,9 @@ export function WorkspacesClient() {
                   <div className="mb-5 flex items-center gap-4">
                     <div className="relative shrink-0">
                       {selectedWorkspace.logo_url ? (
+                        // Workspace logos are user-uploaded storage URLs; Next Image
+                        // optimization is not configured for arbitrary tenant domains.
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={selectedWorkspace.logo_url} alt="" className="h-16 w-16 rounded-xl object-cover" />
                       ) : (
                         <span className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -604,6 +646,82 @@ export function WorkspacesClient() {
                         </label>
                         <p className="mt-1 text-xs text-muted-foreground">When off, only owners and admins can create programs.</p>
                       </div>
+                    </div>
+
+                    <div className="grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Compliance mode</label>
+                        <select
+                          value={settingsComplianceMode}
+                          onChange={(e) => setSettingsComplianceMode(e.target.value as "standard" | "eu_only")}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                        >
+                          <option value="standard">Standard</option>
+                          <option value="eu_only">EU-only</option>
+                        </select>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          EU-only mode blocks providers without verified EU residency, DPA, SCC, and transfer-basis evidence.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Data region label</label>
+                        <input
+                          value={dataRegion}
+                          onChange={(e) => setDataRegion(e.target.value)}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                          placeholder="eu-central-1"
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">Shown in workflow exports and audit records.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      {[
+                        ["Execution log retention", executionLogRetentionDays, setExecutionLogRetentionDays],
+                        ["Prompt retention", promptRetentionDays, setPromptRetentionDays],
+                        ["Output retention", outputRetentionDays, setOutputRetentionDays],
+                        ["Approval retention", approvalRetentionDays, setApprovalRetentionDays],
+                        ["Secret rotation reminder", secretRotationDays, setSecretRotationDays],
+                      ].map(([label, value, setter]) => (
+                        <div key={label as string}>
+                          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{label as string} days</label>
+                          <input
+                            type="number"
+                            min={label === "Prompt retention" || label === "Output retention" ? 0 : 1}
+                            value={value as number}
+                            onChange={(e) => (setter as (next: number) => void)(Number.parseInt(e.target.value || "0", 10))}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={storeFullPrompts}
+                          onChange={(e) => setStoreFullPrompts(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 rounded border-border"
+                        />
+                        <span>
+                          <span className="block text-sm">Allow full prompt logging</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">Off by default for sensitive workflows; hashes and metadata remain available.</span>
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={storeFullOutputs}
+                          onChange={(e) => setStoreFullOutputs(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 rounded border-border"
+                        />
+                        <span>
+                          <span className="block text-sm">Allow full output logging</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">Keep disabled unless a lawful operational need is documented.</span>
+                        </span>
+                      </label>
                     </div>
 
                     <button

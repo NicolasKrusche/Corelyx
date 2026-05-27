@@ -24,6 +24,8 @@ This is the operational runbook. It tells whoever is on call exactly what to do,
 
 ---
 
+Customer-impacting personal data incidents require customer notification within 72 hours where Corelyx is acting as processor and the customer needs the information to meet their own GDPR obligations. If the investigation is incomplete, send a preliminary notice with known facts, affected services, likely data categories, containment status, and the next update time.
+
 ## 1. Roles
 
 | Role | Responsibility | Default holder |

@@ -24,6 +24,14 @@ const severities = [
   ["Low", "90 days", "Verbose errors, deprecated headers, minor hardening"],
 ] as const;
 
+const toms = [
+  ["Access control", "Workspace roles, program-level access checks, server-side credential retrieval, and least-privilege internal endpoints."],
+  ["Encryption and secrets", "TLS in transit, provider-managed encryption at rest, Vault-backed secret references, and no OAuth token return in frontend responses."],
+  ["Logging and retention", "Execution metadata is minimised by default, secrets are redacted, hashes are used for sensitive payload evidence, and retention jobs purge expired data."],
+  ["Secure development", "Schema validation, request-body validation, branch/PR review practices, dependency scanning, and focused tests for schema translation and security-sensitive flows."],
+  ["Incident handling", "Severity-based response targets, private vulnerability intake, and customer breach notification procedures documented in the incident response materials."],
+] as const;
+
 export default async function SecurityPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -71,6 +79,47 @@ export default async function SecurityPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-border bg-card/60 p-5">
+          <h2 className="text-base font-semibold text-foreground">Security overview and TOMs</h2>
+          <div className="mt-4 divide-y divide-border/70">
+            {toms.map(([title, body]) => (
+              <div key={title} className="grid gap-2 py-3 sm:grid-cols-[180px_1fr]">
+                <p className="text-sm font-medium text-foreground">{title}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-border bg-card/60 p-5">
+          <h2 className="text-base font-semibold text-foreground">Assurance and certification status</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Corelyx is not currently ISO 27001 or SOC 2 certified. We are
+            evaluating external certification as part of our enterprise
+            readiness roadmap.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            No completed third-party penetration test report is currently
+            published. External penetration testing, ISO 27001, SOC 2, and ISO
+            42001 are tracked as enterprise readiness roadmap items.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Corelyx is voluntarily aligned with NIS2 Article 21 security
+            measures and maintains CISPE self-assessment evidence in the
+            repository. These are not third-party certifications.
+          </p>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-border bg-card/60 p-5">
+          <h2 className="text-base font-semibold text-foreground">Status and uptime</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Public status page is planned. Until it is live, incident and uptime
+            notices are handled through customer support channels. The internal
+            service target is documented as a roadmap control, not as a formal
+            SLA unless separately agreed in writing.
+          </p>
         </section>
 
         <section className="mt-6 rounded-2xl border border-border bg-card/60 p-5">

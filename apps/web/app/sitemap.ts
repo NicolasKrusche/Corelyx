@@ -20,8 +20,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${BASE}/trust`,
+      lastModified: new Date("2026-05-27"),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
       url: `${BASE}/security`,
-      lastModified: new Date("2026-05-01"),
+      lastModified: new Date("2026-05-27"),
       changeFrequency: "yearly",
       priority: 0.7,
     },
@@ -33,7 +39,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${BASE}/subprocessors`,
-      lastModified: new Date("2026-05-01"),
+      lastModified: new Date("2026-05-27"),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${BASE}/data-residency`,
+      lastModified: new Date("2026-05-27"),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${BASE}/ai-act`,
+      lastModified: new Date("2026-05-27"),
       changeFrequency: "monthly",
       priority: 0.6,
     },
@@ -51,7 +69,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${BASE}/impressum`,
-      lastModified: new Date("2026-04-24"),
+      lastModified: new Date("2026-05-27"),
       changeFrequency: "yearly",
       priority: 0.4,
     },

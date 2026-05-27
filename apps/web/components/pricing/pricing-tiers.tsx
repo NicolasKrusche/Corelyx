@@ -41,7 +41,7 @@ export const TIERS = [
       { text: "Bring your own API keys (BYOK)" },
       { text: "$2.50 platform AI credits / month", note: "(use any model, no setup)" },
       { text: "30-day run history" },
-      { text: "Visual editor + Genesis AI" },
+      { text: "5 Genesis AI uses / month" },
       { text: "Manual, cron & webhook triggers" },
       { text: "Email support" },
     ],

@@ -53,21 +53,33 @@ export default async function ImpressumPage() {
                 <p className="font-semibold text-foreground">
                   {legalIdentity.entityName}
                 </p>
+                <p>Trading name / product: {legalIdentity.tradingName}</p>
                 {legalIdentity.representative ? (
-                  <p>Represented by: {legalIdentity.representative}</p>
+                  <p>Responsible person / managing director: {legalIdentity.representative}</p>
                 ) : null}
+                <p>Contracting entity for Terms, DPA, and invoices: {legalIdentity.contractingEntity}</p>
               </div>
 
               {legalIdentity.addressLines.length > 0 ? (
                 <div>
-                  <p className="font-semibold text-foreground">Address</p>
+                  <p className="font-semibold text-foreground">Registered address</p>
                   <div className="mt-1">
                     {legalIdentity.addressLines.map((line) => (
                       <p key={line}>{line}</p>
                     ))}
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div>
+                  <p className="font-semibold text-foreground">Registered address</p>
+                  <p>
+                    Not configured in the public deployment environment. The
+                    contracting address must be shown here before production
+                    commercial launch and must match Terms, DPA, and invoice
+                    records.
+                  </p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -85,31 +97,45 @@ export default async function ImpressumPage() {
                   {legalIdentity.email}
                 </a>
               </p>
+              <p>
+                Security:{" "}
+                <a
+                  href={`mailto:${legalIdentity.securityEmail}`}
+                  className="text-primary hover:underline"
+                >
+                  {legalIdentity.securityEmail}
+                </a>
+              </p>
+              <p>
+                Data protection contact:{" "}
+                <a
+                  href={`mailto:${legalIdentity.privacyEmail}`}
+                  className="text-primary hover:underline"
+                >
+                  {legalIdentity.privacyEmail}
+                </a>
+              </p>
             </div>
           </section>
 
-          {legalIdentity.companyRegisterNo ? (
-            <section className="rounded-2xl border border-border bg-card/60 p-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-                Company register
-              </p>
-              <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                <p>Firmenbuchnummer: {legalIdentity.companyRegisterNo}</p>
-                <p>Firmenbuchgericht: Handelsgericht Wien</p>
-              </div>
-            </section>
-          ) : null}
+          <section className="rounded-2xl border border-border bg-card/60 p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+              Company register
+            </p>
+            <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              <p>Company register number: {legalIdentity.companyRegisterNo || "Not applicable / not configured"}</p>
+              <p>Commercial court: {legalIdentity.commercialCourt || "Not applicable / not configured"}</p>
+            </div>
+          </section>
 
-          {legalIdentity.vatId ? (
-            <section className="rounded-2xl border border-border bg-card/60 p-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-                VAT identification number
-              </p>
-              <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                <p>USt-IdNr.: {legalIdentity.vatId}</p>
-              </div>
-            </section>
-          ) : null}
+          <section className="rounded-2xl border border-border bg-card/60 p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+              VAT identification number
+            </p>
+            <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              <p>VAT ID: {legalIdentity.vatId || "Not applicable / not configured"}</p>
+            </div>
+          </section>
 
           <section className="rounded-2xl border border-border bg-card/60 p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
@@ -117,7 +143,7 @@ export default async function ImpressumPage() {
             </p>
             <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
               <p>
-                Wirtschaftskammer Österreich (WKO) —{" "}
+                {legalIdentity.supervisoryAuthority}. WKO reference:{" "}
                 <a
                   href="https://www.wko.at"
                   target="_blank"
@@ -127,7 +153,7 @@ export default async function ImpressumPage() {
                   www.wko.at
                 </a>
               </p>
-              <p className="mt-1">Applicable law: Austrian commercial law (Unternehmensrecht)</p>
+              <p className="mt-1">Applicable law: {legalIdentity.applicableLaw}</p>
             </div>
           </section>
 

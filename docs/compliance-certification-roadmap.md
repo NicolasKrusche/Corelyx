@@ -124,7 +124,7 @@ CISPE has two tiers:
 
 | Requirement | Status |
 |---|---|
-| Data stored and processed in EU only | Document: Vercel EU (Frankfurt), Supabase EU (Frankfurt), Railway EU |
+| EU-first storage and processing controls | Document: Vercel/Supabase/Railway regions, EU-only mode for eligible workflows, and known limits for customer-selected providers |
 | No use of customer data for advertising or own profiling | Already stated in Privacy Policy + DPA |
 | Transparent sub-processor list | `/subprocessors` page — ✅ live |
 | DPA available to every customer | `/dpa` page — ✅ live |
@@ -342,8 +342,14 @@ docs/
 ├── environmental-aspects-register.md
 ├── cispe-self-assessment.md
 ├── nis2-conformance-statement.md
+├── green-web-foundation-evidence.md
+├── csa-star-level-1-self-assessment.md
 ├── cloud-service-inventory.md            ← ISO 27017
 ├── shared-responsibility-matrix.md       ← ISO 27017
+├── service-management-processes.md       ← ISO 20000-1 prep
+├── postmortem-template.md
+├── problem-management-log.md
+├── capacity-review-YYYY-MM.md
 └── compliance-certification-roadmap.md   ← this file
 ```
 

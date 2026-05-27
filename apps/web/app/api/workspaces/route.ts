@@ -28,6 +28,15 @@ const UpdateWorkspaceSchema = z.discriminatedUnion("action", [
     members_can_create_programs: z.boolean().optional(),
     default_execution_mode: z.enum(["autonomous", "supervised", "manual"]).optional(),
     default_conflict_policy: z.enum(["queue", "skip", "fail"]).optional(),
+    compliance_mode: z.enum(["standard", "eu_only"]).optional(),
+    execution_log_retention_days: z.number().int().positive().optional(),
+    prompt_retention_days: z.number().int().nonnegative().optional(),
+    output_retention_days: z.number().int().nonnegative().optional(),
+    approval_record_retention_days: z.number().int().positive().optional(),
+    secret_rotation_reminder_days: z.number().int().positive().optional(),
+    store_full_prompts: z.boolean().optional(),
+    store_full_outputs: z.boolean().optional(),
+    data_region: z.string().trim().min(1).max(80).optional(),
   }),
 ]);
 
@@ -42,6 +51,15 @@ type WorkspaceRow = {
   description: string | null;
   default_program_visibility: "workspace" | "restricted";
   members_can_create_programs: boolean;
+  compliance_mode: "standard" | "eu_only";
+  execution_log_retention_days: number;
+  prompt_retention_days: number;
+  output_retention_days: number;
+  approval_record_retention_days: number;
+  secret_rotation_reminder_days: number;
+  store_full_prompts: boolean;
+  store_full_outputs: boolean;
+  data_region: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -169,7 +187,7 @@ export async function GET() {
     const [workspacesRes, countsRes] = await Promise.all([
       service
         .from("workspaces")
-        .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
+        .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
         .in("id", workspaceIds)
         .order("created_at", { ascending: true }),
       service
@@ -223,7 +241,7 @@ export async function POST(request: Request) {
       name: parsed.data.name,
       created_by: user.id,
     } as never)
-    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
+    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
     .single();
 
   if (error || !workspace) return apiError(error?.message ?? "Workspace could not be created.", 500);
@@ -294,12 +312,21 @@ export async function PATCH(request: Request) {
     if (parsed.data.members_can_create_programs !== undefined) patch.members_can_create_programs = parsed.data.members_can_create_programs;
     if (parsed.data.default_execution_mode !== undefined) patch.default_execution_mode = parsed.data.default_execution_mode;
     if (parsed.data.default_conflict_policy !== undefined) patch.default_conflict_policy = parsed.data.default_conflict_policy;
+    if (parsed.data.compliance_mode !== undefined) patch.compliance_mode = parsed.data.compliance_mode;
+    if (parsed.data.execution_log_retention_days !== undefined) patch.execution_log_retention_days = parsed.data.execution_log_retention_days;
+    if (parsed.data.prompt_retention_days !== undefined) patch.prompt_retention_days = parsed.data.prompt_retention_days;
+    if (parsed.data.output_retention_days !== undefined) patch.output_retention_days = parsed.data.output_retention_days;
+    if (parsed.data.approval_record_retention_days !== undefined) patch.approval_record_retention_days = parsed.data.approval_record_retention_days;
+    if (parsed.data.secret_rotation_reminder_days !== undefined) patch.secret_rotation_reminder_days = parsed.data.secret_rotation_reminder_days;
+    if (parsed.data.store_full_prompts !== undefined) patch.store_full_prompts = parsed.data.store_full_prompts;
+    if (parsed.data.store_full_outputs !== undefined) patch.store_full_outputs = parsed.data.store_full_outputs;
+    if (parsed.data.data_region !== undefined) patch.data_region = parsed.data.data_region;
 
     const { data, error } = await service
       .from("workspaces")
       .update(patch as never)
       .eq("id", parsed.data.workspace_id)
-      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, default_execution_mode, default_conflict_policy, created_by, created_at, updated_at")
+      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, default_execution_mode, default_conflict_policy, created_by, created_at, updated_at")
       .single();
 
     if (error || !data) return apiError(error?.message ?? "Settings could not be updated.", 500);
@@ -310,7 +337,7 @@ export async function PATCH(request: Request) {
     .from("workspaces")
     .update({ name: parsed.data.name, updated_at: new Date().toISOString() } as never)
     .eq("id", parsed.data.workspace_id)
-    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, created_by, created_at, updated_at")
+    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
     .single();
 
   if (error || !data) return apiError(error?.message ?? "Workspace could not be updated.", 500);

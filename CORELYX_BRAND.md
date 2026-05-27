@@ -10,7 +10,7 @@ Corelyx is a **visual AI workflow automation platform** built for teams that ope
 
 The one-line pitch: **"Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself."**
 
-It is NOT a general no-code tool like Zapier or Make. The differentiator is the combination of AI-first workflow generation + compliance infrastructure (GDPR-native, EU data residency, human-in-the-loop approvals, processing records) — things that Zapier and n8n treat as afterthoughts.
+It is NOT a general no-code tool like Zapier or Make. The differentiator is the combination of AI-first workflow generation + compliance evidence infrastructure (EU-first controls, EU-only mode for eligible workflows, human-in-the-loop approvals, processing records) — things that Zapier and n8n treat as afterthoughts.
 
 ---
 
@@ -176,7 +176,7 @@ All plans include all connectors. Pricing is in EUR, invoiced by an EU entity.
 ## What to Emphasise by Audience
 
 **For EU operations/compliance teams:**
-GDPR-native architecture, EU data residency, human approval gates, processing records, DPA on the product. The message is: compliance isn't a feature you configure — it's how the product works.
+EU-first automation infrastructure, EU-only mode for eligible workflows, human approval gates, processing records, DPA and subprocessor transparency. The message is: Corelyx gives teams evidence and controls, while final compliance still depends on the use case, configuration, providers, and customer role.
 
 **For RevOps / growth teams:**
 Speed of setup (Genesis generates the first workflow in seconds), breadth of connectors (HubSpot, Sheets, Gmail, Slack), approval gates for sensitive customer actions.
@@ -185,4 +185,4 @@ Speed of setup (Genesis generates the first workflow in seconds), breadth of con
 Genesis AI removes the blank canvas problem. Free plan to start. Cheap paid plans that pay for themselves after one saved hour per month.
 
 **For procurement / IT:**
-DPA available without a sales call. Subprocessor registry public. Data never leaves the EU. Server-side credential handling. Run-level audit trail.
+DPA available without a sales call. Subprocessor registry public. EU-first infrastructure with EU-only controls for eligible workflows. Server-side credential handling. Run-level audit trail.

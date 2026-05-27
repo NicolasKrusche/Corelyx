@@ -61,7 +61,7 @@ const clauses = [
   {
     title: "International Transfers and EU Data Residency",
     body:
-      "Corelyx will host production customer data in EU regions where technically and commercially available for the selected infrastructure. Transfers outside the EEA require a lawful transfer mechanism such as Standard Contractual Clauses, an adequacy decision, or another GDPR Chapter V mechanism. LLM providers or subprocessors outside the EEA must have appropriate DPA/SCC coverage before production use with customer personal data.",
+      "Corelyx uses EU-first infrastructure and provides EU-only controls for eligible workflows. EU-only mode can restrict storage, logs, model providers, and workflow execution to approved EU/EEA infrastructure, but customer-selected integrations, model providers, email providers, analytics tools, billing providers, or account-level provider settings may still involve processing outside the EEA. Transfers outside the EEA require a lawful transfer mechanism such as Standard Contractual Clauses, an adequacy decision, or another GDPR Chapter V mechanism. LLM providers or subprocessors outside the EEA must have appropriate DPA/SCC coverage before production use with customer personal data.",
   },
   {
     title: "Deletion and Return",

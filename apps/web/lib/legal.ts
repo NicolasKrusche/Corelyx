@@ -1,7 +1,7 @@
 export const LEGAL_LAST_UPDATED = "April 23, 2026";
 
 function readEnv(name: string): string {
-  return process.env[name]?.trim() ?? "";
+  return process.env[name]?.trim() ?? process.env[`NEXT_PUBLIC_${name}`]?.trim() ?? "";
 }
 
 function combineParts(parts: string[]): string {
@@ -14,8 +14,18 @@ const postalCityLine = combineParts([
 ]);
 
 export const legalIdentity = {
-  entityName: readEnv("LEGAL_ENTITY_NAME") || "Corelyx",
-  representative: readEnv("LEGAL_REPRESENTATIVE"),
+  entityName:
+    readEnv("LEGAL_ENTITY_NAME") ||
+    "Corelyx - sole-proprietor operation, incorporation pending",
+  tradingName: "Corelyx",
+  contractingEntity:
+    readEnv("LEGAL_CONTRACTING_ENTITY") ||
+    readEnv("LEGAL_ENTITY_NAME") ||
+    "The sole proprietor/responsible person identified in this Impressum",
+  representative:
+    readEnv("LEGAL_REPRESENTATIVE") ||
+    readEnv("LEGAL_RESPONSIBLE_PERSON") ||
+    "Responsible person not configured in public environment",
   addressLines: [
     readEnv("LEGAL_ADDRESS_LINE_1"),
     readEnv("LEGAL_ADDRESS_LINE_2"),
@@ -23,8 +33,15 @@ export const legalIdentity = {
     readEnv("LEGAL_COUNTRY"),
   ].filter(Boolean),
   email: readEnv("LEGAL_EMAIL") || "legal@corelyx.app",
+  securityEmail: readEnv("SECURITY_EMAIL") || "security@corelyx.app",
+  privacyEmail: readEnv("PRIVACY_EMAIL") || "privacy@corelyx.app",
   vatId: readEnv("LEGAL_VAT_ID"),
   companyRegisterNo: readEnv("LEGAL_COMPANY_REGISTER_NO"),
+  commercialCourt: readEnv("LEGAL_COMMERCIAL_COURT"),
+  supervisoryAuthority:
+    readEnv("LEGAL_SUPERVISORY_AUTHORITY") ||
+    "Austrian Data Protection Authority for privacy matters; WKO reference where applicable",
+  applicableLaw: readEnv("LEGAL_APPLICABLE_LAW") || "Austrian law",
 };
 
 export const privacyContactEmail =

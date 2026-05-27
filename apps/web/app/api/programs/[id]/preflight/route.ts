@@ -5,6 +5,8 @@ import { validatePreFlight } from "@/lib/validation/pre-flight";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
+import { loadWorkspaceComplianceSettings } from "@/lib/compliance/server";
+import { validateWorkflowCompliance } from "@/lib/compliance/workflow";
 
 // POST /api/programs/[id]/preflight — run pre-flight checks before execution
 export async function POST(
@@ -109,5 +111,15 @@ export async function POST(
     (apiKeys ?? []) as Array<{ id: string; name: string; provider: string; is_valid: boolean }>
   );
 
-  return NextResponse.json({ result, checks });
+  const workspaceCompliance = await loadWorkspaceComplianceSettings(access!.workspaceId, serviceClient);
+  const complianceChecks = validateWorkflowCompliance(
+    schema,
+    workspaceCompliance,
+    {
+      connections,
+      apiKeys: (apiKeys ?? []) as Array<{ id: string; name: string; provider: string; is_valid: boolean }>,
+    }
+  );
+
+  return NextResponse.json({ result, checks, compliance_checks: complianceChecks });
 }

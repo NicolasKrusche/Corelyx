@@ -280,6 +280,35 @@ export const ProgramMetadataZ = z.object({
   last_run_id: z.string().nullable(),
   last_run_status: RunStatusZ.nullable(),
   last_run_timestamp: z.string().nullable(),
+  ai_use_case_category: z.string().nullable().optional(),
+  ai_act_risk_level: z
+    .enum([
+      "prohibited",
+      "high_risk",
+      "transparency",
+      "gpai_related",
+      "limited_or_minimal",
+      "unknown",
+    ])
+    .optional(),
+  customer_role: z
+    .enum([
+      "provider",
+      "deployer",
+      "distributor",
+      "importer",
+      "product_manufacturer",
+      "unknown",
+    ])
+    .optional(),
+  human_oversight_required: z.boolean().optional(),
+  transparency_notice_required: z.boolean().optional(),
+  high_risk_documentation_required: z.boolean().optional(),
+  prohibited_reason: z.string().nullable().optional(),
+  reviewer: z.string().nullable().optional(),
+  reviewed_at: z.string().nullable().optional(),
+  ai_act_notes: z.string().nullable().optional(),
+  legal_review_override: z.boolean().optional(),
 });
 
 // ─── PROGRAM SCHEMA ───────────────────────────────────────────────────────

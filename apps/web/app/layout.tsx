@@ -49,7 +49,7 @@ export const metadata: Metadata = {
         url: "/pictures/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Corelyx — Visual AI Automation, GDPR-native workflow automation",
+        alt: "Corelyx — Visual AI Automation with EU-first workflow controls",
       },
     ],
   },

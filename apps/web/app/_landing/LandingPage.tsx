@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion, useInView, type Variants } from "framer-motion";
 import { useRef } from "react";
+import { legalIdentity } from "@/lib/legal";
 import {
   ArrowRight,
   Building2,
@@ -35,9 +36,9 @@ const INTEGRATIONS = [
 ];
 
 const OPERATING_POINTS = [
-  "GDPR-native by architecture",
+  "EU-first automation infrastructure",
   "Human approval gates built in",
-  "Data never leaves the EU",
+  "EU-only mode for eligible workflows",
 ];
 
 const WORKFLOW_STEPS = [
@@ -101,7 +102,7 @@ const COMPLIANCE_CARDS = [
     icon: Building2,
     tag: "Data residency",
     title: "EU infrastructure focus",
-    body: "Runtime and credential paths are designed around EU-hosted infrastructure, with connector calls routed through controlled server-side paths.",
+    body: "Runtime and credential paths are designed around EU-first infrastructure, with EU-only controls for eligible workflows.",
   },
   {
     icon: ShieldCheck,
@@ -135,7 +136,7 @@ const GOVERNANCE_LINKS = [
 ];
 
 const TRUST_ITEMS = [
-  { label: "EU-hosted runtime", detail: "Austrian and Frankfurt infrastructure" },
+  { label: "EU-first runtime", detail: "EU-only controls for eligible workflows" },
   { label: "Server-side credentials", detail: "Tokens never return to the browser" },
   { label: "Human approval gates", detail: "Pause sensitive steps before execution" },
   { label: "Run-level audit logs", detail: "Review status, payloads, and failures" },
@@ -258,7 +259,7 @@ function HeroSection() {
               className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-xs text-white/40"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#75d7a3]" />
-              EU-hosted · Made in Austria
+              EU-first · Made in Austria
             </motion.div>
 
             <motion.h1
@@ -279,8 +280,8 @@ function HeroSection() {
               className="mt-6 max-w-md text-base leading-7 text-white/40 sm:text-lg sm:leading-8"
             >
               Build agent workflows visually, inspect before running, and gate
-              sensitive steps with human approval. Compliance ships with the
-              product.
+              sensitive steps with human approval, audit trails, and explicit
+              provider visibility.
             </motion.p>
 
             <motion.div
@@ -430,7 +431,7 @@ function HeroCard() {
         >
           <div className="flex items-center gap-1.5 text-[10px] text-white/30">
             <KeyRound className="h-3 w-3 text-[#f05a28]/70" />
-            EU credential route
+            EU-only policy route
           </div>
           <div className="mt-2.5 space-y-1.5 font-mono text-[9px] text-white/20">
             {["vault.lookup(id)", "proxy.execute(action)", "return sanitized"].map((line, i) => (
@@ -767,10 +768,17 @@ function SiteFooter() {
             <p className="mt-2 text-xs text-[#9ca3af]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/austria-heart-removebg.png" alt="Austria Flag" className="mr-1 inline-block h-3 w-auto" />
-              Built in Austria · Hosted in the EU
+              Built in Austria · EU-first infrastructure
             </p>
             <p className="mt-1 text-xs text-[#9ca3af]">
-              © {new Date().getFullYear()} Corelyx
+              © {new Date().getFullYear()} {legalIdentity.entityName}
+            </p>
+            <p className="mt-1 max-w-sm text-xs leading-5 text-[#9ca3af]">
+              Contracting entity: {legalIdentity.contractingEntity}. Responsible person:{" "}
+              {legalIdentity.representative}.{" "}
+              {legalIdentity.addressLines.length > 0
+                ? `Registered address: ${legalIdentity.addressLines.join(", ")}.`
+                : "Registered address: see Impressum."}
             </p>
           </div>
 

@@ -11,7 +11,37 @@ type Program = {
   description: string | null;
   execution_mode: "autonomous" | "supervised" | "manual";
   conflict_policy: "queue" | "skip" | "fail";
+  schema?: {
+    metadata?: Record<string, unknown>;
+  };
+  ai_use_case_category?: string | null;
+  ai_act_risk_level?: "prohibited" | "high_risk" | "transparency" | "gpai_related" | "limited_or_minimal" | "unknown";
+  customer_role?: "provider" | "deployer" | "distributor" | "importer" | "product_manufacturer" | "unknown";
+  human_oversight_required?: boolean;
+  transparency_notice_required?: boolean;
+  high_risk_documentation_required?: boolean;
+  prohibited_reason?: string | null;
+  reviewer?: string | null;
+  reviewed_at?: string | null;
+  ai_act_notes?: string | null;
+  legal_review_override?: boolean;
 };
+
+const AI_ACT_NOTICE_TEXT =
+  "You are interacting with an AI-assisted system. Outputs may be inaccurate and may be reviewed by authorised staff.";
+
+const HIGH_IMPACT_USE_CASES = [
+  "Employment/recruitment",
+  "Education assessment",
+  "Creditworthiness",
+  "Insurance eligibility/pricing",
+  "Essential public/private services",
+  "Law enforcement",
+  "Migration/asylum/border control",
+  "Biometric identification/categorisation",
+  "Medical or safety-critical use",
+  "Legal decision support",
+];
 
 function Field({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
@@ -36,6 +66,17 @@ export default function ProgramSettingsPage() {
   const [description, setDescription] = useState("");
   const [executionMode, setExecutionMode] = useState<Program["execution_mode"]>("supervised");
   const [conflictPolicy, setConflictPolicy] = useState<Program["conflict_policy"]>("queue");
+  const [aiUseCaseCategory, setAiUseCaseCategory] = useState("");
+  const [aiActRiskLevel, setAiActRiskLevel] = useState<NonNullable<Program["ai_act_risk_level"]>>("unknown");
+  const [customerRole, setCustomerRole] = useState<NonNullable<Program["customer_role"]>>("unknown");
+  const [humanOversightRequired, setHumanOversightRequired] = useState(false);
+  const [transparencyNoticeRequired, setTransparencyNoticeRequired] = useState(false);
+  const [highRiskDocumentationRequired, setHighRiskDocumentationRequired] = useState(false);
+  const [prohibitedReason, setProhibitedReason] = useState("");
+  const [reviewer, setReviewer] = useState("");
+  const [reviewedAt, setReviewedAt] = useState("");
+  const [aiActNotes, setAiActNotes] = useState("");
+  const [legalReviewOverride, setLegalReviewOverride] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -54,6 +95,18 @@ export default function ProgramSettingsPage() {
       setDescription(data.description ?? "");
       setExecutionMode(data.execution_mode);
       setConflictPolicy(data.conflict_policy);
+      const metadata = data.schema?.metadata ?? {};
+      setAiUseCaseCategory(data.ai_use_case_category ?? (metadata.ai_use_case_category as string | undefined) ?? "");
+      setAiActRiskLevel(data.ai_act_risk_level ?? (metadata.ai_act_risk_level as NonNullable<Program["ai_act_risk_level"]> | undefined) ?? "unknown");
+      setCustomerRole(data.customer_role ?? (metadata.customer_role as NonNullable<Program["customer_role"]> | undefined) ?? "unknown");
+      setHumanOversightRequired(data.human_oversight_required ?? Boolean(metadata.human_oversight_required));
+      setTransparencyNoticeRequired(data.transparency_notice_required ?? Boolean(metadata.transparency_notice_required));
+      setHighRiskDocumentationRequired(data.high_risk_documentation_required ?? Boolean(metadata.high_risk_documentation_required));
+      setProhibitedReason(data.prohibited_reason ?? (metadata.prohibited_reason as string | undefined) ?? "");
+      setReviewer(data.reviewer ?? (metadata.reviewer as string | undefined) ?? "");
+      setReviewedAt((data.reviewed_at ?? (metadata.reviewed_at as string | undefined) ?? "").slice(0, 16));
+      setAiActNotes(data.ai_act_notes ?? (metadata.ai_act_notes as string | undefined) ?? "");
+      setLegalReviewOverride(data.legal_review_override ?? Boolean(metadata.legal_review_override));
       setLoading(false);
     }
     void load();
@@ -67,7 +120,23 @@ export default function ProgramSettingsPage() {
     const res = await fetch(`/api/programs/${id}/settings`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description: description || null, execution_mode: executionMode, conflict_policy: conflictPolicy }),
+      body: JSON.stringify({
+        name,
+        description: description || null,
+        execution_mode: executionMode,
+        conflict_policy: conflictPolicy,
+        ai_use_case_category: aiUseCaseCategory.trim() || null,
+        ai_act_risk_level: aiActRiskLevel,
+        customer_role: customerRole,
+        human_oversight_required: humanOversightRequired,
+        transparency_notice_required: transparencyNoticeRequired,
+        high_risk_documentation_required: highRiskDocumentationRequired,
+        prohibited_reason: prohibitedReason.trim() || null,
+        reviewer: reviewer.trim() || null,
+        reviewed_at: reviewedAt ? new Date(reviewedAt).toISOString() : null,
+        ai_act_notes: aiActNotes.trim() || null,
+        legal_review_override: legalReviewOverride,
+      }),
     });
 
     setSaveStatus(res.ok
@@ -183,6 +252,140 @@ export default function ProgramSettingsPage() {
                 </div>
               </label>
             ))}
+          </div>
+        </Field>
+
+        <Field
+          label="AI Act risk review"
+          description="Classify the workflow before production use. Final obligations depend on use case, configuration, and customer role."
+        >
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Use-case category</label>
+                <input
+                  value={aiUseCaseCategory}
+                  onChange={(e) => setAiUseCaseCategory(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  placeholder="e.g. Legal decision support"
+                  list="ai-use-case-warnings"
+                />
+                <datalist id="ai-use-case-warnings">
+                  {HIGH_IMPACT_USE_CASES.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Risk level</label>
+                <select
+                  value={aiActRiskLevel}
+                  onChange={(e) => setAiActRiskLevel(e.target.value as NonNullable<Program["ai_act_risk_level"]>)}
+                  className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                >
+                  <option value="unknown">Unknown</option>
+                  <option value="limited_or_minimal">Limited or minimal</option>
+                  <option value="transparency">Transparency obligation</option>
+                  <option value="gpai_related">GPAI related</option>
+                  <option value="high_risk">High risk</option>
+                  <option value="prohibited">Prohibited</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Customer role</label>
+              <select
+                value={customerRole}
+                onChange={(e) => setCustomerRole(e.target.value as NonNullable<Program["customer_role"]>)}
+                className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+              >
+                <option value="unknown">Unknown</option>
+                <option value="provider">Provider</option>
+                <option value="deployer">Deployer</option>
+                <option value="distributor">Distributor</option>
+                <option value="importer">Importer</option>
+                <option value="product_manufacturer">Product manufacturer</option>
+              </select>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ["Human oversight required", humanOversightRequired, setHumanOversightRequired],
+                ["Transparency notice required", transparencyNoticeRequired, setTransparencyNoticeRequired],
+                ["High-risk documentation required", highRiskDocumentationRequired, setHighRiskDocumentationRequired],
+                ["Admin-only legal-review override for testing", legalReviewOverride, setLegalReviewOverride],
+              ].map(([label, checked, setter]) => (
+                <label key={label as string} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background/60 px-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={checked as boolean}
+                    onChange={(e) => (setter as (next: boolean) => void)(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-border"
+                  />
+                  <span className="text-sm">{label as string}</span>
+                </label>
+              ))}
+            </div>
+
+            {aiActRiskLevel === "prohibited" && (
+              <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                This workflow may fall under prohibited AI practices. Do not deploy without legal review.
+              </p>
+            )}
+            {aiActRiskLevel === "high_risk" && (
+              <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                High-risk workflows require human oversight gates, documentation export, explicit reviewer approval, and audit logging before publish.
+              </p>
+            )}
+            {transparencyNoticeRequired && (
+              <p className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+                Notice text: {AI_ACT_NOTICE_TEXT}
+              </p>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Reviewer</label>
+                <input
+                  value={reviewer}
+                  onChange={(e) => setReviewer(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  placeholder="Name or email"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Reviewed at</label>
+                <input
+                  type="datetime-local"
+                  value={reviewedAt}
+                  onChange={(e) => setReviewedAt(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Prohibited-risk reason</label>
+              <textarea
+                rows={2}
+                value={prohibitedReason}
+                onChange={(e) => setProhibitedReason(e.target.value)}
+                className="w-full resize-none rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                placeholder="Required if this is marked prohibited or under legal review."
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Risk and DPIA notes</label>
+              <textarea
+                rows={4}
+                value={aiActNotes}
+                onChange={(e) => setAiActNotes(e.target.value)}
+                className="w-full resize-none rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                placeholder="Document classification rationale, safeguards, DPIA notes, and residual risks."
+              />
+            </div>
           </div>
         </Field>
 
