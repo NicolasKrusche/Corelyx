@@ -291,7 +291,7 @@ export async function POST(request: Request) {
                   send({ type: "status", message: `Model returned no output; trying ${nextModel}...` });
                   continue;
                 }
-                throw new Error(`Model returned empty response for ${candidateModel}.`);
+                throw new Error("The AI did not respond. Please try again in a moment.");
               }
 
               modelUsed = candidateModel;
@@ -324,20 +324,36 @@ export async function POST(request: Request) {
         for (const node of finalDelta.newNodes) send({ type: "node", node });
         for (const edge of finalDelta.newEdges) send({ type: "edge", edge });
 
-        if (!rawText) throw new Error("Model returned empty response.");
+        if (!rawText) throw new Error("The AI did not respond. Please try again in a moment.");
 
         send({ type: "status", message: "Validating schema..." });
 
-        // Full parse with three-layer recovery (same as original route)
+        // Detect likely token-limit truncation: the response has content but the
+        // JSON object was never closed. jsonrepair will close it, but the result
+        // will be a stripped-down schema that fails validation anyway — so surface
+        // a more useful message immediately instead of going through that loop.
+        const trimmedRaw = rawText.trimEnd();
+        const looksLikeTruncation =
+          trimmedRaw.length > 200 &&
+          !trimmedRaw.endsWith("}") &&
+          !trimmedRaw.endsWith("]") &&
+          trimmedRaw.includes("{");
+
+        // Full parse with three-layer recovery
         let parsedSchema: unknown;
         try {
           parsedSchema = JSON.parse(extractJson(rawText));
         } catch {
           try {
             parsedSchema = JSON.parse(jsonrepair(extractJson(rawText)));
-          } catch (err) {
+          } catch {
+            if (looksLikeTruncation) {
+              throw new Error(
+                "Your description produced a workflow too large to generate in one pass. Try breaking it into smaller steps or simplifying the description."
+              );
+            }
             throw new Error(
-              `Genesis model returned invalid JSON that could not be repaired: ${(err as Error).message}`
+              "The AI returned a response we could not use. Try rephrasing your description and generating again."
             );
           }
         }
@@ -364,8 +380,25 @@ export async function POST(request: Request) {
         parsedSchema = normalizeProgramDraft(parsedSchema);
         const draftResult = validateProgramDraft(parsedSchema);
         if (!draftResult.success) {
-          console.error("[genesis] draft validation failed:", draftResult.error.flatten());
-          throw new Error(`Workflow draft validation failed: ${getDraftValidationMessage(draftResult.error)}`);
+          // Log the technical details server-side; send a user-friendly message downstream.
+          await writeAppLog(supabase, {
+            userId,
+            level: "warning",
+            source: "Genesis",
+            event: "genesis.stream.draft_validation_failed",
+            status: "failed",
+            message: "Draft validation failed after streaming generation.",
+            durationMs: Date.now() - startedAt,
+            details: {
+              requested_model: model,
+              model_used: modelUsed,
+              validation_errors: draftResult.error.flatten(),
+            },
+          });
+          const hint = looksLikeTruncation
+            ? "Try a simpler description — the workflow may have been too large to generate in one pass."
+            : "Try rephrasing your description to be more specific about the steps involved.";
+          throw new Error(`The AI generated a workflow we could not validate. ${hint}`);
         }
         const schemaResult = ProgramSchemaZ.safeParse(parsedSchema);
         const schema = schemaResult.success ? schemaResult.data : draftResult.data;
@@ -389,7 +422,7 @@ export async function POST(request: Request) {
         const program = rawProgram as unknown as { id: string; name: string } | null;
 
         if (insertError || !program) {
-          throw new Error(`Failed to save program: ${insertError?.message ?? "unknown error"}`);
+          throw new Error("The workflow was generated but could not be saved. Please try again.");
         }
 
         await serviceClient.from("program_memberships").insert({
@@ -406,7 +439,7 @@ export async function POST(request: Request) {
               toProgramConnectionLinks(program.id, connections) as unknown as never
             );
           if (linkError) {
-            throw new Error(`Failed to link selected connections: ${linkError.message}`);
+            throw new Error("The workflow was saved but we could not link your connections to it. You can add them manually in the editor.");
           }
         }
 

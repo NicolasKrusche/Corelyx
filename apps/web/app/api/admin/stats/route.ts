@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
+import { serverLog } from "@/lib/server-log";
 
 type EstimatedCostRow = {
   estimated_cost_usd: number | null;
@@ -84,7 +85,7 @@ export async function GET() {
       recentFailures: asRows<RecentFailureRow>(recentFailures),
     });
   } catch (error) {
-    console.error("[admin/stats] Error:", error);
+    serverLog({ level: "error", event: "admin.stats.query_failed", message: "Admin stats query failed." });
     return NextResponse.json(
       { error: "Failed to fetch stats" },
       { status: 500 }

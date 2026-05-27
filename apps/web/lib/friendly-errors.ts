@@ -50,6 +50,9 @@ export function friendlyErrorMessage(
   if (lower.includes("invalid json") || lower.includes("json could not be parsed") || lower.includes("syntax error")) {
     return "This does not look like valid JSON. Check the formatting and try again.";
   }
+  if (lower.includes("genesis") && (lower.includes("invalid") || lower.includes("failed") || lower.includes("could not"))) {
+    return "The AI could not generate a valid workflow. Try rephrasing your description and generating again.";
+  }
   if (lower.includes("network error") || lower.includes("failed to fetch") || lower.includes("could not reach")) {
     return "We could not connect. Check your internet connection and try again.";
   }

@@ -5,6 +5,7 @@ import { enrichWebhookTriggerForClient } from "@/lib/webhook-trigger-auth";
 import { checkTriggerAccess } from "@/lib/limits";
 import type { TriggerType } from "@/lib/entitlements";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
+import { serverLog } from "@/lib/server-log";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -160,7 +161,7 @@ export async function POST(
       const fallbackData = fallback.data as unknown as TriggerRow | null;
       if (fallback.error || !fallbackData) {
         const msg = fallback.error?.message ?? enriched.error?.message ?? "unknown DB error";
-        console.error("[/api/programs/[id]/triggers] insert failed:", msg);
+        serverLog({ level: "error", event: "triggers.create.insert_failed", message: "Trigger insert failed." });
         return apiError(`Failed to create trigger: ${msg}`, 500);
       }
       trigger = fallbackData;

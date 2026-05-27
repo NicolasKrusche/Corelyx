@@ -6,6 +6,7 @@ import {
   rotateWebhookToken,
 } from "@/lib/webhook-trigger-auth";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
+import { serverLog } from "@/lib/server-log";
 
 // ─── PATCH /api/programs/[id]/triggers/[triggerId] — toggle or update ────────
 
@@ -112,7 +113,7 @@ export async function PATCH(
   const fallbackData = fallback.data as unknown as { type: string; webhook_token?: string | null } | null;
   if (fallback.error || !fallbackData) {
     const msg = fallback.error?.message ?? enriched.error?.message ?? "Trigger not found or update failed";
-    console.error("[/api/programs/[id]/triggers/[triggerId]] update failed:", msg);
+    serverLog({ level: "error", event: "triggers.update.failed", message: "Trigger update or re-fetch failed." });
     return apiError(msg, 404);
   }
 

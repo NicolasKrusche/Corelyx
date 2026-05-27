@@ -1,4 +1,5 @@
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { serverLog } from "@/lib/server-log";
 
 type ProgramRow = {
   id: string;
@@ -438,9 +439,9 @@ export async function GET() {
         exported_sections: Object.keys(bundle).filter((key) => key !== "export_metadata"),
       },
     });
-    if (error) console.warn("[compliance] failed to write data export app log:", error.message);
-  } catch (error) {
-    console.warn("[compliance] failed to write data export app log:", error);
+    if (error) serverLog({ level: "warn", event: "user.export.audit_write_failed", message: "Failed to write data export audit log entry." });
+  } catch {
+    serverLog({ level: "warn", event: "user.export.audit_write_failed", message: "Failed to write data export audit log entry." });
   }
 
   return new Response(JSON.stringify(bundle, null, 2), {
