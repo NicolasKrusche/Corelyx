@@ -1,6 +1,6 @@
-import type { MetadataRoute } from "next";
+﻿import type { MetadataRoute } from "next";
 
-const BASE = "https://corelyx.app";
+const BASE = "https://www.corelyx.app";
 
 export default function robots(): MetadataRoute.Robots {
   return {

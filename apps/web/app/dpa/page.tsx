@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 
@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   title: "Data Processing Agreement",
   description:
     "Corelyx Data Processing Agreement (DPA) for business customers under GDPR Article 28. Covers subject matter, processor obligations, sub-processor list, and data subject rights.",
-  alternates: { canonical: "https://corelyx.app/dpa" },
-  openGraph: { url: "https://corelyx.app/dpa" },
+  alternates: { canonical: "https://www.corelyx.app/dpa" },
+  openGraph: { url: "https://www.corelyx.app/dpa" },
 };
 
 const LAST_UPDATED = "April 2026";

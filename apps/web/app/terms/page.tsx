@@ -1,12 +1,12 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalPageHeader } from "@/components/legal-page-header";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
   description: "The terms that govern your use of the Corelyx platform.",
-  alternates: { canonical: "https://corelyx.app/terms" },
-  openGraph: { url: "https://corelyx.app/terms" },
+  alternates: { canonical: "https://www.corelyx.app/terms" },
+  openGraph: { url: "https://www.corelyx.app/terms" },
 };
 
 const LAST_UPDATED = "April 24, 2026";
