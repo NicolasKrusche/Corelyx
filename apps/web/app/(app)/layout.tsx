@@ -109,9 +109,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="orb-primary" aria-hidden="true" />
         <div className="orb-blue" aria-hidden="true" />
         <div className="orb-violet" aria-hidden="true" />
+        <div className="orb-cyan" aria-hidden="true" />
+        {/* Obsidian geometric cell pattern — hidden by default, shown in obsidian style */}
+        <svg
+          className="obsidian-pattern pointer-events-none fixed inset-0 -z-[9] h-full w-full"
+          style={{ opacity: 0.3, mixBlendMode: "screen" }}
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <filter id="obsidian-cells" x="0%" y="0%" width="100%" height="100%" colorInterpolationFilters="linearRGB">
+            <feTurbulence type="turbulence" baseFrequency="0.022 0.018" numOctaves="2" seed="15" stitchTiles="stitch" result="turbulence" />
+            <feColorMatrix type="saturate" values="0" in="turbulence" result="grey" />
+            <feComponentTransfer in="grey">
+              <feFuncR type="linear" slope="18" intercept="-8" />
+              <feFuncG type="linear" slope="18" intercept="-8" />
+              <feFuncB type="linear" slope="18" intercept="-8" />
+            </feComponentTransfer>
+          </filter>
+          <rect width="100%" height="100%" filter="url(#obsidian-cells)" />
+        </svg>
         {/* Marble texture — SVG turbulence rendered inline so the filter applies correctly */}
         <svg
-          className="pointer-events-none fixed inset-0 -z-[9] h-full w-full"
+          className="marble-texture pointer-events-none fixed inset-0 -z-[9] h-full w-full"
           style={{
             opacity: 0.09,
             maskImage: "linear-gradient(to bottom, black 0%, black 35%, transparent 70%)",

@@ -228,8 +228,8 @@ export function ProgramList({
   return (
     <div>
       {/* Filter tabs + new folder button */}
-      <div className="flex items-center justify-between gap-2 overflow-x-auto border-b border-border/40 px-4 py-2">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2 border-b border-border/40 px-4 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {counts.attention > 0 && (
             <button
               type="button"

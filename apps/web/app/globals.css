@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  /* ── Dark base (coal / graphite) ── */
+  /* â”€â”€ Dark base (coal / graphite) â”€â”€ */
   :root, .dark {
     color-scheme: dark;
     --background: 0 0% 9%;
@@ -25,7 +25,7 @@
     --radius: 0.5rem;
   }
 
-  /* ── Light base ── */
+  /* â”€â”€ Light base â”€â”€ */
   .light {
     color-scheme: light;
     --background: 210 20% 94%;
@@ -47,42 +47,42 @@
     --radius: 0.5rem;
   }
 
-  /* ── Accent: Orange (default) ── */
+  /* â”€â”€ Accent: Orange (default) â”€â”€ */
   :root, .accent-orange {
     --primary: 22 95% 52%;
     --primary-foreground: 0 0% 100%;
     --ring: 22 95% 52%;
   }
 
-  /* ── Accent: Blue ── */
+  /* â”€â”€ Accent: Blue â”€â”€ */
   .accent-blue {
     --primary: 210 90% 55%;
     --primary-foreground: 0 0% 100%;
     --ring: 210 90% 55%;
   }
 
-  /* ── Accent: Indigo ── */
+  /* â”€â”€ Accent: Indigo â”€â”€ */
   .accent-indigo {
     --primary: 240 75% 65%;
     --primary-foreground: 0 0% 100%;
     --ring: 240 75% 65%;
   }
 
-  /* ── Accent: Green ── */
+  /* â”€â”€ Accent: Green â”€â”€ */
   .accent-green {
     --primary: 145 65% 45%;
     --primary-foreground: 0 0% 100%;
     --ring: 145 65% 45%;
   }
 
-  /* ── Accent: Pink ── */
+  /* â”€â”€ Accent: Pink â”€â”€ */
   .accent-pink {
     --primary: 340 75% 62%;
     --primary-foreground: 0 0% 100%;
     --ring: 340 75% 62%;
   }
 
-  /* ── Accent: Cyan ── */
+  /* â”€â”€ Accent: Cyan â”€â”€ */
   .accent-cyan {
     --primary: 185 85% 48%;
     --primary-foreground: 0 0% 8%;
@@ -97,7 +97,7 @@
   *::-webkit-scrollbar { display: none; }
 }
 
-/* ── App background gradient (uses --primary CSS var, auto-updates with theme) ── */
+/* â”€â”€ App background gradient (uses --primary CSS var, auto-updates with theme) â”€â”€ */
 .app-bg-gradient {
   background-image:
     radial-gradient(ellipse 65% 50% at 85% 0%, hsl(var(--primary) / 0.08) 0%, transparent 50%),
@@ -106,7 +106,7 @@
     radial-gradient(ellipse 40% 35% at 70% 60%, hsl(271 91% 65% / 0.04) 0%, transparent 45%);
 }
 
-/* ── Glassmorphism card surface ── */
+/* â”€â”€ Glassmorphism card surface â”€â”€ */
 .glass-card {
   background: hsl(0 0% 100% / 0.03);
   backdrop-filter: blur(8px);
@@ -136,10 +136,11 @@
   border-color: hsl(0 0% 0% / 0.08);
 }
 
-/* ── Animated ambient orbs ── */
+/* â”€â”€ Animated ambient orbs â”€â”€ */
 .orb-primary,
 .orb-blue,
-.orb-violet {
+.orb-violet,
+.orb-cyan {
   position: fixed;
   pointer-events: none;
   z-index: -9;
@@ -178,25 +179,317 @@
   animation-delay: -13s;
 }
 
+/* Cyan orb â€” invisible by default, enabled in glass style */
+.orb-cyan {
+  bottom: 15%;
+  left: 25%;
+  width: 42vw;
+  height: 48vh;
+  background: radial-gradient(ellipse, hsl(185 85% 52% / 0.22) 0%, transparent 60%);
+  filter: blur(48px);
+  animation: orb-drift 18s ease-in-out infinite;
+  animation-delay: -5s;
+  opacity: 0;
+}
+
 @keyframes orb-drift {
   0%,  100% { transform: translate(0,    0)    scale(1);    }
   33%        { transform: translate(4%,   5%)   scale(1.07); }
   66%        { transform: translate(-3%,  2%)   scale(0.95); }
 }
 
-/* ── Auth page background glow ── */
+/* â”€â”€ Auth page background glow â”€â”€ */
 .auth-page-bg {
   background:
     radial-gradient(ellipse 80% 60% at 50% -10%, hsl(var(--primary) / 0.1) 0%, transparent 60%),
     hsl(var(--background));
 }
 
-/* ── Auth visual panel background ── */
+/* â”€â”€ Auth visual panel background â”€â”€ */
 .auth-panel-bg {
   background:
     radial-gradient(circle at 35% 30%, hsl(var(--primary) / 0.3), transparent 40%),
     radial-gradient(circle at 70% 85%, rgba(99, 102, 241, 0.35), transparent 45%),
     linear-gradient(160deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%);
+}
+
+/* â”€â”€ Obsidian pattern â€” hidden by default, shown only in obsidian style â”€â”€ */
+.obsidian-pattern {
+  display: none;
+}
+
+/* â”€â”€ Liquid Chrome background style â”€â”€ */
+.bg-liquid {
+  --background: 235 55% 3%;
+  --card: 235 40% 5%;
+  --border: 235 25% 16%;
+}
+
+.bg-liquid .app-bg-gradient {
+  background-color: hsl(235 55% 3%);
+  background-image: none;
+}
+
+.bg-liquid .orb-primary {
+  top: -20%;
+  right: -8%;
+  width: 75vw;
+  height: 80vh;
+  background: radial-gradient(ellipse, hsl(215 75% 72% / 0.38) 0%, transparent 65%);
+  filter: blur(72px);
+}
+
+.bg-liquid .orb-blue {
+  bottom: -5%;
+  left: -12%;
+  width: 68vw;
+  height: 72vh;
+  background: radial-gradient(ellipse, hsl(268 68% 62% / 0.42) 0%, transparent 65%);
+  filter: blur(78px);
+}
+
+.bg-liquid .orb-violet {
+  top: 20%;
+  right: 20%;
+  width: 52vw;
+  height: 55vh;
+  background: radial-gradient(ellipse, hsl(338 62% 65% / 0.28) 0%, transparent 62%);
+  filter: blur(68px);
+}
+
+.bg-liquid .orb-cyan {
+  opacity: 1;
+  background: radial-gradient(ellipse, hsl(188 65% 62% / 0.22) 0%, transparent 60%);
+}
+
+.bg-liquid .marble-texture {
+  display: none;
+}
+
+.bg-liquid .glass-card {
+  background: linear-gradient(135deg, hsl(0 0% 100% / 0.09) 0%, hsl(0 0% 100% / 0.02) 100%);
+  backdrop-filter: blur(24px) saturate(200%) brightness(1.06);
+  -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(1.06);
+  box-shadow:
+    0 0 0 1px hsl(0 0% 100% / 0.14),
+    inset 0 1px 0 hsl(0 0% 100% / 0.28),
+    inset 0 -1px 0 hsl(235 40% 20% / 0.2),
+    0 16px 48px hsl(235 55% 3% / 0.65);
+  border-color: transparent;
+}
+
+.bg-liquid .glass-card:hover {
+  background: linear-gradient(135deg, hsl(0 0% 100% / 0.13) 0%, hsl(0 0% 100% / 0.04) 100%);
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.5),
+    inset 0 1px 0 hsl(0 0% 100% / 0.32),
+    0 16px 48px hsl(235 55% 3% / 0.7);
+}
+
+.bg-liquid .glass-panel {
+  background: hsl(235 55% 100% / 0.03);
+  backdrop-filter: blur(18px) saturate(160%) brightness(1.03);
+  -webkit-backdrop-filter: blur(18px) saturate(160%) brightness(1.03);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.1);
+  border-color: hsl(0 0% 100% / 0.07);
+}
+
+/* â”€â”€ Obsidian background style â”€â”€ */
+.bg-obsidian {
+  --background: 0 0% 2%;
+  --card: 0 0% 5%;
+  --border: 0 0% 16%;
+}
+
+.bg-obsidian .app-bg-gradient {
+  background: #050505;
+  background-image: none;
+}
+
+.bg-obsidian .orb-primary,
+.bg-obsidian .orb-blue,
+.bg-obsidian .orb-violet,
+.bg-obsidian .orb-cyan {
+  opacity: 0;
+}
+
+.bg-obsidian .marble-texture {
+  display: none;
+}
+
+/* Polygon facet tile â€” 5 angular panels, seamless repeat */
+.bg-obsidian .app-bg-gradient {
+  background-color: #050505;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='450'%3E%3Cpolygon points='0,0 600,0 420,175 220,160' fill='%23090909' stroke='%232a2a2a' stroke-width='1.2'/%3E%3Cpolygon points='0,0 220,160 150,310 0,450' fill='%23060606' stroke='%232a2a2a' stroke-width='1.2'/%3E%3Cpolygon points='220,160 420,175 380,305 150,310' fill='%230c0c0c' stroke='%232a2a2a' stroke-width='1.2'/%3E%3Cpolygon points='420,175 600,0 600,450 380,305' fill='%23050505' stroke='%232a2a2a' stroke-width='1.2'/%3E%3Cpolygon points='0,450 150,310 380,305 600,450' fill='%23080808' stroke='%232a2a2a' stroke-width='1.2'/%3E%3C%2Fsvg%3E");
+  background-size: 600px 450px;
+}
+
+.bg-obsidian .glass-card {
+  background: hsl(0 0% 100% / 0.05);
+  backdrop-filter: blur(28px) saturate(130%);
+  -webkit-backdrop-filter: blur(28px) saturate(130%);
+  box-shadow:
+    0 0 0 1px hsl(0 0% 100% / 0.1),
+    inset 0 1px 0 hsl(0 0% 100% / 0.22),
+    inset 1px 0 0 hsl(0 0% 100% / 0.06),
+    0 20px 60px hsl(0 0% 0% / 0.85);
+  border-color: transparent;
+}
+
+.bg-obsidian .glass-card:hover {
+  background: hsl(0 0% 100% / 0.08);
+  box-shadow:
+    0 0 0 1px hsl(0 0% 100% / 0.18),
+    inset 0 1px 0 hsl(0 0% 100% / 0.28),
+    0 20px 60px hsl(0 0% 0% / 0.9);
+}
+
+.bg-obsidian .glass-panel {
+  background: hsl(0 0% 100% / 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.12);
+  border-color: hsl(0 0% 100% / 0.07);
+}
+/* â”€â”€ Noir background style â”€â”€ */
+.bg-noir {
+  --background: 0 0% 0%;
+  --card: 0 0% 4%;
+  --border: 0 0% 12%;
+}
+
+.bg-noir .app-bg-gradient {
+  background: #000000;
+  background-image: none;
+}
+
+.bg-noir .orb-primary,
+.bg-noir .orb-blue,
+.bg-noir .orb-violet,
+.bg-noir .orb-cyan {
+  opacity: 0;
+}
+
+.bg-noir .marble-texture {
+  display: none;
+}
+
+/* ── Light mode variants for advanced styles ── */
+
+.light.bg-noir {
+  color-scheme: light;
+  --background: 0 0% 100%;
+  --card: 0 0% 98%;
+  --border: 0 0% 88%;
+}
+
+.light.bg-noir .app-bg-gradient {
+  background: #ffffff;
+  background-image: none;
+}
+
+.light.bg-noir .glass-card {
+  background: hsl(0 0% 100% / 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: none;
+  border-color: hsl(0 0% 0% / 0.08);
+}
+
+.light.bg-noir .glass-card:hover {
+  background: hsl(0 0% 98%);
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.light.bg-noir .glass-panel {
+  background: hsl(0 0% 100% / 0.5);
+  border-color: hsl(0 0% 0% / 0.06);
+}
+
+.light.bg-liquid {
+  color-scheme: light;
+  --background: 235 60% 97%;
+  --card: 0 0% 100%;
+  --border: 235 30% 85%;
+}
+
+.light.bg-liquid .app-bg-gradient {
+  background-color: hsl(235 60% 97%);
+  background-image: none;
+}
+
+.light.bg-liquid .orb-primary {
+  background: radial-gradient(ellipse, hsl(215 75% 72% / 0.25) 0%, transparent 65%);
+}
+
+.light.bg-liquid .orb-blue {
+  background: radial-gradient(ellipse, hsl(268 68% 62% / 0.22) 0%, transparent 65%);
+}
+
+.light.bg-liquid .orb-violet {
+  background: radial-gradient(ellipse, hsl(338 62% 65% / 0.18) 0%, transparent 62%);
+}
+
+.light.bg-liquid .orb-cyan {
+  opacity: 1;
+  background: radial-gradient(ellipse, hsl(188 65% 62% / 0.15) 0%, transparent 60%);
+}
+
+.light.bg-liquid .glass-card {
+  background: hsl(0 0% 100% / 0.65);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: 0 0 0 1px hsl(0 0% 100% / 0.8), 0 4px 16px hsl(235 60% 50% / 0.08);
+  border-color: transparent;
+}
+
+.light.bg-liquid .glass-card:hover {
+  background: hsl(0 0% 100% / 0.82);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.35), 0 4px 16px hsl(235 60% 50% / 0.12);
+}
+
+.light.bg-liquid .glass-panel {
+  background: hsl(0 0% 100% / 0.45);
+  border-color: hsl(0 0% 100% / 0.7);
+}
+
+.light.bg-obsidian {
+  color-scheme: light;
+  --background: 0 0% 93%;
+  --card: 0 0% 100%;
+  --border: 0 0% 80%;
+}
+
+.light.bg-obsidian .app-bg-gradient {
+  background-color: #eeeeee;
+  background-image:
+    linear-gradient(148deg, #f2f2f2 0%, #e8e8e8 38%, transparent 38%),
+    linear-gradient(328deg, #f5f5f5 0%, #ededed 62%, transparent 62%);
+}
+
+.light.bg-obsidian .orb-primary,
+.light.bg-obsidian .orb-blue,
+.light.bg-obsidian .orb-violet,
+.light.bg-obsidian .orb-cyan {
+  opacity: 0;
+}
+
+.light.bg-obsidian .glass-card {
+  background: hsl(0 0% 100% / 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px hsl(0 0% 0% / 0.07), 0 4px 16px hsl(0 0% 0% / 0.05);
+  border-color: transparent;
+}
+
+.light.bg-obsidian .glass-card:hover {
+  background: hsl(0 0% 100% / 0.88);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 4px 16px hsl(0 0% 0% / 0.08);
+}
+
+.light.bg-obsidian .glass-panel {
+  background: hsl(0 0% 100% / 0.45);
+  border-color: hsl(0 0% 0% / 0.06);
 }
 
 /* ── Dot grid ── */
@@ -246,7 +539,7 @@
   background-color: hsl(var(--card));
 }
 
-/* ── Hero node graph drift animations ── */
+/* â”€â”€ Hero node graph drift animations â”€â”€ */
 @keyframes drift-1 {
   0%, 100% { transform: translate(0px, 0px); }
   25% { transform: translate(12px, -18px); }
@@ -277,7 +570,7 @@
 .drift-4 { animation: drift-4 24s ease-in-out infinite; }
 .drift-5 { animation: drift-5 17s ease-in-out infinite; }
 
-/* ── SVG edge dash animation ── */
+/* â”€â”€ SVG edge dash animation â”€â”€ */
 @keyframes dash-flow {
   to { stroke-dashoffset: -24; }
 }
@@ -287,14 +580,14 @@
 .edge-animate { animation: dash-flow 1.6s linear infinite; }
 .edge-hero { animation: dash-hero 4s linear infinite; }
 
-/* ── Marquee ── */
+/* â”€â”€ Marquee â”€â”€ */
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
 .animate-marquee { animation: marquee 28s linear infinite; }
 
-/* ── Fade up ── */
+/* â”€â”€ Fade up â”€â”€ */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -305,7 +598,7 @@
 .animate-fade-up-delay-3 { opacity: 0; animation: fade-up 0.7s ease 0.38s forwards; }
 .animate-fade-up-delay-4 { opacity: 0; animation: fade-up 0.7s ease 0.56s forwards; }
 
-/* ── Announcement shimmer (notification center) ── */
+/* â”€â”€ Announcement shimmer (notification center) â”€â”€ */
 @keyframes announcement-shimmer {
   0%   { transform: translateX(-100%) skewX(-12deg); opacity: 0; }
   50%  { opacity: 0.6; }
@@ -316,7 +609,7 @@
   animation: announcement-shimmer 2.4s ease 0.3s 1 forwards;
 }
 
-/* ── Float (for orbs) ── */
+/* â”€â”€ Float (for orbs) â”€â”€ */
 @keyframes float-slow {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-24px); }
