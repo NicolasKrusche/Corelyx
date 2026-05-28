@@ -14,7 +14,8 @@ const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
 
 const BG_STYLES: { id: BgStyle; label: string }[] = [
   { id: "default", label: "Default" },
-  { id: "glass",   label: "Glass"   },
+  { id: "liquid",  label: "Liquid"  },
+  { id: "obsidian", label: "Obsidian" },
   { id: "noir",    label: "Noir"    },
 ];
 
@@ -33,7 +34,7 @@ function DefaultPreview() {
   );
 }
 
-function GlassPreview() {
+function LiquidPreview() {
   return (
     <div
       className="relative w-9 h-6 rounded overflow-hidden"
@@ -65,6 +66,31 @@ function GlassPreview() {
   );
 }
 
+function ObsidianPreview() {
+  return (
+    <div
+      className="relative w-9 h-6 rounded overflow-hidden"
+      style={{ background: "#050505" }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(45deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
+          backgroundSize: "7px 7px",
+        }}
+      />
+      <div
+        className="absolute left-1/2 top-1/2 h-3.5 w-5 -translate-x-1/2 -translate-y-1/2 rounded"
+        style={{
+          background: "rgba(255,255,255,0.07)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.08)",
+        }}
+      />
+    </div>
+  );
+}
+
 function NoirPreview() {
   return (
     <div className="w-9 h-6 rounded overflow-hidden bg-black" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)" }} />
@@ -73,7 +99,8 @@ function NoirPreview() {
 
 const PREVIEWS: Record<BgStyle, React.ReactNode> = {
   default: <DefaultPreview />,
-  glass:   <GlassPreview />,
+  liquid:  <LiquidPreview />,
+  obsidian: <ObsidianPreview />,
   noir:    <NoirPreview />,
 };
 
