@@ -5,12 +5,12 @@ import { createServerClient } from "@/lib/supabase/server";
 import { EuComplianceCenter } from "@/components/eu-compliance-center";
 
 export const metadata: Metadata = {
-  title: "EU Compliance — Corelyx",
+  title: "EU Compliance Center - Corelyx",
   description:
     "Submit GDPR data subject requests, download policies, review audit evidence, and exercise privacy rights for your Corelyx workspace.",
 };
 
-export default async function CompliancePage() {
+export default async function AccountCompliancePage() {
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -35,14 +35,14 @@ export default async function CompliancePage() {
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
               GDPR controls, data subject requests, policies, audit evidence, and
-              regulatory references — all in one place.
+              regulatory references all in one place.
             </p>
           </div>
           <Link
             href="/dashboard"
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            ← Back to dashboard
+            Back to dashboard
           </Link>
         </div>
       </header>

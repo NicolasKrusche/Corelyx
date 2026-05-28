@@ -791,6 +791,16 @@ function SiteFooter() {
             <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#6b7280]">
               <li><Link href="/pricing" className="transition-colors hover:text-[#111318]">Pricing</Link></li>
               <li><Link href="/trust" className="transition-colors hover:text-[#111318]">Trust Center</Link></li>
+              <li><Link href="/docs" className="transition-colors hover:text-[#111318]">Docs</Link></li>
+              <li><Link href="/gdpr" className="transition-colors hover:text-[#111318]">GDPR</Link></li>
+              <li><Link href="/ai-act" className="transition-colors hover:text-[#111318]">AI Act</Link></li>
+              <li><Link href="/compliance" className="transition-colors hover:text-[#111318]">Compliance</Link></li>
+              <li><Link href="/templates" className="transition-colors hover:text-[#111318]">Templates</Link></li>
+              <li><Link href="/compare" className="transition-colors hover:text-[#111318]">Compare</Link></li>
+              <li><Link href="/academy" className="transition-colors hover:text-[#111318]">Academy</Link></li>
+              <li><Link href="/blog" className="transition-colors hover:text-[#111318]">Blog</Link></li>
+              <li><Link href="/integrations" className="transition-colors hover:text-[#111318]">Integrations</Link></li>
+              <li><Link href="/use-cases" className="transition-colors hover:text-[#111318]">Use cases</Link></li>
               <li><Link href="/security" className="transition-colors hover:text-[#111318]">Security</Link></li>
               <li><Link href="/privacy" className="transition-colors hover:text-[#111318]">Privacy</Link></li>
               <li><Link href="/terms" className="transition-colors hover:text-[#111318]">Terms</Link></li>

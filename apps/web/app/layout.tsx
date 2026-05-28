@@ -20,12 +20,12 @@ const inter = Inter({
 const SITE_URL = "https://www.corelyx.app";
 
 const OG_DESCRIPTION =
-  "Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself.";
+  "Corelyx is an EU-native compliance-first AI workflow automation platform for GDPR AI automation, EU AI Act workflows, human oversight, and auditability.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Corelyx — Visual AI Automation",
+    default: "Corelyx - EU-Native Compliance-First AI Workflow Automation",
     template: "%s | Corelyx",
   },
   description: OG_DESCRIPTION,
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Corelyx",
-    title: "Corelyx — Visual AI Automation",
+    title: "Corelyx - EU-Native Compliance-First AI Workflow Automation",
     description: OG_DESCRIPTION,
     url: SITE_URL,
     images: [
@@ -49,14 +49,14 @@ export const metadata: Metadata = {
         url: "/pictures/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Corelyx — Visual AI Automation with EU-first workflow controls",
+        alt: "Corelyx - EU-native compliance-first AI workflow automation",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     site: "@corelyx",
-    title: "Corelyx — Visual AI Automation",
+    title: "Corelyx - EU-Native Compliance-First AI Workflow Automation",
     description: OG_DESCRIPTION,
     images: ["/pictures/og-image.png"],
   },

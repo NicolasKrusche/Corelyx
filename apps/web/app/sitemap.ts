@@ -1,15 +1,15 @@
-﻿import type { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
+import { allSeoPages, SITE_URL } from "@/lib/seo/content";
 
-const BASE = "https://www.corelyx.app";
+const BASE = SITE_URL;
 
-// Hardcoded lastmod dates — update when page content significantly changes.
-// Using dynamic Date.now() causes Googlebot to see every page as "updated today"
-// on every crawl, which wastes crawl budget.
+// Hardcoded lastmod dates. Using Date.now() causes crawlers to see every page
+// as updated on every crawl, which wastes crawl budget.
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: BASE,
-      lastModified: new Date("2026-05-01"),
+      lastModified: new Date("2026-05-28"),
       changeFrequency: "weekly",
       priority: 1,
     },
@@ -26,12 +26,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
-      url: `${BASE}/security`,
-      lastModified: new Date("2026-05-27"),
-      changeFrequency: "yearly",
-      priority: 0.7,
-    },
-    {
       url: `${BASE}/dpa`,
       lastModified: new Date("2026-04-24"),
       changeFrequency: "yearly",
@@ -45,12 +39,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${BASE}/data-residency`,
-      lastModified: new Date("2026-05-27"),
-      changeFrequency: "monthly",
-      priority: 0.6,
-    },
-    {
-      url: `${BASE}/ai-act`,
       lastModified: new Date("2026-05-27"),
       changeFrequency: "monthly",
       priority: 0.6,
@@ -85,5 +73,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    ...allSeoPages.map((page) => ({
+      url: `${BASE}${page.path}`,
+      lastModified: new Date(page.lastModified),
+      changeFrequency: "monthly" as const,
+      priority: page.path.split("/").filter(Boolean).length === 1 ? 0.85 : 0.65,
+    })),
   ];
 }

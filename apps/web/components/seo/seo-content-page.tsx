@@ -1,0 +1,397 @@
+import Image from "next/image";
+import Link from "next/link";
+import type { Metadata } from "next";
+import type { SeoPage } from "@/lib/seo/content";
+import { SITE_URL } from "@/lib/seo/content";
+
+export function createSeoMetadata(page: SeoPage): Metadata {
+  const url = `${SITE_URL}${page.path}`;
+
+  return {
+    title: page.title,
+    description: page.description,
+    keywords: [page.primaryQuery, ...page.entityTerms],
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true },
+    },
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      title: page.title,
+      description: page.description,
+      url,
+      siteName: "Corelyx",
+      images: [
+        {
+          url: "/pictures/og-image.png",
+          width: 1200,
+          height: 630,
+          alt: `${page.shortTitle} - Corelyx compliance-first AI workflow automation`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: page.title,
+      description: page.description,
+      images: ["/pictures/og-image.png"],
+    },
+  };
+}
+
+function buildBreadcrumbs(page: SeoPage) {
+  const parts = page.path.split("/").filter(Boolean);
+  const crumbs = [{ name: "Home", item: SITE_URL }];
+  let current = "";
+
+  for (const part of parts) {
+    current += `/${part}`;
+    const label = part
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+    crumbs.push({ name: label, item: `${SITE_URL}${current}` });
+  }
+
+  crumbs[crumbs.length - 1].name = page.shortTitle;
+  return crumbs;
+}
+
+function buildJsonLd(page: SeoPage) {
+  const url = `${SITE_URL}${page.path}`;
+  const breadcrumbs = buildBreadcrumbs(page);
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "Corelyx",
+        url: SITE_URL,
+        logo: {
+          "@type": "ImageObject",
+          url: `${SITE_URL}/pictures/logo-no-bg.png`,
+        },
+        description: "Corelyx is an EU-native compliance-first AI workflow automation platform.",
+        knowsAbout: page.entityTerms,
+        contactPoint: {
+          "@type": "ContactPoint",
+          email: "support@corelyx.app",
+          contactType: "customer support",
+        },
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${SITE_URL}/#software`,
+        name: "Corelyx",
+        url: SITE_URL,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        description: "EU-native compliance-first AI workflow automation platform.",
+        featureList: [
+          "Validated workflow schemas",
+          "GDPR AI automation controls",
+          "EU AI Act workflow review",
+          "Human-in-the-loop approval gates",
+          "Server-side credential access",
+          "Run-level audit logs",
+        ],
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${url}#breadcrumb`,
+        itemListElement: breadcrumbs.map((crumb, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: crumb.name,
+          item: crumb.item,
+        })),
+      },
+      {
+        "@type": "Article",
+        "@id": `${url}#article`,
+        headline: page.title,
+        description: page.description,
+        articleSection: page.section,
+        mainEntityOfPage: url,
+        datePublished: page.lastModified,
+        dateModified: page.lastModified,
+        author: { "@id": `${SITE_URL}/#organization` },
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        about: page.entityTerms.map((term) => ({ "@type": "Thing", name: term })),
+      },
+      {
+        "@type": "HowTo",
+        "@id": `${url}#howto`,
+        name: page.headline,
+        description: page.summary,
+        step: page.implementationSteps.map((step, index) => ({
+          "@type": "HowToStep",
+          position: index + 1,
+          name: step.name,
+          text: step.text,
+        })),
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${url}#faq`,
+        mainEntity: page.faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: faq.answer,
+          },
+        })),
+      },
+    ],
+  };
+}
+
+function PublicSeoHeader() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8">
+        <Link href="/" className="flex items-center gap-2.5">
+          <Image
+            src="/pictures/logo-no-bg.png"
+            alt="Corelyx"
+            width={24}
+            height={24}
+            className="h-6 w-6 object-contain"
+            priority
+          />
+          <span className="text-sm font-bold tracking-tight">Corelyx</span>
+        </Link>
+        <nav className="hidden items-center gap-5 text-xs text-muted-foreground md:flex">
+          <Link href="/docs" className="transition-colors hover:text-foreground">Docs</Link>
+          <Link href="/gdpr" className="transition-colors hover:text-foreground">GDPR</Link>
+          <Link href="/ai-act" className="transition-colors hover:text-foreground">AI Act</Link>
+          <Link href="/templates" className="transition-colors hover:text-foreground">Templates</Link>
+          <Link href="/compare" className="transition-colors hover:text-foreground">Compare</Link>
+          <Link href="/security" className="transition-colors hover:text-foreground">Security</Link>
+        </nav>
+        <Link
+          href="/login"
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          Sign in
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function BreadcrumbNav({ page }: { page: SeoPage }) {
+  const breadcrumbs = buildBreadcrumbs(page);
+
+  return (
+    <nav aria-label="Breadcrumb" className="mb-8 text-xs text-muted-foreground">
+      <ol className="flex flex-wrap items-center gap-2">
+        {breadcrumbs.map((crumb, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+          return (
+            <li key={crumb.item} className="flex items-center gap-2">
+              {index > 0 && <span aria-hidden="true">/</span>}
+              {isLast ? (
+                <span className="text-foreground">{crumb.name}</span>
+              ) : (
+                <Link href={new URL(crumb.item).pathname || "/"} className="hover:text-foreground">
+                  {crumb.name}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+export function SeoContentPage({ page }: { page: SeoPage }) {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd(page)) }}
+      />
+      <PublicSeoHeader />
+      <main>
+        <section className="border-b border-border/70 px-5 py-16 sm:px-8 sm:py-20">
+          <div className="mx-auto max-w-6xl">
+            <BreadcrumbNav page={page} />
+            <div className="max-w-4xl">
+              <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
+                {page.eyebrow}
+              </p>
+              <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                {page.headline}
+              </h1>
+              <p className="mt-6 max-w-3xl text-base leading-8 text-muted-foreground sm:text-lg">
+                {page.summary}
+              </p>
+            </div>
+            <dl className="mt-10 grid gap-4 md:grid-cols-3">
+              <div className="rounded-lg border border-border bg-card p-5">
+                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Primary query</dt>
+                <dd className="mt-2 text-sm font-medium">{page.primaryQuery}</dd>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-5">
+                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Audience</dt>
+                <dd className="mt-2 text-sm font-medium">{page.audience}</dd>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-5">
+                <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Updated</dt>
+                <dd className="mt-2 text-sm font-medium">{page.lastModified}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <section className="px-5 py-14 sm:px-8">
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <article className="space-y-14">
+              <section aria-labelledby="definition">
+                <h2 id="definition" className="text-2xl font-bold tracking-tight">Structured Definition</h2>
+                <p className="mt-4 text-sm leading-7 text-muted-foreground">{page.definition}</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {page.entityTerms.map((term) => (
+                    <span
+                      key={term}
+                      className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                    >
+                      {term}
+                    </span>
+                  ))}
+                </div>
+              </section>
+
+              <section aria-labelledby="key-points">
+                <h2 id="key-points" className="text-2xl font-bold tracking-tight">Structured Summary</h2>
+                <ul className="mt-5 grid gap-3">
+                  {page.keyPoints.map((point) => (
+                    <li key={point} className="rounded-lg border border-border bg-card p-4 text-sm leading-7 text-muted-foreground">
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section aria-labelledby="implementation">
+                <h2 id="implementation" className="text-2xl font-bold tracking-tight">Implementation Steps</h2>
+                <ol className="mt-5 space-y-4">
+                  {page.implementationSteps.map((step, index) => (
+                    <li key={step.name} className="grid gap-4 rounded-lg border border-border bg-card p-5 sm:grid-cols-[56px_1fr]">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <h3 className="text-base font-semibold">{step.name}</h3>
+                        <p className="mt-2 text-sm leading-7 text-muted-foreground">{step.text}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+
+              <section aria-labelledby="table">
+                <h2 id="table" className="text-2xl font-bold tracking-tight">{page.table.caption}</h2>
+                <div className="mt-5 overflow-hidden rounded-lg border border-border">
+                  <table className="w-full border-collapse text-left text-sm">
+                    <thead className="bg-secondary text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      <tr>
+                        {page.table.headers.map((header) => (
+                          <th key={header} scope="col" className="px-4 py-3 font-semibold">{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border bg-card">
+                      {page.table.rows.map((row) => (
+                        <tr key={row.join("|")} className="align-top">
+                          {row.map((cell, index) => (
+                            <td key={`${cell}-${index}`} className="px-4 py-4 leading-7 text-muted-foreground">
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section aria-labelledby="checklist">
+                <h2 id="checklist" className="text-2xl font-bold tracking-tight">Implementation Checklist</h2>
+                <ul className="mt-5 grid gap-3">
+                  {page.checklist.map((item) => (
+                    <li key={item} className="flex gap-3 rounded-lg border border-border bg-card p-4 text-sm leading-7 text-muted-foreground">
+                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              {page.codeExample && (
+                <section aria-labelledby="example">
+                  <h2 id="example" className="text-2xl font-bold tracking-tight">{page.codeExample.title}</h2>
+                  <pre className="mt-5 overflow-x-auto rounded-lg border border-border bg-[#08090b] p-5 text-xs leading-6 text-slate-100">
+                    <code>{page.codeExample.code}</code>
+                  </pre>
+                </section>
+              )}
+
+              <section aria-labelledby="faq">
+                <h2 id="faq" className="text-2xl font-bold tracking-tight">FAQ</h2>
+                <div className="mt-5 divide-y divide-border rounded-lg border border-border bg-card">
+                  {page.faqs.map((faq) => (
+                    <details key={faq.question} className="group p-5">
+                      <summary className="cursor-pointer list-none text-sm font-semibold">
+                        {faq.question}
+                      </summary>
+                      <p className="mt-3 text-sm leading-7 text-muted-foreground">{faq.answer}</p>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            </article>
+
+            <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+              <section className="rounded-lg border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold">Related Corelyx Pages</h2>
+                <div className="mt-4 space-y-4">
+                  {page.internalLinks.map((link) => (
+                    <Link key={link.href} href={link.href} className="block rounded-md border border-border/70 p-4 transition-colors hover:bg-secondary">
+                      <span className="text-sm font-semibold text-foreground">{link.label}</span>
+                      <span className="mt-1 block text-xs leading-6 text-muted-foreground">{link.description}</span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+              <section className="rounded-lg border border-border bg-card p-5">
+                <h2 className="text-sm font-semibold">Core Positioning</h2>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                  Corelyx is an EU-native compliance-first AI workflow automation platform for GDPR AI automation, EU AI Act workflows, AI governance, secure AI workflows, human oversight, and auditability.
+                </p>
+              </section>
+            </aside>
+          </div>
+        </section>
+      </main>
+      <footer className="border-t border-border/60 px-5 py-8 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-5 text-xs text-muted-foreground">
+          <Link href="/trust" className="hover:text-foreground">Trust</Link>
+          <Link href="/dpa" className="hover:text-foreground">DPA</Link>
+          <Link href="/subprocessors" className="hover:text-foreground">Subprocessors</Link>
+          <Link href="/data-residency" className="hover:text-foreground">Data Residency</Link>
+          <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+          <Link href="/terms" className="hover:text-foreground">Terms</Link>
+        </div>
+      </footer>
+    </div>
+  );
+}
