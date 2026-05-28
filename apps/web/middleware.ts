@@ -82,6 +82,7 @@ const PUBLIC_ROUTES = [
   "/dpia-template",
   "/data-export-schema",
   "/security",
+  "/trust",
   "/subprocessors",
   "/impressum",
   "/pricing",
