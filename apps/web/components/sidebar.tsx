@@ -2126,7 +2126,7 @@ function SettingsModal({
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link
-                      href="/compliance"
+                      href="/account/compliance"
                       onClick={onClose}
                       className={cn(primaryBtnClass, "inline-flex")}
                     >
