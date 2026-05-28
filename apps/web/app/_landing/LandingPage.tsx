@@ -213,6 +213,7 @@ function SiteHeader() {
           <a href="#integrations" className="transition-colors hover:text-white/70">Integrations</a>
           <Link href="/security" className="transition-colors hover:text-white/70">Security</Link>
           <Link href="/pricing" className="transition-colors hover:text-white/70">Pricing</Link>
+          <a href="mailto:support@corelyx.app" className="transition-colors hover:text-white/70">Contact</a>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -778,13 +779,18 @@ function SiteFooter() {
               {legalIdentity.representative}.{" "}
               {legalIdentity.addressLines.length > 0
                 ? `Registered address: ${legalIdentity.addressLines.join(", ")}.`
-                : "Registered address: see Impressum."}
+                : "Registered address: see Impressum."}{" "}
+              Governing law: {legalIdentity.applicableLaw}.
+            </p>
+            <p className="mt-2 text-xs text-[#9ca3af]">
+              <a href="mailto:support@corelyx.app" className="hover:text-[#6b7280] transition-colors">support@corelyx.app</a>
             </p>
           </div>
 
           <nav aria-label="Footer navigation">
             <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#6b7280]">
               <li><Link href="/pricing" className="transition-colors hover:text-[#111318]">Pricing</Link></li>
+              <li><Link href="/trust" className="transition-colors hover:text-[#111318]">Trust Center</Link></li>
               <li><Link href="/security" className="transition-colors hover:text-[#111318]">Security</Link></li>
               <li><Link href="/privacy" className="transition-colors hover:text-[#111318]">Privacy</Link></li>
               <li><Link href="/terms" className="transition-colors hover:text-[#111318]">Terms</Link></li>
