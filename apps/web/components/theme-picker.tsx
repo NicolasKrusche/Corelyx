@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
+import { useTheme, type BaseTheme, type AccentColor, type BgStyle } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 
 const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
@@ -12,8 +12,73 @@ const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
   { id: "cyan",   label: "Cyan",   color: "#22d3ee" },
 ];
 
+const BG_STYLES: { id: BgStyle; label: string }[] = [
+  { id: "default", label: "Default" },
+  { id: "glass",   label: "Glass"   },
+  { id: "noir",    label: "Noir"    },
+];
+
+function DefaultPreview() {
+  return (
+    <div className="relative w-9 h-6 rounded overflow-hidden bg-[#171717]">
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 60% at 80% 10%, rgba(99,102,241,0.55) 0%, transparent 55%)," +
+            "radial-gradient(ellipse 55% 50% at 15% 90%, rgba(59,130,246,0.4) 0%, transparent 50%)",
+        }}
+      />
+    </div>
+  );
+}
+
+function GlassPreview() {
+  return (
+    <div
+      className="relative w-9 h-6 rounded overflow-hidden"
+      style={{ background: "#020209" }}
+    >
+      {/* dot grid */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: "radial-gradient(circle, rgba(160,180,255,0.3) 1px, transparent 1px)",
+          backgroundSize: "4px 4px",
+        }}
+      />
+      {/* orbs */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 55% at 75% 20%, rgba(99,102,241,0.75) 0%, transparent 55%)," +
+            "radial-gradient(ellipse 45% 40% at 20% 80%, rgba(34,211,238,0.55) 0%, transparent 45%)",
+        }}
+      />
+      {/* top highlight sheen */}
+      <div
+        className="absolute inset-x-0 top-0 h-[35%]"
+        style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.07), transparent)" }}
+      />
+    </div>
+  );
+}
+
+function NoirPreview() {
+  return (
+    <div className="w-9 h-6 rounded overflow-hidden bg-black" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)" }} />
+  );
+}
+
+const PREVIEWS: Record<BgStyle, React.ReactNode> = {
+  default: <DefaultPreview />,
+  glass:   <GlassPreview />,
+  noir:    <NoirPreview />,
+};
+
 export function ThemePicker() {
-  const { base, accent, setBase, setAccent } = useTheme();
+  const { base, accent, bgStyle, setBase, setAccent, setBgStyle } = useTheme();
 
   return (
     <div className="px-3 py-2 space-y-3">
@@ -53,6 +118,27 @@ export function ThemePicker() {
               )}
               style={{ backgroundColor: a.color }}
             />
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5">Style</p>
+        <div className="flex gap-1.5">
+          {BG_STYLES.map((s) => (
+            <button
+              key={s.id}
+              title={s.label}
+              onClick={() => setBgStyle(s.id)}
+              className={cn(
+                "flex flex-col items-center gap-0.5 rounded-md p-1 transition-colors",
+                bgStyle === s.id
+                  ? "ring-1 ring-primary/50 bg-primary/10"
+                  : "hover:bg-muted"
+              )}
+            >
+              {PREVIEWS[s.id]}
+              <span className="text-[9px] text-muted-foreground leading-none">{s.label}</span>
+            </button>
           ))}
         </div>
       </div>

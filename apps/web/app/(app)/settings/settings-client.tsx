@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
-import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
+import { useTheme, type BaseTheme, type AccentColor, type BgStyle } from "@/components/theme-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
@@ -17,13 +17,58 @@ const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
   { id: "cyan",   label: "Cyan",   color: "#22d3ee" },
 ];
 
+const BG_STYLES: { id: BgStyle; label: string; description: string; preview: ReactNode }[] = [
+  {
+    id: "default",
+    label: "Default",
+    description: "Gradient orbs + texture",
+    preview: (
+      <div className="relative w-full h-10 rounded-md overflow-hidden bg-[#171717]">
+        <div className="absolute inset-0" style={{
+          background: "radial-gradient(ellipse 70% 60% at 80% 10%, rgba(99,102,241,0.55) 0%, transparent 55%), radial-gradient(ellipse 55% 50% at 15% 90%, rgba(59,130,246,0.4) 0%, transparent 50%)",
+        }} />
+      </div>
+    ),
+  },
+  {
+    id: "liquid",
+    label: "Liquid",
+    description: "Chrome iridescent orbs",
+    preview: (
+      <div className="relative w-full h-10 rounded-md overflow-hidden" style={{ background: "#03030a" }}>
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 65% 60% at 78% 18%, rgba(150,180,255,0.65) 0%, transparent 55%), radial-gradient(ellipse 60% 55% at 15% 82%, rgba(170,110,210,0.6) 0%, transparent 52%), radial-gradient(ellipse 40% 38% at 48% 48%, rgba(210,130,165,0.38) 0%, transparent 50%)" }} />
+        <div className="absolute inset-x-0 top-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)" }} />
+      </div>
+    ),
+  },
+  {
+    id: "obsidian",
+    label: "Obsidian",
+    description: "Dark geometric cells",
+    preview: (
+      <div className="relative w-full h-10 rounded-md overflow-hidden" style={{ background: "#050505" }}>
+        <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(135deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(45deg, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-7 rounded-md" style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(255,255,255,0.07)" }} />
+      </div>
+    ),
+  },
+  {
+    id: "noir",
+    label: "Noir",
+    description: "Pure black, minimal",
+    preview: (
+      <div className="w-full h-10 rounded-md bg-black" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" }} />
+    ),
+  },
+];
+
 function AppearanceSection() {
-  const { base, accent, setBase, setAccent } = useTheme();
+  const { base, accent, bgStyle, setBase, setAccent, setBgStyle } = useTheme();
   return (
-    <Section title="Appearance" description="Choose a mode and accent colour. Applies instantly.">
-      <div className="space-y-4">
+    <Section title="Appearance" description="Choose a mode, accent colour, and background style. Applies instantly.">
+      <div className="space-y-5">
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">Mode</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Mode</p>
           <div className="flex gap-2">
             {(["dark", "light"] as BaseTheme[]).map((b) => (
               <button
@@ -31,34 +76,59 @@ function AppearanceSection() {
                 type="button"
                 onClick={() => setBase(b)}
                 aria-pressed={base === b}
-                className={`flex-1 rounded-lg border px-4 py-2.5 text-xs font-medium capitalize transition-colors ${
+                className={`flex-1 rounded-lg border px-4 py-2.5 text-xs font-medium transition-colors ${
                   base === b
-                    ? "border-primary bg-accent text-foreground"
-                    : "border-border hover:bg-accent/50 text-muted-foreground"
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border hover:bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {b === "dark" ? "🌙  Dark" : "☀️  Light"}
+                {b === "dark" ? "Dark" : "Light"}
               </button>
             ))}
           </div>
         </div>
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">Accent colour</p>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Accent</p>
+          <div className="flex flex-wrap gap-2">
             {ACCENTS.map((a) => (
               <button
                 key={a.id}
                 type="button"
                 onClick={() => setAccent(a.id)}
                 aria-pressed={accent === a.id}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs transition-colors ${
+                title={a.label}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-colors ${
                   accent === a.id
-                    ? "border-primary bg-accent text-foreground"
-                    : "border-border hover:bg-accent/50 text-muted-foreground"
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border hover:bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <span className="h-3.5 w-3.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
-                <span>{a.label}</span>
+                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Style</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {BG_STYLES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setBgStyle(s.id)}
+                aria-pressed={bgStyle === s.id}
+                className={`flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-colors ${
+                  bgStyle === s.id
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:bg-muted"
+                }`}
+              >
+                {s.preview}
+                <div>
+                  <p className={`text-xs font-medium ${bgStyle === s.id ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{s.description}</p>
+                </div>
               </button>
             ))}
           </div>
