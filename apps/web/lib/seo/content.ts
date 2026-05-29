@@ -8,7 +8,7 @@ export type SeoSection =
   | "compliance"
   | "templates"
   | "compare"
-  | "academy"
+  | "guides"
   | "blog"
   | "integrations"
   | "use-cases"
@@ -501,7 +501,7 @@ return NextResponse.json({
       { question: "What should be blocked before publish?", answer: "Prohibited-use workflows and high-risk workflows without required oversight, documentation, and reviewer approval should be blocked." },
       { question: "Why track model and provider metadata?", answer: "It helps reviewers understand dependencies, model-mediated decisions, and evidence trails for governance reviews." },
     ],
-    internalLinks: [commonLinks.compliance, commonLinks.templates, { href: "/academy/eu-ai-act-workflow-automation", label: "AI Act academy guide", description: "A deeper tutorial for turning AI Act review into workflow checkpoints." }, { href: "/trust", label: "Trust Center", description: "Public trust and procurement material." }],
+    internalLinks: [commonLinks.compliance, commonLinks.templates, { href: "/guides/eu-ai-act-workflow-automation", label: "AI Act guide", description: "A deeper tutorial for turning AI Act review into workflow checkpoints." }, { href: "/trust", label: "Trust Center", description: "Public trust and procurement material." }],
   },
   {
     path: "/compliance",
@@ -874,10 +874,10 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     primaryQuery: "Corelyx vs n8n",
     entityTerms: ["Corelyx vs n8n", "n8n alternative EU AI automation", "GDPR AI workflows", "AI governance automation"],
     keyPoints: [
-      "Choose Corelyx when AI governance, human oversight, EU-first controls, and audit exports are central to the workflow.",
-      "Choose a broader automation tool when custom node flexibility is more important than built-in compliance workflows.",
-      "Self-hosting can help infrastructure control, but teams still need governance logic, retention policy, and evidence design.",
-      "The proof point should be a regulated workflow, not a simple notification chain.",
+      "n8n excels at flexible custom integrations and self-hosted deployments where you own the full stack.",
+      "Corelyx is the stronger fit when approval gates, AI governance metadata, and structured audit evidence are non-negotiable.",
+      "n8n's code node (JS/Python) gives developers more flexibility; Corelyx gives compliance teams more built-in controls.",
+      "Self-hosting n8n gives infrastructure control but does not provide built-in AI Act checkpoints or approval workflows.",
     ],
     implementationSteps: [
       { name: "Prototype the same workflow", text: "Use a GDPR support triage or approval-before-side-effect workflow in both platforms." },
@@ -886,12 +886,16 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       { name: "Assess governance ownership", text: "Decide whether your team wants to build and maintain compliance controls or adopt them as product primitives." },
     ],
     table: {
-      caption: "Corelyx vs n8n governance comparison",
-      headers: ["Evaluation area", "Corelyx fit", "n8n-style fit"],
+      caption: "Corelyx vs n8n — feature comparison",
+      headers: ["Feature", "Corelyx", "n8n"],
       rows: [
-        ["Primary use case", "Compliance-first AI workflows for EU-facing teams.", "Flexible general workflow automation with extensive customization."],
-        ["Governance model", "Validated schemas, approvals, compliance exports, retention context.", "Governance depends more on how the team designs and hosts workflows."],
-        ["Best proof of concept", "AI step plus minimisation, approval, connector side effect, and audit export.", "Custom integration chain or self-managed automation scenario."],
+        ["Built-in approval gates", "Yes — approval is a first-class workflow step with state, timeout, and role", "No — requires custom nodes or external logic"],
+        ["AI governance metadata", "Risk level, model/provider, transparency notice, reviewer decision", "Not included — governance is DIY"],
+        ["EU AI Act checkpoints", "Built-in risk classification and oversight step patterns", "Not included"],
+        ["Credential storage", "Server-side Vault references; tokens never in frontend responses", "Credentials managed in n8n credential store; self-managed security"],
+        ["Audit evidence export", "Structured run evidence with schema, approvals, connector actions", "Execution logs available; governance structure is custom"],
+        ["Deployment", "Cloud-hosted, EU-aware infrastructure", "Self-hostable on any infra; cloud option available"],
+        ["Connector count", "Focused set of production connectors with governance patterns", "400+ community connectors for broad integration coverage"],
       ],
     },
     checklist: [
@@ -925,10 +929,10 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     primaryQuery: "Corelyx vs Make",
     entityTerms: ["Corelyx vs Make", "Make alternative GDPR AI workflows", "EU AI automation", "secure AI workflows"],
     keyPoints: [
-      "Corelyx is the stronger fit when workflows require AI governance evidence and approval before side effects.",
-      "Make-style scenario automation can be useful for broad operational integrations where compliance controls are simpler.",
-      "Sensitive AI workflows should be compared by data movement, retention, approval, and audit outputs.",
-      "A visual interface should still expose the runtime contract to reviewers.",
+      "Make is well-suited for high-volume operational automations between SaaS tools where governance depth is not the primary concern.",
+      "Corelyx is the stronger fit when workflows touch personal data, require approval before side effects, or need structured EU compliance evidence.",
+      "Make's operation-based pricing can become expensive at scale; Corelyx uses a credit model tied to AI usage.",
+      "For a fair evaluation, test both on a workflow involving personal data, an AI step, and a human decision point.",
     ],
     implementationSteps: [
       { name: "Define the regulated scenario", text: "Use a workflow involving personal data, customer communication, or a regulated record." },
@@ -937,12 +941,16 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       { name: "Review procurement evidence", text: "Check DPA, subprocessors, data residency, export schema, and security documentation." },
     ],
     table: {
-      caption: "Corelyx vs Make evaluation map",
-      headers: ["Criterion", "Corelyx fit", "Make-style fit"],
+      caption: "Corelyx vs Make — feature comparison",
+      headers: ["Feature", "Corelyx", "Make"],
       rows: [
-        ["AI governance", "Risk metadata, approvals, and evidence exports are central.", "Often depends on scenario design and external documentation."],
-        ["Credential safety", "Server-side token/Vault helper pattern is a product rule.", "Review implementation and workspace controls carefully."],
-        ["Compliance content", "GDPR, AI Act, DPIA, subprocessors, and residency pages are part of the trust layer.", "Procurement evidence may require separate collection."],
+        ["Human approval gates", "First-class workflow step — blocks execution until approved", "Not a native concept — requires custom webhooks or workarounds"],
+        ["AI governance controls", "Risk metadata, model tracking, oversight steps, evidence export", "Not included — governance layer is external"],
+        ["Target user", "Compliance teams, developers, and governance owners in EU-facing orgs", "Operations and marketing teams running high-volume scenario automations"],
+        ["Pricing model", "Per-use credits with plan tiers", "Operations-based pricing (scenarios and operations per month)"],
+        ["Credential safety", "Server-side Vault helper pattern; tokens not exposed to frontend", "Credentials stored in Make — review data handling terms for sensitive workflows"],
+        ["Audit evidence", "Structured per-run evidence with approval records and field context", "Execution history available; compliance evidence is custom"],
+        ["Integration breadth", "Focused production connectors with governance patterns", "1000+ app connections for broad operational automation"],
       ],
     },
     checklist: [
@@ -959,16 +967,16 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     internalLinks: [commonLinks.compliance, commonLinks.templates, commonLinks.integrations, { href: "/data-residency", label: "Data residency", description: "Infrastructure and provider locality context." }],
   },
   {
-    path: "/academy",
-    section: "academy",
-    title: "Corelyx Academy for EU AI Governance Automation",
-    shortTitle: "Academy",
+    path: "/guides",
+    section: "guides",
+    title: "Corelyx Guides for EU AI Governance Automation",
+    shortTitle: "Guides",
     description:
-      "Educational guides for AI governance, GDPR-compliant AI workflows, EU AI Act automation, secure AI agents, and human-in-the-loop workflow design.",
-    eyebrow: "Academy",
-    headline: "Learn the operating model for governed AI automation.",
+      "Practical guides for AI governance, GDPR-compliant AI workflows, EU AI Act automation, secure AI agents, and human-in-the-loop workflow design.",
+    eyebrow: "Guides",
+    headline: "Practical guides for building governed AI workflows.",
     summary:
-      "Corelyx Academy teaches teams how to turn EU AI governance requirements into concrete workflow controls, schemas, approvals, logs, and implementation tests.",
+      "Corelyx guides teach teams how to turn EU AI governance requirements into concrete workflow controls, schemas, approvals, logs, and implementation tests.",
     definition:
       "AI governance automation education is the practice of teaching teams how to convert policies into executable workflow controls rather than leaving governance in documents only.",
     audience: "Developers, compliance managers, automation owners, and executives sponsoring AI workflow programs.",
@@ -979,7 +987,7 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       "Governance workflows are teachable implementation patterns.",
       "Training should include examples, schemas, failure modes, and review artifacts.",
       "Non-technical stakeholders need definitions and checklists; developers need field-level detail.",
-      "Every academy guide should end with a workflow a team can build or audit.",
+      "Every guide should end with a workflow a team can build or audit.",
     ],
     implementationSteps: [
       { name: "Teach definitions", text: "Start with terms such as AI workflow, approval gate, data minimisation, risk classification, and audit evidence." },
@@ -988,7 +996,7 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       { name: "Run a review", text: "Use the checklist to find missing approvals, excessive data, weak retention, or unsafe credentials." },
     ],
     table: {
-      caption: "Academy learning paths",
+      caption: "Guide learning paths",
       headers: ["Path", "Best for", "Outcome"],
       rows: [
         ["AI Act workflow automation", "AI governance and legal teams.", "Risk review as workflow checkpoints."],
@@ -1003,20 +1011,20 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       "Link guides to templates and trust documentation.",
     ],
     faqs: [
-      { question: "Who is the Academy for?", answer: "It is for cross-functional teams that need shared language between engineering, security, privacy, and AI governance." },
-      { question: "Are Academy guides legal advice?", answer: "No. They are implementation education and should be paired with customer-side legal review." },
+      { question: "Who are the guides for?", answer: "They are for cross-functional teams that need shared language between engineering, security, privacy, and AI governance." },
+      { question: "Are guides legal advice?", answer: "No. They are implementation education and should be paired with customer-side legal review." },
       { question: "What makes the content useful for AI retrieval?", answer: "Definitions, implementation steps, tables, FAQs, and internal links create clear semantic structure." },
     ],
-    internalLinks: [{ href: "/academy/eu-ai-act-workflow-automation", label: "AI Act workflow automation guide", description: "Learn to build AI Act checkpoints into the graph." }, commonLinks.templates, commonLinks.gdpr, commonLinks.aiAct],
+    internalLinks: [{ href: "/guides/eu-ai-act-workflow-automation", label: "AI Act workflow automation guide", description: "Learn to build AI Act checkpoints into the graph." }, commonLinks.templates, commonLinks.gdpr, commonLinks.aiAct],
   },
   {
-    path: "/academy/eu-ai-act-workflow-automation",
-    section: "academy",
+    path: "/guides/eu-ai-act-workflow-automation",
+    section: "guides",
     title: "How to Build EU AI Act Workflow Automation",
-    shortTitle: "AI Act Academy Guide",
+    shortTitle: "AI Act Guide",
     description:
-      "A step-by-step academy guide for turning EU AI Act risk review, human oversight, transparency, and documentation duties into Corelyx workflows.",
-    eyebrow: "Academy guide",
+      "A step-by-step guide for turning EU AI Act risk review, human oversight, transparency, and documentation duties into Corelyx workflows.",
+    eyebrow: "Guide",
     headline: "Build an AI Act review workflow that operators can actually run.",
     summary:
       "This guide turns AI Act governance into a workflow with use-case classification, risk review, transparency notice handling, human oversight, and evidence export.",
@@ -1187,6 +1195,142 @@ if (workflow.transparency_notice_required) {
     internalLinks: [commonLinks.gdpr, { href: "/templates/gdpr-ai-customer-support", label: "GDPR support template", description: "Put this article into practice with a workflow template." }, commonLinks.security],
   },
   {
+    path: "/blog/human-oversight-eu-ai-act",
+    section: "blog",
+    title: "What Human Oversight Actually Means in an EU AI Act Workflow",
+    shortTitle: "Human Oversight Article",
+    description:
+      "A practical article on how to implement human oversight as a workflow step under the EU AI Act — not a launch document checkbox.",
+    eyebrow: "Article",
+    headline: "Human oversight is a workflow step, not a sign-off in a document.",
+    summary:
+      "The EU AI Act requires meaningful human oversight for high-risk AI systems. In practice, this means building approval gates into the workflow itself — not adding a review checkbox to a launch document after the fact.",
+    definition:
+      "Human oversight in an AI workflow is a configured step that pauses execution, presents the AI output and relevant context to a named reviewer, records their decision, and only continues to downstream actions after approval is granted.",
+    audience: "Compliance managers, AI governance leads, developers, and legal operations teams implementing EU AI Act controls.",
+    lastModified: "2026-05-29",
+    primaryQuery: "EU AI Act human oversight workflow",
+    entityTerms: ["EU AI Act human oversight", "AI oversight workflow", "human-in-the-loop AI", "AI governance controls"],
+    keyPoints: [
+      "The AI Act does not specify a UX for oversight — it requires that a human can understand, monitor, and intervene in AI outputs.",
+      "A Slack message asking for sign-off is not sufficient if there is no record of what was reviewed or decided.",
+      "Oversight must happen before consequential AI outputs take effect — not as a post-hoc audit.",
+      "The run log should record who reviewed what, what decision was made, and what happened next.",
+    ],
+    implementationSteps: [
+      { name: "Identify consequential outputs", text: "List every AI output that could affect a person, trigger a legal action, or change a system of record." },
+      { name: "Insert an approval step", text: "Place a human review node after the AI step and before any connector side effect." },
+      { name: "Supply sufficient context", text: "The reviewer should see the AI output, the input that produced it, the risk classification, and the policy reference." },
+      { name: "Record the decision", text: "Log the reviewer identity, timestamp, decision, and any notes — store this in the workflow run." },
+    ],
+    table: {
+      caption: "Human oversight checklist",
+      headers: ["Requirement", "Workflow implementation", "Evidence"],
+      rows: [
+        ["Reviewer can understand the AI output", "Context panel with AI output + source data", "Approval record with review payload"],
+        ["Reviewer can override or reject", "Approve / reject / request changes actions", "Decision field in run log"],
+        ["Oversight happens before action", "Approval node before connector side effect", "Run order in audit trail"],
+      ],
+    },
+    checklist: [
+      "Map every AI output that touches a person or a system of record to an oversight step.",
+      "Do not treat an email notification as oversight — the decision must be recorded in the workflow.",
+      "Include enough context for a reviewer to make a real decision without external lookup.",
+      "Store oversight records in a way that can be exported for DPIAs and regulatory review.",
+    ],
+    codeExample: {
+      title: "Approval step schema",
+      language: "json",
+      code: `{
+  "id": "oversight-review",
+  "type": "step",
+  "label": "Human oversight review",
+  "requires_approval": true,
+  "reviewer_role": "ai_governance_lead",
+  "timeout_hours": 24,
+  "context_fields": ["ai_output", "source_record_id", "risk_classification", "policy_reference"]
+}`,
+    },
+    faqs: [
+      { question: "Does every AI step need human oversight?", answer: "No. The AI Act focuses on high-risk systems. For lower-risk automations, proportionate review mechanisms are sufficient." },
+      { question: "Can an AI reviewer substitute for a human?", answer: "No. Human oversight under the AI Act requires a natural person who can genuinely intervene." },
+      { question: "How long should oversight records be retained?", answer: "The AI Act does not specify a universal retention period — match it to your broader record-keeping and legal obligations." },
+    ],
+    internalLinks: [
+      commonLinks.aiAct,
+      commonLinks.gdpr,
+      { href: "/templates/human-approval-ai-workflow", label: "Human approval workflow template", description: "A template that shows oversight as a configured workflow step." },
+      { href: "/docs/audit-logging-model", label: "Audit logging model", description: "How to structure evidence for oversight records." },
+    ],
+  },
+  {
+    path: "/blog/building-ai-workflow-audit-trail",
+    section: "blog",
+    title: "How to Build an AI Workflow Audit Trail That Survives a GDPR Audit",
+    shortTitle: "Audit Trail Article",
+    description:
+      "A practical article on how to generate structured AI workflow audit evidence at execution time for GDPR and EU AI Act compliance.",
+    eyebrow: "Article",
+    headline: "An audit trail that needs manual reconstruction is not an audit trail.",
+    summary:
+      "GDPR and the EU AI Act both require organisations to demonstrate what happened in a data-processing workflow. The only way to do this consistently is to generate structured evidence at execution time — not to reconstruct it from logs and screenshots after the fact.",
+    definition:
+      "An AI workflow audit trail is a structured, per-run record that captures trigger source, input data summary, model and provider metadata, AI output, approval decisions, connector actions, and retention context — generated automatically by the workflow execution engine.",
+    audience: "Developers, DPOs, compliance officers, and platform engineers responsible for AI workflow evidence.",
+    lastModified: "2026-05-29",
+    primaryQuery: "AI workflow audit trail GDPR",
+    entityTerms: ["AI workflow audit trail", "GDPR execution evidence", "workflow logging", "compliance audit log"],
+    keyPoints: [
+      "Audit evidence should be a byproduct of execution, not a documentation task after the fact.",
+      "The most important fields are: trigger source, data categories used, AI model/provider, human decision, connector action, and retention note.",
+      "Audit records must be protected from tampering — write-once log design or append-only storage.",
+      "An auditor should be able to reconstruct a workflow run from the evidence without asking the developer.",
+    ],
+    implementationSteps: [
+      { name: "Define evidence fields upfront", text: "Decide before the workflow runs what evidence fields are required — purpose, data categories, model, approver, action, retention tag." },
+      { name: "Log at execution time", text: "Generate evidence as each node executes — do not rely on post-hoc reconstruction from application logs." },
+      { name: "Protect the log", text: "Store audit records in append-only storage and restrict write access to the workflow engine." },
+      { name: "Test exportability", text: "Regularly verify that audit records can be exported in a machine-readable format for DPIA review and regulatory requests." },
+    ],
+    table: {
+      caption: "Audit trail field reference",
+      headers: ["Field", "What to record", "Why"],
+      rows: [
+        ["Trigger", "Source, type, timestamp, payload hash", "Establishes what started the workflow"],
+        ["AI step", "Model, provider, input summary, output hash, latency", "Demonstrates what AI did and which provider processed data"],
+        ["Approval", "Reviewer, decision, timestamp, notes", "Proves human oversight occurred before consequential action"],
+      ],
+    },
+    checklist: [
+      "Generate audit evidence at execution time — not from memory or screenshots.",
+      "Include model and provider metadata for every AI step.",
+      "Log the approval decision and reviewer identity before any side-effect connector runs.",
+      "Verify that the audit export can be read without access to the live application.",
+    ],
+    codeExample: {
+      title: "Audit trail record",
+      language: "json",
+      code: `{
+  "run_id": "run_789",
+  "trigger": { "type": "webhook", "source": "support_system", "timestamp": "2026-05-29T10:00:00Z" },
+  "ai_step": { "model": "claude-3-5-sonnet", "provider": "anthropic", "input_fields": ["subject", "body_snippet"], "output_hash": "sha256:abc..." },
+  "approval": { "reviewer": "privacy_team_lead", "decision": "approved", "timestamp": "2026-05-29T10:04:22Z" },
+  "action": { "connector": "hubspot", "operation": "update_contact_status", "completed_at": "2026-05-29T10:04:25Z" }
+}`,
+    },
+    faqs: [
+      { question: "What is the minimum viable audit trail for a GDPR workflow?", answer: "At minimum: lawful basis reference, data categories processed, AI step details, human decision if applicable, and final connector action." },
+      { question: "Should audit logs include the full AI output?", answer: "No — store a hash or structured summary. Full content increases retention risk and is rarely needed for compliance evidence." },
+      { question: "How long should audit trails be retained?", answer: "Match retention to the underlying processing purpose and applicable legal minimum — typically 12 months for operational logs, longer for regulated processing." },
+    ],
+    internalLinks: [
+      { href: "/docs/audit-logging-model", label: "Audit logging model", description: "Technical reference for AI workflow audit evidence fields." },
+      commonLinks.gdpr,
+      commonLinks.aiAct,
+      commonLinks.security,
+    ],
+  },
+  {
     path: "/integrations",
     section: "integrations",
     title: "Secure AI Workflow Integrations",
@@ -1247,7 +1391,16 @@ if (workflow.transparency_notice_required) {
       { question: "Should webhook tokens be stored in the browser?", answer: "No. Public webhook routes should verify signed payloads or configured tokens server-side." },
       { question: "How should connector failures be handled?", answer: "Record a failed node state, error metadata, and retry/replay eligibility without exposing secrets." },
     ],
-    internalLinks: [{ href: "/integrations/slack-human-approval", label: "Slack approval integration", description: "A concrete connector pattern for approval workflows." }, commonLinks.docs, commonLinks.security, commonLinks.templates],
+    internalLinks: [
+      { href: "/integrations/slack-human-approval", label: "Slack approval workflows", description: "Use Slack for reviewer notifications while Corelyx holds the approval state." },
+      { href: "/integrations/gmail", label: "Gmail integration", description: "GDPR-compliant email triage and classification workflows." },
+      { href: "/integrations/notion", label: "Notion integration", description: "AI-generated content written to Notion knowledge bases with approval gates." },
+      { href: "/integrations/hubspot", label: "HubSpot integration", description: "CRM enrichment and contact workflows with GDPR controls." },
+      { href: "/integrations/github", label: "GitHub integration", description: "Code review, issue triage, and PR automation with governed AI steps." },
+      { href: "/integrations/google-sheets", label: "Google Sheets integration", description: "Read and write spreadsheet data as part of governed AI workflows." },
+      commonLinks.docs,
+      commonLinks.security,
+    ],
   },
   {
     path: "/integrations/slack-human-approval",
@@ -1309,6 +1462,292 @@ if (workflow.transparency_notice_required) {
       { question: "How are timeouts handled?", answer: "Timeouts should escalate or stop the workflow, not silently approve the action." },
     ],
     internalLinks: [{ href: "/templates/human-approval-ai-workflow", label: "Human approval template", description: "General approval workflow pattern." }, commonLinks.security, commonLinks.integrations],
+  },
+  {
+    path: "/integrations/gmail",
+    section: "integrations",
+    title: "Gmail AI Workflow Integration for GDPR-Compliant Email Automation",
+    shortTitle: "Gmail Integration",
+    description:
+      "Connect Gmail to governed AI workflows with server-side OAuth, GDPR-compliant email triage, DSAR detection, approval gates, and structured audit evidence.",
+    eyebrow: "Integration pattern",
+    headline: "Process Gmail at scale without turning your inbox into a GDPR liability.",
+    summary:
+      "Gmail is one of the most common data entry points for AI workflows. Corelyx connects to Gmail through server-side OAuth, letting teams triage, classify, and route emails with approval gates before any response or data export runs.",
+    definition:
+      "A GDPR-compliant Gmail automation is a workflow that reads, classifies, or acts on email content within a defined lawful basis, with minimised data access, human review for sensitive cases, and an audit trail of what the AI did and why.",
+    audience: "Developers and support teams building email-driven AI workflows that touch personal data.",
+    lastModified: "2026-05-29",
+    primaryQuery: "Gmail AI workflow automation GDPR",
+    entityTerms: ["Gmail AI automation", "email workflow GDPR", "AI email triage", "secure email connector"],
+    keyPoints: [
+      "Gmail OAuth credentials stay server-side — the token is never returned in a frontend response.",
+      "Email content often contains personal data — define which fields the AI step actually needs before sending.",
+      "DSAR and complaint detection are high-value triage patterns for Gmail workflows.",
+      "Any outbound reply or data export should pass an approval or policy check first.",
+    ],
+    implementationSteps: [
+      { name: "Connect Gmail OAuth", text: "Authenticate with the minimum Gmail scope needed — prefer read-only unless the workflow sends replies." },
+      { name: "Define the data minimum", text: "Decide which email fields (subject, sender, body snippet) are necessary for classification — strip the rest before the AI step." },
+      { name: "Classify and route", text: "Use an AI step to categorise the email type and route sensitive categories such as DSAR, complaint, or legal notice to a human approval step." },
+      { name: "Gate outbound actions", text: "Replies, CRM updates, and ticket creation should run only after approval is recorded in the workflow run." },
+    ],
+    table: {
+      caption: "Gmail workflow data minimisation",
+      headers: ["Email field", "Include in AI step", "Why"],
+      rows: [
+        ["Sender address", "Often — for routing rules", "Needed for triage logic"],
+        ["Full body text", "Only if required for classification", "Contains PII — minimise"],
+        ["Attachments", "Only if the workflow specifically needs them", "High-risk — scope carefully"],
+      ],
+    },
+    checklist: [
+      "Use read-only Gmail scope unless the workflow sends replies.",
+      "Do not pass full email body to AI unless classification requires it.",
+      "Route potential DSAR emails to a human reviewer before any data access or response.",
+      "Log sender category, AI classification, reviewer decision, and final action.",
+    ],
+    codeExample: {
+      title: "Gmail triage workflow output",
+      language: "json",
+      code: `{
+  "email_id": "msg_abc123",
+  "classification": "potential_dsar",
+  "confidence": 0.88,
+  "requires_human_review": true,
+  "fields_used": ["subject", "sender_domain", "body_snippet_100"]
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx detect GDPR rights requests in Gmail?", answer: "Yes — AI classification can flag likely DSAR, erasure, or objection emails for human review. Final handling should always involve a trained reviewer." },
+      { question: "What Gmail scopes does Corelyx use?", answer: "The minimum required for the configured operation — typically gmail.readonly for triage and gmail.send for outbound reply workflows." },
+    ],
+    internalLinks: [
+      commonLinks.gdpr,
+      { href: "/templates/gdpr-ai-customer-support", label: "GDPR AI customer support template", description: "Triage support emails while protecting data subject rights." },
+      commonLinks.security,
+      commonLinks.integrations,
+    ],
+  },
+  {
+    path: "/integrations/notion",
+    section: "integrations",
+    title: "Notion AI Workflow Integration for Knowledge Management Automation",
+    shortTitle: "Notion Integration",
+    description:
+      "Connect Notion to governed AI workflows with server-side OAuth, structured database writes, approval gates for sensitive content, and audit evidence.",
+    eyebrow: "Integration pattern",
+    headline: "Read and write Notion databases without bypassing your review process.",
+    summary:
+      "Notion is widely used for documentation, project tracking, and operational knowledge bases. Corelyx connects to Notion through server-side OAuth to read, create, and update pages and database entries as part of governed AI workflows.",
+    definition:
+      "A Notion AI workflow integration is a governed connector pattern where AI-generated content or structured data is written to Notion only after relevant approvals, with the Corelyx run holding the authoritative state and decision record.",
+    audience: "Product, operations, and knowledge management teams automating Notion database updates with AI.",
+    lastModified: "2026-05-29",
+    primaryQuery: "Notion AI workflow automation",
+    entityTerms: ["Notion AI automation", "Notion workflow integration", "knowledge base automation", "AI content management"],
+    keyPoints: [
+      "Notion OAuth tokens stay server-side — the integration does not expose workspace credentials to browser clients.",
+      "AI-generated content written to Notion should be reviewable before or after publication depending on risk level.",
+      "Database writes are side effects — they should be gated by approval for sensitive or customer-visible content.",
+      "Use structured Notion database schemas so AI-generated entries are consistent and auditable.",
+    ],
+    implementationSteps: [
+      { name: "Define the Notion target", text: "Identify which database, template, or page type the workflow will create or update." },
+      { name: "Map AI outputs to fields", text: "Ensure the AI step produces structured outputs that map to Notion properties — avoid unstructured freeform writes." },
+      { name: "Add a review step for sensitive writes", text: "For customer-visible or compliance-relevant content, add a human approval before the Notion write runs." },
+      { name: "Log the write event", text: "Record which Notion database was updated, the AI-generated content summary, and the approver if applicable." },
+    ],
+    table: {
+      caption: "Notion workflow risk classification",
+      headers: ["Write type", "Approval needed", "Example"],
+      rows: [
+        ["Internal notes", "Low — usually auto-approve", "Meeting summary, task notes"],
+        ["Client-facing documents", "Yes — human review", "Proposal content, NDA notes"],
+        ["Compliance records", "Yes — reviewer + timestamp", "Incident log, DSAR record"],
+      ],
+    },
+    checklist: [
+      "Use the minimum Notion OAuth scope — avoid requesting workspace admin access.",
+      "Map AI outputs to structured Notion database properties, not freeform page body.",
+      "Gate client-visible and compliance-relevant writes behind a human approval step.",
+      "Log what was written, when, and under which workflow run.",
+    ],
+    faqs: [
+      { question: "Can Corelyx create pages in any Notion workspace?", answer: "Only in workspaces and databases the connected OAuth integration has been granted access to by the workspace owner." },
+      { question: "Should AI-generated Notion content be reviewed?", answer: "It depends on impact. Internal summaries may auto-publish; client-facing or compliance content should go through an approval step." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.docs,
+      commonLinks.security,
+      commonLinks.useCases,
+    ],
+  },
+  {
+    path: "/integrations/hubspot",
+    section: "integrations",
+    title: "HubSpot AI Workflow Integration for CRM Automation",
+    shortTitle: "HubSpot Integration",
+    description:
+      "Connect HubSpot to governed AI workflows with server-side OAuth, GDPR-compliant contact enrichment, approval gates before outbound actions, and audit evidence.",
+    eyebrow: "Integration pattern",
+    headline: "Enrich and update CRM records without AI making unreviewed contact decisions.",
+    summary:
+      "HubSpot workflows often involve personal data at scale. Corelyx connects to HubSpot through server-side OAuth to read, enrich, and update contacts and deals as part of AI-assisted workflows — with approval gates before any contact-impacting action.",
+    definition:
+      "A governed HubSpot AI workflow is an automation that enriches or classifies CRM data using AI within a defined lawful basis, with human review before any outbound communication, status change, or record update that affects a contact.",
+    audience: "Sales ops, marketing, and CRM teams building AI-assisted lead scoring, enrichment, or routing workflows.",
+    lastModified: "2026-05-29",
+    primaryQuery: "HubSpot AI workflow automation GDPR",
+    entityTerms: ["HubSpot AI automation", "CRM workflow GDPR", "lead scoring AI", "HubSpot connector"],
+    keyPoints: [
+      "CRM data is personal data under GDPR — every AI step touching contacts needs a lawful basis.",
+      "AI-generated lead scores or enrichment fields should be reviewable and correctable.",
+      "Outbound communication triggered by AI should pass an approval gate before sending.",
+      "HubSpot OAuth credentials stay server-side — contact data is never returned to the browser.",
+    ],
+    implementationSteps: [
+      { name: "Define lawful basis", text: "Confirm the legal basis for processing contacts through AI enrichment — typically legitimate interest or contract performance." },
+      { name: "Scope the AI step", text: "Limit which contact fields are sent to the AI — exclude sensitive categories unless strictly necessary." },
+      { name: "Gate outbound actions", text: "Any email send, lifecycle change, or deal update triggered by AI output should pass a human review step." },
+      { name: "Log enrichment decisions", text: "Record what the AI produced, which fields were updated, and who approved the action." },
+    ],
+    table: {
+      caption: "HubSpot workflow data handling",
+      headers: ["Action", "Risk level", "Control"],
+      rows: [
+        ["AI lead scoring", "Medium", "Reviewable score + human override option"],
+        ["Contact enrichment", "Medium", "Field-level minimisation + audit log"],
+        ["Outbound email send", "High", "Approval gate before dispatch"],
+      ],
+    },
+    checklist: [
+      "Define the GDPR lawful basis for every AI step that touches contact records.",
+      "Do not pass sensitive contact categories to AI unless the workflow requires it.",
+      "Require human approval before any outbound email or contact-status change.",
+      "Log enrichment source, AI output, reviewer decision, and timestamp.",
+    ],
+    faqs: [
+      { question: "Is AI lead scoring GDPR-compliant?", answer: "It can be, with a valid lawful basis, minimisation, transparency to contacts, and a human override mechanism." },
+      { question: "Can Corelyx send emails through HubSpot?", answer: "Yes — Corelyx can trigger HubSpot email sends as a connector side effect, gated by an approval workflow step." },
+    ],
+    internalLinks: [
+      commonLinks.gdpr,
+      commonLinks.integrations,
+      { href: "/use-cases/ai-governance-workflows", label: "AI governance use cases", description: "Broader governance workflow patterns for CRM and contact workflows." },
+      commonLinks.security,
+    ],
+  },
+  {
+    path: "/integrations/github",
+    section: "integrations",
+    title: "GitHub AI Workflow Integration for Development Automation",
+    shortTitle: "GitHub Integration",
+    description:
+      "Connect GitHub to governed AI workflows with server-side OAuth, verified webhooks, approval gates before write operations, and structured audit evidence.",
+    eyebrow: "Integration pattern",
+    headline: "Automate GitHub tasks without the AI making unreviewed code or issue decisions.",
+    summary:
+      "Corelyx connects to GitHub through server-side OAuth to create issues, post review comments, update labels, and trigger workflows — all within a governed AI workflow where side effects are gated by approvals.",
+    definition:
+      "A governed GitHub AI workflow is an automation where AI analysis of code, issues, or pull requests produces structured outputs that are reviewed before any GitHub write operation such as issue creation, comment posting, or label update runs.",
+    audience: "Development teams and platform engineers automating code review, issue triage, or release processes with AI.",
+    lastModified: "2026-05-29",
+    primaryQuery: "GitHub AI workflow automation",
+    entityTerms: ["GitHub AI automation", "code review AI", "issue triage automation", "GitHub connector"],
+    keyPoints: [
+      "GitHub OAuth tokens stay server-side — repository credentials are not exposed in API responses.",
+      "AI code review comments should be clearly labelled as AI-generated and reviewable before posting.",
+      "Issue creation and label updates are side effects — gate them behind a policy check or approval.",
+      "Webhook payloads from GitHub should be verified with the configured secret before dispatch.",
+    ],
+    implementationSteps: [
+      { name: "Connect GitHub OAuth", text: "Authenticate with the minimum scopes — repo read for analysis, issues write only if the workflow creates issues." },
+      { name: "Define AI analysis scope", text: "Specify what the AI reviews — PR diff, issue text, commit message — and what structured output it produces." },
+      { name: "Gate write operations", text: "Comments, issue creation, and label changes should run only after a structured review or approval step." },
+      { name: "Verify webhooks", text: "Validate GitHub webhook signatures using the shared secret before processing any payload." },
+    ],
+    table: {
+      caption: "GitHub operation risk levels",
+      headers: ["Operation", "Side effect", "Recommended control"],
+      rows: [
+        ["Read repository content", "No", "Minimum scope, log access"],
+        ["Post issue comment", "Yes", "Review AI output before posting"],
+        ["Create issue", "Yes", "Approval or policy check"],
+      ],
+    },
+    checklist: [
+      "Use the minimum GitHub OAuth scopes for the operations configured.",
+      "Label AI-generated issue comments so developers know the source.",
+      "Verify all incoming GitHub webhook payloads before dispatch.",
+      "Log which repository, operation, AI output, and approval preceded each write.",
+    ],
+    faqs: [
+      { question: "Can Corelyx post AI code review comments to PRs?", answer: "Yes — Corelyx can post structured AI analysis as PR comments using the GitHub connector, gated by a review step." },
+      { question: "What GitHub events can trigger a Corelyx workflow?", answer: "Push, pull_request, issues, and issue_comment events can trigger workflows via verified GitHub webhooks." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.docs,
+      commonLinks.security,
+      { href: "/use-cases/secure-ai-workflow-orchestration", label: "Secure AI workflow orchestration", description: "Credential-safe AI workflow execution patterns." },
+    ],
+  },
+  {
+    path: "/integrations/google-sheets",
+    section: "integrations",
+    title: "Google Sheets AI Workflow Integration for Data Automation",
+    shortTitle: "Google Sheets Integration",
+    description:
+      "Connect Google Sheets to governed AI workflows with server-side OAuth, structured row writes, approval gates for sensitive data, and full audit trails.",
+    eyebrow: "Integration pattern",
+    headline: "Read and write spreadsheet data without losing the audit trail.",
+    summary:
+      "Google Sheets is a common data store for operational and reporting workflows. Corelyx connects via server-side Google OAuth to read rows, append data, and update cells as structured workflow steps — with approval gates for sensitive writes.",
+    definition:
+      "A governed Google Sheets AI workflow is an automation where AI-processed data is written to a spreadsheet as a tracked, reviewable side effect, with the Corelyx run holding the source data, AI output, and write record.",
+    audience: "Operations teams, data analysts, and finance teams using Google Sheets as a lightweight workflow data store.",
+    lastModified: "2026-05-29",
+    primaryQuery: "Google Sheets AI workflow automation",
+    entityTerms: ["Google Sheets automation", "spreadsheet AI workflow", "data pipeline GDPR", "Sheets connector"],
+    keyPoints: [
+      "Google OAuth credentials stay server-side — sheet access tokens are not exposed to frontend clients.",
+      "Appending rows with AI-generated content should be logged so the source of each entry is traceable.",
+      "Spreadsheets containing personal data are in scope for GDPR — define the lawful basis and retention period.",
+      "Read operations for aggregation or reporting are lower risk than write operations that modify records.",
+    ],
+    implementationSteps: [
+      { name: "Scope the sheet access", text: "Identify exactly which spreadsheet and range the workflow reads or writes — avoid granting access to all Google Drive files." },
+      { name: "Define the write schema", text: "Agree on which columns the AI-generated data maps to so rows are consistent and auditable." },
+      { name: "Add a review step for sensitive appends", text: "For rows containing personal data or financial figures, require human approval before the write runs." },
+      { name: "Log each write event", text: "Record the sheet ID, row range, AI source summary, and workflow run ID." },
+    ],
+    table: {
+      caption: "Sheets workflow data classification",
+      headers: ["Sheet content", "Risk", "Control"],
+      rows: [
+        ["Internal metrics", "Low", "Auto-write with audit log"],
+        ["Customer data", "High", "Approval + minimisation"],
+        ["Financial records", "High", "Approval + retention policy"],
+      ],
+    },
+    checklist: [
+      "Use a service account or OAuth token scoped to the specific spreadsheet, not all of Drive.",
+      "Map AI outputs to defined column schemas — avoid freeform text rows.",
+      "Gate writes that contain personal or financial data behind an approval step.",
+      "Set a retention or archiving policy for spreadsheet data processed by AI.",
+    ],
+    faqs: [
+      { question: "Can Corelyx read a Google Sheet as a workflow trigger?", answer: "Corelyx can read Sheets data as a workflow input step. Scheduled or event-driven triggers are configured separately." },
+      { question: "Does Corelyx need access to all Google Drive files?", answer: "No — the integration should request access only to the specific spreadsheet configured in the workflow." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      commonLinks.templates,
+      commonLinks.docs,
+    ],
   },
   {
     path: "/use-cases",
@@ -1427,7 +1866,7 @@ if (workflow.transparency_notice_required) {
       { question: "What is the core output?", answer: "A governance decision with evidence: classification, reviewer, rationale, controls required, and documentation export." },
       { question: "When should governance run again?", answer: "Run it again when model, provider, data categories, purpose, affected users, or downstream actions change." },
     ],
-    internalLinks: [commonLinks.aiAct, commonLinks.compliance, { href: "/academy/eu-ai-act-workflow-automation", label: "AI Act guide", description: "Training guide for governance workflow design." }],
+    internalLinks: [commonLinks.aiAct, commonLinks.compliance, { href: "/guides/eu-ai-act-workflow-automation", label: "AI Act guide", description: "Training guide for governance workflow design." }],
   },
   {
     path: "/use-cases/secure-ai-workflow-orchestration",
