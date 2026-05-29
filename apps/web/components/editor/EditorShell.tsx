@@ -1521,7 +1521,7 @@ export function EditorShell({
           setIsComplianceBlock(true);
           setPreFlightChecks(
             (blocked.length > 0 ? blocked : body.compliance_checks).map((c) => ({
-              code: `COMPLY_${c.id.replace(/-/g, "_").toUpperCase()}`,
+              code: "PRE_COMPLY" as const,
               label: c.label,
               status: "fail" as const,
               failures: [{
@@ -2039,21 +2039,7 @@ function preFlightFixLink(
   if (code === "PRE_002" || fixSuggestion.toLowerCase().includes("api key")) {
     return { href: "/api-keys", label: "Go to API Keys" };
   }
-  // Compliance check deep-links
-  if (
-    code === "COMPLY_MODEL_PROVIDER_POLICY" ||
-    code === "COMPLY_DPA_SUBPROCESSORS" ||
-    code === "COMPLY_AI_ACT_RISK" ||
-    code === "COMPLY_GDPR_TRANSFER_RISK"
-  ) {
-    return { href: "/governance", label: "Open Governance" };
-  }
-  if (code === "COMPLY_EU_ONLY_MODE" || code === "COMPLY_LOGGING_RETENTION") {
-    return { href: "/settings", label: "Open Settings" };
-  }
-  // Human approval — user stays in the editor to add the node, no nav needed
-  if (code === "COMPLY_HUMAN_APPROVAL") return null;
-  // Fallback from fix suggestion text
+  // Compliance checks — route by fix suggestion text (all use PRE_COMPLY code)
   if (fixSuggestion.toLowerCase().includes("governance")) {
     return { href: "/governance", label: "Open Governance" };
   }
