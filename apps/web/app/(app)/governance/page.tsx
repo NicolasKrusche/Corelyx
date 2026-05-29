@@ -43,13 +43,17 @@ function Metric({
 }
 
 function statusClass(status: string) {
-  if (/(missing|prohibited|required)/i.test(status)) {
+  const s = status.toLowerCase();
+  // Negative — needs attention.
+  if (/(prohibited|high[ -]?risk|\bmissing\b)/.test(s)) {
     return "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300";
   }
-  if (/(complete|active|required|minimal|limited)/i.test(status)) {
+  // Positive — satisfied or low concern (e.g. oversight "Required", "Not required").
+  if (/(completed?|active|minimal risk|limited risk|not required|^required$)/.test(s)) {
     return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
   }
-  if (/(partial|draft|unknown|review)/i.test(status)) {
+  // Caution — pending or unknown.
+  if (/(partial|draft|recommended|unknown|review|not marked)/.test(s)) {
     return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
   }
   return "border-border bg-secondary text-muted-foreground";

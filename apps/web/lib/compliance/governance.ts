@@ -26,6 +26,13 @@ export type AiActAssessmentInput = {
   manipulativeOrDeceptiveUse?: boolean;
   socialScoring?: boolean;
   emotionRecognitionWorkplaceOrEducation?: boolean;
+  untargetedFacialScraping?: boolean;
+  predictivePolicingProfiling?: boolean;
+  biometricCategorizationSensitive?: boolean;
+  exploitsVulnerabilities?: boolean;
+  criticalInfrastructure?: boolean;
+  migrationBorderControl?: boolean;
+  justiceOrDemocraticProcess?: boolean;
 };
 
 export type AiActAssessmentResult = {
@@ -175,7 +182,19 @@ export function classifyAiActRisk(input: AiActAssessmentInput): AiActAssessmentR
       ? "emotion recognition in workplace or education"
       : null,
     input.biometricProcessing && input.lawEnforcementUse
-      ? "biometric processing in law-enforcement context"
+      ? "real-time/remote biometric identification in a law-enforcement context"
+      : null,
+    input.untargetedFacialScraping
+      ? "untargeted scraping of facial images to build recognition databases"
+      : null,
+    input.predictivePolicingProfiling
+      ? "predicting criminal offences based solely on profiling"
+      : null,
+    input.biometricCategorizationSensitive
+      ? "biometric categorisation that infers sensitive attributes"
+      : null,
+    input.exploitsVulnerabilities
+      ? "exploiting age, disability, or socio-economic vulnerabilities"
       : null,
   ]);
 
@@ -187,6 +206,9 @@ export function classifyAiActRisk(input: AiActAssessmentInput): AiActAssessmentR
     input.healthcareDecisions ? "healthcare, medical, or safety-impacting decisions" : null,
     input.biometricProcessing ? "biometric identification or categorisation" : null,
     input.lawEnforcementUse ? "law-enforcement use" : null,
+    input.criticalInfrastructure ? "safety component of critical infrastructure" : null,
+    input.migrationBorderControl ? "migration, asylum, or border-control management" : null,
+    input.justiceOrDemocraticProcess ? "administration of justice or democratic processes" : null,
     input.automatedDecisionMaking ? "automated decision-making with material impact" : null,
     input.vulnerableGroups ? "use involving vulnerable groups" : null,
   ]);
