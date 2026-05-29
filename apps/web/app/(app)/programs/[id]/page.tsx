@@ -263,7 +263,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               <h1 className="truncate text-3xl font-semibold tracking-normal">{program.name}</h1>
               <Badge variant="secondary">{program.is_active ? "Active" : "Inactive"}</Badge>
               {aiGenerated && (
-                <Badge variant="outline" className="border-indigo-300 bg-indigo-500/10 text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400">
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                   <Sparkles className="mr-1 h-3 w-3" />
                   AI-generated
                 </Badge>
@@ -304,7 +304,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                   </Link>
                 </Button>
                 <DeleteProgramButton programId={program.id} programName={program.name} />
-                <Button asChild size="sm" className="h-9 bg-indigo-600 px-4 text-white hover:bg-indigo-700">
+                <Button asChild size="sm" className="h-9 px-4">
                   <Link href={`/programs/${program.id}/editor`}>
                     <ExternalLink className="h-4 w-4" />
                     Open editor
@@ -317,8 +317,8 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
       </div>
 
       {aiGenerated && !program.is_active && (
-        <div className="flex items-center gap-3 rounded-lg border border-indigo-300 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/40 dark:text-indigo-100">
-          <Sparkles className="h-4 w-4 shrink-0 text-indigo-600" />
+        <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
           <p className="min-w-0 flex-1">
             <span className="font-semibold">Review this AI-generated workflow before activation.</span>{" "}
             <span className="text-muted-foreground">Output can be incorrect or incomplete.</span>{" "}
@@ -326,7 +326,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               <span className="text-muted-foreground">Model <span className="rounded bg-background/70 px-1 font-mono text-xs">{genesisModel}</span></span>
             )}
           </p>
-          <Link href={`/programs/${program.id}/editor`} className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{"Review ->"}</Link>
+          <Link href={`/programs/${program.id}/editor`} className="text-sm font-medium text-primary">{"Review ->"}</Link>
         </div>
       )}
 
@@ -338,7 +338,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             <span className="text-muted-foreground">Concurrent run policy: </span>
             <span className="rounded bg-background/70 px-1 font-mono text-xs">{program.conflict_policy}</span>
           </p>
-          <Link href={`/programs/${id}/conflicts`} className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{"View conflicts ->"}</Link>
+          <Link href={`/programs/${id}/conflicts`} className="text-sm font-medium text-primary">{"View conflicts ->"}</Link>
         </div>
       )}
 
@@ -367,7 +367,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             <div className="grid md:grid-cols-[200px_minmax(0,1fr)]">
               <div className="relative border-b border-border bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border))_1px,transparent_0)] bg-[length:12px_12px] p-8 md:border-b-0 md:border-r">
                 <div className="mx-auto flex w-fit items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium shadow-sm">
-                  <span className="h-2 w-2 rounded-full bg-indigo-600" />
+                  <span className="h-2 w-2 rounded-full bg-primary" />
                   <NodeGlyph type={firstNode?.type ?? "trigger"} />
                   {firstNode?.label ?? "Manual start"}
                 </div>
@@ -385,7 +385,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                   nodes.map((node, i) => (
                     <div key={`${node.id}-${i}`} className="flex items-center gap-4 border-b border-border px-6 py-5 last:border-b-0">
                       <span className="text-xs text-muted-foreground">#{i + 1}</span>
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-300 bg-indigo-500/10 text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
                         <NodeGlyph type={node.type} />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -393,7 +393,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                         <p className="text-sm text-muted-foreground">{node.description || "No description."}</p>
                       </div>
                       <span className="font-mono text-xs text-muted-foreground">{node.type === "trigger" ? "trigger.manual" : node.type}</span>
-                      <Badge variant="outline" className="border-indigo-300 bg-indigo-500/10 text-indigo-600 dark:border-indigo-500/40 dark:text-indigo-400">{node.type}</Badge>
+                      <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">{node.type}</Badge>
                     </div>
                   ))
                 )}
