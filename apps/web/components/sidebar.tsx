@@ -2067,7 +2067,7 @@ function SettingsModal({
                         label: "Default",
                         preview: (
                           <div className="relative h-10 w-full overflow-hidden rounded-md bg-[#171717]">
-                            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 60% at 80% 10%, rgba(99,102,241,0.55) 0%, transparent 55%), radial-gradient(ellipse 55% 50% at 15% 90%, rgba(59,130,246,0.4) 0%, transparent 50%)" }} />
+                            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 60% at 80% 10%, hsl(var(--theme-glow-strong) / 0.55) 0%, transparent 55%), radial-gradient(ellipse 55% 50% at 15% 90%, hsl(var(--theme-glow-soft) / 0.4) 0%, transparent 50%)" }} />
                           </div>
                         ),
                       },
@@ -2076,7 +2076,7 @@ function SettingsModal({
                         label: "Liquid",
                         preview: (
                           <div className="relative h-10 w-full overflow-hidden rounded-md" style={{ background: "#03030a" }}>
-                            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 65% 60% at 78% 18%, rgba(150,180,255,0.65) 0%, transparent 55%), radial-gradient(ellipse 60% 55% at 15% 82%, rgba(170,110,210,0.6) 0%, transparent 52%), radial-gradient(ellipse 40% 38% at 48% 48%, rgba(210,130,165,0.38) 0%, transparent 50%)" }} />
+                            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 65% 60% at 78% 18%, hsl(var(--theme-glow-strong) / 0.65) 0%, transparent 55%), radial-gradient(ellipse 60% 55% at 15% 82%, hsl(var(--theme-glow-soft) / 0.6) 0%, transparent 52%), radial-gradient(ellipse 40% 38% at 48% 48%, hsl(var(--primary) / 0.38) 0%, transparent 50%)" }} />
                             <div className="absolute inset-x-0 top-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)" }} />
                           </div>
                         ),

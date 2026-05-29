@@ -52,6 +52,8 @@
     --primary: 22 95% 52%;
     --primary-foreground: 0 0% 100%;
     --ring: 22 95% 52%;
+    --theme-glow-strong: 22 95% 58%;
+    --theme-glow-soft: 38 92% 64%;
   }
 
   /* â”€â”€ Accent: Blue â”€â”€ */
@@ -59,6 +61,8 @@
     --primary: 210 90% 55%;
     --primary-foreground: 0 0% 100%;
     --ring: 210 90% 55%;
+    --theme-glow-strong: 210 90% 60%;
+    --theme-glow-soft: 198 92% 66%;
   }
 
   /* â”€â”€ Accent: Indigo â”€â”€ */
@@ -66,6 +70,8 @@
     --primary: 240 75% 65%;
     --primary-foreground: 0 0% 100%;
     --ring: 240 75% 65%;
+    --theme-glow-strong: 240 78% 68%;
+    --theme-glow-soft: 258 72% 72%;
   }
 
   /* â”€â”€ Accent: Green â”€â”€ */
@@ -73,6 +79,8 @@
     --primary: 145 65% 45%;
     --primary-foreground: 0 0% 100%;
     --ring: 145 65% 45%;
+    --theme-glow-strong: 145 68% 50%;
+    --theme-glow-soft: 165 62% 56%;
   }
 
   /* â”€â”€ Accent: Pink â”€â”€ */
@@ -80,6 +88,8 @@
     --primary: 340 75% 62%;
     --primary-foreground: 0 0% 100%;
     --ring: 340 75% 62%;
+    --theme-glow-strong: 340 78% 66%;
+    --theme-glow-soft: 320 72% 70%;
   }
 
   /* â”€â”€ Accent: Cyan â”€â”€ */
@@ -87,6 +97,8 @@
     --primary: 185 85% 48%;
     --primary-foreground: 0 0% 8%;
     --ring: 185 85% 48%;
+    --theme-glow-strong: 185 85% 54%;
+    --theme-glow-soft: 200 82% 62%;
   }
 }
 
@@ -102,8 +114,8 @@
   background-image:
     radial-gradient(ellipse 65% 50% at 85% 0%, hsl(var(--primary) / 0.08) 0%, transparent 50%),
     radial-gradient(ellipse 50% 40% at 20% 100%, hsl(var(--primary) / 0.05) 0%, transparent 45%),
-    radial-gradient(ellipse 45% 55% at 5% 30%, hsl(217 91% 60% / 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 40% 35% at 70% 60%, hsl(271 91% 65% / 0.04) 0%, transparent 45%);
+    radial-gradient(ellipse 45% 55% at 5% 30%, hsl(var(--theme-glow-strong) / 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 35% at 70% 60%, hsl(var(--theme-glow-soft) / 0.04) 0%, transparent 45%);
 }
 
 /* â”€â”€ Glassmorphism card surface â”€â”€ */
@@ -162,7 +174,7 @@
   left: -10%;
   width: 55vw;
   height: 60vh;
-  background: radial-gradient(ellipse, hsl(217 91% 60% / 0.18) 0%, transparent 60%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-strong) / 0.18) 0%, transparent 60%);
   filter: blur(45px);
   animation: orb-drift 21s ease-in-out infinite reverse;
   animation-delay: -7s;
@@ -173,7 +185,7 @@
   right: 15%;
   width: 45vw;
   height: 50vh;
-  background: radial-gradient(ellipse, hsl(271 91% 65% / 0.14) 0%, transparent 60%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-soft) / 0.14) 0%, transparent 60%);
   filter: blur(50px);
   animation: orb-drift 26s ease-in-out infinite;
   animation-delay: -13s;
@@ -185,7 +197,7 @@
   left: 25%;
   width: 42vw;
   height: 48vh;
-  background: radial-gradient(ellipse, hsl(185 85% 52% / 0.22) 0%, transparent 60%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-soft) / 0.2) 0%, transparent 60%);
   filter: blur(48px);
   animation: orb-drift 18s ease-in-out infinite;
   animation-delay: -5s;
@@ -209,7 +221,7 @@
 .auth-panel-bg {
   background:
     radial-gradient(circle at 35% 30%, hsl(var(--primary) / 0.3), transparent 40%),
-    radial-gradient(circle at 70% 85%, rgba(99, 102, 241, 0.35), transparent 45%),
+    radial-gradient(circle at 70% 85%, hsl(var(--theme-glow-soft) / 0.32), transparent 45%),
     linear-gradient(160deg, hsl(var(--card)) 0%, hsl(var(--secondary)) 100%);
 }
 
@@ -235,7 +247,7 @@
   right: -8%;
   width: 75vw;
   height: 80vh;
-  background: radial-gradient(ellipse, hsl(215 75% 72% / 0.38) 0%, transparent 65%);
+  background: radial-gradient(ellipse, hsl(var(--primary) / 0.38) 0%, transparent 65%);
   filter: blur(72px);
 }
 
@@ -244,7 +256,7 @@
   left: -12%;
   width: 68vw;
   height: 72vh;
-  background: radial-gradient(ellipse, hsl(268 68% 62% / 0.42) 0%, transparent 65%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-strong) / 0.42) 0%, transparent 65%);
   filter: blur(78px);
 }
 
@@ -253,17 +265,13 @@
   right: 20%;
   width: 52vw;
   height: 55vh;
-  background: radial-gradient(ellipse, hsl(338 62% 65% / 0.28) 0%, transparent 62%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-soft) / 0.28) 0%, transparent 62%);
   filter: blur(68px);
 }
 
 .bg-liquid .orb-cyan {
   opacity: 1;
-  background: radial-gradient(ellipse, hsl(188 65% 62% / 0.22) 0%, transparent 60%);
-}
-
-.bg-liquid .marble-texture {
-  display: none;
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-soft) / 0.18) 0%, transparent 60%);
 }
 
 .bg-liquid .glass-card {
@@ -311,10 +319,6 @@
 .bg-obsidian .orb-violet,
 .bg-obsidian .orb-cyan {
   opacity: 0;
-}
-
-.bg-obsidian .marble-texture {
-  display: none;
 }
 
 /* Polygon facet tile â€” 5 angular panels, seamless repeat */
@@ -370,10 +374,6 @@
   opacity: 0;
 }
 
-.bg-noir .marble-texture {
-  display: none;
-}
-
 /* ── Light mode variants for advanced styles ── */
 
 .light.bg-noir {
@@ -419,20 +419,20 @@
 }
 
 .light.bg-liquid .orb-primary {
-  background: radial-gradient(ellipse, hsl(215 75% 72% / 0.25) 0%, transparent 65%);
+  background: radial-gradient(ellipse, hsl(var(--primary) / 0.25) 0%, transparent 65%);
 }
 
 .light.bg-liquid .orb-blue {
-  background: radial-gradient(ellipse, hsl(268 68% 62% / 0.22) 0%, transparent 65%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-strong) / 0.22) 0%, transparent 65%);
 }
 
 .light.bg-liquid .orb-violet {
-  background: radial-gradient(ellipse, hsl(338 62% 65% / 0.18) 0%, transparent 62%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-soft) / 0.18) 0%, transparent 62%);
 }
 
 .light.bg-liquid .orb-cyan {
   opacity: 1;
-  background: radial-gradient(ellipse, hsl(188 65% 62% / 0.15) 0%, transparent 60%);
+  background: radial-gradient(ellipse, hsl(var(--theme-glow-soft) / 0.12) 0%, transparent 60%);
 }
 
 .light.bg-liquid .glass-card {
