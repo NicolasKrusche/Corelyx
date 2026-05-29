@@ -25,7 +25,6 @@ export async function GET() {
   const user = await requireAdmin();
   if (!user) return apiError("Forbidden", 403);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data, error } = await db
     .from("posts")
@@ -44,7 +43,6 @@ export async function POST(request: Request) {
   const parsed = PostSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.issues[0].message, 400);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data, error } = await db
     .from("posts")

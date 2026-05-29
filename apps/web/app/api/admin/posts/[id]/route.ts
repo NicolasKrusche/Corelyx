@@ -28,7 +28,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!user) return apiError("Forbidden", 403);
 
   const { id } = await params;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data, error } = await db.from("posts").select("*").eq("id", id).single();
 
@@ -45,7 +44,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.issues[0].message, 400);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data, error } = await db
     .from("posts")
@@ -63,7 +61,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!user) return apiError("Forbidden", 403);
 
   const { id } = await params;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { error } = await db.from("posts").delete().eq("id", id);
 
