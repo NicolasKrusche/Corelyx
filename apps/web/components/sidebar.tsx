@@ -10,7 +10,7 @@ import { uploadAvatar } from "@/lib/avatar-upload";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { useRawSchemaMode } from "@/lib/raw-schema-mode";
 import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
-import { useTheme, type BaseTheme, type AccentColor, type BgStyle } from "@/components/theme-provider";
+import { useTheme, type BaseTheme, type AccentColor } from "@/components/theme-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SettingsSupportTab } from "@/components/settings-support-tab";
 import { NotificationCenter } from "@/components/notification-center";
@@ -375,7 +375,7 @@ export function Sidebar({
   const [aiCreditsAvailable, setAiCreditsAvailable] = useState<number | null>(null);
   const [aiCreditsPurchased, setAiCreditsPurchased] = useState(0);
   const [advanced, setAdvanced] = useAdvancedMode();
-  const { base, accent, bgStyle, setBase, setAccent, setBgStyle } = useTheme();
+  const { base, accent, setBase, setAccent } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
@@ -494,11 +494,11 @@ export function Sidebar({
       });
       if (res.ok) {
         setActiveWorkspaceId(workspaceId);
-        router.refresh();
         void fetchSidebarData();
-        if (pathname.startsWith("/programs/") || pathname.startsWith("/runs")) {
-          router.push("/dashboard");
-        }
+        // Always navigate to /dashboard so all server components reload
+        // with fresh data for the newly-active workspace.
+        router.push("/dashboard");
+        router.refresh();
       }
     } finally {
       setSwitchingWorkspace(false);
@@ -1046,10 +1046,8 @@ export function Sidebar({
           onAdvancedChange={setAdvanced}
           base={base}
           accent={accent}
-          bgStyle={bgStyle}
           onBaseChange={setBase}
           onAccentChange={setAccent}
-          onBgStyleChange={setBgStyle}
           aiCreditsAvailable={aiCreditsAvailable}
           aiCreditsPurchased={aiCreditsPurchased}
           activeWorkspaceId={activeWorkspaceId}
@@ -1104,10 +1102,8 @@ function SettingsModal({
   onAdvancedChange,
   base,
   accent,
-  bgStyle,
   onBaseChange,
   onAccentChange,
-  onBgStyleChange,
   aiCreditsAvailable,
   aiCreditsPurchased,
   activeWorkspaceId,
@@ -1131,10 +1127,8 @@ function SettingsModal({
   onAdvancedChange: (next: boolean) => void;
   base: BaseTheme;
   accent: AccentColor;
-  bgStyle: BgStyle;
   onBaseChange: (next: BaseTheme) => void;
   onAccentChange: (next: AccentColor) => void;
-  onBgStyleChange: (next: BgStyle) => void;
   aiCreditsAvailable: number | null;
   aiCreditsPurchased: number;
   activeWorkspaceId: string | null;
@@ -2116,63 +2110,6 @@ function SettingsModal({
                         )}
                       >
                         {option}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section className={panelClass}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Style</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    {([
-                      {
-                        id: "default" as BgStyle,
-                        label: "Default",
-                        preview: (
-                          <div className="relative h-10 w-full overflow-hidden rounded-md bg-[#171717]">
-                            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 60% at 80% 10%, hsl(var(--theme-glow-strong) / 0.55) 0%, transparent 55%), radial-gradient(ellipse 55% 50% at 15% 90%, hsl(var(--theme-glow-soft) / 0.4) 0%, transparent 50%)" }} />
-                          </div>
-                        ),
-                      },
-                      {
-                        id: "liquid" as BgStyle,
-                        label: "Liquid",
-                        preview: (
-                          <div className="relative h-10 w-full overflow-hidden rounded-md" style={{ background: "#03030a" }}>
-                            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 65% 60% at 78% 18%, hsl(var(--theme-glow-strong) / 0.65) 0%, transparent 55%), radial-gradient(ellipse 60% 55% at 15% 82%, hsl(var(--theme-glow-soft) / 0.6) 0%, transparent 52%), radial-gradient(ellipse 40% 38% at 48% 48%, hsl(var(--primary) / 0.38) 0%, transparent 50%)" }} />
-                            <div className="absolute inset-x-0 top-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)" }} />
-                          </div>
-                        ),
-                      },
-                      {
-                        id: "obsidian" as BgStyle,
-                        label: "Obsidian",
-                        preview: (
-                          <div className="relative h-10 w-full overflow-hidden rounded-md" style={{ background: "#050505" }}>
-                            <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(135deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(45deg, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
-                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-7 w-10 rounded-md" style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(255,255,255,0.07)" }} />
-                          </div>
-                        ),
-                      },
-                      {
-                        id: "noir" as BgStyle,
-                        label: "Noir",
-                        preview: (
-                          <div className="h-10 w-full rounded-md bg-black" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" }} />
-                        ),
-                      },
-                    ] as { id: BgStyle; label: string; preview: ReactNode }[]).map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => onBgStyleChange(s.id)}
-                        className={cn(
-                          "flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-colors",
-                          bgStyle === s.id ? "border-primary bg-primary/10" : "border-border hover:bg-accent"
-                        )}
-                      >
-                        {s.preview}
-                        <span className={cn("text-[10px] font-medium", bgStyle === s.id ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
                       </button>
                     ))}
                   </div>

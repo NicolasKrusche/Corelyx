@@ -7,21 +7,40 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 interface DeleteProgramButtonProps {
   programId: string;
   programName: string;
+  /** Called after a successful delete instead of navigating away. */
+  onDeleted?: () => void;
+  /** Only used when onDeleted is NOT provided. Defaults to "/dashboard". */
   redirectTo?: string;
 }
 
-export function DeleteProgramButton({ programId, programName, redirectTo = "/dashboard" }: DeleteProgramButtonProps) {
+export function DeleteProgramButton({
+  programId,
+  programName,
+  onDeleted,
+  redirectTo = "/dashboard",
+}: DeleteProgramButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
     setOpen(false);
     setDeleting(true);
+    setError(null);
     try {
-      await fetch(`/api/programs/${programId}`, { method: "DELETE" });
-      router.push(redirectTo);
-      router.refresh();
+      const res = await fetch(`/api/programs/${programId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setError(body.error ?? "Could not delete program. Please try again.");
+        return;
+      }
+      if (onDeleted) {
+        onDeleted();
+      } else {
+        router.push(redirectTo);
+        router.refresh();
+      }
     } finally {
       setDeleting(false);
     }
@@ -49,6 +68,10 @@ export function DeleteProgramButton({ programId, programName, redirectTo = "/das
         onConfirm={handleConfirm}
         onCancel={() => setOpen(false)}
       />
+
+      {error && (
+        <p className="mt-1 text-[11px] text-destructive">{error}</p>
+      )}
     </>
   );
 }
