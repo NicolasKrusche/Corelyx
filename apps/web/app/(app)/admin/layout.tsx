@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   FileText,
   Users,
+  Newspaper,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,7 @@ export default async function AdminLayout({
       { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
     ] as AdminNavItem[] : []),
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
+    { href: "/admin/posts", label: "Posts", icon: Newspaper },
     ...(isFounder ? [
       { href: "/admin/dsr", label: "DSR Queue", icon: FileText },
       { href: "/admin/team", label: "Team", icon: Users },
