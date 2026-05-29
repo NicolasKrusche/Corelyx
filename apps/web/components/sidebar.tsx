@@ -122,6 +122,59 @@ function NavButton({
   );
 }
 
+// ─── Nav section label ────────────────────────────────────────────────────────
+
+function NavSectionLabel({ label, isDark }: { label: string; isDark: boolean }) {
+  return (
+    <p
+      className={cn(
+        "mb-0.5 mt-4 truncate whitespace-nowrap px-3 text-[9px] font-bold uppercase tracking-widest",
+        "opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
+        isDark ? "text-blue-100/30" : "text-gray-400"
+      )}
+    >
+      {label}
+    </p>
+  );
+}
+
+// ─── Nav sub-item (indented child under a section) ────────────────────────────
+
+function NavSubItem({
+  href,
+  label,
+  active,
+  isDark = true,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+  isDark?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex h-7 items-center overflow-hidden rounded-lg text-xs transition-colors",
+        active
+          ? isDark
+            ? "bg-white/10 text-white font-medium"
+            : "bg-black/8 text-gray-900 font-medium"
+          : isDark
+            ? "text-blue-100/55 hover:bg-white/6 hover:text-white/75"
+            : "text-gray-500 hover:bg-black/6 hover:text-gray-700"
+      )}
+    >
+      <span className="flex w-12 shrink-0 items-center justify-center">
+        <span className={cn("text-[10px]", isDark ? "text-blue-100/25" : "text-gray-300")}>–</span>
+      </span>
+      <span className="min-w-0 flex-1 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
+        {label}
+      </span>
+    </Link>
+  );
+}
+
 // ─── AI Credits purchase panel ────────────────────────────────────────────────
 
 const CREDIT_PACKS = [5, 10, 25, 50] as const;
@@ -699,65 +752,61 @@ export function Sidebar({
         </button>
       </div>
 
-      <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
-        {/* Dashboard */}
-        <NavItem href="/dashboard" label={tNav("home")} active={pathname === "/dashboard"}
-          icon={<GridIcon />} isDark={isDark} />
-        <NavItem href="/workspaces" label={tNav("workspaces")} active={pathname.startsWith("/workspaces")}
-          icon={<WorkspaceIcon />} isDark={isDark} />
+      <nav className="flex-1 px-2 py-1 overflow-y-auto">
+        {/* ── MAIN ───────────────────────────────────────────────────────── */}
+        <NavSectionLabel label="Main" isDark={isDark} />
+        <div className="space-y-0.5">
+          <NavItem href="/dashboard" label={tNav("home")} active={pathname === "/dashboard"}
+            icon={<GridIcon />} isDark={isDark} />
+          <NavItem href="/workspaces" label={tNav("workspaces")} active={pathname.startsWith("/workspaces")}
+            icon={<WorkspaceIcon />} isDark={isDark} />
+          <NavItem href="/runs" label={tNav("runs")} active={pathname.startsWith("/runs")}
+            icon={<RunsIcon />} badge={failedRuns} isDark={isDark} />
+          <NavItem href="/approvals" label={tNav("approvals")} active={pathname.startsWith("/approvals")}
+            icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} />
+        </div>
 
-        {/* Group separator */}
-        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
+        {/* ── DATA ───────────────────────────────────────────────────────── */}
+        <NavSectionLabel label="Data" isDark={isDark} />
+        <div className="space-y-0.5">
+          <NavItem href="/programs/import" label={tNav("import")} active={pathname.startsWith("/programs/import")}
+            icon={<ImportIcon />} isDark={isDark} />
+          <NavItem href="/browse" label={tNav("browse")} active={pathname.startsWith("/browse")}
+            icon={<BrowseIcon />} isDark={isDark} />
+          <NavItem href="/connections" label={tNav("connections")} active={pathname.startsWith("/connections")}
+            icon={<LinkIcon />} isDark={isDark} />
+        </div>
 
-        <NavItem href="/programs/import" label={tNav("import")} active={pathname.startsWith("/programs/import")}
-          icon={<ImportIcon />} isDark={isDark} />
-        <NavItem href="/browse" label={tNav("browse")} active={pathname.startsWith("/browse")}
-          icon={<BrowseIcon />} isDark={isDark} />
-        <NavItem href="/connections" label={tNav("connections")} active={pathname.startsWith("/connections")}
-          icon={<LinkIcon />} isDark={isDark} />
+        {/* ── SETTINGS ───────────────────────────────────────────────────── */}
+        <NavSectionLabel label="Settings" isDark={isDark} />
+        <div className="space-y-0.5">
+          <NavButton
+            label="Settings"
+            icon={<SettingsIcon />}
+            onClick={() => setSettingsOpen(true)}
+            isDark={isDark}
+          />
+          {/* Sub-items — only rendered when sidebar is expanded */}
+          <div className="max-h-0 overflow-hidden transition-all duration-200 group-hover/side:max-h-60 group-data-[open]/side:max-h-60">
+            <div className="space-y-0.5 pb-0.5">
+              <NavSubItem href="/api-keys" label={tNav("apiKeys")} active={pathname.startsWith("/api-keys")} isDark={isDark} />
+              <NavSubItem href="/env-vars" label={tNav("envVars")} active={pathname.startsWith("/env-vars")} isDark={isDark} />
+              <NavSubItem href="/governance" label="Governance" active={pathname.startsWith("/governance")} isDark={isDark} />
+              <NavSubItem href="/credits" label="Usage & Billing" active={pathname.startsWith("/credits")} isDark={isDark} />
+              {isAdmin && (
+                <NavSubItem href="/admin" label={tNav("admin")} active={pathname.startsWith("/admin")} isDark={isDark} />
+              )}
+            </div>
+          </div>
+        </div>
 
-        {/* Group separator */}
-        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
-
-        <NavItem href="/runs" label={tNav("runs")} active={pathname.startsWith("/runs")}
-          icon={<RunsIcon />} badge={failedRuns} isDark={isDark} />
-        <NavItem href="/approvals" label={tNav("approvals")} active={pathname.startsWith("/approvals")}
-          icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} />
-        <NavItem href="/logs" label={tNav("logs")} active={pathname.startsWith("/logs")}
-          icon={<LogsIcon />} isDark={isDark} />
-        <NavItem href="/governance" label="Governance" active={pathname.startsWith("/governance")}
-          icon={<GovernanceIcon />} isDark={isDark} />
-
-        {/* Group separator */}
-        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
-
-        <NavItem href="/api-keys" label={tNav("apiKeys")} active={pathname.startsWith("/api-keys")}
-          icon={<KeyIcon />} isDark={isDark} />
-        <NavItem href="/env-vars" label={tNav("envVars")} active={pathname.startsWith("/env-vars")}
-          icon={<EnvVarsIcon />} isDark={isDark} />
-
-        {/* Group separator */}
-        <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
-
-        <NavItem href="/credits" label={tNav("credits")} active={pathname.startsWith("/credits")}
-          icon={<CreditsIcon />} isDark={isDark} />
-        <NavItem href="/support" label={tNav("support")} active={pathname.startsWith("/support")}
-          icon={<SupportIcon />} isDark={isDark} />
-        <NavItem href="/updates" label={tNav("updates")} active={pathname.startsWith("/updates")}
-          icon={<UpdatesIcon />} isDark={isDark} />
-        {tier === "free" && (
-          <NavItem href="/plan" label={tNav("pricing")} active={pathname === "/plan"}
-            icon={<PricingIcon />} isDark={isDark} />
-        )}
-
-        {/* Admin link - only shown to admins */}
-        {isAdmin && (
-          <>
-            <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
-            <NavItem href="/admin" label={tNav("admin")} active={pathname.startsWith("/admin")}
-              icon={<AdminIcon />} isDark={isDark} />
-          </>
-        )}
+        {/* ── HELP ───────────────────────────────────────────────────────── */}
+        <NavSectionLabel label="Help" isDark={isDark} />
+        <div className="space-y-0.5">
+          <NotificationCenter isDark={isDark} />
+          <NavItem href="/support" label={tNav("support")} active={pathname.startsWith("/support")}
+            icon={<SupportIcon />} isDark={isDark} />
+        </div>
       </nav>
 
       <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>
@@ -861,8 +910,6 @@ export function Sidebar({
             <ChevronDownIcon />
           </span>
         </button>
-
-        <NotificationCenter isDark={isDark} />
 
         <div ref={menuRef} className="relative">
           {menuOpen && (

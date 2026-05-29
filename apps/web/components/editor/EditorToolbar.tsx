@@ -323,23 +323,6 @@ export function EditorToolbar({
         </Button>
       )}
 
-      {/* Step debugger toggle — only visible when enableAdvancedEditor is on */}
-      {onToggleDebugger && (
-        <Button
-          variant={showDebugger ? "default" : "outline"}
-          size="sm"
-          onClick={onToggleDebugger}
-          className="gap-1.5 text-xs"
-          title="Step debugger — inspect node inputs and outputs from the last run"
-        >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5">
-            <circle cx="8" cy="8" r="2" />
-            <path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.2 4.2l1.4 1.4M10.4 10.4l1.4 1.4M4.2 11.8l1.4-1.4M10.4 5.6l1.4-1.4" strokeLinecap="round" />
-          </svg>
-          Debug
-        </Button>
-      )}
-
       {/* Spacer pushes remaining buttons to the right */}
       <div className="flex-1" />
 
