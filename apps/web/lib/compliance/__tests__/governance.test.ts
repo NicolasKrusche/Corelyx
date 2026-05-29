@@ -31,6 +31,29 @@ describe("compliance governance", () => {
     expect(result.recommendations[0]).toContain("Do not deploy");
   });
 
+  it("flags newly added prohibited-use signals", () => {
+    for (const key of [
+      "untargetedFacialScraping",
+      "predictivePolicingProfiling",
+      "biometricCategorizationSensitive",
+      "exploitsVulnerabilities",
+    ] as const) {
+      const result = classifyAiActRisk({ systemName: "Test", [key]: true });
+      expect(result.riskCategory).toBe("Potentially Prohibited Use");
+    }
+  });
+
+  it("flags newly added Annex III high-risk domains", () => {
+    for (const key of [
+      "criticalInfrastructure",
+      "migrationBorderControl",
+      "justiceOrDemocraticProcess",
+    ] as const) {
+      const result = classifyAiActRisk({ systemName: "Test", [key]: true });
+      expect(result.riskCategory).toBe("High Risk");
+    }
+  });
+
   it("builds inventory metrics from workflow records", () => {
     const record = buildInventoryRecordFromProgram({
       program: {

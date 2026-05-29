@@ -185,13 +185,20 @@ function AiActRiskClassifier() {
     manipulativeOrDeceptiveUse: false,
     socialScoring: false,
     emotionRecognitionWorkplaceOrEducation: false,
+    untargetedFacialScraping: false,
+    predictivePolicingProfiling: false,
+    biometricCategorizationSensitive: false,
+    exploitsVulnerabilities: false,
+    criticalInfrastructure: false,
+    migrationBorderControl: false,
+    justiceOrDemocraticProcess: false,
   });
 
   const result = useMemo(() => classifyAiActRisk(state), [state]);
   const report = `# AI Act Risk Assessment: ${state.systemName}
 
 Risk category: ${result.riskCategory}
-Classification confidence: ${Math.round(result.classificationConfidence * 100)}%
+Signal strength: ${Math.round(result.classificationConfidence * 100)}% (indicative, based only on the answers provided — not a legal determination)
 
 ## Reasoning
 ${result.reasoning.map((item) => `- ${item}`).join("\n")}
@@ -222,6 +229,13 @@ ${result.disclaimer}
     ["manipulativeOrDeceptiveUse", "Manipulative or deceptive use"],
     ["socialScoring", "Social scoring"],
     ["emotionRecognitionWorkplaceOrEducation", "Emotion recognition in workplace or education"],
+    ["exploitsVulnerabilities", "Exploits age, disability, or socio-economic vulnerabilities"],
+    ["untargetedFacialScraping", "Untargeted scraping of facial images"],
+    ["predictivePolicingProfiling", "Predicting crime based solely on profiling"],
+    ["biometricCategorizationSensitive", "Biometric categorisation of sensitive attributes"],
+    ["criticalInfrastructure", "Safety component of critical infrastructure"],
+    ["migrationBorderControl", "Migration, asylum, or border control"],
+    ["justiceOrDemocraticProcess", "Administration of justice or democratic processes"],
   ] as const;
 
   return (
@@ -247,7 +261,12 @@ ${result.disclaimer}
           <div className="rounded-lg border border-border bg-background/50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risk category</p>
             <p className="mt-2 text-2xl font-black">{result.riskCategory}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{Math.round(result.classificationConfidence * 100)}% confidence</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {Math.round(result.classificationConfidence * 100)}% indicative signal strength
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+              Based only on the answers provided. This is governance support, not a legal determination.
+            </p>
           </div>
           <ReportPreview report={report} />
           <ReportActions slug="ai-act-risk-classifier" report={report} json={{ input: state, result }} />
