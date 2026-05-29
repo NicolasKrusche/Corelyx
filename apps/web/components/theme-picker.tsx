@@ -26,8 +26,8 @@ function DefaultPreview() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 60% at 80% 10%, rgba(99,102,241,0.55) 0%, transparent 55%)," +
-            "radial-gradient(ellipse 55% 50% at 15% 90%, rgba(59,130,246,0.4) 0%, transparent 50%)",
+            "radial-gradient(ellipse 70% 60% at 80% 10%, hsl(var(--theme-glow-strong) / 0.55) 0%, transparent 55%)," +
+            "radial-gradient(ellipse 55% 50% at 15% 90%, hsl(var(--theme-glow-soft) / 0.4) 0%, transparent 50%)",
         }}
       />
     </div>
@@ -44,7 +44,7 @@ function LiquidPreview() {
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage: "radial-gradient(circle, rgba(160,180,255,0.3) 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(circle, hsl(var(--theme-glow-soft) / 0.3) 1px, transparent 1px)",
           backgroundSize: "4px 4px",
         }}
       />
@@ -53,8 +53,8 @@ function LiquidPreview() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 60% 55% at 75% 20%, rgba(99,102,241,0.75) 0%, transparent 55%)," +
-            "radial-gradient(ellipse 45% 40% at 20% 80%, rgba(34,211,238,0.55) 0%, transparent 45%)",
+            "radial-gradient(ellipse 60% 55% at 75% 20%, hsl(var(--theme-glow-strong) / 0.75) 0%, transparent 55%)," +
+            "radial-gradient(ellipse 45% 40% at 20% 80%, hsl(var(--theme-glow-soft) / 0.55) 0%, transparent 45%)",
         }}
       />
       {/* top highlight sheen */}
