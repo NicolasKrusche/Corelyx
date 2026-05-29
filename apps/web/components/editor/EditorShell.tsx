@@ -1442,7 +1442,7 @@ export function EditorShell({
         setIsComplianceBlock(true);
         setPreFlightChecks(
           (blocked.length > 0 ? blocked : body.compliance_checks).map((c) => ({
-            code: `COMPLY_${c.id.replace(/-/g, "_").toUpperCase()}`,
+            code: "PRE_COMPLY" as const,
             label: c.label,
             status: "fail" as const,
             failures: [{
