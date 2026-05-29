@@ -19,7 +19,6 @@ type Post = {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data } = await db.from("posts").select("title").eq("slug", slug).single();
   const post = data as { title: string } | null;
@@ -29,7 +28,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data, error } = await db
     .from("posts")

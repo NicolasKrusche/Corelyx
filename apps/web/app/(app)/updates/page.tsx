@@ -17,7 +17,6 @@ export const metadata = {
 };
 
 export default async function UpdatesPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data } = await db
     .from("posts")

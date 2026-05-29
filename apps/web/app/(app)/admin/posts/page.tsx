@@ -23,7 +23,6 @@ export default async function AdminPostsPage() {
   if (!user) redirect("/login?redirect=/admin/posts");
   if (!isAdminEmail(user.email)) redirect("/admin");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any;
   const { data } = await db
     .from("posts")
