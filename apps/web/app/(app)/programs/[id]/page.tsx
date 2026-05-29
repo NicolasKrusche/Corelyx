@@ -140,10 +140,11 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   const access = await getProgramAccess(id, user.id);
   if (!canView(access)) return notFound();
   const userCanEdit = canEdit(access);
+  const serviceClient = createServiceClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await serviceClient
     .from("programs")
-    .select("id, user_id, name, description, execution_mode, conflict_policy, is_active, schema, schema_version, last_run_at, created_at, updated_at, is_public, tags, fork_count, published_at, public_author_name, visibility, workspace_id, ai_use_case_category, ai_act_risk_level, customer_role, human_oversight_required, transparency_notice_required, high_risk_documentation_required, prohibited_reason, reviewer, reviewed_at, ai_act_notes, legal_review_override")
+    .select("id, user_id, name, description, execution_mode, conflict_policy, is_active, schema, schema_version, last_run_at, created_at, updated_at, is_public, tags, fork_count, published_at, public_author_name, visibility, workspace_id")
     .eq("id", id)
     .single();
 
@@ -185,7 +186,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   const program = data as ProgramRow;
   const { nodes, edges, genesisModel } = parseSchema(program.schema);
   const aiGenerated = isAiGenerated(genesisModel);
-  const serviceClient = createServiceClient();
 
   const [
     linkedConnsResult,
