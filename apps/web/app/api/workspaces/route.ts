@@ -73,6 +73,14 @@ type MembershipRow = {
   updated_at: string;
 };
 
+type WorkspaceRenameRow = {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 async function getMembership(
   service: LooseServiceClient,
   workspaceId: string,
@@ -337,7 +345,7 @@ export async function PATCH(request: Request) {
     .from("workspaces")
     .update({ name: parsed.data.name, updated_at: new Date().toISOString() } as never)
     .eq("id", parsed.data.workspace_id)
-    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
+    .select("id, name, created_by, created_at, updated_at")
     .single();
 
   if (error || !data) return apiError(error?.message ?? "Workspace could not be updated.", 500);
@@ -352,5 +360,5 @@ export async function PATCH(request: Request) {
     details: { workspace_id: parsed.data.workspace_id, name: parsed.data.name },
   });
 
-  return NextResponse.json({ workspace: data as WorkspaceRow });
+  return NextResponse.json({ workspace: data as WorkspaceRenameRow });
 }
