@@ -8,7 +8,6 @@ export type SeoSection =
   | "compliance"
   | "templates"
   | "compare"
-  | "guides"
   | "blog"
   | "integrations"
   | "use-cases"
@@ -33,12 +32,12 @@ export type SeoPage = {
     name: string;
     text: string;
   }>;
-  table: {
+  table?: {
     caption: string;
     headers: [string, string, string];
     rows: Array<[string, string, string]>;
   };
-  checklist: string[];
+  checklist?: string[];
   codeExample?: {
     title: string;
     language: string;
@@ -176,7 +175,7 @@ export const seoPages: SeoPage[] = [
       { question: "Can a workflow run without a schema?", answer: "No. Runtime execution should start from a validated schema so nodes, edges, credentials, and trigger behavior are explicit." },
       { question: "Where should connector secrets live?", answer: "Secrets should stay in server-only token or Vault helper paths and should never be returned to frontend responses." },
     ],
-    internalLinks: [commonLinks.security, commonLinks.gdpr, commonLinks.aiAct, { href: "/docs/workflow-schema-contract", label: "Schema contract guide", description: "Implementation details for node, edge, and trigger translations." }],
+    internalLinks: [commonLinks.security, commonLinks.gdpr, commonLinks.aiAct, { href: "/docs/workflow-schema-contract", label: "Schema contract guide", description: "Implementation details for node, edge, and trigger translations." }, { href: "/docs/eu-ai-act-workflow-automation", label: "EU AI Act Guide", description: "Step-by-step guide for turning EU AI Act obligations into governed workflow controls." }],
   },
   {
     path: "/docs/workflow-schema-contract",
@@ -501,7 +500,7 @@ return NextResponse.json({
       { question: "What should be blocked before publish?", answer: "Prohibited-use workflows and high-risk workflows without required oversight, documentation, and reviewer approval should be blocked." },
       { question: "Why track model and provider metadata?", answer: "It helps reviewers understand dependencies, model-mediated decisions, and evidence trails for governance reviews." },
     ],
-    internalLinks: [commonLinks.compliance, commonLinks.templates, { href: "/guides/eu-ai-act-workflow-automation", label: "AI Act guide", description: "A deeper tutorial for turning AI Act review into workflow checkpoints." }, { href: "/trust", label: "Trust Center", description: "Public trust and procurement material." }],
+    internalLinks: [commonLinks.compliance, commonLinks.templates, { href: "/docs/eu-ai-act-workflow-automation", label: "AI Act guide", description: "A deeper tutorial for turning AI Act review into workflow checkpoints." }, { href: "/trust", label: "Trust Center", description: "Public trust and procurement material." }],
   },
   {
     path: "/compliance",
@@ -967,64 +966,13 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     internalLinks: [commonLinks.compliance, commonLinks.templates, commonLinks.integrations, { href: "/data-residency", label: "Data residency", description: "Infrastructure and provider locality context." }],
   },
   {
-    path: "/guides",
-    section: "guides",
-    title: "Corelyx Guides for EU AI Governance Automation",
-    shortTitle: "Guides",
-    description:
-      "Practical guides for AI governance, GDPR-compliant AI workflows, EU AI Act automation, secure AI agents, and human-in-the-loop workflow design.",
-    eyebrow: "Guides",
-    headline: "Practical guides for building governed AI workflows.",
-    summary:
-      "Corelyx guides teach teams how to turn EU AI governance requirements into concrete workflow controls, schemas, approvals, logs, and implementation tests.",
-    definition:
-      "AI governance automation education is the practice of teaching teams how to convert policies into executable workflow controls rather than leaving governance in documents only.",
-    audience: "Developers, compliance managers, automation owners, and executives sponsoring AI workflow programs.",
-    lastModified: "2026-05-28",
-    primaryQuery: "AI governance workflow training",
-    entityTerms: ["AI governance workflows", "EU AI Act training", "GDPR AI automation", "secure AI agents"],
-    keyPoints: [
-      "Governance workflows are teachable implementation patterns.",
-      "Training should include examples, schemas, failure modes, and review artifacts.",
-      "Non-technical stakeholders need definitions and checklists; developers need field-level detail.",
-      "Every guide should end with a workflow a team can build or audit.",
-    ],
-    implementationSteps: [
-      { name: "Teach definitions", text: "Start with terms such as AI workflow, approval gate, data minimisation, risk classification, and audit evidence." },
-      { name: "Map obligations", text: "Translate GDPR, AI Act, and security expectations into workflow steps." },
-      { name: "Build a sample", text: "Create one governed workflow and inspect its schema and logs." },
-      { name: "Run a review", text: "Use the checklist to find missing approvals, excessive data, weak retention, or unsafe credentials." },
-    ],
-    table: {
-      caption: "Guide learning paths",
-      headers: ["Path", "Best for", "Outcome"],
-      rows: [
-        ["AI Act workflow automation", "AI governance and legal teams.", "Risk review as workflow checkpoints."],
-        ["GDPR AI workflows", "Privacy and support teams.", "Minimisation, DSAR routing, and retention."],
-        ["Secure AI agents", "Developers and security teams.", "Credential boundaries and audit-safe logs."],
-      ],
-    },
-    checklist: [
-      "Include one implementation example in every guide.",
-      "Use plain definitions that AI systems can summarize.",
-      "Add a checklist for reviewers and a code/schema excerpt for developers.",
-      "Link guides to templates and trust documentation.",
-    ],
-    faqs: [
-      { question: "Who are the guides for?", answer: "They are for cross-functional teams that need shared language between engineering, security, privacy, and AI governance." },
-      { question: "Are guides legal advice?", answer: "No. They are implementation education and should be paired with customer-side legal review." },
-      { question: "What makes the content useful for AI retrieval?", answer: "Definitions, implementation steps, tables, FAQs, and internal links create clear semantic structure." },
-    ],
-    internalLinks: [{ href: "/guides/eu-ai-act-workflow-automation", label: "AI Act workflow automation guide", description: "Learn to build AI Act checkpoints into the graph." }, commonLinks.templates, commonLinks.gdpr, commonLinks.aiAct],
-  },
-  {
-    path: "/guides/eu-ai-act-workflow-automation",
-    section: "guides",
+    path: "/docs/eu-ai-act-workflow-automation",
+    section: "docs",
     title: "How to Build EU AI Act Workflow Automation",
-    shortTitle: "AI Act Guide",
+    shortTitle: "EU AI Act Guide",
     description:
       "A step-by-step guide for turning EU AI Act risk review, human oversight, transparency, and documentation duties into Corelyx workflows.",
-    eyebrow: "Guide",
+    eyebrow: "Docs",
     headline: "Build an AI Act review workflow that operators can actually run.",
     summary:
       "This guide turns AI Act governance into a workflow with use-case classification, risk review, transparency notice handling, human oversight, and evidence export.",
@@ -1398,6 +1346,17 @@ if (workflow.transparency_notice_required) {
       { href: "/integrations/hubspot", label: "HubSpot integration", description: "CRM enrichment and contact workflows with GDPR controls." },
       { href: "/integrations/github", label: "GitHub integration", description: "Code review, issue triage, and PR automation with governed AI steps." },
       { href: "/integrations/google-sheets", label: "Google Sheets integration", description: "Read and write spreadsheet data as part of governed AI workflows." },
+      { href: "/integrations/salesforce", label: "Salesforce integration", description: "Governed CRM automation with GDPR-safe contact enrichment and approval gates." },
+      { href: "/integrations/jira", label: "Jira integration", description: "AI-assisted issue creation and triage with schema-defined outputs and human review." },
+      { href: "/integrations/zendesk", label: "Zendesk integration", description: "Support ticket triage and routing with AI classification and oversight controls." },
+      { href: "/integrations/airtable", label: "Airtable integration", description: "Read and write Airtable bases as governed AI workflow outputs with full audit trails." },
+      { href: "/integrations/linear", label: "Linear integration", description: "AI-assisted issue creation and status updates in Linear with human review gates." },
+      { href: "/integrations/asana", label: "Asana integration", description: "AI task drafting and project intake workflows with human confirmation steps." },
+      { href: "/integrations/mailchimp", label: "Mailchimp integration", description: "GDPR-safe audience management with AI content drafting and approval before sending." },
+      { href: "/integrations/shopify", label: "Shopify integration", description: "Order processing and customer tagging automation with approval gates for high-value changes." },
+      { href: "/integrations/typeform", label: "Typeform integration", description: "Form response triggers with AI classification and GDPR-compliant data routing." },
+      { href: "/integrations/stripe", label: "Stripe integration", description: "Payment event workflow triggers with audit trails and no raw payment data in AI prompts." },
+      { href: "/integrations/twilio", label: "Twilio integration", description: "Schema-validated SMS and voice notifications from governed AI workflows." },
       commonLinks.docs,
       commonLinks.security,
     ],
@@ -1750,6 +1709,563 @@ if (workflow.transparency_notice_required) {
     ],
   },
   {
+    path: "/integrations/salesforce",
+    section: "integrations",
+    title: "Salesforce AI Workflow Integration for CRM Automation",
+    shortTitle: "Salesforce",
+    description: "Connect Salesforce to governed AI workflows. Enrich CRM records, route deal stages, and handle GDPR data subject requests with audit trails and approval gates.",
+    eyebrow: "Integration",
+    headline: "Enrich and update CRM records without AI making unreviewed contact decisions.",
+    summary: "Corelyx connects to Salesforce so AI workflows can read contact and deal data, propose enrichments, and draft updates — with schema-validated outputs and human approval before writes land in production records.",
+    definition: "A Salesforce AI workflow integration is a governed connector that lets AI read, classify, and propose changes to CRM data while keeping sensitive contact writes behind approval steps and full audit logs.",
+    audience: "RevOps, sales operations, and compliance teams using Salesforce as the source of truth for customer contact and deal data.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Salesforce AI workflow automation",
+    entityTerms: ["Salesforce AI automation", "CRM workflow integration", "GDPR Salesforce", "governed CRM enrichment"],
+    keyPoints: [
+      "AI can read and classify Salesforce records but writes should route through an approval step.",
+      "Contact data in Salesforce is personal data under GDPR — minimise what AI processes.",
+      "Log every AI-proposed field change with the model used, confidence, and reviewer decision.",
+      "DSAR and erasure workflows can use Salesforce as a data source and action target.",
+    ],
+    implementationSteps: [
+      { name: "Scope the OAuth token", text: "Request only the Salesforce objects and fields the workflow needs. Avoid full read access to all objects." },
+      { name: "Define AI output shape", text: "Use a schema that specifies which fields the AI may suggest updates for. Reject outputs that reference out-of-scope fields." },
+      { name: "Add an approval gate", text: "Route AI-proposed contact or deal updates to a reviewer before committing to Salesforce." },
+      { name: "Log the write event", text: "Record the workflow run ID, field changed, previous value hash, new value, and reviewer identity in the audit log." },
+    ],
+    codeExample: {
+      title: "Salesforce enrichment approval payload",
+      language: "json",
+      code: `{
+  "record_id": "003xx000004TmiQ",
+  "object": "Contact",
+  "proposed_changes": {
+    "Industry__c": "FinTech",
+    "Lead_Score__c": 82
+  },
+  "ai_confidence": 0.91,
+  "requires_approval": true,
+  "data_sources_used": ["company_domain", "job_title"]
+}`,
+    },
+    faqs: [
+      { question: "Does Corelyx store Salesforce contact data?", answer: "Only what is needed to execute the workflow step. Sensitive personal data should not persist beyond the run unless explicitly stored in a governed retention location." },
+      { question: "Can Corelyx handle GDPR erasure requests that involve Salesforce?", answer: "Yes — a DSAR workflow can read Salesforce records, flag them for review, and trigger deletion or anonymisation steps with approval and a logged evidence artifact." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      { href: "/templates/gdpr-ai-customer-support", label: "GDPR AI customer support template", description: "Route support contacts and DSARs with governed AI steps." },
+      commonLinks.security,
+    ],
+  },
+  {
+    path: "/integrations/jira",
+    section: "integrations",
+    title: "Jira AI Workflow Integration for Development Automation",
+    shortTitle: "Jira",
+    description: "Use AI to triage, label, and create Jira issues with schema-defined outputs and human review before writes. Full audit trail for every AI-generated ticket action.",
+    eyebrow: "Integration",
+    headline: "AI creates and triages Jira issues — with a schema output and optional review before writes.",
+    summary: "Corelyx connects to Jira so AI workflows can classify bug reports, draft issue descriptions, suggest labels and priority, and create or update tickets — while keeping the audit trail intact and high-impact changes behind approval gates.",
+    definition: "A Jira AI workflow integration is a governed connector that lets AI read and propose changes to project issues while ensuring schema-validated outputs and optional human confirmation before production writes.",
+    audience: "Engineering teams, QA, and DevOps teams using Jira for issue tracking and who want AI triage without unreviewed automation taking over their backlog.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Jira AI workflow integration",
+    entityTerms: ["Jira AI automation", "issue triage workflow", "AI ticket creation", "governed development automation"],
+    keyPoints: [
+      "AI can draft issue titles, descriptions, and labels — but priority and assignment changes should be reviewed.",
+      "Log the workflow run, model used, and final field values for every AI-created or AI-updated issue.",
+      "Scope the Jira API token to the specific project boards the workflow needs.",
+      "Use a human approval step before closing issues or moving them to done via AI.",
+    ],
+    implementationSteps: [
+      { name: "Define the output schema", text: "Specify which issue fields the AI may populate: summary, description, labels, component. Reject outputs that attempt to set unscoped fields." },
+      { name: "Scope API access", text: "Create a service account with access only to the target project. Avoid global Jira admin credentials." },
+      { name: "Add review for priority changes", text: "Treat priority and sprint assignment as approval-required fields — AI proposes, a human confirms." },
+      { name: "Log and link", text: "Store the workflow run ID in a Jira issue custom field so every AI-created ticket links back to its audit record." },
+    ],
+    codeExample: {
+      title: "AI issue creation output",
+      language: "json",
+      code: `{
+  "project_key": "ENG",
+  "issue_type": "Bug",
+  "summary": "Null pointer in payment validator on empty card token",
+  "labels": ["ai-triaged", "payments", "high-severity"],
+  "priority": "High",
+  "ai_confidence": 0.87,
+  "requires_approval": false,
+  "workflow_run_id": "run_20260528_abc"
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx auto-close Jira issues?", answer: "Only with an explicit approval step in the workflow. Fully autonomous issue closure is not recommended without a human confirmation gate." },
+      { question: "Does Jira data processed by AI count as personal data?", answer: "Issue assignees and reporters are personal data under GDPR. Minimise what the AI receives and log what fields were processed." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.security,
+      commonLinks.docs,
+      { href: "/integrations/github", label: "GitHub integration", description: "AI-assisted code review and PR automation with governed workflow steps." },
+    ],
+  },
+  {
+    path: "/integrations/zendesk",
+    section: "integrations",
+    title: "Zendesk AI Workflow Integration for Support Automation",
+    shortTitle: "Zendesk",
+    description: "Triage and classify Zendesk support tickets with AI. Route to agents, draft responses, and flag GDPR requests — without the AI resolving tickets autonomously.",
+    eyebrow: "Integration",
+    headline: "AI classifies and routes support tickets — without resolving them without human oversight.",
+    summary: "Corelyx connects to Zendesk so AI can read new tickets, classify intent and urgency, suggest response drafts, and route to the right agent queue — while personal data in tickets stays minimised and high-risk actions require approval.",
+    definition: "A Zendesk AI workflow integration is a governed connector that automates support ticket triage and routing using AI classification while keeping personal data handling auditable and resolution steps human-reviewed.",
+    audience: "Support operations, privacy teams, and customer success teams using Zendesk who want AI triage without autonomous resolution of sensitive requests.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Zendesk AI workflow automation",
+    entityTerms: ["Zendesk AI automation", "support ticket triage", "GDPR support workflow", "AI customer support"],
+    keyPoints: [
+      "AI should classify and route tickets, not resolve them — keep a human in the final response step.",
+      "DSAR and erasure requests arriving via Zendesk must route to a privacy reviewer, not an AI responder.",
+      "Minimise ticket body content sent to AI — use summary or snippet fields where possible.",
+      "Log classification, routing decision, agent assigned, and whether AI or human drafted the response.",
+    ],
+    implementationSteps: [
+      { name: "Set up the triage trigger", text: "Configure a workflow trigger on new Zendesk tickets. Pass subject, requester domain, and a body snippet — not the full message." },
+      { name: "Classify intent", text: "Use AI to classify ticket type: support request, billing issue, DSAR, complaint, or other." },
+      { name: "Route by classification", text: "Map each classification to an agent queue. Flag DSAR tickets as high-priority and route to the privacy team." },
+      { name: "Draft and review", text: "For standard support tickets, AI drafts a response. An agent reviews and sends — AI does not send directly." },
+    ],
+    codeExample: {
+      title: "Ticket triage output",
+      language: "json",
+      code: `{
+  "ticket_id": "ZD-48291",
+  "classification": "billing_dispute",
+  "urgency": "medium",
+  "is_dsar": false,
+  "suggested_queue": "billing-team",
+  "draft_response_ready": true,
+  "fields_used": ["subject", "body_snippet_150", "requester_domain"]
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx automatically reply to Zendesk tickets?", answer: "Corelyx can draft replies but the recommended pattern is agent review before sending, especially for tickets involving personal data or account changes." },
+      { question: "How are GDPR data subject requests handled?", answer: "DSAR tickets are classified separately and routed to a privacy reviewer. AI should not attempt to fulfil or respond to rights requests without human oversight." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      { href: "/templates/gdpr-ai-customer-support", label: "GDPR AI customer support template", description: "Triage support tickets with AI while protecting data subject rights." },
+      commonLinks.security,
+    ],
+  },
+  {
+    path: "/integrations/airtable",
+    section: "integrations",
+    title: "Airtable AI Workflow Integration for Database Automation",
+    shortTitle: "Airtable",
+    description: "Read and write Airtable bases as governed AI workflow outputs. Use Airtable as lightweight operational storage with full audit of what AI wrote and when.",
+    eyebrow: "Integration",
+    headline: "Use Airtable as governed AI workflow storage — with schema-mapped writes and full audit trails.",
+    summary: "Corelyx connects to Airtable so AI workflows can read records as inputs and write structured outputs back to bases — with field-level schema validation, personal data minimisation, and an audit record for every AI-driven write.",
+    definition: "An Airtable AI workflow integration is a governed connector that uses Airtable bases as structured storage for AI workflow inputs and outputs, with schema-validated writes and auditable data handling.",
+    audience: "Operations teams, no-code builders, and compliance teams using Airtable as a lightweight database for workflow state, intake forms, or operational records.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Airtable AI workflow integration",
+    entityTerms: ["Airtable AI automation", "Airtable workflow integration", "governed Airtable writes", "no-code AI workflow"],
+    keyPoints: [
+      "Define the exact fields AI may write to — do not allow freeform row creation.",
+      "Personal data in Airtable records is subject to GDPR — document the legal basis and retention period.",
+      "Use a workflow run ID as a linked field so every AI write traces back to its audit record.",
+      "Approval gates are especially important when AI writes to records shared with external collaborators.",
+    ],
+    implementationSteps: [
+      { name: "Create a scoped API token", text: "Generate an Airtable personal access token scoped to the specific base and operations the workflow needs." },
+      { name: "Define the output schema", text: "Map AI output fields to Airtable column names and types. Reject outputs that reference columns outside the defined schema." },
+      { name: "Write with a run ID", text: "Include the Corelyx workflow run ID in a dedicated audit column on every AI-written record." },
+      { name: "Review personal data fields", text: "Flag any columns that hold personal data and add a retention tag or review step for those writes." },
+    ],
+    codeExample: {
+      title: "Airtable write payload",
+      language: "json",
+      code: `{
+  "base_id": "appXXXXXXXXXXXXXX",
+  "table": "Intake Requests",
+  "fields": {
+    "Classification": "High Priority",
+    "AI Summary": "Customer reports billing error on 2026-05-01 invoice.",
+    "Requires Review": true,
+    "Workflow Run ID": "run_20260528_xyz"
+  }
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx trigger a workflow when an Airtable record is created?", answer: "Airtable can send webhook events to Corelyx trigger endpoints. Configure a webhook automation in Airtable pointing to the workflow's inbound URL." },
+      { question: "Is Airtable suitable for storing personal data in AI workflows?", answer: "Airtable can store personal data but requires a documented legal basis, field-level minimisation, and a retention policy. Use it as operational state storage, not as a long-term personal data archive." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      commonLinks.security,
+      commonLinks.templates,
+    ],
+  },
+  {
+    path: "/integrations/linear",
+    section: "integrations",
+    title: "Linear AI Workflow Integration for Engineering Automation",
+    shortTitle: "Linear",
+    description: "AI-assisted issue creation, triage, and status updates in Linear with schema-defined outputs and human review gates before priority or assignment changes.",
+    eyebrow: "Integration",
+    headline: "AI triages and creates Linear issues — with human review before priority or assignment changes.",
+    summary: "Corelyx connects to Linear so AI can classify incoming work, draft issue descriptions, suggest labels and priority, and update status — while keeping the audit trail intact and sensitive field changes behind approval steps.",
+    definition: "A Linear AI workflow integration is a governed connector that enables AI-assisted issue management in Linear, with schema-validated outputs and optional human confirmation for high-impact field changes.",
+    audience: "Engineering teams using Linear as their primary project tracker who want AI triage without autonomous backlog manipulation.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Linear AI workflow integration",
+    entityTerms: ["Linear AI automation", "Linear issue triage", "engineering workflow automation", "governed Linear integration"],
+    keyPoints: [
+      "AI can draft issue titles, descriptions, and suggest labels — but priority and cycle assignment should be reviewed.",
+      "Use Linear's API key scoped to the specific team, not organization-wide admin access.",
+      "Log the workflow run ID on every AI-created issue so triage decisions are traceable.",
+      "Avoid AI auto-closing or auto-cancelling issues without a human confirmation step.",
+    ],
+    implementationSteps: [
+      { name: "Create a team-scoped API key", text: "Generate a Linear API key with access limited to the target team's issues and projects." },
+      { name: "Define output fields", text: "Specify which issue fields the AI may populate. Title, description, and labels are safe for AI; priority and assignee should require review." },
+      { name: "Route high-impact changes", text: "Send priority changes, cycle assignments, and status moves to a human reviewer via an approval step before applying them." },
+      { name: "Tag AI-created issues", text: "Apply an 'ai-created' label to all AI-generated issues so the team can monitor triage quality." },
+    ],
+    codeExample: {
+      title: "Linear issue creation output",
+      language: "json",
+      code: `{
+  "team_id": "ENG",
+  "title": "Retry logic missing in outbound webhook handler",
+  "description": "Webhook delivery fails silently on 5xx responses. No retry or dead-letter queue.",
+  "labels": ["bug", "ai-triaged", "reliability"],
+  "priority_suggestion": 2,
+  "requires_priority_approval": true,
+  "workflow_run_id": "run_20260528_lin"
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx create Linear issues from external triggers?", answer: "Yes — workflows can be triggered by webhooks, schedules, or other connector events and write the output as a new Linear issue." },
+      { question: "Does AI processing of Linear issues involve personal data?", answer: "Assignee names and emails are personal data. Minimise what is passed to AI and log what fields were used." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      { href: "/integrations/jira", label: "Jira integration", description: "AI-assisted issue triage and creation in Jira with governed workflow steps." },
+      { href: "/integrations/github", label: "GitHub integration", description: "AI-assisted code review and PR automation with audit trails." },
+      commonLinks.security,
+    ],
+  },
+  {
+    path: "/integrations/asana",
+    section: "integrations",
+    title: "Asana AI Workflow Integration for Project Management Automation",
+    shortTitle: "Asana",
+    description: "AI drafts and creates Asana tasks from workflow intake, routes work to the right project, and updates status — with human confirmation before high-impact changes.",
+    eyebrow: "Integration",
+    headline: "AI drafts Asana tasks from intake workflows — with humans confirming before assignments land.",
+    summary: "Corelyx connects to Asana so AI can read project context, draft task descriptions, suggest assignments, and create work items from intake triggers — while routing significant changes through an approval step and keeping a full audit trail.",
+    definition: "An Asana AI workflow integration is a governed connector that uses AI to automate task creation and project intake in Asana, with schema-validated outputs and human review for sensitive project changes.",
+    audience: "Operations, project management, and cross-functional teams using Asana who want AI-assisted intake and triage without unreviewed automation editing project plans.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Asana AI workflow integration",
+    entityTerms: ["Asana AI automation", "project management workflow", "AI task creation", "governed Asana integration"],
+    keyPoints: [
+      "Use AI for task drafting and intake classification — require human sign-off before assigning or moving tasks.",
+      "Scope the Asana OAuth token to the specific project workspace the workflow uses.",
+      "Log every AI-created task with the workflow run ID and the model that generated the description.",
+      "Treat due date changes and project moves as approval-required operations.",
+    ],
+    implementationSteps: [
+      { name: "Set up intake trigger", text: "Configure a workflow trigger (form submission, email, webhook) that fires when new work arrives and needs routing to Asana." },
+      { name: "Classify and draft", text: "AI classifies the intake type, drafts a task title and description, and suggests the target project and section." },
+      { name: "Review and confirm", text: "Route the draft task to the responsible team lead for confirmation before creating it in Asana." },
+      { name: "Write and log", text: "Create the confirmed task and store the workflow run ID in a custom field for traceability." },
+    ],
+    codeExample: {
+      title: "Asana task creation payload",
+      language: "json",
+      code: `{
+  "project_gid": "1234567890",
+  "name": "Onboard ACME Corp — security review required",
+  "notes": "New enterprise customer. Security review checklist needed before data processing begins.",
+  "assignee_suggestion": "privacy-team",
+  "due_on": "2026-06-05",
+  "requires_approval": true,
+  "workflow_run_id": "run_20260528_asa"
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx create Asana tasks from form submissions?", answer: "Yes — form response webhooks can trigger a Corelyx workflow that classifies the submission and creates a governed Asana task." },
+      { question: "Does Asana task data include personal data?", answer: "Assignee emails and task descriptions may include personal data. Minimise what AI processes and ensure the task content aligns with your legal basis for processing." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      commonLinks.templates,
+      { href: "/integrations/jira", label: "Jira integration", description: "AI-assisted issue triage in Jira with governed steps." },
+    ],
+  },
+  {
+    path: "/integrations/mailchimp",
+    section: "integrations",
+    title: "Mailchimp AI Workflow Integration for Email Marketing Automation",
+    shortTitle: "Mailchimp",
+    description: "GDPR-safe Mailchimp automation. AI drafts segment criteria and email content, but a human approval step confirms before any audience is targeted or campaign sent.",
+    eyebrow: "Integration",
+    headline: "AI drafts audience segments and email content — with approval before anything is sent.",
+    summary: "Corelyx connects to Mailchimp so AI can propose audience segments, draft email copy, and prepare campaign parameters — while keeping consent records auditable and requiring human review before any message reaches subscribers.",
+    definition: "A Mailchimp AI workflow integration is a governed connector that uses AI to accelerate email campaign preparation in Mailchimp, with mandatory human approval before subscriber-facing actions and GDPR-compliant audience handling.",
+    audience: "Marketing and growth teams using Mailchimp who want AI-assisted content drafting without the risk of unsanctioned sends to subscriber lists.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Mailchimp AI workflow automation",
+    entityTerms: ["Mailchimp AI automation", "email marketing workflow", "GDPR email automation", "governed campaign management"],
+    keyPoints: [
+      "Never allow AI to trigger a Mailchimp send without a human approval step in the workflow.",
+      "Subscriber email addresses and behaviour data are personal data — minimise what AI receives.",
+      "Log consent status checks and segment criteria decisions with the workflow run ID.",
+      "AI-drafted email copy should go through a review node before the campaign is activated.",
+    ],
+    implementationSteps: [
+      { name: "Define segment criteria schema", text: "Specify the Mailchimp audience fields AI may use for segmentation. Avoid passing full subscriber profiles to AI." },
+      { name: "Draft content", text: "AI generates subject line, preview text, and body copy based on campaign brief inputs. Output is schema-validated." },
+      { name: "Human review gate", text: "Route the draft campaign configuration and copy to the marketing approver. No send until explicitly confirmed." },
+      { name: "Activate and log", text: "On approval, trigger the campaign via Mailchimp API and record the run ID, approver identity, and timestamp in the audit log." },
+    ],
+    codeExample: {
+      title: "Campaign approval payload",
+      language: "json",
+      code: `{
+  "audience_id": "a1b2c3d4e5",
+  "segment_conditions": [
+    { "field": "last_purchase_days_ago", "op": "lt", "value": 90 }
+  ],
+  "subject_line": "Your May update from Corelyx",
+  "preview_text": "New workflow templates and compliance guides inside.",
+  "requires_approval": true,
+  "approver": null,
+  "workflow_run_id": "run_20260528_mc"
+}`,
+    },
+    faqs: [
+      { question: "Can AI send emails via Mailchimp automatically?", answer: "Not recommended without a human approval step. Subscriber lists are personal data and unsanctioned sends can breach GDPR and damage sender reputation." },
+      { question: "How does Corelyx handle unsubscribe and consent data?", answer: "Corelyx does not override Mailchimp consent status. Workflows should check subscription status before including any contact in a campaign segment." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      { href: "/integrations/gmail", label: "Gmail integration", description: "GDPR-compliant email processing workflows." },
+      commonLinks.security,
+    ],
+  },
+  {
+    path: "/integrations/shopify",
+    section: "integrations",
+    title: "Shopify AI Workflow Integration for E-commerce Automation",
+    shortTitle: "Shopify",
+    description: "Automate order processing, customer tagging, and product updates with governed AI workflows. High-value operations like refunds and account flags route through approval gates.",
+    eyebrow: "Integration",
+    headline: "AI classifies orders and enriches customer data — with approval gates before high-value changes.",
+    summary: "Corelyx connects to Shopify so AI workflows can process order events, classify customers, draft product descriptions, and propose tags — while routing refunds, account flags, and pricing changes through human review steps.",
+    definition: "A Shopify AI workflow integration is a governed connector that automates e-commerce operations using AI, with schema-validated outputs and human approval required before financial or account-impacting actions.",
+    audience: "E-commerce operations, customer success, and growth teams using Shopify who want AI automation without unreviewed changes to orders, refunds, or customer accounts.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Shopify AI workflow integration",
+    entityTerms: ["Shopify AI automation", "e-commerce workflow automation", "Shopify order processing", "governed Shopify integration"],
+    keyPoints: [
+      "Order and customer data is personal data under GDPR — document the legal basis for AI processing.",
+      "Refunds, cancellations, and account flags must route through a human approval step.",
+      "Use Shopify webhook events as workflow triggers rather than polling.",
+      "Log every AI classification with the order ID, model used, and output confidence.",
+    ],
+    implementationSteps: [
+      { name: "Configure order webhooks", text: "Register Shopify webhook events (order created, payment received, dispute opened) to trigger Corelyx workflows." },
+      { name: "Classify and enrich", text: "AI classifies order type, customer tier, and risk signals. Output is written to a schema-defined structure." },
+      { name: "Route high-value actions", text: "Refunds above a threshold, account suspensions, and fraud flags route to a human reviewer before any Shopify write." },
+      { name: "Write and audit", text: "Confirmed actions are applied via the Shopify Admin API and logged with the workflow run ID." },
+    ],
+    codeExample: {
+      title: "Order classification output",
+      language: "json",
+      code: `{
+  "order_id": "5678901234",
+  "classification": "high_value_first_order",
+  "fraud_risk": "low",
+  "suggested_tags": ["vip-candidate", "first-purchase"],
+  "refund_required": false,
+  "requires_approval": false,
+  "workflow_run_id": "run_20260528_shp"
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx process Shopify refunds automatically?", answer: "Only with a human approval step for refunds above a configured threshold. Fully autonomous financial actions are not recommended." },
+      { question: "How is customer data handled under GDPR?", answer: "Shopify customer records contain personal data. AI should receive only the fields needed for the specific operation, and processing must have a documented legal basis." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      { href: "/integrations/stripe", label: "Stripe integration", description: "Payment event workflows with audit trails." },
+      commonLinks.security,
+    ],
+  },
+  {
+    path: "/integrations/typeform",
+    section: "integrations",
+    title: "Typeform AI Workflow Integration for Form Response Automation",
+    shortTitle: "Typeform",
+    description: "Use Typeform responses as workflow triggers. AI classifies, routes, and enriches form data before passing to downstream systems with GDPR-compliant handling.",
+    eyebrow: "Integration",
+    headline: "Form responses trigger governed AI workflows — with classification, routing, and personal data minimisation.",
+    summary: "Corelyx connects to Typeform so form submissions can trigger AI workflows that classify response intent, route to the right downstream system, enrich data, and store a schema-validated output — while minimising personal data sent to AI.",
+    definition: "A Typeform AI workflow integration is a governed connector that uses form submission events as workflow triggers, enabling AI classification and routing of response data with auditable handling of personal information.",
+    audience: "Growth, ops, and compliance teams using Typeform for intake, surveys, or qualification forms who want AI-powered routing without manual triage.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Typeform AI workflow integration",
+    entityTerms: ["Typeform AI automation", "form response workflow", "intake automation", "GDPR form processing"],
+    keyPoints: [
+      "Form responses often contain personal data — define which fields AI may process and which should be masked.",
+      "Use Typeform webhooks to trigger workflows immediately on submission rather than polling.",
+      "Log the form ID, response ID, classification output, and routing destination for every submission.",
+      "Route responses containing sensitive data (health, financial, legal) to a human reviewer.",
+    ],
+    implementationSteps: [
+      { name: "Set up the webhook trigger", text: "Configure Typeform to POST new responses to the Corelyx workflow inbound URL." },
+      { name: "Map response fields", text: "Define which form fields are passed to AI for classification and which are masked or excluded." },
+      { name: "Classify and route", text: "AI classifies the response type and maps it to the correct downstream action: CRM write, ticket creation, notification, or review queue." },
+      { name: "Log and confirm", text: "Store the response ID, classification, routing target, and run ID in the audit record." },
+    ],
+    codeExample: {
+      title: "Form response classification output",
+      language: "json",
+      code: `{
+  "form_id": "typeform_abc123",
+  "response_id": "resp_20260528_001",
+  "classification": "enterprise_inquiry",
+  "routing_target": "sales-qualified-lead",
+  "sensitive_fields_excluded": ["personal_health_detail"],
+  "requires_review": false,
+  "workflow_run_id": "run_20260528_tf"
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx handle Typeform responses in real time?", answer: "Yes — Typeform webhooks deliver responses immediately after submission and Corelyx processes them in the same workflow trigger cycle." },
+      { question: "What if a form response contains health or financial data?", answer: "Sensitive response fields should be excluded from AI processing and routed directly to a human reviewer. Define field exclusion rules in the workflow schema." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      { href: "/integrations/hubspot", label: "HubSpot integration", description: "Route qualified form responses to CRM with governed AI steps." },
+      commonLinks.templates,
+    ],
+  },
+  {
+    path: "/integrations/stripe",
+    section: "integrations",
+    title: "Stripe AI Workflow Integration for Payment Event Automation",
+    shortTitle: "Stripe",
+    description: "Trigger governed AI workflows on Stripe payment events. AI classifies and routes — with audit trails, no raw payment data in prompts, and approval for financial record changes.",
+    eyebrow: "Integration",
+    headline: "Payment events trigger governed workflows — with audit trails and no raw card data in AI prompts.",
+    summary: "Corelyx connects to Stripe so payment lifecycle events (subscription changes, invoice failures, disputes) can trigger AI workflows that classify, notify, and route — while keeping raw payment data out of AI prompts and financial record changes behind approval gates.",
+    definition: "A Stripe AI workflow integration is a governed connector that uses payment lifecycle events as workflow triggers, enabling AI classification and routing while protecting financial data and maintaining a full audit trail.",
+    audience: "Finance, billing ops, and customer success teams using Stripe who want automated handling of payment events without unsanctioned changes to financial records.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Stripe AI workflow integration",
+    entityTerms: ["Stripe AI automation", "payment event workflow", "billing automation", "governed Stripe integration"],
+    keyPoints: [
+      "Never pass raw card numbers, CVVs, or full payment details to AI. Use Stripe's event metadata only.",
+      "Subscription changes and refunds must go through an approval step before being applied via API.",
+      "Use Stripe webhook signatures to verify event authenticity before triggering workflows.",
+      "Log every payment event classification with the Stripe event ID, model output, and routing decision.",
+    ],
+    implementationSteps: [
+      { name: "Register webhook events", text: "Subscribe to the Stripe events the workflow needs: payment_intent.succeeded, invoice.payment_failed, charge.dispute.created, etc." },
+      { name: "Verify signature", text: "Validate the Stripe-Signature header before processing any webhook payload." },
+      { name: "Classify and route", text: "AI classifies the event type and urgency. Standard events route automatically; disputes and refunds route to a human reviewer." },
+      { name: "Log and act", text: "Apply confirmed actions via the Stripe API and store the event ID, classification, and run ID in the audit log." },
+    ],
+    codeExample: {
+      title: "Payment event classification output",
+      language: "json",
+      code: `{
+  "stripe_event_id": "evt_1PzXXXXXXXXXXXXX",
+  "event_type": "invoice.payment_failed",
+  "customer_id": "cus_XXXXXXXXXX",
+  "classification": "dunning_required",
+  "suggested_action": "send_retry_notification",
+  "requires_approval": false,
+  "raw_card_data_used": false,
+  "workflow_run_id": "run_20260528_str"
+}`,
+    },
+    faqs: [
+      { question: "Does Corelyx have access to card numbers or CVVs?", answer: "No. Corelyx receives Stripe event metadata only. Raw payment instrument data is never passed to AI or stored in workflow payloads." },
+      { question: "Can Corelyx trigger refunds via Stripe automatically?", answer: "Refunds should route through a human approval step. Fully autonomous refund issuance without review is not recommended." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.security,
+      { href: "/integrations/shopify", label: "Shopify integration", description: "E-commerce order and payment workflows with governance controls." },
+      commonLinks.gdpr,
+    ],
+  },
+  {
+    path: "/integrations/twilio",
+    section: "integrations",
+    title: "Twilio AI Workflow Integration for SMS and Voice Automation",
+    shortTitle: "Twilio",
+    description: "Send schema-validated SMS and voice notifications from governed AI workflows. Phone numbers are personal data — minimise what AI processes and log every outbound message.",
+    eyebrow: "Integration",
+    headline: "AI drafts SMS and voice alerts — sent only after schema validation and personal data minimisation.",
+    summary: "Corelyx connects to Twilio so AI workflows can compose and send SMS or voice notifications as governed output steps — with message content validated against a schema, phone numbers treated as personal data, and every send logged with a workflow run ID.",
+    definition: "A Twilio AI workflow integration is a governed connector that uses AI to compose outbound SMS and voice messages as workflow steps, with schema-validated content and GDPR-compliant handling of recipient phone numbers.",
+    audience: "Operations, on-call, and customer engagement teams using Twilio for notifications and alerts who want AI-composed messages without uncontrolled outbound sends.",
+    lastModified: "2026-05-28",
+    primaryQuery: "Twilio AI workflow integration",
+    entityTerms: ["Twilio AI automation", "SMS workflow automation", "voice notification workflow", "governed Twilio integration"],
+    keyPoints: [
+      "Phone numbers are personal data under GDPR — document the legal basis for processing and sending.",
+      "Validate AI-composed message content against a schema before sending. Reject messages that exceed defined length or contain disallowed fields.",
+      "Log every outbound send with recipient hash, message type, workflow run ID, and timestamp.",
+      "Use an approval step for messages that reference personal account information or financial data.",
+    ],
+    implementationSteps: [
+      { name: "Define message schema", text: "Specify allowed message templates, maximum character counts, and which data fields AI may reference in the message body." },
+      { name: "Compose with AI", text: "AI generates message content based on workflow context. Output is validated against the message schema before proceeding." },
+      { name: "Approval for sensitive messages", text: "Messages referencing personal account data, payment status, or medical information route through a human review step." },
+      { name: "Send and log", text: "Confirmed messages are sent via the Twilio API. The outbound SID, recipient hash, and run ID are stored in the audit record." },
+    ],
+    codeExample: {
+      title: "Outbound SMS workflow output",
+      language: "json",
+      code: `{
+  "to_hash": "sha256:a3f8...",
+  "message_type": "approval_reminder",
+  "body": "Your Corelyx workflow step is waiting for your review. Log in at app.corelyx.com.",
+  "character_count": 89,
+  "contains_personal_data": false,
+  "requires_approval": false,
+  "workflow_run_id": "run_20260528_twl"
+}`,
+    },
+    faqs: [
+      { question: "Can Corelyx send SMS to arbitrary phone numbers?", answer: "Only to numbers that are part of a workflow configured by the customer. The integration does not allow freeform number input from AI-generated content." },
+      { question: "How are phone numbers handled under GDPR?", answer: "Phone numbers are personal data. They should not be passed to AI in plain text — use pseudonymised identifiers in workflow steps and resolve them at the send step only." },
+    ],
+    internalLinks: [
+      commonLinks.integrations,
+      commonLinks.gdpr,
+      commonLinks.security,
+      { href: "/integrations/slack-human-approval", label: "Slack approval integration", description: "Route workflow approvals through Slack with governed notification steps." },
+    ],
+  },
+  {
     path: "/use-cases",
     section: "use-cases",
     title: "EU AI Automation Use Cases",
@@ -1866,7 +2382,7 @@ if (workflow.transparency_notice_required) {
       { question: "What is the core output?", answer: "A governance decision with evidence: classification, reviewer, rationale, controls required, and documentation export." },
       { question: "When should governance run again?", answer: "Run it again when model, provider, data categories, purpose, affected users, or downstream actions change." },
     ],
-    internalLinks: [commonLinks.aiAct, commonLinks.compliance, { href: "/guides/eu-ai-act-workflow-automation", label: "AI Act guide", description: "Training guide for governance workflow design." }],
+    internalLinks: [commonLinks.aiAct, commonLinks.compliance, { href: "/docs/eu-ai-act-workflow-automation", label: "AI Act guide", description: "Training guide for governance workflow design." }],
   },
   {
     path: "/use-cases/secure-ai-workflow-orchestration",

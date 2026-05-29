@@ -305,7 +305,6 @@ function PublicSeoHeader() {
           <span className="text-sm font-bold tracking-tight">Corelyx</span>
         </Link>
         <nav className="hidden items-center gap-5 text-xs text-muted-foreground md:flex">
-          <Link href="/guides" className="transition-colors hover:text-foreground">Guides</Link>
           <Link href="/docs" className="transition-colors hover:text-foreground">Docs</Link>
           <Link href="/gdpr" className="transition-colors hover:text-foreground">GDPR</Link>
           <Link href="/ai-act" className="transition-colors hover:text-foreground">AI Act</Link>
@@ -496,6 +495,7 @@ export function SeoContentPage({ page }: { page: SeoPage }) {
                 </ol>
               </section>
 
+              {page.table && (
               <section aria-labelledby="table">
                 <h2 id="table" className="text-2xl font-bold tracking-tight">{page.table.caption}</h2>
                 <div className="mt-5 overflow-hidden rounded-lg border border-border">
@@ -521,7 +521,9 @@ export function SeoContentPage({ page }: { page: SeoPage }) {
                   </table>
                 </div>
               </section>
+              )}
 
+              {page.checklist && (
               <section aria-labelledby="checklist">
                 <h2 id="checklist" className="text-2xl font-bold tracking-tight">Implementation Checklist</h2>
                 <ul className="mt-5 grid gap-3">
@@ -533,6 +535,7 @@ export function SeoContentPage({ page }: { page: SeoPage }) {
                   ))}
                 </ul>
               </section>
+              )}
 
               <section aria-labelledby="official-references">
                 <h2 id="official-references" className="text-2xl font-bold tracking-tight">
