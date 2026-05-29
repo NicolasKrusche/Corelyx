@@ -91,7 +91,6 @@ const PUBLIC_ROUTES = [
   "/templates",
   "/compare",
   "/academy",
-  "/guides",
   "/blog",
   "/integrations",
   "/use-cases",
