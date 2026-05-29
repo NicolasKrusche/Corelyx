@@ -67,7 +67,7 @@ export interface PreFlightFailure {
 }
 
 export interface PreFlightCheck {
-  code: "PRE_001" | "PRE_002" | "PRE_003" | "PRE_004" | "PRE_005";
+  code: "PRE_001" | "PRE_002" | "PRE_003" | "PRE_004" | "PRE_005" | "PRE_COMPLY";
   label: string;
   status: "pass" | "fail" | "skip";
   failures: PreFlightFailure[];
