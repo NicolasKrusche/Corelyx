@@ -725,6 +725,8 @@ export function Sidebar({
           icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} />
         <NavItem href="/logs" label={tNav("logs")} active={pathname.startsWith("/logs")}
           icon={<LogsIcon />} isDark={isDark} />
+        <NavItem href="/governance" label="Governance" active={pathname.startsWith("/governance")}
+          icon={<GovernanceIcon />} isDark={isDark} />
 
         {/* Group separator */}
         <div className={cn("!my-2 mx-3 h-px", separatorCls)} />
@@ -1868,12 +1870,12 @@ function SettingsModal({
                             {tier === "free" ? "Upgrade plan" : "Compare plans"}
                           </Link>
                           {hasPaidSubscription && (
-                            <a
+                            <Link
                               href="/api/billing/portal"
                               className={neutralBtnClass}
                             >
                               Manage subscription
-                            </a>
+                            </Link>
                           )}
                         </div>
                         {hasPaidSubscription && (
@@ -2398,7 +2400,7 @@ function SettingsModal({
                   <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Quick access</p>
 
                   {/* API Keys */}
-                  <a
+                  <Link
                     href="/api-keys"
                     className="flex items-start gap-4 rounded-xl border border-border bg-white/[0.02] px-4 py-4 transition-colors hover:bg-white/[0.05] hover:border-white/20 group"
                   >
@@ -2411,10 +2413,10 @@ function SettingsModal({
                         Add your own Anthropic, OpenAI, or other LLM provider keys. BYOK — costs go to your account.
                       </p>
                     </div>
-                  </a>
+                  </Link>
 
                   {/* Env Vars */}
-                  <a
+                  <Link
                     href="/env-vars"
                     className="mt-2 flex items-start gap-4 rounded-xl border border-border bg-white/[0.02] px-4 py-4 transition-colors hover:bg-white/[0.05] hover:border-white/20 group"
                   >
@@ -2429,10 +2431,10 @@ function SettingsModal({
                         Encrypted workspace secrets referenced in any workflow node as <code className="font-mono">$env.NAME</code>.
                       </p>
                     </div>
-                  </a>
+                  </Link>
 
                   {/* Logs */}
-                  <a
+                  <Link
                     href="/logs"
                     className="mt-2 flex items-start gap-4 rounded-xl border border-border bg-white/[0.02] px-4 py-4 transition-colors hover:bg-white/[0.05] hover:border-white/20 group"
                   >
@@ -2445,7 +2447,7 @@ function SettingsModal({
                         Full audit trail of all runs, node executions, approval decisions, and system events.
                       </p>
                     </div>
-                  </a>
+                  </Link>
                 </div>
 
                 {/* Hidden code redemption easter egg */}
@@ -2628,6 +2630,14 @@ function LogsIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M8 9h8M8 13h5M6 4.5h9l3.75 3.75V18a1.5 1.5 0 01-1.5 1.5H6A1.5 1.5 0 014.5 18V6A1.5 1.5 0 016 4.5z" />
+    </svg>
+  );
+}
+function GovernanceIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.75 19.5 6.5v5.6c0 4.45-3.05 7.36-7.5 8.15-4.45-.79-7.5-3.7-7.5-8.15V6.5L12 3.75Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-5" />
     </svg>
   );
 }

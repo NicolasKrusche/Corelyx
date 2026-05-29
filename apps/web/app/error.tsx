@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 export default function ErrorPage({
@@ -71,12 +72,12 @@ export default function ErrorPage({
           >
             {t("tryAgain")}
           </button>
-          <a
+          <Link
             href="/dashboard"
             className="inline-flex items-center gap-1.5 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
           >
             {t("goToDashboard")}
-          </a>
+          </Link>
         </div>
       </div>
 

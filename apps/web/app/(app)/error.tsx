@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { RefreshCw, Home } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -68,13 +69,13 @@ export default function AppError({
           <RefreshCw className="h-3.5 w-3.5" />
           {t("tryAgain")}
         </button>
-        <a
+        <Link
           href="/dashboard"
           className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-accent"
         >
           <Home className="h-3.5 w-3.5" />
           {t("goToDashboard")}
-        </a>
+        </Link>
       </div>
     </div>
   );

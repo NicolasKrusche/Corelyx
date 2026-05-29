@@ -448,6 +448,18 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                     HTML report
                   </Link>
                 </Button>
+                <Button asChild variant="outline" size="sm" className="h-9">
+                  <Link href={`/api/programs/${program.id}/compliance/export?format=technical-docx`} target="_blank">
+                    <FileText className="h-4 w-4" />
+                    Technical DOCX
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="h-9">
+                  <Link href={`/api/programs/${program.id}/compliance/export?format=dpia-docx`} target="_blank">
+                    <FileText className="h-4 w-4" />
+                    DPIA DOCX
+                  </Link>
+                </Button>
               </div>
             </div>
 

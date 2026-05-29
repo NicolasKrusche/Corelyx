@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -1108,7 +1109,7 @@ function NewProgramPageInner() {
                 </p>
                 {genesisError.message && <p>{genesisError.message}</p>}
                 {genesisError.error === "PROGRAM_LIMIT_REACHED" && (
-                  <p><a href="/plan" className="underline font-medium">View plans →</a></p>
+                  <p><Link href="/plan" className="underline font-medium">View plans →</Link></p>
                 )}
                 {!genesisError.message && genesisError.error !== "INSUFFICIENT_DESCRIPTION" && genesisError.error !== "MISSING_CONNECTIONS" && genesisError.error !== "SCHEMA_VALIDATION_FAILED" && (
                   <p>{genesisError.error}</p>

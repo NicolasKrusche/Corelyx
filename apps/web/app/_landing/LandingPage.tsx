@@ -36,9 +36,9 @@ const INTEGRATIONS = [
 ];
 
 const OPERATING_POINTS = [
-  "EU-first automation infrastructure",
-  "Human approval gates built in",
-  "EU-only mode for eligible workflows",
+  "Automatic AI inventory",
+  "AI Act risk classification",
+  "Governance evidence for every workflow",
 ];
 
 const WORKFLOW_STEPS = [
@@ -88,27 +88,27 @@ const CONTROL_FEATURES = [
 const COMPLIANCE_CARDS = [
   {
     icon: FileText,
-    tag: "GDPR Art. 30",
-    title: "Processing records",
-    body: "Workflow runs can produce structured processing records, so teams can explain what data moved, why it moved, and which systems were involved.",
+    tag: "AI inventory",
+    title: "Automatic system records",
+    body: "Every workflow becomes an AI system record with purpose, owners, models, data sources, risk, review status, and oversight state.",
   },
   {
     icon: Users,
     tag: "EU AI Act",
-    title: "Human oversight",
-    body: "Approval gates make it possible to pause high-impact actions before execution and preserve the decision history for later review.",
+    title: "Risk and oversight",
+    body: "Risk classification, recommended controls, and approval gates make high-impact AI workflows reviewable before action.",
   },
   {
     icon: Building2,
-    tag: "Data residency",
-    title: "EU infrastructure focus",
-    body: "Runtime and credential paths are designed around EU-first infrastructure, with EU-only controls for eligible workflows.",
+    tag: "Documentation",
+    title: "Generated evidence",
+    body: "Inventory records generate technical documentation, DPIA drafts, and governance exports instead of relying on scattered spreadsheets.",
   },
   {
     icon: ShieldCheck,
-    tag: "GDPR Art. 28",
-    title: "Procurement material",
-    body: "DPA, subprocessor information, DPIA support, and data export documentation are available from the product rather than buried in sales cycles.",
+    tag: "Auditability",
+    title: "Immutable review trail",
+    body: "Runs, approvals, overrides, and governance events produce searchable evidence for audit and incident review.",
   },
 ];
 
@@ -136,10 +136,10 @@ const GOVERNANCE_LINKS = [
 ];
 
 const TRUST_ITEMS = [
-  { label: "EU-first runtime", detail: "EU-only controls for eligible workflows" },
-  { label: "Server-side credentials", detail: "Tokens never return to the browser" },
+  { label: "Automatic inventory", detail: "Every workflow becomes an AI system record" },
+  { label: "AI Act classification", detail: "Risk and required controls are documented" },
   { label: "Human approval gates", detail: "Pause sensitive steps before execution" },
-  { label: "Run-level audit logs", detail: "Review status, payloads, and failures" },
+  { label: "Audit-ready evidence", detail: "Runs, approvals, overrides, and outcomes" },
 ];
 
 const fadeUp: Variants = {
@@ -269,9 +269,9 @@ function HeroSection() {
               transition={{ duration: 0.55, delay: 0.08, ease: "easeOut" }}
               className="text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-[56px]"
             >
-              AI automation built
+              AI automation that governs
               <br />
-              <span className="text-white/30">for GDPR compliance.</span>
+              <span className="text-white/30">every workflow.</span>
             </motion.h1>
 
             <motion.p
@@ -280,9 +280,9 @@ function HeroSection() {
               transition={{ duration: 0.5, delay: 0.16, ease: "easeOut" }}
               className="mt-6 max-w-md text-base leading-7 text-white/40 sm:text-lg sm:leading-8"
             >
-              Build agent workflows visually, inspect before running, and gate
-              sensitive steps with human approval, audit trails, and explicit
-              provider visibility.
+              Build agent workflows visually while Corelyx automatically
+              inventories, classifies, documents, audits, reviews, and governs
+              each AI system.
             </motion.p>
 
             <motion.div

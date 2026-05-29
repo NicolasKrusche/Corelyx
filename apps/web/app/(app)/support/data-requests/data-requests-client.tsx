@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
 import type { DsrMessage, DsrRowWithMessages } from "@/app/api/user/data-request/route";
@@ -130,7 +131,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
         <p className="text-sm font-medium">No data requests yet</p>
         <p className="mt-1 text-xs text-muted-foreground">
           You haven&apos;t submitted any GDPR data requests. You can do so from your{" "}
-          <a href="/settings/privacy" className="text-primary hover:underline">privacy settings</a>.
+          <Link href="/settings/privacy" className="text-primary hover:underline">privacy settings</Link>.
         </p>
       </div>
     );
