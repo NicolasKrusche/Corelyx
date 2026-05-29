@@ -1,5 +1,6 @@
 import { getHealthStatus } from "@/lib/health-check";
 import { createServiceClient } from "@/lib/api";
+import Link from "next/link";
 import { 
   Activity, 
   CheckCircle, 
@@ -272,27 +273,27 @@ export default async function AdminOverviewPage() {
       
       {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <a 
-          href="/admin/emergency" 
+        <Link
+          href="/admin/emergency"
           className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
         >
           <Zap className="w-5 h-5 text-red-600" />
           <span className="font-medium text-red-800">Emergency Controls</span>
-        </a>
-        <a 
-          href="/admin/circuits" 
+        </Link>
+        <Link
+          href="/admin/circuits"
           className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
         >
           <Activity className="w-5 h-5 text-blue-600" />
           <span className="font-medium text-blue-800">Circuit Breakers</span>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/security"
           className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <AlertTriangle className="w-5 h-5 text-gray-600" />
           <span className="font-medium text-gray-800">Security Policy</span>
-        </a>
+        </Link>
       </div>
     </div>
   );

@@ -120,7 +120,491 @@ const schemaExample = `{
   }
 }`;
 
+const complianceNativeLinks = [
+  { href: "/ai-governance-platform", label: "AI Governance Platform", description: "How Corelyx governs every AI workflow by default." },
+  { href: "/gdpr-compliant-ai-automation", label: "GDPR-Compliant AI Automation", description: "GDPR-aware workflow controls for personal-data processing." },
+  { href: "/eu-ai-act-ready-ai-platform", label: "EU AI Act Ready AI Platform", description: "Risk classification, oversight, documentation, and logging." },
+  { href: "/ai-risk-management", label: "AI Risk Management", description: "Operational AI risk controls inside workflow execution." },
+  { href: "/ai-inventory", label: "AI Inventory", description: "Automatic AI system inventory for workflows, agents, and automations." },
+  { href: "/ai-audit-trails", label: "AI Audit Trails", description: "Immutable evidence for AI actions, approvals, overrides, and outcomes." },
+  { href: "/human-oversight-for-ai", label: "Human Oversight", description: "Approval gates before critical AI-assisted actions." },
+  { href: "/dpia-generator", label: "DPIA Generator", description: "DPIA drafts generated from workflow inventory and data-use fields." },
+  { href: "/ai-documentation-generator", label: "AI Documentation Generator", description: "Technical documentation generated from governed workflow records." },
+];
+
+const complianceNativePages: SeoPage[] = [
+  {
+    path: "/ai-governance-platform",
+    section: "compliance",
+    title: "AI Governance Platform for Governed AI Automation",
+    shortTitle: "AI Governance Platform",
+    description:
+      "Corelyx is an AI governance platform for automating workflows while automatically inventorying, classifying, documenting, auditing, reviewing, and governing every AI system.",
+    eyebrow: "AI governance platform",
+    headline: "Govern every AI workflow automatically.",
+    summary:
+      "Corelyx turns each AI workflow, agent, chatbot, and automation into a governed AI system record with inventory, risk classification, documentation, monitoring, auditability, review cadence, and human oversight.",
+    definition:
+      "An AI governance platform helps organizations control how AI systems are built, deployed, monitored, reviewed, and evidenced. Corelyx applies that governance model directly to AI automation workflows instead of leaving it in spreadsheets and policy documents.",
+    audience: "CTOs, DPOs, compliance officers, AI governance owners, consultants, and legal teams.",
+    lastModified: "2026-05-29",
+    primaryQuery: "AI governance platform",
+    entityTerms: ["AI governance platform", "AI automation governance", "AI inventory", "AI audit trails", "human oversight"],
+    keyPoints: [
+      "Problem: AI workflows spread quickly across teams, but governance records often lag behind deployment.",
+      "Regulatory relevance: GDPR and the EU AI Act both depend on records, review, oversight, logging, and documentation.",
+      "Business impact: governed workflows reduce launch risk, procurement friction, audit cost, and shadow AI exposure.",
+      "Product solution: Corelyx makes inventory, classification, documentation, audit logs, and human oversight workflow-native.",
+      "Practical example: an HR workflow can be marked high risk, paused for human review, exported as evidence, and tracked for review due dates.",
+    ],
+    implementationSteps: [
+      { name: "Inventory every workflow", text: "Every workflow automatically becomes an AI system record with owner, purpose, model, data source, status, and review fields." },
+      { name: "Classify risk", text: "Corelyx records AI Act risk signals, recommended controls, reviewer metadata, and legal-review notes." },
+      { name: "Generate evidence", text: "Technical documentation, DPIA drafts, and compliance exports are generated from the same workflow record." },
+      { name: "Govern execution", text: "Approval gates, audit logs, and monitoring keep governance connected to runtime actions." },
+    ],
+    table: {
+      caption: "AI governance platform control map",
+      headers: ["Governance need", "Corelyx control", "Evidence produced"],
+      rows: [
+        ["Inventory", "Workflow-to-AI-system registry.", "AI inventory export in JSON, CSV, Excel, and PDF."],
+        ["Risk", "AI Act classifier and risk metadata.", "Classification report and required-control checklist."],
+        ["Oversight", "Human approval gates before critical actions.", "Reviewer, decision, timestamp, and outcome records."],
+      ],
+    },
+    checklist: [
+      "Every workflow should have a business owner and technical owner.",
+      "Every AI use case should be classified before production deployment.",
+      "Every high-risk workflow should require human oversight and documentation.",
+      "Every meaningful AI action should leave searchable audit evidence.",
+    ],
+    faqs: [
+      { question: "Is Corelyx only an automation platform?", answer: "No. Corelyx is designed as an AI automation platform whose workflows automatically become governable, auditable, documentable, and reviewable." },
+      { question: "Does Corelyx replace legal review?", answer: "No. Corelyx creates controls and evidence that support legal, privacy, and compliance review." },
+      { question: "What makes Corelyx compliance-native?", answer: "Inventory, risk classification, documentation, audit trails, review cadence, and human oversight are part of the workflow model instead of external spreadsheets." },
+    ],
+    internalLinks: [commonLinks.compliance, commonLinks.aiAct, commonLinks.gdpr, ...complianceNativeLinks.slice(3, 7)],
+  },
+  {
+    path: "/gdpr-compliant-ai-automation",
+    section: "gdpr",
+    title: "GDPR-Compliant AI Automation Platform",
+    shortTitle: "GDPR-Compliant AI Automation",
+    description:
+      "Build GDPR-aware AI automations with data minimisation, DPIA support, processor evidence, audit logs, retention controls, and human oversight.",
+    eyebrow: "GDPR AI automation",
+    headline: "Automate with personal-data controls already in the workflow.",
+    summary:
+      "Corelyx helps teams design AI automation around GDPR principles: purpose limitation, minimisation, retention, processor evidence, DPIA support, auditability, and data subject request workflows.",
+    definition:
+      "GDPR-compliant AI automation means AI-assisted workflows are designed with clear purpose, lawful processing context, minimised personal data, reviewable data flows, retention limits, exportable records, and accountable human review.",
+    audience: "DPOs, privacy teams, legal teams, support operations, sales operations, and EU-facing product teams.",
+    lastModified: "2026-05-29",
+    primaryQuery: "GDPR-compliant AI automation",
+    entityTerms: ["GDPR AI automation", "DPIA", "data minimisation", "AI audit logs", "processor evidence"],
+    keyPoints: [
+      "Problem: generic automation tools make it easy to route personal data into AI steps without a review trail.",
+      "Regulatory relevance: GDPR requires accountability, data protection by design, records, DPIAs for high-risk processing, and processor controls.",
+      "Business impact: privacy evidence reduces audit friction and helps teams ship AI workflows responsibly.",
+      "Product solution: Corelyx maps data sources, providers, retention, logging, approval gates, and exports to each workflow.",
+      "Practical example: a support workflow can classify customer messages while retaining minimal metadata and routing rights requests to a privacy reviewer.",
+    ],
+    implementationSteps: [
+      { name: "Define purpose", text: "Document why the workflow processes data and which business owner is accountable." },
+      { name: "Minimise data", text: "Identify fields needed by each node and avoid unnecessary personal data in prompts." },
+      { name: "Assess DPIA need", text: "Use risk, data categories, and automated decision-making signals to generate a DPIA draft." },
+      { name: "Export evidence", text: "Download inventory, data-flow, audit, and documentation reports for privacy review." },
+    ],
+    table: {
+      caption: "GDPR AI automation controls",
+      headers: ["GDPR concern", "Workflow control", "Corelyx evidence"],
+      rows: [
+        ["Purpose limitation", "Purpose field on AI system inventory.", "Inventory and DPIA draft."],
+        ["Minimisation", "Data-flow preview and metadata-only logging defaults.", "Compliance export and retention settings."],
+        ["Accountability", "Audit logs and reviewer decisions.", "Run logs, app logs, and approval records."],
+      ],
+    },
+    checklist: [
+      "Document data categories and data subjects before launch.",
+      "Set prompt and output retention to the minimum necessary.",
+      "Use human review for customer, employee, patient, candidate, or regulated-record impact.",
+      "Keep DPA, subprocessor, and transfer-basis evidence available.",
+    ],
+    faqs: [
+      { question: "Can Corelyx make an AI workflow automatically GDPR compliant?", answer: "No platform can guarantee legal compliance automatically. Corelyx provides controls and evidence that help teams operate GDPR-aware workflows." },
+      { question: "When is a DPIA recommended?", answer: "A DPIA is recommended when processing is likely to create high risk, uses new technology, involves sensitive data, or includes consequential automated decision-making." },
+      { question: "How does Corelyx reduce GDPR risk?", answer: "It ties purpose, data sources, retention, providers, audit logs, and human oversight to the workflow itself." },
+    ],
+    internalLinks: [commonLinks.gdpr, { href: "/tools/dpia-generator", label: "Free DPIA Generator", description: "Generate a DPIA draft for an AI workflow." }, ...complianceNativeLinks],
+  },
+  {
+    path: "/eu-ai-act-ready-ai-platform",
+    section: "ai-act",
+    title: "EU AI Act Ready AI Platform",
+    shortTitle: "EU AI Act Ready Platform",
+    description:
+      "EU AI Act ready AI automation with risk classification, human oversight, documentation, logging, transparency, monitoring, and review workflows.",
+    eyebrow: "EU AI Act readiness",
+    headline: "Make AI Act readiness part of every workflow.",
+    summary:
+      "Corelyx operationalizes EU AI Act readiness by classifying AI workflow risk, recommending controls, requiring oversight where needed, generating documentation, and preserving audit evidence.",
+    definition:
+      "An EU AI Act ready AI platform helps teams identify risk categories, document controls, implement human oversight, keep logs, monitor systems, and prepare evidence for governance review.",
+    audience: "AI governance leads, legal teams, compliance teams, product leaders, and technical owners.",
+    lastModified: "2026-05-29",
+    primaryQuery: "EU AI Act ready AI platform",
+    entityTerms: ["EU AI Act", "AI Act readiness", "high-risk AI", "human oversight", "AI documentation"],
+    keyPoints: [
+      "Problem: teams cannot manage AI Act duties if AI use cases are invisible or undocumented.",
+      "Regulatory relevance: the AI Act uses a risk-based framework with obligations for high-risk systems and transparency duties for certain AI interactions.",
+      "Business impact: AI Act readiness supports procurement, customer trust, board reporting, and controlled deployment.",
+      "Product solution: Corelyx adds risk fields, classifier logic, oversight gates, logging, and exportable documentation to AI workflows.",
+      "Practical example: a creditworthiness workflow can be blocked until risk review, documentation, oversight, and reviewer approval are complete.",
+    ],
+    implementationSteps: [
+      { name: "Classify the use case", text: "Assess employment, education, credit, healthcare, biometric, law-enforcement, profiling, and vulnerable-group signals." },
+      { name: "Apply controls", text: "Require human oversight, logging, documentation, monitoring, and legal review for high-risk workflows." },
+      { name: "Generate reports", text: "Download an assessment report and technical documentation from the workflow inventory." },
+      { name: "Review periodically", text: "Track last-review dates and mark systems due for review after a defined cadence." },
+    ],
+    table: {
+      caption: "EU AI Act readiness controls",
+      headers: ["Risk signal", "Recommended control", "Corelyx workflow behavior"],
+      rows: [
+        ["High-risk domain", "Human oversight and documentation.", "Approval gate and exportable documentation."],
+        ["Transparency obligation", "User notice and basic logging.", "Notice text and audit metadata."],
+        ["Potential prohibited use", "Deployment block and legal review.", "Risk status and override guard."],
+      ],
+    },
+    checklist: [
+      "Classify every workflow before production use.",
+      "Block prohibited-risk workflows unless legal review explicitly allows review/testing.",
+      "Require reviewer metadata for high-risk workflows.",
+      "Keep logs, documentation, and monitoring evidence exportable.",
+    ],
+    faqs: [
+      { question: "What AI Act categories does Corelyx support?", answer: "Corelyx supports minimal, limited, high-risk, GPAI-related, unknown, and potentially prohibited workflow classifications." },
+      { question: "Does Corelyx decide final AI Act classification?", answer: "Corelyx provides classification support and evidence. Final classification should be reviewed by accountable legal and compliance owners." },
+      { question: "What controls are recommended for high-risk workflows?", answer: "Human oversight, logging, technical documentation, monitoring, legal review, and approval records." },
+    ],
+    internalLinks: [commonLinks.aiAct, { href: "/tools/ai-act-risk-classifier", label: "Free AI Act Risk Classifier", description: "Assess AI Act risk signals and recommended controls." }, ...complianceNativeLinks],
+  },
+  {
+    path: "/ai-risk-management",
+    section: "compliance",
+    title: "AI Risk Management Platform for AI Workflows",
+    shortTitle: "AI Risk Management",
+    description:
+      "Manage AI workflow risk with automatic inventory, classification, control recommendations, oversight gates, monitoring, audit logs, and review workflows.",
+    eyebrow: "AI risk management",
+    headline: "Treat AI risk as runtime behavior, not only policy text.",
+    summary:
+      "Corelyx manages AI risk by connecting risk classification, required controls, human oversight, audit evidence, DPIA status, documentation coverage, and review cadence to each workflow.",
+    definition:
+      "AI risk management is the process of identifying, assessing, mitigating, monitoring, and reviewing risks from AI systems. In Corelyx, the AI system is the workflow, so risk controls sit directly in the graph and runtime.",
+    audience: "Risk teams, compliance officers, security leaders, AI governance committees, and automation owners.",
+    lastModified: "2026-05-29",
+    primaryQuery: "AI risk management platform",
+    entityTerms: ["AI risk management", "AI governance", "AI controls", "AI monitoring", "AI auditability"],
+    keyPoints: [
+      "Problem: AI risk registers become stale when they are disconnected from actual workflow execution.",
+      "Regulatory relevance: AI governance programs need risk assessment, monitoring, documentation, logging, and oversight evidence.",
+      "Business impact: better risk management reduces incident likelihood, improves procurement confidence, and speeds responsible AI adoption.",
+      "Product solution: Corelyx calculates governance metrics from live workflows and exposes gaps in documentation, oversight, DPIA status, and review cadence.",
+      "Practical example: an AI email workflow can be limited risk, require human approval before send, and remain searchable in audit history.",
+    ],
+    implementationSteps: [
+      { name: "Identify systems", text: "Automatically inventory all workflows, agents, and automations." },
+      { name: "Assess risk", text: "Classify AI Act and GDPR signals using structured questions and workflow metadata." },
+      { name: "Mitigate", text: "Add human oversight, logging, documentation, monitoring, and legal review controls." },
+      { name: "Monitor", text: "Track failures, approvals, overrides, review dates, and documentation coverage." },
+    ],
+    table: {
+      caption: "AI risk management lifecycle",
+      headers: ["Step", "Corelyx feature", "Output"],
+      rows: [
+        ["Identify", "Automatic AI inventory.", "System registry."],
+        ["Assess", "Risk classifier and DPIA draft.", "Risk and privacy reports."],
+        ["Monitor", "Audit logs and review dashboard.", "Issues and evidence exports."],
+      ],
+    },
+    checklist: [
+      "Create a single AI inventory for all AI systems.",
+      "Flag high-risk and potentially prohibited use before deployment.",
+      "Define owners and review cadence.",
+      "Use immutable logs for approvals, overrides, and execution outcomes.",
+    ],
+    faqs: [
+      { question: "What risks does Corelyx help manage?", answer: "Corelyx helps manage governance, privacy, oversight, documentation, auditability, provider, and workflow execution risks." },
+      { question: "How does risk management connect to automation?", answer: "Risk controls are attached to workflow schemas and runtime evidence rather than maintained separately." },
+      { question: "Can reports be exported?", answer: "Yes. AI inventory and compliance evidence can be exported in machine-readable and human-readable formats." },
+    ],
+    internalLinks: [commonLinks.compliance, commonLinks.security, ...complianceNativeLinks],
+  },
+  {
+    path: "/ai-inventory",
+    section: "compliance",
+    title: "AI Inventory System for Workflows, Agents, and Automations",
+    shortTitle: "AI Inventory",
+    description:
+      "Corelyx automatically creates AI inventory records for every workflow, agent, chatbot, automation, and model-powered process.",
+    eyebrow: "AI inventory",
+    headline: "Every AI workflow becomes an inventory record.",
+    summary:
+      "Corelyx provides a central AI system registry with system ID, name, purpose, owners, models, data sources, personal data, deployment status, risk classification, review date, and oversight status.",
+    definition:
+      "An AI inventory is a central register of AI systems used by an organization. Corelyx builds this register automatically from workflows, schema metadata, data-flow evidence, and governance settings.",
+    audience: "AI governance owners, DPOs, compliance teams, consultants, CTOs, and operations leaders.",
+    lastModified: "2026-05-29",
+    primaryQuery: "AI inventory system",
+    entityTerms: ["AI inventory", "AI system registry", "AI governance", "model inventory", "AI workflow inventory"],
+    keyPoints: [
+      "Problem: organizations often do not know which teams are using AI and for what purpose.",
+      "Regulatory relevance: inventories support accountability, documentation, DPIAs, risk classification, and audit readiness.",
+      "Business impact: a complete AI inventory reduces shadow AI risk and accelerates governance review.",
+      "Product solution: Corelyx creates inventory records from workflows and exports them as PDF, Excel, CSV, and JSON.",
+      "Practical example: a customer-support automation appears with its owner, model, data sources, personal-data status, risk classification, and review due state.",
+    ],
+    implementationSteps: [
+      { name: "Create or import a workflow", text: "Corelyx automatically treats the workflow as an AI system if it contains AI, agent, model, connector, or automation behavior." },
+      { name: "Infer fields", text: "Models, data sources, personal-data signals, deployment status, and risk data are populated from the schema." },
+      { name: "Complete governance gaps", text: "Owners, purpose, review notes, and DPIA status can be completed before launch." },
+      { name: "Export the register", text: "Download the inventory for audits, board reporting, procurement, or consulting deliverables." },
+    ],
+    table: {
+      caption: "AI inventory fields",
+      headers: ["Field group", "Examples", "Why it matters"],
+      rows: [
+        ["Ownership", "Department, business owner, technical owner.", "Creates accountability."],
+        ["System context", "Purpose, models used, data sources, deployment status.", "Supports review and procurement."],
+        ["Compliance", "Personal data, special category data, risk, oversight, review date.", "Supports GDPR and AI Act readiness."],
+      ],
+    },
+    checklist: [
+      "Inventory every workflow, agent, chatbot, and model deployment.",
+      "Track model and data-source changes.",
+      "Mark systems lacking documentation or oversight.",
+      "Review high-risk systems before production deployment.",
+    ],
+    faqs: [
+      { question: "What counts as an AI system in Corelyx?", answer: "Any workflow, agent, chatbot, automation, or model-powered deployment that can process data or influence an outcome." },
+      { question: "Can the AI inventory be exported?", answer: "Yes. Corelyx exports the inventory as JSON, CSV, Excel-compatible files, and PDF." },
+      { question: "Does inventory happen manually?", answer: "Corelyx automatically creates inventory records from workflows and highlights fields that need completion." },
+    ],
+    internalLinks: [{ href: "/tools/ai-inventory-generator", label: "Free AI Inventory Generator", description: "Create a sample AI system inventory record." }, ...complianceNativeLinks],
+  },
+  {
+    path: "/ai-audit-trails",
+    section: "compliance",
+    title: "AI Audit Trails for Governed AI Workflows",
+    shortTitle: "AI Audit Trails",
+    description:
+      "Capture searchable AI audit trails for prompts, responses, model metadata, approvals, overrides, users, workflows, timestamps, and outcomes.",
+    eyebrow: "AI audit trails",
+    headline: "Every meaningful AI action should leave evidence.",
+    summary:
+      "Corelyx records workflow execution, AI model metadata, approval decisions, override actions, outcomes, and system events so teams can reconstruct what happened without exposing secrets.",
+    definition:
+      "An AI audit trail is a structured record of who used an AI system, what workflow ran, which prompt or model metadata applied, what output or recommendation was produced, who approved or overrode it, and what outcome followed.",
+    audience: "Auditors, security teams, compliance officers, legal teams, and AI operations teams.",
+    lastModified: "2026-05-29",
+    primaryQuery: "AI audit trails",
+    entityTerms: ["AI audit trails", "AI audit logs", "AI governance evidence", "approval logs", "AI monitoring"],
+    keyPoints: [
+      "Problem: AI decisions can be impossible to review if prompts, outputs, approvals, and outcomes are scattered.",
+      "Regulatory relevance: logging, traceability, accountability, and security evidence support GDPR and AI governance programs.",
+      "Business impact: audit trails reduce investigation time and make customer, regulator, and board reporting easier.",
+      "Product solution: Corelyx ties audit evidence to workflows, runs, node executions, app logs, approvals, and exports.",
+      "Practical example: a manager approval can be searched by reviewer, workflow, risk level, timestamp, and final outcome.",
+    ],
+    implementationSteps: [
+      { name: "Capture metadata", text: "Record user, workflow, run, model, timestamp, approval status, override action, and outcome." },
+      { name: "Protect secrets", text: "Redact provider tokens and avoid unnecessary prompt or output retention." },
+      { name: "Make logs immutable", text: "Treat audit log rows as append-only evidence." },
+      { name: "Support search", text: "Filter by user, department, workflow, date range, and risk level." },
+    ],
+    table: {
+      caption: "AI audit evidence examples",
+      headers: ["Question", "Evidence", "Corelyx source"],
+      rows: [
+        ["Which AI actions affected a candidate?", "Workflow, prompt metadata, recommendation, reviewer, outcome.", "Runs, node executions, approvals, app logs."],
+        ["Who approved an action?", "Reviewer, decision, timestamp, final action.", "Approval and app-log records."],
+        ["Which workflows ran last month?", "Run history and status.", "Runs dashboard and exports."],
+      ],
+    },
+    checklist: [
+      "Do not log raw provider tokens or secrets.",
+      "Keep approval decisions distinct from mutable UI state.",
+      "Store model/provider metadata for AI steps.",
+      "Export audit evidence for review and incident response.",
+    ],
+    faqs: [
+      { question: "Are audit logs immutable?", answer: "Corelyx treats app-level audit logs as append-only records and uses run/node/approval evidence for workflow execution traceability." },
+      { question: "Can prompts be searched?", answer: "Sensitive workflows should prefer metadata or hashes by default. Full prompt retention should be enabled only when necessary and lawful." },
+      { question: "What filters matter most?", answer: "User, workflow, department, date range, risk level, approval status, and outcome." },
+    ],
+    internalLinks: [commonLinks.security, { href: "/docs/audit-logging-model", label: "Audit Logging Model", description: "Technical details for audit evidence fields." }, ...complianceNativeLinks],
+  },
+  {
+    path: "/human-oversight-for-ai",
+    section: "compliance",
+    title: "Human Oversight for AI Workflows",
+    shortTitle: "Human Oversight for AI",
+    description:
+      "Operationalize human oversight with approval gates that pause AI workflows before critical actions and log reviewer decisions.",
+    eyebrow: "Human oversight",
+    headline: "Make human oversight a workflow step.",
+    summary:
+      "Corelyx allows AI workflows to pause before critical actions so reviewers can inspect recommendations, explanations, confidence, evidence, and risk flags before approving, rejecting, or modifying the action.",
+    definition:
+      "Human oversight for AI means qualified people can understand, intervene, approve, reject, or override AI-assisted recommendations before they cause material impact.",
+    audience: "AI governance leads, risk teams, HR teams, support teams, healthcare operations, finance operations, and legal teams.",
+    lastModified: "2026-05-29",
+    primaryQuery: "human oversight for AI",
+    entityTerms: ["human oversight", "human-in-the-loop AI", "AI approval workflow", "AI governance controls"],
+    keyPoints: [
+      "Problem: human review often happens informally after AI has already influenced an action.",
+      "Regulatory relevance: high-risk AI systems may require meaningful human oversight and auditable reviewer decisions.",
+      "Business impact: oversight reduces harmful automation, improves trust, and clarifies accountability.",
+      "Product solution: Corelyx embeds approval gates into workflow execution and logs all decisions.",
+      "Practical example: an AI recommendation to reject a candidate pauses until a manager approves, rejects, or modifies the decision.",
+    ],
+    implementationSteps: [
+      { name: "Identify critical actions", text: "Flag actions that affect candidates, employees, customers, patients, finances, legal records, or regulated operations." },
+      { name: "Pause execution", text: "Insert an approval gate before messages are sent, records are updated, or decisions are finalized." },
+      { name: "Show evidence", text: "Reviewer sees recommendation, explanation, confidence, supporting evidence, and risk flags." },
+      { name: "Log decision", text: "Approve, reject, and modify actions are recorded with reviewer and timestamp." },
+    ],
+    table: {
+      caption: "Human oversight workflow",
+      headers: ["Stage", "Reviewer sees", "Audit record"],
+      rows: [
+        ["Recommendation", "AI output, confidence, explanation.", "Model and workflow metadata."],
+        ["Decision", "Approve, reject, or modify.", "Reviewer, action, timestamp, notes."],
+        ["Outcome", "Final executed action.", "Run result and final action."],
+      ],
+    },
+    checklist: [
+      "Require oversight for high-risk and high-impact AI actions.",
+      "Give reviewers enough context to challenge the output.",
+      "Record override actions and final executed action.",
+      "Avoid approving through side channels that bypass the audit trail.",
+    ],
+    faqs: [
+      { question: "Does every AI workflow need human oversight?", answer: "No. Oversight should be proportionate to risk, but high-risk and high-impact actions should include meaningful review." },
+      { question: "Can reviewers modify AI recommendations?", answer: "Yes. Oversight should support approve, reject, and modify outcomes, with all actions logged." },
+      { question: "Why put oversight in the workflow graph?", answer: "Because runtime gates create reliable evidence that review happened before the action." },
+    ],
+    internalLinks: [commonLinks.aiAct, { href: "/templates/human-approval-ai-workflow", label: "Human approval template", description: "A ready-to-adapt oversight workflow pattern." }, ...complianceNativeLinks],
+  },
+  {
+    path: "/dpia-generator",
+    section: "gdpr",
+    title: "DPIA Generator for AI Workflows",
+    shortTitle: "DPIA Generator",
+    description:
+      "Generate GDPR DPIA drafts for AI workflows using purpose, data categories, data subjects, automated decision-making, providers, risks, mitigations, and approvals.",
+    eyebrow: "DPIA generator",
+    headline: "Generate DPIA drafts from AI workflow evidence.",
+    summary:
+      "Corelyx generates DPIA drafts from AI system inventory records, data categories, data subjects, personal-data usage, automated decision-making signals, providers, mitigations, residual risks, and approval workflow.",
+    definition:
+      "A DPIA generator helps create a structured Data Protection Impact Assessment draft for processing likely to result in high risk, especially when new technologies, personal data, or consequential AI decisions are involved.",
+    audience: "DPOs, privacy teams, consultants, legal teams, and AI workflow owners.",
+    lastModified: "2026-05-29",
+    primaryQuery: "DPIA generator",
+    entityTerms: ["DPIA generator", "GDPR Article 35", "AI DPIA", "data protection impact assessment", "GDPR AI"],
+    keyPoints: [
+      "Problem: DPIAs are often started too late and lack technical workflow evidence.",
+      "Regulatory relevance: GDPR Article 35 requires DPIAs for processing likely to result in high risk.",
+      "Business impact: faster DPIA drafts reduce launch delays and improve privacy accountability.",
+      "Product solution: Corelyx generates DPIA drafts from live workflow inventory and compliance metadata.",
+      "Practical example: a healthcare triage workflow can produce purpose, data categories, risks, mitigations, residual risks, and approval workflow sections.",
+    ],
+    implementationSteps: [
+      { name: "Collect inputs", text: "Use purpose, data categories, data subjects, personal-data usage, providers, and automated decision-making status." },
+      { name: "Generate draft", text: "Create purpose, necessity, proportionality, risk, mitigation, residual-risk, and approval sections." },
+      { name: "Review with owners", text: "Business, technical, privacy, and legal owners review and approve the DPIA." },
+      { name: "Keep version evidence", text: "Store the DPIA alongside workflow versions and audit exports." },
+    ],
+    table: {
+      caption: "DPIA draft sections",
+      headers: ["Section", "Input", "Output"],
+      rows: [
+        ["Purpose", "Workflow purpose and owner.", "Processing purpose narrative."],
+        ["Risk analysis", "Data categories and AI impact.", "Risk and mitigation list."],
+        ["Approval", "Reviewer roles.", "Approval workflow and residual-risk decision."],
+      ],
+    },
+    checklist: [
+      "Generate DPIA drafts before production activation for high-risk processing.",
+      "Document necessity and proportionality.",
+      "List providers and transfer considerations.",
+      "Track residual risks and approvals.",
+    ],
+    faqs: [
+      { question: "Is the generated DPIA final?", answer: "No. It is a structured draft that should be reviewed and approved by the controller's accountable owners." },
+      { question: "Can Corelyx generate DPIAs automatically?", answer: "Corelyx can generate DPIA drafts from workflow inventory and data-use fields, then route them through review." },
+      { question: "When should a DPIA be completed?", answer: "Before starting processing likely to result in high risk, especially where AI, sensitive data, monitoring, or consequential decisions are involved." },
+    ],
+    internalLinks: [{ href: "/tools/dpia-generator", label: "Free DPIA Generator", description: "Generate a DPIA draft now." }, commonLinks.gdpr, ...complianceNativeLinks],
+  },
+  {
+    path: "/ai-documentation-generator",
+    section: "compliance",
+    title: "AI Documentation Generator for Technical Documentation",
+    shortTitle: "AI Documentation Generator",
+    description:
+      "Generate technical documentation for AI systems from inventory records, workflow architecture, models, data flows, oversight, monitoring, and incident response details.",
+    eyebrow: "AI documentation generator",
+    headline: "Generate technical documentation from the workflow record.",
+    summary:
+      "Corelyx generates AI technical documentation from the inventory record and workflow schema, including system purpose, architecture, models, data flows, training information, evaluation methods, known limitations, human oversight, monitoring, and incident response.",
+    definition:
+      "An AI documentation generator converts structured AI system metadata into reviewable technical documentation that can support governance, procurement, audits, and regulatory readiness.",
+    audience: "AI product teams, technical owners, compliance teams, auditors, and consultants.",
+    lastModified: "2026-05-29",
+    primaryQuery: "AI documentation generator",
+    entityTerms: ["AI documentation generator", "AI technical documentation", "AI compliance documentation", "EU AI Act documentation"],
+    keyPoints: [
+      "Problem: technical documentation is often manually assembled after deployment.",
+      "Regulatory relevance: high-risk AI governance programs need current documentation, known limitations, oversight, monitoring, and incident-response processes.",
+      "Business impact: generated documentation speeds sales, procurement, audit, security review, and internal governance.",
+      "Product solution: Corelyx generates documentation directly from inventory and workflow evidence and keeps it tied to versions.",
+      "Practical example: a sales assistant workflow can export purpose, architecture, model, data-flow, oversight, and incident-response sections.",
+    ],
+    implementationSteps: [
+      { name: "Start from inventory", text: "Use system ID, owners, purpose, models, data sources, risk, and oversight status." },
+      { name: "Add architecture", text: "Describe how the validated workflow schema executes graph steps." },
+      { name: "Document controls", text: "Include oversight, monitoring, logging, limitations, and incident response." },
+      { name: "Version the output", text: "Keep generated documentation aligned with workflow schema versions and review dates." },
+    ],
+    table: {
+      caption: "Technical documentation sections",
+      headers: ["Section", "Source", "Review value"],
+      rows: [
+        ["Purpose and architecture", "Inventory and workflow schema.", "Explains what the system does."],
+        ["Models and data flows", "Agent and connector nodes.", "Shows data movement and model use."],
+        ["Oversight and monitoring", "Governance settings and logs.", "Proves controls are operational."],
+      ],
+    },
+    checklist: [
+      "Generate documentation before production launch.",
+      "Regenerate after model, data-source, or risk changes.",
+      "Track known limitations and monitoring process.",
+      "Export documentation for audit and procurement review.",
+    ],
+    faqs: [
+      { question: "What formats should AI documentation support?", answer: "Corelyx supports workflow evidence exports and public tools that generate Markdown/JSON drafts; product exports can be extended into PDF and DOCX workflows." },
+      { question: "Is documentation version-controlled?", answer: "Documentation is generated from workflow inventory and schema versions, so changes can be tied to version history and review dates." },
+      { question: "What should technical documentation include?", answer: "Purpose, architecture, models, data flows, training information, evaluation methods, limitations, oversight, monitoring, and incident response." },
+    ],
+    internalLinks: [{ href: "/tools/compliance-documentation-generator", label: "Free Documentation Generator", description: "Generate a technical documentation draft." }, ...complianceNativeLinks],
+  },
+];
+
 export const seoPages: SeoPage[] = [
+  ...complianceNativePages,
   {
     path: "/docs",
     section: "docs",

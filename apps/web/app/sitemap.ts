@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { allSeoPages, SITE_URL } from "@/lib/seo/content";
+import { PUBLIC_COMPLIANCE_TOOLS } from "@/lib/compliance/tool-definitions";
 
 const BASE = SITE_URL;
 
@@ -73,6 +74,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${BASE}/tools`,
+      lastModified: new Date("2026-05-29"),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    ...PUBLIC_COMPLIANCE_TOOLS.map((tool) => ({
+      url: `${BASE}/tools/${tool.slug}`,
+      lastModified: new Date("2026-05-29"),
+      changeFrequency: "monthly" as const,
+      priority: 0.75,
+    })),
     ...allSeoPages.map((page) => ({
       url: `${BASE}${page.path}`,
       lastModified: new Date(page.lastModified),

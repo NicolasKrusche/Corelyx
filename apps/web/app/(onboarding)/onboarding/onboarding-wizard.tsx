@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
 import {
@@ -335,14 +336,14 @@ export function OnboardingWizard({
 
               <div className="grid grid-cols-2 gap-2">
                 {CONNECTORS.map(c => (
-                  <a
+                  <Link
                     key={c.id}
                     href="/connections"
                     className="group flex flex-col gap-0.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-3 transition-all hover:border-primary/30 hover:bg-white/[0.05]"
                   >
                     <span className="text-sm font-medium">{c.label}</span>
                     <span className="text-[11px] text-muted-foreground/60">{c.hint}</span>
-                  </a>
+                  </Link>
                 ))}
               </div>
 

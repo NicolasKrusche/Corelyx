@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -103,9 +104,9 @@ export function AiEditPanel({
         {mode === "personal" && !hasApiKeys && (
           <p className="text-[11px] text-amber-600 dark:text-amber-400">
             No API key found.{" "}
-            <a href="/api-keys" className="underline font-medium">
+            <Link href="/api-keys" className="underline font-medium">
               Add one
-            </a>{" "}
+            </Link>{" "}
             or switch to Corelyx AI below.
           </p>
         )}

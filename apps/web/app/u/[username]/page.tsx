@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/api";
 import { deriveNodeSummary, getBrowseUseCount } from "@/lib/browse-programs";
@@ -185,7 +186,7 @@ export default async function UserProfilePage({
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
 
         {/* Back link */}
-        <a
+        <Link
           href="/browse"
           className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
@@ -193,7 +194,7 @@ export default async function UserProfilePage({
             <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           Browse
-        </a>
+        </Link>
 
         {/* Profile header */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">

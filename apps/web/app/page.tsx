@@ -3,7 +3,7 @@ import LandingPage from "./_landing/LandingPage";
 
 const SITE_URL = "https://www.corelyx.app";
 const DESCRIPTION =
-  "Corelyx is an EU-native compliance-first AI workflow automation platform for GDPR AI automation, EU AI Act workflows, secure AI agents, and human oversight.";
+  "Corelyx is the AI automation platform that automatically inventories, classifies, documents, audits, reviews, and governs every AI workflow for GDPR and EU AI Act readiness.";
 
 export const metadata: Metadata = {
   title: "Corelyx - EU-Native Compliance-First AI Workflow Automation",
@@ -71,6 +71,11 @@ const jsonLd = {
       publisher: { "@id": `${SITE_URL}/#organization` },
       featureList: [
         "Visual AI workflow editor",
+        "Automatic AI system inventory",
+        "AI Act risk classification",
+        "Compliance documentation generation",
+        "DPIA draft generation",
+        "Governance dashboard",
         "EU-native automation infrastructure",
         "GDPR AI automation controls",
         "EU AI Act workflow review",

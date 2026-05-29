@@ -20,7 +20,7 @@ const inter = Inter({
 const SITE_URL = "https://www.corelyx.app";
 
 const OG_DESCRIPTION =
-  "Corelyx is an EU-native compliance-first AI workflow automation platform for GDPR AI automation, EU AI Act workflows, human oversight, and auditability.";
+  "Corelyx is the AI automation platform that automatically inventories, classifies, documents, audits, reviews, and governs every AI workflow for GDPR and EU AI Act readiness.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
