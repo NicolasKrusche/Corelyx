@@ -56,6 +56,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { PreFlightCheck } from "@/lib/validation/pre-flight";
+import type { ComplianceCheck } from "@/lib/compliance/workflow";
 import { useTheme } from "@/components/theme-provider";
 
 // ─── Node execution data (populated from API + Realtime) ─────────────────────
@@ -383,6 +384,7 @@ export function EditorShell({
   const [isValidating, setIsValidating] = React.useState(false);
   const [validationNotice, setValidationNotice] = React.useState<string | null>(null);
   const [preFlightChecks, setPreFlightChecks] = React.useState<PreFlightCheck[] | null>(null);
+  const [isComplianceBlock, setIsComplianceBlock] = React.useState(false);
 
   useEffect(() => {
     if (!validationNotice) return;
@@ -1410,6 +1412,7 @@ export function EditorShell({
         error?: string;
         message?: string;
         checks?: PreFlightCheck[];
+        compliance_checks?: ComplianceCheck[];
       } | null;
 
       if (body?.run_id) {
@@ -1428,20 +1431,38 @@ export function EditorShell({
 
       if (res.ok) {
         setValidationNotice("Run started, but the server did not return a run id.");
+      } else if (body?.checks) {
+        setIsComplianceBlock(false);
+        setPreFlightChecks(body.checks as PreFlightCheck[]);
+        setValidationNotice("Fix the highlighted issues before running this workflow.");
+      } else if (body?.compliance_checks) {
+        const blocked = body.compliance_checks.filter(
+          (c) => c.status === "blocked" || c.status === "needs_reviewer"
+        );
+        setIsComplianceBlock(true);
+        setPreFlightChecks(
+          (blocked.length > 0 ? blocked : body.compliance_checks).map((c) => ({
+            code: `COMPLY_${c.id.replace(/-/g, "_").toUpperCase()}`,
+            label: c.label,
+            status: "fail" as const,
+            failures: [{
+              node_id: c.node_id ?? null,
+              message: c.message,
+              fix_suggestion: complianceFixSuggestion(c.id, c.status),
+            }],
+          }))
+        );
+        setValidationNotice("A compliance policy is blocking this run.");
       } else {
-        if (body?.checks) {
-          setPreFlightChecks(body.checks as PreFlightCheck[]);
-          setValidationNotice("Fix the highlighted issues before running this workflow.");
-        } else {
-          const message = friendlyResponseMessage(body, "The workflow could not start. Please try again.");
-          setValidationNotice(message);
-          setPreFlightChecks([{
-            code: "PRE_001",
-            label: "Run blocked",
-            status: "fail",
-            failures: [{ node_id: null, message, fix_suggestion: "" }],
-          }]);
-        }
+        setIsComplianceBlock(false);
+        const message = friendlyResponseMessage(body, "The workflow could not start. Please try again.");
+        setValidationNotice(message);
+        setPreFlightChecks([{
+          code: "PRE_001",
+          label: "Run blocked",
+          status: "fail",
+          failures: [{ node_id: null, message, fix_suggestion: "" }],
+        }]);
       }
     } catch {
       setValidationNotice("We could not connect to start the workflow.");
@@ -1485,13 +1506,33 @@ export function EditorShell({
       } else {
         const body = await res.json().catch(() => null) as {
           checks?: PreFlightCheck[];
+          compliance_checks?: ComplianceCheck[];
           error?: string;
           message?: string;
         } | null;
         setShowWebhookTest(false);
         if (body?.checks) {
+          setIsComplianceBlock(false);
           setPreFlightChecks(body.checks);
+        } else if (body?.compliance_checks) {
+          const blocked = body.compliance_checks.filter(
+            (c) => c.status === "blocked" || c.status === "needs_reviewer"
+          );
+          setIsComplianceBlock(true);
+          setPreFlightChecks(
+            (blocked.length > 0 ? blocked : body.compliance_checks).map((c) => ({
+              code: `COMPLY_${c.id.replace(/-/g, "_").toUpperCase()}`,
+              label: c.label,
+              status: "fail" as const,
+              failures: [{
+                node_id: c.node_id ?? null,
+                message: c.message,
+                fix_suggestion: complianceFixSuggestion(c.id, c.status),
+              }],
+            }))
+          );
         } else {
+          setIsComplianceBlock(false);
           const message = friendlyResponseMessage(body, "The test run could not start. Please try again.");
           setPreFlightChecks([{
             code: "PRE_001",
@@ -1924,13 +1965,17 @@ export function EditorShell({
       </Dialog>
 
       {/* Pre-flight failure dialog */}
-      <Dialog open={!!preFlightChecks} onOpenChange={(open) => { if (!open) setPreFlightChecks(null); }}>
+      <Dialog open={!!preFlightChecks} onOpenChange={(open) => { if (!open) { setPreFlightChecks(null); setIsComplianceBlock(false); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
-              <span>⚠</span> Validation needs attention
+              <span>⚠</span> {isComplianceBlock ? "Compliance check blocked this run" : "Validation needs attention"}
             </DialogTitle>
-            <p className="text-sm text-muted-foreground">Fix the following issues before running this program.</p>
+            <p className="text-sm text-muted-foreground">
+              {isComplianceBlock
+                ? "One or more workspace compliance policies are blocking this workflow. Resolve each issue below, then try again."
+                : "Fix the following issues before running this program."}
+            </p>
           </DialogHeader>
 
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
@@ -1994,7 +2039,53 @@ function preFlightFixLink(
   if (code === "PRE_002" || fixSuggestion.toLowerCase().includes("api key")) {
     return { href: "/api-keys", label: "Go to API Keys" };
   }
+  // Compliance check deep-links
+  if (
+    code === "COMPLY_MODEL_PROVIDER_POLICY" ||
+    code === "COMPLY_DPA_SUBPROCESSORS" ||
+    code === "COMPLY_AI_ACT_RISK" ||
+    code === "COMPLY_GDPR_TRANSFER_RISK"
+  ) {
+    return { href: "/governance", label: "Open Governance" };
+  }
+  if (code === "COMPLY_EU_ONLY_MODE" || code === "COMPLY_LOGGING_RETENTION") {
+    return { href: "/settings", label: "Open Settings" };
+  }
+  // Human approval — user stays in the editor to add the node, no nav needed
+  if (code === "COMPLY_HUMAN_APPROVAL") return null;
+  // Fallback from fix suggestion text
+  if (fixSuggestion.toLowerCase().includes("governance")) {
+    return { href: "/governance", label: "Open Governance" };
+  }
+  if (fixSuggestion.toLowerCase().includes("settings")) {
+    return { href: "/settings", label: "Open Settings" };
+  }
   return null;
+}
+
+// ─── Utility: human-readable fix suggestion per compliance check ID ───────────
+
+function complianceFixSuggestion(checkId: string, status: string): string {
+  switch (checkId) {
+    case "model-provider-policy":
+      return "One or more AI model providers used in this workflow are missing DPA or SCC records. Open Governance → Provider registry to complete the missing entries.";
+    case "dpa-subprocessors":
+      return "A provider used in this workflow has no completed DPA entry. Open Governance → Provider registry and add the required documentation.";
+    case "eu-only-mode":
+      return "EU-only mode is active and this workflow uses a provider that hasn't been cleared for EU residency. Either remove the provider or switch the workspace to standard mode in Settings → Compliance.";
+    case "ai-act-risk":
+      return status === "needs_reviewer"
+        ? "This workflow is classified as high-risk under the EU AI Act and needs explicit reviewer approval. Open Governance, assign a reviewer, and mark this workflow as approved before running."
+        : "This workflow is flagged as potentially prohibited under the EU AI Act. Do not run without legal review. Contact your legal team.";
+    case "human-approval":
+      return "This workflow triggers high-impact actions but has no Human Approval gate. Add a Human Approval node before the high-impact step in the editor, then try running again.";
+    case "logging-retention":
+      return "Execution log retention is not configured for this high-risk workflow. Open Settings → Compliance and set a non-zero retention period.";
+    case "gdpr-transfer-risk":
+      return "A provider in this workflow may transfer data outside the EEA. Review the data flow in Governance and confirm the transfer basis is documented.";
+    default:
+      return "Open Governance to review and resolve this compliance issue before running the workflow.";
+  }
 }
 
 // ─── Utility: detect if a form input is currently focused ────────────────────
