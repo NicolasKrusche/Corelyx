@@ -8,6 +8,7 @@ import {
   type PublicComplianceToolSlug,
 } from "@/lib/compliance/tool-definitions";
 import { SITE_URL } from "@/lib/seo/content";
+import { createServerClient } from "@/lib/supabase/server";
 
 export function generateStaticParams() {
   return PUBLIC_COMPLIANCE_TOOLS.map((tool) => ({ slug: tool.slug }));
@@ -54,6 +55,15 @@ export default async function PublicComplianceToolPage({
   const tool = getPublicComplianceTool(slug);
   if (!tool) notFound();
 
+  let isSignedIn = false;
+  try {
+    const supabase = await createServerClient();
+    const { data } = await supabase.auth.getUser();
+    isSignedIn = !!data.user;
+  } catch {
+    // Best-effort — fall back to guest state
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
@@ -85,9 +95,15 @@ export default async function PublicComplianceToolPage({
           <nav className="flex items-center gap-4 text-xs text-muted-foreground">
             <Link href="/tools" className="hover:text-foreground">Tools</Link>
             <Link href="/ai-governance-platform" className="hidden hover:text-foreground sm:inline">AI Governance</Link>
-            <Link href="/login" className="rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground">
-              Sign in
-            </Link>
+            {isSignedIn ? (
+              <Link href="/dashboard" className="rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground">
+                Dashboard
+              </Link>
+            ) : (
+              <Link href="/login" className="rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground">
+                Sign in
+              </Link>
+            )}
           </nav>
         </header>
 
