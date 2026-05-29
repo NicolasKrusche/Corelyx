@@ -50,7 +50,7 @@ export function AiEditPanel({
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center gap-1.5">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5 text-purple-500">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5 text-primary">
             <path d="M8 2l1.5 3L13 6.5 9.5 8 8 11.5 6.5 8 3 6.5 6.5 5z" strokeLinejoin="round" />
             <path d="M12 10l.75 1.5L14 12l-1.25.5L12 14l-.75-1.5L10 12l1.25-.5z" strokeLinejoin="round" />
           </svg>
@@ -93,7 +93,7 @@ export function AiEditPanel({
             className={cn(
               "flex-1 py-1.5 border-l border-border transition-colors",
               mode === "platform"
-                ? "bg-purple-600 text-white"
+                ? "bg-primary text-primary-foreground"
                 : "bg-background text-muted-foreground hover:text-foreground"
             )}
           >
@@ -153,7 +153,7 @@ export function AiEditPanel({
           className={cn(
             "w-full gap-1.5",
             mode === "platform"
-              ? "bg-purple-600 hover:bg-purple-700 text-white"
+              ? "bg-primary hover:bg-primary/90 text-primary-foreground"
               : "bg-primary hover:bg-primary/90 text-primary-foreground"
           )}
           size="sm"

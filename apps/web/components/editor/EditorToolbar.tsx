@@ -300,7 +300,7 @@ export function EditorToolbar({
         variant="outline"
         size="sm"
         onClick={onAiEdit}
-        className="gap-1.5 border-purple-500/40 text-purple-600 hover:text-purple-700 hover:bg-purple-50 hover:border-purple-500/60 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-950/30"
+        className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:border-primary/60"
         title="Edit this program with AI"
       >
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
