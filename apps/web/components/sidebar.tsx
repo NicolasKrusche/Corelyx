@@ -123,18 +123,32 @@ function NavButton({
 }
 
 // ─── Nav section label ────────────────────────────────────────────────────────
+// Collapsed: renders as a thin separator (h-px) with a small top gap.
+// Expanded:  the separator fades out and the text label slides in.
 
 function NavSectionLabel({ label, isDark }: { label: string; isDark: boolean }) {
   return (
-    <p
-      className={cn(
-        "mb-0.5 mt-4 truncate whitespace-nowrap px-3 text-[9px] font-bold uppercase tracking-widest",
-        "opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
-        isDark ? "text-blue-100/30" : "text-gray-400"
-      )}
-    >
-      {label}
-    </p>
+    <div className="mt-2">
+      {/* Separator — visible when collapsed, hidden when expanded */}
+      <div
+        className={cn(
+          "mx-3 h-px transition-opacity duration-150",
+          "group-hover/side:opacity-0 group-data-[open]/side:opacity-0",
+          isDark ? "bg-white/8" : "bg-black/8"
+        )}
+      />
+      {/* Label — hidden when collapsed, slides in when expanded */}
+      <p
+        className={cn(
+          "mb-0.5 max-h-0 overflow-hidden truncate whitespace-nowrap px-3 text-[9px] font-bold uppercase tracking-widest opacity-0",
+          "transition-[max-height,opacity] duration-150",
+          "group-hover/side:max-h-5 group-hover/side:opacity-100 group-data-[open]/side:max-h-5 group-data-[open]/side:opacity-100",
+          isDark ? "text-blue-100/30" : "text-gray-400"
+        )}
+      >
+        {label}
+      </p>
+    </div>
   );
 }
 
