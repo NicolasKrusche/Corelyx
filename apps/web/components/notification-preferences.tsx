@@ -106,7 +106,7 @@ export function NotificationPreferences({ panelClass }: { panelClass: string }) 
               key={key}
               className={cn(
                 "flex items-start gap-4 rounded-xl px-3 py-3 transition-colors",
-                locked ? "opacity-60" : "cursor-pointer hover:bg-accent/50"
+                locked ? "" : "cursor-pointer hover:bg-accent/50"
               )}
             >
               {/* Toggle */}
@@ -117,17 +117,15 @@ export function NotificationPreferences({ panelClass }: { panelClass: string }) 
                 disabled={locked || isSaving || !prefs}
                 onClick={() => { if (!locked) void toggle(key); }}
                 className={cn(
-                  "relative mt-0.5 h-5 w-9 shrink-0 rounded-full border-2 transition-colors focus-visible:outline-none",
-                  enabled
-                    ? "border-primary bg-primary"
-                    : "border-border bg-muted",
-                  (locked || !prefs) && "cursor-not-allowed",
+                  "mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  enabled ? "bg-primary" : "bg-input",
+                  (locked || !prefs) && "cursor-not-allowed opacity-60",
                 )}
               >
                 <span
                   className={cn(
-                    "absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform",
-                    enabled ? "translate-x-[18px]" : "translate-x-0.5",
+                    "ml-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                    enabled ? "translate-x-[16px]" : "translate-x-0",
                     isSaving && "opacity-60"
                   )}
                 />

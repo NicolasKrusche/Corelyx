@@ -219,7 +219,11 @@ export function ProgramList({
               </button>
             )
           )}
-          <DeleteProgramButton programId={p.id} programName={p.name} />
+          <DeleteProgramButton
+            programId={p.id}
+            programName={p.name}
+            onDeleted={() => setPrograms((ps) => ps.filter((q) => q.id !== p.id))}
+          />
         </div>
       </div>
     );
