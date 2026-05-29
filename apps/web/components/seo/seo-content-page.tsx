@@ -305,7 +305,7 @@ function PublicSeoHeader() {
           <span className="text-sm font-bold tracking-tight">Corelyx</span>
         </Link>
         <nav className="hidden items-center gap-5 text-xs text-muted-foreground md:flex">
-          <Link href="/academy" className="transition-colors hover:text-foreground">Academy</Link>
+          <Link href="/guides" className="transition-colors hover:text-foreground">Guides</Link>
           <Link href="/docs" className="transition-colors hover:text-foreground">Docs</Link>
           <Link href="/gdpr" className="transition-colors hover:text-foreground">GDPR</Link>
           <Link href="/ai-act" className="transition-colors hover:text-foreground">AI Act</Link>

@@ -797,7 +797,7 @@ function SiteFooter() {
               <li><Link href="/compliance" className="transition-colors hover:text-[#111318]">Compliance</Link></li>
               <li><Link href="/templates" className="transition-colors hover:text-[#111318]">Templates</Link></li>
               <li><Link href="/compare" className="transition-colors hover:text-[#111318]">Compare</Link></li>
-              <li><Link href="/academy" className="transition-colors hover:text-[#111318]">Academy</Link></li>
+              <li><Link href="/guides" className="transition-colors hover:text-[#111318]">Guides</Link></li>
               <li><Link href="/blog" className="transition-colors hover:text-[#111318]">Blog</Link></li>
               <li><Link href="/integrations" className="transition-colors hover:text-[#111318]">Integrations</Link></li>
               <li><Link href="/use-cases" className="transition-colors hover:text-[#111318]">Use cases</Link></li>
