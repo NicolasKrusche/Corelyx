@@ -557,16 +557,18 @@ export function validateWorkflowCompliance(
       });
     }
 
-    const isAcknowledged = workspace.dpa_acknowledged_providers.includes(item.provider.id);
+    // DPA/SCC gaps only block in eu_only mode. In standard mode they are
+    // informational warnings — there is no legal requirement to prevent
+    // execution; the obligation is to have a DPA, not to technically block.
+    const dpaBlockStatus: ComplianceCheckStatus =
+      workspace.compliance_mode === "eu_only" ? "blocked" : "warning";
 
     if (!item.provider.dpa_available) {
       addCheck(providerIssues, {
         id: `dpa-${item.node_id}`,
         label: "DPA/subprocessor completeness check",
-        status: isAcknowledged ? "warning" : "blocked",
-        message: isAcknowledged
-          ? `${item.provider.name} DPA acknowledged by workspace owner.`
-          : `${item.provider.name} does not have a completed DPA entry in the provider registry.`,
+        status: dpaBlockStatus,
+        message: `${item.provider.name} does not have a completed DPA entry in the Corelyx provider registry.`,
         node_id: item.node_id,
         provider_id: item.provider.id,
       });
@@ -576,10 +578,8 @@ export function validateWorkflowCompliance(
       addCheck(providerIssues, {
         id: `scc-${item.node_id}`,
         label: "DPA/subprocessor completeness check",
-        status: isAcknowledged ? "warning" : "blocked",
-        message: isAcknowledged
-          ? `${item.provider.name} SCC/transfer-basis acknowledged by workspace owner.`
-          : `${item.provider.name} requires a documented SCC or transfer-basis entry before production use.`,
+        status: dpaBlockStatus,
+        message: `${item.provider.name} has no documented SCC or transfer-basis entry in the Corelyx provider registry.`,
         node_id: item.node_id,
         provider_id: item.provider.id,
       });
@@ -715,16 +715,22 @@ export function validateWorkflowCompliance(
   const modelIssues = flow.filter(
     (item) =>
       item.ai_model_call &&
-      !workspace.dpa_acknowledged_providers.includes(item.provider.id) &&
       (!item.provider.dpa_available ||
         !item.provider.scc_available ||
         item.provider.trains_on_customer_data === "unknown")
   );
   const modelProviderNames = [...new Set(modelIssues.map((i) => i.provider.name))];
+  // Same rule: only block in eu_only mode.
+  const modelPolicyStatus: ComplianceCheckStatus =
+    modelIssues.length === 0
+      ? "passed"
+      : workspace.compliance_mode === "eu_only"
+        ? "blocked"
+        : "warning";
   addCheck(checks, {
     id: "model-provider-policy",
     label: "Model-provider policy check",
-    status: modelIssues.length > 0 ? "blocked" : "passed",
+    status: modelPolicyStatus,
     message: modelIssues.length > 0
       ? `${modelProviderNames.length > 0 ? modelProviderNames.join(", ") : "One or more model providers"} ${modelProviderNames.length === 1 ? "lacks" : "lack"} complete DPA/SCC/training-policy evidence.`
       : "Model provider registry entries include DPA, transfer, and training-policy evidence.",
