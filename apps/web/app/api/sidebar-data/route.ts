@@ -38,9 +38,7 @@ export async function GET(request: Request) {
   const workspaceId = activeWorkspace?.workspaceId ?? null;
   const memberships = (membershipsRes.data ?? []) as Array<{ workspace_id: string; role: string }>;
   const workspaceIds = memberships.map((m) => m.workspace_id);
-  const activeWorkspaceId = (profileRes.data as { org_id?: string | null } | null)?.org_id
-    ?? workspaceIds[0]
-    ?? null;
+  const activeWorkspaceId = activeWorkspace?.workspaceId ?? workspaceIds[0] ?? null;
 
   // Round 2 — all remaining queries in parallel
   const [approvalsRes, programsRes, workspacesRes, workspaceTierRes, authRes, runUsage, genesisAccess, creditBalance] =

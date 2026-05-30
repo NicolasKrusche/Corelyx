@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight, Folder, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
+import { PROVIDER_ICON_URL } from "@/lib/provider-icons";
 
 export type ProgramListItem = {
   id: string;
@@ -47,6 +48,25 @@ function providerInitial(provider: string) {
   return provider.slice(0, 1).toUpperCase();
 }
 
+function ProviderLogo({ provider }: { provider: string }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const logoUrl = PROVIDER_ICON_URL[provider];
+
+  if (!logoUrl || imageFailed) return <span>{providerInitial(provider)}</span>;
+
+  return (
+    // Brand SVGs are tiny and should bypass Next image optimization.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={logoUrl}
+      alt=""
+      className="h-3.5 w-3.5 object-contain"
+      loading="lazy"
+      onError={() => setImageFailed(true)}
+    />
+  );
+}
+
 function sparklinePoints(values: number[]) {
   const max = Math.max(...values, 1);
   return values
@@ -81,10 +101,10 @@ function ConnectionBadges({ providers }: { providers: string[] }) {
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded-md border border-background text-[10px] font-black text-white shadow-sm",
             index > 0 && "-ml-1.5",
-            PROVIDER_COLORS[provider] ?? "bg-primary"
+            PROVIDER_ICON_URL[provider] ? "bg-white" : (PROVIDER_COLORS[provider] ?? "bg-primary")
           )}
         >
-          {providerInitial(provider)}
+          <ProviderLogo provider={provider} />
         </span>
       ))}
       {providers.length > visible.length && (
