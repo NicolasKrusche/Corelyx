@@ -18,13 +18,16 @@ export type GenesisApiKeyRow = {
 // "free" tier models cost nothing; "paid" tier models are billed against the
 // user's includedAiCreditsUsd. All IDs are OpenRouter model strings.
 
-export type PlatformModelTier = "free" | "paid";
+// "free"     → Qwen3 Coder only (Free plan)
+// "standard" → + Claude 3 Haiku, GPT-4o Mini (Solo)
+// "premium"  → + Claude Sonnet 4.6, GPT-4o   (Team / Scale)
+export type PlatformModelTier = "free" | "standard" | "premium";
 
 export type PlatformModelOption = {
   id: string;
   label: string;
   sublabel: string;
-  tier: PlatformModelTier;
+  tier: PlatformModelTier; // minimum tier required to use this model
 };
 
 export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
@@ -35,38 +38,39 @@ export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
     tier: "free",
   },
   {
-    id: "anthropic/claude-haiku-3-5",
-    label: "Claude Haiku 3.5",
+    id: "anthropic/claude-3-haiku",
+    label: "Claude 3 Haiku",
     sublabel: "Fast · Efficient",
-    tier: "paid",
-  },
-  {
-    id: "anthropic/claude-sonnet-4-6",
-    label: "Claude Sonnet 4.6",
-    sublabel: "Best quality",
-    tier: "paid",
+    tier: "standard",
   },
   {
     id: "openai/gpt-4o-mini",
     label: "GPT-4o Mini",
     sublabel: "Fast · Affordable",
-    tier: "paid",
+    tier: "standard",
+  },
+  {
+    id: "anthropic/claude-sonnet-4-6",
+    label: "Claude Sonnet 4.6",
+    sublabel: "Best quality",
+    tier: "premium",
   },
   {
     id: "openai/gpt-4o",
     label: "GPT-4o",
     sublabel: "Powerful",
-    tier: "paid",
+    tier: "premium",
   },
 ];
 
 /** The model ID used when the user hasn't picked one (free tier default). */
 export const PLATFORM_DEFAULT_MODEL = "qwen/qwen3-coder:free";
 
-/** Returns allowed model IDs for a given platform model tier. */
+/** Returns allowed models for a given platform tier (all models whose tier ≤ userTier). */
 export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModelOption[] {
-  if (tier === "paid") return PLATFORM_MODEL_CATALOG;
-  return PLATFORM_MODEL_CATALOG.filter((m) => m.tier === "free");
+  const ORDER: PlatformModelTier[] = ["free", "standard", "premium"];
+  const userLevel = ORDER.indexOf(tier);
+  return PLATFORM_MODEL_CATALOG.filter((m) => ORDER.indexOf(m.tier) <= userLevel);
 }
 
 // ─── OpenRouter fallback chain ────────────────────────────────────────────────

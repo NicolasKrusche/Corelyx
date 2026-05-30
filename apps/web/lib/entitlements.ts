@@ -39,9 +39,10 @@ export interface PlanEntitlements {
   includedAiCreditsUsd: number | null;
 
   // Which tier of platform Genesis models the user can access
-  // "free"  → only free/open-weight models
-  // "paid"  → also includes Claude, GPT-4o, etc. (billed against includedAiCreditsUsd)
-  genesisPlatformModelTier: "free" | "paid";
+  // "free"     → only free/open-weight models (Qwen3 Coder)
+  // "standard" → + Claude 3 Haiku, GPT-4o Mini  (Solo)
+  // "premium"  → + Claude Sonnet, GPT-4o         (Team / Scale)
+  genesisPlatformModelTier: "free" | "standard" | "premium";
 }
 
 export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
@@ -60,7 +61,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     includedAiCreditsUsd: 0,
     genesisPlatformModelTier: "free",
   },
-  plus: {
+  plus: {   // Solo
     maxPrograms: 5,
     runsPerMonth: 75,
     runHistoryDays: 30,
@@ -73,9 +74,9 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: 1,
     maxWorkspaces: 1,
     includedAiCreditsUsd: 2.50,
-    genesisPlatformModelTier: "paid",
+    genesisPlatformModelTier: "standard",
   },
-  pro: {
+  pro: {   // Team
     maxPrograms: null,
     runsPerMonth: 500,
     runHistoryDays: 90,
@@ -88,9 +89,9 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: 3,
     maxWorkspaces: 3,
     includedAiCreditsUsd: 10,
-    genesisPlatformModelTier: "paid",
+    genesisPlatformModelTier: "premium",
   },
-  builder: {
+  builder: {   // Scale
     maxPrograms: null,
     runsPerMonth: 2000,
     runHistoryDays: 365,
@@ -103,7 +104,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCreditsUsd: 15,
-    genesisPlatformModelTier: "paid",
+    genesisPlatformModelTier: "premium",
   },
   unlimited: {
     maxPrograms: null,
@@ -118,7 +119,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCreditsUsd: null,
-    genesisPlatformModelTier: "paid",
+    genesisPlatformModelTier: "premium",
   },
 };
 
