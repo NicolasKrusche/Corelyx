@@ -17,64 +17,39 @@ import {
   Zap,
 } from 'lucide-react'
 
-interface Model {
+export interface PlatformModel {
   id: string
-  name: string
-  description: string
-  icon: React.ReactNode
-  badge?: string
+  label: string
+  sublabel: string
+  tier: 'free' | 'standard' | 'premium'
 }
 
-const models: Model[] = [
-  {
-    id: 'sonnet-4.5',
-    name: 'Sonnet 4.5',
-    description: 'Fast and intelligent',
-    icon: <Zap className='size-4 text-blue-400' />,
-    badge: 'Default',
-  },
-  {
-    id: 'opus-4.5',
-    name: 'Opus 4.5',
-    description: 'Most capable',
-    icon: <Sparkles className='size-4 text-purple-400' />,
-    badge: 'Pro',
-  },
-  {
-    id: 'haiku-4.5',
-    name: 'Haiku 4.5',
-    description: 'Lightning fast',
-    icon: <Brain className='size-4 text-emerald-400' />,
-  },
-  {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    description: 'OpenAI flagship',
-    icon: <Sparkles className='size-4 text-green-400' />,
-  },
-  {
-    id: 'gemini-2.0',
-    name: 'Gemini 2.0',
-    description: 'Google AI',
-    icon: <Brain className='size-4 text-cyan-400' />,
-  },
-]
+function modelIcon(id: string): React.ReactNode {
+  if (id.includes('sonnet'))    return <Zap       className='size-4 text-blue-400' />
+  if (id.includes('haiku'))     return <Brain     className='size-4 text-emerald-400' />
+  if (id.includes('opus'))      return <Sparkles  className='size-4 text-purple-400' />
+  if (id.includes('gpt-4o-mini')) return <Zap     className='size-4 text-green-400' />
+  if (id.includes('gpt-4o'))    return <Sparkles  className='size-4 text-green-400' />
+  if (id.includes('gemini'))    return <Brain     className='size-4 text-cyan-400' />
+  if (id.includes('qwen'))      return <Bolt      className='size-4 text-amber-400' />
+  return <Sparkles className='size-4 text-muted-foreground' />
+}
 
 function ModelSelector({
-  selectedModel = 'sonnet-4.5',
+  models,
+  selectedModelId,
   onModelChange,
 }: {
-  selectedModel?: string
-  onModelChange?: (model: Model) => void
+  models: PlatformModel[]
+  selectedModelId: string
+  onModelChange: (id: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [selected, setSelected] = useState(models.find((m) => m.id === selectedModel) || models[0])
 
-  const handleSelect = (model: Model) => {
-    setSelected(model)
-    setIsOpen(false)
-    onModelChange?.(model)
-  }
+  // Hide if there's nothing to choose from
+  if (models.length <= 1) return null
+
+  const selected = models.find((m) => m.id === selectedModelId) ?? models[0]
 
   return (
     <div className='relative'>
@@ -83,8 +58,8 @@ function ModelSelector({
         onClick={() => setIsOpen(!isOpen)}
         className='flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground active:scale-95'
       >
-        {selected.icon}
-        <span>{selected.name}</span>
+        {modelIcon(selected.id)}
+        <span>{selected.label}</span>
         <ChevronDown className={`size-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
@@ -96,40 +71,43 @@ function ModelSelector({
               <div className='px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60'>
                 Select Model
               </div>
-              {models.map((model) => (
-                <button
-                  key={model.id}
-                  type='button'
-                  onClick={() => handleSelect(model)}
-                  className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
-                    selected.id === model.id
-                      ? 'bg-accent text-foreground'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                  }`}
-                >
-                  <div className='flex items-center gap-3'>
-                    <div className='flex-shrink-0'>{model.icon}</div>
-                    <div className='min-w-0 flex-1'>
-                      <div className='flex items-center gap-2'>
-                        <span className='text-sm font-medium'>{model.name}</span>
-                        {model.badge && (
-                          <span
-                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                              model.badge === 'Pro'
-                                ? 'bg-purple-500/20 text-purple-400'
-                                : 'bg-primary/20 text-primary'
-                            }`}
-                          >
-                            {model.badge}
-                          </span>
-                        )}
+              {models.map((model) => {
+                const badge = model.tier === 'premium' ? 'Pro' : model.tier === 'free' ? 'Free' : undefined
+                return (
+                  <button
+                    key={model.id}
+                    type='button'
+                    onClick={() => { onModelChange(model.id); setIsOpen(false) }}
+                    className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
+                      selected.id === model.id
+                        ? 'bg-accent text-foreground'
+                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                    }`}
+                  >
+                    <div className='flex items-center gap-3'>
+                      <div className='flex-shrink-0'>{modelIcon(model.id)}</div>
+                      <div className='min-w-0 flex-1'>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-sm font-medium'>{model.label}</span>
+                          {badge && (
+                            <span
+                              className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                badge === 'Pro'
+                                  ? 'bg-purple-500/20 text-purple-400'
+                                  : 'bg-primary/20 text-primary'
+                              }`}
+                            >
+                              {badge}
+                            </span>
+                          )}
+                        </div>
+                        <span className='text-[11px] text-muted-foreground/70'>{model.sublabel}</span>
                       </div>
-                      <span className='text-[11px] text-muted-foreground/70'>{model.description}</span>
+                      {selected.id === model.id && <Check className='size-4 flex-shrink-0 text-primary' />}
                     </div>
-                    {selected.id === model.id && <Check className='size-4 flex-shrink-0 text-primary' />}
-                  </div>
-                </button>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </>
@@ -144,12 +122,18 @@ function ChatInput({
   placeholder = 'What do you want to build?',
   initialMessage = '',
   disabled = false,
+  availableModels = [],
+  selectedModelId = '',
+  onModelChange,
 }: {
   onSend?: (message: string) => void
   onPlan?: (message: string) => void
   placeholder?: string
   initialMessage?: string
   disabled?: boolean
+  availableModels?: PlatformModel[]
+  selectedModelId?: string
+  onModelChange?: (id: string) => void
 }) {
   const [message, setMessage] = useState(initialMessage)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
@@ -281,7 +265,13 @@ function ChatInput({
                 </>
               )}
             </div>
-            <ModelSelector />
+            {availableModels.length > 1 && onModelChange && (
+              <ModelSelector
+                models={availableModels}
+                selectedModelId={selectedModelId}
+                onModelChange={onModelChange}
+              />
+            )}
           </div>
 
           <div className='flex-1' />
@@ -462,6 +452,9 @@ interface BoltChatProps {
   onSend?: (message: string) => void
   onPlan?: (message: string) => void
   onImport?: (source: string) => void
+  availableModels?: PlatformModel[]
+  selectedModelId?: string
+  onModelChange?: (id: string) => void
 }
 
 export function BoltStyleChat({
@@ -477,6 +470,9 @@ export function BoltStyleChat({
   onSend,
   onPlan,
   onImport,
+  availableModels = [],
+  selectedModelId = '',
+  onModelChange,
 }: BoltChatProps) {
   return (
     <div className='relative flex min-h-screen w-full flex-col items-center overflow-hidden bg-background text-foreground'>
@@ -519,6 +515,9 @@ export function BoltStyleChat({
             disabled={inputDisabled}
             onSend={onSend}
             onPlan={onPlan}
+            availableModels={availableModels}
+            selectedModelId={selectedModelId}
+            onModelChange={onModelChange}
           />
         </div>
 

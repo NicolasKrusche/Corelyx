@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { BoltStyleChat } from "@/components/ui/bolt-style-chat";
+import { BoltStyleChat, type PlatformModel } from "@/components/ui/bolt-style-chat";
 import type { ValidationResult } from "@/lib/validation";
 import { TEMPLATES } from "@/lib/templates";
 import { writeClientLog } from "@/lib/client-logs";
@@ -38,12 +38,6 @@ type ApiKey = {
   is_valid: boolean;
 };
 
-type PlatformModelOption = {
-  id: string;
-  label: string;
-  sublabel: string;
-  tier: "free" | "paid";
-};
 
 type Step = "describe" | "connections" | "model" | "generating" | "result";
 type InlinePhase = "idle" | "thinking" | "connections" | "generating" | "opening";
@@ -183,8 +177,8 @@ function NewProgramPageInner() {
   const [isCreatingScratch, setIsCreatingScratch] = useState(false);
   const [scratchCreateError, setScratchCreateError] = useState<string | null>(null);
   const connectionsPopoverRef = useRef<HTMLDivElement | null>(null);
-  // Platform model picker (only shown when user has no BYOK keys and tier allows it)
-  const [platformModels, setPlatformModels] = useState<PlatformModelOption[]>([]);
+  // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
+  const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
   const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("qwen/qwen3-coder:free");
 
   useEffect(() => {
@@ -235,6 +229,19 @@ function NewProgramPageInner() {
         setLoadingConnections(false);
       })
       .catch(() => setLoadingConnections(false));
+  }, []);
+
+  // Fetch available platform models once on mount
+  useEffect(() => {
+    fetch("/api/genesis/models")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        const models = (data.models ?? []) as PlatformModel[];
+        setPlatformModels(models);
+        setSelectedPlatformModel(data.defaultModel ?? "qwen/qwen3-coder:free");
+      })
+      .catch(() => { /* non-fatal — stays on default free model */ });
   }, []);
 
   const DEFAULT_MODELS: Record<string, string> = {
@@ -559,20 +566,6 @@ function NewProgramPageInner() {
   const errorCount = validationResult?.errors.length ?? 0;
   const warningCount = validationResult?.warnings.length ?? 0;
 
-  // Fetch available platform models (only once, on first entry to connections phase)
-  async function fetchPlatformModels() {
-    if (platformModels.length > 0) return; // already loaded
-    try {
-      const res = await fetch("/api/genesis/models");
-      if (!res.ok) return;
-      const data = await res.json() as { models: PlatformModelOption[]; defaultModel: string };
-      setPlatformModels(data.models ?? []);
-      setSelectedPlatformModel(data.defaultModel ?? "qwen/qwen3-coder:free");
-    } catch {
-      // Non-fatal — fall back to default model silently
-    }
-  }
-
   const runInlineBuild = async (message: string) => {
     const trimmedMessage = message.trim();
     if (trimmedMessage.length < 10) return;
@@ -586,7 +579,6 @@ function NewProgramPageInner() {
       appendInlineAssistantMessage(INLINE_PLANNING_UPDATES[i]);
     }
 
-    void fetchPlatformModels();
     setInlinePhase("connections");
   };
 
@@ -625,7 +617,6 @@ function NewProgramPageInner() {
         "5. Generate the draft, review validation warnings, then run once with a sample payload.",
       ].join("\n")
     );
-    void fetchPlatformModels();
     setInlinePhase("connections");
   };
 
@@ -814,33 +805,6 @@ function NewProgramPageInner() {
             </div>
           )}
 
-          {/* Platform model picker — only shown when user has paid-tier models available
-              and is NOT using a BYOK key (ensureModelSelection would override otherwise) */}
-          {platformModels.length > 1 && apiKeys.length === 0 && (
-            <div className="pt-1">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                AI Model
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {platformModels.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setSelectedPlatformModel(m.id)}
-                    className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                      selectedPlatformModel === m.id
-                        ? "border-primary bg-primary/20 text-primary"
-                        : "border-border bg-muted/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
-                    }`}
-                  >
-                    <span className="font-medium">{m.label}</span>
-                    <span className="ml-1 opacity-60">{m.sublabel}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="flex flex-wrap gap-2 pt-1">
             <Button
               size="sm"
@@ -890,13 +854,12 @@ function NewProgramPageInner() {
           chatFeed={chatFeed}
           inputDisabled={inlinePhase === "thinking" || inlinePhase === "generating" || inlinePhase === "opening"}
           hideHero={inlineMessages.length > 0 || inlinePhase !== "idle"}
-          onSend={(message) => {
-            void runInlineBuild(message);
-          }}
-          onPlan={(message) => {
-            void runInlinePlan(message);
-          }}
+          onSend={(message) => { void runInlineBuild(message); }}
+          onPlan={(message) => { void runInlinePlan(message); }}
           onImport={navigateImportSource}
+          availableModels={platformModels}
+          selectedModelId={selectedPlatformModel}
+          onModelChange={setSelectedPlatformModel}
         />
       </div>
     );
