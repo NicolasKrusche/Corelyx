@@ -57,7 +57,8 @@ export function getDefaultModelForProvider(provider: string): string | null {
 export type PreFlightRemediation =
   | { type: "navigate"; label: string; href: string }
   | { type: "assign_agent_defaults"; label: string; node_id: string }
-  | { type: "remove_invalid_edge"; label: string; edge_id: string };
+  | { type: "remove_invalid_edge"; label: string; edge_id: string }
+  | { type: "acknowledge_dpa"; label: string; provider_ids: string[] };
 
 export interface PreFlightFailure {
   node_id: string | null;
