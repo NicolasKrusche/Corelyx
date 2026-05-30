@@ -116,7 +116,7 @@ export function AiEditPanel({
 
         {mode === "platform" && (
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Uses the Corelyx platform model.{" "}
+            Genesis AI usage is applied first. If none is available,{" "}
             <span className="font-medium text-foreground">${platformRateUsd.toFixed(2)} in credits</span>{" "}
             will be deducted from your balance.
           </p>
@@ -170,7 +170,7 @@ export function AiEditPanel({
               Editing…
             </>
           ) : mode === "platform" ? (
-            `Apply edit · $${platformRateUsd.toFixed(2)}`
+            "Apply edit"
           ) : (
             "Apply edit"
           )}
