@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { getUserTier } from "@/lib/limits";
 import { getEntitlements } from "@/lib/entitlements";
-import { getAllowedPlatformModels, PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/request";
+import { PLATFORM_MODEL_CATALOG, getAllowedPlatformModels, PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/request";
 
 /**
  * GET /api/genesis/models
  *
- * Returns the list of platform Genesis models available to the current user,
- * based on their billing tier. Free users only see free models; paid users
- * (Solo / Team / Scale) see all models including Claude and GPT-4o.
+ * Returns ALL platform Genesis models. Each model has a `locked` flag
+ * indicating whether the user's current plan allows it. Locked models
+ * are shown in the UI with a lock icon and an upgrade prompt.
  */
 export async function GET() {
   const supabase = await createServerClient();
@@ -19,7 +19,12 @@ export async function GET() {
   const tier = await getUserTier(user.id);
   const ent = getEntitlements(tier);
   const modelTier = ent.genesisPlatformModelTier;
-  const models = getAllowedPlatformModels(modelTier);
+  const allowedIds = new Set(getAllowedPlatformModels(modelTier).map((m) => m.id));
+
+  const models = PLATFORM_MODEL_CATALOG.map((m) => ({
+    ...m,
+    locked: !allowedIds.has(m.id),
+  }));
 
   return NextResponse.json({
     tier: modelTier,
