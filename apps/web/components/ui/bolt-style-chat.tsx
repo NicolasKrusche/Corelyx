@@ -10,6 +10,7 @@ import {
   GitBranch,
   Image as ImageIcon,
   Lightbulb,
+  Lock,
   Paperclip,
   Plus,
   SendHorizontal,
@@ -22,6 +23,7 @@ export interface PlatformModel {
   label: string
   sublabel: string
   tier: 'free' | 'standard' | 'premium'
+  locked?: boolean
 }
 
 function modelIcon(id: string): React.ReactNode {
@@ -35,6 +37,11 @@ function modelIcon(id: string): React.ReactNode {
   return <Sparkles className='size-4 text-muted-foreground' />
 }
 
+const TIER_UPGRADE_LABEL: Record<string, string> = {
+  standard: 'Solo',
+  premium: 'Team or Scale',
+}
+
 function ModelSelector({
   models,
   selectedModelId,
@@ -45,17 +52,28 @@ function ModelSelector({
   onModelChange: (id: string) => void
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
 
-  // Hide if there's nothing to choose from
-  if (models.length <= 1) return null
+  if (models.length === 0) return null
 
-  const selected = models.find((m) => m.id === selectedModelId) ?? models[0]
+  const selected = models.find((m) => m.id === selectedModelId) ?? models.find((m) => !m.locked) ?? models[0]
+
+  const handleClick = (model: PlatformModel) => {
+    if (model.locked) {
+      const plan = TIER_UPGRADE_LABEL[model.tier] ?? 'a higher plan'
+      setUpgradeMsg(`${model.label} requires ${plan}. Upgrade your plan to use this model.`)
+      return
+    }
+    setUpgradeMsg(null)
+    onModelChange(model.id)
+    setIsOpen(false)
+  }
 
   return (
     <div className='relative'>
       <button
         type='button'
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { setIsOpen(!isOpen); setUpgradeMsg(null) }}
         className='flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground active:scale-95'
       >
         {modelIcon(selected.id)}
@@ -66,48 +84,48 @@ function ModelSelector({
       {isOpen && (
         <>
           <div className='fixed inset-0 z-40' onClick={() => setIsOpen(false)} />
-          <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 min-w-[220px] overflow-hidden rounded-xl border border-border bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl duration-200'>
+          <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 min-w-[240px] overflow-hidden rounded-xl border border-border bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl duration-200'>
             <div className='p-1.5'>
               <div className='px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60'>
                 Select Model
               </div>
-              {models.map((model) => {
-                const badge = model.tier === 'premium' ? 'Pro' : model.tier === 'free' ? 'Free' : undefined
-                return (
-                  <button
-                    key={model.id}
-                    type='button'
-                    onClick={() => { onModelChange(model.id); setIsOpen(false) }}
-                    className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
-                      selected.id === model.id
+
+              {models.map((model) => (
+                <button
+                  key={model.id}
+                  type='button'
+                  onClick={() => handleClick(model)}
+                  className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
+                    model.locked
+                      ? 'cursor-pointer opacity-60 hover:opacity-80 hover:bg-accent/30'
+                      : selected.id === model.id
                         ? 'bg-accent text-foreground'
                         : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                    }`}
-                  >
-                    <div className='flex items-center gap-3'>
-                      <div className='flex-shrink-0'>{modelIcon(model.id)}</div>
-                      <div className='min-w-0 flex-1'>
-                        <div className='flex items-center gap-2'>
-                          <span className='text-sm font-medium'>{model.label}</span>
-                          {badge && (
-                            <span
-                              className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                badge === 'Pro'
-                                  ? 'bg-purple-500/20 text-purple-400'
-                                  : 'bg-primary/20 text-primary'
-                              }`}
-                            >
-                              {badge}
-                            </span>
-                          )}
-                        </div>
-                        <span className='text-[11px] text-muted-foreground/70'>{model.sublabel}</span>
-                      </div>
-                      {selected.id === model.id && <Check className='size-4 flex-shrink-0 text-primary' />}
+                  }`}
+                >
+                  <div className='flex items-center gap-3'>
+                    <div className='flex-shrink-0'>
+                      {model.locked
+                        ? <Lock className='size-4 text-muted-foreground/50' />
+                        : modelIcon(model.id)
+                      }
                     </div>
-                  </button>
-                )
-              })}
+                    <div className='min-w-0 flex-1'>
+                      <span className='text-sm font-medium'>{model.label}</span>
+                      <p className='text-[11px] text-muted-foreground/70'>{model.sublabel}</p>
+                    </div>
+                    {!model.locked && selected.id === model.id && (
+                      <Check className='size-4 flex-shrink-0 text-primary' />
+                    )}
+                  </div>
+                </button>
+              ))}
+
+              {upgradeMsg && (
+                <div className='mx-1.5 mb-1 mt-1 rounded-lg bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400'>
+                  {upgradeMsg}
+                </div>
+              )}
             </div>
           </div>
         </>
