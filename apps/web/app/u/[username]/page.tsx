@@ -95,6 +95,7 @@ export async function generateMetadata(
   return {
     title: `@${username} — Corelyx`,
     description: `View ${username}'s public profile and automation programs on Corelyx.`,
+    alternates: { canonical: `https://www.corelyx.app/u/${username}` },
   };
 }
 
