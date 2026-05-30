@@ -386,8 +386,10 @@ export function Sidebar({
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
+  const [workspaceSwitchError, setWorkspaceSwitchError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
+  const sidebarRequestRef = useRef<AbortController | null>(null);
 
   const palette = SIDEBAR_PALETTE[base][accent];
   const isDark = base === "dark";
@@ -428,12 +430,16 @@ export function Sidebar({
   };
 
   const fetchSidebarData = useCallback(async () => {
+    const controller = new AbortController();
+    sidebarRequestRef.current?.abort();
+    sidebarRequestRef.current = controller;
     try {
       const since = localStorage.getItem("runs_last_seen");
       const url = since ? `/api/sidebar-data?since=${since}` : "/api/sidebar-data";
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-store", signal: controller.signal });
       if (!res.ok) return;
       const data = (await res.json()) as SidebarData;
+      if (controller.signal.aborted) return;
       setPendingApprovals(data.pendingApprovalsCount);
       setFailedRuns(data.failedRunsCount);
       setWorkspaces(data.workspaces);
@@ -446,7 +452,11 @@ export function Sidebar({
         setAiCreditsAvailable(data.usage.aiCredits.total);
         setAiCreditsPurchased(data.usage.aiCredits.availablePurchased);
       }
-    } catch { /* keep existing values */ }
+    } catch {
+      // Keep existing values when a refresh is replaced or the network fails.
+    } finally {
+      if (sidebarRequestRef.current === controller) sidebarRequestRef.current = null;
+    }
   }, []);
 
   // Single fetch on mount + realtime subscription scoped to this user's approvals
@@ -469,6 +479,7 @@ export function Sidebar({
     window.addEventListener("approval-changed", onApprovalChanged);
 
     return () => {
+      sidebarRequestRef.current?.abort();
       supabase.removeChannel(channel);
       window.removeEventListener("approval-changed", onApprovalChanged);
     };
@@ -486,18 +497,28 @@ export function Sidebar({
     if (workspaceId === activeWorkspaceId || switchingWorkspace) return;
     setSwitchingWorkspace(true);
     setWorkspaceMenuOpen(false);
+    setWorkspaceSwitchError(null);
+    sidebarRequestRef.current?.abort();
     try {
       const res = await fetch("/api/workspaces", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify({ action: "switch", workspace_id: workspaceId }),
       });
-      if (res.ok) {
-        setActiveWorkspaceId(workspaceId);
-        // Workspace context scopes most server-rendered app data. A full
-        // navigation avoids stale sidebar state when switching on the dashboard.
-        window.location.assign("/dashboard");
+      const body = await res.json().catch(() => null) as { active_workspace_id?: string; error?: string } | null;
+      if (!res.ok || body?.active_workspace_id !== workspaceId) {
+        setWorkspaceSwitchError(body?.error ?? "We could not switch workspaces. Please try again.");
+        setWorkspaceMenuOpen(true);
+        return;
       }
+      setActiveWorkspaceId(workspaceId);
+      // Workspace context scopes most server-rendered app data. A full
+      // navigation avoids stale sidebar state when switching on the dashboard.
+      window.location.replace("/dashboard");
+    } catch {
+      setWorkspaceSwitchError("We could not connect. Check your internet connection and try again.");
+      setWorkspaceMenuOpen(true);
     } finally {
       setSwitchingWorkspace(false);
     }
@@ -722,6 +743,9 @@ export function Sidebar({
                   );
                 })}
               </div>
+              {workspaceSwitchError && (
+                <p className="px-2.5 pb-1 pt-2 text-[11px] text-red-400">{workspaceSwitchError}</p>
+              )}
             </div>
           )}
         </div>

@@ -247,7 +247,7 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
           open && (isDark ? "bg-white/8 text-white" : "bg-black/8 text-gray-900")
         )}
       >
-        <span className="relative flex h-full w-10 shrink-0 items-center justify-center">
+        <span className="relative flex h-full w-12 shrink-0 items-center justify-center">
           <BellIcon />
           {totalUnread > 0 && (
             <>
@@ -276,7 +276,7 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
         <div
           ref={panelRef}
           className={cn(
-            "absolute bottom-0 left-full z-[150] ml-2 w-80 overflow-hidden rounded-2xl border border-border shadow-2xl",
+            "fixed bottom-4 left-[14.5rem] z-[150] w-80 overflow-hidden rounded-2xl border border-border shadow-2xl",
             "bg-popover text-popover-foreground"
           )}
         >

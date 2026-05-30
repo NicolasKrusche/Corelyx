@@ -300,12 +300,17 @@ export async function PATCH(request: Request) {
   if (!membership) return apiError("Workspace not found.", 404);
 
   if (parsed.data.action === "switch") {
-    const { error } = await service
+    const { data, error } = await service
       .from("profiles")
-      .update({ org_id: parsed.data.workspace_id } as never)
-      .eq("id", user.id);
+      .update({ org_id: parsed.data.workspace_id, updated_at: new Date().toISOString() } as never)
+      .eq("id", user.id)
+      .select("org_id")
+      .maybeSingle();
 
     if (error) return apiError(error.message, 500);
+    if ((data as { org_id?: string } | null)?.org_id !== parsed.data.workspace_id) {
+      return apiError("Workspace could not be activated.", 500);
+    }
     return NextResponse.json({ active_workspace_id: parsed.data.workspace_id });
   }
 
