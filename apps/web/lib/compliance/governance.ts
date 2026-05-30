@@ -47,6 +47,8 @@ export type AiActAssessmentResult = {
 
 export type AiSystemInventoryRecord = {
   system_id: string;
+  /** Full UUID of the backing Corelyx program. Absent on synthetic records (e.g. public tools). */
+  program_id?: string;
   name: string;
   description: string;
   department: string;
@@ -443,6 +445,7 @@ export function buildInventoryRecordFromProgram({
 
   const record: AiSystemInventoryRecord = {
     system_id: `sys_${program.id.slice(0, 8)}`,
+    program_id: program.id,
     name: program.name,
     department: readText(meta, ["department"], "Unassigned"),
     models_used: models.length > 0 ? models : ["Not documented"],
@@ -691,5 +694,181 @@ export function buildDpiaInputFromInventory(record: AiSystemInventoryRecord): Dp
     automatedDecisionMaking: record.risk_classification === "High Risk",
     thirdPartyProviders: record.data_sources,
   };
+}
+
+// ─── Remediation action plan ──────────────────────────────────────────────────
+
+export type RemediationSeverity = "critical" | "required" | "recommended";
+
+export type RemediationAction = {
+  id: string;
+  severity: RemediationSeverity;
+  title: string;
+  description: string;
+  /** Short citation shown as a badge, e.g. "EU AI Act Art. 14" */
+  regulation: string;
+  /** Human-readable label for the article, e.g. "Human Oversight" */
+  regulationLabel: string;
+  actionLabel: string;
+  actionHref: string;
+  /** Names of affected systems, shown as a truncated list */
+  affectedSystemNames: string[];
+  count: number;
+};
+
+/**
+ * Derives a prioritised list of concrete remediation actions from the current
+ * governance inventory. Each action cites the specific GDPR or EU AI Act
+ * article that requires the fix so users understand *why* the item matters,
+ * not just that it exists.
+ */
+export function buildRemediationActions(
+  records: AiSystemInventoryRecord[]
+): RemediationAction[] {
+  const actions: RemediationAction[] = [];
+
+  // ── Critical ──────────────────────────────────────────────────────────────
+
+  const prohibited = records.filter(
+    (r) => r.risk_classification === "Potentially Prohibited Use"
+  );
+  if (prohibited.length > 0) {
+    actions.push({
+      id: "prohibited-deployment-block",
+      severity: "critical",
+      title: "Block deployment — potentially prohibited AI practice detected",
+      description:
+        "One or more workflows match EU AI Act Article 5 prohibited-practice signals. Prohibited practices include social scoring by public authorities, manipulative AI that bypasses free will, real-time remote biometric identification in public spaces by law enforcement, untargeted facial-image scraping, predicting crimes by profiling, emotion recognition in workplaces or education, and biometric categorisation inferring sensitive attributes. These systems must not be deployed under any circumstances without verified legal review confirming the use falls outside Article 5 scope.",
+      regulation: "EU AI Act Art. 5",
+      regulationLabel: "Prohibited AI Practices",
+      actionLabel: "Review compliance settings",
+      actionHref: prohibited[0].program_id ? `/programs/${prohibited[0].program_id}/settings` : "/governance",
+      affectedSystemNames: prohibited.map((r) => r.name),
+      count: prohibited.length,
+    });
+  }
+
+  const highRiskNoOversight = records.filter(
+    (r) =>
+      r.risk_classification === "High Risk" &&
+      r.human_oversight_status.startsWith("Missing")
+  );
+  if (highRiskNoOversight.length > 0) {
+    actions.push({
+      id: "high-risk-oversight",
+      severity: "critical",
+      title: "Add human oversight gates to high-risk AI workflows",
+      description:
+        "High-risk AI systems must have effective human oversight measures in place before any consequential action is taken. Under EU AI Act Articles 14 and 26, deployers must assign natural persons who understand the system outputs, can intervene or override the system, and have the authority to halt it. Corelyx approval-gate nodes implement this requirement directly: they pause the workflow and require explicit reviewer sign-off before the workflow modifies records, sends communications, or triggers external actions.",
+      regulation: "EU AI Act Art. 14 · Art. 26",
+      regulationLabel: "Human Oversight",
+      actionLabel: "Open editor to add approval gates",
+      actionHref: highRiskNoOversight[0].program_id ? `/programs/${highRiskNoOversight[0].program_id}/editor` : "/governance",
+      affectedSystemNames: highRiskNoOversight.map((r) => r.name),
+      count: highRiskNoOversight.length,
+    });
+  }
+
+  // ── Required ──────────────────────────────────────────────────────────────
+
+  const dpiaRequired = records.filter((r) => r.dpia_status === "Required");
+  if (dpiaRequired.length > 0) {
+    actions.push({
+      id: "dpia-required",
+      severity: "required",
+      title: "Complete DPIA before deploying — high-risk or special-category processing",
+      description:
+        "GDPR Article 35 mandates a Data Protection Impact Assessment before any processing that is likely to result in a high risk to individuals — including large-scale processing of special-category data, systematic profiling, and AI systems making decisions with legal or similarly significant effects. The DPIA must assess necessity, proportionality, risks to data subjects, and the effectiveness of mitigations. It must be reviewed by the DPO if one is designated, and must be available to the supervisory authority on request. EU AI Act Article 9 additionally requires risk management documentation for high-risk systems.",
+      regulation: "GDPR Art. 35 · EU AI Act Art. 9",
+      regulationLabel: "DPIA Requirement",
+      actionLabel: "Generate DPIA draft",
+      actionHref: "/tools/dpia-generator",
+      affectedSystemNames: dpiaRequired.map((r) => r.name),
+      count: dpiaRequired.length,
+    });
+  }
+
+  const highRiskMissingDocs = records.filter(
+    (r) =>
+      r.risk_classification === "High Risk" &&
+      r.documentation_status !== "Complete"
+  );
+  if (highRiskMissingDocs.length > 0) {
+    actions.push({
+      id: "high-risk-documentation",
+      severity: "required",
+      title: "Create technical documentation for high-risk AI systems",
+      description:
+        "High-risk AI systems require up-to-date technical documentation before deployment and throughout the system lifecycle. EU AI Act Article 11 and Annex IV specify that documentation must cover system description and purpose, design choices and architecture, training data governance, performance metrics, limitations, risk management measures, changes, human oversight procedures, and cybersecurity measures. This documentation must be kept current and made available to national competent authorities on request. Incomplete inventory fields are a direct Annex IV gap.",
+      regulation: "EU AI Act Art. 11 · Annex IV",
+      regulationLabel: "Technical Documentation",
+      actionLabel: "Generate technical documentation",
+      actionHref: "/tools/compliance-documentation-generator",
+      affectedSystemNames: highRiskMissingDocs.map((r) => r.name),
+      count: highRiskMissingDocs.length,
+    });
+  }
+
+  const missingDocsGeneral = records.filter(
+    (r) =>
+      r.documentation_status === "Missing" &&
+      r.risk_classification !== "High Risk" &&
+      r.risk_classification !== "Potentially Prohibited Use"
+  );
+  if (missingDocsGeneral.length > 0) {
+    actions.push({
+      id: "missing-documentation-general",
+      severity: "required",
+      title: "Document AI system purpose, owners, and data flows",
+      description:
+        "GDPR Article 5(2) accountability principle requires controllers to demonstrate that processing is lawful, fair, and transparent. An AI system without a documented purpose, business owner, data source, or risk classification cannot be assessed for proportionality or subjected to meaningful DPIA. EU AI Act Article 13 further requires that deployers ensure sufficient transparency for users to interpret and use AI outputs appropriately. Add AI use-case, owners, and purpose to each program's settings — the inventory record updates automatically.",
+      regulation: "GDPR Art. 5(2) · EU AI Act Art. 13",
+      regulationLabel: "Accountability & Transparency",
+      actionLabel: "Edit program settings",
+      actionHref: missingDocsGeneral[0].program_id ? `/programs/${missingDocsGeneral[0].program_id}/settings` : "/governance",
+      affectedSystemNames: missingDocsGeneral.map((r) => r.name),
+      count: missingDocsGeneral.length,
+    });
+  }
+
+  // ── Recommended ───────────────────────────────────────────────────────────
+
+  const dpiaDraftRec = records.filter(
+    (r) => r.dpia_status === "Draft recommended"
+  );
+  if (dpiaDraftRec.length > 0) {
+    actions.push({
+      id: "dpia-recommended",
+      severity: "recommended",
+      title: "Prepare DPIA working papers for personal-data workflows",
+      description:
+        "Even where GDPR Article 35 does not strictly require a formal DPIA, supervisory authorities consistently treat documented risk assessments as strong evidence of Article 24 accountability. For workflows that touch customer, employee, or candidate data, a DPIA working paper significantly reduces regulatory investigation risk and demonstrates due diligence in the event of an incident or data-subject complaint. The working paper also forms the baseline for escalation if the workflow's scope expands into higher-risk territory.",
+      regulation: "GDPR Art. 24 · Art. 35",
+      regulationLabel: "Accountability & DPIA",
+      actionLabel: "Generate DPIA draft",
+      actionHref: "/tools/dpia-generator",
+      affectedSystemNames: dpiaDraftRec.map((r) => r.name),
+      count: dpiaDraftRec.length,
+    });
+  }
+
+  const overdueReview = records.filter((r) => r.review_due);
+  if (overdueReview.length > 0) {
+    actions.push({
+      id: "overdue-review",
+      severity: "recommended",
+      title: "Review and re-certify inventory records — 180+ days since last assessment",
+      description:
+        "EU AI Act Article 9 requires ongoing risk management for high-risk AI systems, including post-market monitoring of system performance against declared purposes. GDPR Article 24 requires regular review of technical and organisational measures to ensure they remain effective. Records that have never been reviewed, or not reviewed in 180 days, should be checked for accuracy, ownership changes, risk-classification drift, and whether the oversight configuration still matches the system's current capabilities and use. Mark each record as reviewed after confirming it is accurate.",
+      regulation: "EU AI Act Art. 9 · GDPR Art. 24",
+      regulationLabel: "Ongoing Risk Management",
+      actionLabel: "Scroll to inventory",
+      actionHref: "#inventory",
+      affectedSystemNames: overdueReview.map((r) => r.name),
+      count: overdueReview.length,
+    });
+  }
+
+  return actions;
 }
 
