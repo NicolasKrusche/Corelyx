@@ -160,7 +160,10 @@ export function NoteNode({ id, data, selected }: NodeProps) {
         onBlur={handleContentBlur}
         placeholder="Add a note…"
         className={cn(
-          "nodrag w-full min-h-0 flex-1 resize-none bg-transparent",
+          // nodrag  — don't start a node-drag on mousedown inside textarea
+          // nowheel — tell React Flow NOT to intercept wheel events here, so
+          //           scrolling the text content works instead of zooming canvas
+          "nodrag nowheel w-full min-h-0 flex-1 resize-none overflow-y-auto bg-transparent",
           "px-3 pb-2.5 pt-1 text-[13px] leading-relaxed",
           "border-none outline-none focus:outline-none",
           "rounded-lg",
