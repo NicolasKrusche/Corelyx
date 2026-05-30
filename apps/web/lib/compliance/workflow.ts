@@ -342,14 +342,22 @@ function connectionProviderForNode(
 
 function apiKeyProviderForAgent(node: AgentNode, context: WorkflowProviderContext) {
   const ref = node.config.api_key_ref;
-  if (ref === "platform") return "openrouter";
-  const byId = context.apiKeys?.find((key) => key.id === ref);
-  if (byId?.provider) return byId.provider;
   const model = node.config.model.toLowerCase();
+
+  // Platform key: resolve from model name so compliance checks reflect the
+  // actual LLM provider (e.g. claude → anthropic) rather than a fixed guess.
+  if (ref !== "platform") {
+    const byId = context.apiKeys?.find((key) => key.id === ref);
+    if (byId?.provider) return byId.provider;
+  }
+
   if (model.includes("claude")) return "anthropic";
   if (model.includes("gpt") || model.includes("o3") || model.includes("o4")) return "openai";
   if (model.includes("gemini")) return "google";
   if (model.includes("/")) return "openrouter";
+
+  // Platform key with unrecognised model — treat as Corelyx internal (DPA covered).
+  if (ref === "platform") return "corelyx";
   return "unknown";
 }
 
