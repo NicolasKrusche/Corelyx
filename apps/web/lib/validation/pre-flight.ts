@@ -179,6 +179,7 @@ export async function validatePreFlight(
         const agentNode = node as AgentNode;
         const ref = agentNode.config.api_key_ref;
         if (ref === "__USER_ASSIGNED__") continue; // PRE_004 handles sentinels
+        if (ref === "platform") continue; // Corelyx platform key — always valid, no DB row
 
         const key = apiKeys.find((candidate) => candidate.id === ref);
         if (!key) {
