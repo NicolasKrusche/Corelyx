@@ -306,11 +306,16 @@ function inventoryRecordFromState(state: {
     deployment_status: state.deploymentStatus || "Draft",
     creation_date: new Date().toISOString(),
     last_review_date: null,
+    ai_act_risk_level: null,
     risk_classification: state.risk,
+    has_approval_gate: false,
     human_oversight_status: state.humanOversight || "Not documented",
+    transparency_notice_required: false,
+    high_risk_documentation_required: false,
     documentation_status: "Partial",
     dpia_status:
-      state.risk === "High Risk" || state.specialCategoryData === "Yes"
+      state.specialCategoryData === "Yes" ||
+      (state.risk === "High Risk" && state.personalData !== "No")
         ? "Required"
         : state.personalData === "Yes"
           ? "Draft recommended"

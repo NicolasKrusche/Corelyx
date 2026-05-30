@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assessGovernanceMaturity,
   buildInventoryRecordFromProgram,
+  buildRemediationActions,
   calculateGovernanceMetrics,
   classifyAiActRisk,
 } from "@/lib/compliance/governance";
@@ -97,5 +98,44 @@ describe("compliance governance", () => {
     expect(result.level).toBe("Developing");
     expect(result.nextActions).toContain("Add DPIA draft, review, and approval workflow.");
   });
-});
 
+  it("surfaces transparency notice remediation for transparency workflows", () => {
+    const record = buildInventoryRecordFromProgram({
+      program: {
+        id: "aaaaaaaa-1234-1234-1234-123456789012",
+        name: "AI support assistant",
+        description: "Lets customers interact with an AI support assistant.",
+        is_active: true,
+        created_at: "2026-05-01T00:00:00.000Z",
+        updated_at: "2026-05-01T00:00:00.000Z",
+        ai_act_risk_level: "transparency",
+        transparency_notice_required: false,
+      },
+    });
+
+    expect(buildRemediationActions([record]).map((action) => action.id)).toContain(
+      "transparency-notice"
+    );
+  });
+
+  it("surfaces high-risk retention and conditional FRIA review actions", () => {
+    const record = buildInventoryRecordFromProgram({
+      program: {
+        id: "bbbbbbbb-1234-1234-1234-123456789012",
+        name: "Candidate screening",
+        description: "Scores employment candidates.",
+        is_active: true,
+        created_at: "2026-05-01T00:00:00.000Z",
+        updated_at: "2026-05-01T00:00:00.000Z",
+        ai_act_risk_level: "high_risk",
+      },
+    });
+
+    const actionIds = buildRemediationActions([record], {
+      executionLogRetentionDays: 90,
+    }).map((action) => action.id);
+
+    expect(actionIds).toContain("high-risk-log-retention");
+    expect(actionIds).toContain("fria-applicability-review");
+  });
+});

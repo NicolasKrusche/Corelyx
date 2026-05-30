@@ -27,6 +27,7 @@ import {
 } from "@/lib/compliance/governance";
 import { cn } from "@/lib/utils";
 import { MarkReviewedButton } from "./_components/mark-reviewed-button";
+import { GovernanceRemediationButton } from "./_components/governance-remediation-button";
 
 // ─── Small display components ────────────────────────────────────────────────
 
@@ -75,10 +76,21 @@ function Pill({ children, className }: { children: React.ReactNode; className?: 
 // ─── Inventory row with per-record quick-fix actions ──────────────────────────
 
 function InventoryRow({ record }: { record: AiSystemInventoryRecord }) {
+  const isPotentiallyProhibited =
+    record.risk_classification === "Potentially Prohibited Use";
+  const needsTransparencyNotice =
+    record.ai_act_risk_level === "transparency" &&
+    !record.transparency_notice_required;
+  const needsHighRiskDocumentation =
+    record.risk_classification === "High Risk" &&
+    !record.high_risk_documentation_required;
   const hasActions =
     (record.review_due && !!record.program_id) ||
     (record.documentation_status !== "Complete" && !!record.program_id) ||
     (record.human_oversight_status.startsWith("Missing") && !!record.program_id) ||
+    (isPotentiallyProhibited && record.deployment_status === "Active" && !!record.program_id) ||
+    (needsTransparencyNotice && !!record.program_id) ||
+    (needsHighRiskDocumentation && !!record.program_id) ||
     record.dpia_status === "Required" ||
     record.dpia_status === "Draft recommended";
 
@@ -110,6 +122,11 @@ function InventoryRow({ record }: { record: AiSystemInventoryRecord }) {
         <div className="min-w-[180px] space-y-1.5">
           <Pill className={statusClass(record.documentation_status)}>{record.documentation_status} docs</Pill>
           <Pill className={statusClass(record.dpia_status)}>{record.dpia_status}</Pill>
+          {needsTransparencyNotice && (
+            <Pill className="border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+              Transparency notice missing
+            </Pill>
+          )}
           {record.review_due && (
             <Pill className="border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300">
               Review due
@@ -128,17 +145,51 @@ function InventoryRow({ record }: { record: AiSystemInventoryRecord }) {
       <td className="px-4 py-4">
         {hasActions ? (
           <div className="flex min-w-[170px] flex-col gap-1.5">
+            {isPotentiallyProhibited && record.deployment_status === "Active" && record.program_id && (
+              <GovernanceRemediationButton
+                programId={record.program_id}
+                kind="suspend"
+                label="Suspend workflow"
+                doneLabel="Workflow suspended"
+                confirmMessage="Suspend this workflow now? Potentially prohibited AI practices should not remain active while legal review is pending."
+                destructive
+              />
+            )}
             {record.review_due && record.program_id && (
               <MarkReviewedButton programId={record.program_id} />
             )}
             {record.human_oversight_status.startsWith("Missing") && record.program_id && (
-              <Link
-                href={`/programs/${record.program_id}/editor`}
-                className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
-              >
-                <UserCheck className="h-3 w-3" />
-                Add oversight gate
-              </Link>
+              <>
+                <GovernanceRemediationButton
+                  programId={record.program_id}
+                  kind="require-oversight"
+                  label="Require human oversight"
+                  doneLabel="Oversight required"
+                />
+                <Link
+                  href={`/programs/${record.program_id}/editor`}
+                  className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+                >
+                  <UserCheck className="h-3 w-3" />
+                  Add approval gate in editor
+                </Link>
+              </>
+            )}
+            {needsTransparencyNotice && record.program_id && (
+              <GovernanceRemediationButton
+                programId={record.program_id}
+                kind="require-transparency"
+                label="Require transparency notice"
+                doneLabel="Notice requirement recorded"
+              />
+            )}
+            {needsHighRiskDocumentation && record.program_id && (
+              <GovernanceRemediationButton
+                programId={record.program_id}
+                kind="require-documentation"
+                label="Require technical documentation"
+                doneLabel="Documentation required"
+              />
             )}
             {record.documentation_status !== "Complete" && record.program_id && (
               <Link
@@ -151,20 +202,29 @@ function InventoryRow({ record }: { record: AiSystemInventoryRecord }) {
             )}
             {record.dpia_status === "Required" && (
               <Link
-                href="/tools/dpia-generator"
+                href={record.program_id ? `/api/programs/${record.program_id}/compliance/export?format=dpia-pdf` : "/tools/dpia-generator"}
                 className="inline-flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-300"
               >
                 <Scale className="h-3 w-3" />
-                Draft DPIA
+                Download DPIA draft
               </Link>
             )}
             {record.dpia_status === "Draft recommended" && (
               <Link
-                href="/tools/dpia-generator"
+                href={record.program_id ? `/api/programs/${record.program_id}/compliance/export?format=dpia-pdf` : "/tools/dpia-generator"}
                 className="inline-flex items-center gap-1 rounded border border-border bg-background/60 px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent"
               >
                 <BookOpen className="h-3 w-3" />
-                Prepare DPIA draft
+                Download DPIA draft
+              </Link>
+            )}
+            {record.program_id && record.documentation_status !== "Complete" && (
+              <Link
+                href={`/api/programs/${record.program_id}/compliance/export?format=technical-pdf`}
+                className="inline-flex items-center gap-1 rounded border border-border bg-card px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent"
+              >
+                <Download className="h-3 w-3" />
+                Download technical draft
               </Link>
             )}
           </div>
@@ -274,13 +334,19 @@ const EU_REGULATIONS = [
     code: "EU AI Act Art. 11 · Annex IV",
     label: "Technical Documentation",
     when: "high-risk",
-    detail: "Technical documentation must cover system purpose, architecture, training data, performance metrics, risk management, and human oversight procedures.",
+    detail: "Providers of high-risk systems must maintain technical documentation covering purpose, architecture, data governance, performance, risks, and oversight.",
   },
   {
     code: "EU AI Act Art. 13",
-    label: "Transparency",
+    label: "Information for Deployers",
     when: "any",
-    detail: "High-risk systems must be transparent enough for deployers to interpret outputs. Limited-risk systems require AI-disclosure notices to users.",
+    detail: "High-risk systems must provide clear instructions so deployers can interpret outputs, understand limitations, and apply human oversight.",
+  },
+  {
+    code: "EU AI Act Art. 50",
+    label: "Transparency Notices",
+    when: "any",
+    detail: "Specific AI interactions and certain generated or manipulated content require disclosure. Review applicability and publish notices at the relevant user touchpoints.",
   },
   {
     code: "EU AI Act Art. 14",
@@ -292,7 +358,13 @@ const EU_REGULATIONS = [
     code: "EU AI Act Art. 26",
     label: "Deployer Obligations",
     when: "any",
-    detail: "Deployers must assign human oversight, not use systems for prohibited purposes, keep logs, and conduct DPIAs when required by GDPR.",
+    detail: "Deployers of high-risk systems must follow instructions, assign competent oversight, monitor operation, suspend risky use, and keep controlled logs for at least six months unless another rule applies.",
+  },
+  {
+    code: "EU AI Act Art. 27",
+    label: "FRIA",
+    when: "high-risk",
+    detail: "Certain high-risk deployments require a fundamental-rights impact assessment before use. Applicability depends on deployer role and use case.",
   },
   {
     code: "GDPR Art. 5(2)",
@@ -336,12 +408,10 @@ export default async function GovernancePage() {
   ]);
 
   const metrics = inventory.metrics;
-  const openIssues =
-    metrics.systems_lacking_documentation +
-    metrics.systems_lacking_oversight +
-    metrics.systems_due_for_review;
-
-  const remediationActions = buildRemediationActions(inventory.records);
+  const remediationActions = buildRemediationActions(inventory.records, {
+    executionLogRetentionDays: inventory.executionLogRetentionDays,
+  });
+  const openIssues = remediationActions.reduce((sum, action) => sum + action.count, 0);
   const criticalCount = remediationActions.filter((a) => a.severity === "critical").length;
   const requiredCount = remediationActions.filter((a) => a.severity === "required").length;
 

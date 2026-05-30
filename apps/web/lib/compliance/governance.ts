@@ -62,8 +62,12 @@ export type AiSystemInventoryRecord = {
   deployment_status: string;
   creation_date: string;
   last_review_date: string | null;
+  ai_act_risk_level: AiActRiskLevel | null;
   risk_classification: PublicRiskCategory | "Unknown";
+  has_approval_gate: boolean;
   human_oversight_status: string;
+  transparency_notice_required: boolean;
+  high_risk_documentation_required: boolean;
   documentation_status: "Complete" | "Partial" | "Missing";
   dpia_status: "Not required" | "Draft recommended" | "Required" | "Completed";
   review_due: boolean;
@@ -92,6 +96,7 @@ export type ProgramInventorySource = {
   ai_use_case_category?: string | null;
   ai_act_risk_level?: AiActRiskLevel | null;
   human_oversight_required?: boolean | null;
+  transparency_notice_required?: boolean | null;
   high_risk_documentation_required?: boolean | null;
   reviewer?: string | null;
   reviewed_at?: string | null;
@@ -342,6 +347,15 @@ function dataSourcesFromSchema(schema?: ProgramSchema | null, flow: DataFlowPrev
   return unique([...flowSources, ...nodeSources]);
 }
 
+function hasApprovalGate(schema?: ProgramSchema | null) {
+  if (!schema) return false;
+  const executionMode = schema.execution_mode as string;
+  if (executionMode === "supervised" || executionMode === "manual") return true;
+  return schema.nodes.some(
+    (node) => node.type === "agent" && node.config.requires_approval
+  );
+}
+
 function inferSpecialCategory(program: ProgramInventorySource, flow: DataFlowPreviewItem[]) {
   const haystack = [
     program.name,
@@ -395,7 +409,8 @@ function dpiaStatus(
   notes?: string | null
 ) {
   if (notes && /dpia\s*:\s*(complete|completed|approved)/i.test(notes)) return "Completed";
-  if (risk === "High Risk" || specialCategory === "Yes") return "Required";
+  if (specialCategory === "Yes") return "Required";
+  if (risk === "High Risk" && personalData !== "No") return "Required";
   if (personalData === "Yes" || personalData === "Unknown") return "Draft recommended";
   return "Not required";
 }
@@ -431,6 +446,7 @@ export function buildInventoryRecordFromProgram({
         ? "Unknown"
         : "No";
   const specialCategory = inferSpecialCategory(program, flow);
+  const approvalGateConfigured = hasApprovalGate(schema);
   const ownerFallback = creatorEmail ?? "Unassigned";
   const base = {
     description: program.description?.trim() || "No description provided.",
@@ -454,11 +470,15 @@ export function buildInventoryRecordFromProgram({
     special_category_data_processed: specialCategory,
     deployment_status: program.is_active ? "Active" : "Draft or inactive",
     creation_date: program.created_at ?? program.updated_at ?? new Date().toISOString(),
-    human_oversight_status: program.human_oversight_required
-      ? "Required"
-      : program.ai_act_risk_level === "high_risk"
-        ? "Missing for high-risk workflow"
+    ai_act_risk_level: program.ai_act_risk_level ?? null,
+    has_approval_gate: approvalGateConfigured,
+    human_oversight_status: approvalGateConfigured
+      ? "Approval gate configured"
+      : program.ai_act_risk_level === "high_risk" || program.human_oversight_required
+        ? "Missing approval gate"
         : "Not marked as required",
+    transparency_notice_required: program.transparency_notice_required === true,
+    high_risk_documentation_required: program.high_risk_documentation_required === true,
     review_due: reviewDue(program.reviewed_at ?? null),
     documentation_status: "Missing",
     dpia_status: "Draft recommended",
@@ -492,6 +512,7 @@ export function calculateGovernanceMetrics(
   const oversightCovered = records.filter(
     (record) =>
       record.human_oversight_status === "Required" ||
+      record.human_oversight_status === "Approval gate configured" ||
       record.risk_classification === "Minimal Risk" ||
       record.risk_classification === "Limited Risk"
   ).length;
@@ -723,7 +744,8 @@ export type RemediationAction = {
  * not just that it exists.
  */
 export function buildRemediationActions(
-  records: AiSystemInventoryRecord[]
+  records: AiSystemInventoryRecord[],
+  options: { executionLogRetentionDays?: number } = {}
 ): RemediationAction[] {
   const actions: RemediationAction[] = [];
 
@@ -769,6 +791,29 @@ export function buildRemediationActions(
     });
   }
 
+  const highRiskWithShortLogRetention = records.filter(
+    (r) => r.risk_classification === "High Risk"
+  );
+  if (
+    highRiskWithShortLogRetention.length > 0 &&
+    options.executionLogRetentionDays !== undefined &&
+    options.executionLogRetentionDays < 183
+  ) {
+    actions.push({
+      id: "high-risk-log-retention",
+      severity: "required",
+      title: "Increase high-risk AI log retention to at least six months",
+      description:
+        "EU AI Act Article 26(6) requires deployers of high-risk AI systems to keep automatically generated logs under their control for a period appropriate to the intended purpose and for at least six months, unless another applicable Union or national rule provides otherwise. Increase workspace execution-log retention to at least 183 days and confirm whether sector-specific or data-protection rules require a different period.",
+      regulation: "EU AI Act Art. 26(6)",
+      regulationLabel: "Deployer Log Retention",
+      actionLabel: "Configure workspace retention",
+      actionHref: "/workspaces",
+      affectedSystemNames: highRiskWithShortLogRetention.map((r) => r.name),
+      count: highRiskWithShortLogRetention.length,
+    });
+  }
+
   // ── Required ──────────────────────────────────────────────────────────────
 
   const dpiaRequired = records.filter((r) => r.dpia_status === "Required");
@@ -776,9 +821,9 @@ export function buildRemediationActions(
     actions.push({
       id: "dpia-required",
       severity: "required",
-      title: "Complete DPIA before deploying — high-risk or special-category processing",
+      title: "Complete DPIA before deploying — likely high-risk personal-data processing",
       description:
-        "GDPR Article 35 mandates a Data Protection Impact Assessment before any processing that is likely to result in a high risk to individuals — including large-scale processing of special-category data, systematic profiling, and AI systems making decisions with legal or similarly significant effects. The DPIA must assess necessity, proportionality, risks to data subjects, and the effectiveness of mitigations. It must be reviewed by the DPO if one is designated, and must be available to the supervisory authority on request. EU AI Act Article 9 additionally requires risk management documentation for high-risk systems.",
+        "GDPR Article 35 mandates a Data Protection Impact Assessment before personal-data processing that is likely to result in a high risk to individuals — including large-scale processing of special-category data, systematic profiling, and automated decisions with legal or similarly significant effects. The DPIA must assess necessity, proportionality, risks to data subjects, and the effectiveness of mitigations. It must be reviewed by the DPO if one is designated, and must be available to the supervisory authority on request.",
       regulation: "GDPR Art. 35 · EU AI Act Art. 9",
       regulationLabel: "DPIA Requirement",
       actionLabel: "Generate DPIA draft",
@@ -799,9 +844,9 @@ export function buildRemediationActions(
       severity: "required",
       title: "Create technical documentation for high-risk AI systems",
       description:
-        "High-risk AI systems require up-to-date technical documentation before deployment and throughout the system lifecycle. EU AI Act Article 11 and Annex IV specify that documentation must cover system description and purpose, design choices and architecture, training data governance, performance metrics, limitations, risk management measures, changes, human oversight procedures, and cybersecurity measures. This documentation must be kept current and made available to national competent authorities on request. Incomplete inventory fields are a direct Annex IV gap.",
-      regulation: "EU AI Act Art. 11 · Annex IV",
-      regulationLabel: "Technical Documentation",
+        "Providers of high-risk AI systems need up-to-date technical documentation under EU AI Act Article 11 and Annex IV. Deployers need the provider instructions and operational evidence required by Articles 13 and 26. Capture system purpose, role, architecture, limitations, risk controls, human oversight, and monitoring evidence, then have the accountable owner confirm which obligations apply.",
+      regulation: "EU AI Act Art. 11 · Art. 13 · Art. 26",
+      regulationLabel: "Technical and Deployer Evidence",
       actionLabel: "Generate technical documentation",
       actionHref: "/tools/compliance-documentation-generator",
       affectedSystemNames: highRiskMissingDocs.map((r) => r.name),
@@ -821,13 +866,32 @@ export function buildRemediationActions(
       severity: "required",
       title: "Document AI system purpose, owners, and data flows",
       description:
-        "GDPR Article 5(2) accountability principle requires controllers to demonstrate that processing is lawful, fair, and transparent. An AI system without a documented purpose, business owner, data source, or risk classification cannot be assessed for proportionality or subjected to meaningful DPIA. EU AI Act Article 13 further requires that deployers ensure sufficient transparency for users to interpret and use AI outputs appropriately. Add AI use-case, owners, and purpose to each program's settings — the inventory record updates automatically.",
+        "GDPR Article 5(2) accountability principle requires controllers to demonstrate that processing is lawful, fair, and transparent. An AI system without a documented purpose, business owner, data source, or risk classification cannot be assessed for proportionality or subjected to meaningful DPIA review. For high-risk AI, EU AI Act Article 13 also requires sufficient information for deployers to interpret and use outputs appropriately. Add AI use-case, owners, and purpose to each program's settings — the inventory record updates automatically.",
       regulation: "GDPR Art. 5(2) · EU AI Act Art. 13",
       regulationLabel: "Accountability & Transparency",
       actionLabel: "Edit program settings",
       actionHref: missingDocsGeneral[0].program_id ? `/programs/${missingDocsGeneral[0].program_id}/settings` : "/governance",
       affectedSystemNames: missingDocsGeneral.map((r) => r.name),
       count: missingDocsGeneral.length,
+    });
+  }
+
+  const missingTransparencyNotices = records.filter(
+    (r) => r.ai_act_risk_level === "transparency" && !r.transparency_notice_required
+  );
+  if (missingTransparencyNotices.length > 0) {
+    actions.push({
+      id: "transparency-notice",
+      severity: "required",
+      title: "Prepare the required AI transparency notice",
+      description:
+        "This workflow is classified for an AI transparency obligation, but its notice requirement is not recorded. EU AI Act Article 50 requires notices in specific situations, including direct AI interaction and certain AI-generated or manipulated content. Record the notice requirement, review the generated notice text, and publish it at the relevant user touchpoint before the obligation applies.",
+      regulation: "EU AI Act Art. 50",
+      regulationLabel: "Transparency Notice",
+      actionLabel: "Open notice settings",
+      actionHref: missingTransparencyNotices[0].program_id ? `/programs/${missingTransparencyNotices[0].program_id}/settings` : "/governance",
+      affectedSystemNames: missingTransparencyNotices.map((r) => r.name),
+      count: missingTransparencyNotices.length,
     });
   }
 
@@ -866,6 +930,25 @@ export function buildRemediationActions(
       actionHref: "#inventory",
       affectedSystemNames: overdueReview.map((r) => r.name),
       count: overdueReview.length,
+    });
+  }
+
+  const friaApplicabilityReview = records.filter(
+    (r) => r.risk_classification === "High Risk"
+  );
+  if (friaApplicabilityReview.length > 0) {
+    actions.push({
+      id: "fria-applicability-review",
+      severity: "recommended",
+      title: "Assess whether a fundamental-rights impact assessment is required",
+      description:
+        "EU AI Act Article 27 requires a fundamental-rights impact assessment before deployment for specific high-risk deployments, including certain public-law bodies, private entities providing public services, and specified essential-service use cases. This is not automatic for every high-risk workflow. Record the deployer role, affected groups, risks, human-oversight measures, internal governance, and complaint mechanisms, then obtain legal review where Article 27 may apply.",
+      regulation: "EU AI Act Art. 27",
+      regulationLabel: "FRIA Applicability",
+      actionLabel: "Record deployment context",
+      actionHref: friaApplicabilityReview[0].program_id ? `/programs/${friaApplicabilityReview[0].program_id}/settings` : "/governance",
+      affectedSystemNames: friaApplicabilityReview.map((r) => r.name),
+      count: friaApplicabilityReview.length,
     });
   }
 

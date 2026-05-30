@@ -746,7 +746,7 @@ function FilterSelect({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-full overflow-hidden rounded-xl border glass-card shadow-lg">
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
           <ul role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto py-1">
             <li
               role="option"
