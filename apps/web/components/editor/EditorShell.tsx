@@ -185,7 +185,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
     return {
       id, type: "group", label: "Group", description: "", connection: null,
       position, status: "idle",
-      config: { childIds: [], width: 400, height: 300 },
+      config: { childIds: [], width: 400, height: 300, color: "zinc" },
     };
   }
 
@@ -267,6 +267,7 @@ function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
     selectable: true,
     position: schemaNode.position,
     ...(style ? { style } : {}),
+    ...(schemaNode.type === "note" ? { zIndex: 1000, dragHandle: ".note-drag-handle" } : {}),
     data: {
       label: schemaNode.label,
       description: schemaNode.description,

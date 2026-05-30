@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { ProgramSchema } from "@flowos/schema";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 interface RawSchemaPanelProps {
   schema: ProgramSchema;
@@ -61,6 +62,8 @@ export function RawSchemaPanel({ schema, onApply, onClose }: RawSchemaPanelProps
       )}
       style={{ top: 56 }}
     >
+      <PanelResizeHandle edge="right" />
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center gap-1.5">

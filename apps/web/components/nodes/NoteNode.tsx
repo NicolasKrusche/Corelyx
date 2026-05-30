@@ -98,7 +98,7 @@ export function NoteNode({ id, data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        "relative min-w-[160px] min-h-[80px] w-full h-full rounded-lg border shadow-sm",
+        "relative flex min-w-[160px] min-h-[80px] w-full h-full flex-col rounded-lg border shadow-sm",
         styles.bg,
         styles.border,
         selected && "ring-2 ring-offset-1 ring-current/40",
@@ -143,6 +143,16 @@ export function NoteNode({ id, data, selected }: NodeProps) {
         </div>
       )}
 
+      <div className={cn("note-drag-handle flex h-6 shrink-0 cursor-grab items-center justify-between px-2.5 pt-1 active:cursor-grabbing", styles.text)}>
+        <span className="text-[10px] font-semibold opacity-45">Drag note</span>
+        <svg viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3 opacity-35">
+          <circle cx="5" cy="5" r="1" />
+          <circle cx="11" cy="5" r="1" />
+          <circle cx="5" cy="11" r="1" />
+          <circle cx="11" cy="11" r="1" />
+        </svg>
+      </div>
+
       {/* Editable content */}
       <textarea
         value={content}
@@ -150,8 +160,8 @@ export function NoteNode({ id, data, selected }: NodeProps) {
         onBlur={handleContentBlur}
         placeholder="Add a note…"
         className={cn(
-          "nodrag w-full h-full min-h-[80px] resize-none bg-transparent",
-          "px-3 py-2.5 text-[13px] leading-relaxed",
+          "nodrag w-full min-h-0 flex-1 resize-none bg-transparent",
+          "px-3 pb-2.5 pt-1 text-[13px] leading-relaxed",
           "border-none outline-none focus:outline-none",
           "rounded-lg",
           styles.text,

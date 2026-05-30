@@ -214,6 +214,7 @@ export interface GroupConfig {
   childIds: string[];
   width: number;
   height: number;
+  color?: "zinc" | "blue" | "green" | "amber" | "pink";
 }
 
 // ─── EDGES ────────────────────────────────────────────────────────────────

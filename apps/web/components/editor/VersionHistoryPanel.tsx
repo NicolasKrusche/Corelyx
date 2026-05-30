@@ -7,6 +7,7 @@ import type { ProgramSchema } from "@flowos/schema";
 import { diffSchemas, getVersionSnapshot } from "@/lib/editor/diff";
 import { VersionDiffOverlay } from "@/components/editor/VersionDiffOverlay";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,8 @@ export function VersionHistoryPanel({
         "flex flex-col"
       )}
     >
+      <PanelResizeHandle edge="left" />
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">

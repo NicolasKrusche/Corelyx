@@ -28,6 +28,7 @@ import {
   type ParamField,
 } from "@/lib/connectors/operation-params";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -894,7 +895,7 @@ function CorelyxKeyPanel() {
           : "border-primary/20 bg-primary/5"
     )}>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-foreground">⚡ Corelyx Platform Key</span>
+        <span className="font-semibold text-foreground">Corelyx Platform Key</span>
         <a
           href="/plan"
           target="_blank"
@@ -1004,7 +1005,7 @@ function AgentSidebar({
               }}
             >
               <option value="">— Select API Key —</option>
-              <option value="platform">⚡ Corelyx Platform Key (credits)</option>
+              <option value="platform">Corelyx Platform Key (credits)</option>
               {apiKeys.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.name} ({k.provider})
@@ -2270,6 +2271,8 @@ export function NodeSidebar({
     agent: "Agent",
     step: "Step",
     connection: "Connection",
+    note: "Note",
+    group: "Group",
   };
 
   return (
@@ -2282,6 +2285,8 @@ export function NodeSidebar({
       )}
       style={{ top: 56 }}
     >
+      <PanelResizeHandle edge="left" />
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
@@ -2291,7 +2296,9 @@ export function NodeSidebar({
               node.type === "trigger"    && "bg-green-500/15 text-green-700 dark:text-green-400",
               node.type === "agent"      && "bg-purple-500/15 text-purple-700 dark:text-purple-400",
               node.type === "step"       && "bg-blue-500/15 text-blue-700 dark:text-blue-400",
-              node.type === "connection" && "bg-slate-500/15 text-slate-700 dark:text-slate-300"
+              node.type === "connection" && "bg-slate-500/15 text-slate-700 dark:text-slate-300",
+              node.type === "note"       && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+              node.type === "group"      && "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300"
             )}
           >
             {NODE_TYPE_LABEL[node.type]}
