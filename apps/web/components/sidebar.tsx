@@ -379,6 +379,11 @@ export function Sidebar({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+
+  // Collapse workspace usage when the mobile sidebar closes
+  useEffect(() => {
+    if (!mobileOpen) setUsageOpen(false);
+  }, [mobileOpen]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<AccountSettingsSection>("account");
   const [activeLang, setActiveLang] = useState<string>("en");
