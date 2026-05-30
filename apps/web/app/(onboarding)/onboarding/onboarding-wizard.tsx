@@ -356,7 +356,7 @@ export function OnboardingWizard({
   // ── Footer actions ──────────────────────────────────────────────────────────
 
   const footer = (
-    <div className="flex items-center justify-between px-8 py-5 border-t border-gray-100 shrink-0">
+    <div className="mt-8 flex items-center justify-between border-t border-gray-100 pt-5">
       <div>
         {step > 0 && (
           <Button
@@ -594,16 +594,18 @@ export function OnboardingWizard({
 
         {/* Step header */}
         <div className="px-8 pt-8 pb-0 shrink-0">
-          <StepHeader step={step} />
+          <div className="mx-auto w-full max-w-4xl">
+            <StepHeader step={step} />
+          </div>
         </div>
 
         {/* Content area */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          {content}
+          <div className="mx-auto w-full max-w-4xl">
+            {content}
+            {footer}
+          </div>
         </div>
-
-        {/* Footer */}
-        {footer}
       </div>
     </div>
   );
