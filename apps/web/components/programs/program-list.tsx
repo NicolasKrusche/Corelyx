@@ -28,6 +28,17 @@ export type FolderItem = {
 
 export type ProgramStats = Record<string, { total: number; failed: number; runSeries?: number[]; providers?: string[] }>;
 
+const FOLDER_COLORS = [
+  { hex: "#6366f1", label: "Indigo" },
+  { hex: "#3b82f6", label: "Blue" },
+  { hex: "#10b981", label: "Emerald" },
+  { hex: "#f59e0b", label: "Amber" },
+  { hex: "#ef4444", label: "Red" },
+  { hex: "#ec4899", label: "Pink" },
+  { hex: "#8b5cf6", label: "Violet" },
+  { hex: "#6b7280", label: "Gray" },
+] as const;
+
 const PROVIDER_COLORS: Record<string, string> = {
   gmail: "bg-red-500",
   sheets: "bg-emerald-500",
@@ -148,9 +159,11 @@ export function ProgramList({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<"all" | "attention" | "edited" | "run" | "inactive">("all");
   const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderColor, setNewFolderColor] = useState<string>(FOLDER_COLORS[0].hex);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [colorPickerFolderId, setColorPickerFolderId] = useState<string | null>(null);
   const [movingProgramId, setMovingProgramId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -202,15 +215,26 @@ export function ProgramList({
     const res = await fetch(`/api/workspaces/${workspaceId}/folders`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, color: newFolderColor }),
     });
     const data = (await res.json().catch(() => null)) as { folder?: FolderItem } | null;
     if (res.ok && data?.folder) {
       setFolders((fs) => [...fs, data.folder!]);
       setNewFolderName("");
+      setNewFolderColor(FOLDER_COLORS[0].hex);
       setShowNewFolder(false);
     }
     setBusy(false);
+  }
+
+  async function changeFolderColor(id: string, color: string) {
+    const res = await fetch(`/api/workspaces/${workspaceId}/folders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ color }),
+    });
+    if (res.ok) setFolders((fs) => fs.map((f) => f.id === id ? { ...f, color } : f));
+    setColorPickerFolderId(null);
   }
 
   async function renameFolder(id: string) {
@@ -381,6 +405,21 @@ export function ProgramList({
       {/* Inline new folder input */}
       {showNewFolder && (
         <div className="flex items-center gap-2 border-b border-border/40 bg-accent/10 px-4 py-2">
+          <div className="flex shrink-0 items-center gap-1">
+            {FOLDER_COLORS.map((c) => (
+              <button
+                key={c.hex}
+                type="button"
+                title={c.label}
+                onClick={() => setNewFolderColor(c.hex)}
+                className={cn(
+                  "h-4 w-4 rounded-full transition-transform hover:scale-110",
+                  newFolderColor === c.hex && "scale-110 ring-2 ring-white ring-offset-1 ring-offset-background"
+                )}
+                style={{ backgroundColor: c.hex }}
+              />
+            ))}
+          </div>
           <input
             autoFocus
             value={newFolderName}
@@ -422,6 +461,11 @@ export function ProgramList({
         </div>
       )}
 
+      {/* Click-outside backdrop to dismiss any open color picker */}
+      {colorPickerFolderId && (
+        <div className="fixed inset-0 z-10" onClick={() => setColorPickerFolderId(null)} />
+      )}
+
       {/* Folder sections */}
       {folders.map((folder) => {
         const folderPrograms = byFolder.get(folder.id) ?? [];
@@ -430,16 +474,61 @@ export function ProgramList({
 
         return (
           <div key={folder.id}>
-            <div className="group flex items-center gap-2 border-b border-border/40 bg-muted/20 px-3 py-1.5 hover:bg-accent/20">
+            <div className="group flex items-center gap-1.5 border-b border-border/40 bg-muted/20 px-3 py-1.5 hover:bg-accent/20">
+
+              {/* Chevron — collapses the folder */}
+              <button
+                type="button"
+                onClick={() => toggleCollapse(folder.id)}
+                className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+              >
+                {isCollapsed
+                  ? <ChevronRight className="h-3 w-3" />
+                  : <ChevronDown className="h-3 w-3" />}
+              </button>
+
+              {/* Folder icon — colored; clickable for managers to open color picker */}
+              <div className="relative shrink-0 z-20">
+                <button
+                  type="button"
+                  disabled={!canManage}
+                  onClick={() => canManage && setColorPickerFolderId((fid) => fid === folder.id ? null : folder.id)}
+                  title={canManage ? "Change color" : undefined}
+                  className={cn(
+                    "flex items-center justify-center rounded p-0.5 transition-colors",
+                    canManage ? "cursor-pointer hover:bg-accent" : "cursor-default"
+                  )}
+                >
+                  <Folder
+                    className="h-3.5 w-3.5"
+                    style={{ color, fill: `${color}35` }}
+                  />
+                </button>
+                {colorPickerFolderId === folder.id && (
+                  <div className="absolute left-0 top-full mt-1.5 flex gap-1.5 rounded-lg border border-border bg-popover p-2 shadow-lg">
+                    {FOLDER_COLORS.map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        title={c.label}
+                        onClick={() => void changeFolderColor(folder.id, c.hex)}
+                        className={cn(
+                          "h-5 w-5 rounded-full transition-transform hover:scale-110",
+                          color === c.hex && "ring-2 ring-white ring-offset-1 ring-offset-background scale-110"
+                        )}
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Name / rename — also collapses on click */}
               <button
                 type="button"
                 onClick={() => toggleCollapse(folder.id)}
                 className="flex min-w-0 flex-1 items-center gap-2"
               >
-                {isCollapsed
-                  ? <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-                  : <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/40" />}
-                <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: color }} />
                 {renamingId === folder.id ? (
                   <input
                     autoFocus
@@ -463,7 +552,7 @@ export function ProgramList({
                 <div className="hidden group-hover:flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => { setRenamingId(folder.id); setRenameValue(folder.name); }}
+                    onClick={() => { setRenamingId(folder.id); setRenameValue(folder.name); setColorPickerFolderId(null); }}
                     className="rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
                   >
                     Rename
@@ -498,8 +587,10 @@ export function ProgramList({
         return (
           <div>
             {showHeader && (
-              <div className="flex items-center gap-2 border-b border-border/40 bg-muted/10 px-3 py-1.5">
-                <Folder className="h-3 w-3 text-muted-foreground/30" />
+              <div className="flex items-center gap-1.5 border-b border-border/40 bg-muted/10 px-3 py-1.5">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                  <Folder className="h-3.5 w-3.5 text-muted-foreground/30" style={{ fill: "rgba(0,0,0,0.04)" }} />
+                </span>
                 <span className="text-xs font-semibold text-muted-foreground/50">Unfiled</span>
                 <span className="text-[10px] text-muted-foreground/30">{unfiled.length}</span>
               </div>

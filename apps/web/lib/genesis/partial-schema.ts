@@ -3,7 +3,7 @@ import { extractJson } from "./parsing";
 
 export type PartialNode = {
   id: string;
-  type: "trigger" | "agent" | "step" | "connection";
+  type: "trigger" | "agent" | "step" | "connection" | "note" | "group";
   label?: string;
   description?: string;
   connection?: string | null;

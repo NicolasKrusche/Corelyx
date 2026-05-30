@@ -14,7 +14,6 @@ import {
   Code2,
   Copy,
   ExternalLink,
-  Eye,
   FileJson,
   FileText,
   History,
@@ -35,6 +34,7 @@ import { ExecutionControls } from "./execution-controls";
 import { PublishPanel } from "./publish-panel";
 import { SharePanel } from "./share-panel";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
+import { ProgramMiniGraph } from "@/components/programs/program-mini-graph";
 import type { Json } from "@flowos/db";
 import { createServiceClient } from "@/lib/api";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
@@ -51,17 +51,19 @@ type SchemaNode = { id: string; label: string; description: string; type: string
 
 function parseSchema(raw: Json) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { nodes: [], edges: [], triggers: [], genesisModel: null };
+    return { nodes: [], edges: [], triggers: [], genesisModel: null, rawNodes: [], rawEdges: [] };
   }
   const schema = raw as Record<string, Json>;
-  const nodes = Array.isArray(schema.nodes) ? (schema.nodes as unknown as SchemaNode[]) : [];
-  const edges = Array.isArray(schema.edges) ? schema.edges : [];
+  const rawNodes = Array.isArray(schema.nodes) ? (schema.nodes as unknown[]) : [];
+  const rawEdges = Array.isArray(schema.edges) ? (schema.edges as unknown[]) : [];
+  const nodes = rawNodes as unknown as SchemaNode[];
+  const edges = rawEdges;
   const triggers = Array.isArray(schema.triggers) ? schema.triggers : [];
   const metadata = schema.metadata && typeof schema.metadata === "object" && !Array.isArray(schema.metadata)
     ? (schema.metadata as Record<string, Json>)
     : null;
   const genesisModel = metadata && typeof metadata.genesis_model === "string" ? metadata.genesis_model : null;
-  return { nodes, edges, triggers, genesisModel };
+  return { nodes, edges, triggers, genesisModel, rawNodes, rawEdges };
 }
 
 function isAiGenerated(genesisModel: string | null): boolean {
@@ -184,7 +186,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   };
 
   const program = data as ProgramRow;
-  const { nodes, edges, genesisModel } = parseSchema(program.schema);
+  const { nodes, edges, genesisModel, rawNodes, rawEdges } = parseSchema(program.schema);
   const aiGenerated = isAiGenerated(genesisModel);
 
   const [
@@ -354,10 +356,11 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                 <p className="mt-1 text-sm text-muted-foreground">Nodes in execution order with their current role in the graph.</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Eye className="h-4 w-4" />
-                  View graph
-                </Button>
+                <ProgramMiniGraph
+                  rawNodes={rawNodes}
+                  rawEdges={rawEdges}
+                  programName={program.name}
+                />
                 <Button variant="outline" size="icon" className="h-9 w-9">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>

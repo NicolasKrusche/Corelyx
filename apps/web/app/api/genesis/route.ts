@@ -373,20 +373,27 @@ export async function POST(request: Request) {
     const filterKeyRow = pickEuComplianceFilterKey(keyCandidates);
     if (filterKeyRow) {
       const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
-      euComplianceContext = await runEuComplianceFilter(
+      const complianceResult = await runEuComplianceFilter(
         sanitizedDescription.value,
         filterKeyRow,
         filterApiKey
       );
-    }
-    if (euComplianceContext) {
-      await logGenesis(
-        "info",
-        "genesis.compliance_filter.applied",
-        "running",
-        "EU compliance context identified and will be included in Genesis prompt.",
-        { compliance_length: euComplianceContext.length }
-      );
+      if (complianceResult?.verdict === "blocked") {
+        return NextResponse.json(
+          { error: "EU_COMPLIANCE_BLOCKED", message: complianceResult.blockedReason },
+          { status: 403 }
+        );
+      }
+      if (complianceResult?.verdict === "obligations") {
+        euComplianceContext = complianceResult.context;
+        await logGenesis(
+          "info",
+          "genesis.compliance_filter.applied",
+          "running",
+          "EU compliance obligations identified and included in Genesis prompt.",
+          { compliance_length: euComplianceContext.length }
+        );
+      }
     }
   } catch (err) {
     serverLog({ level: "warn", event: "genesis.eu_compliance_filter.skipped", message: "EU compliance pre-filter skipped due to an error." });
