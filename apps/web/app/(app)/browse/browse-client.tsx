@@ -99,6 +99,7 @@ export function BrowseClient({
   const [selectedUseCase, setSelectedUseCase] = useState<string | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState("");
   const [q, setQ] = useState("");
+  const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [forking, setForking] = useState<string | null>(null);
   const [forked, setForked] = useState<Record<string, string>>({}); // id → new program id
@@ -106,6 +107,7 @@ export function BrowseClient({
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLDivElement | null>(null);
 
   const buildBrowseParams = useCallback((offset: number, limit: number, searchQ = q) => {
     const activeTags = [selectedApp, selectedUseCase].filter(Boolean) as string[];
@@ -237,10 +239,26 @@ export function BrowseClient({
     .slice(0, 8);
   const selectedProgram = programOptions.find((program) => program.id === selectedProgramId);
   const searchValue = selectedProgram ? selectedProgram.name : q;
+  const searchSuggestions = q.trim()
+    ? programOptions
+      .filter((program) => program.name.toLowerCase().includes(q.trim().toLowerCase()))
+      .slice(0, 6)
+    : [];
   const visiblePrograms = selectedProgramId
     ? programs.filter((program) => program.id === selectedProgramId)
     : programs;
   const isFiltered = Boolean(q || selectedApp || selectedUseCase || selectedProgramId);
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchSuggestionsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   async function handleFork(programId: string) {
     // fix: give user a visible response on every outcome — navigate on success, show inline error on failure
@@ -292,7 +310,7 @@ export function BrowseClient({
       )}
 
       {/* Search + filter */}
-      <div className="rounded-2xl border glass-panel p-4 shadow-sm">
+      <div className="relative z-30 rounded-2xl border glass-panel p-4 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold">Find a starting point</p>
@@ -347,13 +365,20 @@ export function BrowseClient({
         </div>
 
         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-          <div className="relative flex-1 min-w-0">
+          <div ref={searchRef} className="relative z-40 flex-1 min-w-0">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
             <Input
-              list="browse-program-options"
               placeholder="Search or choose a specific program..."
               value={searchValue}
               className="pl-9 h-10"
+              role="combobox"
+              aria-expanded={searchSuggestionsOpen && searchSuggestions.length > 0}
+              aria-controls="browse-program-options"
+              autoComplete="off"
+              onFocus={() => setSearchSuggestionsOpen(Boolean(q.trim()) && !selectedProgramId)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setSearchSuggestionsOpen(false);
+              }}
               onChange={(e) => {
                 const value = e.target.value;
                 const exactProgram = programOptions.find(
@@ -365,18 +390,44 @@ export function BrowseClient({
                   setQ("");
                   setSelectedApp(null);
                   setSelectedUseCase(null);
+                  setSearchSuggestionsOpen(false);
                   return;
                 }
 
                 setSelectedProgramId("");
                 setQ(value);
+                setSearchSuggestionsOpen(Boolean(value.trim()));
               }}
             />
-            <datalist id="browse-program-options">
-              {programOptions.map((program) => (
-                <option key={program.id} value={program.name} />
-              ))}
-            </datalist>
+            {searchSuggestionsOpen && searchSuggestions.length > 0 && (
+              <div
+                id="browse-program-options"
+                role="listbox"
+                className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-xl border bg-popover shadow-lg"
+              >
+                <ul className="max-h-64 overflow-y-auto py-1">
+                  {searchSuggestions.map((program) => (
+                    <li key={program.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={false}
+                        onClick={() => {
+                          setSelectedProgramId(program.id);
+                          setQ("");
+                          setSelectedApp(null);
+                          setSelectedUseCase(null);
+                          setSearchSuggestionsOpen(false);
+                        }}
+                        className="flex w-full items-center px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                      >
+                        <span className="truncate">{program.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <FilterSelect
@@ -674,7 +725,7 @@ function FilterSelect({
   }, [open]);
 
   return (
-    <div ref={ref} className={`relative ${className ?? ""}`}>
+    <div ref={ref} className={`relative ${open ? "z-50" : "z-0"} ${className ?? ""}`}>
       <button
         type="button"
         id={id}
