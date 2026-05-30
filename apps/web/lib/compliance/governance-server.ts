@@ -30,6 +30,7 @@ type ProgramRow = ProgramInventorySource & {
 export type GovernanceInventoryBundle = {
   records: AiSystemInventoryRecord[];
   metrics: GovernanceDashboardMetrics;
+  executionLogRetentionDays: number;
   generatedAt: string;
 };
 
@@ -40,7 +41,7 @@ export async function loadGovernanceInventory(
   const { data: programsRaw, error } = await db
     .from("programs")
     .select(
-      "id, user_id, workspace_id, name, description, is_active, created_at, updated_at, schema, schema_version, ai_use_case_category, ai_act_risk_level, human_oversight_required, high_risk_documentation_required, reviewer, reviewed_at, ai_act_notes"
+      "id, user_id, workspace_id, name, description, is_active, created_at, updated_at, schema, schema_version, ai_use_case_category, ai_act_risk_level, human_oversight_required, transparency_notice_required, high_risk_documentation_required, reviewer, reviewed_at, ai_act_notes"
     )
     .eq("workspace_id", workspaceId)
     .order("updated_at", { ascending: false });
@@ -90,6 +91,7 @@ export async function loadGovernanceInventory(
   return {
     records,
     metrics: calculateGovernanceMetrics(records),
+    executionLogRetentionDays: workspace.execution_log_retention_days,
     generatedAt: new Date().toISOString(),
   };
 }
