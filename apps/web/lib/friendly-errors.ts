@@ -69,7 +69,7 @@ export function friendlyErrorMessage(
     return "This part of Corelyx is not ready yet. Please contact support if this keeps happening.";
   }
 
-  if (text.length > 180 || TECHNICAL_PATTERNS.some((pattern) => pattern.test(text))) {
+  if (TECHNICAL_PATTERNS.some((pattern) => pattern.test(text))) {
     return fallback;
   }
 
