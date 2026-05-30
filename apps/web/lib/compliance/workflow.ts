@@ -557,32 +557,32 @@ export function validateWorkflowCompliance(
       });
     }
 
-    // DPA/SCC gaps only block in eu_only mode. In standard mode they are
-    // informational warnings — there is no legal requirement to prevent
-    // execution; the obligation is to have a DPA, not to technically block.
-    const dpaBlockStatus: ComplianceCheckStatus =
-      workspace.compliance_mode === "eu_only" ? "blocked" : "warning";
+    // DPA/SCC gaps are only surfaced in eu_only mode where the workspace has
+    // explicitly opted into strict enforcement. In standard mode these checks
+    // are skipped entirely — users are responsible for their own provider DPAs
+    // and there is no legal requirement to enforce this at the platform level.
+    if (workspace.compliance_mode === "eu_only") {
+      if (!item.provider.dpa_available) {
+        addCheck(providerIssues, {
+          id: `dpa-${item.node_id}`,
+          label: "DPA/subprocessor completeness check",
+          status: "blocked",
+          message: `${item.provider.name} does not have a completed DPA entry in the Corelyx provider registry.`,
+          node_id: item.node_id,
+          provider_id: item.provider.id,
+        });
+      }
 
-    if (!item.provider.dpa_available) {
-      addCheck(providerIssues, {
-        id: `dpa-${item.node_id}`,
-        label: "DPA/subprocessor completeness check",
-        status: dpaBlockStatus,
-        message: `${item.provider.name} does not have a completed DPA entry in the Corelyx provider registry.`,
-        node_id: item.node_id,
-        provider_id: item.provider.id,
-      });
-    }
-
-    if (providerLeavesEea(item.provider) && !item.provider.scc_available) {
-      addCheck(providerIssues, {
-        id: `scc-${item.node_id}`,
-        label: "DPA/subprocessor completeness check",
-        status: dpaBlockStatus,
-        message: `${item.provider.name} has no documented SCC or transfer-basis entry in the Corelyx provider registry.`,
-        node_id: item.node_id,
-        provider_id: item.provider.id,
-      });
+      if (providerLeavesEea(item.provider) && !item.provider.scc_available) {
+        addCheck(providerIssues, {
+          id: `scc-${item.node_id}`,
+          label: "DPA/subprocessor completeness check",
+          status: "blocked",
+          message: `${item.provider.name} has no documented SCC or transfer-basis entry in the Corelyx provider registry.`,
+          node_id: item.node_id,
+          provider_id: item.provider.id,
+        });
+      }
     }
 
     if (workspace.compliance_mode === "eu_only" && !isProviderAllowedInEuOnly(item.provider)) {
@@ -712,27 +712,23 @@ export function validateWorkflowCompliance(
       : "No inline HTTP auth material was detected in reviewed nodes.",
   });
 
-  const modelIssues = flow.filter(
-    (item) =>
-      item.ai_model_call &&
-      (!item.provider.dpa_available ||
-        !item.provider.scc_available ||
-        item.provider.trains_on_customer_data === "unknown")
-  );
+  // Model-provider policy check is also eu_only — skipped in standard mode.
+  const modelIssues = workspace.compliance_mode === "eu_only"
+    ? flow.filter(
+        (item) =>
+          item.ai_model_call &&
+          (!item.provider.dpa_available ||
+            !item.provider.scc_available ||
+            item.provider.trains_on_customer_data === "unknown")
+      )
+    : [];
   const modelProviderNames = [...new Set(modelIssues.map((i) => i.provider.name))];
-  // Same rule: only block in eu_only mode.
-  const modelPolicyStatus: ComplianceCheckStatus =
-    modelIssues.length === 0
-      ? "passed"
-      : workspace.compliance_mode === "eu_only"
-        ? "blocked"
-        : "warning";
   addCheck(checks, {
     id: "model-provider-policy",
     label: "Model-provider policy check",
-    status: modelPolicyStatus,
+    status: modelIssues.length > 0 ? "blocked" : "passed",
     message: modelIssues.length > 0
-      ? `${modelProviderNames.length > 0 ? modelProviderNames.join(", ") : "One or more model providers"} ${modelProviderNames.length === 1 ? "lacks" : "lack"} complete DPA/SCC/training-policy evidence.`
+      ? `${modelProviderNames.join(", ")} ${modelProviderNames.length === 1 ? "lacks" : "lack"} complete DPA/SCC/training-policy evidence.`
       : "Model provider registry entries include DPA, transfer, and training-policy evidence.",
     details: { provider_names: modelProviderNames },
   });
