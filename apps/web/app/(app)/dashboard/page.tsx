@@ -39,6 +39,16 @@ type RunRow = {
   created_at: string;
 };
 
+type ProgramConnectionRow = {
+  program_id: string;
+  connection_id: string;
+};
+
+type ConnectionRow = {
+  id: string;
+  provider: string;
+};
+
 type ApprovalRow = {
   id: string;
   status: string;
@@ -64,7 +74,21 @@ function getSearchQuery(searchParams?: { q?: string | string[] }): string {
   return (Array.isArray(q) ? q[0] : q ?? "").trim();
 }
 
-function StatSparkline({ tone }: { tone: "green" | "blue" | "violet" | "amber" }) {
+function sparklinePoints(values: number[], width: number, height: number) {
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+
+  return values
+    .map((value, index) => {
+      const x = values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
+      const y = height - 2 - ((value - min) / range) * (height - 4);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+function StatSparkline({ tone, values }: { tone: "green" | "blue" | "violet" | "amber"; values: number[] }) {
   const tones = {
     green: "stroke-emerald-500",
     blue: "stroke-sky-500",
@@ -74,8 +98,8 @@ function StatSparkline({ tone }: { tone: "green" | "blue" | "violet" | "amber" }
 
   return (
     <svg viewBox="0 0 80 28" aria-hidden="true" className={cn("h-8 w-20 fill-none", tones[tone])}>
-      <path
-        d="M1 23 10 18l8 2 9-9 8 2 9-6 9 3 9-7 8 3 9-5"
+      <polyline
+        points={sparklinePoints(values, 80, 28)}
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -91,12 +115,14 @@ function StatCard({
   detail,
   Icon,
   tone,
+  series,
 }: {
   label: string;
   value: string;
   detail: string;
   Icon: typeof Activity;
   tone: "green" | "blue" | "violet" | "amber";
+  series: number[];
 }) {
   const tones = {
     green: "bg-emerald-500/10 text-emerald-500",
@@ -118,7 +144,7 @@ function StatCard({
       </div>
       <div className="mt-3 flex items-end justify-between gap-3">
         <p className="text-3xl font-black tracking-tight text-foreground">{value}</p>
-        <StatSparkline tone={tone} />
+        <StatSparkline tone={tone} values={series} />
       </div>
     </section>
   );
@@ -160,7 +186,7 @@ export default async function DashboardPage({
     supabase.from("profiles").select("display_name").eq("id", user.id).single(),
     supabase
       .from("programs")
-      .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, updated_at, folder_id")
+      .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, created_at, updated_at, folder_id")
       .eq("workspace_id", activeWorkspace.workspaceId)
       .order("updated_at", { ascending: false }),
     supabase
@@ -187,15 +213,18 @@ export default async function DashboardPage({
 
   let recentRuns: RunRow[] = [];
   let pendingApprovals: DashboardApproval[] = [];
+  let programConnections: ProgramConnectionRow[] = [];
+  let connections: ConnectionRow[] = [];
 
   if (programIds.length > 0) {
-    const [runsResult, approvalsResult] = await Promise.all([
+    const [runsResult, approvalsResult, programConnectionsResult] = await Promise.all([
       serviceClient
         .from("runs")
         .select("id, program_id, status, triggered_by, created_at")
         .in("program_id", programIds)
+        .gte("created_at", weekAgo)
         .order("created_at", { ascending: false })
-        .limit(500),
+        .limit(5000),
       serviceClient
         .from("approvals")
         .select(
@@ -217,10 +246,15 @@ export default async function DashboardPage({
         .eq("user_id", user.id)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(5000),
+      serviceClient
+        .from("program_connections")
+        .select("program_id, connection_id")
+        .in("program_id", programIds),
     ]);
 
     recentRuns = (runsResult.data ?? []) as RunRow[];
+    programConnections = (programConnectionsResult.data ?? []) as ProgramConnectionRow[];
     pendingApprovals = ((approvalsResult.data ?? []) as unknown as ApprovalRow[])
       .filter((approval) => {
         const programId = approval.node_executions?.runs?.program_id;
@@ -235,13 +269,56 @@ export default async function DashboardPage({
         programName: approval.node_executions?.runs?.programs?.name ?? "Unknown workflow",
         runId: approval.node_executions?.run_id ?? "",
       }));
+
+    const connectionIds = [...new Set(programConnections.map((connection) => connection.connection_id))];
+    if (connectionIds.length > 0) {
+      const { data } = await serviceClient
+        .from("connections")
+        .select("id, provider")
+        .in("id", connectionIds)
+        .eq("workspace_id", activeWorkspace.workspaceId);
+      connections = (data ?? []) as ConnectionRow[];
+    }
   }
 
-  const perProgramStats: Record<string, { total: number; failed: number }> = {};
+  const dayKeys = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() - (6 - index));
+    return date.toISOString().slice(0, 10);
+  });
+  const bucketValues = (items: Array<{ created_at: string }>) => {
+    const buckets = new Map(dayKeys.map((key) => [key, 0]));
+    for (const item of items) {
+      const key = item.created_at.slice(0, 10);
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    }
+    return dayKeys.map((key) => buckets.get(key) ?? 0);
+  };
+  const providerByConnectionId = new Map(connections.map((connection) => [connection.id, connection.provider]));
+  const providersByProgramId = new Map<string, Set<string>>();
+  for (const link of programConnections) {
+    const provider = providerByConnectionId.get(link.connection_id);
+    if (!provider) continue;
+    if (!providersByProgramId.has(link.program_id)) providersByProgramId.set(link.program_id, new Set());
+    providersByProgramId.get(link.program_id)?.add(provider);
+  }
+  const perProgramStats: Record<string, { total: number; failed: number; runSeries: number[]; providers: string[] }> = {};
+  for (const program of programs) {
+    perProgramStats[program.id] = {
+      total: 0,
+      failed: 0,
+      runSeries: dayKeys.map(() => 0),
+      providers: [...(providersByProgramId.get(program.id) ?? [])],
+    };
+  }
   for (const run of recentRuns) {
-    if (!perProgramStats[run.program_id]) perProgramStats[run.program_id] = { total: 0, failed: 0 };
+    if (!perProgramStats[run.program_id]) {
+      perProgramStats[run.program_id] = { total: 0, failed: 0, runSeries: dayKeys.map(() => 0), providers: [] };
+    }
     perProgramStats[run.program_id].total++;
     if (run.status === "failed") perProgramStats[run.program_id].failed++;
+    const dayIndex = dayKeys.indexOf(run.created_at.slice(0, 10));
+    if (dayIndex >= 0) perProgramStats[run.program_id].runSeries[dayIndex]++;
   }
 
   const runsThisWeek = recentRuns.filter((run) => run.created_at >= weekAgo);
@@ -249,6 +326,19 @@ export default async function DashboardPage({
   const failedThisWeek = runsThisWeek.filter((run) => run.status === "failed").length;
   const terminalRunsThisWeek = completedThisWeek + failedThisWeek;
   const successRate = terminalRunsThisWeek > 0 ? Math.round((completedThisWeek / terminalRunsThisWeek) * 1000) / 10 : 100;
+  const activeWorkflowSeries = dayKeys.map((key) =>
+    programs.filter((program) => program.is_active && program.created_at.slice(0, 10) <= key).length
+  );
+  const runsSeries = bucketValues(runsThisWeek);
+  const successRateSeries = dayKeys.map((key) => {
+    const dailyRuns = runsThisWeek.filter((run) => run.created_at.startsWith(key));
+    const completed = dailyRuns.filter((run) => run.status === "completed").length;
+    const terminal = completed + dailyRuns.filter((run) => run.status === "failed").length;
+    return terminal > 0 ? Math.round((completed / terminal) * 100) : 0;
+  });
+  const approvalsSeries = bucketValues(
+    pendingApprovals.map((approval) => ({ created_at: approval.createdAt }))
+  );
   const failedRuns: DashboardFailedRun[] = recentRuns
     .filter((run) => run.status === "failed")
     .slice(0, 4)
@@ -303,10 +393,10 @@ export default async function DashboardPage({
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Active workflows" value={String(programs.filter((program) => program.is_active).length)} detail={`${programs.length} total`} Icon={FolderKanban} tone="green" />
-        <StatCard label="Runs this week" value={runsThisWeek.length.toLocaleString()} detail={runsThisWeek.length > 0 ? "Live data" : "Ready"} Icon={Activity} tone="blue" />
-        <StatCard label="Success rate" value={`${successRate}%`} detail={failedThisWeek > 0 ? `${failedThisWeek} failed` : "On track"} Icon={CheckCircle2} tone="violet" />
-        <StatCard label="Awaiting you" value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? "Review now" : "All clear"} Icon={CircleAlert} tone="amber" />
+        <StatCard label="Active workflows" value={String(programs.filter((program) => program.is_active).length)} detail={`${programs.length} total`} Icon={FolderKanban} tone="green" series={activeWorkflowSeries} />
+        <StatCard label="Runs this week" value={runsThisWeek.length.toLocaleString()} detail="7 day view" Icon={Activity} tone="blue" series={runsSeries} />
+        <StatCard label="Success rate" value={`${successRate}%`} detail={failedThisWeek > 0 ? `${failedThisWeek} failed` : "On track"} Icon={CheckCircle2} tone="violet" series={successRateSeries} />
+        <StatCard label="Awaiting you" value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? "Review now" : "All clear"} Icon={CircleAlert} tone="amber" series={approvalsSeries} />
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.09] via-card/90 to-card/75 shadow-sm">
