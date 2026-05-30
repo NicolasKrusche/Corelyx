@@ -596,13 +596,17 @@ export function validateWorkflowCompliance(
   const dpaIssues = providerIssues.filter(
     (check) => check.id.startsWith("dpa-") || check.id.startsWith("scc-")
   );
+  const dpaProviderNames = [...new Set(
+    dpaIssues.map((c) => flow.find((f) => f.node_id === c.node_id)?.provider.name).filter(Boolean)
+  )] as string[];
   addCheck(checks, {
     id: "dpa-subprocessors",
     label: "DPA/subprocessor completeness check",
     status: checkStatusFromChildren(dpaIssues),
     message: dpaIssues.length > 0
-      ? "One or more providers are missing DPA/SCC/transfer-basis evidence."
+      ? `${dpaProviderNames.length > 0 ? dpaProviderNames.join(", ") : "One or more providers"} ${dpaProviderNames.length === 1 ? "is" : "are"} missing DPA/SCC/transfer-basis evidence.`
       : "Reviewed providers have documented DPA and transfer-basis entries.",
+    details: { provider_names: dpaProviderNames },
   });
 
   const euOnlyIssues = providerIssues.filter((check) => check.id.startsWith("eu-only-"));
@@ -702,13 +706,15 @@ export function validateWorkflowCompliance(
         !item.provider.scc_available ||
         item.provider.trains_on_customer_data === "unknown")
   );
+  const modelProviderNames = [...new Set(modelIssues.map((i) => i.provider.name))];
   addCheck(checks, {
     id: "model-provider-policy",
     label: "Model-provider policy check",
     status: modelIssues.length > 0 ? "blocked" : "passed",
     message: modelIssues.length > 0
-      ? "One or more model providers lack complete DPA/SCC/training-policy evidence."
+      ? `${modelProviderNames.length > 0 ? modelProviderNames.join(", ") : "One or more model providers"} ${modelProviderNames.length === 1 ? "lacks" : "lack"} complete DPA/SCC/training-policy evidence.`
       : "Model provider registry entries include DPA, transfer, and training-policy evidence.",
+    details: { provider_names: modelProviderNames },
   });
 
   return checks;
