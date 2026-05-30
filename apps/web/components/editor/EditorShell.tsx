@@ -386,6 +386,7 @@ export function EditorShell({
   const [validationNotice, setValidationNotice] = React.useState<string | null>(null);
   const [preFlightChecks, setPreFlightChecks] = React.useState<PreFlightCheck[] | null>(null);
   const [isComplianceBlock, setIsComplianceBlock] = React.useState(false);
+  const [applyingFixNodeId, setApplyingFixNodeId] = React.useState<string | null>(null);
 
   useEffect(() => {
     if (!validationNotice) return;
@@ -1988,7 +1989,9 @@ export function EditorShell({
                     {check.label}
                   </p>
                   {check.failures.map((f, i) => {
-                    const fixLink = preFlightFixLink(check.code, f.fix_suggestion);
+                    const rem = f.remediation;
+                    const fallbackLink = preFlightFixLink(check.code, f.fix_suggestion);
+
                     return (
                       <div key={i} className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
                         <p className="text-sm font-medium text-foreground">{f.message}</p>
@@ -1998,15 +2001,51 @@ export function EditorShell({
                               <span className="font-medium text-primary">How to fix: </span>
                               {f.fix_suggestion}
                             </p>
-                            {fixLink && (
+
+                            {/* Prefer the structured remediation over the generic fallback link */}
+                            {rem?.type === "assign_agent_defaults" ? (
+                              <button
+                                type="button"
+                                disabled={applyingFixNodeId !== null}
+                                className="shrink-0 text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80 whitespace-nowrap disabled:opacity-50"
+                                onClick={async () => {
+                                  setApplyingFixNodeId(rem.node_id);
+                                  try {
+                                    const res = await fetch(`/api/programs/${programId}/preflight/fix`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ remediation: { type: "assign_agent_defaults", node_id: rem.node_id } }),
+                                    });
+                                    if (res.ok) {
+                                      const data = await res.json() as { validation?: { checks?: PreFlightCheck[] } };
+                                      const nextChecks = data.validation?.checks ?? [];
+                                      const remaining = nextChecks.filter((c) => c.status === "fail");
+                                      setPreFlightChecks(remaining.length > 0 ? nextChecks : null);
+                                    }
+                                  } finally {
+                                    setApplyingFixNodeId(null);
+                                  }
+                                }}
+                              >
+                                {applyingFixNodeId === rem.node_id ? "Fixing…" : "Auto-assign API key →"}
+                              </button>
+                            ) : rem?.type === "navigate" ? (
                               <a
-                                href={fixLink.href}
+                                href={rem.href}
                                 className="shrink-0 text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80 whitespace-nowrap"
                                 onClick={() => setPreFlightChecks(null)}
                               >
-                                {fixLink.label} →
+                                {rem.label} →
                               </a>
-                            )}
+                            ) : fallbackLink ? (
+                              <a
+                                href={fallbackLink.href}
+                                className="shrink-0 text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80 whitespace-nowrap"
+                                onClick={() => setPreFlightChecks(null)}
+                              >
+                                {fallbackLink.label} →
+                              </a>
+                            ) : null}
                           </div>
                         )}
                       </div>
