@@ -123,6 +123,22 @@ export async function PATCH(request: Request) {
 
   const row = data as unknown as AdminDsrRow;
 
+  // When a restriction-type DSR is resolved (completed or rejected), lift the
+  // processing block so the account can run programs again.
+  if (
+    row.request_type === "restriction" &&
+    (row.status === "completed" || row.status === "rejected")
+  ) {
+    await service
+      .from("profiles")
+      .update({
+        processing_restricted: false,
+        processing_restricted_at: null,
+        processing_restriction_reason: null,
+      } as never)
+      .eq("id", row.user_id);
+  }
+
   await writeAppLog(service, {
     userId: row.user_id,
     level: "info",
