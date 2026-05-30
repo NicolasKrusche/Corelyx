@@ -117,7 +117,7 @@ interface MiniGraphCanvasProps {
   rawEdges: unknown[];
 }
 
-function MiniGraphCanvas({ rawNodes, rawEdges }: MiniGraphCanvasProps) {
+export function MiniGraphCanvas({ rawNodes, rawEdges }: MiniGraphCanvasProps) {
   const { base } = useTheme();
   const isDark = base === "dark";
 

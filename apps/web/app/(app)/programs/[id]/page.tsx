@@ -19,7 +19,6 @@ import {
   History,
   MoreHorizontal,
   Network,
-  Plus,
   RefreshCw,
   Settings,
   Sparkles,
@@ -34,7 +33,7 @@ import { ExecutionControls } from "./execution-controls";
 import { PublishPanel } from "./publish-panel";
 import { SharePanel } from "./share-panel";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
-import { ProgramMiniGraph } from "@/components/programs/program-mini-graph";
+import { MiniGraphCanvas } from "@/components/programs/program-mini-graph";
 import type { Json } from "@flowos/db";
 import { createServiceClient } from "@/lib/api";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
@@ -216,7 +215,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
   const completedRuns = completedRunsResult.count ?? 0;
   const failedRuns = failedRunsResult.count ?? 0;
   const creatorName = (creatorResult.data as { display_name?: string | null } | null)?.display_name ?? "Nicolas";
-  const firstNode = nodes[0];
   const parsedComplianceSchema = ProgramSchemaZ.safeParse(program.schema);
   let complianceChecks: ComplianceCheck[] = [
     {
@@ -356,62 +354,45 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                 <p className="mt-1 text-sm text-muted-foreground">Nodes in execution order with their current role in the graph.</p>
               </div>
               <div className="flex items-center gap-2">
-                <ProgramMiniGraph
-                  rawNodes={rawNodes}
-                  rawEdges={rawEdges}
-                  programName={program.name}
-                />
+                {userCanEdit && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/programs/${program.id}/editor`}>
+                      <ExternalLink className="h-4 w-4" />
+                      Open editor
+                    </Link>
+                  </Button>
+                )}
                 <Button variant="outline" size="icon" className="h-9 w-9">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-[200px_minmax(0,1fr)]">
-              <div className="relative border-b border-border bg-[radial-gradient(circle_at_1px_1px,hsl(var(--border))_1px,transparent_0)] bg-[length:12px_12px] p-8 md:border-b-0 md:border-r">
-                <div className="mx-auto flex w-fit items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium shadow-sm">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  <NodeGlyph type={firstNode?.type ?? "trigger"} />
-                  {firstNode?.label ?? "Manual start"}
-                </div>
-                <div className="mx-auto my-3 h-9 w-px border-l border-dashed border-muted-foreground/50" />
-                <div className="mx-auto w-fit rounded-md border border-dashed border-border bg-background/70 px-3 py-2 text-sm text-muted-foreground">
-                  <Plus className="mr-1 inline h-3.5 w-3.5" />
-                  Add next step
-                </div>
-              </div>
+            {/* Inline read-only graph */}
+            <div className="border-b border-border" style={{ height: 300 }}>
+              <MiniGraphCanvas rawNodes={rawNodes} rawEdges={rawEdges} />
+            </div>
 
-              <div>
-                {nodes.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">No nodes yet.</div>
-                ) : (
-                  nodes.map((node, i) => (
-                    <div key={`${node.id}-${i}`} className="flex items-center gap-4 border-b border-border px-6 py-5 last:border-b-0">
-                      <span className="text-xs text-muted-foreground">#{i + 1}</span>
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
-                        <NodeGlyph type={node.type} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold">{node.label}</p>
-                        <p className="text-sm text-muted-foreground">{node.description || "No description."}</p>
-                      </div>
-                      <span className="font-mono text-xs text-muted-foreground">{node.type === "trigger" ? "trigger.manual" : node.type}</span>
-                      <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">{node.type}</Badge>
+            {/* Node list */}
+            <div>
+              {nodes.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">No nodes yet.</div>
+              ) : (
+                nodes.map((node, i) => (
+                  <div key={`${node.id}-${i}`} className="flex items-center gap-4 border-b border-border px-6 py-4 last:border-b-0">
+                    <span className="w-5 shrink-0 text-right text-xs text-muted-foreground">#{i + 1}</span>
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+                      <NodeGlyph type={node.type} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{node.label}</p>
+                      <p className="text-sm text-muted-foreground">{node.description || "No description."}</p>
                     </div>
-                  ))
-                )}
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  No further steps. Add a node to begin building the flow.
-                  <div className="mt-4">
-                    <Button asChild variant="outline">
-                      <Link href={`/programs/${program.id}/editor`}>
-                        <Plus className="h-4 w-4" />
-                        Add step
-                      </Link>
-                    </Button>
+                    <span className="hidden font-mono text-xs text-muted-foreground sm:block">{node.type === "trigger" ? "trigger.manual" : node.type}</span>
+                    <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">{node.type}</Badge>
                   </div>
-                </div>
-              </div>
+                ))
+              )}
             </div>
           </section>
 
