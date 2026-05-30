@@ -17,7 +17,7 @@ export async function loadWorkspaceComplianceSettings(
   const { data } = await db
     .from("workspaces")
     .select(
-      "compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region"
+      "compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, dpa_acknowledged_providers"
     )
     .eq("id", workspaceId)
     .maybeSingle();

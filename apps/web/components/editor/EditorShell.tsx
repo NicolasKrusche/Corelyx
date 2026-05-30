@@ -387,6 +387,7 @@ export function EditorShell({
   const [preFlightChecks, setPreFlightChecks] = React.useState<PreFlightCheck[] | null>(null);
   const [isComplianceBlock, setIsComplianceBlock] = React.useState(false);
   const [applyingFixNodeId, setApplyingFixNodeId] = React.useState<string | null>(null);
+  const [acknowledgingProvider, setAcknowledgingProvider] = React.useState<string | null>(null);
 
   useEffect(() => {
     if (!validationNotice) return;
@@ -1451,6 +1452,7 @@ export function EditorShell({
               node_id: c.node_id ?? null,
               message: c.message,
               fix_suggestion: complianceFixSuggestion(c.id, c.status, c.details),
+              remediation: complianceRemediation(c.id, c.details),
             }],
           }))
         );
@@ -2003,7 +2005,28 @@ export function EditorShell({
                             </p>
 
                             {/* Prefer the structured remediation over the generic fallback link */}
-                            {rem?.type === "assign_agent_defaults" ? (
+                            {rem?.type === "acknowledge_dpa" ? (
+                              <button
+                                type="button"
+                                disabled={acknowledgingProvider !== null}
+                                className="shrink-0 text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80 whitespace-nowrap disabled:opacity-50"
+                                onClick={async () => {
+                                  for (const pid of rem.provider_ids) {
+                                    setAcknowledgingProvider(pid);
+                                    await fetch(`/api/programs/${programId}/compliance/acknowledge-provider`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ provider_id: pid }),
+                                    });
+                                  }
+                                  setAcknowledgingProvider(null);
+                                  setPreFlightChecks(null);
+                                  setIsComplianceBlock(false);
+                                }}
+                              >
+                                {acknowledgingProvider !== null ? "Acknowledging…" : "I have a DPA — unblock →"}
+                              </button>
+                            ) : rem?.type === "assign_agent_defaults" ? (
                               <button
                                 type="button"
                                 disabled={applyingFixNodeId !== null}
@@ -2093,6 +2116,19 @@ function preFlightFixLink(
 }
 
 // ─── Utility: human-readable fix suggestion per compliance check ID ───────────
+
+// Build the acknowledge_dpa remediation for DPA/model-policy compliance blocks.
+function complianceRemediation(
+  checkId: string,
+  details?: Record<string, unknown>
+): import("@/lib/validation/pre-flight").PreFlightRemediation | undefined {
+  if (checkId !== "dpa-subprocessors" && checkId !== "model-provider-policy") return undefined;
+  const ids = Array.isArray(details?.provider_names)
+    ? (details.provider_names as string[]).filter(Boolean)
+    : [];
+  if (ids.length === 0) return undefined;
+  return { type: "acknowledge_dpa", label: "Acknowledge DPA", provider_ids: ids };
+}
 
 function complianceFixSuggestion(checkId: string, status: string, details?: Record<string, unknown>): string {
   const names = Array.isArray(details?.provider_names) && (details.provider_names as string[]).length > 0

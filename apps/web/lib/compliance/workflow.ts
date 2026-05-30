@@ -27,10 +27,13 @@ export type WorkspaceRetentionSettings = {
 
 export type WorkspaceComplianceSettings = WorkspaceRetentionSettings & {
   compliance_mode: WorkspaceComplianceMode;
+  /** Provider IDs the workspace owner has acknowledged DPA compliance for. */
+  dpa_acknowledged_providers: string[];
 };
 
 export const DEFAULT_WORKSPACE_COMPLIANCE: WorkspaceComplianceSettings = {
   compliance_mode: "standard",
+  dpa_acknowledged_providers: [],
   execution_log_retention_days: 90,
   prompt_retention_days: 0,
   output_retention_days: 0,
@@ -290,10 +293,14 @@ export function mergeWorkspaceComplianceSettings(
   raw?: Partial<WorkspaceComplianceSettings> | null
 ): WorkspaceComplianceSettings {
   const mode = raw?.compliance_mode === "eu_only" ? "eu_only" : "standard";
+  const acknowledged = Array.isArray(raw?.dpa_acknowledged_providers)
+    ? (raw.dpa_acknowledged_providers as string[])
+    : [];
   return {
     ...DEFAULT_WORKSPACE_COMPLIANCE,
     ...raw,
     compliance_mode: mode,
+    dpa_acknowledged_providers: acknowledged,
     execution_log_retention_days: positiveInteger(
       raw?.execution_log_retention_days,
       DEFAULT_WORKSPACE_COMPLIANCE.execution_log_retention_days
@@ -550,12 +557,16 @@ export function validateWorkflowCompliance(
       });
     }
 
+    const isAcknowledged = workspace.dpa_acknowledged_providers.includes(item.provider.id);
+
     if (!item.provider.dpa_available) {
       addCheck(providerIssues, {
         id: `dpa-${item.node_id}`,
         label: "DPA/subprocessor completeness check",
-        status: "blocked",
-        message: `${item.provider.name} does not have a completed DPA entry in the provider registry.`,
+        status: isAcknowledged ? "warning" : "blocked",
+        message: isAcknowledged
+          ? `${item.provider.name} DPA acknowledged by workspace owner.`
+          : `${item.provider.name} does not have a completed DPA entry in the provider registry.`,
         node_id: item.node_id,
         provider_id: item.provider.id,
       });
@@ -565,8 +576,10 @@ export function validateWorkflowCompliance(
       addCheck(providerIssues, {
         id: `scc-${item.node_id}`,
         label: "DPA/subprocessor completeness check",
-        status: "blocked",
-        message: `${item.provider.name} requires a documented SCC or transfer-basis entry before production use.`,
+        status: isAcknowledged ? "warning" : "blocked",
+        message: isAcknowledged
+          ? `${item.provider.name} SCC/transfer-basis acknowledged by workspace owner.`
+          : `${item.provider.name} requires a documented SCC or transfer-basis entry before production use.`,
         node_id: item.node_id,
         provider_id: item.provider.id,
       });
@@ -702,6 +715,7 @@ export function validateWorkflowCompliance(
   const modelIssues = flow.filter(
     (item) =>
       item.ai_model_call &&
+      !workspace.dpa_acknowledged_providers.includes(item.provider.id) &&
       (!item.provider.dpa_available ||
         !item.provider.scc_available ||
         item.provider.trains_on_customer_data === "unknown")
