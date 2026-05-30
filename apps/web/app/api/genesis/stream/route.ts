@@ -48,7 +48,7 @@ import {
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
 
-const PLATFORM_MODEL = "anthropic/claude-sonnet-4-6";
+const PLATFORM_MODEL = "qwen/qwen3-coder:free";
 
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
