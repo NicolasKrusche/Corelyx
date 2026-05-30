@@ -14,6 +14,7 @@ export type ProgramListItem = {
   is_active: boolean;
   schema_version: number;
   last_run_at: string | null;
+  created_at: string;
   updated_at: string;
   folder_id: string | null;
 };
@@ -24,7 +25,76 @@ export type FolderItem = {
   color: string | null;
 };
 
-export type ProgramStats = Record<string, { total: number; failed: number }>;
+export type ProgramStats = Record<string, { total: number; failed: number; runSeries?: number[]; providers?: string[] }>;
+
+const PROVIDER_COLORS: Record<string, string> = {
+  gmail: "bg-red-500",
+  sheets: "bg-emerald-500",
+  slack: "bg-violet-600",
+  notion: "bg-neutral-900 dark:bg-neutral-100 dark:text-neutral-900",
+  calendar: "bg-blue-500",
+  airtable: "bg-amber-500",
+  hubspot: "bg-orange-500",
+  docs: "bg-blue-600",
+  github: "bg-neutral-800 dark:bg-neutral-200 dark:text-neutral-900",
+  drive: "bg-green-600",
+  asana: "bg-rose-500",
+  outlook: "bg-sky-600",
+  typeform: "bg-neutral-700",
+};
+
+function providerInitial(provider: string) {
+  return provider.slice(0, 1).toUpperCase();
+}
+
+function sparklinePoints(values: number[]) {
+  const max = Math.max(...values, 1);
+  return values
+    .map((value, index) => `${(index / Math.max(values.length - 1, 1)) * 48},${15 - (value / max) * 13}`)
+    .join(" ");
+}
+
+function RunSparkline({ values }: { values: number[] }) {
+  return (
+    <svg viewBox="0 0 48 16" aria-label={`Runs by day: ${values.join(", ")}`} className="h-4 w-12 overflow-visible">
+      <polyline
+        points={sparklinePoints(values)}
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+        className="text-muted-foreground/60"
+      />
+    </svg>
+  );
+}
+
+function ConnectionBadges({ providers }: { providers: string[] }) {
+  const visible = providers.slice(0, 3);
+  return (
+    <div className="flex min-w-14 shrink-0 items-center">
+      {visible.map((provider, index) => (
+        <span
+          key={provider}
+          title={provider}
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-md border border-background text-[10px] font-black text-white shadow-sm",
+            index > 0 && "-ml-1.5",
+            PROVIDER_COLORS[provider] ?? "bg-primary"
+          )}
+        >
+          {providerInitial(provider)}
+        </span>
+      ))}
+      {providers.length > visible.length && (
+        <span className="-ml-1.5 flex h-6 min-w-6 items-center justify-center rounded-md border border-background bg-muted px-1 text-[9px] font-bold text-muted-foreground shadow-sm">
+          +{providers.length - visible.length}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -154,7 +224,7 @@ export function ProgramList({
   }
 
   function ProgramRow({ p }: { p: ProgramListItem }) {
-    const s = stats[p.id] ?? { total: 0, failed: 0 };
+    const s = stats[p.id] ?? { total: 0, failed: 0, runSeries: [], providers: [] };
     const hasFailed = s.failed > 0;
     const bar = hasFailed
       ? "bg-red-500/60 group-hover:bg-red-500"
@@ -166,6 +236,8 @@ export function ProgramList({
       <div className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/30">
         <div className={cn("h-8 w-1 shrink-0 rounded-full transition-colors", bar)} />
 
+        <ConnectionBadges providers={s.providers ?? []} />
+
         <Link href={`/programs/${p.id}`} className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{p.name}</p>
           <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground/60">
@@ -175,6 +247,11 @@ export function ProgramList({
 
         <div className="hidden lg:block w-24 shrink-0 text-[11px] text-muted-foreground/70">
           {p.last_run_at ? timeAgo(p.last_run_at) : <span className="italic text-muted-foreground/40">never</span>}
+        </div>
+
+        <div className="hidden xl:flex w-20 shrink-0 items-center gap-2 text-[10px] text-muted-foreground/70">
+          <RunSparkline values={s.runSeries ?? []} />
+          <span>{s.runSeries?.reduce((total, value) => total + value, 0) ?? 0}</span>
         </div>
 
         <div className="hidden lg:flex w-24 shrink-0">
@@ -315,9 +392,11 @@ export function ProgramList({
 
       {/* Column headers */}
       {visible.length > 0 && (
-        <div className="hidden lg:grid grid-cols-[1fr_96px_96px_32px] gap-3 border-b border-border/40 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-          <span className="pl-4">Program</span>
+        <div className="hidden lg:grid grid-cols-[56px_1fr_96px_80px_96px_32px] gap-3 border-b border-border/40 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+          <span />
+          <span>Program</span>
           <span>Last run</span>
+          <span>Runs / wk</span>
           <span>Status</span>
           <span />
         </div>
