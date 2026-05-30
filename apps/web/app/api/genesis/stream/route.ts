@@ -31,6 +31,7 @@ import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
+  getAllowedPlatformModels,
   getMissingConnectionIds,
   getModelCandidates,
   getProviderBaseURL,
@@ -39,6 +40,7 @@ import {
   isRetryableModelError,
   KEY_DEFAULT_MODELS,
   mapExecutionMode,
+  PLATFORM_DEFAULT_MODEL,
   sortApiKeyFallbacks,
   supportsOpenAiJsonMode,
   toGenesisConnectionList,
@@ -47,8 +49,12 @@ import {
   type GenesisApiKeyRow,
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
+import { getUserTier } from "@/lib/limits";
+import { getEntitlements } from "@/lib/entitlements";
 
-const PLATFORM_MODEL = "qwen/qwen3-coder:free";
+// Default platform model — used when the user hasn't picked one.
+// Paid-tier users may override this via the `model` field in the request.
+const PLATFORM_MODEL = PLATFORM_DEFAULT_MODEL;
 
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
@@ -87,7 +93,31 @@ export async function POST(request: Request) {
 
   const { description, connection_ids, api_key_id, use_platform_key } = parsed.data;
   const usePlatformKey = use_platform_key === true;
-  const model = usePlatformKey ? PLATFORM_MODEL : parsed.data.model!;
+
+  // Resolve the model to use.
+  // Platform-key path: paid users may supply a `model` override; free users are
+  // locked to the default. BYOK path: `model` is always required by the schema.
+  let model: string;
+  if (usePlatformKey) {
+    const requestedModel = parsed.data.model;
+    if (requestedModel && requestedModel !== PLATFORM_MODEL) {
+      // Validate the requested model against the user's tier
+      const tier = await getUserTier(userId);
+      const ent = getEntitlements(tier);
+      const allowed = getAllowedPlatformModels(ent.genesisPlatformModelTier);
+      if (!allowed.some((m) => m.id === requestedModel)) {
+        return apiError(
+          `Model "${requestedModel}" is not available on your current plan. Upgrade to Solo or higher to access premium models.`,
+          403
+        );
+      }
+      model = requestedModel;
+    } else {
+      model = PLATFORM_MODEL;
+    }
+  } else {
+    model = parsed.data.model!;
+  }
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const startedAt = Date.now();
   const sanitizedDescription = sanitizeTextForLlm(description);

@@ -37,6 +37,11 @@ export interface PlanEntitlements {
 
   // Platform AI credits included per month (null = unlimited, 0 = none)
   includedAiCreditsUsd: number | null;
+
+  // Which tier of platform Genesis models the user can access
+  // "free"  → only free/open-weight models
+  // "paid"  → also includes Claude, GPT-4o, etc. (billed against includedAiCreditsUsd)
+  genesisPlatformModelTier: "free" | "paid";
 }
 
 export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
@@ -53,6 +58,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: 1,
     maxWorkspaces: 1,
     includedAiCreditsUsd: 0,
+    genesisPlatformModelTier: "free",
   },
   plus: {
     maxPrograms: 5,
@@ -67,6 +73,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: 1,
     maxWorkspaces: 1,
     includedAiCreditsUsd: 2.50,
+    genesisPlatformModelTier: "paid",
   },
   pro: {
     maxPrograms: null,
@@ -81,6 +88,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: 3,
     maxWorkspaces: 3,
     includedAiCreditsUsd: 10,
+    genesisPlatformModelTier: "paid",
   },
   builder: {
     maxPrograms: null,
@@ -95,6 +103,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCreditsUsd: 15,
+    genesisPlatformModelTier: "paid",
   },
   unlimited: {
     maxPrograms: null,
@@ -109,6 +118,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCreditsUsd: null,
+    genesisPlatformModelTier: "paid",
   },
 };
 

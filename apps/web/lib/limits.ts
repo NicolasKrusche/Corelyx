@@ -332,6 +332,12 @@ export async function getRunHistoryDays(userId: string, workspaceId?: string | n
   return getEntitlements(profile.tier).runHistoryDays;
 }
 
+/** Return the resolved billing tier for a user (optionally scoped to a workspace). */
+export async function getUserTier(userId: string, workspaceId?: string | null): Promise<Tier> {
+  const billing = await getBillingScope(userId, workspaceId);
+  return billing.tier;
+}
+
 export async function checkWorkspaceLimit(userId: string): Promise<LimitCheckResult> {
   const profile = await getBillingScope(userId);
   const ent = getEntitlements(profile.tier);

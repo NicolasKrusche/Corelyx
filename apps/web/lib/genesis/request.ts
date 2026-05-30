@@ -13,6 +13,64 @@ export type GenesisApiKeyRow = {
   provider: string;
 };
 
+// ─── Platform model catalog ───────────────────────────────────────────────────
+// Models available when using the Corelyx platform key (via OpenRouter).
+// "free" tier models cost nothing; "paid" tier models are billed against the
+// user's includedAiCreditsUsd. All IDs are OpenRouter model strings.
+
+export type PlatformModelTier = "free" | "paid";
+
+export type PlatformModelOption = {
+  id: string;
+  label: string;
+  sublabel: string;
+  tier: PlatformModelTier;
+};
+
+export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
+  {
+    id: "qwen/qwen3-coder:free",
+    label: "Qwen3 Coder",
+    sublabel: "Free · Fast",
+    tier: "free",
+  },
+  {
+    id: "anthropic/claude-haiku-3-5",
+    label: "Claude Haiku 3.5",
+    sublabel: "Fast · Efficient",
+    tier: "paid",
+  },
+  {
+    id: "anthropic/claude-sonnet-4-6",
+    label: "Claude Sonnet 4.6",
+    sublabel: "Best quality",
+    tier: "paid",
+  },
+  {
+    id: "openai/gpt-4o-mini",
+    label: "GPT-4o Mini",
+    sublabel: "Fast · Affordable",
+    tier: "paid",
+  },
+  {
+    id: "openai/gpt-4o",
+    label: "GPT-4o",
+    sublabel: "Powerful",
+    tier: "paid",
+  },
+];
+
+/** The model ID used when the user hasn't picked one (free tier default). */
+export const PLATFORM_DEFAULT_MODEL = "qwen/qwen3-coder:free";
+
+/** Returns allowed model IDs for a given platform model tier. */
+export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModelOption[] {
+  if (tier === "paid") return PLATFORM_MODEL_CATALOG;
+  return PLATFORM_MODEL_CATALOG.filter((m) => m.tier === "free");
+}
+
+// ─── OpenRouter fallback chain ────────────────────────────────────────────────
+
 export const OPENROUTER_FALLBACK_MODELS = [
   "qwen/qwen3-coder:free",
   "openai/gpt-oss-120b:free",

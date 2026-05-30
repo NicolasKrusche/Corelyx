@@ -39,7 +39,7 @@ const EDGE_TYPES = {
 
 type GenesisPayload =
   | { description: string; connection_ids: string[]; api_key_id: string; model: string }
-  | { description: string; connection_ids: string[]; use_platform_key: true };
+  | { description: string; connection_ids: string[]; use_platform_key: true; model?: string };
 
 type IncomingNode = {
   id: string;
