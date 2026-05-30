@@ -1449,7 +1449,7 @@ export function EditorShell({
             failures: [{
               node_id: c.node_id ?? null,
               message: c.message,
-              fix_suggestion: complianceFixSuggestion(c.id, c.status),
+              fix_suggestion: complianceFixSuggestion(c.id, c.status, c.details),
             }],
           }))
         );
@@ -1528,7 +1528,7 @@ export function EditorShell({
               failures: [{
                 node_id: c.node_id ?? null,
                 message: c.message,
-                fix_suggestion: complianceFixSuggestion(c.id, c.status),
+                fix_suggestion: complianceFixSuggestion(c.id, c.status, c.details),
               }],
             }))
           );
@@ -2082,6 +2082,9 @@ function preFlightFixLink(
   if (fixSuggestion.toLowerCase().includes("governance")) {
     return { href: "/governance", label: "Open Governance" };
   }
+  if (fixSuggestion.toLowerCase().includes("subprocessors") || fixSuggestion.toLowerCase().includes("dpa") || fixSuggestion.toLowerCase().includes("registry")) {
+    return { href: "/subprocessors", label: "View provider registry" };
+  }
   if (fixSuggestion.toLowerCase().includes("settings")) {
     return { href: "/settings", label: "Open Settings" };
   }
@@ -2090,12 +2093,19 @@ function preFlightFixLink(
 
 // ─── Utility: human-readable fix suggestion per compliance check ID ───────────
 
-function complianceFixSuggestion(checkId: string, status: string): string {
+function complianceFixSuggestion(checkId: string, status: string, details?: Record<string, unknown>): string {
+  const names = Array.isArray(details?.provider_names) && (details.provider_names as string[]).length > 0
+    ? (details.provider_names as string[]).join(", ")
+    : null;
   switch (checkId) {
     case "model-provider-policy":
-      return "One or more AI model providers used in this workflow are missing DPA or SCC records. Open Governance → Provider registry to complete the missing entries.";
+      return names
+        ? `${names} ${(details!.provider_names as string[]).length === 1 ? "is" : "are"} not yet fully reviewed in the Corelyx provider registry (DPA, SCC, or training-policy entry missing). You can continue anyway if you have verified your own DPA with this provider, or switch to a reviewed provider such as Anthropic or OpenAI via the node settings.`
+        : "One or more AI model providers used in this workflow are not yet fully reviewed. Switch to a reviewed provider or contact support.";
     case "dpa-subprocessors":
-      return "A provider used in this workflow has no completed DPA entry. Open Governance → Provider registry and add the required documentation.";
+      return names
+        ? `${names} ${(details!.provider_names as string[]).length === 1 ? "does" : "do"} not have a completed DPA entry in the Corelyx registry. If you have your own DPA with this provider, contact support to have it added. Alternatively, remove or replace the connector using this provider.`
+        : "A connector in this workflow uses a provider without a completed DPA entry. Remove the connector or contact support.";
     case "eu-only-mode":
       return "EU-only mode is active and this workflow uses a provider that hasn't been cleared for EU residency. Either remove the provider or switch the workspace to standard mode in Settings → Compliance.";
     case "ai-act-risk":
