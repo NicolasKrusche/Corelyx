@@ -127,10 +127,7 @@ export async function POST(request: Request) {
   const apiKeys = (apiKeysRaw ?? []) as ApiKeyRow[];
 
   const runnableSchema = executableSchema.data as unknown as ProgramSchema;
-  const { result, checks } = await validatePreFlight(runnableSchema, connections, apiKeys);
-  if (!result.valid) {
-    return NextResponse.json({ error: "Pre-flight checks failed", checks }, { status: 422 });
-  }
+  const { checks } = await validatePreFlight(runnableSchema, connections, apiKeys);
 
   const workspaceCompliance = await loadWorkspaceComplianceSettings(programWorkspaceId, serviceClient);
   const complianceChecks = validateWorkflowCompliance(
