@@ -940,6 +940,44 @@ describe("toReactFlow / fromReactFlow roundtrip", () => {
     }
     expect(schemaEqual(result, httpConnectionSchema)).toBe(true);
   });
+
+  it("12. maps sticky note drag behavior and preserves annotation config", () => {
+    const annotationSchema: ProgramSchema = {
+      ...triggerOnlySchema,
+      nodes: [
+        ...triggerOnlySchema.nodes,
+        {
+          id: "n1",
+          type: "note",
+          label: "Reminder",
+          description: "",
+          connection: null,
+          position: { x: 30, y: 40 },
+          status: "idle",
+          config: { content: "Check the approval step", color: "yellow" },
+        },
+        {
+          id: "g1",
+          type: "group",
+          label: "Approval flow",
+          description: "",
+          connection: null,
+          position: { x: 10, y: 20 },
+          status: "idle",
+          config: { childIds: [], width: 480, height: 320, color: "blue" },
+        },
+      ],
+    };
+
+    const { nodes } = toReactFlow(annotationSchema, null);
+    const note = nodes.find((node) => node.id === "n1");
+    const group = nodes.find((node) => node.id === "g1");
+
+    expect(note?.zIndex).toBe(1000);
+    expect(note?.dragHandle).toBe(".note-drag-handle");
+    expect(group?.style).toMatchObject({ width: 480, height: 320 });
+    expect(schemaEqual(roundtrip(annotationSchema), annotationSchema)).toBe(true);
+  });
 });
 
 // ─── applyDagreLayout tests ───────────────────────────────────────────────────

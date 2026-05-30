@@ -2,6 +2,8 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { PROVIDER_ICON_URL } from "@/lib/provider-icons";
+import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 // ─── Variant type — exported so EditorShell + Toolbar can share it ────────────
 
@@ -75,11 +77,27 @@ function HttpIcon() {
   );
 }
 
-function ProviderIcon({ letter }: { letter: string }) {
+function ProviderIcon({ provider }: { provider: string }) {
+  const [imageFailed, setImageFailed] = React.useState(false);
+  const iconUrl = PROVIDER_ICON_URL[provider];
+
+  if (!iconUrl || imageFailed) {
+    return (
+      <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded text-[7px] font-bold bg-current/20">
+        {provider.slice(0, 2).toUpperCase()}
+      </span>
+    );
+  }
+
   return (
-    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded text-[8px] font-bold bg-current/20">
-      {letter}
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={iconUrl}
+      alt=""
+      className="h-4 w-4 object-contain"
+      loading="lazy"
+      onError={() => setImageFailed(true)}
+    />
   );
 }
 
@@ -258,79 +276,79 @@ const CATEGORIES: Category[] = [
         variant: { type: "connection", subtype: "gmail" },
         label: "Gmail",
         description: "Send, read, and manage Gmail messages",
-        icon: <ProviderIcon letter="G" />,
+        icon: <ProviderIcon provider="gmail" />,
       },
       {
         variant: { type: "connection", subtype: "notion" },
         label: "Notion",
         description: "Read and write Notion pages & databases",
-        icon: <ProviderIcon letter="N" />,
+        icon: <ProviderIcon provider="notion" />,
       },
       {
         variant: { type: "connection", subtype: "slack" },
         label: "Slack",
         description: "Post messages and manage channels",
-        icon: <ProviderIcon letter="S" />,
+        icon: <ProviderIcon provider="slack" />,
       },
       {
         variant: { type: "connection", subtype: "github" },
         label: "GitHub",
         description: "Create issues, PRs, and push files",
-        icon: <ProviderIcon letter="GH" />,
+        icon: <ProviderIcon provider="github" />,
       },
       {
         variant: { type: "connection", subtype: "sheets" },
         label: "Google Sheets",
         description: "Read and write spreadsheet data",
-        icon: <ProviderIcon letter="S" />,
+        icon: <ProviderIcon provider="sheets" />,
       },
       {
         variant: { type: "connection", subtype: "calendar" },
         label: "Google Calendar",
         description: "List and create calendar events",
-        icon: <ProviderIcon letter="C" />,
+        icon: <ProviderIcon provider="calendar" />,
       },
       {
         variant: { type: "connection", subtype: "docs" },
         label: "Google Docs",
         description: "Read and write documents",
-        icon: <ProviderIcon letter="D" />,
+        icon: <ProviderIcon provider="docs" />,
       },
       {
         variant: { type: "connection", subtype: "drive" },
         label: "Google Drive",
         description: "List, share, and manage Drive files",
-        icon: <ProviderIcon letter="Dr" />,
+        icon: <ProviderIcon provider="drive" />,
       },
       {
         variant: { type: "connection", subtype: "airtable" },
         label: "Airtable",
         description: "CRUD records in Airtable bases",
-        icon: <ProviderIcon letter="A" />,
+        icon: <ProviderIcon provider="airtable" />,
       },
       {
         variant: { type: "connection", subtype: "hubspot" },
         label: "HubSpot",
         description: "Manage contacts and deals",
-        icon: <ProviderIcon letter="H" />,
+        icon: <ProviderIcon provider="hubspot" />,
       },
       {
         variant: { type: "connection", subtype: "typeform" },
         label: "Typeform",
         description: "Read forms and responses",
-        icon: <ProviderIcon letter="T" />,
+        icon: <ProviderIcon provider="typeform" />,
       },
       {
         variant: { type: "connection", subtype: "asana" },
         label: "Asana",
         description: "Create and update tasks and projects",
-        icon: <ProviderIcon letter="As" />,
+        icon: <ProviderIcon provider="asana" />,
       },
       {
         variant: { type: "connection", subtype: "outlook" },
         label: "Outlook",
         description: "Send and read Outlook mail",
-        icon: <ProviderIcon letter="O" />,
+        icon: <ProviderIcon provider="outlook" />,
       },
     ],
   },
@@ -375,9 +393,30 @@ interface NodePalettePanelProps {
 }
 
 export function NodePalettePanel({ onAdd, onDragStart, onClose, enableAdvancedEditor = false }: NodePalettePanelProps) {
+  const [search, setSearch] = React.useState("");
+  const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(() => new Set());
   const visibleCategories = enableAdvancedEditor
     ? CATEGORIES
     : CATEGORIES.filter((cat) => cat.id !== "annotations");
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredCategories = visibleCategories
+    .map((cat) => ({
+      ...cat,
+      templates: cat.templates.filter((tpl) =>
+        !normalizedSearch || `${tpl.label} ${tpl.description}`.toLowerCase().includes(normalizedSearch)
+      ),
+    }))
+    .filter((cat) => cat.templates.length > 0);
+
+  function toggleCategory(categoryId: string) {
+    setExpandedCategories((current) => {
+      const next = new Set(current);
+      if (next.has(categoryId)) next.delete(categoryId);
+      else next.add(categoryId);
+      return next;
+    });
+  }
+
   return (
     <aside
       className={cn(
@@ -387,6 +426,8 @@ export function NodePalettePanel({ onAdd, onDragStart, onClose, enableAdvancedEd
       )}
       style={{ top: 56 }}
     >
+      <PanelResizeHandle edge="right" />
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
         <span className="text-xs font-semibold">Add node</span>
@@ -402,19 +443,58 @@ export function NodePalettePanel({ onAdd, onDragStart, onClose, enableAdvancedEd
         </button>
       </div>
 
+      <div className="shrink-0 border-b border-border px-3 py-2">
+        <label className="relative block">
+          <span className="sr-only">Search nodes</span>
+          <svg
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+          >
+            <circle cx="7" cy="7" r="4" />
+            <path d="M10 10l3 3" strokeLinecap="round" />
+          </svg>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search nodes..."
+            className="h-8 w-full rounded-md border border-border bg-background pl-7 pr-2 text-xs outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+          />
+        </label>
+      </div>
+
       {/* Scrollable categories */}
       <div className="flex-1 overflow-y-auto py-2">
-        {visibleCategories.map((cat) => (
+        {filteredCategories.map((cat) => {
+          const isExpanded = Boolean(normalizedSearch) || expandedCategories.has(cat.id);
+          return (
           <div key={cat.id} className="mb-1">
             {/* Category header */}
-            <div className={cn("px-3 py-1.5 flex items-center gap-1.5")}>
+            <button
+              type="button"
+              onClick={() => toggleCategory(cat.id)}
+              className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left hover:bg-accent/60"
+              aria-expanded={isExpanded}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                className={cn("h-3 w-3 shrink-0 text-muted-foreground transition-transform", isExpanded && "rotate-90")}
+              >
+                <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               <span className={cn("text-[10px] font-semibold uppercase tracking-wider", cat.color)}>
                 {cat.label}
               </span>
-            </div>
+              <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">{cat.templates.length}</span>
+            </button>
 
             {/* Templates */}
-            <div className="px-2 space-y-0.5">
+            {isExpanded && <div className="px-2 space-y-0.5">
               {cat.templates.map((tpl) => {
                 const key =
                   tpl.variant.type === "trigger" ? `trigger-${tpl.variant.subtype}`
@@ -459,9 +539,14 @@ export function NodePalettePanel({ onAdd, onDragStart, onClose, enableAdvancedEd
                   </button>
                 );
               })}
-            </div>
+            </div>}
           </div>
-        ))}
+        )})}
+        {filteredCategories.length === 0 && (
+          <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+            No nodes found.
+          </p>
+        )}
       </div>
 
       {/* Footer hint */}

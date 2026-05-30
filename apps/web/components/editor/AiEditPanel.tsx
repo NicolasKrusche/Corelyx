@@ -5,6 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 export type AiEditMode = "personal" | "platform";
 
@@ -47,6 +48,8 @@ export function AiEditPanel({
       )}
       style={{ top: 56 }}
     >
+      <PanelResizeHandle edge="right" />
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center gap-1.5">

@@ -219,6 +219,7 @@ export const GroupNodeZ = NodeBaseZ.extend({
     childIds: z.array(z.string()),
     width: z.number().positive(),
     height: z.number().positive(),
+    color: z.enum(["zinc", "blue", "green", "amber", "pink"]).optional(),
   }),
 });
 

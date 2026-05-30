@@ -74,6 +74,7 @@ export function toReactFlow(
       selectable: true,
       position: { x: node.position.x, y: node.position.y },
       ...(style ? { style } : {}),
+      ...(node.type === "note" ? { zIndex: 1000, dragHandle: ".note-drag-handle" } : {}),
       data: {
         label: node.label,
         description: node.description,

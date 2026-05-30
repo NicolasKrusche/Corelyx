@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Node as SchemaNode } from "@flowos/schema";
 import type { NodeExecutionData } from "./EditorShell";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -210,6 +211,8 @@ export function RunLogDrawer({
         expanded ? "h-[55vh]" : "h-[260px]",
       ].join(" ")}
     >
+      <PanelResizeHandle edge="top" />
+
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
         <button
