@@ -176,13 +176,9 @@ def is_provider_allowed_in_eu_only(provider_id: str | None) -> bool:
 
 
 def policy_block_reason(provider_id: str | None, compliance_mode: str) -> str | None:
-    provider = get_provider(provider_id)
     if compliance_mode != "eu_only":
-        if not provider.dpa_available:
-            return f"{provider.name} is missing a completed DPA entry."
-        if provider_leaves_eea(provider) and not provider.scc_available:
-            return f"{provider.name} is missing SCC or transfer-basis evidence."
         return None
+    provider = get_provider(provider_id)
     if not is_provider_allowed_in_eu_only(provider.id):
         return (
             f"{provider.name} is blocked in EU-only mode until EU residency, DPA, "
