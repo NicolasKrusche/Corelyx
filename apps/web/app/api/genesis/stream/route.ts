@@ -75,10 +75,13 @@ export async function POST(request: Request) {
   if (!user) return apiError("Unauthorized", 401);
   const userId = user.id;
 
-  const processingRestriction = await ensureProcessingAllowed(userId);
+  // Stage 0: body parse + processing restriction check are independent — run in parallel
+  const [processingRestriction, body] = await Promise.all([
+    ensureProcessingAllowed(userId),
+    request.json().catch(() => null),
+  ]);
   if (processingRestriction) return processingRestriction;
 
-  const body = await request.json().catch(() => null);
   const parsed = RequestSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
@@ -88,46 +91,46 @@ export async function POST(request: Request) {
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const startedAt = Date.now();
   const sanitizedDescription = sanitizeTextForLlm(description);
+  const serviceClient = createServiceClient();
 
-  // Rate limit
-  if (!(await rateLimit(`genesis:${userId}`, 10, 60_000))) {
-    return sseErrorResponse("Too many requests. Please wait a moment and try again.", "RATE_LIMITED");
-  }
+  // Stage 1: rate limit + workspace lookup are independent
+  const [rateLimitPassed, ws] = await Promise.all([
+    rateLimit(`genesis:${userId}`, 10, 60_000),
+    getActiveWorkspace(userId),
+  ]);
 
-  // Active workspace
-  const ws = await getActiveWorkspace(userId);
+  if (!rateLimitPassed) return sseErrorResponse("Too many requests. Please wait a moment and try again.", "RATE_LIMITED");
   if (!ws) return sseErrorResponse("No active workspace", "NO_WORKSPACE");
-  if (!canContributeToWorkspace(ws.role)) {
-    return sseErrorResponse("Viewers cannot generate programs.", "FORBIDDEN");
-  }
+  if (!canContributeToWorkspace(ws.role)) return sseErrorResponse("Viewers cannot generate programs.", "FORBIDDEN");
+
   const workspaceId = ws.workspaceId;
 
-  // Genesis AI monthly limit
-  const genesisCheck = await checkGenesisAccess(userId, workspaceId);
-  if (!genesisCheck.allowed) {
-    return sseErrorResponse(genesisCheck.upgradeMessage ?? "Genesis AI limit reached.", "GENESIS_LIMIT_REACHED");
-  }
+  // Stage 2: genesis limit, program limit, connections, and API keys all need workspaceId — run in parallel
+  const pendingConnections = requestedConnectionIds.length > 0
+    ? supabase.from("connections").select("id, name, provider, scopes")
+        .in("id", requestedConnectionIds).eq("workspace_id", workspaceId).eq("is_valid", true)
+    : Promise.resolve({ data: [] as Array<{ id: string; name: string; provider: string; scopes: string[] | null }>, error: null });
 
-  // Program limit
-  const limitCheck = await checkProgramLimit(userId, workspaceId);
-  if (!limitCheck.allowed) {
-    return sseErrorResponse(limitCheck.upgradeMessage ?? "Program limit reached.", "PROGRAM_LIMIT_REACHED");
-  }
+  const pendingApiKeys = usePlatformKey
+    ? Promise.resolve({ data: null as null, error: null })
+    : serviceClient.from("api_keys").select("id, vault_secret_id, provider")
+        .eq("workspace_id", workspaceId).eq("is_valid", true);
 
-  // Fetch connections
+  const [genesisCheck, limitCheck, connResult, keysResult] = await Promise.all([
+    checkGenesisAccess(userId, workspaceId),
+    checkProgramLimit(userId, workspaceId),
+    pendingConnections,
+    pendingApiKeys,
+  ]);
+
+  if (!genesisCheck.allowed) return sseErrorResponse(genesisCheck.upgradeMessage ?? "Genesis AI limit reached.", "GENESIS_LIMIT_REACHED");
+  if (!limitCheck.allowed) return sseErrorResponse(limitCheck.upgradeMessage ?? "Program limit reached.", "PROGRAM_LIMIT_REACHED");
+
+  // Resolve connections
   let connections: GenesisConnectionRow[] = [];
   if (requestedConnectionIds.length > 0) {
-    const { data: rawConnections, error: connError } = await supabase
-      .from("connections")
-      .select("id, name, provider, scopes")
-      .in("id", requestedConnectionIds)
-      .eq("workspace_id", workspaceId)
-      .eq("is_valid", true);
-
-    if (connError) {
-      return sseErrorResponse("Could not verify selected connections.", "CONNECTION_LOOKUP_FAILED");
-    }
-
+    const { data: rawConnections, error: connError } = connResult;
+    if (connError) return sseErrorResponse("Could not verify selected connections.", "CONNECTION_LOOKUP_FAILED");
     connections = (rawConnections ?? []) as unknown as GenesisConnectionRow[];
     const missingConnectionIds = getMissingConnectionIds(requestedConnectionIds, connections);
     if (missingConnectionIds.length > 0) {
@@ -139,35 +142,22 @@ export async function POST(request: Request) {
   }
 
   const availableConnections = toGenesisConnectionList(connections);
-
-  // Extract provider names from available connections for dynamic prompt generation
   const selectedProviders = availableConnections.map((conn) => conn.type);
-  const genesisSystemPrompt = buildGenesisSystemPrompt(
-    selectedProviders.length > 0 ? selectedProviders : null
-  );
+  const genesisSystemPrompt = buildGenesisSystemPrompt(selectedProviders.length > 0 ? selectedProviders : null);
 
   // Resolve API keys
-  const serviceClient = createServiceClient();
   let keyCandidates: GenesisApiKeyRow[];
 
   if (usePlatformKey) {
     const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
-    if (!platformRawKey) {
-      return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
-    }
+    if (!platformRawKey) return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
     keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];
   } else {
-    const { data: allKeyRows, error: keysError } = await serviceClient
-      .from("api_keys")
-      .select("id, vault_secret_id, provider")
-      .eq("workspace_id", workspaceId)
-      .eq("is_valid", true);
-
+    const { data: allKeyRows, error: keysError } = keysResult;
     const validKeyRows = (allKeyRows ?? []) as unknown as GenesisApiKeyRow[];
     if (keysError || validKeyRows.length === 0) {
       return sseErrorResponse("API key not found. Please add a valid API key.", "API_KEY_INVALID");
     }
-
     keyCandidates = sortApiKeyFallbacks(api_key_id!, validKeyRows);
     if (keyCandidates.length === 0) {
       return sseErrorResponse("Selected API key not found or invalid.", "API_KEY_INVALID");
@@ -193,32 +183,34 @@ export async function POST(request: Request) {
 
       let rawText = "";
       let modelUsed = model;
+      // Hoisted so the catch block can check whether an abort was compliance-triggered.
+      let complianceBlockReason: string | null = null;
 
       try {
-        // Step 1: EU compliance pre-filter — identify relevant EU regulatory
-        // obligations before Genesis generates the workflow. Non-blocking.
-        send({ type: "status", message: "Checking EU compliance requirements..." });
-        let euComplianceContext: string | null = null;
-        try {
-          const filterKeyRow = pickEuComplianceFilterKey(keyCandidates);
-          if (filterKeyRow) {
+        // EU compliance filter runs in parallel with generation.
+        // If it returns a hard "blocked" verdict, the AbortController cancels the active LLM call.
+        const ac = new AbortController();
+        const compliancePromise: Promise<import("@/lib/genesis/eu-compliance").EuComplianceResult | null> = (async () => {
+          try {
+            const filterKeyRow = pickEuComplianceFilterKey(keyCandidates);
+            if (!filterKeyRow) return null;
             const filterApiKey = filterKeyRow.id === "platform"
-                ? filterKeyRow.vault_secret_id
-                : await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
-            euComplianceContext = await runEuComplianceFilter(
-              sanitizedDescription.value,
-              filterKeyRow,
-              filterApiKey
-            );
+              ? filterKeyRow.vault_secret_id
+              : await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
+            const result = await runEuComplianceFilter(sanitizedDescription.value, filterKeyRow, filterApiKey);
+            if (result?.verdict === "blocked") {
+              complianceBlockReason = result.blockedReason;
+              ac.abort();
+            }
+            return result ?? null;
+          } catch {
+            return null;
           }
-        } catch {
-          // Non-blocking — continue without compliance context
-        }
+        })();
 
-        // Step 2: Build the Genesis user message with any EU compliance context.
         send({ type: "status", message: "Contacting model..." });
 
-        const userMessage = buildGenesisUserMessage(sanitizedDescription.value, availableConnections, euComplianceContext);
+        const userMessage = buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
@@ -249,7 +241,7 @@ export async function POST(request: Request) {
                   temperature: GENESIS_TEMPERATURE,
                   system: genesisSystemPrompt,
                   messages: [{ role: "user", content: userMessage }],
-                });
+                }, { signal: ac.signal });
 
                 msgStream.on("text", (textDelta) => {
                   rawText += textDelta;
@@ -274,7 +266,7 @@ export async function POST(request: Request) {
                     { role: "system", content: genesisSystemPrompt },
                     { role: "user", content: userMessage },
                   ],
-                });
+                }, { signal: ac.signal });
 
                 for await (const chunk of openaiStream) {
                   const piece = chunk.choices[0]?.delta?.content ?? "";
@@ -404,6 +396,15 @@ export async function POST(request: Request) {
         const schema = schemaResult.success ? schemaResult.data : draftResult.data;
         const validation = validatePostGenesis(schema as unknown as Parameters<typeof validatePostGenesis>[0], connections);
 
+        // Await compliance before saving — catches late-arriving blocks if generation
+        // finished faster than the compliance model responded.
+        const complianceResult = await compliancePromise;
+        if (complianceBlockReason) {
+          throw new Error(`This workflow was blocked by EU compliance: ${complianceBlockReason}`);
+        }
+
+        const complianceObligations = complianceResult?.verdict === "obligations" ? complianceResult.context : null;
+
         send({ type: "status", message: "Saving program..." });
 
         const { data: rawProgram, error: insertError } = await serviceClient
@@ -415,6 +416,7 @@ export async function POST(request: Request) {
             description,
             schema: schema as unknown as Record<string, unknown>,
             execution_mode: mapExecutionMode(schema.execution_mode),
+            ...(complianceObligations ? { ai_act_notes: complianceObligations } : {}),
           } as unknown as never)
           .select("id, name")
           .single();
@@ -425,53 +427,30 @@ export async function POST(request: Request) {
           throw new Error("The workflow was generated but could not be saved. Please try again.");
         }
 
-        await serviceClient.from("program_memberships").insert({
-          program_id: program.id,
-          user_id: userId,
-          role: "editor",
-          created_by: userId,
-        } as unknown as never);
+        // Memberships, connection links, and version record are independent — write in parallel
+        const postSaveResults = await Promise.all([
+          serviceClient.from("program_memberships").insert({
+            program_id: program.id,
+            user_id: userId,
+            role: "editor",
+            created_by: userId,
+          } as unknown as never),
+          connections.length > 0
+            ? serviceClient.from("program_connections").insert(
+                toProgramConnectionLinks(program.id, connections) as unknown as never
+              )
+            : Promise.resolve({ error: null }),
+          serviceClient.from("program_versions").insert({
+            program_id: program.id,
+            version: 0,
+            schema: schema as unknown as Record<string, unknown>,
+            change_summary: "Genesis — AI-generated from description",
+          } as unknown as never),
+        ]);
 
-        if (connections.length > 0) {
-          const { error: linkError } = await serviceClient
-            .from("program_connections")
-            .insert(
-              toProgramConnectionLinks(program.id, connections) as unknown as never
-            );
-          if (linkError) {
-            throw new Error("The workflow was saved but we could not link your connections to it. You can add them manually in the editor.");
-          }
+        if (connections.length > 0 && postSaveResults[1].error) {
+          throw new Error("The workflow was saved but we could not link your connections to it. You can add them manually in the editor.");
         }
-
-        await serviceClient.from("program_versions").insert({
-          program_id: program.id,
-          version: 0,
-          schema: schema as unknown as Record<string, unknown>,
-          change_summary: "Genesis — AI-generated from description",
-        } as unknown as never);
-
-        await writeAppLog(supabase, {
-          userId,
-          level: "info",
-          source: "Genesis",
-          event: "genesis.stream.completed",
-          status: "completed",
-          message: `Generated program "${schema.program_name}" via streaming.`,
-          programId: program.id,
-          durationMs: Date.now() - startedAt,
-          details: {
-            requested_model: model,
-            model_used: modelUsed,
-            node_count: schema.nodes.length,
-            edge_count: schema.edges.length,
-            validation_errors: validation.errors.length,
-            validation_warnings: validation.warnings.length,
-            pii_redacted: sanitizedDescription.redacted,
-            pii_redactions: sanitizedDescription.redactions,
-          },
-        });
-
-        await incrementGenesisUses(userId, workspaceId);
 
         send({
           type: "done",
@@ -479,26 +458,55 @@ export async function POST(request: Request) {
           program_name: schema.program_name,
           validation,
         });
+
+        // Audit trail — run after done is sent so it doesn't delay the user
+        await Promise.all([
+          writeAppLog(supabase, {
+            userId,
+            level: "info",
+            source: "Genesis",
+            event: "genesis.stream.completed",
+            status: "completed",
+            message: `Generated program "${schema.program_name}" via streaming.`,
+            programId: program.id,
+            durationMs: Date.now() - startedAt,
+            details: {
+              requested_model: model,
+              model_used: modelUsed,
+              node_count: schema.nodes.length,
+              edge_count: schema.edges.length,
+              validation_errors: validation.errors.length,
+              validation_warnings: validation.warnings.length,
+              pii_redacted: sanitizedDescription.redacted,
+              pii_redactions: sanitizedDescription.redactions,
+            },
+          }),
+          incrementGenesisUses(userId, workspaceId),
+        ]);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        await writeAppLog(supabase, {
-          userId,
-          level: "error",
-          source: "Genesis",
-          event: "genesis.stream.failed",
-          status: "failed",
-          message,
-          durationMs: Date.now() - startedAt,
-          details: {
-            requested_model: model,
-            model_used: modelUsed,
-            description: truncateForLog(sanitizedDescription.value, 1000),
-            raw_preview: truncateForLog(sanitizeTextForLlm(rawText).value, 2000),
-            pii_redacted: hasPiiRedactions(sanitizedDescription.redactions),
-            pii_redactions: sanitizedDescription.redactions,
-          },
-        });
-        send({ type: "error", message });
+        if (complianceBlockReason) {
+          send({ type: "error", message, code: "EU_COMPLIANCE_BLOCKED" });
+        } else {
+          await writeAppLog(supabase, {
+            userId,
+            level: "error",
+            source: "Genesis",
+            event: "genesis.stream.failed",
+            status: "failed",
+            message,
+            durationMs: Date.now() - startedAt,
+            details: {
+              requested_model: model,
+              model_used: modelUsed,
+              description: truncateForLog(sanitizedDescription.value, 1000),
+              raw_preview: truncateForLog(sanitizeTextForLlm(rawText).value, 2000),
+              pii_redacted: hasPiiRedactions(sanitizedDescription.redactions),
+              pii_redactions: sanitizedDescription.redactions,
+            },
+          });
+          send({ type: "error", message });
+        }
       } finally {
         controller.close();
       }

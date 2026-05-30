@@ -450,10 +450,10 @@ execution_mode: "autonomous"=fully automated, "approval_required"=agent has requ
 UNIVERSAL NODE FIELDS (all required):
   id: unique string ("n1","n2",…), type: "trigger"|"agent"|"step"|"connection", label: 3-5 words, description: one sentence, connection: matching app name or null, config: {…}, position: {x,y}, status: "idle"
 
-CANONICAL OUTPUT: Every generated or refined workflow must include the complete top-level schema above, every required node field, every required config default for that node type, and every edge as {"id","from","to","type","data_mapping","condition","label"}. Do not output aliases like source/target, webhook/transform node types, or partial patch objects.
+CANONICAL OUTPUT: Every generated or refined workflow must include the complete top-level schema above, every required node field, every required config default for that node type, and every edge as {"id","from","to","type","data_mapping","condition","label"}. Valid node types: trigger, agent, step, connection, note, group. Do not output aliases like source/target, webhook/transform, or partial patch objects.
 
 POSITIONS: trigger at x:100 y:200. Each next node x+=320. Branches: y±220.
-GRAPH RULES: exactly 1 trigger, max 12 nodes, no isolated nodes, every non-trigger needs an incoming edge.
+GRAPH RULES: exactly 1 trigger, max 12 executable nodes (note/group excluded from count), no isolated executable nodes, every non-trigger/non-note/non-group node needs an incoming edge.
 
 TRIGGER NODE (connection: always null):
   manual: {"trigger_type":"manual"}
@@ -482,6 +482,26 @@ Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node o
 CONNECTION NODE:
   OAuth: connection field MUST match provided name exactly. Config: {"provider":"gmail|notion|slack|github|sheets|calendar|docs|drive|airtable|hubspot|typeform|asana|outlook","scope_access":"read|write|read_write","scope_required":["..."],"operation":"op_name","operation_params":{...}}
   HTTP: connection:null. Config: {"connector_type":"http","method":"GET|POST|PUT|PATCH|DELETE","url":"https://...","auth_type":"none|bearer|basic|api_key_header|api_key_query","auth_value":null,"query_params":[],"headers":[],"body":null,"parse_response":true,"timeout_seconds":30,"retry":null}
+
+NOTE NODE (sticky note — purely visual, never executed):
+  connection: null. Config: {"content":"<annotation text>","color":"yellow|blue|pink|green"}
+  ⚠ Never add edges to/from a note node. Does not count toward the 12-node limit.
+  label MUST be a short title (e.g. "⚠ Setup Required", "How this works", "Important").
+  content MUST be a full, helpful sentence or paragraph — never empty, never a placeholder.
+    Write it as if explaining to the user what they need to know or do (e.g. "Before enabling this workflow, create a Slack incoming webhook at api.slack.com and paste the URL into the HTTP node.").
+  color guide: yellow = warnings/setup steps, blue = informational, pink = important caveats, green = tips.
+  Use for: manual-setup requirements, non-obvious data transformations, rate-limit warnings, credential instructions, or anything the user must act on before running.
+  Example: {"id":"note1","type":"note","label":"⚠ Setup Required","description":"","connection":null,"config":{"content":"Before enabling this workflow, create a Slack incoming webhook at api.slack.com and paste the webhook URL into the HTTP node below.","color":"yellow"},"position":{"x":100,"y":420},"status":"idle"}
+
+GROUP NODE (frame container — purely visual, never executed):
+  connection: null. Config: {"childIds":["n2","n3","n4"],"width":<number>,"height":<number>,"color":"zinc|blue|green|amber|pink"}
+  ⚠ Never add edges to/from a group node. Does not count toward the 12-node limit.
+  label MUST be a concise, descriptive name for what the enclosed nodes do together (e.g. "Email Fetching", "AI Summarisation", "Slack Notifications", "Data Enrichment"). Never use generic names like "Group 1" or "Step".
+  Position: x = (min child x) − 60, y = (min child y) − 60. Width/height must cover all childIds with ~60 px padding on each side.
+  childIds must reference real node IDs already in the graph.
+  Example: {"id":"g1","type":"group","label":"Email Fetching","description":"","connection":null,"config":{"childIds":["n2","n3"],"width":740,"height":280,"color":"blue"},"position":{"x":360,"y":140},"status":"idle"}
+
+NOTE/GROUP GUIDANCE: For any workflow with 4+ executable nodes, include at least 1 group frame to cluster related steps. Add a note node whenever the workflow has a manual-setup dependency, credential requirement, or non-obvious behaviour the user must act on.
 
 EVENT TRIGGER SOURCES (use with trigger_type:"event"):
   gmail:    event:"new_email" — fires when Gmail push notification arrives
@@ -528,9 +548,9 @@ UPSTREAM REFERENCES: Use {{node_id.field}} in operation_params to reference upst
   Only reference nodes upstream (earlier in execution path).
 
 CHECKLIST before output:
-  1. Exactly 1 trigger node. 2. ≤12 nodes. 3. All edge from/to reference real node IDs.
-  4. connection field matches provided name exactly (or null for HTTP/step/agent).
-  5. Every non-trigger has incoming edge. 6. step nodes always have connection:null.
+  1. Exactly 1 trigger node. 2. ≤12 executable nodes (note/group excluded). 3. All edge from/to reference real node IDs.
+  4. connection field matches provided name exactly (or null for HTTP/step/agent/note/group).
+  5. Every non-trigger, non-note, non-group node has an incoming edge. 6. step nodes always have connection:null.
   7. Gmail: never pass stub list to agent — always filter→loop→read_email first.
   8. Every operation with REQUIRED params has them filled (use "__USER_ASSIGNED__" for unknown resource IDs).
   9. {{expressions}} have exactly two braces: {{n1.field}}. 10. version_history:[].
