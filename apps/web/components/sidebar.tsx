@@ -431,7 +431,7 @@ export function Sidebar({
     try {
       const since = localStorage.getItem("runs_last_seen");
       const url = since ? `/api/sidebar-data?since=${since}` : "/api/sidebar-data";
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) return;
       const data = (await res.json()) as SidebarData;
       setPendingApprovals(data.pendingApprovalsCount);
@@ -494,11 +494,9 @@ export function Sidebar({
       });
       if (res.ok) {
         setActiveWorkspaceId(workspaceId);
-        void fetchSidebarData();
-        // Always navigate to /dashboard so all server components reload
-        // with fresh data for the newly-active workspace.
-        router.push("/dashboard");
-        router.refresh();
+        // Workspace context scopes most server-rendered app data. A full
+        // navigation avoids stale sidebar state when switching on the dashboard.
+        window.location.assign("/dashboard");
       }
     } finally {
       setSwitchingWorkspace(false);

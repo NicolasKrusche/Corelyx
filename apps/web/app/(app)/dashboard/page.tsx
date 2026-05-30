@@ -325,7 +325,14 @@ export default async function DashboardPage({
   const completedThisWeek = runsThisWeek.filter((run) => run.status === "completed").length;
   const failedThisWeek = runsThisWeek.filter((run) => run.status === "failed").length;
   const terminalRunsThisWeek = completedThisWeek + failedThisWeek;
-  const successRate = terminalRunsThisWeek > 0 ? Math.round((completedThisWeek / terminalRunsThisWeek) * 1000) / 10 : 100;
+  const successRate = terminalRunsThisWeek > 0 ? Math.round((completedThisWeek / terminalRunsThisWeek) * 1000) / 10 : null;
+  const successRateDetail = runsThisWeek.length === 0
+    ? "No runs yet"
+    : terminalRunsThisWeek === 0
+      ? "No completed runs"
+      : failedThisWeek > 0
+        ? `${failedThisWeek} failed`
+        : "On track";
   const activeWorkflowSeries = dayKeys.map((key) =>
     programs.filter((program) => program.is_active && program.created_at.slice(0, 10) <= key).length
   );
@@ -395,7 +402,7 @@ export default async function DashboardPage({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Active workflows" value={String(programs.filter((program) => program.is_active).length)} detail={`${programs.length} total`} Icon={FolderKanban} tone="green" series={activeWorkflowSeries} />
         <StatCard label="Runs this week" value={runsThisWeek.length.toLocaleString()} detail="7 day view" Icon={Activity} tone="blue" series={runsSeries} />
-        <StatCard label="Success rate" value={`${successRate}%`} detail={failedThisWeek > 0 ? `${failedThisWeek} failed` : "On track"} Icon={CheckCircle2} tone="violet" series={successRateSeries} />
+        <StatCard label="Success rate" value={successRate === null ? "-%" : `${successRate}%`} detail={successRateDetail} Icon={CheckCircle2} tone="violet" series={successRateSeries} />
         <StatCard label="Awaiting you" value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? "Review now" : "All clear"} Icon={CircleAlert} tone="amber" series={approvalsSeries} />
       </div>
 
