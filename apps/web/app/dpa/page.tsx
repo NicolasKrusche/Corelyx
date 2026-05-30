@@ -51,7 +51,7 @@ const clauses = [
   {
     title: "Subprocessors",
     body:
-      "Corelyx may use subprocessors listed in the public subprocessor registry. Corelyx will impose materially equivalent data protection obligations on subprocessors and remains responsible for their performance. The public registry is available at /subprocessors.",
+      "Corelyx may use subprocessors listed in the public subprocessor registry. Corelyx will impose materially equivalent data protection obligations on subprocessors and remains responsible for their performance. The public registry is available at /subprocessors.\n\nSpecific disclosure: Corelyx currently routes platform key LLM calls through OpenRouter, Inc. (USA) using a Corelyx-managed API key. OpenRouter acts as a sub-processor for these calls. Corelyx does not currently hold a countersigned DPA with OpenRouter and is pursuing one. Until a signed DPA is in place, customers should not route special-category personal data or data subject to strict transfer restrictions through the Corelyx platform key. Customers may use their own Anthropic, OpenAI, or other provider API keys as an alternative.",
   },
   {
     title: "Subprocessor Change Notice",
