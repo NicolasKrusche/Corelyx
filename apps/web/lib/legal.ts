@@ -369,19 +369,19 @@ export const modelProviders: ProcessorEntry[] = [
   },
   {
     name: "OpenRouter",
-    role: "User-selected model routing provider",
-    activation: "Only if you add an OpenRouter key or route a node to OpenRouter",
+    role: "Platform LLM routing provider and optional user-selected provider",
+    activation: "Always active when using the Corelyx platform key. Also active if you add your own OpenRouter API key.",
     purpose:
-      "Routes prompts and completions to the model endpoints you choose through the OpenRouter API.",
+      "Routes LLM calls made through the Corelyx platform key to the appropriate model endpoint. Also used directly if you configure your own OpenRouter key in a workflow.",
     categories:
-      "Prompts, system instructions, selected workflow data, outputs, provider metadata, and logging metadata.",
-    legalBasis: "Art. 6(1)(b) GDPR.",
+      "Prompts, system instructions, selected workflow inputs, model outputs, provider routing metadata.",
+    legalBasis: "Art. 6(1)(b) GDPR — necessary for the AI execution service you have contracted.",
     dataLocation:
-      "Provider-managed. OpenRouter documents enterprise-only EU in-region routing via eu.openrouter.ai.",
+      "Provider-managed global infrastructure. EU in-region routing is available only on OpenRouter enterprise accounts. Corelyx does not currently hold a signed enterprise agreement with OpenRouter.",
     transferNotes:
-      "OpenRouter can forward data to additional downstream model providers. You must review both OpenRouter's terms and the downstream provider policy for the model actually used.",
+      "Corelyx uses a platform-managed OpenRouter key for all platform key calls. No countersigned DPA is currently in place. Until a DPA is signed, do not route special-category personal data through the Corelyx platform key. Use your own Anthropic, OpenAI, or Google key instead.",
     notes:
-      "OpenRouter exposes provider-specific retention controls and zero-data-retention filtering, but those settings are account-level choices outside this repository.",
+      "Corelyx is pursuing an enterprise DPA with OpenRouter. This notice will be updated when one is in place.",
   },
 ];
 
