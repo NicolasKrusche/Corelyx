@@ -6,6 +6,7 @@ import { approvalNotifier } from "@/lib/inngest/approval-notifier";
 import { approvalTimeout } from "@/lib/inngest/approval-timeout";
 import { dataRetentionPurge } from "@/lib/inngest/data-retention";
 import { securityMonitor } from "@/lib/inngest/security-monitor";
+import { gmailWatchRenewer } from "@/lib/inngest/gmail-watch-renewer";
 
 /**
  * Inngest serve endpoint — handles all function registrations + event delivery.
@@ -14,7 +15,7 @@ import { securityMonitor } from "@/lib/inngest/security-monitor";
  */
 const handlers = serve({
   client: inngest,
-  functions: [cronRunner, approvalNotifier, approvalTimeout, dataRetentionPurge, securityMonitor],
+  functions: [cronRunner, approvalNotifier, approvalTimeout, dataRetentionPurge, securityMonitor, gmailWatchRenewer],
 });
 
 const productionEnvNames = ["NODE_ENV", "VERCEL_ENV", "APP_ENV"] as const;
