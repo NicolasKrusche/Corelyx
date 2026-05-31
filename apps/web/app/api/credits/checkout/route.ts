@@ -3,9 +3,10 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { getStripeClient } from "@/lib/stripe";
 import { createServerClient } from "@/lib/supabase/server";
 import { CREDIT_PACKS, findCreditPack, formatCredits } from "@/lib/credit-packs";
+import { parseCheckoutPaymentMethod, stripePaymentMethodTypes } from "@/lib/checkout-payment-method";
 
 // POST /api/credits/checkout
-// Body: { amount_credits: 5000 | 10000 | 26250 | 55000 }
+// Body: { amount_credits: 5000 | 10000 | 26250 | 55000, payment_method?: "stablecoin" }
 // Creates a Stripe Checkout session for a one-time credit top-up.
 export async function POST(request: Request) {
   const supabase = await createServerClient();
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
   }
 
   const amountCredits = (body as Record<string, unknown>)?.amount_credits as number | undefined;
+  const paymentMethod = parseCheckoutPaymentMethod((body as Record<string, unknown>)?.payment_method);
   const pack = amountCredits ? findCreditPack(amountCredits) : undefined;
   if (!pack) {
     return apiError(`amount_credits must be one of: ${CREDIT_PACKS.map(({ credits }) => credits).join(", ")}`, 400);
@@ -42,9 +44,10 @@ export async function POST(request: Request) {
     mode: "payment",
     customer: stripeCustomerId,
     client_reference_id: user.id,
-    payment_intent_data: {
-      setup_future_usage: "off_session",
-    },
+    payment_method_types: stripePaymentMethodTypes(paymentMethod),
+    ...(paymentMethod === "card"
+      ? { payment_intent_data: { setup_future_usage: "off_session" as const } }
+      : {}),
     line_items: [
       {
         quantity: 1,
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
       amount_credits: String(pack.credits),
       price_usd: String(pack.priceUsd),
       user_id: user.id,
+      checkout_payment_method: paymentMethod,
     },
     success_url: `${origin}/dashboard?credits=purchased`,
     cancel_url: `${origin}/dashboard?credits=cancelled`,

@@ -7,6 +7,7 @@ import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import { readBoundedJsonBody } from "@/lib/request-body";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 import { serverLog } from "@/lib/server-log";
+import { shouldDispatchGmailMessage, type GmailHistoryDelta } from "@/lib/gmail-history-delta";
 
 type GmailConnectionRow = {
   id: string;
@@ -109,12 +110,21 @@ export async function POST(request: Request) {
   await Promise.all(
     connections.map(async (connection) => {
       const historyDelta = await _fetchGmailHistoryDelta(connection, historyId, db);
-      const eventName =
-        historyDelta.message_ids.length > 0 ? "message.received" : "mailbox.updated";
+      if (!shouldDispatchGmailMessage(historyDelta)) {
+        if (historyDelta.error) {
+          serverLog({
+            level: "warn",
+            event: "webhooks.gmail.empty_history_delta",
+            message: "Gmail history delta did not include a new message.",
+            details: { connection_id: connection.id, history_error: historyDelta.error },
+          });
+        }
+        return;
+      }
 
       await dispatchEventTriggers({
         source: "gmail",
-        event: eventName,
+        event: "message.received",
         payload: {
           email_address: emailAddress,
           history_id: historyId,
@@ -145,7 +155,7 @@ async function _fetchGmailHistoryDelta(
   connection: GmailConnectionRow,
   newHistoryId: string,
   db: ReturnType<typeof createServiceClient>
-): Promise<{ message_ids: string[]; thread_ids: string[]; error?: string }> {
+): Promise<GmailHistoryDelta> {
   const metadata = connection.metadata ?? {};
   const gmailWatch = _asRecord(metadata.gmail_watch);
   const previousHistoryId =

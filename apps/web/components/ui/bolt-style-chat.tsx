@@ -440,7 +440,7 @@ function ImportButtons({ onImport }: { onImport?: (source: string) => void }) {
       <div className='flex gap-2'>
         {[
           { id: 'browse', name: 'Browse', icon: <GitBranch className='size-4' /> },
-          { id: 'json', name: 'Import JSON', icon: <FileCode className='size-4' /> },
+          { id: 'json', name: 'Import', icon: <FileCode className='size-4' /> },
         ].map((option) => (
           <button
             key={option.id}

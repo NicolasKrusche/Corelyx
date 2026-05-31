@@ -17,14 +17,14 @@ export function CreditsTopUp() {
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleBuy() {
+  async function handleBuy(paymentMethod: "card" | "stablecoin" = "card") {
     setBuying(true);
     setError(null);
     try {
       const res = await fetch("/api/credits/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_credits: selected }),
+        body: JSON.stringify({ amount_credits: selected, payment_method: paymentMethod }),
       });
       if (!res.ok) { setError("We could not open checkout. Please try again."); return; }
       const { url } = await res.json() as { url: string };
@@ -104,6 +104,21 @@ export function CreditsTopUp() {
           </>
         )}
       </button>
+
+      <details className="mt-2 text-center">
+        <summary className="cursor-pointer text-[10px] text-muted-foreground/50 transition-colors hover:text-muted-foreground">
+          More payment options
+        </summary>
+        <button
+          type="button"
+          disabled={buying}
+          onClick={() => { void handleBuy("stablecoin"); }}
+          className="mt-1.5 rounded-md border border-border/60 bg-background/40 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+        >
+          Pay with stablecoin
+        </button>
+        <p className="mt-1 text-[9px] text-muted-foreground/40">USDC via Stripe</p>
+      </details>
 
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
