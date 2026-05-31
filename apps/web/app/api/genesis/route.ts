@@ -65,7 +65,7 @@ const RequestSchema = z.object({
   use_platform_key: z.boolean().optional(),
   model: z.string().min(1).optional(),
   existing_schema: z.unknown().optional(),
-  refinement: z.string().max(500).optional(),
+  refinement: z.string().max(2000).optional(),
   existing_program_id: z.string().uuid().optional(),
 });
 

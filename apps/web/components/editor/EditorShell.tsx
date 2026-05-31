@@ -1629,7 +1629,7 @@ export function EditorShell({
             if (apiKeys.length === 0) setAiEditMode("platform");
           }
         }}
-        onTestWebhook={hasWebhookTrigger ? () => setShowWebhookTest(true) : undefined}
+        onTestWebhook={() => setShowWebhookTest(true)}
         showRawSchema={rawSchemaEnabled && showRawSchema}
         onToggleRawSchema={rawSchemaEnabled ? () => {
           const opening = !showRawSchema;
@@ -1927,13 +1927,13 @@ export function EditorShell({
         )}
       </div>
 
-      {/* Webhook test dialog */}
+      {/* Run with payload dialog */}
       <Dialog open={showWebhookTest} onOpenChange={(open) => { if (!open) setShowWebhookTest(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Test webhook trigger</DialogTitle>
+            <DialogTitle>Run with payload</DialogTitle>
             <DialogDescription>
-              Paste a sample payload to test this webhook program. The run will start immediately.
+              Paste a JSON payload to inject as the trigger data. Useful for debugging — e.g. provide a real <code className="text-xs bg-muted px-1 rounded">message_id</code> to test an email node without waiting for a live email.
             </DialogDescription>
           </DialogHeader>
 
