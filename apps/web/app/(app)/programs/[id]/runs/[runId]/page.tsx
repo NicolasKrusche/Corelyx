@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import type { ProgramSchema, Node } from "@flowos/schema";
+import { getProgramAccess, canView } from "@/lib/workspaces";
 import { RunLogLive } from "./run-log-live";
 import { StopRunButton } from "./stop-button";
 import { SkipTriggerButton } from "./skip-trigger-button";
@@ -171,12 +172,14 @@ export default async function RunLogPage({
 
   const run = normalizeRunRow(runRaw);
 
-  // Verify program ownership
+  // Verify workspace access
+  const access = await getProgramAccess(run.program_id, user.id);
+  if (!access || !canView(access)) notFound();
+
   const { data: program, error: progError } = await supabase
     .from("programs")
     .select("id, name, schema")
     .eq("id", run.program_id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) notFound();

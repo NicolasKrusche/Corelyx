@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
+import { getProgramAccess, canView } from "@/lib/workspaces";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,12 +66,14 @@ export default async function RunsPage({
   } = await supabase.auth.getUser();
   if (!user) notFound();
 
-  // Verify program ownership
+  // Verify workspace access
+  const access = await getProgramAccess(id, user.id);
+  if (!access || !canView(access)) notFound();
+
   const { data: program, error: progError } = await supabase
     .from("programs")
     .select("id, name")
     .eq("id", id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) notFound();

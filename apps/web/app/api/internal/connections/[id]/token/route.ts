@@ -8,8 +8,11 @@ import { getValidOAuthToken } from "@/lib/oauth-token";
 // Header: x-internal-service-token: <scoped signed token, subject=user_id>
 // Returns: { access_token: string }
 //
-// S14: token MUST carry a subject claim (user_id of the run owner) and the
-// connection's user_id must match. Bounds blast radius of a leaked token.
+// S14: token MUST carry a subject claim (user_id of the run owner) and either:
+//   (a) the connection's user_id must match (direct ownership), OR
+//   (b) the connection belongs to a workspace the subject user is a member of
+//       (workspace-shared connections — needed for multi-user workspaces).
+// Both paths bound the blast radius of a leaked token to workspace boundaries.
 export async function GET(
   request: Request,
   { params: routeParams }: { params: Promise<{ id: string }> }
@@ -35,10 +38,10 @@ export async function GET(
 
   const serviceClient = createServiceClient();
 
-  type ConnectionRow = { id: string; user_id: string };
+  type ConnectionRow = { id: string; user_id: string; workspace_id: string | null };
   const { data: connRowRaw, error: connErr } = await serviceClient
     .from("connections")
-    .select("id, user_id")
+    .select("id, user_id, workspace_id")
     .eq("id", id)
     .single();
 
@@ -46,7 +49,24 @@ export async function GET(
     return apiError("Connection not found", 404);
   }
   const connRow = connRowRaw as unknown as ConnectionRow;
-  if (connRow.user_id !== claims.sub) {
+
+  // (a) Direct ownership — fast path, no extra DB round-trip.
+  const isOwner = connRow.user_id === claims.sub;
+
+  // (b) Workspace membership — allows workspace-shared connections where
+  //     user_id reflects the connection creator, not the program runner.
+  let isWorkspaceMember = false;
+  if (!isOwner && connRow.workspace_id) {
+    const { data: membership } = await serviceClient
+      .from("workspace_memberships")
+      .select("role")
+      .eq("workspace_id", connRow.workspace_id)
+      .eq("user_id", claims.sub)
+      .maybeSingle();
+    isWorkspaceMember = Boolean(membership);
+  }
+
+  if (!isOwner && !isWorkspaceMember) {
     return apiError("Connection not found", 404);
   }
 

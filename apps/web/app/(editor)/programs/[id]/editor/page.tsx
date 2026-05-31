@@ -6,6 +6,7 @@ import { EditorShell } from "@/components/editor/EditorShell";
 import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { normalizeProgramDraft, validateProgramDraft } from "@/lib/workflow/normalize";
 import { getFeatureFlags } from "@/lib/feature-flags";
+import { getProgramAccess, canView } from "@/lib/workspaces";
 
 export default async function EditorPage({
   params,
@@ -20,6 +21,11 @@ export default async function EditorPage({
 
   if (!user) redirect("/login");
 
+  // ── Check workspace access ────────────────────────────────────────────────
+
+  const access = await getProgramAccess(id, user.id);
+  if (!access || !canView(access)) return notFound();
+
   // ── Fetch program ─────────────────────────────────────────────────────────
   // Cast through unknown to handle Supabase's generated `never` return type
   // for tables that are not fully reflected in the generated types.
@@ -30,7 +36,6 @@ export default async function EditorPage({
     .from("programs")
     .select("id, name, schema")
     .eq("id", id)
-    .eq("user_id", user.id)
     .single();
 
   if (programError || !rawProgram) return notFound();
@@ -69,7 +74,7 @@ export default async function EditorPage({
   const { data: rawApiKeys } = await supabase
     .from("api_keys")
     .select("id, name, provider")
-    .eq("user_id", user.id)
+    .eq("workspace_id", access.workspaceId)
     .order("created_at", { ascending: false });
 
   const apiKeys: ApiKey[] = ((rawApiKeys as unknown as ApiKeyRow[]) ?? []).map(
@@ -101,7 +106,7 @@ export default async function EditorPage({
   const { data: rawAllConns } = await supabase
     .from("connections")
     .select("id, name, provider, scopes")
-    .eq("user_id", user.id)
+    .eq("workspace_id", access.workspaceId)
     .order("name", { ascending: true });
 
   const allConnections = ((rawAllConns as unknown as ConnectionRow[]) ?? [])
