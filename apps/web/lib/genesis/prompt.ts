@@ -459,7 +459,7 @@ TRIGGER NODE (connection: always null):
   manual: {"trigger_type":"manual"}
   cron: {"trigger_type":"cron","expression":"0 8 * * 1-5","timezone":"UTC"}
   webhook: {"trigger_type":"webhook","endpoint_id":"<uuid>","method":"POST"}
-  event: {"trigger_type":"event","source":"gmail","event":"new_email","filter":null}
+  event: {"trigger_type":"event","source":"gmail","event":"message.received","filter":null}
   program_output: {"trigger_type":"program_output","source_program_id":"__USER_ASSIGNED__","on_status":["success"]}
 Top-level triggers array: [{"node_id":"n1","type":"<trigger_type>","is_active":true,"last_fired":null,"next_scheduled":null}]
 
@@ -504,7 +504,10 @@ GROUP NODE (frame container — purely visual, never executed):
 NOTE/GROUP GUIDANCE: For any workflow with 4+ executable nodes, include at least 1 group frame to cluster related steps. Add a note node whenever the workflow has a manual-setup dependency, credential requirement, or non-obvious behaviour the user must act on.
 
 EVENT TRIGGER SOURCES (use with trigger_type:"event"):
-  gmail:    event:"new_email" — fires when Gmail push notification arrives
+  gmail:    event:"message.received" — fires when Gmail reports a new message.
+            payload:{message_id,message_ids,thread_id,thread_ids,email_address,history_id}
+            For an event-triggered Gmail workflow, read the incoming message directly with
+            read_email(message_id:"{{n1.message_id}}"). Do not search the mailbox first.
   slack:    event:"message" | "message.bot_message" | "reaction_added" | "channel_created"
   github:   event:"issues.opened" | "issues.closed" | "pull_request.opened" | "pull_request.merged" | "push"
             payload:{action,issue:{number,title,state,html_url,body,labels:[{name}],updated_at},repository:{name,full_name},pull_request:{number,title,state,html_url,merged},ref,commits:[{id,message,author:{name}}]}

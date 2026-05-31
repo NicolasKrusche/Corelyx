@@ -241,6 +241,40 @@ def _resolve_nested(value: Any, inputs: dict) -> Any:
     return value
 
 
+def _recover_gmail_message_id(
+    operation: str,
+    params: dict[str, Any],
+    inputs: dict[str, Any],
+) -> dict[str, Any]:
+    """Backfill Gmail IDs from event envelopes for existing direct-trigger workflows."""
+    if operation not in {"read_email", "get_attachment", "archive_email", "label_email"}:
+        return params
+    if params.get("message_id"):
+        return params
+
+    def find_message_id(value: Any) -> Any:
+        if not isinstance(value, dict):
+            return None
+        message_id = value.get("message_id")
+        if message_id:
+            return message_id
+        payload = value.get("payload")
+        if isinstance(payload, dict) and payload.get("message_id"):
+            return payload["message_id"]
+        return None
+
+    message_id = find_message_id(inputs)
+    if not message_id:
+        for value in inputs.values():
+            message_id = find_message_id(value)
+            if message_id:
+                break
+    if not message_id:
+        return params
+
+    return {**params, "message_id": message_id}
+
+
 async def run_agent(config: dict, inputs: dict, credentials: Any) -> dict:
     model = config.get("model", "claude")
     api_key = credentials if isinstance(credentials, str) else (credentials or {}).get("value", "")
@@ -659,17 +693,21 @@ class ProgramExecutor:
                     state[edge.to] = output
                     visited.add(edge.to)
 
-                    # Filter nodes can intentionally halt the branch when the
-                    # condition is false. In that case we don't enqueue
-                    # downstream nodes.
-                    is_filtered_out = (
-                        target_node.type == "step"
-                        and isinstance(target_node.config, StepConfig)
-                        and target_node.config.logic_type == "filter"
-                        and isinstance(output, dict)
-                        and output.get("__filtered_out__") is True
+                    # Some nodes intentionally halt the branch without failing
+                    # the run, such as a false filter or an empty Gmail event.
+                    halts_descendants = (
+                        isinstance(output, dict)
+                        and (
+                            output.get("__skip_descendants__") is True
+                            or (
+                                target_node.type == "step"
+                                and isinstance(target_node.config, StepConfig)
+                                and target_node.config.logic_type == "filter"
+                                and output.get("__filtered_out__") is True
+                            )
+                        )
                     )
-                    if is_filtered_out:
+                    if halts_descendants:
                         skipped = await self._skip_descendants_from(edge.to)
                         visited.update(skipped)
                         for skipped_node_id in skipped:
@@ -1381,6 +1419,13 @@ class ProgramExecutor:
                         resolved_params[k] = _resolve_nested(v, input_data)
                     else:
                         resolved_params[k] = v
+
+                if provider_id == "gmail":
+                    resolved_params = _recover_gmail_message_id(
+                        cfg.operation,
+                        resolved_params,
+                        input_data,
+                    )
 
                 try:
                     self._record_telemetry(node.id, connector_api_calls=1)
