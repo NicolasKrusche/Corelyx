@@ -135,6 +135,7 @@ export function AiEditPanel({
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
           disabled={loading}
+          maxLength={2000}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !loading && prompt.trim() && canSubmit) {
               e.preventDefault();
@@ -142,6 +143,12 @@ export function AiEditPanel({
             }
           }}
         />
+        <p className={cn(
+          "text-[10px] text-right tabular-nums",
+          prompt.length > 1800 ? "text-amber-500" : "text-muted-foreground"
+        )}>
+          {prompt.length} / 2000
+        </p>
 
         {error && (
           <p className="text-[11px] text-destructive">{error}</p>

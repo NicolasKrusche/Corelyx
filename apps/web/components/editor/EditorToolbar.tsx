@@ -364,7 +364,7 @@ export function EditorToolbar({
         {isSaving ? "Saving…" : "Save"}
       </Button>
 
-      {/* Test webhook — only visible when trigger is a webhook */}
+      {/* Run with payload — always available for debugging */}
       {onTestWebhook && (
         <Button
           variant="outline"
@@ -372,13 +372,13 @@ export function EditorToolbar({
           onClick={onTestWebhook}
           disabled={isRunning}
           className="gap-1.5 text-muted-foreground hover:text-foreground"
-          title="Send a test payload to this webhook trigger"
+          title="Run with a custom JSON payload for debugging"
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
             <path d="M2 8h9M8 5l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
             <circle cx="13" cy="8" r="1.5" fill="currentColor" stroke="none" />
           </svg>
-          Test webhook
+          Run with payload
         </Button>
       )}
 
