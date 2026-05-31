@@ -389,6 +389,7 @@ export function Sidebar({
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
   const [workspaceSwitchError, setWorkspaceSwitchError] = useState<string | null>(null);
+  const usageRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarRequestRef = useRef<AbortController | null>(null);
@@ -565,6 +566,27 @@ export function Sidebar({
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
+      if (!usageRef.current) return;
+      if (usageRef.current.contains(event.target as Node)) return;
+      setUsageOpen(false);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setUsageOpen(false);
+    }
+
+    if (usageOpen) {
+      window.addEventListener("mousedown", handlePointerDown);
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [usageOpen]);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
       if (!workspaceMenuRef.current) return;
       if (workspaceMenuRef.current.contains(event.target as Node)) return;
       setWorkspaceMenuOpen(false);
@@ -643,6 +665,7 @@ export function Sidebar({
       )}
       onMouseLeave={() => {
         setMenuOpen(false);
+        setUsageOpen(false);
         setWorkspaceMenuOpen(false);
       }}
       style={{
@@ -846,10 +869,11 @@ export function Sidebar({
       </nav>
 
       <div className={cn("border-t shrink-0 px-2 py-2.5", footerBorderCls)}>
-        <div className={cn("overflow-hidden transition-all duration-200", usageOpen ? "mb-2 max-h-[400px] opacity-100 pointer-events-auto" : "max-h-0 opacity-0 pointer-events-none")}>
+        <div ref={usageRef} className="relative">
+        {usageOpen && (
           <div className={cn(
-            "rounded-2xl border px-3 py-3",
-            isDark ? "border-white/10 bg-white/5 text-blue-50" : "border-black/10 bg-black/5 text-gray-900"
+            "absolute bottom-[calc(100%+8px)] left-0 z-50 max-h-[calc(100vh-6rem)] w-[208px] overflow-y-auto rounded-2xl border px-3 py-3 shadow-xl backdrop-blur-xl",
+            isDark ? "border-white/10 bg-slate-950/95 text-blue-50 shadow-black/40" : "border-black/10 bg-white/95 text-gray-900 shadow-black/15"
           )}>
             <p className={cn("text-[11px] font-semibold", isDark ? "text-blue-100/90" : "text-gray-700")}>Workspace usage</p>
 
@@ -916,12 +940,15 @@ export function Sidebar({
               )}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Usage toggle button */}
         <button
           type="button"
-          onClick={() => setUsageOpen((v) => !v)}
+          onClick={() => {
+            setMenuOpen(false);
+            setUsageOpen((v) => !v);
+          }}
           title="Workspace usage"
           className={cn(
             "flex h-8 w-full items-center overflow-hidden rounded-lg text-sm transition-colors mb-1",
@@ -946,6 +973,7 @@ export function Sidebar({
             <ChevronDownIcon />
           </span>
         </button>
+        </div>
 
         <div ref={menuRef} className="relative">
           {menuOpen && (
@@ -989,7 +1017,10 @@ export function Sidebar({
 
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => {
+              setUsageOpen(false);
+              setMenuOpen((v) => !v);
+            }}
             className={cn(
               "flex h-12 w-full items-center overflow-hidden rounded-xl border text-left transition-colors",
               isDark ? "border-white/10 bg-white/5 hover:bg-white/10" : "border-black/10 bg-black/5 hover:bg-black/10"

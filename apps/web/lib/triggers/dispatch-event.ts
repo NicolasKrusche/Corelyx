@@ -43,6 +43,40 @@ export interface DispatchEventResult {
   runs: string[];
 }
 
+export function eventNamesMatch(
+  source: string,
+  configuredEvent: unknown,
+  receivedEvent: string,
+): boolean {
+  if (configuredEvent === receivedEvent) return true;
+  return source === "gmail"
+    && configuredEvent === "new_email"
+    && receivedEvent === "message.received";
+}
+
+export function buildEventTriggerPayload({
+  triggerId,
+  source,
+  event,
+  payload,
+  connectionId,
+}: {
+  triggerId: string;
+  source: string;
+  event: string;
+  payload: JsonObject;
+  connectionId?: string;
+}): JsonObject {
+  return {
+    ...payload,
+    trigger_id: triggerId,
+    source,
+    event,
+    payload,
+    connection_id: connectionId ?? null,
+  };
+}
+
 export async function dispatchEventTriggers(
   input: DispatchEventInput
 ): Promise<DispatchEventResult> {
@@ -62,7 +96,7 @@ export async function dispatchEventTriggers(
   const triggers = (triggersRaw ?? []) as unknown as TriggerRow[];
   const matching = triggers.filter((trigger) => {
     const cfg = trigger.config ?? {};
-    if (cfg.source !== input.source || cfg.event !== input.event) {
+    if (cfg.source !== input.source || !eventNamesMatch(input.source, cfg.event, input.event)) {
       return false;
     }
 
@@ -129,13 +163,13 @@ export async function dispatchEventTriggers(
       if (!conflict.allowed) return;
 
       const triggeredBy = input.triggered_by ?? `event:${input.source}:${input.event}`;
-      const triggerPayload = {
-        trigger_id: trigger.id,
+      const triggerPayload = buildEventTriggerPayload({
+        triggerId: trigger.id,
         source: input.source,
         event: input.event,
         payload,
-        connection_id: input.connection_id ?? null,
-      };
+        connectionId: input.connection_id,
+      });
 
       const { data: runRaw } = await db
         .from("runs")
