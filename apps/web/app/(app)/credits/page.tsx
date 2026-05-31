@@ -16,6 +16,7 @@ import { Download, History, Rocket, Plus, Check, ArrowUpRight } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { isAdminEmail } from "@/lib/admin";
 import { PlanPreviewToggle } from "./plan-preview-toggle";
+import { formatCredits } from "@/lib/credit-packs";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
@@ -63,10 +64,45 @@ function timeAgo(iso: string): string {
 
 type CreditPurchase = {
   id: string;
-  amount_usd: number;
+  amount_credits: number;
   created_at: string;
   stripe_session_id: string | null;
 };
+
+async function getCreditPurchases(
+  service: ReturnType<typeof createServiceClient>,
+  userId: string,
+): Promise<CreditPurchase[]> {
+  const { data, error } = await service
+    .from("credit_purchases")
+    .select("id, amount_credits, created_at, stripe_session_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (!error) return (data ?? []) as unknown as CreditPurchase[];
+
+  // Keep the ledger available while the live database rolls through the
+  // credit-unit migration.
+  const { data: legacyData } = await service
+    .from("credit_purchases")
+    .select("id, amount_usd, created_at, stripe_session_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  return ((legacyData ?? []) as unknown as Array<{
+    id: string;
+    amount_usd: string | number;
+    created_at: string;
+    stripe_session_id: string | null;
+  }>).map((purchase) => ({
+    id: purchase.id,
+    amount_credits: Math.round(Number(purchase.amount_usd) * 1_000),
+    created_at: purchase.created_at,
+    stripe_session_id: purchase.stripe_session_id,
+  }));
+}
 
 export default async function CreditsPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const supabase = await createServerClient();
@@ -105,11 +141,11 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     checkGenesisAccess(user.id, workspaceId),
     getUsageHistory(user.id, workspaceId),
     service.from("api_keys").select("id, name", { count: "exact" }).eq("workspace_id", workspaceId ?? "").limit(5),
-    service.from("credit_purchases").select("id, amount_usd, created_at, stripe_session_id").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    getCreditPurchases(service, user.id),
   ]);
 
   const isUnlimited = tier === "unlimited" || creditBalance.total === Infinity;
-  const includedTotal = ent.includedAiCreditsUsd;
+  const includedTotal = ent.includedAiCredits;
   const includedUsed = includedTotal === null ? 0 : Math.max(0, includedTotal - creditBalance.availableIncluded);
 
   // When previewing a plan, substitute limits from entitlements so the display
@@ -120,7 +156,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const runsLeft = runsTotal === null ? null : Math.max(0, runsTotal - runUsage.current);
   const genesisLeft = genesisTotal === null ? null : Math.max(0, genesisTotal - genesisAccess.usesThisMonth);
   const apiKeyCount = apiKeysRes.count ?? 0;
-  const purchases = (purchasesRes.data ?? []) as CreditPurchase[];
+  const purchases = purchasesRes;
 
   // Cycle info
   const now = new Date();
@@ -134,7 +170,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const shortWsId = workspaceId ? `wks_${workspaceId.replace(/-/g, "").slice(0, 4)}-${workspaceId.replace(/-/g, "").slice(4, 8)}` : null;
 
   // Burn rate
-  const spentThisCycle = includedUsed + usageHistory.reduce((s, d) => s + d.cost_usd, 0);
+  const spentThisCycle = includedUsed;
   const burnRate = currentDay > 1 ? spentThisCycle / currentDay : 0;
 
   // Activity ledger entries
@@ -152,9 +188,9 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     date: p.created_at.slice(0, 10),
     label: "Credit top-up",
     sub: `Stripe · ${p.stripe_session_id?.slice(0, 12) ?? "—"}`,
-    amount: `+$${p.amount_usd.toFixed(2)}`,
+    amount: `+${formatCredits(p.amount_credits)}`,
     type: "Purchase",
-    balance: `$${(creditBalance.availablePurchased).toFixed(2)}`,
+    balance: formatCredits(creditBalance.availablePurchased),
     typeColor: "bg-green-500/10 text-green-600",
   }));
 
@@ -173,7 +209,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         "75 runs / month",
         "All 200+ connectors",
         "BYOK (bring your own API key)",
-        "€2.50 platform AI credits / month",
+        "2,500 platform AI credits / month",
         "5 Genesis AI uses / month",
         "30-day run history",
         "Webhook triggers",
@@ -197,7 +233,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         "Up to 3 team seats",
         "Human-in-the-loop approvals",
         "500 runs / month",
-        "€10 platform AI credits / month",
+        "10,000 platform AI credits / month",
         "90-day run history",
         "All trigger types",
         "Priority support",
@@ -218,7 +254,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         "Everything in Team, plus:",
         "Unlimited team seats",
         "2,000 runs / month",
-        "€15 platform AI credits / month",
+        "15,000 platform AI credits / month",
         "1-year run history",
         "Priority execution queue",
         "Dedicated success manager",
@@ -305,16 +341,16 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
           </div>
 
           <p className="mt-2 text-4xl font-black tracking-tight">
-            {isUnlimited ? "∞" : `$${creditBalance.total.toFixed(2)}`}
+            {isUnlimited ? "∞" : `${formatCredits(creditBalance.total)} credits`}
           </p>
 
           {!isUnlimited && (
             <div className="mt-5 grid grid-cols-4 gap-3">
               {[
-                { label: "INCLUDED", value: `$${creditBalance.availableIncluded.toFixed(2)}` },
-                { label: "TOP-UP BALANCE", value: `$${creditBalance.availablePurchased.toFixed(2)}` },
-                { label: "SPENT THIS CYCLE", value: `$${spentThisCycle.toFixed(4)}` },
-                { label: "EST. BURN RATE", value: burnRate > 0 ? `$${burnRate.toFixed(4)}/day` : "$0.00 / day" },
+                { label: "INCLUDED", value: formatCredits(creditBalance.availableIncluded) },
+                { label: "TOP-UP BALANCE", value: formatCredits(creditBalance.availablePurchased) },
+                { label: "INCLUDED USED", value: formatCredits(spentThisCycle) },
+                { label: "EST. INCLUDED BURN", value: burnRate > 0 ? `${formatCredits(burnRate)}/day` : "0 / day" },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-[9px] font-bold uppercase tracking-wider opacity-60">{label}</p>
@@ -372,7 +408,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                   Platform AI
                 </span>
                 <span className={`text-xs ${includedTotal === 0 ? "text-muted-foreground" : ""}`}>
-                  {includedTotal === null ? "unlimited" : includedTotal === 0 ? "not included" : `$${includedUsed.toFixed(2)} / $${includedTotal.toFixed(2)}`}
+                  {includedTotal === null ? "unlimited" : includedTotal === 0 ? "not included" : `${formatCredits(includedUsed)} / ${formatCredits(includedTotal)}`}
                 </span>
               </div>
               {includedTotal === 0 ? (

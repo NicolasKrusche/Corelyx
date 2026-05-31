@@ -62,7 +62,7 @@
     "upgrade": "Atualizar →",
     "topUp": "Recarregar créditos",
     "topUpDesc": "Créditos comprados nunca expiram e são usados após esgotar sua cota mensal.",
-    "topUpNote": "R$ 1 ≈ algumas centenas de chamadas LLM dependendo do modelo. Usado somente quando os fluxos de trabalho são executados via a chave de plataforma Corelyx.",
+    "topUpNote": "1.000 créditos ≈ algumas centenas de chamadas LLM dependendo do modelo. Usado somente quando os fluxos de trabalho são executados via a chave de plataforma Corelyx.",
     "includedCredits": "Créditos incluídos",
     "includedCreditsDesc": "Reinicia mensalmente com seu plano",
     "purchasedCredits": "Créditos comprados",

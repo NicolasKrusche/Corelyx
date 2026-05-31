@@ -42,7 +42,7 @@ export function WelcomeOfferBanner({ createdAt, tier }: Props) {
   const expiry = formatExpiry(createdAt);
 
   return (
-    <div className="relative mb-6 rounded-2xl border border-primary/30 bg-primary/5 px-6 py-5 shadow-[0_0_0_1px_hsl(var(--primary)/0.12),0_8px_32px_hsl(var(--primary)/0.1)]">
+    <div className="relative z-20 mb-6 rounded-2xl border border-primary/30 bg-primary/5 px-6 py-5 shadow-[0_0_0_1px_hsl(var(--primary)/0.12),0_8px_32px_hsl(var(--primary)/0.1)]">
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent rounded-t-2xl" />
 
       <button

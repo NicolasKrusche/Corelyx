@@ -1664,7 +1664,7 @@ export function EditorShell({
           hasApiKeys={apiKeys.length > 0}
           mode={aiEditMode}
           onModeChange={(m: AiEditMode) => { setAiEditMode(m); setAiEditError(null); }}
-          platformRateUsd={1}
+          platformRateCredits={1_000}
         />
       )}
 

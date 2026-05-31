@@ -59,6 +59,8 @@ const FEATURE_CALLOUTS = [
   { Icon: ShieldCheck, text: "One job per step keeps runs debuggable" },
 ] as const;
 
+const GENESIS_STORAGE_KEY = "flowos.genesis.pending";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function slugify(val: string) {
@@ -346,11 +348,28 @@ export function OnboardingWizard({
   }
 
   function handleGenerate() {
-    if (genesisPrompt.trim()) {
-      router.push(`/programs/new?prompt=${encodeURIComponent(genesisPrompt.trim())}`);
-    } else {
+    const description = genesisPrompt.trim();
+    if (!description) {
       router.push("/dashboard");
+      return;
     }
+    if (description.length < 10) {
+      setError("Please describe your workflow in a bit more detail before generating.");
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(GENESIS_STORAGE_KEY, JSON.stringify({
+        description,
+        connection_ids: [],
+        use_platform_key: true,
+      }));
+    } catch {
+      setError("Could not start the build because browser storage is unavailable.");
+      return;
+    }
+
+    router.push("/programs/new/building");
   }
 
   // ── Footer actions ──────────────────────────────────────────────────────────
@@ -559,6 +578,7 @@ export function OnboardingWizard({
             <p className="text-[11px] text-gray-400">
               The more specific you are, the better the first draft will be.
             </p>
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
         </div>
       )}

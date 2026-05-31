@@ -62,7 +62,7 @@
     "upgrade": "Yükselt →",
     "topUp": "Kredi yükle",
     "topUpDesc": "Satın alınan krediler asla sona ermez ve aylık limitiniz tükendikten sonra kullanılır.",
-    "topUpNote": "$1 ≈ modele bağlı olarak birkaç yüz LLM çağrısı. Yalnızca iş akışları Corelyx platform anahtarı üzerinden çalıştırıldığında kullanılır.",
+    "topUpNote": "1.000 kredi ≈ modele bağlı olarak birkaç yüz LLM çağrısı. Yalnızca iş akışları Corelyx platform anahtarı üzerinden çalıştırıldığında kullanılır.",
     "includedCredits": "Dahil edilen krediler",
     "includedCreditsDesc": "Planınızla birlikte aylık olarak sıfırlanır",
     "purchasedCredits": "Satın alınan krediler",

@@ -1,22 +1,19 @@
 /**
  * Auto-recharge: when a user's credit balance drops below their configured threshold,
  * charge their saved Stripe payment method (if available) or email them a checkout link.
- *
- * Call maybeFireAutoRecharge(userId) fire-and-forget after any credit deduction.
- * It is idempotent: won't fire more than once per 24 h per user.
  */
-
 import { createServiceClient } from "@/lib/api";
+import { findCreditPack, formatCredits } from "@/lib/credit-packs";
 import { getStripeClient } from "@/lib/stripe";
 import { topUpUserCredits, getUserCreditBalance } from "@/lib/credits";
 import { sendEmail } from "@/lib/email";
 
-const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 h
+const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 type AutoRechargeConfig = {
   is_enabled: boolean;
-  threshold_usd: number;
-  recharge_amount_usd: number;
+  threshold_credits: number;
+  recharge_credits: number;
   last_triggered_at: string | null;
 };
 
@@ -28,27 +25,51 @@ type ProfileRow = {
 
 export type AutoRechargeSettings = {
   isEnabled: boolean;
-  thresholdUsd: number;
-  rechargeAmountUsd: number;
+  thresholdCredits: number;
+  rechargeCredits: number;
 };
 
-export async function getAutoRechargeConfig(userId: string): Promise<AutoRechargeSettings> {
+async function getStoredAutoRechargeConfig(userId: string): Promise<AutoRechargeConfig | null> {
   const service = createServiceClient();
-  const { data } = await service
+  const { data, error } = await service
     .from("auto_recharge_configs")
-    .select("is_enabled, threshold_usd, recharge_amount_usd")
+    .select("is_enabled, threshold_credits, recharge_credits, last_triggered_at")
     .eq("user_id", userId)
     .single();
 
-  if (!data) {
-    return { isEnabled: false, thresholdUsd: 2.0, rechargeAmountUsd: 10.0 };
+  if (!error && data) return data as unknown as AutoRechargeConfig;
+
+  const { data: legacyData } = await service
+    .from("auto_recharge_configs")
+    .select("is_enabled, threshold_usd, recharge_amount_usd, last_triggered_at")
+    .eq("user_id", userId)
+    .single();
+
+  if (!legacyData) return null;
+  const legacy = legacyData as unknown as {
+    is_enabled: boolean;
+    threshold_usd: string | number;
+    recharge_amount_usd: string | number;
+    last_triggered_at: string | null;
+  };
+  return {
+    is_enabled: legacy.is_enabled,
+    threshold_credits: Math.round(Number(legacy.threshold_usd) * 1_000),
+    recharge_credits: Math.round(Number(legacy.recharge_amount_usd) * 1_000),
+    last_triggered_at: legacy.last_triggered_at,
+  };
+}
+
+export async function getAutoRechargeConfig(userId: string): Promise<AutoRechargeSettings> {
+  const config = await getStoredAutoRechargeConfig(userId);
+  if (!config) {
+    return { isEnabled: false, thresholdCredits: 2_000, rechargeCredits: 10_000 };
   }
 
-  const row = data as unknown as AutoRechargeConfig;
   return {
-    isEnabled: row.is_enabled,
-    thresholdUsd: Number(row.threshold_usd),
-    rechargeAmountUsd: Number(row.recharge_amount_usd),
+    isEnabled: config.is_enabled,
+    thresholdCredits: Number(config.threshold_credits),
+    rechargeCredits: Number(config.recharge_credits),
   };
 }
 
@@ -57,46 +78,47 @@ export async function upsertAutoRechargeConfig(
   settings: AutoRechargeSettings,
 ): Promise<void> {
   const service = createServiceClient();
-  await (service.from("auto_recharge_configs") as any).upsert(
+  const { error } = await (service.from("auto_recharge_configs") as any).upsert(
     {
       user_id: userId,
       is_enabled: settings.isEnabled,
-      threshold_usd: settings.thresholdUsd,
-      recharge_amount_usd: settings.rechargeAmountUsd,
+      threshold_credits: settings.thresholdCredits,
+      recharge_credits: settings.rechargeCredits,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" },
   );
+  if (!error) return;
+
+  const { error: legacyError } = await (service.from("auto_recharge_configs") as any).upsert(
+    {
+      user_id: userId,
+      is_enabled: settings.isEnabled,
+      threshold_usd: settings.thresholdCredits / 1_000,
+      recharge_amount_usd: settings.rechargeCredits / 1_000,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+  if (legacyError) throw legacyError;
 }
 
-/**
- * Check if auto-recharge should fire and, if so, charge the saved payment method.
- * Call this fire-and-forget after every credit deduction.
- */
+/** Check if auto-recharge should fire after a credit deduction. */
 export async function maybeFireAutoRecharge(userId: string): Promise<void> {
   const service = createServiceClient();
 
-  const { data: cfgData } = await service
-    .from("auto_recharge_configs")
-    .select("is_enabled, threshold_usd, recharge_amount_usd, last_triggered_at")
-    .eq("user_id", userId)
-    .single();
-
-  if (!cfgData) return;
-  const cfg = cfgData as unknown as AutoRechargeConfig;
+  const cfg = await getStoredAutoRechargeConfig(userId);
+  if (!cfg) return;
   if (!cfg.is_enabled) return;
 
-  // Cooldown: don't fire more than once per 24 h
   if (cfg.last_triggered_at) {
     const elapsed = Date.now() - new Date(cfg.last_triggered_at).getTime();
     if (elapsed < COOLDOWN_MS) return;
   }
 
   const balance = await getUserCreditBalance(userId);
-  if (balance.total === Infinity) return; // unlimited plan
-  if (balance.total >= Number(cfg.threshold_usd)) return;
+  if (balance.total === Infinity || balance.total >= Number(cfg.threshold_credits)) return;
 
-  // Mark as triggered before charging to prevent double-fires under concurrency
   await (service.from("auto_recharge_configs") as any)
     .update({ last_triggered_at: new Date().toISOString() })
     .eq("user_id", userId);
@@ -108,20 +130,23 @@ export async function maybeFireAutoRecharge(userId: string): Promise<void> {
     .single();
 
   const profile = profileData as unknown as ProfileRow | null;
-  const rechargeAmount = Number(cfg.recharge_amount_usd);
+  const rechargeCredits = Number(cfg.recharge_credits);
+  const pack = findCreditPack(rechargeCredits);
+  if (!pack) throw new Error("Auto-recharge credit pack is invalid");
 
   if (profile?.stripe_customer_id && profile?.stripe_payment_method_id) {
     await chargeStoredPaymentMethod({
       userId,
       customerId: profile.stripe_customer_id,
       paymentMethodId: profile.stripe_payment_method_id,
-      amountUsd: rechargeAmount,
+      credits: pack.credits,
+      priceUsd: pack.priceUsd,
     });
   } else if (profile?.email) {
     await sendLowBalanceEmail({
       to: profile.email,
       currentBalance: balance.total,
-      rechargeAmount,
+      rechargeCredits: pack.credits,
     });
   }
 }
@@ -130,36 +155,42 @@ async function chargeStoredPaymentMethod({
   userId,
   customerId,
   paymentMethodId,
-  amountUsd,
+  credits,
+  priceUsd,
 }: {
   userId: string;
   customerId: string;
   paymentMethodId: string;
-  amountUsd: number;
+  credits: number;
+  priceUsd: number;
 }): Promise<void> {
   const stripe = getStripeClient();
   try {
     const pi = await stripe.paymentIntents.create({
-      amount: Math.round(amountUsd * 100),
+      amount: Math.round(priceUsd * 100),
       currency: "usd",
       customer: customerId,
       payment_method: paymentMethodId,
       off_session: true,
       confirm: true,
-      description: `Corelyx auto-recharge — $${amountUsd} credits`,
-      metadata: { type: "credits_auto_recharge", amount_usd: String(amountUsd), user_id: userId },
+      description: `Corelyx auto-recharge - ${formatCredits(credits)} credits`,
+      metadata: {
+        type: "credits_auto_recharge",
+        amount_credits: String(credits),
+        price_usd: String(priceUsd),
+        user_id: userId,
+      },
     });
 
     if (pi.status === "succeeded") {
-      await topUpUserCredits(userId, amountUsd);
+      await topUpUserCredits(userId, credits);
     }
   } catch {
-    // If off-session charge fails (card requires auth), fall back to email
     const service = createServiceClient();
     const { data } = await service.from("profiles").select("email").eq("id", userId).single();
     const email = (data as { email: string | null } | null)?.email;
     if (email) {
-      await sendLowBalanceEmail({ to: email, currentBalance: 0, rechargeAmount: amountUsd });
+      await sendLowBalanceEmail({ to: email, currentBalance: 0, rechargeCredits: credits });
     }
   }
 }
@@ -167,11 +198,11 @@ async function chargeStoredPaymentMethod({
 async function sendLowBalanceEmail({
   to,
   currentBalance,
-  rechargeAmount,
+  rechargeCredits,
 }: {
   to: string;
   currentBalance: number;
-  rechargeAmount: number;
+  rechargeCredits: number;
 }): Promise<void> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
   const topUpUrl = `${appUrl}/credits#topup`;
@@ -189,14 +220,14 @@ async function sendLowBalanceEmail({
       <tr><td style="padding:32px 40px 0;text-align:center;">
         <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;">Your credit balance is low</h1>
         <p style="margin:0;font-size:15px;color:#6b7280;line-height:1.5;">
-          Your Corelyx platform AI credit balance has dropped to <strong>$${currentBalance.toFixed(2)}</strong>.
+          Your Corelyx platform AI credit balance has dropped to <strong>${formatCredits(currentBalance)} credits</strong>.
           AI-powered workflow nodes may stop working once it reaches zero.
         </p>
       </td></tr>
       <tr><td style="padding:28px 40px;">
         <div style="text-align:center;margin-bottom:24px;">
           <a href="${topUpUrl}" style="display:inline-block;background:#ea580c;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;">
-            Top up $${rechargeAmount.toFixed(2)} now
+            Top up ${formatCredits(rechargeCredits)} credits now
           </a>
         </div>
         <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
@@ -205,7 +236,7 @@ async function sendLowBalanceEmail({
         </p>
       </td></tr>
       <tr><td style="padding:20px 40px;background:#f9fafb;border-top:1px solid #f3f4f6;text-align:center;">
-        <p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx · <a href="${appUrl}" style="color:#9ca3af;">${appUrl}</a></p>
+        <p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx - <a href="${appUrl}" style="color:#9ca3af;">${appUrl}</a></p>
       </td></tr>
     </table>
   </td></tr>

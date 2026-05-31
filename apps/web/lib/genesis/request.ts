@@ -16,7 +16,7 @@ export type GenesisApiKeyRow = {
 // ─── Platform model catalog ───────────────────────────────────────────────────
 // Models available when using the Corelyx platform key (via OpenRouter).
 // "free" tier models cost nothing; "paid" tier models are billed against the
-// user's includedAiCreditsUsd. All IDs are OpenRouter model strings.
+// user's includedAiCredits. All IDs are OpenRouter model strings.
 
 // "free"     → Qwen3 Coder only (Free plan)
 // "standard" → + Claude 3 Haiku, GPT-4o Mini (Solo)

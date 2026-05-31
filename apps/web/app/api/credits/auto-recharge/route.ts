@@ -20,8 +20,8 @@ export async function GET() {
 
 const UpdateSchema = z.object({
   isEnabled: z.boolean(),
-  thresholdUsd: z.number().min(0.5).max(100),
-  rechargeAmountUsd: z.number().min(5).max(200),
+  thresholdCredits: z.number().int().min(500).max(100_000),
+  rechargeCredits: z.union([z.literal(5_000), z.literal(10_000), z.literal(26_250), z.literal(55_000)]),
 });
 
 // PUT /api/credits/auto-recharge
