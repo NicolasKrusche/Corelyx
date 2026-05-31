@@ -62,7 +62,7 @@
     "upgrade": "업그레이드 →",
     "topUp": "크레딧 충전",
     "topUpDesc": "구매한 크레딧은 만료되지 않으며 월별 할당량이 소진된 후 사용됩니다.",
-    "topUpNote": "$1 ≈ 모델에 따라 수백 번의 LLM 호출. Corelyx 플랫폼 키를 통해 워크플로우가 실행될 때만 사용됩니다.",
+    "topUpNote": "1,000 크레딧 ≈ 모델에 따라 수백 번의 LLM 호출. Corelyx 플랫폼 키를 통해 워크플로우가 실행될 때만 사용됩니다.",
     "includedCredits": "포함된 크레딧",
     "includedCreditsDesc": "플랜에 따라 매월 초기화됩니다",
     "purchasedCredits": "구매한 크레딧",

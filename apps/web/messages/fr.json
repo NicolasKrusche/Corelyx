@@ -62,7 +62,7 @@
     "upgrade": "Mettre à niveau →",
     "topUp": "Recharger des crédits",
     "topUpDesc": "Les crédits achetés n'expirent jamais et sont utilisés après épuisement de votre allocation mensuelle.",
-    "topUpNote": "1 $ ≈ quelques centaines d'appels LLM selon le modèle. Utilisé uniquement lorsque les workflows s'exécutent via la clé de plateforme Corelyx.",
+    "topUpNote": "1 000 crédits ≈ quelques centaines d'appels LLM selon le modèle. Utilisé uniquement lorsque les workflows s'exécutent via la clé de plateforme Corelyx.",
     "includedCredits": "Crédits inclus",
     "includedCreditsDesc": "Réinitialisé chaque mois avec votre plan",
     "purchasedCredits": "Crédits achetés",

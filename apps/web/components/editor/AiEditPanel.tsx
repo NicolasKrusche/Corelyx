@@ -19,8 +19,8 @@ interface AiEditPanelProps {
   hasApiKeys: boolean;
   mode: AiEditMode;
   onModeChange: (mode: AiEditMode) => void;
-  /** Display cost in USD for the platform key path (e.g. 20.0) */
-  platformRateUsd: number;
+  /** Display cost in credits for the platform key path. */
+  platformRateCredits: number;
 }
 
 export function AiEditPanel({
@@ -33,7 +33,7 @@ export function AiEditPanel({
   hasApiKeys,
   mode,
   onModeChange,
-  platformRateUsd,
+  platformRateCredits,
 }: AiEditPanelProps) {
   const canSubmitPersonal = hasApiKeys && mode === "personal";
   const canSubmitPlatform = mode === "platform";
@@ -117,7 +117,7 @@ export function AiEditPanel({
         {mode === "platform" && (
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             Genesis AI usage is applied first. If none is available,{" "}
-            <span className="font-medium text-foreground">${platformRateUsd.toFixed(2)} in credits</span>{" "}
+            <span className="font-medium text-foreground">{platformRateCredits.toLocaleString("en-US")} credits</span>{" "}
             will be deducted from your balance.
           </p>
         )}

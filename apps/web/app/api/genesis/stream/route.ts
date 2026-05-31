@@ -179,6 +179,8 @@ export async function POST(request: Request) {
   let keyCandidates: GenesisApiKeyRow[];
 
   if (usePlatformKey) {
+    // Streaming builds consume the plan's Genesis-use allowance. Platform
+    // credits remain metered for workflow execution and editor refinements.
     const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
     if (!platformRawKey) return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
     keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];

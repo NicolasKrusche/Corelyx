@@ -1,8 +1,8 @@
 /**
  * Server-side credit balance helpers.
  * Credits come from two pools:
- *   1. included_credits_used_usd — consumed from the monthly plan allowance (resets monthly)
- *   2. purchased_credits_usd     — top-up pool that never expires
+ *   1. included_credits_used - consumed from the monthly plan allowance (resets monthly)
+ *   2. purchased_credits     - top-up pool that never expires
  *
  * Deduction drains included first, then purchased.
  */
@@ -16,152 +16,214 @@ export type CreditBalance = {
   total: number;
 };
 
+const LEGACY_CREDITS_PER_USD = 1_000;
+
 type ProfileRow = {
   tier: string | null;
-  included_credits_used_usd: string | number;
-  included_credits_reset_at: string;
-  purchased_credits_usd: string | number;
+  includedCreditsUsed: number;
+  includedCreditsResetAt: string;
+  purchasedCredits: number;
+  storage: "credits" | "legacy-usd";
 };
 
 type RpcClient = ReturnType<typeof createServiceClient> & {
   rpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
 };
 
+async function fetchCreditProfile(userId: string): Promise<ProfileRow> {
+  const service = createServiceClient();
+  const { data, error } = await service
+    .from("profiles")
+    .select("tier, included_credits_used, included_credits_reset_at, purchased_credits")
+    .eq("id", userId)
+    .single();
+
+  if (!error && data) {
+    const row = data as unknown as {
+      tier: string | null;
+      included_credits_used: string | number;
+      included_credits_reset_at: string;
+      purchased_credits: string | number;
+    };
+    return {
+      tier: row.tier,
+      includedCreditsUsed: Number(row.included_credits_used),
+      includedCreditsResetAt: row.included_credits_reset_at,
+      purchasedCredits: Number(row.purchased_credits),
+      storage: "credits",
+    };
+  }
+
+  // Keep reads working while the live database rolls through the credit-unit migration.
+  const { data: legacyData, error: legacyError } = await service
+    .from("profiles")
+    .select("tier, included_credits_used_usd, included_credits_reset_at, purchased_credits_usd")
+    .eq("id", userId)
+    .single();
+
+  if (legacyError || !legacyData) throw new Error("Failed to fetch user credit balance");
+  const legacyRow = legacyData as unknown as {
+    tier: string | null;
+    included_credits_used_usd: string | number;
+    included_credits_reset_at: string;
+    purchased_credits_usd: string | number;
+  };
+  return {
+    tier: legacyRow.tier,
+    includedCreditsUsed: Math.round(Number(legacyRow.included_credits_used_usd) * LEGACY_CREDITS_PER_USD),
+    includedCreditsResetAt: legacyRow.included_credits_reset_at,
+    purchasedCredits: Math.round(Number(legacyRow.purchased_credits_usd) * LEGACY_CREDITS_PER_USD),
+    storage: "legacy-usd",
+  };
+}
+
 async function maybeResetIncluded(userId: string, row: ProfileRow): Promise<number> {
-  const resetAt = new Date(row.included_credits_reset_at);
+  const resetAt = new Date(row.includedCreditsResetAt);
   const now = new Date();
   const needsReset =
     now.getUTCFullYear() > resetAt.getUTCFullYear() ||
     (now.getUTCFullYear() === resetAt.getUTCFullYear() &&
       now.getUTCMonth() > resetAt.getUTCMonth());
 
-  if (!needsReset) return Number(row.included_credits_used_usd);
+  if (!needsReset) return row.includedCreditsUsed;
 
   const service = createServiceClient();
-  await service
+  const { error } = await service
     .from("profiles")
     .update({
-      included_credits_used_usd: 0,
+      [row.storage === "credits" ? "included_credits_used" : "included_credits_used_usd"]: 0,
       included_credits_reset_at: now.toISOString(),
     } as never)
     .eq("id", userId);
+  if (error) throw error;
   return 0;
 }
 
 /** Fetch the current credit balance for a user (personal profile pool). */
 export async function getUserCreditBalance(userId: string): Promise<CreditBalance> {
-  const service = createServiceClient();
-  const { data, error } = await service
-    .from("profiles")
-    .select("tier, included_credits_used_usd, included_credits_reset_at, purchased_credits_usd")
-    .eq("id", userId)
-    .single();
-
-  if (error || !data) throw new Error("Failed to fetch user credit balance");
-  const row = data as unknown as ProfileRow;
-
-  const entitlements = getEntitlements(parseTier(row.tier));
-  const includedUsd = entitlements.includedAiCreditsUsd;
+  const row = await fetchCreditProfile(userId);
+  const includedCredits = getEntitlements(parseTier(row.tier)).includedAiCredits;
   const includedUsed = await maybeResetIncluded(userId, row);
-  const availablePurchased = Math.max(0, Number(row.purchased_credits_usd));
+  const availablePurchased = Math.max(0, row.purchasedCredits);
 
-  if (includedUsd === null) {
+  if (includedCredits === null) {
     return { availableIncluded: Infinity, availablePurchased, total: Infinity };
   }
 
-  const availableIncluded = Math.max(0, includedUsd - includedUsed);
+  const availableIncluded = Math.max(0, includedCredits - includedUsed);
   return { availableIncluded, availablePurchased, total: availableIncluded + availablePurchased };
 }
 
-/**
- * Deduct credits from a user's account atomically via DB RPC.
- * Returns false if insufficient balance — caller should abort the LLM call.
- */
-export async function deductUserCredits(
-  userId: string,
-  amountUsd: number,
-): Promise<boolean> {
+/** Deduct integer credits atomically. Returns false when the balance is insufficient. */
+export async function deductUserCredits(userId: string, amountCredits: number): Promise<boolean> {
+  if (!Number.isSafeInteger(amountCredits) || amountCredits <= 0) return false;
+
   const service = createServiceClient();
-  const { data: rawRow, error } = await service
-    .from("profiles")
-    .select("tier, included_credits_used_usd, included_credits_reset_at, purchased_credits_usd")
-    .eq("id", userId)
-    .single();
-
-  if (error || !rawRow) return false;
-  const row = rawRow as unknown as ProfileRow;
-
-  const entitlements = getEntitlements(parseTier(row.tier));
-  const includedUsd = entitlements.includedAiCreditsUsd;
-
-  // Unlimited plan — always allow
-  if (includedUsd === null) return true;
+  const row = await fetchCreditProfile(userId).catch(() => null);
+  if (!row) return false;
+  const includedCredits = getEntitlements(parseTier(row.tier)).includedAiCredits;
+  if (includedCredits === null) return true;
 
   const includedUsed = await maybeResetIncluded(userId, row);
-  const currentPurchased = Math.max(0, Number(row.purchased_credits_usd));
-  const availableIncluded = Math.max(0, includedUsd - includedUsed);
-  const total = availableIncluded + currentPurchased;
+  const currentPurchased = Math.max(0, row.purchasedCredits);
+  const availableIncluded = Math.max(0, includedCredits - includedUsed);
+  if (availableIncluded + currentPurchased < amountCredits) return false;
 
-  if (total < amountUsd) return false;
-
-  // Compute split
-  let remaining = amountUsd;
-  const fromIncluded = Math.min(remaining, availableIncluded);
-  remaining -= fromIncluded;
-  const fromPurchased = remaining;
-
-  // Atomic RPC deduction
-  const { data: rpcResult, error: rpcError } = await (service as RpcClient).rpc(
-    "deduct_user_credits_raw",
-    {
-      p_user_id: userId,
-      p_add_to_included: round6(fromIncluded),
-      p_sub_from_purchased: round6(fromPurchased),
-    },
-  );
-
-  if (rpcError) {
-    // RPC unavailable — fall back to direct update (best-effort)
-    await service
-      .from("profiles")
-      .update({
-        included_credits_used_usd: round6(includedUsed + fromIncluded),
-        purchased_credits_usd: round6(currentPurchased - fromPurchased),
-      } as never)
-      .eq("id", userId);
-    return true;
-  }
-
-  return rpcResult === true;
+  const fromIncluded = Math.min(amountCredits, availableIncluded);
+  const fromPurchased = amountCredits - fromIncluded;
+  const args = row.storage === "credits"
+    ? {
+        p_user_id: userId,
+        p_add_to_included: fromIncluded,
+        p_sub_from_purchased: fromPurchased,
+        p_included_limit: includedCredits,
+      }
+    : {
+        p_user_id: userId,
+        p_add_to_included: fromIncluded / LEGACY_CREDITS_PER_USD,
+        p_sub_from_purchased: fromPurchased / LEGACY_CREDITS_PER_USD,
+      };
+  const { data, error: rpcError } = await (service as RpcClient).rpc("deduct_user_credits_raw", args);
+  if (rpcError) throw new Error(rpcError.message);
+  return data === true;
 }
 
-/** Add to a user's purchased credit pool (called after Stripe payment). */
-export async function topUpUserCredits(
-  userId: string,
-  amountUsd: number,
-): Promise<void> {
+/** Add integer credits to a user's purchased pool after Stripe payment. */
+export async function topUpUserCredits(userId: string, amountCredits: number): Promise<void> {
+  if (!Number.isSafeInteger(amountCredits) || amountCredits <= 0) {
+    throw new Error("Credit top-up must be a positive integer");
+  }
+
   const service = createServiceClient();
   const { error } = await (service as RpcClient).rpc("top_up_user_credits", {
     p_user_id: userId,
-    p_amount_usd: round6(amountUsd),
+    p_amount_credits: amountCredits,
   });
-  if (error) {
-    // RPC unavailable — fetch-then-update fallback
-    const { data } = await service
-      .from("profiles")
-      .select("purchased_credits_usd")
-      .eq("id", userId)
-      .single();
-    const current = data
-      ? Math.max(0, Number((data as { purchased_credits_usd: string | number }).purchased_credits_usd))
-      : 0;
-    await service
-      .from("profiles")
-      .update({ purchased_credits_usd: round6(current + amountUsd) } as never)
-      .eq("id", userId);
-  }
+  if (!error) return;
+
+  const { error: legacyError } = await (service as RpcClient).rpc("top_up_user_credits", {
+    p_user_id: userId,
+    p_amount_usd: amountCredits / LEGACY_CREDITS_PER_USD,
+  });
+  if (legacyError) throw new Error(error.message);
 }
 
-function round6(n: number): number {
-  return Math.round(n * 1_000_000) / 1_000_000;
+/** Record and apply a Stripe Checkout purchase exactly once. */
+export async function applyCreditPurchase({
+  userId,
+  amountCredits,
+  priceUsd,
+  stripeSessionId,
+  stripePaymentIntentId,
+}: {
+  userId: string;
+  amountCredits: number;
+  priceUsd: number;
+  stripeSessionId: string;
+  stripePaymentIntentId: string | null;
+}): Promise<boolean> {
+  if (!Number.isSafeInteger(amountCredits) || amountCredits <= 0 || priceUsd <= 0) {
+    throw new Error("Credit purchase is invalid");
+  }
+
+  const service = createServiceClient();
+  const { data, error } = await (service as RpcClient).rpc("apply_credit_purchase", {
+    p_user_id: userId,
+    p_amount_credits: amountCredits,
+    p_price_usd: priceUsd,
+    p_stripe_session_id: stripeSessionId,
+    p_stripe_payment_intent_id: stripePaymentIntentId,
+  });
+  if (!error) return data === true;
+
+  // Temporary compatibility path for deployments where web code reaches the
+  // old schema before the credit-unit migration has finished.
+  const { data: existing, error: existingError } = await service
+    .from("credit_purchases")
+    .select("id")
+    .eq("stripe_session_id", stripeSessionId)
+    .maybeSingle();
+  if (existingError) throw new Error(error.message);
+  if (existing) return false;
+
+  const { error: insertError } = await service.from("credit_purchases").insert({
+    user_id: userId,
+    amount_usd: priceUsd,
+    stripe_session_id: stripeSessionId,
+    stripe_payment_intent_id: stripePaymentIntentId,
+    status: "completed",
+  } as never);
+  if (insertError) {
+    if (insertError.code === "23505") return false;
+    throw new Error(insertError.message);
+  }
+
+  try {
+    await topUpUserCredits(userId, amountCredits);
+  } catch (topUpError) {
+    await service.from("credit_purchases").delete().eq("stripe_session_id", stripeSessionId);
+    throw topUpError;
+  }
+
+  return true;
 }

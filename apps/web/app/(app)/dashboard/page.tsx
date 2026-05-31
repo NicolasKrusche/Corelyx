@@ -21,6 +21,7 @@ import {
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { getUserCreditBalance } from "@/lib/credits";
+import { formatCredits } from "@/lib/credit-packs";
 import { canManageWorkspace } from "@/lib/workspace-types";
 import { cn } from "@/lib/utils";
 
@@ -361,12 +362,12 @@ export default async function DashboardPage({
 
   return (
     <div className="mx-auto w-full max-w-[1480px] space-y-5 pb-8 text-foreground">
-      {creditBalance && creditBalance.total !== Infinity && creditBalance.total < 1 && (
+      {creditBalance && creditBalance.total !== Infinity && creditBalance.total < 1_000 && (
         <section className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm">
           <p className="font-medium text-amber-700 dark:text-amber-300">
             {creditBalance.total <= 0
               ? "Platform AI credits exhausted. LLM nodes using the platform key will not run."
-              : `Only $${creditBalance.total.toFixed(2)} in platform AI credits remaining.`}
+              : `Only ${formatCredits(creditBalance.total)} platform AI credits remaining.`}
           </p>
           <Link
             href="/plan"

@@ -62,7 +62,7 @@
     "upgrade": "Ulepsz →",
     "topUp": "Doładuj kredyty",
     "topUpDesc": "Zakupione kredyty nigdy nie wygasają i są używane po wyczerpaniu miesięcznego limitu.",
-    "topUpNote": "1 $ ≈ kilkaset wywołań LLM w zależności od modelu. Używane tylko wtedy, gdy przepływy pracy są uruchamiane za pomocą klucza platformy Corelyx.",
+    "topUpNote": "1 000 kredytów ≈ kilkaset wywołań LLM w zależności od modelu. Używane tylko wtedy, gdy przepływy pracy są uruchamiane za pomocą klucza platformy Corelyx.",
     "includedCredits": "Zawarte kredyty",
     "includedCreditsDesc": "Resetuje się co miesiąc zgodnie z planem",
     "purchasedCredits": "Zakupione kredyty",
