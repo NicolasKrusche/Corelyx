@@ -241,38 +241,51 @@ def _resolve_nested(value: Any, inputs: dict) -> Any:
     return value
 
 
-def _recover_gmail_message_id(
-    operation: str,
+def _recover_event_operation_params(
     params: dict[str, Any],
     inputs: dict[str, Any],
 ) -> dict[str, Any]:
-    """Backfill Gmail IDs from event envelopes for existing direct-trigger workflows."""
-    if operation not in {"read_email", "get_attachment", "archive_email", "label_email"}:
-        return params
-    if params.get("message_id"):
-        return params
+    """Backfill missing operation params from event and webhook envelopes.
 
-    def find_message_id(value: Any) -> Any:
-        if not isinstance(value, dict):
-            return None
-        message_id = value.get("message_id")
-        if message_id:
-            return message_id
-        payload = value.get("payload")
-        if isinstance(payload, dict) and payload.get("message_id"):
-            return payload["message_id"]
+    Event payloads have used both flattened and nested shapes over time. Resolve
+    exact parameter names from those envelopes so existing saved workflows keep
+    working without connector-specific fallbacks.
+    """
+    def find_param(value: Any, param_name: str) -> Any:
+        if isinstance(value, dict):
+            direct = value.get(param_name)
+            if direct not in (None, ""):
+                return direct
+            plural = value.get(f"{param_name}s")
+            if isinstance(plural, list) and plural:
+                return plural[0]
+            for envelope_key in ("payload", "webhook_payload"):
+                nested = value.get(envelope_key)
+                found = find_param(nested, param_name)
+                if found not in (None, ""):
+                    return found
+        elif isinstance(value, list):
+            for nested in value:
+                found = find_param(nested, param_name)
+                if found not in (None, ""):
+                    return found
         return None
 
-    message_id = find_message_id(inputs)
-    if not message_id:
-        for value in inputs.values():
-            message_id = find_message_id(value)
-            if message_id:
+    recovered = dict(params)
+    for param_name, value in params.items():
+        if value not in (None, ""):
+            continue
+        for candidate in inputs.values():
+            if not isinstance(candidate, dict):
+                continue
+            if "event" not in candidate and "webhook_payload" not in candidate:
+                continue
+            found = find_param(candidate, param_name)
+            if found not in (None, ""):
+                recovered[param_name] = found
                 break
-    if not message_id:
-        return params
 
-    return {**params, "message_id": message_id}
+    return recovered
 
 
 async def run_agent(config: dict, inputs: dict, credentials: Any) -> dict:
@@ -669,6 +682,7 @@ class ProgramExecutor:
         # Topological execution
         visited: set[str] = {trigger_node.id}
         queue: list[str] = [trigger_node.id]
+        failures: list[ExecutionError] = []
 
         while queue:
             # Cancellation check on each iteration
@@ -678,6 +692,28 @@ class ProgramExecutor:
 
             current_id = queue.pop(0)
             outgoing = self.edges_from.get(current_id, [])
+            current_output = state.get(current_id)
+            if isinstance(current_output, dict) and "__branch_target__" in current_output:
+                selected_target = current_output.get("__branch_target__")
+                selected_edges = [edge for edge in outgoing if edge.to == selected_target]
+                if not selected_edges:
+                    raise ExecutionError(
+                        "BRANCH_TARGET_INVALID",
+                        f"Branch node '{current_id}' selected '{selected_target}', "
+                        "but no matching outgoing edge exists.",
+                        current_id,
+                    )
+                selected_reachable = self._reachable_nodes_from(
+                    [edge.to for edge in selected_edges]
+                )
+                skipped = await self._skip_nodes_from(
+                    [edge.to for edge in outgoing if edge.to != selected_target],
+                    excluded=visited | selected_reachable,
+                )
+                visited.update(skipped)
+                for skipped_node_id in skipped:
+                    state[skipped_node_id] = {"__skipped__": True}
+                outgoing = selected_edges
 
             for edge in outgoing:
                 target_node = self.node_map.get(edge.to)
@@ -693,22 +729,20 @@ class ProgramExecutor:
                     state[edge.to] = output
                     visited.add(edge.to)
 
-                    # Some nodes intentionally halt the branch without failing
-                    # the run, such as a false filter or an empty Gmail event.
-                    halts_descendants = (
-                        isinstance(output, dict)
-                        and (
-                            output.get("__skip_descendants__") is True
-                            or (
-                                target_node.type == "step"
-                                and isinstance(target_node.config, StepConfig)
-                                and target_node.config.logic_type == "filter"
-                                and output.get("__filtered_out__") is True
-                            )
-                        )
+                    # Only explicit control-flow nodes may halt descendants.
+                    # Connector output is data and must never control execution.
+                    is_filtered_out = (
+                        target_node.type == "step"
+                        and isinstance(target_node.config, StepConfig)
+                        and target_node.config.logic_type == "filter"
+                        and isinstance(output, dict)
+                        and output.get("__filtered_out__") is True
                     )
-                    if halts_descendants:
-                        skipped = await self._skip_descendants_from(edge.to)
+                    if is_filtered_out:
+                        skipped = await self._skip_descendants_from(
+                            edge.to,
+                            excluded=visited,
+                        )
                         visited.update(skipped)
                         for skipped_node_id in skipped:
                             state[skipped_node_id] = {"__skipped__": True}
@@ -746,23 +780,61 @@ class ProgramExecutor:
                             and agent_cfg.retry.fail_program_on_exhaust
                         ):
                             raise
-                    visited.add(edge.to)  # Mark failed nodes as visited to continue
+                    visited.add(edge.to)
+                    skipped = await self._skip_descendants_from(
+                        edge.to,
+                        excluded=visited,
+                    )
+                    visited.update(skipped)
+                    for skipped_node_id in skipped:
+                        state[skipped_node_id] = {"__skipped__": True}
+                    failures.append(e)
 
+        if failures:
+            raise failures[0]
         return state
 
-    async def _skip_descendants_from(self, node_id: str) -> set[str]:
+    async def _skip_descendants_from(
+        self,
+        node_id: str,
+        *,
+        excluded: set[str] | None = None,
+    ) -> set[str]:
         """Mark all descendants of a node as skipped for this run.
 
         Used when a filter node intentionally short-circuits a branch. Without
         this, untouched descendants stay "pending" in the UI even though the run
         has completed.
         """
+        return await self._skip_nodes_from(
+            [e.to for e in self.edges_from.get(node_id, [])],
+            excluded=excluded,
+        )
+
+    def _reachable_nodes_from(self, node_ids: list[str]) -> set[str]:
+        reachable: set[str] = set()
+        frontier = list(node_ids)
+        while frontier:
+            nid = frontier.pop()
+            if nid in reachable:
+                continue
+            reachable.add(nid)
+            frontier.extend(e.to for e in self.edges_from.get(nid, []))
+        return reachable
+
+    async def _skip_nodes_from(
+        self,
+        node_ids: list[str],
+        *,
+        excluded: set[str] | None = None,
+    ) -> set[str]:
+        excluded = excluded or set()
         descendants: set[str] = set()
-        frontier = [e.to for e in self.edges_from.get(node_id, [])]
+        frontier = list(node_ids)
 
         while frontier:
             nid = frontier.pop()
-            if nid in descendants:
+            if nid in descendants or nid in excluded:
                 continue
             descendants.add(nid)
             frontier.extend(e.to for e in self.edges_from.get(nid, []))
@@ -869,7 +941,7 @@ class ProgramExecutor:
                         block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
                         **self._node_telemetry_payload(nid),
                     )
-                    out = {}
+                    raise
                 local_state[nid] = out
                 iteration_results[nid].append(out)
 
@@ -1420,12 +1492,24 @@ class ProgramExecutor:
                     else:
                         resolved_params[k] = v
 
-                if provider_id == "gmail":
-                    resolved_params = _recover_gmail_message_id(
-                        cfg.operation,
-                        resolved_params,
-                        input_data,
-                    )
+                resolved_params = _recover_event_operation_params(
+                    resolved_params,
+                    input_data,
+                )
+
+                for key, raw_value in raw_params.items():
+                    if (
+                        isinstance(raw_value, str)
+                        and re.search(r"\{\{", raw_value)
+                        and resolved_params.get(key) in (None, "")
+                    ):
+                        raise ExecutionError(
+                            "UNRESOLVED_OPERATION_PARAM",
+                            f"Could not resolve '{key}' for {cfg.operation}. "
+                            "Add a filter or branch before this connector when "
+                            "the upstream value can be empty.",
+                            node.id,
+                        )
 
                 try:
                     self._record_telemetry(node.id, connector_api_calls=1)
@@ -1459,6 +1543,27 @@ class ProgramExecutor:
                             ) from retry_exc
                     else:
                         raise ExecutionError(exc.code, exc.message) from exc
+                if not isinstance(result, dict):
+                    raise ExecutionError(
+                        "CONNECTOR_OUTPUT_INVALID",
+                        f"Connector operation '{cfg.operation}' returned a non-object result.",
+                        node.id,
+                    )
+                reserved_keys = {
+                    "__filtered_out__",
+                    "__loop_items__",
+                    "__branch_target__",
+                    "__skip_descendants__",
+                    "__skipped__",
+                }
+                unexpected_control_keys = sorted(reserved_keys.intersection(result))
+                if unexpected_control_keys:
+                    raise ExecutionError(
+                        "CONNECTOR_OUTPUT_INVALID",
+                        f"Connector operation '{cfg.operation}' returned reserved runtime "
+                        f"fields: {', '.join(unexpected_control_keys)}.",
+                        node.id,
+                    )
                 return {**input_data, **result, "connection_id": connection_id}
 
             # No operation — pass the connection id through so downstream nodes

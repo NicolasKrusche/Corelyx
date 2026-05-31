@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { StablecoinCheckoutOption } from "@/components/stablecoin-checkout-option";
+import { BillingCheckoutButton } from "@/components/billing-checkout-button";
 
 const DISMISS_KEY = "welcome_offer_dismissed";
 const OFFER_DAYS = 7;
@@ -69,17 +70,14 @@ export function WelcomeOfferBanner({ createdAt, tier }: Props) {
         </div>
 
         <div className="flex flex-col items-start sm:items-end gap-1 shrink-0">
-          <form action="/api/billing/checkout" method="POST">
-            <input type="hidden" name="tier" value="plus" />
-            <input type="hidden" name="interval" value="month" />
-            <input type="hidden" name="welcome_offer" value="true" />
-            <button
-              type="submit"
-              className="whitespace-nowrap rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.35)] hover:shadow-[0_0_32px_hsl(var(--primary)/0.5)] transition-all duration-200"
-            >
-              Claim 61% off — Start Solo
-            </button>
-          </form>
+          <BillingCheckoutButton
+            tier="plus"
+            interval="month"
+            welcomeOffer
+            className="whitespace-nowrap rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.35)] transition-all duration-200 hover:shadow-[0_0_32px_hsl(var(--primary)/0.5)] disabled:cursor-wait disabled:opacity-70"
+          >
+            Claim 61% off — Start Solo
+          </BillingCheckoutButton>
           <StablecoinCheckoutOption tier="plus" interval="month" welcomeOffer />
           <p className="text-[11px] text-muted-foreground/50">
             Cancel anytime · Expires {expiry}

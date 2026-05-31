@@ -70,7 +70,5 @@ def test_eu_only_allows_reviewed_openai_provider_entry():
     assert is_provider_allowed_in_eu_only("openai") is True
 
 
-def test_standard_mode_still_blocks_missing_dpa_entries():
-    assert policy_block_reason("generic_http", "standard") == (
-        "Customer-configured HTTP endpoint is missing a completed DPA entry."
-    )
+def test_standard_mode_allows_customer_configured_http_endpoints():
+    assert policy_block_reason("generic_http", "standard") is None

@@ -18,6 +18,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { PlanPreviewToggle } from "./plan-preview-toggle";
 import { formatCredits } from "@/lib/credit-packs";
 import { StablecoinCheckoutOption } from "@/components/stablecoin-checkout-option";
+import { BillingCheckoutButton } from "@/components/billing-checkout-button";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
@@ -586,17 +587,14 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                   </div>
                 ) : plan.checkout ? (
                   <>
-                    <form action="/api/billing/checkout" method="POST">
-                      <input type="hidden" name="tier" value={plan.checkout.tier} />
-                      <input type="hidden" name="interval" value={plan.checkout.interval} />
-                      <button
-                        type="submit"
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                      >
-                        <Rocket className="h-3.5 w-3.5" />
-                        {plan.cta}
-                      </button>
-                    </form>
+                    <BillingCheckoutButton
+                      tier={plan.checkout.tier}
+                      interval={plan.checkout.interval}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-wait disabled:opacity-70"
+                    >
+                      <Rocket className="h-3.5 w-3.5" />
+                      {plan.cta}
+                    </BillingCheckoutButton>
                     <StablecoinCheckoutOption tier={plan.checkout.tier} interval={plan.checkout.interval} />
                   </>
                 ) : (
