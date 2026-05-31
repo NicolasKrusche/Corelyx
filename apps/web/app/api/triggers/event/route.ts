@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
 import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
-import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
+import {
+  dispatchEventTriggers,
+  InvalidEventPayloadError,
+} from "@/lib/triggers/dispatch-event";
 import { readBoundedJsonBody } from "@/lib/request-body";
 
 /**
@@ -46,6 +49,9 @@ export async function POST(request: Request) {
     return NextResponse.json(result, { status: 202 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to dispatch event";
+    if (err instanceof InvalidEventPayloadError) {
+      return apiError(message, 400);
+    }
     return apiError(message, 500);
   }
 }

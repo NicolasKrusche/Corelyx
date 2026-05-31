@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildEventTriggerPayload, eventNamesMatch } from "@/lib/triggers/dispatch-event";
+import {
+  buildEventTriggerPayload,
+  eventNamesMatch,
+  normalizeEventPayload,
+} from "@/lib/triggers/dispatch-event";
 
 describe("event trigger payloads", () => {
   it("exposes provider payload fields at the top level and under payload", () => {
@@ -39,5 +43,19 @@ describe("event trigger payloads", () => {
   it("keeps legacy Gmail new_email triggers compatible", () => {
     expect(eventNamesMatch("gmail", "new_email", "message.received")).toBe(true);
     expect(eventNamesMatch("gmail", "another_event", "message.received")).toBe(false);
+  });
+
+  it("promotes the first Gmail message id before dispatch", () => {
+    expect(normalizeEventPayload("gmail", "message.received", {
+      message_ids: ["gmail-message-1", "gmail-message-2"],
+    })).toEqual({
+      message_id: "gmail-message-1",
+      message_ids: ["gmail-message-1", "gmail-message-2"],
+    });
+  });
+
+  it("rejects impossible Gmail received events before they create runs", () => {
+    expect(() => normalizeEventPayload("gmail", "message.received", {}))
+      .toThrow("Gmail message.received events require a message_id before dispatch.");
   });
 });

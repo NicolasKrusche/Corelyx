@@ -43,6 +43,38 @@ export interface DispatchEventResult {
   runs: string[];
 }
 
+export class InvalidEventPayloadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidEventPayloadError";
+  }
+}
+
+function _nonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export function normalizeEventPayload(
+  source: string,
+  event: string,
+  payload: JsonObject,
+): JsonObject {
+  if (source !== "gmail" || event !== "message.received") return payload;
+
+  const messageId = _nonEmptyString(payload.message_id)
+    ?? (Array.isArray(payload.message_ids)
+      ? payload.message_ids.map(_nonEmptyString).find(Boolean) ?? null
+      : null);
+
+  if (!messageId) {
+    throw new InvalidEventPayloadError(
+      "Gmail message.received events require a message_id before dispatch."
+    );
+  }
+
+  return payload.message_id === messageId ? payload : { ...payload, message_id: messageId };
+}
+
 export function eventNamesMatch(
   source: string,
   configuredEvent: unknown,
@@ -81,7 +113,7 @@ export async function dispatchEventTriggers(
   input: DispatchEventInput
 ): Promise<DispatchEventResult> {
   const db = createServiceClient();
-  const payload = input.payload ?? {};
+  const payload = normalizeEventPayload(input.source, input.event, input.payload ?? {});
 
   const { data: triggersRaw, error: trigErr } = await db
     .from("triggers")
