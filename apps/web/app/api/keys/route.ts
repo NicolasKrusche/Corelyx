@@ -28,7 +28,10 @@ export async function GET() {
     .eq("workspace_id", ws.workspaceId)
     .order("created_at", { ascending: false });
 
-  if (error) return apiError(error.message, 500);
+  if (error) {
+    console.error("[GET /api/keys] Supabase error:", error);
+    return apiError(error.message, 500);
+  }
   return NextResponse.json(data);
 }
 

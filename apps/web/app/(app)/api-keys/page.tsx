@@ -57,6 +57,7 @@ export default function ApiKeysPage() {
   const t = useTranslations("apiKeys");
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", provider: "anthropic", customProvider: "", key: "" });
   const [saving, setSaving] = useState(false);
@@ -66,8 +67,18 @@ export default function ApiKeysPage() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/keys");
-    if (res.ok) setKeys(await res.json());
+    setLoadError(null);
+    try {
+      const res = await fetch("/api/keys");
+      if (res.ok) {
+        setKeys(await res.json());
+      } else {
+        const body = await res.json().catch(() => ({})) as { error?: string; message?: string };
+        setLoadError(body.message ?? body.error ?? "Could not load your API keys. Please refresh the page.");
+      }
+    } catch {
+      setLoadError("Could not reach the server. Check your connection and refresh.");
+    }
     setLoading(false);
   }
 
@@ -125,6 +136,12 @@ export default function ApiKeysPage() {
       {loading ? (
         <div className="rounded-xl border glass-card p-8 text-center">
           <p className="text-xs text-muted-foreground/50">Loading…</p>
+        </div>
+      ) : loadError ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+          <p className="text-sm font-medium text-destructive mb-1">Failed to load API keys</p>
+          <p className="text-xs text-muted-foreground mb-4">{loadError}</p>
+          <Button size="sm" variant="outline" onClick={() => void load()}>Try again</Button>
         </div>
       ) : keys.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-white/[0.02] backdrop-blur-md p-14 text-center">
