@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
+import { getProgramAccess, canView } from "@/lib/workspaces";
 import { ConflictResolutionPanel } from "./conflict-panel";
 
 type ConflictEntry = {
@@ -21,11 +22,13 @@ export default async function ConflictsPage({
   } = await supabase.auth.getUser();
   if (!user) notFound();
 
+  const access = await getProgramAccess(id, user.id);
+  if (!access || !canView(access)) notFound();
+
   const { data: program, error: progError } = await supabase
     .from("programs")
     .select("id, name, conflict_policy")
     .eq("id", id)
-    .eq("user_id", user.id)
     .single();
 
   if (progError || !program) notFound();
@@ -66,7 +69,7 @@ export default async function ConflictsPage({
         .from("programs")
         .select("id, name, is_active, execution_mode")
         .in("id", conflictingProgramIds)
-        .eq("user_id", user.id);
+        .eq("workspace_id", access.workspaceId);
 
       const { data: connNames } = await serviceClient
         .from("connections")
