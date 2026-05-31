@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { isAdminEmail } from "@/lib/admin";
 import { PlanPreviewToggle } from "./plan-preview-toggle";
 import { formatCredits } from "@/lib/credit-packs";
+import { StablecoinCheckoutOption } from "@/components/stablecoin-checkout-option";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
 
@@ -216,7 +217,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         "Email support",
       ],
       cta: tier === "plus" ? "Current plan" : currentTierIdx > 1 ? "Downgrade" : "Upgrade to Solo",
-      checkout: tier === "free" ? { tier: "plus", interval: "month" } : undefined,
+      checkout: tier === "free" ? { tier: "plus", interval: "month" } as const : undefined,
       href: tier === "plus" ? undefined : currentTierIdx > 1 ? "/dashboard" : undefined,
       primary: false,
       current: tier === "plus",
@@ -239,7 +240,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         "Priority support",
       ],
       cta: tier === "pro" ? "Current plan" : currentTierIdx > 2 ? "Downgrade" : "Upgrade to Team",
-      checkout: currentTierIdx <= 1 ? { tier: "pro", interval: "month" } : undefined,
+      checkout: currentTierIdx <= 1 ? { tier: "pro", interval: "month" } as const : undefined,
       href: tier === "pro" ? undefined : currentTierIdx > 2 ? "/dashboard" : undefined,
       primary: true,
       current: tier === "pro",
@@ -583,17 +584,20 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                     You&apos;re here
                   </div>
                 ) : plan.checkout ? (
-                  <form action="/api/billing/checkout" method="POST">
-                    <input type="hidden" name="tier" value={plan.checkout.tier} />
-                    <input type="hidden" name="interval" value={plan.checkout.interval} />
-                    <button
-                      type="submit"
-                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                    >
-                      <Rocket className="h-3.5 w-3.5" />
-                      {plan.cta}
-                    </button>
-                  </form>
+                  <>
+                    <form action="/api/billing/checkout" method="POST">
+                      <input type="hidden" name="tier" value={plan.checkout.tier} />
+                      <input type="hidden" name="interval" value={plan.checkout.interval} />
+                      <button
+                        type="submit"
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                      >
+                        <Rocket className="h-3.5 w-3.5" />
+                        {plan.cta}
+                      </button>
+                    </form>
+                    <StablecoinCheckoutOption tier={plan.checkout.tier} interval={plan.checkout.interval} />
+                  </>
                 ) : (
                   <Link
                     href={plan.href ?? "/plan"}

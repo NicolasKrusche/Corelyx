@@ -10,6 +10,7 @@ import {
 } from "@/lib/billing";
 import { getStripeClient } from "@/lib/stripe";
 import { getActiveWorkspace } from "@/lib/workspaces";
+import { parseCheckoutPaymentMethod, stripePaymentMethodTypes } from "@/lib/checkout-payment-method";
 
 function readString(value: FormDataEntryValue | string | null | undefined): string | null {
   if (typeof value === "string") return value;
@@ -38,29 +39,31 @@ export async function POST(request: Request) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
-  if (!user.email) return apiError("Account email is required for billing.", 400);
-
   const contentType = request.headers.get("content-type") ?? "";
   let rawTier: string | null = null;
   let rawInterval: string | null = null;
   let rawWelcomeOffer: string | null = null;
+  let rawPaymentMethod: string | null = null;
 
   if (contentType.includes("application/json")) {
-    const body = (await request.json().catch(() => null)) as { tier?: string; interval?: string; welcome_offer?: string } | null;
+    const body = (await request.json().catch(() => null)) as { tier?: string; interval?: string; welcome_offer?: string; payment_method?: string } | null;
     rawTier = body?.tier ?? null;
     rawInterval = body?.interval ?? null;
     rawWelcomeOffer = body?.welcome_offer ?? null;
+    rawPaymentMethod = body?.payment_method ?? null;
   } else {
     const form = await request.formData();
     rawTier = readString(form.get("tier"));
     rawInterval = readString(form.get("interval"));
     rawWelcomeOffer = readString(form.get("welcome_offer"));
+    rawPaymentMethod = readString(form.get("payment_method"));
   }
 
   const parsed = parseInput(rawTier, rawInterval);
   if (!parsed) return apiError("Invalid billing selection.", 400);
 
   const { tier, interval } = parsed;
+  const paymentMethod = parseCheckoutPaymentMethod(rawPaymentMethod);
   const activeWorkspace = await getActiveWorkspace(user.id);
   if (!activeWorkspace) return apiError("No active workspace.", 400);
 
@@ -95,7 +98,8 @@ export async function POST(request: Request) {
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
-    customer_email: user.email,
+    ...(user.email ? { customer_email: user.email } : {}),
+    payment_method_types: stripePaymentMethodTypes(paymentMethod),
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${baseUrl}/plan?checkout=success`,
     cancel_url: `${baseUrl}/plan?checkout=cancelled`,
@@ -108,6 +112,7 @@ export async function POST(request: Request) {
       workspace_id: activeWorkspace.workspaceId,
       requested_tier: tier,
       requested_interval: interval,
+      checkout_payment_method: paymentMethod,
     },
     subscription_data: {
       metadata: {

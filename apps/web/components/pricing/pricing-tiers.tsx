@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { BillingInterval, PaidTier } from "@/lib/billing";
+import { StablecoinCheckoutOption } from "@/components/stablecoin-checkout-option";
 
 export const TIERS = [
   {
@@ -243,20 +244,23 @@ export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpr
                     {displayLabel}
                   </span>
                 ) : cta.checkout ? (
-                  <form action="/api/billing/checkout" method="POST">
-                    <input type="hidden" name="tier" value={cta.checkout.tier} />
-                    <input type="hidden" name="interval" value={interval} />
-                    <button
-                      type="submit"
-                      className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 ${
-                        cta.style === "primary"
-                          ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
-                          : "border border-border bg-background/50 hover:bg-accent hover:border-border/80"
-                      }`}
-                    >
-                      {displayLabel}
-                    </button>
-                  </form>
+                  <>
+                    <form action="/api/billing/checkout" method="POST">
+                      <input type="hidden" name="tier" value={cta.checkout.tier} />
+                      <input type="hidden" name="interval" value={interval} />
+                      <button
+                        type="submit"
+                        className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 ${
+                          cta.style === "primary"
+                            ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
+                            : "border border-border bg-background/50 hover:bg-accent hover:border-border/80"
+                        }`}
+                      >
+                        {displayLabel}
+                      </button>
+                    </form>
+                    <StablecoinCheckoutOption tier={cta.checkout.tier} interval={interval} />
+                  </>
                 ) : (
                   <Link
                     href={cta.href ?? "/dashboard"}

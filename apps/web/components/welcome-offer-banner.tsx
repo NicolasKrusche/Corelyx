@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { StablecoinCheckoutOption } from "@/components/stablecoin-checkout-option";
 
 const DISMISS_KEY = "welcome_offer_dismissed";
 const OFFER_DAYS = 7;
@@ -79,6 +80,7 @@ export function WelcomeOfferBanner({ createdAt, tier }: Props) {
               Claim 61% off — Start Solo
             </button>
           </form>
+          <StablecoinCheckoutOption tier="plus" interval="month" welcomeOffer />
           <p className="text-[11px] text-muted-foreground/50">
             Cancel anytime · Expires {expiry}
           </p>

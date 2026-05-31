@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { authCallbackUrl, completePostLoginSetup } from "@/lib/auth/client";
+import { signInWithBrowserWallet, type Web3Chain } from "@/lib/auth/web3";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { AuthVisualPanel } from "@/components/ui/auth-visual-panel";
 
@@ -13,8 +14,6 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 
 type OAuthProvider = "google" | "github";
-type Web3Chain = "ethereum" | "solana";
-
 export default function LoginPage() {
   const supabase = createBrowserClient();
   const [email, setEmail] = useState("");
@@ -73,11 +72,12 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     const statement = "Sign in to Corelyx and accept the Terms of Service at https://corelyx.app/terms";
-    const { error } = chain === "ethereum"
-      ? await supabase.auth.signInWithWeb3({ chain: "ethereum", statement })
-      : await supabase.auth.signInWithWeb3({ chain: "solana", statement });
-    if (error) {
-      setError(friendlyErrorMessage(error.message, `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-in could not be completed. Make sure a compatible wallet is installed and try again.`));
+    try {
+      const { error } = await signInWithBrowserWallet(supabase, chain, statement);
+      if (error) throw error;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : undefined;
+      setError(friendlyErrorMessage(message, `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-in could not be completed. Make sure a compatible wallet is installed and try again.`));
       setLoading(false);
       return;
     }
@@ -219,29 +219,24 @@ export default function LoginPage() {
               </Link>
             </p>
 
-            {/* Web3 wallets */}
-            <div className="mt-4">
-              <div className="mb-2.5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-border/60" />
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/40">
-                  or use a wallet
-                </span>
-                <div className="h-px flex-1 bg-border/60" />
-              </div>
-              <div className="flex gap-2">
+            <details className="mt-4 text-center">
+              <summary className="cursor-pointer text-[10px] text-muted-foreground/50 transition-colors hover:text-muted-foreground">
+                More sign-in options
+              </summary>
+              <div className="mt-2 flex justify-center gap-1.5">
                 {(["ethereum", "solana"] as const).map((chain) => (
                   <button
                     key={chain}
                     type="button"
                     onClick={() => void handleWeb3Login(chain)}
                     disabled={loading}
-                    className="flex-1 rounded-lg border border-border/50 bg-card/40 py-2 text-[11px] font-medium text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground disabled:opacity-50"
+                    className="rounded-md border border-border/50 bg-card/40 px-2 py-1 text-[10px] font-medium text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground disabled:opacity-50"
                   >
                     {chain === "ethereum" ? "Ethereum" : "Solana"} wallet
                   </button>
                 ))}
               </div>
-            </div>
+            </details>
           </div>
         </section>
 

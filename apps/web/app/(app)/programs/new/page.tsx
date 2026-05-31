@@ -707,7 +707,7 @@ function NewProgramPageInner() {
               onClick={() => navigateImportSource("json")}
               className="flex items-center gap-1.5 rounded-full border glass-card px-4 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-95"
             >
-              Import JSON
+              Import
             </button>
           </div>
           {scratchCreateError && (

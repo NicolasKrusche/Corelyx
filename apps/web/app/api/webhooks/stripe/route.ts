@@ -44,16 +44,18 @@ export async function POST(request: Request) {
             typeof session.payment_intent === "string" ? session.payment_intent : null,
         });
 
-        // Save payment method and customer ID for future auto-recharge charges
+        // Save reusable card details for future auto-recharge charges. Stripe's
+        // stablecoin payment method is customer-authenticated and not reusable.
         const service = createServiceClient();
         const updates: Record<string, string> = {};
+        const isStablecoinCheckout = metadata.checkout_payment_method === "stablecoin";
 
-        if (session.customer && typeof session.customer === "string") {
+        if (!isStablecoinCheckout && session.customer && typeof session.customer === "string") {
           updates.stripe_customer_id = session.customer;
         }
 
         // Retrieve the payment intent to get the payment method
-        if (session.payment_intent && typeof session.payment_intent === "string") {
+        if (!isStablecoinCheckout && session.payment_intent && typeof session.payment_intent === "string") {
           try {
             const pi = await stripe.paymentIntents.retrieve(session.payment_intent);
             if (pi.payment_method && typeof pi.payment_method === "string") {
