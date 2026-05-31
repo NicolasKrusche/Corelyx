@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { apiError } from "@/lib/api";
+import { apiError, createServiceClient } from "@/lib/api";
 import { validatePostGenesis } from "@/lib/validation";
+import { syncEventTriggers } from "@/lib/triggers/event-trigger-sync";
+import { ensureGmailWatchesForProgram } from "@/lib/triggers/gmail-watch";
+import { serverLog } from "@/lib/server-log";
 import {
   getDraftValidationMessage,
   normalizeProgramDraft,
@@ -129,6 +132,23 @@ export async function PATCH(
         schema: schema as unknown,
         change_summary: "Saved from visual editor",
       } as unknown as never);
+
+    // Reconcile event triggers from the schema into the `triggers` table so the
+    // event dispatcher (which reads that table) can match them, then register
+    // Gmail watches for any linked Gmail connection. Best-effort: a failure here
+    // must not block saving the program.
+    try {
+      const serviceClient = createServiceClient();
+      await syncEventTriggers(serviceClient, params.id, schema);
+      await ensureGmailWatchesForProgram(serviceClient, params.id);
+    } catch (err) {
+      serverLog({
+        level: "error",
+        event: "programs.save.trigger_sync_failed",
+        message: "Failed to sync event triggers or register Gmail watch on save.",
+        details: { program_id: params.id, error: err instanceof Error ? err.message : "unknown" },
+      });
+    }
   }
 
   return NextResponse.json({

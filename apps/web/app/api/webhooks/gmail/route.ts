@@ -7,7 +7,7 @@ import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import { readBoundedJsonBody } from "@/lib/request-body";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 import { serverLog } from "@/lib/server-log";
-import { shouldDispatchGmailMessage, type GmailHistoryDelta } from "@/lib/gmail-history-delta";
+import { coerceHistoryId, shouldDispatchGmailMessage, type GmailHistoryDelta } from "@/lib/gmail-history-delta";
 
 type GmailConnectionRow = {
   id: string;
@@ -27,7 +27,9 @@ type PubSubEnvelope = {
 
 type GmailPushPayload = {
   emailAddress?: string;
-  historyId?: string;
+  // Gmail's Pub/Sub push payload sends historyId as a JSON number, while the
+  // watch API returns it as a string. Accept both and normalize downstream.
+  historyId?: string | number;
 };
 
 export async function POST(request: Request) {
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   const emailAddress = gmailPayload.emailAddress;
-  const historyId = gmailPayload.historyId;
+  const historyId = coerceHistoryId(gmailPayload.historyId);
   if (!emailAddress || !historyId) {
     return apiError("Missing emailAddress/historyId in Gmail push payload", 400);
   }
@@ -158,8 +160,7 @@ async function _fetchGmailHistoryDelta(
 ): Promise<GmailHistoryDelta> {
   const metadata = connection.metadata ?? {};
   const gmailWatch = _asRecord(metadata.gmail_watch);
-  const previousHistoryId =
-    typeof gmailWatch?.history_id === "string" ? gmailWatch.history_id : null;
+  const previousHistoryId = coerceHistoryId(gmailWatch?.history_id);
 
   const nextMetadata: Record<string, unknown> = {
     ...metadata,

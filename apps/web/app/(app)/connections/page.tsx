@@ -619,6 +619,46 @@ function formatDate(value: string | null): string | null {
   });
 }
 
+// Gmail watches expire after 7 days. Mirror the 24-hour refresh window from
+// the server so the badge flips to "Expiring soon" a day before auto-renewal.
+const GMAIL_WATCH_REFRESH_AHEAD_MS = 24 * 60 * 60 * 1000;
+
+type GmailWatchStatus = "active" | "expiring" | "missing";
+
+function getGmailWatchStatus(metadata: Record<string, unknown> | null): GmailWatchStatus {
+  const watch = metadata?.gmail_watch;
+  if (!watch || typeof watch !== "object" || Array.isArray(watch)) return "missing";
+  const w = watch as Record<string, unknown>;
+
+  const historyId = w.history_id;
+  const hasHistoryId =
+    (typeof historyId === "string" && historyId.trim()) ||
+    (typeof historyId === "number" && Number.isFinite(historyId));
+  if (!hasHistoryId) return "missing";
+
+  const expiration = typeof w.expiration === "string" ? w.expiration : null;
+  if (!expiration) return "missing";
+
+  const expiresAt = Date.parse(expiration);
+  if (Number.isNaN(expiresAt)) return "missing";
+
+  const now = Date.now();
+  if (expiresAt <= now) return "missing";
+  if (expiresAt - now <= GMAIL_WATCH_REFRESH_AHEAD_MS) return "expiring";
+  return "active";
+}
+
+function GmailWatchBadge({ metadata }: { metadata: Record<string, unknown> | null }) {
+  const status = getGmailWatchStatus(metadata);
+  if (status === "active") {
+    return <Badge variant="outline" className="border-green-500/40 text-green-600 dark:text-green-400">Inbox watch active</Badge>;
+  }
+  if (status === "expiring") {
+    return <Badge variant="outline" className="border-yellow-500/40 text-yellow-600 dark:text-yellow-400">Inbox watch expiring</Badge>;
+  }
+  return <Badge variant="outline" className="text-muted-foreground/60">Inbox watch not set up</Badge>;
+}
+
 function sortConnections(left: Connection, right: Connection): number {
   const leftIsPrimary = isPrimaryConnectionName(left.provider, left.name);
   const rightIsPrimary = isPrimaryConnectionName(right.provider, right.name);
@@ -918,6 +958,9 @@ export default function ConnectionsPage() {
                     <Badge variant={connection.is_valid ? "success" : "destructive"}>
                       {connection.is_valid ? "Connected" : "Needs attention"}
                     </Badge>
+                    {connection.provider === "gmail" && (
+                      <GmailWatchBadge metadata={connection.metadata} />
+                    )}
                   </div>
                   <p className="break-all text-xs font-mono text-muted-foreground/70">
                     {connection.name}
@@ -1067,7 +1110,7 @@ export default function ConnectionsPage() {
               const isPrimary = isPrimaryConnectionName(connection.provider, connection.name);
               return (
                 <div key={connection.id} className="rounded-xl border border-border/70 glass-card px-4 py-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-medium">
                       {getConnectionIdentity(connection.metadata, connection.name)}
                     </p>
@@ -1076,6 +1119,11 @@ export default function ConnectionsPage() {
                   <p className="mt-1 truncate text-xs text-muted-foreground/70">
                     {connection.name}
                   </p>
+                  {connection.provider === "gmail" && (
+                    <div className="mt-2">
+                      <GmailWatchBadge metadata={connection.metadata} />
+                    </div>
+                  )}
                 </div>
               );
             })}

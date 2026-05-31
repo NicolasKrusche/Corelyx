@@ -5,6 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { getValidOAuthToken } from "@/lib/oauth-token";
 import { signWebhookToken } from "@/lib/webhooks/signed-token";
 import { canContributeToWorkspace, getWorkspaceRole } from "@/lib/workspaces";
+import { ensureGmailWatch } from "@/lib/triggers/gmail-watch";
 
 type ConnectionRow = {
   id: string;
@@ -51,7 +52,7 @@ export async function POST(
   }
 
   if (connection.provider === "gmail") {
-    return _setupGmailWatch(connection, accessToken, body, db);
+    return _setupGmailWatch(connection, body, db);
   }
 
   if (connection.provider === "sheets") {
@@ -71,20 +72,11 @@ export async function POST(
 
 async function _setupGmailWatch(
   connection: ConnectionRow,
-  accessToken: string,
   body: Record<string, unknown>,
   db: ReturnType<typeof createServiceClient>
 ) {
   const topicName =
-    (typeof body.topic_name === "string" && body.topic_name) ||
-    process.env.GMAIL_WATCH_TOPIC ||
-    process.env.GOOGLE_GMAIL_WATCH_TOPIC;
-  if (!topicName) {
-    return apiError(
-      "Missing Gmail watch topic. Set GMAIL_WATCH_TOPIC or pass topic_name in request body.",
-      400
-    );
-  }
+    typeof body.topic_name === "string" && body.topic_name ? body.topic_name : undefined;
 
   const labelIds =
     Array.isArray(body.label_ids) && body.label_ids.every((v) => typeof v === "string")
@@ -93,53 +85,22 @@ async function _setupGmailWatch(
   const labelFilterAction =
     typeof body.label_filter_action === "string" ? body.label_filter_action : undefined;
 
-  const watchReqBody: Record<string, unknown> = { topicName };
-  if (labelIds && labelIds.length > 0) watchReqBody.labelIds = labelIds;
-  if (labelFilterAction) watchReqBody.labelFilterAction = labelFilterAction;
-
-  const watchRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/watch", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(watchReqBody),
-    cache: "no-store",
+  // Manual setup always re-registers so the watch's expiry window is reset.
+  const result = await ensureGmailWatch(db, connection.id, {
+    topicName,
+    labelIds,
+    labelFilterAction,
+    force: true,
   });
 
-  if (!watchRes.ok) {
-    const text = await watchRes.text();
-    return apiError(`Gmail watch setup failed (${watchRes.status}): ${text.slice(0, 250)}`, 502);
+  if (!result.ok) {
+    return apiError(result.error, result.status);
   }
-
-  const watchData = (await watchRes.json()) as {
-    historyId?: string;
-    expiration?: string;
-  };
-
-  const metadata = connection.metadata ?? {};
-  const nextMetadata: Record<string, unknown> = {
-    ...metadata,
-    gmail_watch: {
-      topic_name: topicName,
-      history_id: watchData.historyId ?? null,
-      expiration:
-        watchData.expiration && /^\d+$/.test(watchData.expiration)
-          ? new Date(Number(watchData.expiration)).toISOString()
-          : watchData.expiration ?? null,
-      updated_at: new Date().toISOString(),
-    },
-  };
-
-  await db
-    .from("connections")
-    .update({ metadata: nextMetadata } as never)
-    .eq("id", connection.id);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return NextResponse.json({
     provider: "gmail",
-    watch: nextMetadata.gmail_watch,
+    watch: result.watch,
     webhook_url: `${appUrl}/api/webhooks/gmail`,
   });
 }
