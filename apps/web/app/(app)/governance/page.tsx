@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MarkReviewedButton } from "./_components/mark-reviewed-button";
 import { GovernanceRemediationButton } from "./_components/governance-remediation-button";
+import { ExportButtons } from "./_components/export-buttons";
 
 // ─── Small display components ────────────────────────────────────────────────
 
@@ -433,18 +434,7 @@ export default async function GovernancePage() {
             compliance gaps, and provides direct actions to resolve each one.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {(["json", "csv", "xlsx", "pdf"] as const).map((fmt) => (
-            <Link
-              key={fmt}
-              href={`/api/governance/inventory/export?format=${fmt}`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold transition-colors hover:bg-accent"
-            >
-              <Download className="h-3.5 w-3.5" />
-              {fmt.toUpperCase()}
-            </Link>
-          ))}
-        </div>
+        <ExportButtons />
       </section>
 
       {/* ── Metrics ────────────────────────────────────────────────────────── */}
