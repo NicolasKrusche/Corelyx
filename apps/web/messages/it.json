@@ -62,7 +62,7 @@
     "upgrade": "Aggiorna →",
     "topUp": "Ricarica crediti",
     "topUpDesc": "I crediti acquistati non scadono mai e vengono utilizzati dopo aver esaurito la quota mensile.",
-    "topUpNote": "1 $ ≈ qualche centinaio di chiamate LLM a seconda del modello. Usato solo quando i flussi di lavoro vengono eseguiti tramite la chiave della piattaforma Corelyx.",
+    "topUpNote": "1.000 crediti ≈ qualche centinaio di chiamate LLM a seconda del modello. Usato solo quando i flussi di lavoro vengono eseguiti tramite la chiave della piattaforma Corelyx.",
     "includedCredits": "Crediti inclusi",
     "includedCreditsDesc": "Si azzera mensilmente con il tuo piano",
     "purchasedCredits": "Crediti acquistati",

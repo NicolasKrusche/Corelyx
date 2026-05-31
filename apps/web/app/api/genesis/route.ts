@@ -37,9 +37,9 @@ import { ensureProcessingAllowed } from "@/lib/compliance";
 import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
 
 // Fixed credit charge per Genesis generation using the Corelyx platform key.
-const GENESIS_PLATFORM_RATE_USD = 2.0;
-// AI edit (refinement) via platform key — flat $1.00 per edit.
-const GENESIS_EDIT_PLATFORM_RATE_USD = 1.0;
+const GENESIS_PLATFORM_RATE_CREDITS = 2_000;
+// AI edit (refinement) via platform key - flat 1,000 credits per edit.
+const GENESIS_EDIT_PLATFORM_RATE_CREDITS = 1_000;
 import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
@@ -271,11 +271,11 @@ export async function POST(request: Request) {
     // Check the user has enough credits before we spend anything.
     // Refinements (existing_schema present) cost 10× the standard generation rate.
     const isRefinement = !!parsed.data.existing_schema;
-    const requiredCredits = isRefinement ? GENESIS_EDIT_PLATFORM_RATE_USD : GENESIS_PLATFORM_RATE_USD;
+    const requiredCredits = isRefinement ? GENESIS_EDIT_PLATFORM_RATE_CREDITS : GENESIS_PLATFORM_RATE_CREDITS;
     const balance = await getUserCreditBalance(userId);
     if (balance.total < requiredCredits) {
       return NextResponse.json(
-        { error: "INSUFFICIENT_CREDITS", message: `At least $${requiredCredits.toFixed(2)} in credits is required to use the Corelyx platform key for ${isRefinement ? "AI edits" : "generation"}.` },
+        { error: "INSUFFICIENT_CREDITS", message: `At least ${requiredCredits.toLocaleString("en-US")} credits are required to use the Corelyx platform key for ${isRefinement ? "AI edits" : "generation"}.` },
         { status: 402 }
       );
     }
@@ -807,7 +807,7 @@ export async function POST(request: Request) {
       existing_program_id
     );
     await incrementGenesisUses(userId, workspaceId);
-    if (usePlatformKey) await deductUserCredits(userId, GENESIS_EDIT_PLATFORM_RATE_USD);
+    if (usePlatformKey) await deductUserCredits(userId, GENESIS_EDIT_PLATFORM_RATE_CREDITS);
     return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
   }
 
@@ -916,6 +916,6 @@ export async function POST(request: Request) {
     program.id
   );
   await incrementGenesisUses(userId, workspaceId);
-  if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_USD);
+  if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_CREDITS);
   return NextResponse.json({ program, schema, validation }, { status: 201 });
 }

@@ -51,10 +51,12 @@ import {
 } from "@/lib/genesis/request";
 import { getUserTier } from "@/lib/limits";
 import { getEntitlements } from "@/lib/entitlements";
+import { deductUserCredits, getUserCreditBalance } from "@/lib/credits";
 
 // Default platform model — used when the user hasn't picked one.
 // Paid-tier users may override this via the `model` field in the request.
 const PLATFORM_MODEL = PLATFORM_DEFAULT_MODEL;
+const GENESIS_PLATFORM_RATE_CREDITS = 2_000;
 
 const RequestSchema = z.object({
   description: z.string().min(10).max(2000),
@@ -181,6 +183,13 @@ export async function POST(request: Request) {
   if (usePlatformKey) {
     const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
     if (!platformRawKey) return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
+    const balance = await getUserCreditBalance(userId);
+    if (balance.total !== Infinity && balance.total < GENESIS_PLATFORM_RATE_CREDITS) {
+      return sseErrorResponse(
+        `At least ${GENESIS_PLATFORM_RATE_CREDITS.toLocaleString("en-US")} credits are required to use the Corelyx platform key for generation.`,
+        "INSUFFICIENT_CREDITS"
+      );
+    }
     keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];
   } else {
     const { data: allKeyRows, error: keysError } = keysResult;
@@ -481,6 +490,8 @@ export async function POST(request: Request) {
         if (connections.length > 0 && postSaveResults[1].error) {
           throw new Error("The workflow was saved but we could not link your connections to it. You can add them manually in the editor.");
         }
+
+        if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_CREDITS);
 
         send({
           type: "done",

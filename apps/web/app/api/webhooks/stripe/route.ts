@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStripeClient } from "@/lib/stripe";
-import { topUpUserCredits } from "@/lib/credits";
+import { applyCreditPurchase } from "@/lib/credits";
 import { createServiceClient } from "@/lib/api";
 import { maybeFireAutoRecharge } from "@/lib/auto-recharge";
 
@@ -31,10 +31,18 @@ export async function POST(request: Request) {
 
     if (metadata.type === "credits") {
       const userId = metadata.user_id;
-      const amountUsd = parseFloat(metadata.amount_usd ?? "0");
+      const amountCredits = Number.parseInt(metadata.amount_credits ?? "0", 10);
+      const priceUsd = Number.parseFloat(metadata.price_usd ?? "0");
 
-      if (userId && amountUsd > 0) {
-        await topUpUserCredits(userId, amountUsd);
+      if (userId && Number.isSafeInteger(amountCredits) && amountCredits > 0 && priceUsd > 0) {
+        await applyCreditPurchase({
+          userId,
+          amountCredits,
+          priceUsd,
+          stripeSessionId: session.id,
+          stripePaymentIntentId:
+            typeof session.payment_intent === "string" ? session.payment_intent : null,
+        });
 
         // Save payment method and customer ID for future auto-recharge charges
         const service = createServiceClient();

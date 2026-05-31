@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 }
 
 // POST /api/internal/credits
-// Body: { amount_usd: number }
+// Body: { amount_credits: number }
 // Deducts credits. Returns { ok: true } or 402 if insufficient balance.
 export async function POST(request: Request) {
   const claims = getValidInternalServiceClaims(request.headers, "next:credits", {
@@ -44,9 +44,9 @@ export async function POST(request: Request) {
     return apiError("Invalid JSON body", 400);
   }
 
-  const amount = (body as Record<string, unknown>)?.amount_usd;
-  if (typeof amount !== "number" || amount <= 0) {
-    return apiError("amount_usd must be a positive number", 400);
+  const amount = (body as Record<string, unknown>)?.amount_credits;
+  if (typeof amount !== "number" || !Number.isSafeInteger(amount) || amount <= 0) {
+    return apiError("amount_credits must be a positive integer", 400);
   }
 
   try {
