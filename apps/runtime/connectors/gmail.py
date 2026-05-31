@@ -124,12 +124,11 @@ class GmailConnector(IConnector):
     ) -> dict:
         message_id = params.get("message_id")
         if not message_id:
-            return {
-                "__skipped__": True,
-                "__skip_descendants__": True,
-                "skip_reason": "No Gmail message was available to read.",
-                "message_id": None,
-            }
+            raise ConnectorError(
+                "MISSING_PARAM",
+                "read_email requires 'message_id'. Add a filter or branch before "
+                "read_email when the upstream event or search can be empty.",
+            )
 
         r = await request_with_rate_limit(
             client,

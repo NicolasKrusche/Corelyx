@@ -40,6 +40,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
   const contentType = request.headers.get("content-type") ?? "";
+  const returnJson = contentType.includes("application/json");
   let rawTier: string | null = null;
   let rawInterval: string | null = null;
   let rawWelcomeOffer: string | null = null;
@@ -94,36 +95,42 @@ export async function POST(request: Request) {
   }
 
   const baseUrl = getBaseUrl(request);
-  const stripe = getStripeClient();
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    ...(user.email ? { customer_email: user.email } : {}),
-    payment_method_types: stripePaymentMethodTypes(paymentMethod),
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${baseUrl}/plan?checkout=success`,
-    cancel_url: `${baseUrl}/plan?checkout=cancelled`,
-    ...(welcomeCouponId
-      ? { discounts: [{ coupon: welcomeCouponId }] }
-      : { allow_promotion_codes: true }),
-    client_reference_id: user.id,
-    metadata: {
-      user_id: user.id,
-      workspace_id: activeWorkspace.workspaceId,
-      requested_tier: tier,
-      requested_interval: interval,
-      checkout_payment_method: paymentMethod,
-    },
-    subscription_data: {
+  let checkoutUrl: string | null;
+  try {
+    const stripe = getStripeClient();
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      ...(user.email ? { customer_email: user.email } : {}),
+      payment_method_types: stripePaymentMethodTypes(paymentMethod),
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${baseUrl}/plan?checkout=success`,
+      cancel_url: `${baseUrl}/plan?checkout=cancelled`,
+      ...(welcomeCouponId
+        ? { discounts: [{ coupon: welcomeCouponId }] }
+        : { allow_promotion_codes: true }),
+      client_reference_id: user.id,
       metadata: {
         user_id: user.id,
         workspace_id: activeWorkspace.workspaceId,
-        tier,
-        interval,
+        requested_tier: tier,
+        requested_interval: interval,
+        checkout_payment_method: paymentMethod,
       },
-    },
-  });
+      subscription_data: {
+        metadata: {
+          user_id: user.id,
+          workspace_id: activeWorkspace.workspaceId,
+          tier,
+          interval,
+        },
+      },
+    });
+    checkoutUrl = session.url;
+  } catch {
+    return apiError("Checkout could not be started.", 502);
+  }
 
-  if (!session.url) return apiError("Stripe checkout session did not include a redirect URL.", 500);
-  return NextResponse.redirect(session.url, { status: 303 });
+  if (!checkoutUrl) return apiError("Stripe checkout session did not include a redirect URL.", 500);
+  if (returnJson) return NextResponse.json({ url: checkoutUrl });
+  return NextResponse.redirect(checkoutUrl, { status: 303 });
 }
