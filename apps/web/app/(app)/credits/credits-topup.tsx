@@ -4,16 +4,16 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { CREDIT_PACKS, formatCredits } from "@/lib/credit-packs";
 
-const PACKS = [
-  { amount: 5,  label: "$5",  badge: null,         bonus: null },
-  { amount: 10, label: "$10", badge: "POPULAR",    bonus: null },
-  { amount: 25, label: "$25", badge: null,         bonus: "+5% bonus" },
-  { amount: 50, label: "$50", badge: "BEST VALUE", bonus: "+10% bonus" },
-] as const;
+const PACKS = CREDIT_PACKS.map((pack) => ({
+  ...pack,
+  badge: pack.priceUsd === 10 ? "POPULAR" : pack.priceUsd === 50 ? "BEST VALUE" : null,
+}));
 
 export function CreditsTopUp() {
-  const [selected, setSelected] = useState<number>(10);
+  const [selected, setSelected] = useState<number>(10_000);
+  const selectedPack = PACKS.find(({ credits }) => credits === selected) ?? PACKS[1];
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +24,7 @@ export function CreditsTopUp() {
       const res = await fetch("/api/credits/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_usd: selected }),
+        body: JSON.stringify({ amount_credits: selected }),
       });
       if (!res.ok) { setError("We could not open checkout. Please try again."); return; }
       const { url } = await res.json() as { url: string };
@@ -38,15 +38,15 @@ export function CreditsTopUp() {
     <div>
       {/* Pack grid */}
       <div className="grid grid-cols-4 gap-2 mb-5">
-        {PACKS.map(({ amount, label, badge, bonus }) => (
+        {PACKS.map(({ credits, priceUsd, badge, bonusLabel }) => (
           <button
-            key={amount}
+            key={credits}
             type="button"
             disabled={buying}
-            onClick={() => setSelected(amount)}
+            onClick={() => setSelected(credits)}
             className={cn(
               "relative flex flex-col items-center rounded-xl border px-3 py-3.5 transition-all hover:border-primary/50",
-              selected === amount
+              selected === credits
                 ? "border-primary bg-primary/5"
                 : "border-border bg-background hover:bg-muted/40",
               buying && "pointer-events-none opacity-40"
@@ -62,15 +62,16 @@ export function CreditsTopUp() {
                 {badge}
               </span>
             )}
-            {selected === amount && (
+            {selected === credits && (
               <span className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary">
                 <svg width="7" height="5" viewBox="0 0 7 5" fill="none">
                   <path d="M1 2.5L2.5 4L6 1" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </span>
             )}
-            <span className={cn("text-base font-bold", selected === amount && "text-primary")}>{label}</span>
-            {bonus && <span className="mt-0.5 text-[10px] font-semibold text-green-600">{bonus}</span>}
+            <span className={cn("text-base font-bold", selected === credits && "text-primary")}>{formatCredits(credits)}</span>
+            <span className="mt-0.5 text-[10px] text-muted-foreground">${priceUsd}</span>
+            {bonusLabel && <span className="mt-0.5 text-[10px] font-semibold text-green-600">{bonusLabel}</span>}
           </button>
         ))}
       </div>
@@ -79,11 +80,11 @@ export function CreditsTopUp() {
       <div className="mb-4 overflow-hidden rounded-xl border border-border/60 bg-muted/20 divide-y divide-border/40">
         <div className="flex items-center justify-between px-4 py-2.5 text-sm">
           <span className="text-muted-foreground">Selected pack</span>
-          <span className="font-medium">${selected.toFixed(2)}</span>
+          <span className="font-medium">{formatCredits(selectedPack.credits)} credits</span>
         </div>
         <div className="flex items-center justify-between px-4 py-2.5 text-sm font-semibold">
           <span>Total today</span>
-          <span>${selected.toFixed(2)}</span>
+          <span>${selectedPack.priceUsd.toFixed(2)}</span>
         </div>
       </div>
 
@@ -98,7 +99,7 @@ export function CreditsTopUp() {
           "Redirecting to checkout…"
         ) : (
           <>
-            Pay ${selected.toFixed(2)}
+            Pay ${selectedPack.priceUsd.toFixed(2)}
             <ArrowRight className="h-4 w-4" />
           </>
         )}

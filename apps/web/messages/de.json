@@ -62,7 +62,7 @@
     "upgrade": "Upgrade →",
     "topUp": "Credits aufladen",
     "topUpDesc": "Gekaufte Credits verfallen nie und werden verwendet, wenn Ihr monatliches Kontingent aufgebraucht ist.",
-    "topUpNote": "1 $ ≈ einige hundert LLM-Aufrufe je nach Modell. Wird nur verwendet, wenn Workflows über den Corelyx-Plattformschlüssel ausgeführt werden.",
+    "topUpNote": "1.000 Credits ≈ einige hundert LLM-Aufrufe je nach Modell. Wird nur verwendet, wenn Workflows über den Corelyx-Plattformschlüssel ausgeführt werden.",
     "includedCredits": "Enthaltene Credits",
     "includedCreditsDesc": "Wird monatlich mit Ihrem Plan zurückgesetzt",
     "purchasedCredits": "Gekaufte Credits",

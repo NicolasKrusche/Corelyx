@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import ipaddress
 import json
+import math
 import os
 import re
 import socket
@@ -1171,11 +1172,13 @@ class ProgramExecutor:
         self._limiter.check_llm_tokens(total_tokens)
         self._limiter.check_cost(estimated_cost_usd)
 
-        # 10× markup on provider cost — margin over raw API spend.
-        # estimated_cost_usd in telemetry reflects the actual provider cost (pre-markup).
+        # 10x markup on provider cost. Telemetry remains raw provider cost in USD,
+        # while the user-facing balance is stored as integer credits.
         _PLATFORM_MARKUP = 10.0
+        _CREDITS_PER_USD = 1000
         if deduct_credits and estimated_cost_usd and self.user_id:
-            await self._deduct_platform_credits(estimated_cost_usd * _PLATFORM_MARKUP)
+            amount_credits = math.ceil(estimated_cost_usd * _PLATFORM_MARKUP * _CREDITS_PER_USD)
+            await self._deduct_platform_credits(amount_credits)
 
         self._record_telemetry(
             node_id,
@@ -1989,9 +1992,9 @@ class ProgramExecutor:
                 except Exception:
                     pass
 
-    async def _deduct_platform_credits(self, amount_usd: float) -> None:
+    async def _deduct_platform_credits(self, amount_credits: int) -> None:
         """Deduct platform credits after a successful LLM call. Best-effort — never blocks execution."""
-        if not self.user_id or amount_usd <= 0:
+        if not self.user_id or amount_credits <= 0:
             return
         endpoint_path = "/api/internal/credits"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
@@ -2000,7 +2003,7 @@ class ProgramExecutor:
                 try:
                     await client.post(
                         endpoint_url,
-                        json={"amount_usd": amount_usd},
+                        json={"amount_credits": amount_credits},
                         headers=build_internal_service_headers(
                             "next:credits",
                             subject=self.user_id,

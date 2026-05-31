@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { formatCredits } from "@/lib/credit-packs";
 import type { NodeExecutionData } from "@/components/editor/EditorShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -882,7 +883,7 @@ function CorelyxKeyPanel() {
 
   const total = credits?.total;
   const isUnlimited = total === null;
-  const isLow = !isUnlimited && typeof total === "number" && total < 1;
+  const isLow = !isUnlimited && typeof total === "number" && total < 1_000;
   const isEmpty = !isUnlimited && typeof total === "number" && total <= 0;
 
   return (
@@ -910,13 +911,13 @@ function CorelyxKeyPanel() {
         <div className="flex items-center justify-between">
           <span>Available balance</span>
           <span className={cn("font-medium tabular-nums", isEmpty ? "text-destructive" : "text-foreground")}>
-            {loading ? "…" : isUnlimited ? "Unlimited" : `$${(total as number).toFixed(2)}`}
+            {loading ? "..." : isUnlimited ? "Unlimited" : `${formatCredits(total as number)} credits`}
           </span>
         </div>
         {credits && !isUnlimited && (credits.availablePurchased ?? 0) > 0 && (
           <div className="flex items-center justify-between">
             <span>Purchased</span>
-            <span className="tabular-nums">${credits.availablePurchased.toFixed(2)}</span>
+            <span className="tabular-nums">{formatCredits(credits.availablePurchased)}</span>
           </div>
         )}
       </div>

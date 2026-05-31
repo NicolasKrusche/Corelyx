@@ -2,25 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { findCreditPack } from "@/lib/credit-packs";
 
 type Config = {
   isEnabled: boolean;
-  thresholdUsd: number;
-  rechargeAmountUsd: number;
+  thresholdCredits: number;
+  rechargeCredits: number;
 };
 
-const THRESHOLD_OPTIONS = [1, 2, 5, 10] as const;
-const AMOUNT_OPTIONS = [5, 10, 25, 50] as const;
+const THRESHOLD_OPTIONS = [1_000, 2_000, 5_000, 10_000] as const;
+const AMOUNT_OPTIONS = [5_000, 10_000, 26_250, 55_000] as const;
 
 export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymentMethod: boolean }) {
   const [config, setConfig] = useState<Config>({
     isEnabled: false,
-    thresholdUsd: 2,
-    rechargeAmountUsd: 10,
+    thresholdCredits: 2_000,
+    rechargeCredits: 10_000,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const rechargePriceUsd = findCreditPack(config.rechargeCredits)?.priceUsd;
 
   useEffect(() => {
     fetch("/api/credits/auto-recharge")
@@ -107,15 +109,15 @@ export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymen
               <button
                 key={t}
                 type="button"
-                onClick={() => void save({ ...config, thresholdUsd: t })}
+                onClick={() => void save({ ...config, thresholdCredits: t })}
                 className={cn(
                   "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                  config.thresholdUsd === t
+                  config.thresholdCredits === t
                     ? "border-primary bg-primary/5 text-primary font-semibold"
                     : "border-border bg-background hover:bg-muted/40"
                 )}
               >
-                ${t.toFixed(2)}
+                {t.toLocaleString("en-US")}
               </button>
             ))}
           </div>
@@ -128,15 +130,15 @@ export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymen
               <button
                 key={a}
                 type="button"
-                onClick={() => void save({ ...config, rechargeAmountUsd: a })}
+                onClick={() => void save({ ...config, rechargeCredits: a })}
                 className={cn(
                   "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                  config.rechargeAmountUsd === a
+                  config.rechargeCredits === a
                     ? "border-primary bg-primary/5 text-primary font-semibold"
                     : "border-border bg-background hover:bg-muted/40"
                 )}
               >
-                ${a}
+                {a.toLocaleString("en-US")}
               </button>
             ))}
           </div>
@@ -144,7 +146,7 @@ export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymen
 
         <div className="flex items-center justify-between text-xs text-muted-foreground/70">
           <span>
-            Will charge <span className="font-medium text-foreground">${config.rechargeAmountUsd}</span> when balance &lt; <span className="font-medium text-foreground">${config.thresholdUsd.toFixed(2)}</span>
+            Will charge <span className="font-medium text-foreground">${rechargePriceUsd?.toFixed(2) ?? "0.00"}</span> to add <span className="font-medium text-foreground">{config.rechargeCredits.toLocaleString("en-US")} credits</span> when balance &lt; <span className="font-medium text-foreground">{config.thresholdCredits.toLocaleString("en-US")}</span>
           </span>
           {saved && <span className="text-green-600 font-medium">Saved ✓</span>}
         </div>

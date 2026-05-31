@@ -62,7 +62,7 @@
     "upgrade": "Upgrade →",
     "topUp": "Top up credits",
     "topUpDesc": "Purchased credits never expire and are used after your monthly allowance runs out.",
-    "topUpNote": "$1 ≈ a few hundred LLM calls depending on model. Used only when workflows run via the Corelyx platform key.",
+    "topUpNote": "1,000 credits ≈ a few hundred LLM calls depending on model. Used only when workflows run via the Corelyx platform key.",
     "includedCredits": "Included credits",
     "includedCreditsDesc": "Resets monthly with your plan",
     "purchasedCredits": "Purchased credits",

@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { CREDIT_PACKS, formatCredits } from "@/lib/credit-packs";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/avatar-upload";
 import { useAdvancedMode } from "@/lib/advanced-mode";
@@ -191,8 +192,6 @@ function NavSubItem({
 
 // ─── AI Credits purchase panel ────────────────────────────────────────────────
 
-const CREDIT_PACKS = [5, 10, 25, 50] as const;
-
 function AiCreditsPurchasePanel({
   panelClass,
   neutralBtnClass,
@@ -214,7 +213,7 @@ function AiCreditsPurchasePanel({
       const res = await fetch("/api/credits/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_usd: amount }),
+        body: JSON.stringify({ amount_credits: amount }),
       });
       if (!res.ok) { setError("We could not open checkout. Please try again."); return; }
       const { url } = await res.json() as { url: string };
@@ -231,13 +230,13 @@ function AiCreditsPurchasePanel({
         <div className="flex items-center justify-between">
           <span>Available</span>
           <span className="font-medium text-foreground">
-            {aiCreditsAvailable === null ? "Unlimited" : `$${aiCreditsAvailable.toFixed(2)}`}
+            {aiCreditsAvailable === null ? "Unlimited" : `${formatCredits(aiCreditsAvailable)} credits`}
           </span>
         </div>
         {aiCreditsPurchased > 0 && (
           <div className="flex items-center justify-between text-xs">
             <span>Purchased (never expires)</span>
-            <span>${aiCreditsPurchased.toFixed(2)}</span>
+            <span>{formatCredits(aiCreditsPurchased)}</span>
           </div>
         )}
       </div>
@@ -247,15 +246,15 @@ function AiCreditsPurchasePanel({
       <div className="mt-4">
         <p className="mb-2 text-xs font-medium text-muted-foreground">Top up</p>
         <div className="flex flex-wrap gap-2">
-          {CREDIT_PACKS.map((amount) => (
+          {CREDIT_PACKS.map(({ credits, priceUsd }) => (
             <button
-              key={amount}
+              key={credits}
               type="button"
               disabled={buying !== null}
-              onClick={() => { void handleBuy(amount); }}
+              onClick={() => { void handleBuy(credits); }}
               className={cn(neutralBtnClass, "text-xs disabled:opacity-40")}
             >
-              {buying === amount ? "…" : `$${amount}`}
+              {buying === credits ? "..." : `${formatCredits(credits)} / $${priceUsd}`}
             </button>
           ))}
         </div>
@@ -266,8 +265,6 @@ function AiCreditsPurchasePanel({
 }
 
 // ─── Sidebar inline credit top-up ─────────────────────────────────────────────
-
-const SIDEBAR_CREDIT_PACKS = [5, 10, 25, 50] as const;
 
 function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess: () => void }) {
   const [buying, setBuying] = useState<number | null>(null);
@@ -280,7 +277,7 @@ function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess:
       const res = await fetch("/api/credits/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_usd: amount }),
+        body: JSON.stringify({ amount_credits: amount }),
       });
       if (!res.ok) { setError("Checkout failed."); return; }
       const { url } = await res.json() as { url: string };
@@ -295,12 +292,12 @@ function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess:
     <div className="mt-2">
       <p className={cn("mb-1.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>Top up</p>
       <div className="flex flex-wrap gap-1.5">
-        {SIDEBAR_CREDIT_PACKS.map((amount) => (
+        {CREDIT_PACKS.map(({ credits, priceUsd }) => (
           <button
-            key={amount}
+            key={credits}
             type="button"
             disabled={buying !== null}
-            onClick={() => { void handleBuy(amount); }}
+            onClick={() => { void handleBuy(credits); }}
             className={cn(
               "rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-40",
               isDark
@@ -308,7 +305,7 @@ function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess:
                 : "bg-black/8 text-gray-800 hover:bg-black/15",
             )}
           >
-            {buying === amount ? "…" : `$${amount}`}
+            {buying === credits ? "..." : `${formatCredits(credits)} / $${priceUsd}`}
           </button>
         ))}
       </div>
@@ -909,11 +906,11 @@ export function Sidebar({
             )}>
               <div className="flex items-center justify-between text-[12px] font-medium">
                 <span>Platform AI credits</span>
-                <span>{aiCreditsAvailable === null ? "Unlimited" : `$${(aiCreditsAvailable ?? 0).toFixed(2)}`}</span>
+                <span>{aiCreditsAvailable === null ? "Unlimited" : formatCredits(aiCreditsAvailable ?? 0)}</span>
               </div>
               {aiCreditsPurchased > 0 && (
                 <p className={cn("mt-0.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>
-                  +${aiCreditsPurchased.toFixed(2)} purchased (never expires)
+                  +{formatCredits(aiCreditsPurchased)} purchased (never expires)
                 </p>
               )}
               {aiCreditsAvailable !== null && (

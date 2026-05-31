@@ -36,7 +36,7 @@ export interface PlanEntitlements {
   maxWorkspaces: number | null;
 
   // Platform AI credits included per month (null = unlimited, 0 = none)
-  includedAiCreditsUsd: number | null;
+  includedAiCredits: number | null;
 
   // Which tier of platform Genesis models the user can access
   // "free"     → only free/open-weight models (Qwen3 Coder)
@@ -58,7 +58,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: false,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
-    includedAiCreditsUsd: 0,
+    includedAiCredits: 0,
     genesisPlatformModelTier: "free",
   },
   plus: {   // Solo
@@ -73,7 +73,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: false,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
-    includedAiCreditsUsd: 2.50,
+    includedAiCredits: 2_500,
     genesisPlatformModelTier: "standard",
   },
   pro: {   // Team
@@ -88,7 +88,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: false,
     maxTeamSeats: 3,
     maxWorkspaces: 3,
-    includedAiCreditsUsd: 10,
+    includedAiCredits: 10_000,
     genesisPlatformModelTier: "premium",
   },
   builder: {   // Scale
@@ -103,7 +103,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
-    includedAiCreditsUsd: 15,
+    includedAiCredits: 15_000,
     genesisPlatformModelTier: "premium",
   },
   unlimited: {
@@ -118,7 +118,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     priorityExecution: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
-    includedAiCreditsUsd: null,
+    includedAiCredits: null,
     genesisPlatformModelTier: "premium",
   },
 };

@@ -62,7 +62,7 @@
     "upgrade": "Upgraden →",
     "topUp": "Credits opwaarderen",
     "topUpDesc": "Gekochte credits verlopen nooit en worden gebruikt nadat uw maandelijkse tegoed op is.",
-    "topUpNote": "$ 1 ≈ een paar honderd LLM-aanroepen afhankelijk van het model. Alleen gebruikt wanneer workflows worden uitgevoerd via de Corelyx-platformsleutel.",
+    "topUpNote": "1.000 credits ≈ een paar honderd LLM-aanroepen afhankelijk van het model. Alleen gebruikt wanneer workflows worden uitgevoerd via de Corelyx-platformsleutel.",
     "includedCredits": "Inbegrepen credits",
     "includedCreditsDesc": "Wordt maandelijks opnieuw ingesteld met uw plan",
     "purchasedCredits": "Gekochte credits",
