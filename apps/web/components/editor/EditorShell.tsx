@@ -58,6 +58,10 @@ import { Textarea } from "@/components/ui/textarea";
 import type { PreFlightCheck } from "@/lib/validation/pre-flight";
 import type { ComplianceCheck } from "@/lib/compliance/workflow";
 import { useTheme } from "@/components/theme-provider";
+import {
+  isJsonObject,
+  workflowRequiresPayloadForManualRun,
+} from "@/lib/triggers/manual-run";
 
 // ─── Node execution data (populated from API + Realtime) ─────────────────────
 
@@ -1267,14 +1271,9 @@ export function EditorShell({
 
   // ── Webhook test state ────────────────────────────────────────────────────
 
-  const hasWebhookTrigger = React.useMemo(
-    () =>
-      state.schema.nodes.some(
-        (n) =>
-          n.type === "trigger" &&
-          (n.config as Record<string, unknown>).trigger_type === "webhook"
-      ),
-    [state.schema.nodes]
+  const requiresTriggerPayload = React.useMemo(
+    () => workflowRequiresPayloadForManualRun(state.schema),
+    [state.schema]
   );
 
   const [showWebhookTest, setShowWebhookTest] = React.useState(false);
@@ -1285,8 +1284,7 @@ export function EditorShell({
   const handleWebhookPayloadChange = React.useCallback((value: string) => {
     setWebhookPayload(value);
     try {
-      JSON.parse(value);
-      setWebhookPayloadValid(true);
+      setWebhookPayloadValid(isJsonObject(JSON.parse(value)));
     } catch {
       setWebhookPayloadValid(false);
     }
@@ -1404,6 +1402,11 @@ export function EditorShell({
         }
       }
 
+      if (requiresTriggerPayload) {
+        setShowWebhookTest(true);
+        return;
+      }
+
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1479,7 +1482,7 @@ export function EditorShell({
     } finally {
       setIsRunning(false);
     }
-  }, [performSave, programId, state.isDirty, state.schema]);
+  }, [performSave, programId, requiresTriggerPayload, state.isDirty, state.schema]);
 
   // ── Test webhook ──────────────────────────────────────────────────────────
 
@@ -1491,6 +1494,8 @@ export function EditorShell({
       // Shouldn't reach here — button is disabled when invalid — but guard anyway
       return;
     }
+
+    if (!isJsonObject(parsed)) return;
 
     setIsRunning(true);
     try {
@@ -1950,7 +1955,7 @@ export function EditorShell({
               "text-[11px] font-medium",
               webhookPayloadValid ? "text-green-600 dark:text-green-400" : "text-destructive"
             )}>
-              {webhookPayloadValid ? "JSON valid" : "Invalid JSON"}
+              {webhookPayloadValid ? "JSON object valid" : "Enter a valid JSON object"}
             </p>
           </div>
 

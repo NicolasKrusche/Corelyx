@@ -23,6 +23,10 @@ import {
   hasBlockingComplianceChecks,
   validateWorkflowCompliance,
 } from "@/lib/compliance/workflow";
+import {
+  isJsonObject,
+  workflowRequiresPayloadForManualRun,
+} from "@/lib/triggers/manual-run";
 
 // POST /api/runs — create a run and dispatch to runtime
 export async function POST(request: Request) {
@@ -37,7 +41,13 @@ export async function POST(request: Request) {
   if (!body || typeof body.program_id !== "string") {
     return apiError("Missing program_id", 400);
   }
-  const { program_id } = body as { program_id: string };
+  const { program_id, trigger_payload } = body as {
+    program_id: string;
+    trigger_payload?: unknown;
+  };
+  if (trigger_payload !== undefined && !isJsonObject(trigger_payload)) {
+    return apiError("trigger_payload must be a JSON object", 400);
+  }
 
   const access = await getProgramAccess(program_id, user.id);
   if (!canView(access)) return apiError("Program not found", 404);
@@ -127,6 +137,16 @@ export async function POST(request: Request) {
   const apiKeys = (apiKeysRaw ?? []) as ApiKeyRow[];
 
   const runnableSchema = executableSchema.data as unknown as ProgramSchema;
+  if (workflowRequiresPayloadForManualRun(runnableSchema) && trigger_payload === undefined) {
+    return NextResponse.json(
+      {
+        error: "TRIGGER_PAYLOAD_REQUIRED",
+        message: "This workflow starts from external data. Use Run with payload to test it, or wait for a live trigger event.",
+      },
+      { status: 422 }
+    );
+  }
+
   const { checks } = await validatePreFlight(runnableSchema, connections, apiKeys);
 
   const workspaceCompliance = await loadWorkspaceComplianceSettings(programWorkspaceId, serviceClient);
@@ -167,6 +187,7 @@ export async function POST(request: Request) {
         .filter((check) => check.status !== "passed")
         .map((check) => ({ id: check.id, status: check.status, message: check.message })),
       retention_expiry: retentionExpiry,
+      trigger_payload: trigger_payload ?? null,
     } as unknown as never)
     .select("id")
     .single();
@@ -195,6 +216,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       schema: runnableSchema,
       triggered_by: "manual",
+      trigger_payload: trigger_payload ?? null,
       connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
       env_vars: envVars,
       compliance_mode: workspaceCompliance.compliance_mode,

@@ -5,6 +5,7 @@ import type { Database } from "@flowos/db";
 import { applySecurityHeaders } from "@/lib/security-headers";
 import { maintenanceMiddleware } from "@/lib/maintenance-middleware";
 import { looksLikeToken } from "@/lib/personal-tokens";
+import { isSessionExemptApiRoute } from "@/lib/session-exempt-api-routes";
 
 // ─── Bearer token auth (personal API tokens) ──────────────────────────────────
 
@@ -169,6 +170,10 @@ export async function middleware(request: NextRequest) {
   if (maintenanceResponse) {
     applySecurityHeaders(maintenanceResponse.headers, nonce);
     return maintenanceResponse;
+  }
+
+  if (isSessionExemptApiRoute(pathname)) {
+    return nextWithSecurity();
   }
 
   const isPublic = pathname === "/" || PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
