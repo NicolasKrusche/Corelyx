@@ -69,6 +69,41 @@ type CreditPurchase = {
   stripe_session_id: string | null;
 };
 
+async function getCreditPurchases(
+  service: ReturnType<typeof createServiceClient>,
+  userId: string,
+): Promise<CreditPurchase[]> {
+  const { data, error } = await service
+    .from("credit_purchases")
+    .select("id, amount_credits, created_at, stripe_session_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (!error) return (data ?? []) as unknown as CreditPurchase[];
+
+  // Keep the ledger available while the live database rolls through the
+  // credit-unit migration.
+  const { data: legacyData } = await service
+    .from("credit_purchases")
+    .select("id, amount_usd, created_at, stripe_session_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  return ((legacyData ?? []) as unknown as Array<{
+    id: string;
+    amount_usd: string | number;
+    created_at: string;
+    stripe_session_id: string | null;
+  }>).map((purchase) => ({
+    id: purchase.id,
+    amount_credits: Math.round(Number(purchase.amount_usd) * 1_000),
+    created_at: purchase.created_at,
+    stripe_session_id: purchase.stripe_session_id,
+  }));
+}
+
 export default async function CreditsPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -106,7 +141,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     checkGenesisAccess(user.id, workspaceId),
     getUsageHistory(user.id, workspaceId),
     service.from("api_keys").select("id, name", { count: "exact" }).eq("workspace_id", workspaceId ?? "").limit(5),
-    service.from("credit_purchases").select("id, amount_credits, created_at, stripe_session_id").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    getCreditPurchases(service, user.id),
   ]);
 
   const isUnlimited = tier === "unlimited" || creditBalance.total === Infinity;
@@ -121,7 +156,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const runsLeft = runsTotal === null ? null : Math.max(0, runsTotal - runUsage.current);
   const genesisLeft = genesisTotal === null ? null : Math.max(0, genesisTotal - genesisAccess.usesThisMonth);
   const apiKeyCount = apiKeysRes.count ?? 0;
-  const purchases = (purchasesRes.data ?? []) as CreditPurchase[];
+  const purchases = purchasesRes;
 
   // Cycle info
   const now = new Date();

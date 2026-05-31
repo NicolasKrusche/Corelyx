@@ -29,23 +29,47 @@ export type AutoRechargeSettings = {
   rechargeCredits: number;
 };
 
-export async function getAutoRechargeConfig(userId: string): Promise<AutoRechargeSettings> {
+async function getStoredAutoRechargeConfig(userId: string): Promise<AutoRechargeConfig | null> {
   const service = createServiceClient();
-  const { data } = await service
+  const { data, error } = await service
     .from("auto_recharge_configs")
-    .select("is_enabled, threshold_credits, recharge_credits")
+    .select("is_enabled, threshold_credits, recharge_credits, last_triggered_at")
     .eq("user_id", userId)
     .single();
 
-  if (!data) {
+  if (!error && data) return data as unknown as AutoRechargeConfig;
+
+  const { data: legacyData } = await service
+    .from("auto_recharge_configs")
+    .select("is_enabled, threshold_usd, recharge_amount_usd, last_triggered_at")
+    .eq("user_id", userId)
+    .single();
+
+  if (!legacyData) return null;
+  const legacy = legacyData as unknown as {
+    is_enabled: boolean;
+    threshold_usd: string | number;
+    recharge_amount_usd: string | number;
+    last_triggered_at: string | null;
+  };
+  return {
+    is_enabled: legacy.is_enabled,
+    threshold_credits: Math.round(Number(legacy.threshold_usd) * 1_000),
+    recharge_credits: Math.round(Number(legacy.recharge_amount_usd) * 1_000),
+    last_triggered_at: legacy.last_triggered_at,
+  };
+}
+
+export async function getAutoRechargeConfig(userId: string): Promise<AutoRechargeSettings> {
+  const config = await getStoredAutoRechargeConfig(userId);
+  if (!config) {
     return { isEnabled: false, thresholdCredits: 2_000, rechargeCredits: 10_000 };
   }
 
-  const row = data as unknown as AutoRechargeConfig;
   return {
-    isEnabled: row.is_enabled,
-    thresholdCredits: Number(row.threshold_credits),
-    rechargeCredits: Number(row.recharge_credits),
+    isEnabled: config.is_enabled,
+    thresholdCredits: Number(config.threshold_credits),
+    rechargeCredits: Number(config.recharge_credits),
   };
 }
 
@@ -54,7 +78,7 @@ export async function upsertAutoRechargeConfig(
   settings: AutoRechargeSettings,
 ): Promise<void> {
   const service = createServiceClient();
-  await (service.from("auto_recharge_configs") as any).upsert(
+  const { error } = await (service.from("auto_recharge_configs") as any).upsert(
     {
       user_id: userId,
       is_enabled: settings.isEnabled,
@@ -64,20 +88,27 @@ export async function upsertAutoRechargeConfig(
     },
     { onConflict: "user_id" },
   );
+  if (!error) return;
+
+  const { error: legacyError } = await (service.from("auto_recharge_configs") as any).upsert(
+    {
+      user_id: userId,
+      is_enabled: settings.isEnabled,
+      threshold_usd: settings.thresholdCredits / 1_000,
+      recharge_amount_usd: settings.rechargeCredits / 1_000,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+  if (legacyError) throw legacyError;
 }
 
 /** Check if auto-recharge should fire after a credit deduction. */
 export async function maybeFireAutoRecharge(userId: string): Promise<void> {
   const service = createServiceClient();
 
-  const { data: cfgData } = await service
-    .from("auto_recharge_configs")
-    .select("is_enabled, threshold_credits, recharge_credits, last_triggered_at")
-    .eq("user_id", userId)
-    .single();
-
-  if (!cfgData) return;
-  const cfg = cfgData as unknown as AutoRechargeConfig;
+  const cfg = await getStoredAutoRechargeConfig(userId);
+  if (!cfg) return;
   if (!cfg.is_enabled) return;
 
   if (cfg.last_triggered_at) {
