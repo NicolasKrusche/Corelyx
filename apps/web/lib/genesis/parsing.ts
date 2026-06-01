@@ -10,13 +10,45 @@ export function extractJson(raw: string): string {
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
-  if (fenceStripped.startsWith("{")) return fenceStripped;
-
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start !== -1 && end > start) return text.slice(start, end + 1);
+  const completeObject = findCompleteJsonObject(fenceStripped);
+  if (completeObject) return completeObject;
 
   return fenceStripped;
+}
+
+function findCompleteJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, index + 1);
+    }
+  }
+
+  return null;
 }
 
 // ─── Schema normalization ──────────────────────────────────────────────────
