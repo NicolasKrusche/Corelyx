@@ -34,7 +34,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     mark read / unread → label_email with remove_label_ids:["UNREAD"] (read) or add_label_ids:["UNREAD"] (unread)
     star / mark important → label_email with STARRED / IMPORTANT
     forward an email → read_email + send_email composing forwarded body
-    permanently delete (not archive) → HTTP POST https://gmail.googleapis.com/gmail/v1/users/me/messages/{id}/trash
+    move to trash (not archive) → HTTP POST https://gmail.googleapis.com/gmail/v1/users/me/messages/{{n4.email.id}}/trash using the selected Gmail OAuth connection when the loop node is n4
     create draft → HTTP POST https://gmail.googleapis.com/gmail/v1/users/me/drafts
     list / manage labels → HTTP /gmail/v1/users/me/labels
     save attachment to Drive → get_attachment then drive upload_file with content_base64 from data_base64`,
@@ -397,7 +397,7 @@ function buildGapReferenceSection(
   selectedProviders: string[] | null
 ): string {
   const lines: string[] = [
-    "GAP REFERENCE — common asks not covered by the operations above and how to bridge them. Apply CAPABILITY-GAP RULES; never refuse. For HTTP fallback against OAuth providers, set auth_type:\"bearer\", auth_value:\"__USER_ASSIGNED__\".\n",
+    "GAP REFERENCE — common asks not covered by the operations above and how to bridge them. Apply CAPABILITY-GAP RULES; never refuse. For HTTP fallback against a selected OAuth provider, set connection to that provided OAuth connection name, auth_type:\"bearer\", auth_value:\"__OAUTH_CONNECTION__\". Use the actual upstream node ID in every {{expression}}; never emit placeholder names such as loop_id or loop_node_id.\n",
   ];
 
   if (!selectedProviders || selectedProviders.length === 0) {
@@ -471,7 +471,7 @@ STEP NODE (connection: ALWAYS null):
 Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node output via its node ID: data['n1'].get('field',''), data['n2']['key'], etc. Never use data.get('field') directly — the flat merge is unreliable. Allowed: data['nX'].get(k,default), len(), str(), int(), float(), and/or/not, ==, !=, list comprehensions [x for x in ...], str.join/split/strip/upper/lower.
   filter: {"logic_type":"filter","condition":"len(data['n1'].get('emails',[]))>0","pass_schema":null}
   transform: {"logic_type":"transform","transformation":"{'key':data['n1']['key']}","input_schema":null,"output_schema":null}
-  loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}  → downstream accesses {{loop_id.item}}
+  loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}  → if this is node n3, downstream accesses {{n3.item}}
   branch: {"logic_type":"branch","conditions":[{"condition":"data['n1'].get('x')==True","target_node_id":"n5"}],"default_branch":"n6"}
   delay: {"logic_type":"delay","seconds":3600}
   format: {"logic_type":"format","template":"Subject: {subject}","output_key":"text"}
@@ -481,7 +481,7 @@ Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node o
 
 CONNECTION NODE:
   OAuth: connection field MUST match provided name exactly. Config: {"provider":"gmail|notion|slack|github|sheets|calendar|docs|drive|airtable|hubspot|typeform|asana|outlook","scope_access":"read|write|read_write","scope_required":["..."],"operation":"op_name","operation_params":{...}}
-  HTTP: connection:null. Config: {"connector_type":"http","method":"GET|POST|PUT|PATCH|DELETE","url":"https://...","auth_type":"none|bearer|basic|api_key_header|api_key_query","auth_value":null,"query_params":[],"headers":[],"body":null,"parse_response":true,"timeout_seconds":30,"retry":null}
+  HTTP: connection:null for generic credentials, or the exact provided OAuth connection name when calling that provider's REST API. Config: {"connector_type":"http","method":"GET|POST|PUT|PATCH|DELETE","url":"https://...","auth_type":"none|bearer|basic|api_key_header|api_key_query","auth_value":null|"__OAUTH_CONNECTION__","query_params":[],"headers":[],"body":null,"parse_response":true,"timeout_seconds":30,"retry":null}
 
 NOTE NODE (sticky note — purely visual, never executed):
   connection: null. Config: {"content":"<annotation text>","color":"yellow|blue|pink|green"}
@@ -552,7 +552,7 @@ UPSTREAM REFERENCES: Use {{node_id.field}} in operation_params to reference upst
 
 CHECKLIST before output:
   1. Exactly 1 trigger node. 2. ≤12 executable nodes (note/group excluded). 3. All edge from/to reference real node IDs.
-  4. connection field matches provided name exactly (or null for HTTP/step/agent/note/group).
+  4. connection field matches provided name exactly (or null for generic HTTP/step/agent/note/group). OAuth-backed HTTP fallbacks use that OAuth connection name and auth_value:"__OAUTH_CONNECTION__".
   5. Every non-trigger, non-note, non-group node has an incoming edge. 6. step nodes always have connection:null.
   7. Gmail: never pass stub list to agent — always filter→loop→read_email first.
   8. Every operation with REQUIRED params has them filled (use "__USER_ASSIGNED__" for unknown resource IDs).
