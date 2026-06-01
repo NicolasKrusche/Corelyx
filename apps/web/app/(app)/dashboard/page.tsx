@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import {
   Activity,
   ArrowRight,
@@ -156,6 +157,7 @@ export default async function DashboardPage({
 }: {
   searchParams?: Promise<{ q?: string | string[] }>;
 }) {
+  const t = await getTranslations("dashboard");
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -264,10 +266,10 @@ export default async function DashboardPage({
       .map((approval) => ({
         id: approval.id,
         createdAt: approval.created_at,
-        nodeLabel: approval.context?.node_label ?? approval.node_executions?.node_id ?? "Review required",
+        nodeLabel: approval.context?.node_label ?? approval.node_executions?.node_id ?? t("reviewRequired"),
         reason: approval.context?.reason ?? null,
         programId: approval.node_executions?.runs?.program_id ?? "",
-        programName: approval.node_executions?.runs?.programs?.name ?? "Unknown workflow",
+        programName: approval.node_executions?.runs?.programs?.name ?? t("unknownWorkflow"),
         runId: approval.node_executions?.run_id ?? "",
       }));
 
@@ -328,12 +330,12 @@ export default async function DashboardPage({
   const terminalRunsThisWeek = completedThisWeek + failedThisWeek;
   const successRate = terminalRunsThisWeek > 0 ? Math.round((completedThisWeek / terminalRunsThisWeek) * 1000) / 10 : null;
   const successRateDetail = runsThisWeek.length === 0
-    ? "No runs yet"
+    ? t("noRunsYet")
     : terminalRunsThisWeek === 0
-      ? "No completed runs"
+      ? t("noCompletedRuns")
       : failedThisWeek > 0
-        ? `${failedThisWeek} failed`
-        : "On track";
+        ? t("failedCount", { count: failedThisWeek })
+        : t("onTrack");
   const activeWorkflowSeries = dayKeys.map((key) =>
     programs.filter((program) => program.is_active && program.created_at.slice(0, 10) <= key).length
   );
@@ -354,11 +356,11 @@ export default async function DashboardPage({
       id: run.id,
       createdAt: run.created_at,
       programId: run.program_id,
-      programName: programs.find((program) => program.id === run.program_id)?.name ?? "Unknown workflow",
+      programName: programs.find((program) => program.id === run.program_id)?.name ?? t("unknownWorkflow"),
       triggeredBy: run.triggered_by,
     }));
   const displayName = (profileResult.data as { display_name?: string | null } | null)?.display_name?.split(" ")[0];
-  const workspaceName = workspace?.name ?? "Workspace";
+  const workspaceName = workspace?.name ?? t("unknownWorkflow");
 
   return (
     <div className="mx-auto w-full max-w-[1480px] space-y-5 pb-8 text-foreground">
@@ -366,26 +368,28 @@ export default async function DashboardPage({
         <section className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm">
           <p className="font-medium text-amber-700 dark:text-amber-300">
             {creditBalance.total <= 0
-              ? "Platform AI credits exhausted. LLM nodes using the platform key will not run."
-              : `Only ${formatCredits(creditBalance.total)} platform AI credits remaining.`}
+              ? t("creditWarning")
+              : t("creditsLow", { count: formatCredits(creditBalance.total) })}
           </p>
           <Link
             href="/plan"
             className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600"
           >
-            Buy credits
+            {t("buyCredits")}
           </Link>
         </section>
       )}
 
       <header className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Overview</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t("overview")}</p>
           <h1 className="mt-1 text-2xl font-black tracking-tight">
-            Good to see you{displayName ? `, ${displayName}` : ""}
+            {displayName ? t("greetingNamed", { name: displayName }) : t("greetingAnon")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {workspaceName} · {programs.length} workflow{programs.length === 1 ? "" : "s"} · operations at a glance
+            {programs.length === 1
+              ? t("subheadingSingular", { workspace: workspaceName, count: 1 })
+              : t("subheadingPlural", { workspace: workspaceName, count: programs.length })}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center 2xl:w-auto">
@@ -395,16 +399,16 @@ export default async function DashboardPage({
             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
-            New workflow
+            {t("newWorkflow")}
           </Link>
         </div>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Active workflows" value={String(programs.filter((program) => program.is_active).length)} detail={`${programs.length} total`} Icon={FolderKanban} tone="green" series={activeWorkflowSeries} />
-        <StatCard label="Runs this week" value={runsThisWeek.length.toLocaleString()} detail="7 day view" Icon={Activity} tone="blue" series={runsSeries} />
-        <StatCard label="Success rate" value={successRate === null ? "-%" : `${successRate}%`} detail={successRateDetail} Icon={CheckCircle2} tone="violet" series={successRateSeries} />
-        <StatCard label="Awaiting you" value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? "Review now" : "All clear"} Icon={CircleAlert} tone="amber" series={approvalsSeries} />
+        <StatCard label={t("activeWorkflows")} value={String(programs.filter((program) => program.is_active).length)} detail={t("totalCount", { count: programs.length })} Icon={FolderKanban} tone="green" series={activeWorkflowSeries} />
+        <StatCard label={t("runsThisWeek")} value={runsThisWeek.length.toLocaleString()} detail={t("sevenDayView")} Icon={Activity} tone="blue" series={runsSeries} />
+        <StatCard label={t("successRate")} value={successRate === null ? "-%" : `${successRate}%`} detail={successRateDetail} Icon={CheckCircle2} tone="violet" series={successRateSeries} />
+        <StatCard label={t("awaitingYou")} value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? t("reviewNow") : t("allClear")} Icon={CircleAlert} tone="amber" series={approvalsSeries} />
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.09] via-card/90 to-card/75 shadow-sm">
@@ -414,9 +418,9 @@ export default async function DashboardPage({
               <Sparkles className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-sm font-bold">Build your next workflow with Genesis</p>
+              <p className="text-sm font-bold">{t("genesisTitle")}</p>
               <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                Describe the outcome you want. Genesis turns it into a reviewable workflow graph with the right steps and connections.
+                {t("genesisDesc")}
               </p>
             </div>
           </div>
@@ -424,7 +428,7 @@ export default async function DashboardPage({
             href="/programs/new"
             className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15 sm:self-auto"
           >
-            Start with Genesis
+            {t("startGenesis")}
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -434,11 +438,11 @@ export default async function DashboardPage({
         <section className="overflow-hidden rounded-2xl border border-border/80 bg-card/80 shadow-sm backdrop-blur-sm">
           <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
             <div>
-              <h2 className="text-sm font-bold">Your workflows</h2>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Organize, scan, and open the automations in {workspaceName}.</p>
+              <h2 className="text-sm font-bold">{t("yourWorkflows")}</h2>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{t("workflowsSubtitle", { workspace: workspaceName })}</p>
             </div>
             <Link href="/programs/new" className="text-xs font-semibold text-primary transition-colors hover:text-primary/80">
-              View all
+              {t("viewAll")}
             </Link>
           </div>
           <ProgramList

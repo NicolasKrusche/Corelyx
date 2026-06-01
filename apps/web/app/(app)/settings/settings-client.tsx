@@ -2,73 +2,57 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAdvancedMode } from "@/lib/advanced-mode";
 import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
 import { useTheme, type BaseTheme, type AccentColor, type BgStyle } from "@/components/theme-provider";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
-const ACCENTS: { id: AccentColor; label: string; color: string }[] = [
-  { id: "orange", label: "Orange", color: "#f97316" },
-  { id: "blue",   label: "Blue",   color: "#3b9eff" },
-  { id: "indigo", label: "Indigo", color: "#818cf8" },
-  { id: "green",  label: "Green",  color: "#22c55e" },
-  { id: "pink",   label: "Pink",   color: "#fb7185" },
-  { id: "cyan",   label: "Cyan",   color: "#22d3ee" },
+const ACCENT_COLORS: { id: AccentColor; color: string }[] = [
+  { id: "orange", color: "#f97316" },
+  { id: "blue",   color: "#3b9eff" },
+  { id: "indigo", color: "#818cf8" },
+  { id: "green",  color: "#22c55e" },
+  { id: "pink",   color: "#fb7185" },
+  { id: "cyan",   color: "#22d3ee" },
 ];
 
-const BG_STYLES: { id: BgStyle; label: string; description: string; preview: ReactNode }[] = [
-  {
-    id: "default",
-    label: "Default",
-    description: "Theme gradient orbs",
-    preview: (
-      <div className="relative w-full h-10 rounded-md overflow-hidden bg-[#171717]">
-        <div className="absolute inset-0" style={{
-          background: "radial-gradient(ellipse 70% 60% at 80% 10%, hsl(var(--theme-glow-strong) / 0.55) 0%, transparent 55%), radial-gradient(ellipse 55% 50% at 15% 90%, hsl(var(--theme-glow-soft) / 0.4) 0%, transparent 50%)",
-        }} />
-      </div>
-    ),
-  },
-  {
-    id: "liquid",
-    label: "Liquid",
-    description: "Chrome iridescent orbs",
-    preview: (
-      <div className="relative w-full h-10 rounded-md overflow-hidden" style={{ background: "#03030a" }}>
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 65% 60% at 78% 18%, hsl(var(--theme-glow-strong) / 0.65) 0%, transparent 55%), radial-gradient(ellipse 60% 55% at 15% 82%, hsl(var(--theme-glow-soft) / 0.6) 0%, transparent 52%), radial-gradient(ellipse 40% 38% at 48% 48%, hsl(var(--primary) / 0.38) 0%, transparent 50%)" }} />
-        <div className="absolute inset-x-0 top-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)" }} />
-      </div>
-    ),
-  },
-  {
-    id: "obsidian",
-    label: "Obsidian",
-    description: "Dark geometric cells",
-    preview: (
-      <div className="relative w-full h-10 rounded-md overflow-hidden" style={{ background: "#050505" }}>
-        <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(135deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(45deg, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-7 rounded-md" style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(255,255,255,0.07)" }} />
-      </div>
-    ),
-  },
-  {
-    id: "noir",
-    label: "Noir",
-    description: "Pure black, minimal",
-    preview: (
-      <div className="w-full h-10 rounded-md bg-black" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" }} />
-    ),
-  },
-];
+const BG_STYLE_IDS: BgStyle[] = ["default", "liquid", "obsidian", "noir"];
+
+const BG_STYLE_PREVIEWS: Record<BgStyle, ReactNode> = {
+  default: (
+    <div className="relative w-full h-10 rounded-md overflow-hidden bg-[#171717]">
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse 70% 60% at 80% 10%, hsl(var(--theme-glow-strong) / 0.55) 0%, transparent 55%), radial-gradient(ellipse 55% 50% at 15% 90%, hsl(var(--theme-glow-soft) / 0.4) 0%, transparent 50%)",
+      }} />
+    </div>
+  ),
+  liquid: (
+    <div className="relative w-full h-10 rounded-md overflow-hidden" style={{ background: "#03030a" }}>
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 65% 60% at 78% 18%, hsl(var(--theme-glow-strong) / 0.65) 0%, transparent 55%), radial-gradient(ellipse 60% 55% at 15% 82%, hsl(var(--theme-glow-soft) / 0.6) 0%, transparent 52%), radial-gradient(ellipse 40% 38% at 48% 48%, hsl(var(--primary) / 0.38) 0%, transparent 50%)" }} />
+      <div className="absolute inset-x-0 top-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)" }} />
+    </div>
+  ),
+  obsidian: (
+    <div className="relative w-full h-10 rounded-md overflow-hidden" style={{ background: "#050505" }}>
+      <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(135deg, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(45deg, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-7 rounded-md" style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(255,255,255,0.07)" }} />
+    </div>
+  ),
+  noir: (
+    <div className="w-full h-10 rounded-md bg-black" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)" }} />
+  ),
+};
 
 function AppearanceSection() {
+  const t = useTranslations("settingsPage");
   const { base, accent, bgStyle, setBase, setAccent, setBgStyle } = useTheme();
   return (
-    <Section title="Appearance" description="Choose a mode, accent colour, and background style. Applies instantly.">
+    <Section title={t("appearance")} description={t("appearanceDesc")}>
       <div className="space-y-5">
         <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Mode</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{t("mode")}</p>
           <div className="flex gap-2">
             {(["dark", "light"] as BaseTheme[]).map((b) => (
               <button
@@ -82,21 +66,21 @@ function AppearanceSection() {
                     : "border-border hover:bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {b === "dark" ? "Dark" : "Light"}
+                {b === "dark" ? t("dark") : t("light")}
               </button>
             ))}
           </div>
         </div>
         <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Accent</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{t("accent")}</p>
           <div className="flex flex-wrap gap-2">
-            {ACCENTS.map((a) => (
+            {ACCENT_COLORS.map((a) => (
               <button
                 key={a.id}
                 type="button"
                 onClick={() => setAccent(a.id)}
                 aria-pressed={accent === a.id}
-                title={a.label}
+                title={a.id}
                 className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-colors ${
                   accent === a.id
                     ? "border-primary bg-primary/10 text-foreground"
@@ -104,30 +88,30 @@ function AppearanceSection() {
                 }`}
               >
                 <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
-                {a.label}
+                <span className="capitalize">{a.id}</span>
               </button>
             ))}
           </div>
         </div>
         <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Style</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">{t("style")}</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {BG_STYLES.map((s) => (
+            {BG_STYLE_IDS.map((id) => (
               <button
-                key={s.id}
+                key={id}
                 type="button"
-                onClick={() => setBgStyle(s.id)}
-                aria-pressed={bgStyle === s.id}
+                onClick={() => setBgStyle(id)}
+                aria-pressed={bgStyle === id}
                 className={`flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-colors ${
-                  bgStyle === s.id
+                  bgStyle === id
                     ? "border-primary bg-primary/10"
                     : "border-border hover:bg-muted"
                 }`}
               >
-                {s.preview}
+                {BG_STYLE_PREVIEWS[id]}
                 <div>
-                  <p className={`text-xs font-medium ${bgStyle === s.id ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{s.description}</p>
+                  <p className={`text-xs font-medium ${bgStyle === id ? "text-foreground" : "text-muted-foreground"}`}>{t(`${id}Style` as "defaultStyle" | "liquidStyle" | "obsidianStyle" | "noirStyle")}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{t(`${id}StyleDesc` as "defaultStyleDesc" | "liquidStyleDesc" | "obsidianStyleDesc" | "noirStyleDesc")}</p>
                 </div>
               </button>
             ))}
@@ -180,6 +164,7 @@ function StatusMessage({ type, message }: { type: "success" | "error"; message: 
 }
 
 function RedeemSection() {
+  const t = useTranslations("settingsPage");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -206,14 +191,14 @@ function RedeemSection() {
   }
 
   return (
-    <Section title="Redeem a code" description="Have a promo, beta, or gift code? Apply it here.">
+    <Section title={t("redeemTitle")} description={t("redeemDesc")}>
       <form onSubmit={handleRedeem} className="flex gap-2">
         <input
           type="text"
           required
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="ENTER CODE"
+          placeholder={t("redeemPlaceholder")}
           className="flex-1 rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm font-mono tracking-widest placeholder:text-muted-foreground/40 placeholder:tracking-normal focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/40 transition-all"
         />
         <button
@@ -221,7 +206,7 @@ function RedeemSection() {
           disabled={loading || code.length < 3}
           className="shrink-0 rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          {loading ? "…" : "Redeem"}
+          {loading ? t("redeemLoading") : t("redeemBtn")}
         </button>
       </form>
       {status && <StatusMessage {...status} />}
@@ -230,6 +215,7 @@ function RedeemSection() {
 }
 
 export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
+  const t = useTranslations("settingsPage");
   const [advanced, setAdvanced] = useAdvancedMode();
 
   // Email change state
@@ -257,18 +243,18 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
     e.preventDefault();
     setEmailStatus(null);
     if (!newEmail || newEmail === email) {
-      setEmailStatus({ type: "error", message: "Enter a different email address." });
+      setEmailStatus({ type: "error", message: t("emailDifferentError") });
       return;
     }
     setEmailLoading(true);
     const supabase = createBrowserClient();
     const { error } = await supabase.auth.updateUser({ email: newEmail });
     if (error) {
-      setEmailStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not update your email. Please try again.") });
+      setEmailStatus({ type: "error", message: friendlyErrorMessage(error.message, t("emailUpdateError")) });
     } else {
       setEmailStatus({
         type: "success",
-        message: `Confirmation sent to ${newEmail}. Click the link in that email to complete the change.`,
+        message: t("emailConfirmSent", { email: newEmail }),
       });
       setNewEmail("");
     }
@@ -280,11 +266,11 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
     setPasswordStatus(null);
 
     if (newPassword !== confirmPassword) {
-      setPasswordStatus({ type: "error", message: "New passwords do not match." });
+      setPasswordStatus({ type: "error", message: t("passwordsNoMatch") });
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordStatus({ type: "error", message: "Password must be at least 8 characters." });
+      setPasswordStatus({ type: "error", message: t("passwordTooShort") });
       return;
     }
 
@@ -294,16 +280,16 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
     // Re-authenticate with current password first
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
     if (signInError) {
-      setPasswordStatus({ type: "error", message: "Current password is incorrect." });
+      setPasswordStatus({ type: "error", message: t("wrongPassword") });
       setPasswordLoading(false);
       return;
     }
 
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) {
-      setPasswordStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not update your password. Please try again.") });
+      setPasswordStatus({ type: "error", message: friendlyErrorMessage(error.message, t("passwordUpdateError")) });
     } else {
-      setPasswordStatus({ type: "success", message: "Password updated successfully." });
+      setPasswordStatus({ type: "success", message: t("passwordUpdated") });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -321,7 +307,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
     const res = await fetch("/api/settings/account", { method: "DELETE" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      setDeleteStatus({ type: "error", message: friendlyResponseMessage(body, "We could not delete the account. Please try again.") });
+      setDeleteStatus({ type: "error", message: friendlyResponseMessage(body, t("deleteAccountError")) });
       setDeleteLoading(false);
       return;
     }
@@ -337,18 +323,18 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-black tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1.5">Manage your account.</p>
+        <h1 className="text-3xl font-black tracking-tight">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1.5">{t("subtitle")}</p>
       </div>
 
       {/* Account info */}
-      <Section title="Account" description="Your account details and login settings.">
-        <Field label="Current email address">
+      <Section title={t("account")} description={t("accountDesc")}>
+        <Field label={t("currentEmail")}>
           <div className="w-full rounded-lg border border-input bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
             {email}
           </div>
         </Field>
-        <Field label="Member since">
+        <Field label={t("memberSince")}>
           <div className="w-full rounded-lg border border-input bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
             {memberSince}
           </div>
@@ -357,15 +343,15 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
         {/* Email change */}
         {!isOAuthUser ? (
           <form onSubmit={handleEmailChange} className="space-y-3 pt-2 border-t border-border/60">
-            <p className="text-xs font-medium text-muted-foreground">Change email address</p>
-            <Field label="New email address">
+            <p className="text-xs font-medium text-muted-foreground">{t("changeEmail")}</p>
+            <Field label={t("newEmail")}>
               <input
                 type="email"
                 required
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/40 transition-all"
-                placeholder="new@example.com"
+                placeholder={t("emailPlaceholder")}
               />
             </Field>
             {emailStatus && <StatusMessage {...emailStatus} />}
@@ -374,12 +360,12 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
               disabled={emailLoading}
               className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {emailLoading ? "Sending…" : "Send confirmation"}
+              {emailLoading ? t("sending") : t("sendConfirmation")}
             </button>
           </form>
         ) : (
           <p className="text-xs text-muted-foreground pt-2 border-t border-border/60">
-            Your email address is managed by your Google account and cannot be changed here.
+            {t("googleEmail")}
           </p>
         )}
       </Section>
@@ -390,11 +376,11 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       {/* Change password — only for email/password users */}
       {!isOAuthUser && (
         <Section
-          title="Password"
-          description="Change your login password. You'll stay signed in on this device."
+          title={t("password")}
+          description={t("passwordDesc")}
         >
           <form onSubmit={handlePasswordChange} className="space-y-4">
-            <Field label="Current password">
+            <Field label={t("currentPassword")}>
               <input
                 type="password"
                 required
@@ -404,7 +390,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
                 placeholder="••••••••"
               />
             </Field>
-            <Field label="New password">
+            <Field label={t("newPassword")}>
               <input
                 type="password"
                 required
@@ -414,7 +400,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
                 placeholder="Min. 8 characters"
               />
             </Field>
-            <Field label="Confirm new password">
+            <Field label={t("confirmPassword")}>
               <input
                 type="password"
                 required
@@ -432,18 +418,18 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
               disabled={passwordLoading}
               className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {passwordLoading ? "Updating…" : "Update password"}
+              {passwordLoading ? t("updating") : t("updatePassword")}
             </button>
           </form>
         </Section>
       )}
 
       {isOAuthUser && (
-        <Section title="Password" description="You signed in with Google. Password login is not available for your account.">
+        <Section title={t("password")} description={t("googlePassword")}>
           <p className="text-sm text-muted-foreground">
             To manage your password, visit your{" "}
             <a href="https://myaccount.google.com/security" target="_blank" rel="noreferrer" className="text-foreground hover:text-primary underline underline-offset-2 transition-colors">
-              Google account security settings
+              {t("googlePasswordLink")}
             </a>
             .
           </p>
@@ -455,16 +441,16 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
         <RedeemSection />
       </div>
 
-      <Section title="Plan" description="Compare plans, buy a new plan, or upgrade from the public pricing page.">
+      <Section title={t("plan")} description={t("planDesc")}>
         <Link
           href="/plan"
           className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Upgrade Plan
+          {t("upgradePlan")}
         </Link>
       </Section>
 
-      <Section title="Advanced options" description="Reveal developer-only views such as raw execution logs.">
+      <Section title={t("advancedOptions")} description={t("advancedOptionsDesc")}>
         <button
           type="button"
           role="switch"
@@ -484,55 +470,51 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
 
       {/* Data & Privacy */}
       <Section
-        title="Data & Privacy"
-        description="Download a copy of your personal data or request corrections to billing contact information."
+        title={t("privacy")}
+        description={t("privacyDesc")}
       >
         <div className="space-y-3">
           <div className="rounded-lg border glass-card p-4 space-y-2">
-            <p className="text-sm font-medium">Export your data</p>
+            <p className="text-sm font-medium">{t("exportTitle")}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Download a full copy of your account data including programs, runs, logs, connections metadata, and API key metadata. Secrets and tokens are never included.
+              {t("exportDesc")}
             </p>
             <a
               href="/api/user/export"
               download
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
             >
-              Download data export
+              {t("downloadExport")}
             </a>
             <Link
               href="/data-export-schema"
               className="ml-3 inline-flex text-xs font-medium text-primary hover:underline underline-offset-2"
             >
-              View export schema
+              {t("viewSchema")}
             </Link>
           </div>
           <div className="rounded-lg border glass-card p-4 space-y-1">
-            <p className="text-sm font-medium">Billing contact data</p>
+            <p className="text-sm font-medium">{t("billingTitle")}</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              To correct billing contact information held by our payment processor, email{" "}
-              <a href="mailto:legal@corelyx.app" className="text-primary hover:underline">
-                legal@corelyx.app
-              </a>{" "}
-              with the details to update.
+              {t("billingDesc")}
             </p>
           </div>
         </div>
       </Section>
 
       <div id="data-rights">
-        <Section title="EU Compliance" description="GDPR rights, request tracking, policies, and audit evidence — accessible from a dedicated page.">
+        <Section title={t("compliance")} description={t("complianceDesc")}>
           <div className="space-y-3">
             <Link
               href="/account/compliance"
               className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Open EU Compliance Center
+              {t("openCompliance")}
             </Link>
             <div className="rounded-lg border border-border bg-secondary/35 p-4">
-              <p className="text-sm font-medium text-foreground">Regulatory reference</p>
+              <p className="text-sm font-medium text-foreground">{t("regulatoryRef")}</p>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                GDPR rights and deadlines are based on Articles 7 and 15-22, including the standard one-month response period under Article 12.
+                {t("regulatoryRefText")}
               </p>
               <a
                 href="https://gdpr-info.eu/"
@@ -540,25 +522,25 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
                 rel="noreferrer"
                 className="mt-3 inline-flex text-xs font-medium text-primary hover:underline underline-offset-2"
               >
-                Read the GDPR text
+                {t("readGdpr")}
               </a>
             </div>
           </div>
         </Section>
       </div>
 
-      <Section title="Language" description="Choose a display language or auto-translate the site to your device language.">
+      <Section title={t("language")} description={t("languageDesc")}>
         <LanguageSwitcher />
       </Section>
 
       {/* Legal */}
-      <Section title="Legal" description="Review our policies at any time.">
+      <Section title={t("legal")} description={t("legalDesc")}>
         <div className="flex flex-col gap-2">
           <Link
             href="/privacy"
             className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
-            <span className="font-medium">Privacy Policy</span>
+            <span className="font-medium">{t("privacyPolicy")}</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
@@ -567,7 +549,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             href="/terms"
             className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
-            <span className="font-medium">Terms of Service</span>
+            <span className="font-medium">{t("termsOfService")}</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
@@ -576,7 +558,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             href="/impressum"
             className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
-            <span className="font-medium">Impressum</span>
+            <span className="font-medium">{t("impressum")}</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
@@ -585,7 +567,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             href="/subprocessors"
             className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
-            <span className="font-medium">Subprocessor Registry</span>
+            <span className="font-medium">{t("subprocessors")}</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
@@ -594,7 +576,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             href="/dpa"
             className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
-            <span className="font-medium">Data Processing Agreement</span>
+            <span className="font-medium">{t("dpa")}</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
@@ -603,7 +585,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             href="/security"
             className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
-            <span className="font-medium">Security Policy</span>
+            <span className="font-medium">{t("securityPolicy")}</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
@@ -612,7 +594,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
             href="/dpia-template"
             className="flex items-center justify-between rounded-lg border glass-card px-4 py-3 text-sm hover:bg-accent transition-colors group"
           >
-            <span className="font-medium">DPIA Template</span>
+            <span className="font-medium">{t("dpiaTemplate")}</span>
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
               <path fillRule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
@@ -623,18 +605,18 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       {/* Danger zone */}
       <div id="danger-zone">
         <Section
-          title="Danger zone"
-          description="Permanently delete your account and all associated programs, runs, connections, and credentials. This cannot be undone."
+          title={t("dangerTitle")}
+          description={t("dangerDesc")}
         >
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 space-y-4">
             <form onSubmit={handleDeleteAccount} className="space-y-4">
-            <Field label={`Type "delete my account" to confirm`}>
+            <Field label={t("deleteConfirmLabel")}>
               <input
                 type="text"
                 value={deleteConfirm}
                 onChange={(e) => setDeleteConfirm(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-destructive/50 focus:border-destructive/40 transition-all"
-                placeholder="delete my account"
+                placeholder={t("deleteConfirmPlaceholder")}
                 autoComplete="off"
               />
             </Field>
@@ -646,7 +628,7 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
               disabled={deleteLoading || deleteConfirm !== "delete my account"}
               className="rounded-lg bg-destructive text-destructive-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
             >
-              {deleteLoading ? "Deleting…" : "Delete my account"}
+              {deleteLoading ? t("deleting") : t("deleteAccount")}
             </button>
             </form>
           </div>
