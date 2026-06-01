@@ -359,38 +359,45 @@ function HeroCard() {
           className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:32px_32px]"
         />
 
-        {/* Flow lines */}
-        {/* No viewBox — SVG units are CSS px 1:1, so paths stay anchored to the
-            absolutely-positioned FlowNodes regardless of container width.
-            Node geometry: left-8(32) + w-[148px] = right edge 180px.
-            Centers Y: trigger top-[60]+28=88, classify top-[116]+28=144,
-            crm top-[196]+28=224, approval top-[260]+28=288. */}
+        {/* Flow lines — no viewBox so SVG units = CSS px 1:1.
+            Chain: trigger → classify → crm → approval
+            Node H≈56px. Centers X of right column: 248+74=322.
+            trigger: right=180 centerY=88
+            classify: left=248 centerY=144 bottom=172
+            crm:      left=248 centerY=224 bottom=252
+            approval: left=248 centerY=288 top=260 */}
         <svg
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full overflow-visible"
+          className="absolute inset-0 h-full w-full"
         >
           <defs>
-            <marker id="arr-g" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            {/* arrowhead pointing right */}
+            <marker id="arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
               <path d="M0,1 L0,5 L5,3 z" fill="rgba(117,215,163,0.5)" />
             </marker>
-            <marker id="arr-o" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-              <path d="M0,1 L0,5 L5,3 z" fill="rgba(240,90,40,0.5)" />
+            {/* arrowhead pointing down */}
+            <marker id="arr-o" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto">
+              <path d="M1,0 L5,0 L3,5 z" fill="rgba(240,90,40,0.5)" />
             </marker>
-            <marker id="arr-b" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-              <path d="M0,1 L0,5 L5,3 z" fill="rgba(127,183,255,0.5)" />
-            </marker>
-            <marker id="arr-p" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-              <path d="M0,1 L0,5 L5,3 z" fill="rgba(243,154,194,0.5)" />
+            <marker id="arr-b" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto">
+              <path d="M1,0 L5,0 L3,5 z" fill="rgba(127,183,255,0.5)" />
             </marker>
           </defs>
-          {/* trigger(180,88) → classify(248,144) */}
-          <path d="M180,88 C218,88 218,144 248,144" stroke="rgba(117,215,163,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-g)" className="edge-animate" />
-          {/* trigger(180,88) → crm(248,224) */}
-          <path d="M180,88 C218,88 218,224 248,224" stroke="rgba(240,90,40,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-o)" className="edge-animate" />
-          {/* classify(396,144) → exits right */}
-          <path d="M396,144 C430,144 430,144 460,144" stroke="rgba(127,183,255,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-b)" className="edge-animate" />
-          {/* crm(396,224) → approval(exits right/down) */}
-          <path d="M396,224 C430,224 430,288 460,288" stroke="rgba(243,154,194,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-p)" className="edge-animate" />
+
+          {/* 1. trigger right(180,88) → classify left(248,144) */}
+          <path d="M180,88 C218,88 218,144 248,144"
+            stroke="rgba(117,215,163,0.35)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
+            markerEnd="url(#arr-g)" className="edge-animate" />
+
+          {/* 2. classify bottom-center(322,172) → crm top-center(322,196) */}
+          <path d="M322,172 C322,182 322,186 322,196"
+            stroke="rgba(240,90,40,0.35)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
+            markerEnd="url(#arr-o)" className="edge-animate" />
+
+          {/* 3. crm bottom-center(322,252) → approval top-center(322,268) */}
+          <path d="M322,252 C322,258 322,262 322,268"
+            stroke="rgba(127,183,255,0.35)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
+            markerEnd="url(#arr-b)" className="edge-animate" />
         </svg>
 
         {/* Nodes */}
