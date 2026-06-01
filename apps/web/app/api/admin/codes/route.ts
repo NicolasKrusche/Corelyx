@@ -3,7 +3,7 @@ import { randomInt } from "crypto";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdmin } from "@/lib/admin";
 import { writeAppLog } from "@/lib/app-logs";
 
 const CODE_TYPES = ["pro_lifetime", "builder_lifetime", "unlimited", "pro_trial", "run_credits"] as const;
@@ -27,7 +27,7 @@ function generateCode(): string {
 export async function GET() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) return apiError("Forbidden", 403);
+  if (!user || !(await isAdmin(user.id, user.email))) return apiError("Forbidden", 403);
 
   const service = createServiceClient();
   const { data, error } = await service
@@ -43,7 +43,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) return apiError("Forbidden", 403);
+  if (!user || !(await isAdmin(user.id, user.email))) return apiError("Forbidden", 403);
 
   const body = await request.json().catch(() => null);
   const parsed = CreateCodeSchema.safeParse(body);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdmin } from "@/lib/admin";
 
 const PostSchema = z.object({
   title: z.string().min(1).max(200),
@@ -17,7 +17,7 @@ const PostSchema = z.object({
 async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) return null;
+  if (!user || !(await isAdmin(user.id, user.email))) return null;
   return user;
 }
 

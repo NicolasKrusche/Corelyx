@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 const OAUTH_STATE_TTL_SECONDS = 10 * 60;
 const OAUTH_STATE_COOKIE_PREFIX = "flowos_oauth_state";
@@ -202,6 +203,12 @@ export async function issueOAuthStateForRequest(
   userId: string,
   payload: Record<string, unknown>
 ): Promise<IssuedOAuthState> {
+  // Rate-limit OAuth flow initiations per user to prevent nonce table spam
+  const allowed = await rateLimit(`oauth:init:user:${userId}`, 20, 60_000);
+  if (!allowed) {
+    throw Object.assign(new Error("Too many OAuth requests. Try again later."), { status: 429 });
+  }
+
   const issuedState = issueOAuthState(userId, payload);
   const serviceClient = createServiceClient();
   const { error } = await serviceClient.from("oauth_state_nonces").insert({

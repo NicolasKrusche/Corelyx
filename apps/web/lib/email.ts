@@ -32,7 +32,9 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    console.error(`[email] Resend error ${res.status}: ${body}`);
+    const msg = `[email] Resend error ${res.status}: ${body}`;
+    console.error(msg);
+    throw new Error(msg);
   }
 }
 
