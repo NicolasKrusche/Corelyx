@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import type { NoteConfig } from "@flowos/schema";
-import { useEditorDispatch } from "@/lib/editor/state";
+import { useOptionalEditorDispatch } from "@/lib/editor/state";
 
 // ─── Color palette ────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ interface NoteNodeData {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NoteNode({ id, data, selected }: NodeProps) {
-  const dispatch = useEditorDispatch();
+  const dispatch = useOptionalEditorDispatch();
   const nodeData = data as unknown as NoteNodeData;
   const config = React.useMemo(
     () => nodeData.config ?? { content: "", color: "yellow" as const },
@@ -74,6 +74,7 @@ export function NoteNode({ id, data, selected }: NodeProps) {
   // Persist content to schema on blur (debounced blur approach)
   const handleContentBlur = useCallback(
     (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      if (!dispatch) return;
       dispatch({
         type: "UPDATE_NODE_CONFIG",
         nodeId: id,
@@ -86,6 +87,7 @@ export function NoteNode({ id, data, selected }: NodeProps) {
   const handleColorChange = useCallback(
     (color: NoteConfig["color"]) => {
       setShowColorPicker(false);
+      if (!dispatch) return;
       dispatch({
         type: "UPDATE_NODE_CONFIG",
         nodeId: id,
@@ -105,7 +107,7 @@ export function NoteNode({ id, data, selected }: NodeProps) {
       )}
     >
       {/* Toolbar — only visible when selected */}
-      {selected && (
+      {selected && dispatch && (
         <div className="absolute -top-7 left-0 flex items-center gap-1 z-10">
           <button
             type="button"
@@ -156,6 +158,7 @@ export function NoteNode({ id, data, selected }: NodeProps) {
       {/* Editable content */}
       <textarea
         value={content}
+        readOnly={!dispatch}
         onChange={handleContentChange}
         onBlur={handleContentBlur}
         placeholder="Add a note…"

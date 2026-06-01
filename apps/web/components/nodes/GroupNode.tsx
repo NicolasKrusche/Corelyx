@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { NodeResizer } from "@xyflow/react";
 import { cn } from "@/lib/utils";
-import { useEditorDispatch } from "@/lib/editor/state";
+import { useOptionalEditorDispatch } from "@/lib/editor/state";
 import type { GroupConfig } from "@flowos/schema";
 
 type GroupColor = NonNullable<GroupConfig["color"]>;
@@ -54,7 +54,7 @@ interface GroupNodeData {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GroupNode({ id, data, selected }: NodeProps) {
-  const dispatch = useEditorDispatch();
+  const dispatch = useOptionalEditorDispatch();
   const nodeData = data as unknown as GroupNodeData;
   const [editingLabel, setEditingLabel] = useState(false);
   const [labelValue, setLabelValue] = useState(nodeData.label ?? "Group");
@@ -67,10 +67,12 @@ export function GroupNode({ id, data, selected }: NodeProps) {
 
   const commitLabel = useCallback(() => {
     setEditingLabel(false);
+    if (!dispatch) return;
     dispatch({ type: "UPDATE_NODE", nodeId: id, patch: { label: labelValue } });
   }, [dispatch, id, labelValue]);
 
   const handleColorChange = useCallback((nextColor: GroupColor) => {
+    if (!dispatch) return;
     dispatch({ type: "UPDATE_NODE_CONFIG", nodeId: id, config: { color: nextColor } });
   }, [dispatch, id]);
 
@@ -78,7 +80,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
     <>
       {/* Resizer handles — only shown when selected */}
       <NodeResizer
-        isVisible={selected}
+        isVisible={Boolean(dispatch && selected)}
         minWidth={200}
         minHeight={150}
         lineStyle={{ borderColor: "hsl(var(--border))", borderWidth: 1.5 }}
@@ -100,7 +102,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           selected && "ring-1 ring-foreground/20",
         )}
       >
-        {selected && (
+        {selected && dispatch && (
           <div className="nodrag absolute -top-8 right-0 z-20 flex items-center gap-1 rounded-md border border-border bg-popover px-1.5 py-1 shadow-md">
             <span className="mr-0.5 text-[10px] font-medium text-muted-foreground">Frame</span>
             {COLORS.map((nextColor) => (
@@ -162,7 +164,9 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             ) : (
               <span
                 className="text-[11px] font-medium text-foreground/70 cursor-text select-none"
-                onDoubleClick={() => setEditingLabel(true)}
+                onDoubleClick={() => {
+                  if (dispatch) setEditingLabel(true);
+                }}
               >
                 {labelValue}
               </span>

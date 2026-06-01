@@ -46,8 +46,12 @@ export type EditorAction =
 
 export const EditorDispatchContext = React.createContext<React.Dispatch<EditorAction> | null>(null);
 
+export function useOptionalEditorDispatch(): React.Dispatch<EditorAction> | null {
+  return React.useContext(EditorDispatchContext);
+}
+
 export function useEditorDispatch(): React.Dispatch<EditorAction> {
-  const ctx = React.useContext(EditorDispatchContext);
+  const ctx = useOptionalEditorDispatch();
   if (!ctx) throw new Error("useEditorDispatch must be used within an EditorShell");
   return ctx;
 }
