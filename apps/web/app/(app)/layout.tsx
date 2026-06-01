@@ -59,15 +59,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     console.warn("[app] Could not ensure avatar bucket:", error);
   }
 
-  const { data: profileRaw } = await supabase
+  const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
     .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username")
     .eq("id", appUser.id)
     .single();
   const profile = profileRaw as AppLayoutProfile | null;
 
-  // New users who haven't completed onboarding yet
-  if (!profile?.display_name && !profile?.username) redirect("/onboarding");
+  // Only redirect to onboarding when the query succeeded but the profile is
+  // genuinely incomplete. A DB error returns null data too — don't mistake
+  // a transient failure for a new user and boot everyone to /onboarding.
+  if (!profileError && !profile?.display_name && !profile?.username) {
+    redirect("/onboarding");
+  }
 
   // Fetch XP stats for skill level calculation (parallel, best-effort)
   const [{ count: runCount }, { count: programCount }, { count: connectionCount }] = await Promise.all([
