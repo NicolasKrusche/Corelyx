@@ -360,44 +360,51 @@ function HeroCard() {
         />
 
         {/* Flow lines — no viewBox so SVG units = CSS px 1:1.
-            Chain: trigger → classify → crm → approval
-            Node H≈56px. Centers X of right column: 248+74=322.
-            trigger: right=180 centerY=88
-            classify: left=248 centerY=144 bottom=172
-            crm:      left=248 centerY=224 bottom=252
-            approval: left=248 centerY=288 top=260 */}
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full"
-        >
+            Node H≈56px. Centers X of right col: 248+74=322.
+            trigger: right=180 cY=88
+            classify: left=248 right=396 cY=144 bottom=172
+            crm:      cY=224 bottom=252
+            approval: left=248 right=396 top=260 cY=288
+            policy-box: bottom-4 right-4 ≈ top=271 left=canvas-152 */}
+        <svg aria-hidden="true" className="absolute inset-0 h-full w-full">
           <defs>
-            {/* arrowhead pointing right */}
+            {/* all arrowheads auto-orient to path direction */}
             <marker id="arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-              <path d="M0,1 L0,5 L5,3 z" fill="rgba(117,215,163,0.5)" />
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(117,215,163,0.6)" />
             </marker>
-            {/* arrowhead pointing down */}
-            <marker id="arr-o" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto">
-              <path d="M1,0 L5,0 L3,5 z" fill="rgba(240,90,40,0.5)" />
+            <marker id="arr-o" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(240,90,40,0.6)" />
             </marker>
-            <marker id="arr-b" markerWidth="6" markerHeight="6" refX="3" refY="5" orient="auto">
-              <path d="M1,0 L5,0 L3,5 z" fill="rgba(127,183,255,0.5)" />
+            <marker id="arr-b" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(127,183,255,0.6)" />
+            </marker>
+            <marker id="arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(239,68,68,0.6)" />
+            </marker>
+            <marker id="arr-p" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(243,154,194,0.6)" />
             </marker>
           </defs>
 
-          {/* 1. trigger right(180,88) → classify left(248,144) */}
+          {/* 1. trigger → classify (horizontal) */}
           <path d="M180,88 C218,88 218,144 248,144"
-            stroke="rgba(117,215,163,0.35)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
+            stroke="rgba(117,215,163,0.4)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
             markerEnd="url(#arr-g)" className="edge-animate" />
 
-          {/* 2. classify bottom-center(322,172) → crm top-center(322,196) */}
-          <path d="M322,172 C322,182 322,186 322,196"
-            stroke="rgba(240,90,40,0.35)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
+          {/* 2. classify → crm (short vertical, happy path) */}
+          <path d="M322,172 C322,180 322,188 322,196"
+            stroke="rgba(240,90,40,0.55)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
             markerEnd="url(#arr-o)" className="edge-animate" />
 
-          {/* 3. crm bottom-center(322,252) → approval top-center(322,268) */}
-          <path d="M322,252 C322,258 322,262 322,268"
-            stroke="rgba(127,183,255,0.35)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
-            markerEnd="url(#arr-b)" className="edge-animate" />
+          {/* 3. classify error path — curves LEFT past trigger, arrives at approval */}
+          <path d="M248,155 C195,155 195,288 248,288"
+            stroke="rgba(239,68,68,0.4)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
+            markerEnd="url(#arr-r)" className="edge-animate" />
+
+          {/* 4. approval → policy route box (bottom-right panel) */}
+          <path d="M396,288 C434,288 442,308 442,316"
+            stroke="rgba(243,154,194,0.45)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
+            markerEnd="url(#arr-p)" className="edge-animate" />
         </svg>
 
         {/* Nodes */}
