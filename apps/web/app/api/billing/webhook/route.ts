@@ -4,6 +4,7 @@ import { createServiceClient, apiError } from "@/lib/api";
 import { getTierFromPriceId } from "@/lib/billing";
 import { getStripeClient } from "@/lib/stripe";
 import { applyCreditPurchase } from "@/lib/credits";
+import { maybeFireAutoRecharge } from "@/lib/auto-recharge";
 
 const ACTIVE_SUB_STATUSES = new Set([
   "trialing",
@@ -88,12 +89,14 @@ export async function POST(request: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
+      const metadata = session.metadata ?? {};
 
-      if (session.metadata?.type === "credits") {
-        // One-time credit top-up purchase
-        const userId = session.metadata.user_id ?? session.client_reference_id;
-        const amountCredits = Number.parseInt(session.metadata.amount_credits ?? "0", 10);
-        const priceUsd = Number.parseFloat(session.metadata.price_usd ?? "0");
+      if (metadata.type === "credits") {
+        // One-time credit top-up — idempotent via stripe_session_id
+        const userId = metadata.user_id ?? session.client_reference_id;
+        const amountCredits = Number.parseInt(metadata.amount_credits ?? "0", 10);
+        const priceUsd = Number.parseFloat(metadata.price_usd ?? "0");
+
         if (userId && Number.isSafeInteger(amountCredits) && amountCredits > 0 && priceUsd > 0) {
           await applyCreditPurchase({
             userId,
@@ -103,13 +106,45 @@ export async function POST(request: Request) {
             stripePaymentIntentId:
               typeof session.payment_intent === "string" ? session.payment_intent : null,
           });
+
+          // Save reusable card details for future auto-recharge charges.
+          const service = createServiceClient();
+          const updates: Record<string, string> = {};
+          const isStablecoin = metadata.checkout_payment_method === "stablecoin";
+
+          if (!isStablecoin && session.customer && typeof session.customer === "string") {
+            updates.stripe_customer_id = session.customer;
+          }
+
+          if (!isStablecoin && typeof session.payment_intent === "string") {
+            try {
+              const pi = await stripe.paymentIntents.retrieve(session.payment_intent);
+              if (pi.payment_method && typeof pi.payment_method === "string") {
+                updates.stripe_payment_method_id = pi.payment_method;
+                if (session.customer && typeof session.customer === "string") {
+                  await stripe.paymentMethods
+                    .attach(pi.payment_method, { customer: session.customer })
+                    .catch(() => { /* already attached */ });
+                }
+              }
+            } catch {
+              // Non-fatal: PM save failing shouldn't block credit top-up
+            }
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await service.from("profiles").update(updates as never).eq("id", userId);
+          }
+
+          // Trigger auto-recharge check in case balance was already low
+          await maybeFireAutoRecharge(userId).catch(() => { /* non-fatal */ });
         }
       } else if (typeof session.subscription === "string" && session.client_reference_id) {
-        // Subscription checkout — attach user metadata to subscription
+        // Subscription checkout — attach user metadata to the subscription object
         await stripe.subscriptions.update(session.subscription, {
           metadata: {
             user_id: session.client_reference_id,
-            workspace_id: session.metadata?.workspace_id ?? "",
+            workspace_id: metadata.workspace_id ?? "",
           },
         });
       }

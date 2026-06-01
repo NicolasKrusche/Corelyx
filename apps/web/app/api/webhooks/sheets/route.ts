@@ -32,9 +32,9 @@ export async function POST(request: Request) {
     return apiError("Missing Google channel headers", 400);
   }
 
-  const tokenSecret = process.env.GOOGLE_WEBHOOK_TOKEN_SECRET ?? process.env.RUNTIME_SECRET;
+  const tokenSecret = process.env.GOOGLE_WEBHOOK_TOKEN_SECRET;
   if (!tokenSecret) {
-    return apiError("Missing webhook token secret", 500);
+    return apiError("Missing GOOGLE_WEBHOOK_TOKEN_SECRET", 500);
   }
 
   const tokenPayload = verifyWebhookToken<SheetsWebhookToken>(channelToken, tokenSecret);
