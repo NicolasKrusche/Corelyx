@@ -1,6 +1,13 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { ProgramSchema } from "@flowos/schema";
-import { editorReducer, initialEditorState } from "../state";
+import {
+  EditorDispatchContext,
+  editorReducer,
+  initialEditorState,
+  useOptionalEditorDispatch,
+} from "../state";
 
 const baseSchema: ProgramSchema = {
   version: "1.0",
@@ -42,5 +49,29 @@ describe("editorReducer title rename", () => {
     const next = editorReducer(state, { type: "UPDATE_PROGRAM_NAME", name: "   " });
 
     expect(next.schema.program_name).toBe("Untitled program");
+  });
+});
+
+function OptionalDispatchProbe() {
+  const dispatch = useOptionalEditorDispatch();
+  return React.createElement("span", null, dispatch ? "editable" : "read-only");
+}
+
+describe("optional editor dispatch context", () => {
+  it("allows annotation nodes to render read-only outside EditorShell", () => {
+    expect(renderToStaticMarkup(React.createElement(OptionalDispatchProbe))).toContain("read-only");
+  });
+
+  it("returns the editor dispatch when a provider is present", () => {
+    const dispatch = () => undefined;
+    const markup = renderToStaticMarkup(
+      React.createElement(
+        EditorDispatchContext.Provider,
+        { value: dispatch },
+        React.createElement(OptionalDispatchProbe)
+      )
+    );
+
+    expect(markup).toContain("editable");
   });
 });
