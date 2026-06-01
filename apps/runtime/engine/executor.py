@@ -90,6 +90,24 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
     "gemini-1.5-flash": (0.35, 1.05),
 }
 
+HTTP_OAUTH_ALLOWED_HOSTS: dict[str, set[str]] = {
+    "airtable": {"api.airtable.com"},
+    "asana": {"app.asana.com"},
+    "calendar": {"www.googleapis.com"},
+    "docs": {"docs.googleapis.com", "www.googleapis.com"},
+    "drive": {"www.googleapis.com"},
+    "github": {"api.github.com"},
+    "gmail": {"gmail.googleapis.com"},
+    "hubspot": {"api.hubapi.com"},
+    "notion": {"api.notion.com"},
+    "onedrive": {"api.onedrive.com", "graph.microsoft.com"},
+    "outlook": {"graph.microsoft.com"},
+    "pipedrive": {"api.pipedrive.com"},
+    "sheets": {"sheets.googleapis.com", "www.googleapis.com"},
+    "slack": {"slack.com"},
+    "typeform": {"api.typeform.com"},
+}
+
 
 def _empty_telemetry() -> TelemetryPayload:
     return {
@@ -913,6 +931,10 @@ class ProgramExecutor:
                 "current_item": item,  # {{loop_node_id.current_item.*}}
                 "index": idx,
             }
+            # Older Genesis prompts described downstream references with the
+            # illustrative name ``loop_id``. Keep that alias available so
+            # already-saved workflows continue to resolve after prompt fixes.
+            local_state["loop_id"] = local_state[loop_node_id]
 
             for nid in body_order:
                 node = self.node_map.get(nid)
@@ -1007,7 +1029,11 @@ class ProgramExecutor:
         # but logging the entire state to the DB causes oversized payloads and
         # httpx [Errno 22] on Windows. Log only the "real" input fields — strip
         # the node-ID keys that were added by _resolve_input layer 2.
-        log_input = {k: v for k, v in input_data.items() if k not in self.node_map}
+        log_input = {
+            k: v
+            for k, v in input_data.items()
+            if k not in self.node_map and k != "loop_id"
+        }
         await update_node_execution(
             self.db,
             self.run_id,
@@ -1433,7 +1459,7 @@ class ProgramExecutor:
                 fail_program_on_exhaust=False,
             )
             return await self._with_retry(
-                lambda: self._execute_http_connection(cfg, input_data, node.id),
+                lambda: self._execute_http_connection(node, cfg, input_data),
                 retry_cfg,
                 node.id,
             )
@@ -1619,79 +1645,95 @@ class ProgramExecutor:
 
     async def _execute_http_connection(
         self,
+        node: SchemaNode,
         cfg: HttpConnectionConfig,
         input_data: dict,
-        node_id: str,
     ) -> dict:
-        if not cfg.url.strip():
+        resolved_url = _resolve_expressions(cfg.url, input_data)
+        if not resolved_url.strip():
             raise ExecutionError("HTTP_CONFIG_INVALID", "HTTP connector URL is required")
 
         # S12: enforce SSRF allowlist before making the request.
-        _validate_outbound_url(cfg.url)
+        _validate_outbound_url(resolved_url)
 
         method = cfg.method.upper().strip() or "GET"
         params = {
-            item.get("key", ""): item.get("value", "")
+            item.get("key", ""): _resolve_expressions(item.get("value", ""), input_data)
             for item in cfg.query_params
             if item.get("key", "").strip()
         }
         headers = {
-            item.get("key", ""): item.get("value", "")
+            item.get("key", ""): _resolve_expressions(item.get("value", ""), input_data)
             for item in cfg.headers
             if item.get("key", "").strip()
         }
 
         auth: tuple[str, str] | None = None
+        resolved_auth_value = (
+            _resolve_expressions(cfg.auth_value, input_data)
+            if cfg.auth_value
+            else None
+        )
+        uses_oauth_handoff = resolved_auth_value in {
+            "__OAUTH_CONNECTION__",
+            "__USER_ASSIGNED__",
+        }
         if cfg.auth_type == "bearer":
-            if not cfg.auth_value:
+            if uses_oauth_handoff:
+                resolved_auth_value = await self._resolve_http_oauth_token(
+                    node,
+                    input_data,
+                    resolved_url,
+                )
+            if not resolved_auth_value:
                 raise ExecutionError(
                     "HTTP_CONFIG_INVALID",
                     "Bearer auth selected but auth value is missing",
                 )
-            headers.setdefault("Authorization", f"Bearer {cfg.auth_value}")
+            headers.setdefault("Authorization", f"Bearer {resolved_auth_value}")
         elif cfg.auth_type == "basic":
-            if not cfg.auth_value or ":" not in cfg.auth_value:
+            if not resolved_auth_value or ":" not in resolved_auth_value:
                 raise ExecutionError(
                     "HTTP_CONFIG_INVALID",
                     "Basic auth requires auth value in username:password format",
                 )
-            username, password = cfg.auth_value.split(":", 1)
+            username, password = resolved_auth_value.split(":", 1)
             auth = (username, password)
         elif cfg.auth_type == "api_key_header":
-            if not cfg.auth_value:
+            if not resolved_auth_value:
                 raise ExecutionError(
                     "HTTP_CONFIG_INVALID",
                     "API key header auth selected but auth value is missing",
                 )
-            headers.setdefault("X-API-Key", cfg.auth_value)
+            headers.setdefault("X-API-Key", resolved_auth_value)
         elif cfg.auth_type == "api_key_query":
-            if not cfg.auth_value:
+            if not resolved_auth_value:
                 raise ExecutionError(
                     "HTTP_CONFIG_INVALID",
                     "API key query auth selected but auth value is missing",
                 )
-            params.setdefault("api_key", cfg.auth_value)
+            params.setdefault("api_key", resolved_auth_value)
 
         timeout_seconds = cfg.timeout_seconds if cfg.timeout_seconds else 30.0
 
         request_body = None
         if cfg.body:
-            body_text = cfg.body.strip()
+            body_text = _resolve_expressions(cfg.body, input_data).strip()
             if body_text:
                 try:
                     request_body = {"json": json.loads(body_text)}
                 except (json.JSONDecodeError, ValueError):
-                    request_body = {"content": cfg.body}
-        elif method in {"POST", "PUT", "PATCH"} and input_data:
+                    request_body = {"content": body_text}
+        elif method in {"POST", "PUT", "PATCH"} and input_data and not uses_oauth_handoff:
             request_body = {"json": input_data}
 
         # follow_redirects=False (S12): a 30x to a private host would otherwise
         # bypass the pre-flight allowlist check.
         async with httpx.AsyncClient(timeout=timeout_seconds, follow_redirects=False) as client:
-            self._record_telemetry(node_id, connector_api_calls=1)
+            self._record_telemetry(node.id, connector_api_calls=1)
             response = await client.request(
                 method=method,
-                url=cfg.url,
+                url=resolved_url,
                 params=params if params else None,
                 headers=headers if headers else None,
                 auth=auth,
@@ -1701,7 +1743,7 @@ class ProgramExecutor:
         if response.status_code >= 400:
             raise ExecutionError(
                 "HTTP_REQUEST_FAILED",
-                f"{method} {cfg.url} returned {response.status_code}",
+                f"{method} {resolved_url} returned {response.status_code}",
             )
 
         if cfg.parse_response:
@@ -1718,6 +1760,59 @@ class ProgramExecutor:
             "headers": dict(response.headers),
             "body": body_output,
         }
+
+    async def _resolve_http_oauth_token(
+        self,
+        node: SchemaNode,
+        input_data: dict,
+        resolved_url: str,
+    ) -> str:
+        """Fetch an OAuth token for an HTTP fallback without persisting it.
+
+        New schemas link the HTTP node to a named OAuth connection. For saved
+        Genesis workflows generated before that contract existed, accept a
+        single trusted upstream OAuth connection id from runtime state.
+        """
+        if node.connection:
+            connection_id = self._resolve_connection_id(node.connection)
+        else:
+            connection_ids: set[str] = set()
+            for node_id, upstream_node in self.node_map.items():
+                if not isinstance(upstream_node.config, OAuthConnectionConfig):
+                    continue
+                output = input_data.get(node_id)
+                if isinstance(output, dict):
+                    connection_id = output.get("connection_id")
+                    if isinstance(connection_id, str) and connection_id:
+                        connection_ids.add(connection_id)
+
+            if len(connection_ids) != 1:
+                raise ExecutionError(
+                    "HTTP_CONFIG_INVALID",
+                    "OAuth-backed HTTP connector needs one linked OAuth connection",
+                    node.id,
+                )
+            connection_id = next(iter(connection_ids))
+
+        provider_id = self._provider_for_connection(connection_id)
+        hostname = (urlsplit(resolved_url).hostname or "").lower()
+        allowed_hosts = HTTP_OAUTH_ALLOWED_HOSTS.get(provider_id, set())
+        if hostname not in allowed_hosts:
+            raise ExecutionError(
+                "HTTP_OAUTH_TARGET_INVALID",
+                f"OAuth token for '{provider_id}' cannot be sent to '{hostname}'",
+                node.id,
+            )
+
+        circuit = get_oauth_token_circuit()
+        try:
+            return await circuit.call(self._fetch_oauth_token, connection_id)
+        except CircuitOpenError as e:
+            raise ExecutionError(
+                "OAUTH_CIRCUIT_OPEN",
+                "OAuth token service temporarily unavailable. Please try again later.",
+                node.id,
+            ) from e
 
     async def _request_step_approval(
         self, node: SchemaNode, input_data: dict, reason: str
