@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError, createServiceClient } from "@/lib/api";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdmin } from "@/lib/admin";
 import { createServerClient } from "@/lib/supabase/server";
 
 const TEAM_ROLES = ["founder", "dev", "support", "marketing"] as const;
@@ -29,7 +29,7 @@ type ProfileRow = {
 async function requireAdmin() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !isAdminEmail(user.email)) return null;
+  if (!user || !(await isAdmin(user.id, user.email))) return null;
   return user;
 }
 
