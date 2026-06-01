@@ -360,10 +360,14 @@ function HeroCard() {
         />
 
         {/* Flow lines */}
+        {/* No viewBox — SVG units are CSS px 1:1, so paths stay anchored to the
+            absolutely-positioned FlowNodes regardless of container width.
+            Node geometry: left-8(32) + w-[148px] = right edge 180px.
+            Centers Y: trigger top-[60]+28=88, classify top-[116]+28=144,
+            crm top-[196]+28=224, approval top-[260]+28=288. */}
         <svg
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full"
-          viewBox="0 0 520 360"
+          className="absolute inset-0 h-full w-full overflow-visible"
         >
           <defs>
             <marker id="arr-g" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
@@ -379,10 +383,14 @@ function HeroCard() {
               <path d="M0,1 L0,5 L5,3 z" fill="rgba(243,154,194,0.5)" />
             </marker>
           </defs>
-          <path d="M172,88 C210,88 210,148 248,148" stroke="rgba(117,215,163,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-g)" className="edge-animate" />
-          <path d="M172,88 C210,88 210,228 248,228" stroke="rgba(240,90,40,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-o)" className="edge-animate" />
-          <path d="M396,148 C430,148 430,148 450,148" stroke="rgba(127,183,255,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-b)" className="edge-animate" />
-          <path d="M396,228 C430,228 430,288 450,288" stroke="rgba(243,154,194,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-p)" className="edge-animate" />
+          {/* trigger(180,88) → classify(248,144) */}
+          <path d="M180,88 C218,88 218,144 248,144" stroke="rgba(117,215,163,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-g)" className="edge-animate" />
+          {/* trigger(180,88) → crm(248,224) */}
+          <path d="M180,88 C218,88 218,224 248,224" stroke="rgba(240,90,40,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-o)" className="edge-animate" />
+          {/* classify(396,144) → exits right */}
+          <path d="M396,144 C430,144 430,144 460,144" stroke="rgba(127,183,255,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-b)" className="edge-animate" />
+          {/* crm(396,224) → approval(exits right/down) */}
+          <path d="M396,224 C430,224 430,288 460,288" stroke="rgba(243,154,194,0.3)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#arr-p)" className="edge-animate" />
         </svg>
 
         {/* Nodes */}
