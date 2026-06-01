@@ -203,6 +203,7 @@ function AiCreditsPurchasePanel({
   aiCreditsAvailable: number | null;
   aiCreditsPurchased: number;
 }) {
+  const t = useTranslations("sidebar");
   const [buying, setBuying] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -215,7 +216,7 @@ function AiCreditsPurchasePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount_credits: amount }),
       });
-      if (!res.ok) { setError("We could not open checkout. Please try again."); return; }
+      if (!res.ok) { setError(t("credits.checkoutError")); return; }
       const { url } = await res.json() as { url: string };
       if (url) window.location.href = url;
     } finally {
@@ -225,26 +226,26 @@ function AiCreditsPurchasePanel({
 
   return (
     <section className={panelClass}>
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Platform AI Credits</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t("credits.title")}</p>
       <div className="mt-3 space-y-1 text-sm text-muted-foreground">
         <div className="flex items-center justify-between">
-          <span>Available</span>
+          <span>{t("credits.available")}</span>
           <span className="font-medium text-foreground">
-            {aiCreditsAvailable === null ? "Unlimited" : `${formatCredits(aiCreditsAvailable)} credits`}
+            {aiCreditsAvailable === null ? t("usage.unlimited") : `${formatCredits(aiCreditsAvailable)} credits`}
           </span>
         </div>
         {aiCreditsPurchased > 0 && (
           <div className="flex items-center justify-between text-xs">
-            <span>Purchased (never expires)</span>
+            <span>{t("credits.purchasedNeverExpires")}</span>
             <span>{formatCredits(aiCreditsPurchased)}</span>
           </div>
         )}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Credits are used when your workflows call LLMs via the platform key. Included credits reset monthly with your plan.
+        {t("credits.description")}
       </p>
       <div className="mt-4">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">Top up</p>
+        <p className="mb-2 text-xs font-medium text-muted-foreground">{t("credits.topUp")}</p>
         <div className="flex flex-wrap gap-2">
           {CREDIT_PACKS.map(({ credits, priceUsd }) => (
             <button
@@ -267,6 +268,7 @@ function AiCreditsPurchasePanel({
 // ─── Sidebar inline credit top-up ─────────────────────────────────────────────
 
 function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess: () => void }) {
+  const t = useTranslations("sidebar");
   const [buying, setBuying] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -279,7 +281,7 @@ function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount_credits: amount }),
       });
-      if (!res.ok) { setError("Checkout failed."); return; }
+      if (!res.ok) { setError(t("credits.checkoutFailed")); return; }
       const { url } = await res.json() as { url: string };
       if (url) window.location.href = url;
       else { onSuccess(); }
@@ -290,7 +292,7 @@ function SidebarCreditTopUp({ isDark, onSuccess }: { isDark: boolean; onSuccess:
 
   return (
     <div className="mt-2">
-      <p className={cn("mb-1.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>Top up</p>
+      <p className={cn("mb-1.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>{t("credits.topUp")}</p>
       <div className="flex flex-wrap gap-1.5">
         {CREDIT_PACKS.map(({ credits, priceUsd }) => (
           <button
@@ -323,12 +325,12 @@ type SidebarWorkspace = {
   role: string;
 };
 
-const TIER_CONFIG: Record<Tier, { label: string; className: string }> = {
-  free:      { label: "Free",      className: "bg-white/10 text-blue-100 border-white/15" },
-  plus:      { label: "Solo",      className: "bg-emerald-500/20 text-emerald-100 border-emerald-400/30" },
-  pro:       { label: "Team",      className: "bg-violet-500/20 text-violet-100 border-violet-400/30" },
-  builder:   { label: "Scale",     className: "bg-blue-500/25 text-blue-100 border-blue-300/30" },
-  unlimited: { label: "Unlimited", className: "bg-amber-500/20 text-amber-100 border-amber-300/30" },
+const TIER_CLASSES: Record<Tier, string> = {
+  free:      "bg-white/10 text-blue-100 border-white/15",
+  plus:      "bg-emerald-500/20 text-emerald-100 border-emerald-400/30",
+  pro:       "bg-violet-500/20 text-violet-100 border-violet-400/30",
+  builder:   "bg-blue-500/25 text-blue-100 border-blue-300/30",
+  unlimited: "bg-amber-500/20 text-amber-100 border-amber-300/30",
 };
 
 export function Sidebar({
@@ -363,6 +365,8 @@ export function Sidebar({
   const searchParams = useSearchParams();
   const tNav = useTranslations("nav");
   const tMenu = useTranslations("userMenu");
+  const tSidebar = useTranslations("sidebar");
+  const tTiers = useTranslations("tiers");
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [failedRuns, setFailedRuns] = useState(0);
   const [runUsageCurrent, setRunUsageCurrent] = useState(0);
@@ -403,10 +407,11 @@ export function Sidebar({
   const displayName = useMemo(() => {
     if (initialDisplayName.trim()) return initialDisplayName.trim();
     const local = email.split("@")[0]?.trim();
-    return local || "Workspace";
+    return local || tSidebar("workspace.fallback");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, initialDisplayName]);
 
-  const tierLabel = TIER_CONFIG[tier].label;
+  const tierLabel = tTiers(tier);
   const initials = displayName.slice(0, 1).toUpperCase();
   const runUsageRatio = runUsageTotal ? runUsageCurrent / runUsageTotal : 0;
   const runUsagePercent = runUsageTotal ? Math.min(100, Math.round(runUsageRatio * 100)) : 0;
@@ -511,7 +516,7 @@ export function Sidebar({
       });
       const body = await res.json().catch(() => null) as { active_workspace_id?: string; error?: string } | null;
       if (!res.ok || body?.active_workspace_id !== workspaceId) {
-        setWorkspaceSwitchError(body?.error ?? "We could not switch workspaces. Please try again.");
+        setWorkspaceSwitchError(body?.error ?? tSidebar("errors.switchWorkspace"));
         setWorkspaceMenuOpen(true);
         return;
       }
@@ -520,7 +525,7 @@ export function Sidebar({
       // navigation avoids stale sidebar state when switching on the dashboard.
       window.location.replace("/dashboard");
     } catch {
-      setWorkspaceSwitchError("We could not connect. Check your internet connection and try again.");
+      setWorkspaceSwitchError(tSidebar("errors.networkError"));
       setWorkspaceMenuOpen(true);
     } finally {
       setSwitchingWorkspace(false);
@@ -703,7 +708,7 @@ export function Sidebar({
           >
             <span className="flex h-full w-10 shrink-0 items-center justify-center"><WorkspaceIcon /></span>
             <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-xs font-semibold opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
-              {activeWorkspace?.name ?? "Workspace"}
+              {activeWorkspace?.name ?? tSidebar("workspace.fallback")}
             </span>
             <span className={cn(
               "mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-all duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
@@ -724,7 +729,7 @@ export function Sidebar({
               )}
             >
               <div className={cn("px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-widest", isDark ? "text-blue-100/50" : "text-gray-500")}>
-                Switch workspace
+                {tSidebar("nav.switchWorkspace")}
               </div>
               <div className="max-h-60 overflow-y-auto">
                 {workspaces.length === 0 ? (
@@ -736,7 +741,7 @@ export function Sidebar({
                       isDark ? "text-blue-100/80 hover:bg-white/8 hover:text-white" : "text-gray-600 hover:bg-black/5 hover:text-gray-950"
                     )}
                   >
-                    Create a workspace
+                    {tSidebar("nav.createWorkspace")}
                   </Link>
                 ) : workspaces.map((workspace) => {
                   const selected = workspace.id === activeWorkspaceId;
@@ -783,7 +788,7 @@ export function Sidebar({
           onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = palette.btnBg; }}
         >
           <span className="flex h-full w-10 shrink-0 items-center justify-center"><PlusIcon /></span>
-          <span className="min-w-0 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">Create new</span>
+          <span className="min-w-0 truncate whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">{tSidebar("nav.createNew")}</span>
         </Link>
 
         {/* Command palette trigger */}
@@ -802,7 +807,7 @@ export function Sidebar({
             </svg>
           </span>
           <span className="flex min-w-0 flex-1 items-center justify-between opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
-            <span className="truncate whitespace-nowrap">Search</span>
+            <span className="truncate whitespace-nowrap">{tSidebar("nav.search")}</span>
             <span className={cn(
               "mr-2 flex shrink-0 items-center gap-0.5 rounded border px-1.5 py-0.5 text-[9px] font-medium leading-none",
               isDark ? "border-white/15 text-blue-100/40" : "border-black/15 text-gray-400"
@@ -815,7 +820,7 @@ export function Sidebar({
 
       <nav className="flex-1 px-2 py-1 overflow-y-auto">
         {/* ── MAIN ───────────────────────────────────────────────────────── */}
-        <NavSectionLabel label="Main" isDark={isDark} />
+        <NavSectionLabel label={tSidebar("sections.main")} isDark={isDark} />
         <div className="space-y-0.5">
           <NavItem href="/dashboard" label={tNav("home")} active={pathname === "/dashboard"}
             icon={<GridIcon />} isDark={isDark} />
@@ -828,7 +833,7 @@ export function Sidebar({
         </div>
 
         {/* ── DATA ───────────────────────────────────────────────────────── */}
-        <NavSectionLabel label="Data" isDark={isDark} />
+        <NavSectionLabel label={tSidebar("sections.data")} isDark={isDark} />
         <div className="space-y-0.5">
           <NavItem href="/browse" label={tNav("browse")} active={pathname.startsWith("/browse")}
             icon={<BrowseIcon />} isDark={isDark} />
@@ -837,10 +842,10 @@ export function Sidebar({
         </div>
 
         {/* ── SETTINGS ───────────────────────────────────────────────────── */}
-        <NavSectionLabel label="Settings" isDark={isDark} />
+        <NavSectionLabel label={tSidebar("sections.settings")} isDark={isDark} />
         <div className="space-y-0.5">
           <NavButton
-            label="Settings"
+            label={tSidebar("nav.settings")}
             icon={<SettingsIcon />}
             onClick={() => setSettingsOpen(true)}
             isDark={isDark}
@@ -850,8 +855,8 @@ export function Sidebar({
             <div className="space-y-0.5 pb-0.5">
               <NavSubItem href="/api-keys" label={tNav("apiKeys")} active={pathname.startsWith("/api-keys")} isDark={isDark} />
               <NavSubItem href="/env-vars" label={tNav("envVars")} active={pathname.startsWith("/env-vars")} isDark={isDark} />
-              <NavSubItem href="/governance" label="Governance" active={pathname.startsWith("/governance")} isDark={isDark} />
-              <NavSubItem href="/credits" label="Usage & Billing" active={pathname.startsWith("/credits")} isDark={isDark} />
+              <NavSubItem href="/governance" label={tSidebar("nav.governance")} active={pathname.startsWith("/governance")} isDark={isDark} />
+              <NavSubItem href="/credits" label={tSidebar("nav.usageBilling")} active={pathname.startsWith("/credits")} isDark={isDark} />
               {isAdmin && (
                 <NavSubItem href="/admin" label={tNav("admin")} active={pathname.startsWith("/admin")} isDark={isDark} />
               )}
@@ -860,7 +865,7 @@ export function Sidebar({
         </div>
 
         {/* ── HELP ───────────────────────────────────────────────────────── */}
-        <NavSectionLabel label="Help" isDark={isDark} />
+        <NavSectionLabel label={tSidebar("sections.help")} isDark={isDark} />
         <div className="space-y-0.5">
           <NotificationCenter isDark={isDark} />
           <NavItem href="/support" label={tNav("support")} active={pathname.startsWith("/support")}
@@ -875,15 +880,15 @@ export function Sidebar({
             "absolute bottom-[calc(100%+8px)] left-0 z-50 max-h-[calc(100vh-6rem)] w-[208px] overflow-y-auto rounded-2xl border px-3 py-3 shadow-xl backdrop-blur-xl",
             isDark ? "border-white/10 bg-slate-950/95 text-blue-50 shadow-black/40" : "border-black/10 bg-white/95 text-gray-900 shadow-black/15"
           )}>
-            <p className={cn("text-[11px] font-semibold", isDark ? "text-blue-100/90" : "text-gray-700")}>Workspace usage</p>
+            <p className={cn("text-[11px] font-semibold", isDark ? "text-blue-100/90" : "text-gray-700")}>{tSidebar("nav.workspaceUsage")}</p>
 
             <div className={cn(
               "mt-2 rounded-xl px-3 py-2.5",
               isDark ? "bg-white/5" : "bg-black/5"
             )}>
               <div className="flex items-center justify-between text-[12px] font-medium">
-                <span>Monthly runs</span>
-                <span>{runUsageTotal === null ? "Unlimited" : `${runUsageCurrent} / ${runUsageTotal}`}</span>
+                <span>{tSidebar("usage.monthlyRuns")}</span>
+                <span>{runUsageTotal === null ? tSidebar("usage.unlimited") : `${runUsageCurrent} / ${runUsageTotal}`}</span>
               </div>
               <div className={cn("mt-2 h-1.5 rounded-full", isDark ? "bg-blue-200/20" : "bg-black/10")}>
                 <div
@@ -898,7 +903,7 @@ export function Sidebar({
                 />
               </div>
               <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>
-                {runLimitReached ? "Run limit reached this month" : runWarningAt80 ? "Warning: 80% of run quota used" : "Resets monthly"}
+                {runLimitReached ? tSidebar("usage.runLimitReached") : runWarningAt80 ? tSidebar("usage.runWarning") : tSidebar("usage.resetsMonthly")}
               </p>
             </div>
 
@@ -907,8 +912,8 @@ export function Sidebar({
               isDark ? "bg-white/5" : "bg-black/5"
             )}>
               <div className="flex items-center justify-between text-[12px] font-medium">
-                <span>Monthly AI credits</span>
-                <span>{genesisUsageTotal === null ? "Unlimited" : `${genesisUsageCurrent} / ${genesisUsageTotal}`}</span>
+                <span>{tSidebar("usage.monthlyAiCredits")}</span>
+                <span>{genesisUsageTotal === null ? tSidebar("usage.unlimited") : `${genesisUsageCurrent} / ${genesisUsageTotal}`}</span>
               </div>
               <div className={cn("mt-2 h-1.5 rounded-full", isDark ? "bg-blue-200/20" : "bg-black/10")}>
                 <div
@@ -919,7 +924,7 @@ export function Sidebar({
                   }}
                 />
               </div>
-              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>Resets monthly</p>
+              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>{tSidebar("usage.resetsMonthly")}</p>
             </div>
 
             <div className={cn(
@@ -927,12 +932,12 @@ export function Sidebar({
               isDark ? "bg-white/5" : "bg-black/5"
             )}>
               <div className="flex items-center justify-between text-[12px] font-medium">
-                <span>Platform AI credits</span>
-                <span>{aiCreditsAvailable === null ? "Unlimited" : formatCredits(aiCreditsAvailable ?? 0)}</span>
+                <span>{tSidebar("usage.platformAiCredits")}</span>
+                <span>{aiCreditsAvailable === null ? tSidebar("usage.unlimited") : formatCredits(aiCreditsAvailable ?? 0)}</span>
               </div>
               {aiCreditsPurchased > 0 && (
                 <p className={cn("mt-0.5 text-[11px]", isDark ? "text-blue-100/60" : "text-gray-500")}>
-                  +{formatCredits(aiCreditsPurchased)} purchased (never expires)
+                  {tSidebar("usage.purchased", { count: formatCredits(aiCreditsPurchased) })}
                 </p>
               )}
               {aiCreditsAvailable !== null && (
@@ -949,7 +954,7 @@ export function Sidebar({
             setMenuOpen(false);
             setUsageOpen((v) => !v);
           }}
-          title="Workspace usage"
+          title={tSidebar("nav.workspaceUsage")}
           className={cn(
             "flex h-8 w-full items-center overflow-hidden rounded-lg text-sm transition-colors mb-1",
             isDark
@@ -964,7 +969,7 @@ export function Sidebar({
             </svg>
           </span>
           <span className="flex-1 min-w-0 truncate whitespace-nowrap text-left text-[13px] font-medium opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
-            Workspace usage
+            {tSidebar("nav.workspaceUsage")}
           </span>
           <span className={cn(
             "mr-2 flex-shrink-0 opacity-0 transition-all duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
@@ -1190,6 +1195,8 @@ function SettingsModal({
 }) {
   const router = useRouter();
   const tSettings = useTranslations("settings");
+  const tSidebar = useTranslations("sidebar");
+  const tTiers = useTranslations("tiers");
   const [tab, setTab] = useState<AccountSettingsSection>(initialTab ?? "account");
 
   const [formDisplayName, setFormDisplayName] = useState(initialDisplayName);
@@ -1201,13 +1208,13 @@ function SettingsModal({
 
   // XP level for workspace status panel
   const XP_LEVELS = [
-    { min: 0,    title: "Newcomer"  },
-    { min: 50,   title: "Explorer"  },
-    { min: 200,  title: "Builder"   },
-    { min: 500,  title: "Automator" },
-    { min: 1000, title: "Pro"       },
-    { min: 2500, title: "Expert"    },
-    { min: 5000, title: "Master"    },
+    { min: 0,    key: "newcomer"  },
+    { min: 50,   key: "explorer"  },
+    { min: 200,  key: "builder"   },
+    { min: 500,  key: "automator" },
+    { min: 1000, key: "pro"       },
+    { min: 2500, key: "expert"    },
+    { min: 5000, key: "master"    },
   ] as const;
   const currentLevel = XP_LEVELS.reduce((acc, l) => (skillXp >= l.min ? l : acc), XP_LEVELS[0]);
   const nextLevel = XP_LEVELS[XP_LEVELS.indexOf(currentLevel as typeof XP_LEVELS[number]) + 1] ?? null;
@@ -1292,14 +1299,14 @@ function SettingsModal({
         }),
       });
       if (res.ok) {
-        setExecDefaultsStatus({ type: "success", message: "Saved." });
+        setExecDefaultsStatus({ type: "success", message: tSettings("modal.saved") });
         setTimeout(() => setExecDefaultsStatus(null), 2500);
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
-        setExecDefaultsStatus({ type: "error", message: friendlyResponseMessage(body, "We could not save that setting. Please try again.") });
+        setExecDefaultsStatus({ type: "error", message: friendlyResponseMessage(body, tSettings("modal.settingSaveError")) });
       }
     } catch {
-      setExecDefaultsStatus({ type: "error", message: "We could not connect. Check your internet connection and try again." });
+      setExecDefaultsStatus({ type: "error", message: tSettings("modal.networkError") });
     } finally {
       setExecDefaultsSaving(false);
     }
@@ -1316,7 +1323,7 @@ function SettingsModal({
       .then((data: { tokens?: ApiToken[] }) => {
         if (!cancelled) setApiTokens(data.tokens ?? []);
       })
-      .catch(() => { if (!cancelled) setTokenError("We could not load your tokens. Please try again."); })
+      .catch(() => { if (!cancelled) setTokenError(tSettings("modal.tokensLoadError")); })
       .finally(() => { if (!cancelled) setTokensLoading(false); });
     return () => { cancelled = true; };
   }, [tab]);
@@ -1334,7 +1341,7 @@ function SettingsModal({
       });
       const body = await res.json() as { token?: { id: string; name: string; token_prefix: string; created_at: string; plaintext: string }; error?: string };
       if (!res.ok) {
-        setTokenError(friendlyResponseMessage(body, "We could not create the token. Please try again."));
+        setTokenError(friendlyResponseMessage(body, tSettings("modal.tokenCreateError")));
         return;
       }
       if (body.token) {
@@ -1343,7 +1350,7 @@ function SettingsModal({
         setNewTokenName("");
       }
     } catch {
-      setTokenError("We could not connect. Check your internet connection and try again.");
+      setTokenError(tSettings("modal.networkError"));
     } finally {
       setCreatingToken(false);
     }
@@ -1356,13 +1363,13 @@ function SettingsModal({
       const res = await fetch(`/api/user/tokens/${tokenId}`, { method: "DELETE" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string };
-        setTokenError(friendlyResponseMessage(body, "We could not remove the token. Please try again."));
+        setTokenError(friendlyResponseMessage(body, tSettings("modal.tokenRevokeError")));
         return;
       }
       setApiTokens((prev) => prev.filter((t) => t.id !== tokenId));
       if (newlyCreatedToken?.id === tokenId) setNewlyCreatedToken(null);
     } catch {
-      setTokenError("We could not connect. Check your internet connection and try again.");
+      setTokenError(tSettings("modal.networkError"));
     } finally {
       setRevokingTokenId(null);
     }
@@ -1418,11 +1425,11 @@ function SettingsModal({
   async function handleAvatarUpload(file: File | null) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setProfileStatus({ type: "error", message: "Please choose an image file." });
+      setProfileStatus({ type: "error", message: tSettings("modal.imageTypeError") });
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setProfileStatus({ type: "error", message: "Image too large. Use a file up to 2MB." });
+      setProfileStatus({ type: "error", message: tSettings("modal.imageSizeError") });
       return;
     }
 
@@ -1430,7 +1437,7 @@ function SettingsModal({
       const { publicUrl, fileName } = await uploadAvatar(file);
       setAvatarUrl(publicUrl);
       setAvatarFileName(fileName);
-      setProfileStatus({ type: "success", message: "Image uploaded. Save changes to apply it." });
+      setProfileStatus({ type: "success", message: tSettings("modal.imageUploaded") });
     } catch (error) {
       setProfileStatus({
         type: "error",
@@ -1447,14 +1454,14 @@ function SettingsModal({
     const supabase = createBrowserClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      setProfileStatus({ type: "error", message: "Not signed in." });
+      setProfileStatus({ type: "error", message: tSettings("modal.notSignedIn") });
       setProfileSaving(false);
       return;
     }
 
     const usernameVal = formUsername.trim().toLowerCase() || null;
     if (usernameVal && !/^[a-zA-Z0-9_]{3,30}$/.test(usernameVal)) {
-      setProfileStatus({ type: "error", message: "Usernames can use 3 to 30 letters, numbers, or underscores." });
+      setProfileStatus({ type: "error", message: tSettings("modal.usernameError") });
       setProfileSaving(false);
       return;
     }
@@ -1477,9 +1484,9 @@ function SettingsModal({
     );
 
     if (error) {
-      setProfileStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not save your profile. Please try again.") });
+      setProfileStatus({ type: "error", message: friendlyErrorMessage(error.message, tSettings("modal.profileSaveError")) });
     } else {
-      setProfileStatus({ type: "success", message: "Profile saved." });
+      setProfileStatus({ type: "success", message: tSettings("modal.profileSaved") });
       router.refresh();
     }
     setProfileSaving(false);
@@ -1490,11 +1497,11 @@ function SettingsModal({
     setPasswordStatus(null);
 
     if (newPassword !== confirmPassword) {
-      setPasswordStatus({ type: "error", message: "New passwords do not match." });
+      setPasswordStatus({ type: "error", message: tSettings("modal.passwordsNoMatch") });
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordStatus({ type: "error", message: "Password must be at least 8 characters." });
+      setPasswordStatus({ type: "error", message: tSettings("modal.passwordTooShort") });
       return;
     }
 
@@ -1503,16 +1510,16 @@ function SettingsModal({
 
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
     if (signInError) {
-      setPasswordStatus({ type: "error", message: "Current password is incorrect." });
+      setPasswordStatus({ type: "error", message: tSettings("modal.wrongPassword") });
       setPasswordLoading(false);
       return;
     }
 
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) {
-      setPasswordStatus({ type: "error", message: friendlyErrorMessage(error.message, "We could not update your password. Please try again.") });
+      setPasswordStatus({ type: "error", message: friendlyErrorMessage(error.message, tSettings("modal.passwordUpdateError")) });
     } else {
-      setPasswordStatus({ type: "success", message: "Password updated successfully." });
+      setPasswordStatus({ type: "success", message: tSettings("modal.passwordUpdated") });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -1551,7 +1558,7 @@ function SettingsModal({
     const body = await res.json().catch(() => ({})) as { unsubscribed?: number; message?: string; error?: string };
 
     if (!res.ok) {
-      setUnsubscribeStatus({ type: "error", message: friendlyResponseMessage(body, "We could not cancel the subscription. Please try again.") });
+      setUnsubscribeStatus({ type: "error", message: friendlyResponseMessage(body, tSettings("modal.cancelSubError")) });
       setUnsubscribeLoading(false);
       return;
     }
@@ -1574,7 +1581,7 @@ function SettingsModal({
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      setDsarStatus({ type: "error", message: friendlyResponseMessage(body, "We could not send your request. Please try again.") });
+      setDsarStatus({ type: "error", message: friendlyResponseMessage(body, tSettings("modal.settingSaveError")) });
       setDsarLoading(false);
       return;
     }
@@ -1606,7 +1613,7 @@ function SettingsModal({
     const res = await fetch("/api/settings/account", { method: "DELETE" });
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
-      setDeleteStatus({ type: "error", message: friendlyResponseMessage(body, "We could not delete the account. Please try again.") });
+      setDeleteStatus({ type: "error", message: friendlyResponseMessage(body, tSettings("modal.settingSaveError")) });
       setDeleteLoading(false);
       return;
     }
@@ -1708,7 +1715,7 @@ function SettingsModal({
               onClick={onClose}
               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
-              Close settings
+              {tSettings("modal.closeSettings")}
             </button>
           </div>
         </aside>
@@ -1752,17 +1759,17 @@ function SettingsModal({
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)]">
                   <section className={panelClass}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Account details</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{tSettings("modal.accountDetails")}</p>
                     <div className="mt-4 grid grid-cols-[120px_1fr] gap-x-4 gap-y-3 text-sm">
-                      <span className="text-muted-foreground">Email</span>
+                      <span className="text-muted-foreground">{tSettings("modal.emailLabel")}</span>
                       <span className="break-all font-mono text-xs text-foreground">{email || "-"}</span>
-                      <span className="text-muted-foreground">Joined</span>
+                      <span className="text-muted-foreground">{tSettings("modal.joinedLabel")}</span>
                       <span className="font-mono text-xs text-foreground">{memberSince}</span>
                     </div>
                   </section>
 
                   <section className={panelClass}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Workspace status</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{tSettings("modal.workspaceStatus")}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">{tierLabel}</span>
                       {isAdmin && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs text-foreground">Admin</span>}
@@ -1770,10 +1777,10 @@ function SettingsModal({
                     </div>
                     <div className="mt-5 border-t border-border pt-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-foreground">Skill level</p>
+                        <p className="text-sm font-medium text-foreground">{tSettings("modal.skillLevel")}</p>
                         <p className="text-xs text-muted-foreground">{skillXp} XP</p>
                       </div>
-                      <p className="mt-0.5 text-sm text-foreground">{currentLevel.title}</p>
+                      <p className="mt-0.5 text-sm text-foreground">{tSidebar(`xp.${currentLevel.key}`)}</p>
                       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
                         <div
                           className="h-full rounded-full bg-primary transition-all"
@@ -1781,7 +1788,7 @@ function SettingsModal({
                         />
                       </div>
                       {nextLevel && (
-                        <p className="mt-1 text-[10px] text-muted-foreground">{nextLevel.min - skillXp} XP to {nextLevel.title}</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">{tSettings("modal.xpNext", { xp: nextLevel.min - skillXp, level: tSidebar(`xp.${nextLevel.key}`) })}</p>
                       )}
                     </div>
                   </section>
@@ -1802,7 +1809,7 @@ function SettingsModal({
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">{identityName}</p>
-                      <p className="text-sm text-muted-foreground">Choose how your account appears in the workspace.</p>
+                      <p className="text-sm text-muted-foreground">{tSettings("modal.profileDesc")}</p>
                     </div>
                   </div>
                 </section>
