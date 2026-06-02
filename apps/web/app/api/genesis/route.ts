@@ -45,6 +45,8 @@ import {
   GENESIS_TEMPERATURE,
   GenesisRequestSchema,
   KEY_DEFAULT_MODELS,
+  PLATFORM_DEFAULT_MODEL,
+  getAllowedPlatformModels,
   getMissingConnectionIds,
   getModelCandidates,
   getProviderBaseURL,
@@ -58,6 +60,9 @@ import {
   type GenesisApiKeyRow,
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
+import { getUserTier } from "@/lib/limits";
+import { getEntitlements } from "@/lib/entitlements";
+
 
 const PRIMARY_MODEL_ATTEMPTS = 2;
 const FALLBACK_MODEL_ATTEMPTS = 1;
@@ -97,8 +102,20 @@ export async function POST(request: Request) {
     return apiError("api_key_id is required when not using the platform key", 400);
   }
 
-  // Resolve the model: platform key always uses claude-sonnet-4-6; BYOK uses whatever the client sent.
-  const model = usePlatformKey ? "anthropic/claude-sonnet-4-6" : (parsed.data.model ?? "claude-sonnet-4-6");
+  // Resolve the model.
+  // Platform key: use the requested model if it's in the user's allowed catalog; fall back to default.
+  // BYOK: use whatever the client sent.
+  let model: string;
+  if (usePlatformKey) {
+    const userTier = await getUserTier(userId);
+    const ent = getEntitlements(userTier);
+    const allowedModels = getAllowedPlatformModels(ent.genesisPlatformModelTier);
+    const allowedIds = new Set(allowedModels.map((m) => m.id));
+    const requestedModel = parsed.data.model;
+    model = requestedModel && allowedIds.has(requestedModel) ? requestedModel : PLATFORM_DEFAULT_MODEL;
+  } else {
+    model = parsed.data.model ?? "claude-sonnet-4-6";
+  }
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const isRefinement = isGenesisRefinementRequest(parsed.data);
   const sanitizedDescription = sanitizeTextForLlm(description);
