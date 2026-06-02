@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { jsonrepair } from "jsonrepair";
@@ -44,11 +43,13 @@ import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProg
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
+  GenesisRequestSchema,
   KEY_DEFAULT_MODELS,
   getMissingConnectionIds,
   getModelCandidates,
   getProviderBaseURL,
   mapExecutionMode,
+  isGenesisRefinementRequest,
   sortApiKeyFallbacks,
   supportsOpenAiJsonMode,
   toGenesisConnectionList,
@@ -57,17 +58,6 @@ import {
   type GenesisApiKeyRow,
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
-
-const RequestSchema = z.object({
-  description: z.string().min(10).max(2000),
-  connection_ids: z.array(z.string().uuid()).max(10),
-  api_key_id: z.string().uuid().optional(),
-  use_platform_key: z.boolean().optional(),
-  model: z.string().min(1).optional(),
-  existing_schema: z.unknown().optional(),
-  refinement: z.string().max(2000).optional(),
-  existing_program_id: z.string().uuid().optional(),
-});
 
 const PRIMARY_MODEL_ATTEMPTS = 2;
 const FALLBACK_MODEL_ATTEMPTS = 1;
@@ -83,7 +73,7 @@ export async function POST(request: Request) {
   if (processingRestriction) return processingRestriction;
 
   const body = await request.json().catch(() => null);
-  const parsed = RequestSchema.safeParse(body);
+  const parsed = GenesisRequestSchema.safeParse(body);
   if (!parsed.success) {
     await writeAppLog(supabase, {
       userId,
@@ -110,7 +100,7 @@ export async function POST(request: Request) {
   // Resolve the model: platform key always uses claude-sonnet-4-6; BYOK uses whatever the client sent.
   const model = usePlatformKey ? "anthropic/claude-sonnet-4-6" : (parsed.data.model ?? "claude-sonnet-4-6");
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
-  const isRefinement = !!(existing_schema && refinement && existing_program_id);
+  const isRefinement = isGenesisRefinementRequest(parsed.data);
   const sanitizedDescription = sanitizeTextForLlm(description);
   const sanitizedRefinement = refinement ? sanitizeTextForLlm(refinement) : null;
   const sanitizedExistingSchema = existing_schema === undefined ? null : sanitizeValueForLlm(existing_schema);
@@ -269,8 +259,7 @@ export async function POST(request: Request) {
       return loggedApiError("Platform AI key is not available.", 503, "genesis.platform_key_unavailable");
     }
     // Check the user has enough credits before we spend anything.
-    // Refinements (existing_schema present) cost 10× the standard generation rate.
-    const isRefinement = !!parsed.data.existing_schema;
+    // Editor refinements use their own flat credit charge.
     const requiredCredits = isRefinement ? GENESIS_EDIT_PLATFORM_RATE_CREDITS : GENESIS_PLATFORM_RATE_CREDITS;
     const balance = await getUserCreditBalance(userId);
     if (balance.total < requiredCredits) {
