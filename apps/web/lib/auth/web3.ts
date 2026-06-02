@@ -3,6 +3,15 @@ import type { createBrowserClient } from "@/lib/supabase/client";
 export type Web3Chain = "ethereum" | "solana";
 type BrowserSupabaseClient = ReturnType<typeof createBrowserClient>;
 
+// EIP-4361 requires a nonce of at least 8 alphanumeric characters.
+function generateNonce(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from(
+    { length: 16 },
+    () => chars[Math.floor(Math.random() * chars.length)]
+  ).join("");
+}
+
 declare global {
   interface Window {
     ethereum?: {
@@ -23,11 +32,17 @@ export async function signInWithBrowserWallet(
   chain: Web3Chain,
   statement: string
 ) {
+  const nonce = generateNonce();
+
   if (chain === "ethereum") {
     if (!window.ethereum?.request) {
       throw new Error("No compatible Ethereum wallet was found. Install or enable a browser wallet and try again.");
     }
-    return supabase.auth.signInWithWeb3({ chain, statement });
+    return supabase.auth.signInWithWeb3({
+      chain,
+      statement,
+      options: { signInWithEthereum: { nonce } },
+    });
   }
 
   const solana = window.solana;
@@ -40,5 +55,10 @@ export async function signInWithBrowserWallet(
 
   // Pass the wallet object directly so Supabase doesn't re-detect from window.solana
   // with a potentially stale reference.
-  return supabase.auth.signInWithWeb3({ chain, statement, wallet: solana } as Parameters<typeof supabase.auth.signInWithWeb3>[0]);
+  return supabase.auth.signInWithWeb3({
+    chain,
+    statement,
+    wallet: solana,
+    options: { signInWithSolana: { nonce } },
+  } as Parameters<typeof supabase.auth.signInWithWeb3>[0]);
 }
