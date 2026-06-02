@@ -8,7 +8,7 @@ export const maxDuration = 300;
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
-import { buildGenesisSystemPrompt, buildGenesisUserMessage } from "@/lib/genesis/prompt";
+import { buildGenesisSystemPrompt, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
 import {
   pickEuComplianceFilterKey,
   runEuComplianceFilter,
@@ -57,11 +57,15 @@ import { getEntitlements } from "@/lib/entitlements";
 const PLATFORM_MODEL = PLATFORM_DEFAULT_MODEL;
 
 const RequestSchema = z.object({
-  description: z.string().min(10).max(2000),
+  description: z.string().min(1).max(2000),
   connection_ids: z.array(z.string().uuid()).max(10),
   api_key_id: z.string().uuid().optional(),
   use_platform_key: z.boolean().optional(),
   model: z.string().min(1).optional(),
+  // Refinement (AI edit) mode — all three must be present together
+  existing_schema: z.unknown().optional(),
+  refinement: z.string().min(1).max(2000).optional(),
+  existing_program_id: z.string().uuid().optional(),
 }).refine(
   (d) => d.use_platform_key === true || (!!d.api_key_id && !!d.model),
   { message: "Either use_platform_key or both api_key_id and model are required" }
@@ -72,7 +76,7 @@ type StreamEvent =
   | { type: "node"; node: unknown }
   | { type: "edge"; edge: unknown }
   | { type: "status"; message: string }
-  | { type: "done"; program_id: string; program_name: string; validation: unknown }
+  | { type: "done"; program_id: string; program_name: string; validation: unknown; schema?: unknown }
   | { type: "error"; message: string; code?: string };
 
 export async function POST(request: Request) {
@@ -92,6 +96,9 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
   const { description, connection_ids, api_key_id, use_platform_key } = parsed.data;
+  const isRefinement = !!parsed.data.refinement && !!parsed.data.existing_schema;
+  const refinementText = parsed.data.refinement ?? null;
+  const existingSchemaRaw = parsed.data.existing_schema ?? null;
   const usePlatformKey = use_platform_key === true;
 
   // Resolve the model to use.
@@ -120,7 +127,9 @@ export async function POST(request: Request) {
   }
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const startedAt = Date.now();
-  const sanitizedDescription = sanitizeTextForLlm(description);
+  // For refinements, run compliance on what the user actually typed (the edit instruction),
+  // not the program name which is passed as description in that mode.
+  const sanitizedDescription = sanitizeTextForLlm(isRefinement && refinementText ? refinementText : description);
   const serviceClient = createServiceClient();
 
   // Stage 1: rate limit + workspace lookup are independent
@@ -148,7 +157,7 @@ export async function POST(request: Request) {
 
   const [genesisCheck, limitCheck, connResult, keysResult] = await Promise.all([
     checkGenesisAccess(userId, workspaceId),
-    checkProgramLimit(userId, workspaceId),
+    isRefinement ? Promise.resolve({ allowed: true, upgradeMessage: null }) : checkProgramLimit(userId, workspaceId),
     pendingConnections,
     pendingApiKeys,
   ]);
@@ -242,7 +251,9 @@ export async function POST(request: Request) {
 
         send({ type: "status", message: "Contacting model..." });
 
-        const userMessage = buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null);
+        const userMessage = isRefinement && refinementText && existingSchemaRaw
+          ? buildRefinementUserMessage(refinementText, existingSchemaRaw as object, availableConnections)
+          : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
@@ -437,84 +448,115 @@ export async function POST(request: Request) {
 
         const complianceObligations = complianceResult?.verdict === "obligations" ? complianceResult.context : null;
 
-        send({ type: "status", message: "Saving program..." });
+        if (isRefinement) {
+          // Refinement (AI edit): return the updated schema to the client.
+          // The editor applies it via RESTORE_VERSION and handles its own save.
+          send({
+            type: "done",
+            program_id: parsed.data.existing_program_id ?? "",
+            program_name: schema.program_name,
+            validation,
+            schema,
+          });
 
-        const { data: rawProgram, error: insertError } = await serviceClient
-          .from("programs")
-          .insert({
-            user_id: userId,
-            workspace_id: workspaceId,
-            name: schema.program_name,
-            description,
-            schema: schema as unknown as Record<string, unknown>,
-            execution_mode: mapExecutionMode(schema.execution_mode),
-            ...(complianceObligations ? { ai_act_notes: complianceObligations } : {}),
-          } as unknown as never)
-          .select("id, name")
-          .single();
+          await Promise.all([
+            writeAppLog(supabase, {
+              userId,
+              level: "info",
+              source: "Genesis",
+              event: "genesis.stream.refinement.completed",
+              status: "completed",
+              message: `AI edit applied to "${schema.program_name}".`,
+              durationMs: Date.now() - startedAt,
+              details: {
+                requested_model: model,
+                model_used: modelUsed,
+                node_count: schema.nodes.length,
+                edge_count: schema.edges.length,
+                validation_errors: validation.errors.length,
+                validation_warnings: validation.warnings.length,
+              },
+            }),
+            incrementGenesisUses(userId, workspaceId),
+          ]);
+        } else {
+          send({ type: "status", message: "Saving program..." });
 
-        const program = rawProgram as unknown as { id: string; name: string } | null;
+          const { data: rawProgram, error: insertError } = await serviceClient
+            .from("programs")
+            .insert({
+              user_id: userId,
+              workspace_id: workspaceId,
+              name: schema.program_name,
+              description,
+              schema: schema as unknown as Record<string, unknown>,
+              execution_mode: mapExecutionMode(schema.execution_mode),
+              ...(complianceObligations ? { ai_act_notes: complianceObligations } : {}),
+            } as unknown as never)
+            .select("id, name")
+            .single();
 
-        if (insertError || !program) {
-          throw new Error("The workflow was generated but could not be saved. Please try again.");
-        }
+          const program = rawProgram as unknown as { id: string; name: string } | null;
 
-        // Memberships, connection links, and version record are independent — write in parallel
-        const postSaveResults = await Promise.all([
-          serviceClient.from("program_memberships").insert({
+          if (insertError || !program) {
+            throw new Error("The workflow was generated but could not be saved. Please try again.");
+          }
+
+          const postSaveResults = await Promise.all([
+            serviceClient.from("program_memberships").insert({
+              program_id: program.id,
+              user_id: userId,
+              role: "editor",
+              created_by: userId,
+            } as unknown as never),
+            connections.length > 0
+              ? serviceClient.from("program_connections").insert(
+                  toProgramConnectionLinks(program.id, connections) as unknown as never
+                )
+              : Promise.resolve({ error: null }),
+            serviceClient.from("program_versions").insert({
+              program_id: program.id,
+              version: 0,
+              schema: schema as unknown as Record<string, unknown>,
+              change_summary: "Genesis — AI-generated from description",
+            } as unknown as never),
+          ]);
+
+          if (connections.length > 0 && postSaveResults[1].error) {
+            throw new Error("The workflow was saved but we could not link your connections to it. You can add them manually in the editor.");
+          }
+
+          send({
+            type: "done",
             program_id: program.id,
-            user_id: userId,
-            role: "editor",
-            created_by: userId,
-          } as unknown as never),
-          connections.length > 0
-            ? serviceClient.from("program_connections").insert(
-                toProgramConnectionLinks(program.id, connections) as unknown as never
-              )
-            : Promise.resolve({ error: null }),
-          serviceClient.from("program_versions").insert({
-            program_id: program.id,
-            version: 0,
-            schema: schema as unknown as Record<string, unknown>,
-            change_summary: "Genesis — AI-generated from description",
-          } as unknown as never),
-        ]);
+            program_name: schema.program_name,
+            validation,
+          });
 
-        if (connections.length > 0 && postSaveResults[1].error) {
-          throw new Error("The workflow was saved but we could not link your connections to it. You can add them manually in the editor.");
+          await Promise.all([
+            writeAppLog(supabase, {
+              userId,
+              level: "info",
+              source: "Genesis",
+              event: "genesis.stream.completed",
+              status: "completed",
+              message: `Generated program "${schema.program_name}" via streaming.`,
+              programId: program.id,
+              durationMs: Date.now() - startedAt,
+              details: {
+                requested_model: model,
+                model_used: modelUsed,
+                node_count: schema.nodes.length,
+                edge_count: schema.edges.length,
+                validation_errors: validation.errors.length,
+                validation_warnings: validation.warnings.length,
+                pii_redacted: sanitizedDescription.redacted,
+                pii_redactions: sanitizedDescription.redactions,
+              },
+            }),
+            incrementGenesisUses(userId, workspaceId),
+          ]);
         }
-
-        send({
-          type: "done",
-          program_id: program.id,
-          program_name: schema.program_name,
-          validation,
-        });
-
-        // Audit trail — run after done is sent so it doesn't delay the user
-        await Promise.all([
-          writeAppLog(supabase, {
-            userId,
-            level: "info",
-            source: "Genesis",
-            event: "genesis.stream.completed",
-            status: "completed",
-            message: `Generated program "${schema.program_name}" via streaming.`,
-            programId: program.id,
-            durationMs: Date.now() - startedAt,
-            details: {
-              requested_model: model,
-              model_used: modelUsed,
-              node_count: schema.nodes.length,
-              edge_count: schema.edges.length,
-              validation_errors: validation.errors.length,
-              validation_warnings: validation.warnings.length,
-              pii_redacted: sanitizedDescription.redacted,
-              pii_redactions: sanitizedDescription.redactions,
-            },
-          }),
-          incrementGenesisUses(userId, workspaceId),
-        ]);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (complianceBlockReason) {

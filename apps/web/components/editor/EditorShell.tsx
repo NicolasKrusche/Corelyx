@@ -264,14 +264,22 @@ function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
         ? { width: 200, height: 120 }
         : undefined;
 
+  // Groups must sit below every other node so clicks reach the nodes inside them.
+  // Notes float above everything. Regular nodes are at 1 — above groups, below notes.
+  const zIndex =
+    schemaNode.type === "group" ? 0
+    : schemaNode.type === "note" ? 1000
+    : 1;
+
   return {
     id: schemaNode.id,
     type: schemaNode.type,
     draggable: true,
     selectable: true,
+    zIndex,
     position: schemaNode.position,
     ...(style ? { style } : {}),
-    ...(schemaNode.type === "note" ? { zIndex: 1000, dragHandle: ".note-drag-handle" } : {}),
+    ...(schemaNode.type === "note" ? { dragHandle: ".note-drag-handle" } : {}),
     data: {
       label: schemaNode.label,
       description: schemaNode.description,
@@ -934,6 +942,9 @@ export function EditorShell({
         for (const change of finalPositionChanges) {
           latestByNodeId.set(change.id, change.position);
         }
+        // Positions already applied to RF state above — skip the schema→RF sync
+        // that would otherwise rebuild all nodes from toReactFlow() needlessly.
+        skipSyncRef.current = true;
         dispatch({
           type: "SET_POSITIONS",
           nodes: Array.from(latestByNodeId.entries()).map(([id, position]) => ({
@@ -1147,6 +1158,26 @@ export function EditorShell({
       const { label, description, connection, ...configPatch } = config;
 
       if (label !== undefined || description !== undefined || connection !== undefined) {
+        // Patch the RF node directly so label/connection badge updates are instant,
+        // then skip the schema→RF sync that would otherwise call toReactFlow() for
+        // every keystroke and re-render every node on the canvas.
+        skipSyncRef.current = true;
+        setRfNodes((prev) =>
+          prev.map((n) =>
+            n.id === nodeId
+              ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    ...(label !== undefined ? { label } : {}),
+                    ...(description !== undefined ? { description } : {}),
+                    ...(connection !== undefined ? { connection } : {}),
+                  },
+                }
+              : n
+          )
+        );
+
         dispatch({
           type: "UPDATE_NODE",
           nodeId,
@@ -1180,6 +1211,8 @@ export function EditorShell({
       }
 
       if (Object.keys(configPatch).length > 0) {
+        // Config values aren't rendered on the canvas — skip the schema→RF sync.
+        skipSyncRef.current = true;
         dispatch({ type: "UPDATE_NODE_CONFIG", nodeId, config: configPatch });
       }
     },
@@ -1346,32 +1379,133 @@ export function EditorShell({
     }
 
     try {
-      const res = await fetch("/api/genesis", {
+      const res = await fetch("/api/genesis/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        setAiEditError(friendlyResponseMessage(data as { message?: string; error?: string } | null, "The AI edit did not work. Please try again."));
+      if (!res.ok || !res.body) {
+        let message = "The AI edit did not work. Please try again.";
+        try {
+          const body = await res.clone().json() as { error?: string; message?: string } | null;
+          if (typeof body?.message === "string") message = body.message;
+          else if (typeof body?.error === "string") message = body.error;
+        } catch { /* keep default */ }
+        setAiEditError(message);
         return;
       }
 
-      const payload = data as { schema?: ProgramSchema; validation?: ValidationResult };
-      if (!payload.schema) {
-        setAiEditError("The AI reply did not include a workflow we can use. Try asking again with a little more detail.");
-        return;
-      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      dispatch({ type: "RESTORE_VERSION", schema: payload.schema });
-      if (payload.validation) {
-        dispatch({ type: "SET_VALIDATION", result: payload.validation });
+      // Local accumulators — flushed to canvas on rAF so bursts of events
+      // produce one Dagre relayout + one React render, not one per node.
+      let streamNodes: ReactFlowNode[] = [];
+      let streamEdges: ReactFlowEdge[] = [];
+      let firstNodeSeen = false;
+      let pendingRaf = false;
+
+      const flushCanvas = () => {
+        if (pendingRaf) return;
+        pendingRaf = true;
+        requestAnimationFrame(() => {
+          pendingRaf = false;
+          const laid = applyDagreLayout(streamNodes, streamEdges, "TB");
+          streamNodes = laid;
+          setRfNodes([...laid]);
+          setRfEdges([...streamEdges]);
+        });
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let idx: number;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
+          if (!dataLine) continue;
+
+          let event: Record<string, unknown>;
+          try { event = JSON.parse(dataLine.slice(6)); } catch { continue; }
+
+          if (event.type === "node") {
+            const node = event.node as Record<string, unknown> | null;
+            if (!node?.id) continue;
+            if (streamNodes.some((n) => n.id === node.id)) continue;
+
+            if (!firstNodeSeen) {
+              firstNodeSeen = true;
+              streamNodes = [];
+              streamEdges = [];
+            }
+
+            const cfg = (node.config as Record<string, unknown>) ?? {};
+            const nodeType = String(node.type ?? "step");
+            const rfNode: ReactFlowNode = {
+              id: String(node.id),
+              type: nodeType,
+              position: (node.position as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+              draggable: true,
+              selectable: true,
+              data: {
+                label: node.label ?? node.id,
+                description: node.description ?? "",
+                connection: node.connection ?? null,
+                status: "idle",
+                config: cfg,
+                validationState: "valid",
+                errors: [],
+                warnings: [],
+              },
+              zIndex: nodeType === "group" ? 0 : nodeType === "note" ? 1000 : 1,
+              ...(nodeType === "note"
+                ? { dragHandle: ".note-drag-handle", style: { width: 200, height: 120 } }
+                : {}),
+              ...(nodeType === "group"
+                ? { style: { width: (cfg.width as number) ?? 300, height: (cfg.height as number) ?? 200 } }
+                : {}),
+              ...(node.parentId ? { parentId: String(node.parentId), extent: "parent" as const } : {}),
+            };
+            streamNodes = [...streamNodes, rfNode];
+            flushCanvas();
+          } else if (event.type === "edge") {
+            const edge = event.edge as Record<string, unknown> | null;
+            if (!edge?.id || !edge?.from || !edge?.to) continue;
+            if (streamEdges.some((e) => e.id === edge.id)) continue;
+            const rfEdge: ReactFlowEdge = {
+              id: String(edge.id),
+              source: String(edge.from),
+              target: String(edge.to),
+              type: String(edge.type ?? "data_flow"),
+              animated: edge.type === "event_subscription",
+              markerEnd: { type: MarkerType.ArrowClosed },
+              data: { condition: null, data_mapping: null, validationErrors: [] },
+            };
+            streamEdges = [...streamEdges, rfEdge];
+            flushCanvas();
+          } else if (event.type === "done") {
+            if (event.schema) {
+              dispatch({ type: "RESTORE_VERSION", schema: event.schema as ProgramSchema });
+            }
+            if (event.validation) {
+              dispatch({ type: "SET_VALIDATION", result: event.validation as ValidationResult });
+            }
+            setValidationNotice("AI edit applied. Review and save the draft.");
+            setShowAiEdit(false);
+            setAiEditPrompt("");
+          } else if (event.type === "error") {
+            setAiEditError(typeof event.message === "string"
+              ? event.message
+              : "The AI edit did not work. Please try again.");
+          }
+        }
       }
-      setValidationNotice("AI edit applied. Review and save the draft.");
-      setShowAiEdit(false);
-      setAiEditPrompt("");
     } catch {
       setAiEditError("We could not connect. Check your internet connection and try again.");
     } finally {
@@ -1695,6 +1829,17 @@ export function EditorShell({
         {isMobile && (
           <div className="absolute inset-x-0 top-0 z-20 bg-amber-50 dark:bg-amber-950/50 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-xs text-amber-800 dark:text-amber-300 text-center">
             The visual editor is read-only on mobile. Open on desktop to edit.
+          </div>
+        )}
+
+        {/* AI edit in-progress banner — visible on the canvas while the AI call runs */}
+        {aiEditLoading && (
+          <div className="absolute left-1/2 top-4 z-30 flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-primary/30 bg-background/95 px-4 py-2 text-sm font-medium text-foreground shadow-lg backdrop-blur">
+            <svg className="animate-spin h-3.5 w-3.5 shrink-0 text-primary" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            AI is editing your workflow…
           </div>
         )}
 

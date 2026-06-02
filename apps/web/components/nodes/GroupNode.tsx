@@ -93,17 +93,19 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         }}
       />
 
-      {/* Frame */}
+      {/* Frame — pointer-events-none so clicks fall through to children or the RF
+          wrapper (which handles group selection/drag). Interactive children
+          re-enable pointer-events individually. */}
       <div
         className={cn(
-          "relative w-full h-full rounded-xl border-2 border-dashed",
+          "relative w-full h-full rounded-xl border-2 border-dashed pointer-events-none",
           styles.border,
           styles.bg,
           selected && "ring-1 ring-foreground/20",
         )}
       >
         {selected && dispatch && (
-          <div className="nodrag absolute -top-8 right-0 z-20 flex items-center gap-1 rounded-md border border-border bg-popover px-1.5 py-1 shadow-md">
+          <div className="nodrag pointer-events-auto absolute -top-8 right-0 z-20 flex items-center gap-1 rounded-md border border-border bg-popover px-1.5 py-1 shadow-md">
             <span className="mr-0.5 text-[10px] font-medium text-muted-foreground">Frame</span>
             {COLORS.map((nextColor) => (
               <button
@@ -126,7 +128,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         )}
 
         {/* Label strip */}
-        <div className="absolute -top-px left-0 flex items-center">
+        <div className="pointer-events-auto absolute -top-px left-0 flex items-center">
           <div
             className={cn(
               "flex items-center gap-1.5 rounded-br-md px-2.5 py-0.5",

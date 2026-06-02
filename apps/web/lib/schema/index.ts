@@ -73,8 +73,11 @@ export function toReactFlow(
       draggable: true,
       selectable: true,
       position: { x: node.position.x, y: node.position.y },
+      // Groups sit below every other node so nodes inside them are clickable.
+      // Notes float above everything. Regular nodes are between the two.
+      zIndex: node.type === "group" ? 0 : node.type === "note" ? 1000 : 1,
       ...(style ? { style } : {}),
-      ...(node.type === "note" ? { zIndex: 1000, dragHandle: ".note-drag-handle" } : {}),
+      ...(node.type === "note" ? { dragHandle: ".note-drag-handle" } : {}),
       data: {
         label: node.label,
         description: node.description,

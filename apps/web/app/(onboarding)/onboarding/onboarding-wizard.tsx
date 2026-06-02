@@ -74,7 +74,8 @@ function Sidebar({ step }: { step: number }) {
     <aside className="hidden lg:flex w-[272px] xl:w-[296px] shrink-0 flex-col bg-[#0f0f11] border-r border-white/[0.07] py-8 px-6">
       {/* Logo */}
       <div className="flex items-center gap-2 mb-10">
-        <div className="h-5 w-5 rounded bg-primary" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-5 w-5 object-contain" />
         <span className="text-sm font-semibold text-white tracking-tight">
           corelyx<span className="text-primary">•</span>
         </span>
@@ -320,6 +321,10 @@ export function OnboardingWizard({
     if (step === 0) {
       setStep(1);
     } else if (step === 1) {
+      if (!username.trim()) {
+        setError("Please choose a username to continue.");
+        return;
+      }
       const ok = await saveProfile();
       if (ok) setStep(2);
     } else if (step === 2) {
@@ -401,7 +406,7 @@ export function OnboardingWizard({
           </button>
         )}
 
-        {step > 0 && step < 4 && (
+        {step > 1 && step < 4 && (
           <Button
             variant="ghost"
             size="sm"
@@ -596,7 +601,8 @@ export function OnboardingWizard({
         {/* Mobile progress bar (shown when sidebar is hidden) */}
         <div className="lg:hidden flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-primary" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-4 w-4 object-contain" />
             <span className="text-sm font-semibold text-gray-900 tracking-tight">corelyx</span>
           </div>
           <div className="flex items-center gap-2">

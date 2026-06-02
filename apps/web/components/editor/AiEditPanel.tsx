@@ -73,85 +73,104 @@ export function AiEditPanel({
 
       {/* Body */}
       <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto">
+        {loading ? (
+          /* Loading state — replaces body content while AI is working */
+          <div className="flex flex-col items-center justify-center flex-1 gap-4 py-8 text-center">
+            <div className="relative">
+              <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold text-foreground">Editing your workflow…</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[180px]">
+                AI is reworking the graph. This usually takes 15–30 seconds.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Mode selector */}
+            <div className="flex rounded-lg border border-border overflow-hidden text-[11px] font-medium">
+              <button
+                type="button"
+                disabled={!hasApiKeys}
+                onClick={() => onModeChange("personal")}
+                className={cn(
+                  "flex-1 py-1.5 transition-colors",
+                  mode === "personal"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:text-foreground",
+                  !hasApiKeys && "opacity-40 cursor-not-allowed"
+                )}
+              >
+                My API key
+              </button>
+              <button
+                type="button"
+                onClick={() => onModeChange("platform")}
+                className={cn(
+                  "flex-1 py-1.5 border-l border-border transition-colors",
+                  mode === "platform"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Corelyx AI
+              </button>
+            </div>
 
-        {/* Mode selector */}
-        <div className="flex rounded-lg border border-border overflow-hidden text-[11px] font-medium">
-          <button
-            type="button"
-            disabled={!hasApiKeys}
-            onClick={() => onModeChange("personal")}
-            className={cn(
-              "flex-1 py-1.5 transition-colors",
-              mode === "personal"
-                ? "bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:text-foreground",
-              !hasApiKeys && "opacity-40 cursor-not-allowed"
+            {mode === "personal" && !hasApiKeys && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                No API key found.{" "}
+                <Link href="/api-keys" className="underline font-medium">
+                  Add one
+                </Link>{" "}
+                or switch to Corelyx AI below.
+              </p>
             )}
-          >
-            My API key
-          </button>
-          <button
-            type="button"
-            onClick={() => onModeChange("platform")}
-            className={cn(
-              "flex-1 py-1.5 border-l border-border transition-colors",
-              mode === "platform"
-                ? "bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:text-foreground"
+
+            {mode === "platform" && (
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Genesis AI usage is applied first. If none is available,{" "}
+                <span className="font-medium text-foreground">{platformRateCredits.toLocaleString("en-US")} credits</span>{" "}
+                will be deducted from your balance.
+              </p>
             )}
-          >
-            Corelyx AI
-          </button>
-        </div>
 
-        {mode === "personal" && !hasApiKeys && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            No API key found.{" "}
-            <Link href="/api-keys" className="underline font-medium">
-              Add one
-            </Link>{" "}
-            or switch to Corelyx AI below.
-          </p>
-        )}
+            {mode === "personal" && (
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Runs against your own API key. This counts toward your Genesis AI usage.
+              </p>
+            )}
 
-        {mode === "platform" && (
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Genesis AI usage is applied first. If none is available,{" "}
-            <span className="font-medium text-foreground">{platformRateCredits.toLocaleString("en-US")} credits</span>{" "}
-            will be deducted from your balance.
-          </p>
-        )}
+            <Textarea
+              rows={6}
+              className="text-sm resize-none"
+              placeholder={`e.g. "Add a Slack notification after the Gmail node" or "Replace the cron trigger with a webhook"`}
+              value={prompt}
+              onChange={(e) => onPromptChange(e.target.value)}
+              disabled={loading}
+              maxLength={2000}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !loading && prompt.trim() && canSubmit) {
+                  e.preventDefault();
+                  onSubmit();
+                }
+              }}
+            />
+            <p className={cn(
+              "text-[10px] text-right tabular-nums",
+              prompt.length > 1800 ? "text-amber-500" : "text-muted-foreground"
+            )}>
+              {prompt.length} / 2000
+            </p>
 
-        {mode === "personal" && (
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Runs against your own API key. This counts toward your Genesis AI usage.
-          </p>
-        )}
-
-        <Textarea
-          rows={6}
-          className="text-sm resize-none"
-          placeholder={`e.g. "Add a Slack notification after the Gmail node" or "Replace the cron trigger with a webhook"`}
-          value={prompt}
-          onChange={(e) => onPromptChange(e.target.value)}
-          disabled={loading}
-          maxLength={2000}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !loading && prompt.trim() && canSubmit) {
-              e.preventDefault();
-              onSubmit();
-            }
-          }}
-        />
-        <p className={cn(
-          "text-[10px] text-right tabular-nums",
-          prompt.length > 1800 ? "text-amber-500" : "text-muted-foreground"
-        )}>
-          {prompt.length} / 2000
-        </p>
-
-        {error && (
-          <p className="text-[11px] text-destructive">{error}</p>
+            {error && (
+              <p className="text-[11px] text-destructive">{error}</p>
+            )}
+          </>
         )}
       </div>
 
