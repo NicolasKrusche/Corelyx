@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { isAdminEmail } from "@/lib/admin";
 import { PlanPreviewToggle } from "./plan-preview-toggle";
 import { formatCredits } from "@/lib/credit-packs";
-import { StablecoinCheckoutOption } from "@/components/stablecoin-checkout-option";
 import { BillingCheckoutButton } from "@/components/billing-checkout-button";
 
 export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
@@ -595,7 +594,6 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                       <Rocket className="h-3.5 w-3.5" />
                       {plan.cta}
                     </BillingCheckoutButton>
-                    <StablecoinCheckoutOption tier={plan.checkout.tier} interval={plan.checkout.interval} />
                   </>
                 ) : (
                   <Link

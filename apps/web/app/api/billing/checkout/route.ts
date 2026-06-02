@@ -10,7 +10,7 @@ import {
 } from "@/lib/billing";
 import { getStripeClient } from "@/lib/stripe";
 import { getActiveWorkspace } from "@/lib/workspaces";
-import { parseCheckoutPaymentMethod, stripePaymentMethodTypes } from "@/lib/checkout-payment-method";
+import { parseCheckoutPaymentMethod } from "@/lib/checkout-payment-method";
 
 function readString(value: FormDataEntryValue | string | null | undefined): string | null {
   if (typeof value === "string") return value;
@@ -65,6 +65,15 @@ export async function POST(request: Request) {
 
   const { tier, interval } = parsed;
   const paymentMethod = parseCheckoutPaymentMethod(rawPaymentMethod);
+  // Stripe's crypto payment method only supports one-time payments (mode: "payment"),
+  // not recurring subscriptions. Reject it here so users get a clear message instead of
+  // a generic Stripe failure. Crypto is still available for one-time AI credit packs.
+  if (paymentMethod === "stablecoin") {
+    return apiError(
+      "Crypto payments aren't available for subscriptions. Please pay with a card, or buy one-time AI credit packs with crypto.",
+      400
+    );
+  }
   const activeWorkspace = await getActiveWorkspace(user.id);
   if (!activeWorkspace) return apiError("No active workspace.", 400);
 
@@ -101,7 +110,7 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       ...(user.email ? { customer_email: user.email } : {}),
-      payment_method_types: stripePaymentMethodTypes(paymentMethod),
+      payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/plan?checkout=success`,
       cancel_url: `${baseUrl}/plan?checkout=cancelled`,
