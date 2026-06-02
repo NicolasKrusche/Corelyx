@@ -324,22 +324,59 @@ export default async function PrivacyPage() {
               </h2>
               <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
                 <p>
-                  Many infrastructure, billing, email, and AI providers used by
-                  or through Corelyx are based in the United States or use global
-                  infrastructure. That means personal data may be transferred
-                  outside the EEA, the UK, or Switzerland.
+                  <span className="font-semibold text-foreground">Our commitment is EU-first data processing.</span>{" "}
+                  Corelyx is built for European users and operates under Austrian law and GDPR. We configure
+                  core infrastructure — database, compute, and runtime — in EU regions wherever those options
+                  are available and technically viable.
                 </p>
                 <p>
-                  Where required, these transfers should be covered by provider
-                  DPAs, Standard Contractual Clauses, Data Privacy Framework
-                  participation where applicable, or equivalent safeguards. The
-                  exact transfer path depends on the providers you enable and the
-                  regions configured in those third-party accounts.
+                  Specifically:
                 </p>
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>
+                    <strong className="text-foreground">Database and authentication</strong> (Supabase) — deployed in an EU region. Personal data stored at rest stays within the EEA.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">Web hosting</strong> (Vercel) — server compute is configured for EU regions (Frankfurt / Dublin). Static assets may be served via global CDN edge nodes, but no personal data is cached there.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">Workflow runtime</strong> (Railway) — deployed in EU West. Execution payloads and connector traffic are processed in-region.
+                  </li>
+                </ul>
                 <p>
-                  The exact transfer path depends on the services you enable,
-                  the provider contracts in place, and the regions configured in
-                  those third-party accounts.
+                  A small number of providers involve processing outside the EEA and cannot currently be
+                  replaced with EU-only alternatives without losing essential functionality:
+                </p>
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>
+                    <strong className="text-foreground">Payment processing</strong> (Stripe) — financial regulation and fraud prevention require global infrastructure. The data transferred is limited to billing contact data and payment signals. Stripe DPA and SCCs are in place.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">Transactional email</strong> (Resend) — account metadata and email logs are stored in the United States. We limit what we send: no workflow content, only addresses and transactional subject lines. Resend DPA and SCCs are in place.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">Workflow orchestration</strong> (Inngest) — event metadata and retry state. We do not route full payload content through orchestration events. Inngest DPA and SCCs are in place.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">AI model providers</strong> — if you add your own Anthropic, OpenAI, or OpenRouter API key, prompts and outputs are sent to those providers under their own terms and DPAs. The Corelyx platform key uses OpenRouter; we are pursuing an enterprise DPA and EU routing. Until that is confirmed, avoid routing special-category personal data through the Corelyx platform key.
+                  </li>
+                </ul>
+                <p>
+                  For each provider where a third-country transfer occurs, we rely on the provider's DPA and
+                  Standard Contractual Clauses (SCCs) as the transfer safeguard under{" "}
+                  <a
+                    href="https://gdpr-info.eu/art-46-gdpr/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Article 46 GDPR
+                  </a>
+                  . You can find the full subprocessor list, transfer basis, and DPA status at{" "}
+                  <Link href="/subprocessors" className="text-primary hover:underline">
+                    /subprocessors
+                  </Link>
+                  .
                 </p>
               </div>
               <div className="mt-8 border-t border-border/30" />

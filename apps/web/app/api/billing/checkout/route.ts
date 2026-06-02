@@ -126,7 +126,11 @@ export async function POST(request: Request) {
       },
     });
     checkoutUrl = session.url;
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.toLowerCase() : "";
+    if (msg.includes("crypto") || msg.includes("payment_method_types") || msg.includes("invalid payment method")) {
+      return apiError("Stablecoin payments are not currently available. Please pay with a card.", 400);
+    }
     return apiError("Checkout could not be started.", 502);
   }
 

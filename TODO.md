@@ -1,5 +1,19 @@
 # Corelyx — TODO
 
+## EU Data Residency
+
+- [ ] **OpenRouter enterprise DPA + EU routing**
+  - Sign enterprise agreement with OpenRouter to get a DPA with SCCs and confirmed EU routing
+  - Once done: update `provider-registry.ts` — set `eu_only_supported: true`, `dpa_available: true`, `scc_available: true`, update `transfer_basis` for OpenRouter entry
+  - Also update the OpenRouter entry in `lib/legal.ts` (modelProviders) to remove the "no DPA in place" warning
+  - Update Section 8 of privacy page to note the platform key path is now EU-resident
+  - **Important caveat:** EU routing through OpenRouter only makes the path EU-compliant if the underlying model endpoints OpenRouter uses are also EU-hosted. Confirm with OpenRouter which models have EU inference endpoints before making a public EU-only claim.
+  - Customer-owned Anthropic keys remain a third-country transfer (Anthropic has no EU region). Customer-owned OpenAI keys can be EU-only if the user enables it in their OpenAI account. These are the user's responsibility regardless.
+
+## Legal Maintenance
+
+- [ ] **Last updated date** — `LEGAL_LAST_UPDATED` in `apps/web/lib/legal.ts` is currently "April 23, 2026". Update it any time a legal document (Privacy Policy, Terms, DPA, Impressum) is revised. Also re-check that the substance of the document matches what was changed — the date is meaningless if the text wasn't also updated.
+
 ## Trust & Landing Page
 
 - [ ] **Founders / About page** (`/about`)

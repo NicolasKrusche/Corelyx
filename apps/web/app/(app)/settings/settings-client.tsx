@@ -293,6 +293,8 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      // Send security notification email (best-effort)
+      void fetch("/api/settings/password-changed", { method: "POST" });
     }
     setPasswordLoading(false);
   }

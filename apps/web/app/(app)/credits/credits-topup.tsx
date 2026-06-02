@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CREDIT_PACKS, formatCredits } from "@/lib/credit-packs";
 
+const CRYPTO_ENABLED = process.env.NEXT_PUBLIC_STRIPE_CRYPTO_ENABLED === "true";
+
 const PACKS = CREDIT_PACKS.map((pack) => ({
   ...pack,
   badge: pack.priceUsd === 10 ? "POPULAR" : pack.priceUsd === 50 ? "BEST VALUE" : null,
@@ -105,20 +107,22 @@ export function CreditsTopUp() {
         )}
       </button>
 
-      <details className="mt-2 text-center">
-        <summary className="cursor-pointer text-[10px] text-muted-foreground/50 transition-colors hover:text-muted-foreground">
-          More payment options
-        </summary>
-        <button
-          type="button"
-          disabled={buying}
-          onClick={() => { void handleBuy("stablecoin"); }}
-          className="mt-1.5 rounded-md border border-border/60 bg-background/40 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-        >
-          Pay with stablecoin
-        </button>
-        <p className="mt-1 text-[9px] text-muted-foreground/40">USDC via Stripe</p>
-      </details>
+      {CRYPTO_ENABLED && (
+        <details className="mt-2 text-center">
+          <summary className="cursor-pointer text-[10px] text-muted-foreground/50 transition-colors hover:text-muted-foreground">
+            More payment options
+          </summary>
+          <button
+            type="button"
+            disabled={buying}
+            onClick={() => { void handleBuy("stablecoin"); }}
+            className="mt-1.5 rounded-md border border-border/60 bg-background/40 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+          >
+            Pay with stablecoin
+          </button>
+          <p className="mt-1 text-[9px] text-muted-foreground/40">USDC via Stripe</p>
+        </details>
+      )}
 
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 

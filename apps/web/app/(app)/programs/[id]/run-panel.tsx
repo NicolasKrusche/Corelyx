@@ -148,7 +148,8 @@ export function RunPanel({ programId }: { programId: string }) {
           <div>
             <h2 className="text-sm font-semibold">Run program</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Corelyx checks connections, keys, and workflow steps before it runs.
+              Starts a single manual run now. To run automatically on a schedule, set up a trigger on the{" "}
+              <a href="triggers" className="font-medium text-primary hover:underline underline-offset-2">Triggers</a> page — cron triggers run indefinitely until you pause them.
             </p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
               {summarizeChecks(preflight?.checks ?? null).map((label) => (

@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/api";
 import { sendDuplicateSignupEmail, sendWelcomeEmail } from "@/lib/email";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 import { serverLog } from "@/lib/server-log";
+import { isDisposableEmail } from "@/lib/disposable-emails";
 
 export async function POST(req: NextRequest) {
   const limited = await enforcePublicEndpointRateLimit(req, "signup", 10, 60_000);
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
     }
     if (password.length < 8) {
       return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+    }
+    if (isDisposableEmail(email)) {
+      return NextResponse.json({ error: "Please use a permanent email address to sign up." }, { status: 400 });
     }
 
     const supabase = createServiceClient();
@@ -39,6 +43,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    // Stamp legal consent at signup (checkboxes are required on the form)
+    if (data.user) {
+      await supabase
+        .from("profiles")
+        .update({ legal_consented_at: new Date().toISOString(), legal_consent_version: "v1" } as never)
+        .eq("id", data.user.id);
     }
 
     // Send a welcome email via Resend (best-effort — don't fail signup if this errors)
