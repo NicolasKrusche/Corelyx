@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { BillingInterval, PaidTier } from "@/lib/billing";
-import { StablecoinCheckoutOption } from "@/components/stablecoin-checkout-option";
 import { BillingCheckoutButton } from "@/components/billing-checkout-button";
 
 export const TIERS = [
@@ -257,7 +256,6 @@ export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpr
                     >
                       {displayLabel}
                     </BillingCheckoutButton>
-                    <StablecoinCheckoutOption tier={cta.checkout.tier} interval={interval} />
                   </>
                 ) : (
                   <Link
