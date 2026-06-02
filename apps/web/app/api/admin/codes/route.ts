@@ -6,7 +6,7 @@ import { createServiceClient, apiError } from "@/lib/api";
 import { isAdmin } from "@/lib/admin";
 import { writeAppLog } from "@/lib/app-logs";
 
-const CODE_TYPES = ["pro_lifetime", "builder_lifetime", "unlimited", "pro_trial", "run_credits"] as const;
+const CODE_TYPES = ["solo_lifetime", "team_lifetime", "scale_lifetime", "unlimited", "solo_trial", "team_trial", "run_credits"] as const;
 
 const CreateCodeSchema = z.object({
   code: z.string().min(3).max(64).transform((s) => s.trim().toUpperCase()).optional(),
@@ -32,7 +32,7 @@ export async function GET() {
   const service = createServiceClient();
   const { data, error } = await service
     .from("redemption_codes")
-    .select("*, redemptions(count)")
+    .select("*, redemptions(redeemed_at, profiles(id, email, display_name))")
     .order("created_at", { ascending: false });
 
   if (error) return apiError(error.message, 500);

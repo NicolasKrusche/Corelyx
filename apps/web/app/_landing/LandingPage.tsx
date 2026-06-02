@@ -260,6 +260,8 @@ function HeroSection() {
               className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-xs text-white/40"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#75d7a3]" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/austria-heart-removebg.png" alt="" aria-hidden className="h-3 w-auto" />
               EU-first · Made in Austria
             </motion.div>
 

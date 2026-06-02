@@ -31,6 +31,7 @@ type AppLayoutProfile = {
   created_at: string;
   is_admin: boolean;
   username: string | null;
+  legal_consented_at: string | null;
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -61,7 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
-    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username")
+    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username, legal_consented_at")
     .eq("id", appUser.id)
     .single();
   const profile = profileRaw as AppLayoutProfile | null;
@@ -71,6 +72,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // a transient failure for a new user and boot everyone to /onboarding.
   if (!profileError && !profile?.display_name && !profile?.username) {
     redirect("/onboarding");
+  }
+
+  // Gate app access until the user has accepted the current ToS + Privacy Policy.
+  // Skip this check on the /consent page itself to avoid an infinite redirect.
+  // Also skip for mock users in dev mode.
+  if (!profileError && profile && !profile.legal_consented_at && !allowMockUser) {
+    redirect("/consent");
   }
 
   // Fetch XP stats for skill level calculation (parallel, best-effort)

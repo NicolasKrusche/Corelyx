@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
 
@@ -73,6 +74,7 @@ function formatRelative(iso: string) {
 }
 
 export function AdminSupportClient() {
+  const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [canAssign, setCanAssign] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -190,6 +192,7 @@ export function AdminSupportClient() {
     setSelected((t) => t ? { ...t, status } : t);
     setTickets((ts) => ts.map((t) => t.id === selected.id ? { ...t, status } : t));
     setClosing(false);
+    router.refresh();
   }
 
   const filtered = tickets.filter((t) => filter === "all" || t.status === filter);

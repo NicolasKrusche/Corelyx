@@ -1229,7 +1229,6 @@ function SettingsModal({
   const [code, setCode] = useState("");
   const [codeLoading, setCodeLoading] = useState(false);
   const [codeStatus, setCodeStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [redeemUnlockClicks, setRedeemUnlockClicks] = useState(0);
 
   const [unsubscribeLoading, setUnsubscribeLoading] = useState(false);
   const [unsubscribeStatus, setUnsubscribeStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -1389,7 +1388,6 @@ function SettingsModal({
 
   const identityName = (formDisplayName.trim() || displayName.trim() || email.trim() || "User");
   const identityInitial = identityName.slice(0, 1).toUpperCase();
-  const redeemUnlocked = redeemUnlockClicks >= 5;
   const hasPaidSubscription = tier !== "free" && tier !== "unlimited";
   const panelClass = "rounded-2xl border border-border bg-card p-5 shadow-sm";
   const subPanelClass = "rounded-2xl border border-border bg-secondary/35 p-5";
@@ -2510,8 +2508,7 @@ function SettingsModal({
                   </Link>
                 </div>
 
-                {/* Hidden code redemption easter egg */}
-                <div className="pt-1 flex items-center justify-between">
+                <div className="pt-1">
                   <button
                     type="button"
                     onClick={() => setTab("legal")}
@@ -2519,40 +2516,31 @@ function SettingsModal({
                   >
                     Legal and privacy tools
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setRedeemUnlockClicks((v) => Math.min(5, v + 1))}
-                    className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground/60"
-                  >
-                    build info
-                  </button>
                 </div>
 
-                {redeemUnlocked && (
-                  <section className={panelClass}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Code redemption</p>
-                    <form onSubmit={handleRedeem} className="mt-4 flex gap-2">
-                      <input
-                        type="text"
-                        required
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                        className={cn(fieldClass, "flex-1 uppercase tracking-wider")}
-                        placeholder="ENTER CODE"
-                      />
-                      <button
-                        type="submit"
-                        disabled={codeLoading || code.length < 3}
-                        className={primaryBtnClass}
-                      >
-                        {codeLoading ? "..." : "Redeem"}
-                      </button>
-                    </form>
-                    {codeStatus && (
-                      <p className={cn("mt-2 text-xs", codeStatus.type === "success" ? "text-green-600" : "text-red-600")}>{codeStatus.message}</p>
-                    )}
-                  </section>
-                )}
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Redeem a code</p>
+                  <form onSubmit={handleRedeem} className="mt-4 flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      className={cn(fieldClass, "flex-1 uppercase tracking-wider")}
+                      placeholder="ENTER CODE"
+                    />
+                    <button
+                      type="submit"
+                      disabled={codeLoading || code.length < 3}
+                      className={primaryBtnClass}
+                    >
+                      {codeLoading ? "..." : "Redeem"}
+                    </button>
+                  </form>
+                  {codeStatus && (
+                    <p className={cn("mt-2 text-xs", codeStatus.type === "success" ? "text-green-600 dark:text-green-400" : "text-destructive")}>{codeStatus.message}</p>
+                  )}
+                </section>
               </div>
             )}
 

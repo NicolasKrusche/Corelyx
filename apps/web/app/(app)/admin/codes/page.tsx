@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { hasFounderAccess } from "@/lib/admin-auth";
+import { isUserAdmin } from "@/lib/admin-auth";
+import { isAdminEmail } from "@/lib/admin";
 import { AdminCodesClient } from "./admin-codes-client";
 import type { Metadata } from "next";
 
@@ -10,7 +11,8 @@ export default async function AdminCodesPage() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/dashboard");
-  if (!(await hasFounderAccess(user.id, user.email))) redirect("/admin");
+  const isAdmin = isAdminEmail(user.email) || (await isUserAdmin(user.id));
+  if (!isAdmin) redirect("/admin");
 
   return <AdminCodesClient />;
 }

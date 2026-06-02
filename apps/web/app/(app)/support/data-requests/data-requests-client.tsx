@@ -131,7 +131,7 @@ export function DataRequestsClient({ userEmail }: { userEmail: string }) {
         <p className="text-sm font-medium">No data requests yet</p>
         <p className="mt-1 text-xs text-muted-foreground">
           You haven&apos;t submitted any GDPR data requests. You can do so from your{" "}
-          <Link href="/settings/privacy" className="text-primary hover:underline">privacy settings</Link>.
+          <Link href="/settings#data-rights" className="text-primary hover:underline">privacy settings</Link>.
         </p>
       </div>
     );

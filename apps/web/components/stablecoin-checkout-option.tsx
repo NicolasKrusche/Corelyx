@@ -1,6 +1,8 @@
 import type { BillingInterval, PaidTier } from "@/lib/billing";
 import { BillingCheckoutButton } from "@/components/billing-checkout-button";
 
+const CRYPTO_ENABLED = process.env.NEXT_PUBLIC_STRIPE_CRYPTO_ENABLED === "true";
+
 export function StablecoinCheckoutOption({
   tier,
   interval,
@@ -10,6 +12,8 @@ export function StablecoinCheckoutOption({
   interval: BillingInterval;
   welcomeOffer?: boolean;
 }) {
+  if (!CRYPTO_ENABLED) return null;
+
   return (
     <details className="mt-2 text-center">
       <summary className="cursor-pointer text-[10px] text-muted-foreground/50 transition-colors hover:text-muted-foreground">

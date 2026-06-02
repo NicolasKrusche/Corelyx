@@ -17,6 +17,8 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [tosChecked, setTosChecked] = useState(false);
+  const [privacyChecked, setPrivacyChecked] = useState(false);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -220,19 +222,47 @@ export default function SignupPage() {
                 </p>
               )}
 
+              {/* Consent checkboxes */}
+              <div className="space-y-2 pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={tosChecked}
+                    onChange={(e) => setTosChecked(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary cursor-pointer"
+                  />
+                  <span className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    I have read and agree to the{" "}
+                    <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-primary underline underline-offset-2 transition-colors">
+                      Terms of Service
+                    </Link>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={privacyChecked}
+                    onChange={(e) => setPrivacyChecked(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary cursor-pointer"
+                  />
+                  <span className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    I have read and accept the{" "}
+                    <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-foreground hover:text-primary underline underline-offset-2 transition-colors">
+                      Privacy Policy
+                    </Link>
+                  </span>
+                </label>
+              </div>
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !tosChecked || !privacyChecked}
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Creating account…" : "Create account"}
               </button>
             </form>
-
-            <p className="mt-3 text-center text-[11px] text-muted-foreground/60">
-              By signing up you agree to our terms and privacy policy.
-            </p>
 
             {/* Sign in */}
             <p className="mt-5 text-center text-sm text-muted-foreground">
