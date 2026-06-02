@@ -74,10 +74,16 @@ export default function LoginPage() {
     const statement = "Sign in to Corelyx and accept the Terms of Service at https://corelyx.app/terms";
     try {
       const { error } = await signInWithBrowserWallet(supabase, chain, statement);
-      if (error) throw error;
+      if (error) {
+        // Surface the actual Supabase/GoTrue message — GoTrue errors are user-readable
+        // and suppressing them makes auth problems invisible.
+        setError(error.message ?? `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-in could not be completed. Try again.`);
+        setLoading(false);
+        return;
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : undefined;
-      setError(friendlyErrorMessage(message, `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-in could not be completed. Make sure a compatible wallet is installed and try again.`));
+      setError(message ?? `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-in could not be completed. Make sure a compatible wallet is installed and try again.`);
       setLoading(false);
       return;
     }
