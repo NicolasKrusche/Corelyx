@@ -1,4 +1,5 @@
 import type { ProgramSchema } from "@flowos/schema";
+import { z } from "zod";
 
 export type GenesisConnectionRow = {
   id: string;
@@ -12,6 +13,37 @@ export type GenesisApiKeyRow = {
   vault_secret_id: string;
   provider: string;
 };
+
+export const GenesisRequestSchema = z.object({
+  description: z.string().max(2000),
+  connection_ids: z.array(z.string().uuid()).max(10),
+  api_key_id: z.string().uuid().optional(),
+  use_platform_key: z.boolean().optional(),
+  model: z.string().min(1).optional(),
+  existing_schema: z.unknown().optional(),
+  refinement: z.string().max(2000).optional(),
+  existing_program_id: z.string().uuid().optional(),
+}).superRefine((request, ctx) => {
+  if (!isGenesisRefinementRequest(request) && request.description.length < 10) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.too_small,
+      minimum: 10,
+      type: "string",
+      inclusive: true,
+      exact: false,
+      path: ["description"],
+      message: "String must contain at least 10 character(s)",
+    });
+  }
+});
+
+export function isGenesisRefinementRequest(request: {
+  existing_schema?: unknown;
+  refinement?: string;
+  existing_program_id?: string;
+}): boolean {
+  return !!(request.existing_schema && request.refinement && request.existing_program_id);
+}
 
 // ─── Platform model catalog ───────────────────────────────────────────────────
 // Models available when using the Corelyx platform key (via OpenRouter).

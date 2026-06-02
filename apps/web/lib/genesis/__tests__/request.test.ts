@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  GenesisRequestSchema,
   getMissingConnectionIds,
   getModelCandidates,
   sortApiKeyFallbacks,
@@ -12,6 +13,8 @@ import {
 } from "../request";
 
 describe("genesis request helpers", () => {
+  const programId = "c336bde8-7f6d-4cc2-843f-cbe5cdcc7899";
+
   const connections: GenesisConnectionRow[] = [
     { id: "conn-1", name: "Gmail", provider: "gmail", scopes: ["gmail.readonly"] },
     { id: "conn-2", name: "Slack", provider: "slack", scopes: null },
@@ -65,5 +68,28 @@ describe("genesis request helpers", () => {
       "meta-llama/llama-3.3-70b-instruct:free",
       "google/gemma-3-27b-it:free",
     ]);
+  });
+
+  it("keeps the minimum description length for new workflow generation", () => {
+    expect(
+      GenesisRequestSchema.safeParse({
+        description: "Spam",
+        connection_ids: [],
+        use_platform_key: true,
+      }).success
+    ).toBe(false);
+  });
+
+  it("allows AI edits for workflows with short names", () => {
+    expect(
+      GenesisRequestSchema.safeParse({
+        description: "Spam",
+        connection_ids: [],
+        use_platform_key: true,
+        existing_schema: { program_name: "Spam" },
+        refinement: "Replace the current step with an AI spam check.",
+        existing_program_id: programId,
+      }).success
+    ).toBe(true);
   });
 });

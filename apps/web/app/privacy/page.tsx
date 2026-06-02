@@ -362,7 +362,7 @@ export default async function PrivacyPage() {
                   </li>
                 </ul>
                 <p>
-                  For each provider where a third-country transfer occurs, we rely on the provider's DPA and
+                  For each provider where a third-country transfer occurs, we rely on the provider&apos;s DPA and
                   Standard Contractual Clauses (SCCs) as the transfer safeguard under{" "}
                   <a
                     href="https://gdpr-info.eu/art-46-gdpr/"
