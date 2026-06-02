@@ -4,7 +4,24 @@ import { createServiceClient } from "@/lib/api";
 import { ensureUserProvisioned } from "@/lib/auth/provisioning";
 import { OnboardingWizard } from "./onboarding-wizard";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string }>;
+}) {
+  // Dev-only preview mode: visit /onboarding?preview=1 to see the wizard
+  // without needing a fresh account. Only works in development.
+  const { preview } = await searchParams;
+  if (preview === "1" && process.env.NODE_ENV === "development") {
+    return (
+      <OnboardingWizard
+        userEmail="dev@preview.local"
+        defaultWorkspaceName="Dev Workspace"
+        workspaceId={null}
+      />
+    );
+  }
+
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
