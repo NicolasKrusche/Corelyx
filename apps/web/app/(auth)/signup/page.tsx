@@ -81,10 +81,16 @@ export default function SignupPage() {
     const statement = "Create a Corelyx account and accept the Terms of Service at https://corelyx.app/terms";
     try {
       const { error } = await signInWithBrowserWallet(supabase, chain, statement);
-      if (error) throw error;
+      if (error) {
+        console.error("[web3-signup] supabase auth error", error);
+        setError(error.message ?? `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-up could not be completed. Try again.`);
+        setLoading(false);
+        return;
+      }
     } catch (error) {
+      console.error("[web3-signup] caught error", error);
       const message = error instanceof Error ? error.message : undefined;
-      setError(friendlyErrorMessage(message, `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-up could not be completed. Make sure a compatible wallet is installed and try again.`));
+      setError(message ?? `${chain === "ethereum" ? "Ethereum" : "Solana"} wallet sign-up could not be completed. Make sure a compatible wallet is installed and try again.`);
       setLoading(false);
       return;
     }
