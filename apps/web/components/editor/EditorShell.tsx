@@ -893,7 +893,19 @@ export function EditorShell({
       }
     };
 
-    fetchExecs();
+    const fetchRunStatus = async () => {
+      const { data } = await supabase
+        .from("runs")
+        .select("status, started_at")
+        .eq("id", lastRunId)
+        .maybeSingle();
+      const row = data as { status?: string | null; started_at?: string | null } | null;
+      if (row?.status) setCurrentRunStatus(row.status);
+      if (row?.started_at) setCurrentRunStartedAt(row.started_at);
+    };
+
+    void fetchExecs();
+    void fetchRunStatus();
 
     const channel = supabase
       .channel(`editor-run-execs-${lastRunId}`)
@@ -909,7 +921,8 @@ export function EditorShell({
         clearInterval(poll);
         return;
       }
-      fetchExecs();
+      void fetchExecs();
+      void fetchRunStatus();
     }, 2000);
 
     return () => {
