@@ -105,9 +105,9 @@ export async function POST(request: Request) {
   // Resolve the model.
   // Platform key: use the requested model if it's in the user's allowed catalog; fall back to default.
   // BYOK: use whatever the client sent.
+  const userTier = await getUserTier(userId);
   let model: string;
   if (usePlatformKey) {
-    const userTier = await getUserTier(userId);
     const ent = getEntitlements(userTier);
     const allowedModels = getAllowedPlatformModels(ent.genesisPlatformModelTier);
     const allowedIds = new Set(allowedModels.map((m) => m.id));
@@ -264,7 +264,8 @@ export async function POST(request: Request) {
   // Extract provider names from available connections for dynamic prompt generation
   const selectedProviders = availableConnections.map((conn) => conn.type);
   const genesisSystemPrompt = buildGenesisSystemPrompt(
-    selectedProviders.length > 0 ? selectedProviders : null
+    selectedProviders.length > 0 ? selectedProviders : null,
+    userTier
   );
 
   const serviceClient = createServiceClient();

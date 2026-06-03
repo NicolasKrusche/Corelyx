@@ -97,6 +97,22 @@ export const cronRunner = inngest.createFunction(
           return;
         }
 
+        // Fetch program's connection name→id map so runtime can resolve connector nodes
+        const { data: linkedConnsRaw } = await db
+          .from("program_connections")
+          .select("connection_id, connections(id, name)")
+          .eq("program_id", trigger.program_id);
+
+        const connectionNameToId: Record<string, string> = {};
+        for (const row of (linkedConnsRaw ?? []) as Array<{
+          connection_id: string;
+          connections: { id: string; name: string } | null;
+        }>) {
+          if (row.connections) {
+            connectionNameToId[row.connections.name] = row.connections.id;
+          }
+        }
+
         // Dispatch to Python runtime
         const runId = (run as { id: string }).id;
         try {
@@ -107,6 +123,7 @@ export const cronRunner = inngest.createFunction(
             schema: (program as Record<string, unknown>).schema,
             triggered_by: "cron",
             trigger_payload: { trigger_id: trigger.id },
+            connections: connectionNameToId,
           });
           const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
           const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
