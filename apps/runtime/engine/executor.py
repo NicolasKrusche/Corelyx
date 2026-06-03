@@ -936,6 +936,9 @@ class ProgramExecutor:
             # already-saved workflows continue to resolve after prompt fixes.
             local_state["loop_id"] = local_state[loop_node_id]
 
+            # Track nodes skipped by branch/filter decisions within this iteration.
+            skipped_in_iteration: set[str] = set()
+
             for nid in body_order:
                 node = self.node_map.get(nid)
                 if not node:
@@ -944,6 +947,19 @@ class ProgramExecutor:
                 current_status = await get_run_status(self.db, self.run_id)
                 if current_status == "cancelled":
                     raise CancellationError()
+
+                # Skip nodes that were pruned by a branch or filter earlier in this
+                # iteration — mirrors the same logic the main BFS applies.
+                if nid in skipped_in_iteration:
+                    local_state[nid] = {"__skipped__": True}
+                    iteration_results[nid].append({"__skipped__": True})
+                    await update_node_execution(
+                        self.db, self.run_id, nid,
+                        status="skipped", completed_at="now()",
+                        data_region=self.data_region,
+                        retention_expiry=self.retention_expiry,
+                    )
+                    continue
 
                 # _resolve_input already handles everything:
                 # - flat merge from direct edges ({{field}})
@@ -966,6 +982,37 @@ class ProgramExecutor:
                     raise
                 local_state[nid] = out
                 iteration_results[nid].append(out)
+
+                # Handle branch decisions: mark the non-selected path as skipped.
+                if isinstance(out, dict) and "__branch_target__" in out:
+                    selected = out["__branch_target__"]
+                    for e in self.edges_from.get(nid, []):
+                        if e.to != selected and e.to in body_ids:
+                            # Recursively mark all reachable nodes from the rejected
+                            # branch as skipped within this iteration's body.
+                            reject_frontier = [e.to]
+                            while reject_frontier:
+                                reject_nid = reject_frontier.pop()
+                                if reject_nid in skipped_in_iteration or reject_nid not in body_ids:
+                                    continue
+                                skipped_in_iteration.add(reject_nid)
+                                reject_frontier.extend(
+                                    fe.to for fe in self.edges_from.get(reject_nid, [])
+                                    if fe.to in body_ids
+                                )
+
+                # Handle filter short-circuits: skip all descendants within the body.
+                if isinstance(out, dict) and out.get("__filtered_out__") is True:
+                    filter_frontier = [e.to for e in self.edges_from.get(nid, []) if e.to in body_ids]
+                    while filter_frontier:
+                        reject_nid = filter_frontier.pop()
+                        if reject_nid in skipped_in_iteration or reject_nid not in body_ids:
+                            continue
+                        skipped_in_iteration.add(reject_nid)
+                        filter_frontier.extend(
+                            fe.to for fe in self.edges_from.get(reject_nid, [])
+                            if fe.to in body_ids
+                        )
 
         # Write aggregated results back to the shared state
         for nid, results in iteration_results.items():
