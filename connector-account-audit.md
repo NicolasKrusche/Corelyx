@@ -32,3 +32,5 @@ Rules:
 | fivetran | blocked | Google signup reached final profile form, but `Get started` stayed disabled after required fields; likely hidden validation/CAPTCHA or Gmail/company-email issue. |
 | dbt cloud | blocked | Signup needs password plus reCAPTCHA/terms flow; no secure password store available. |
 | notion | blocked | `office@corelyx.app` code mail arrived, but Notion rejected the visible code; magic link returned to the same error; Google login requires popup flow unsupported by current in-app browser session. |
+| slack | blocked | Google get-started OAuth callback returned Slack generic error. Email signup shows embedded verification iframe and keeps Continue disabled. |
+| github | blocked | Browser login via Google reached GitHub 2FA/SMS. GitHub app is available in Codex, but provider browser account setup cannot continue without 2FA. |
