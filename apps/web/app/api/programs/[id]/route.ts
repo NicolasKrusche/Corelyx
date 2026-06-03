@@ -95,7 +95,14 @@ export async function PATCH(
         { status: 422 }
       );
     }
-    validationResult = validatePostGenesis(schema, []);
+    const { data: linkedConnsRaw } = await supabase
+      .from("program_connections")
+      .select("connections(id, name, provider, scopes)")
+      .eq("program_id", params.id);
+    const linkedConnections = (linkedConnsRaw ?? [])
+      .map((r: { connections: { id: string; name: string; provider: string; scopes: string[] | null } | null }) => r.connections)
+      .filter(Boolean) as { id: string; name: string; provider: string; scopes: string[] | null }[];
+    validationResult = validatePostGenesis(schema, linkedConnections);
   }
 
   const now = new Date().toISOString();

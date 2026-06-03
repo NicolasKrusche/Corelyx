@@ -258,7 +258,7 @@ export async function syncCronTriggers(
 
       const { error: insertError } = await db.from("triggers").insert(insertPayload as never);
       if (!insertError) inserted++;
-    } else if (!configsEqual(d.config, existing.config) || existing.is_active !== d.is_active) {
+    } else if (!configsEqual(d.config, existing.config) || existing.is_active !== d.is_active || !existing.next_run_at) {
       const updatePayload: Record<string, unknown> = { config: d.config, is_active: d.is_active };
       if (nextRunAt) updatePayload.next_run_at = nextRunAt;
 
