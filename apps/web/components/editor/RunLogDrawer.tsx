@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Node as SchemaNode } from "@flowos/schema";
 import type { NodeExecutionData } from "./EditorShell";
-import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,10 +105,11 @@ function ErrorBlock({ message }: { message: string }) {
   const copy = () => navigator.clipboard?.writeText(message).catch(() => {});
   const codeMatch = message.match(/^\[([A-Z_]+)\]\s*/);
   const code = codeMatch?.[1];
-  const body = friendlyErrorMessage(
-    codeMatch ? message.slice(codeMatch[0].length) : message,
-    "This step could not finish. Check the setup and try again."
-  );
+  // The run log is a debugging surface — show the actual error verbatim rather
+  // than the sanitized friendly text. Fall back only when there is no message.
+  const body =
+    (codeMatch ? message.slice(codeMatch[0].length) : message).trim() ||
+    "This step could not finish. Check the setup and try again.";
   const action = ACTIONABLE.find((a) => a.test(message));
 
   return (
@@ -146,15 +146,25 @@ function ErrorBlock({ message }: { message: string }) {
 // This is a transient retry state — not a terminal failure — so it must not
 // use the alarming "could not finish" failure styling.
 function RetryingNote({ message }: { message: string }) {
+  const copy = () => navigator.clipboard?.writeText(message).catch(() => {});
   const codeMatch = message.match(/^\[([A-Z_]+)\]\s*/);
-  const body = friendlyErrorMessage(
-    codeMatch ? message.slice(codeMatch[0].length) : message,
-    "A previous attempt failed — retrying."
-  );
+  const code = codeMatch?.[1];
+  // Surface the real error from the failed attempt, not a generic placeholder.
+  const detail =
+    (codeMatch ? message.slice(codeMatch[0].length) : message).trim() ||
+    "A previous attempt failed — retrying.";
   return (
-    <div className="rounded border border-amber-300/60 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3 py-2 mt-1.5">
+    <div className="rounded border border-amber-300/60 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3 py-2 mt-1.5 space-y-1">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[11px] font-semibold text-amber-900 dark:text-amber-300">
+          ⟳ Retrying after an error{code ? <span className="font-mono"> · {code}</span> : null}
+        </span>
+        <button onClick={copy} className="ml-auto shrink-0 text-[10px] text-muted-foreground hover:text-foreground border border-border rounded px-1.5 py-0.5">
+          Copy details
+        </button>
+      </div>
       <p className="text-[11px] text-amber-800 dark:text-amber-400 whitespace-pre-wrap break-words leading-relaxed">
-        <span className="font-semibold">Retrying after an error.</span> {body}
+        {detail}
       </p>
     </div>
   );
