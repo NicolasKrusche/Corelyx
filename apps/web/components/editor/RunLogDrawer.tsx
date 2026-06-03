@@ -155,6 +155,7 @@ interface RunLogDrawerProps {
 // Covers runtime values ("completed", "cancelled") and schema-defined terminal
 // states ("success", "partial") so the Live badge and elapsed timer stop reliably.
 const TERMINAL = new Set(["completed", "success", "partial", "failed", "cancelled"]);
+const VISUAL_NODE_TYPES = new Set(["note", "group"]);
 
 // ─── RunLogDrawer ─────────────────────────────────────────────────────────────
 
@@ -184,6 +185,10 @@ export function RunLogDrawer({
   const nodeMap = Object.fromEntries(schemaNodes.map((n) => [n.id, n]));
 
   const executedEntries = Object.entries(nodeExecutions)
+    .filter(([nodeId]) => {
+      const node = nodeMap[nodeId];
+      return !node || !VISUAL_NODE_TYPES.has(node.type);
+    })
     .sort((a, b) => {
       const ta = a[1].created_at ? new Date(a[1].created_at).getTime() : 0;
       const tb = b[1].created_at ? new Date(b[1].created_at).getTime() : 0;

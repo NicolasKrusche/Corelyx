@@ -1,0 +1,334 @@
+{
+  "version": "1.0",
+  "program_id": "genesis-all-nodes-001",
+  "program_name": "Genesis Comprehensive Node & Connection Test",
+  "created_at": "2026-06-03T00:00:00Z",
+  "updated_at": "2026-06-03T00:00:00Z",
+  "execution_mode": "autonomous",
+  "nodes": [
+    {
+      "id": "trigger_manual",
+      "type": "trigger",
+      "label": "Manual Trigger",
+      "description": "Kicks off the program manually",
+      "position": { "x": 0, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": { "trigger_type": "manual" }
+    },
+    {
+      "id": "agent_summarize",
+      "type": "agent",
+      "label": "Summarize Input",
+      "description": "AI agent that summarizes input data",
+      "position": { "x": 200, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": {
+        "model": "gpt-4o-mini",
+        "api_key_ref": "platform",
+        "system_prompt": "Summarize the input briefly.",
+        "input_schema": { "type": "object", "properties": { "text": { "type": "string" } }, "required": ["text"] },
+        "output_schema": { "type": "object", "properties": { "summary": { "type": "string" } }, "required": ["summary"] },
+        "requires_approval": false,
+        "approval_timeout_hours": 24,
+        "scope_required": null,
+        "scope_access": "read",
+        "retry": { "max_attempts": 1, "backoff": "none", "backoff_base_seconds": 1, "fail_program_on_exhaust": false },
+        "tools": []
+      }
+    },
+    {
+      "id": "step_transform",
+      "type": "step",
+      "label": "Transform Data",
+      "description": "Add 10 to the value",
+      "position": { "x": 400, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "transform", "transformation": "{'result': input['trigger_manual']['value'] + 10, 'raw_json': input['trigger_manual']['raw_json'], 'value': input['trigger_manual']['value']}", "input_schema": null, "output_schema": null }
+    },
+    {
+      "id": "step_filter",
+      "type": "step",
+      "label": "Filter Positive",
+      "description": "Only pass if result > 0",
+      "position": { "x": 600, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "filter", "condition": "input['trigger_manual']['value'] + 10 > 0", "pass_schema": null }
+    },
+    {
+      "id": "step_branch",
+      "type": "step",
+      "label": "Branch on Value",
+      "description": "Branch based on value magnitude",
+      "position": { "x": 800, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": {
+        "logic_type": "branch",
+        "conditions": [
+          { "condition": "input['trigger_manual']['value'] + 10 > 15", "target_node_id": "step_format" },
+          { "condition": "input['trigger_manual']['value'] + 10 > 5", "target_node_id": "step_delay" }
+        ],
+        "default_branch": "step_loop"
+      }
+    },
+    {
+      "id": "step_format",
+      "type": "step",
+      "label": "Format Message",
+      "description": "Format a greeting message",
+      "position": { "x": 1000, "y": -100 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "format", "template": "Hello, the result is {result}", "output_key": "message" }
+    },
+    {
+      "id": "step_delay",
+      "type": "step",
+      "label": "Delay 0.01s",
+      "description": "Short delay for testing",
+      "position": { "x": 1000, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "delay", "seconds": 0.01 }
+    },
+    {
+      "id": "step_loop",
+      "type": "step",
+      "label": "Loop Over Items",
+      "description": "Loop over a list of items",
+      "position": { "x": 1000, "y": 100 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "loop", "over": "[1, 2, 3]", "item_var": "item" }
+    },
+    {
+      "id": "step_parse",
+      "type": "step",
+      "label": "Parse JSON",
+      "description": "Parse raw JSON string",
+      "position": { "x": 1200, "y": -100 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "parse", "input_key": "raw_json", "format": "json" }
+    },
+    {
+      "id": "step_dedup",
+      "type": "step",
+      "label": "Deduplicate",
+      "description": "Remove duplicates by id",
+      "position": { "x": 1400, "y": -100 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "deduplicate", "key": "id" }
+    },
+    {
+      "id": "step_sort",
+      "type": "step",
+      "label": "Sort Items",
+      "description": "Sort items by name ascending",
+      "position": { "x": 1600, "y": -100 },
+      "status": "idle",
+      "connection": null,
+      "config": { "logic_type": "sort", "key": "name", "order": "asc" }
+    },
+    {
+      "id": "conn_http_get",
+      "type": "connection",
+      "label": "HTTP GET",
+      "description": "HTTP GET with no auth",
+      "position": { "x": 1200, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": {
+        "connector_type": "http",
+        "method": "GET",
+        "url": "https://httpbin.org/get",
+        "auth_type": "none",
+        "auth_value": null,
+        "query_params": [{"key": "test", "value": "value"}],
+        "headers": [{"key": "X-Custom", "value": "header"}],
+        "body": null,
+        "parse_response": true,
+        "timeout_seconds": 5,
+        "retry": { "max_attempts": 1, "backoff": "none", "backoff_base_seconds": 1, "fail_program_on_exhaust": false }
+      }
+    },
+    {
+      "id": "conn_http_post_bearer",
+      "type": "connection",
+      "label": "HTTP POST Bearer",
+      "description": "HTTP POST with bearer auth",
+      "position": { "x": 1400, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": {
+        "connector_type": "http",
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "auth_type": "bearer",
+        "auth_value": "test-token",
+        "query_params": [],
+        "headers": [],
+        "body": "{\"key\":\"value\"}",
+        "parse_response": true,
+        "timeout_seconds": 5,
+        "retry": null
+      }
+    },
+    {
+      "id": "conn_http_basic",
+      "type": "connection",
+      "label": "HTTP Basic Auth",
+      "description": "HTTP with basic authentication",
+      "position": { "x": 1600, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": {
+        "connector_type": "http",
+        "method": "PUT",
+        "url": "https://httpbin.org/put",
+        "auth_type": "basic",
+        "auth_value": "user:pass",
+        "query_params": [],
+        "headers": [],
+        "body": null,
+        "parse_response": true,
+        "timeout_seconds": 5,
+        "retry": null
+      }
+    },
+    {
+      "id": "conn_http_api_key_header",
+      "type": "connection",
+      "label": "HTTP API Key Header",
+      "description": "HTTP with API key in header",
+      "position": { "x": 1800, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": {
+        "connector_type": "http",
+        "method": "PATCH",
+        "url": "https://httpbin.org/patch",
+        "auth_type": "api_key_header",
+        "auth_value": "secret-key",
+        "query_params": [],
+        "headers": [],
+        "body": null,
+        "parse_response": true,
+        "timeout_seconds": 5,
+        "retry": null
+      }
+    },
+    {
+      "id": "conn_http_api_key_query",
+      "type": "connection",
+      "label": "HTTP API Key Query",
+      "description": "HTTP with API key in query string",
+      "position": { "x": 2000, "y": 0 },
+      "status": "idle",
+      "connection": null,
+      "config": {
+        "connector_type": "http",
+        "method": "DELETE",
+        "url": "https://httpbin.org/delete",
+        "auth_type": "api_key_query",
+        "auth_value": "secret-key",
+        "query_params": [],
+        "headers": [],
+        "body": null,
+        "parse_response": true,
+        "timeout_seconds": 5,
+        "retry": null
+      }
+    },
+    {
+      "id": "conn_oauth_gmail",
+      "type": "connection",
+      "label": "Gmail OAuth",
+      "description": "Gmail connection without operation",
+      "position": { "x": 1200, "y": 100 },
+      "status": "idle",
+      "connection": "gmail:primary",
+      "config": {
+        "connector_type": "oauth",
+        "scope_access": "read",
+        "scope_required": ["https://www.googleapis.com/auth/gmail.readonly"],
+        "operation": null,
+        "operation_params": {}
+      }
+    },
+    {
+      "id": "conn_oauth_slack",
+      "type": "connection",
+      "label": "Slack OAuth",
+      "description": "Slack send message operation",
+      "position": { "x": 1400, "y": 100 },
+      "status": "idle",
+      "connection": "slack:workspace",
+      "config": {
+        "connector_type": "oauth",
+        "scope_access": "write",
+        "scope_required": ["chat:write"],
+        "operation": "send_message",
+        "operation_params": { "channel": "#general", "text": "Hello from Genesis" }
+      }
+    },
+    {
+      "id": "note_1",
+      "type": "note",
+      "label": "Note",
+      "description": "This is a note node for visual context",
+      "position": { "x": 0, "y": 200 },
+      "status": "idle",
+      "connection": null,
+      "config": { "content": "This program tests every node and connection type.", "color": "yellow" }
+    },
+    {
+      "id": "group_1",
+      "type": "group",
+      "label": "HTTP Connections",
+      "description": "Group containing all HTTP connection nodes",
+      "position": { "x": 1150, "y": -50 },
+      "status": "idle",
+      "connection": null,
+      "config": { "childIds": ["conn_http_get", "conn_http_post_bearer", "conn_http_basic", "conn_http_api_key_header", "conn_http_api_key_query"], "width": 1100, "height": 150, "color": "blue" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "trigger_manual", "to": "agent_summarize", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e2", "from": "agent_summarize", "to": "step_transform", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e3", "from": "step_transform", "to": "step_filter", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e4", "from": "step_filter", "to": "step_branch", "type": "control_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e5", "from": "step_branch", "to": "step_format", "type": "control_flow", "data_mapping": null, "condition": null, "label": "high" },
+    { "id": "e6", "from": "step_branch", "to": "step_delay", "type": "control_flow", "data_mapping": null, "condition": null, "label": "medium" },
+    { "id": "e7", "from": "step_branch", "to": "step_loop", "type": "control_flow", "data_mapping": null, "condition": null, "label": "low" },
+    { "id": "e8", "from": "step_format", "to": "step_parse", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e9", "from": "step_parse", "to": "step_dedup", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e10", "from": "step_dedup", "to": "step_sort", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e11", "from": "step_delay", "to": "conn_http_get", "type": "event_subscription", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e12", "from": "conn_http_get", "to": "conn_http_post_bearer", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e13", "from": "conn_http_post_bearer", "to": "conn_http_basic", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e14", "from": "conn_http_basic", "to": "conn_http_api_key_header", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e15", "from": "conn_http_api_key_header", "to": "conn_http_api_key_query", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e16", "from": "step_loop", "to": "conn_oauth_gmail", "type": "data_flow", "data_mapping": null, "condition": null, "label": null },
+    { "id": "e17", "from": "conn_oauth_gmail", "to": "conn_oauth_slack", "type": "data_flow", "data_mapping": null, "condition": null, "label": null }
+  ],
+  "triggers": [
+    { "node_id": "trigger_manual", "type": "manual", "is_active": true, "last_fired": null, "next_scheduled": null }
+  ],
+  "version_history": [],
+  "metadata": {
+    "description": "Comprehensive test program created by Genesis covering every node and connection type.",
+    "genesis_model": "claude-sonnet-4-6",
+    "genesis_timestamp": "2026-06-03T00:00:00Z",
+    "tags": ["genesis", "comprehensive", "test"],
+    "is_active": false,
+    "last_run_id": null,
+    "last_run_status": null,
+    "last_run_timestamp": null
+  }
+}

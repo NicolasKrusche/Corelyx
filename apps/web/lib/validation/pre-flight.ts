@@ -13,6 +13,7 @@ import {
   type NodeValidationState,
 } from "./index";
 import { getMissingRequiredParams } from "@/lib/connectors/operation-params";
+import type { z } from "zod";
 
 // Input types
 export type PreFlightConnection = {
@@ -72,6 +73,188 @@ export interface PreFlightCheck {
   label: string;
   status: "pass" | "fail" | "skip";
   failures: PreFlightFailure[];
+}
+
+type DraftNodeLike = {
+  id?: unknown;
+  label?: unknown;
+  type?: unknown;
+  config?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function humanizeFieldName(value: string): string {
+  return value.replace(/_/g, " ");
+}
+
+function nodeDisplayName(node: DraftNodeLike | undefined, index: number): string {
+  return typeof node?.label === "string" && node.label.trim().length > 0
+    ? node.label
+    : `Node ${index + 1}`;
+}
+
+function formatIssuePath(path: PropertyKey[]): string {
+  return path
+    .map((part) => humanizeFieldName(String(part)))
+    .join(" > ");
+}
+
+function describeDraftNodeIssue(
+  node: DraftNodeLike | undefined,
+  index: number,
+  issue: z.ZodIssue
+): { message: string; fix_suggestion: string } {
+  const label = nodeDisplayName(node, index);
+  const tail = issue.path.slice(2).map(String);
+  const configPath = tail[0] === "config" ? tail.slice(1) : tail;
+  const config = isRecord(node?.config) ? node.config : {};
+  const logicType = typeof config.logic_type === "string" ? config.logic_type : null;
+  const triggerType = typeof config.trigger_type === "string" ? config.trigger_type : null;
+  const isHttp = config.connector_type === "http";
+  const field = configPath[0] ?? "configuration";
+
+  if (logicType === "branch" && field === "conditions") {
+    return {
+      message: `${label} needs at least one branch condition.`,
+      fix_suggestion: `Open ${label} and add a condition with its target branch.`,
+    };
+  }
+
+  if (logicType === "branch" && field === "default_branch") {
+    return {
+      message: `${label} is missing a default branch.`,
+      fix_suggestion: `Open ${label} and choose where items go when no condition matches.`,
+    };
+  }
+
+  const stepFields: Record<string, string> = {
+    transformation: "transformation",
+    condition: "filter condition",
+    over: "loop input path",
+    item_var: "loop item variable",
+    template: "format template",
+    output_key: "output key",
+    input_key: "input key",
+    key: "field key",
+  };
+  if (typeof node?.type === "string" && node.type === "step" && stepFields[field]) {
+    const fieldLabel = stepFields[field];
+    return {
+      message: `${label} is missing its ${fieldLabel}.`,
+      fix_suggestion: `Open ${label} and fill in the ${fieldLabel}.`,
+    };
+  }
+
+  const triggerFields: Record<string, string> = {
+    expression: "schedule expression",
+    timezone: "timezone",
+    source: "event source",
+    event: "event name",
+    endpoint_id: "webhook endpoint",
+    source_program_id: "source program",
+    on_status: "status filter",
+  };
+  if (triggerType && triggerFields[field]) {
+    const fieldLabel = triggerFields[field];
+    return {
+      message: `${label} is missing its ${fieldLabel}.`,
+      fix_suggestion: `Open ${label} and fill in the ${fieldLabel}.`,
+    };
+  }
+
+  if (isHttp && field === "url") {
+    return {
+      message: `${label} is missing the HTTP URL.`,
+      fix_suggestion: `Open ${label} and enter the endpoint URL to call.`,
+    };
+  }
+
+  const fieldPath = configPath.length > 0 ? formatIssuePath(configPath) : formatIssuePath(tail);
+  return {
+    message: `${label} has an invalid ${fieldPath || "configuration"}: ${issue.message}`,
+    fix_suggestion: `Open ${label} and update ${fieldPath || "the highlighted settings"}.`,
+  };
+}
+
+export function buildDraftCompletenessPreFlight(
+  schema: unknown,
+  error: z.ZodError
+): { result: ValidationResult; checks: PreFlightCheck[] } {
+  const nodes = isRecord(schema) && Array.isArray(schema.nodes)
+    ? (schema.nodes as DraftNodeLike[])
+    : [];
+
+  const failures: PreFlightFailure[] = [];
+  const errors: ValidationError[] = [];
+  const node_states: Record<string, NodeValidationState> = {};
+  const seen = new Set<string>();
+
+  for (const issue of error.issues) {
+    const [scope, rawIndex] = issue.path;
+    const index = typeof rawIndex === "number" ? rawIndex : -1;
+    const node = scope === "nodes" && index >= 0 ? nodes[index] : undefined;
+    const nodeId = typeof node?.id === "string" ? node.id : null;
+    const key = `${nodeId ?? "workflow"}:${issue.path.join(".")}:${issue.message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const details = node
+      ? describeDraftNodeIssue(node, index, issue)
+      : {
+          message: `Workflow draft has an invalid ${formatIssuePath(issue.path)}: ${issue.message}`,
+          fix_suggestion: "Review the workflow settings and complete any missing required fields.",
+        };
+
+    failures.push({ node_id: nodeId, ...details });
+    errors.push({
+      code: "PRE_DRAFT",
+      severity: "blocking",
+      node_id: nodeId,
+      edge_id: null,
+      ...details,
+    });
+    if (nodeId) node_states[nodeId] = "error";
+  }
+
+  if (failures.length === 0) {
+    const fallback = {
+      node_id: null,
+      message: "This workflow is saved as a draft but is not ready to run.",
+      fix_suggestion: "Complete required node fields before validating or running.",
+    };
+    failures.push(fallback);
+    errors.push({
+      code: "PRE_DRAFT",
+      severity: "blocking",
+      edge_id: null,
+      ...fallback,
+    });
+  }
+
+  for (const node of nodes) {
+    const nodeId = typeof node.id === "string" ? node.id : null;
+    if (nodeId && !node_states[nodeId]) node_states[nodeId] = "valid";
+  }
+
+  return {
+    result: {
+      valid: false,
+      errors,
+      warnings: [],
+      node_states,
+    },
+    checks: [
+      {
+        code: "PRE_004",
+        label: "Draft completeness",
+        status: "fail",
+        failures,
+      },
+    ],
+  };
 }
 
 function isHttpConnectionConfig(

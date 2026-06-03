@@ -23,8 +23,10 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     tier: 1,
     full: `GMAIL:
   list_emails / search: params={query:string(REQUIRED),max_results:number} → output:{emails:[{id,threadId}]}
-    ⚠ emails are stubs only — ALWAYS follow with: filter("len(data['n2'].get('emails',[]))>0") → loop(over:"data['n2']['emails']",item_var:"email") → read_email(message_id:"{{loop_node_id.email.id}}")
-    ⚠ Replace n2/loop_node_id with the actual node IDs you assign.
+    ⚠ emails are stubs — {id,threadId} ONLY. subject/from/body/labels are NOT present.
+    ⚠ REQUIRED PATTERN when processing individual emails: list_emails(nX) → filter(len(data['nX'].get('emails',[]))>0) → loop(over:"data['nX']['emails']",item_var:"email") → read_email(message_id:"{{nX.email.id}}") → [branch/filter/agent using data['read_node']['subject'] etc.]
+    ⚠ NEVER write a branch or filter condition that checks subject/from/body/labels on the loop item directly — those fields do not exist on stubs. Always read_email first.
+    ⚠ Replace nX/read_node with the actual node IDs you assign.
   read_email: params={message_id:string(REQUIRED)} → output:{message_id,subject,from,to,body,labels}
   send_email: params={to,subject,body(all REQUIRED),cc?,bcc?,reply_to_id?,thread_id?}
   archive_email: params={message_id:string(REQUIRED)} → output:{message_id,archived:true}
@@ -430,15 +432,30 @@ function buildGapReferenceSection(
 
 /**
  * Build the full Genesis system prompt, optionally filtered by selected connectors.
+ * Pass userTier to enable plan-aware agent node guidance.
  */
 export function buildGenesisSystemPrompt(
-  selectedProviders: string[] | null = null
+  selectedProviders: string[] | null = null,
+  userTier?: string | null
 ): string {
   const operationsSection = buildConnectorOperationsSection(selectedProviders);
   const gapRefSection = buildGapReferenceSection(selectedProviders);
 
-  return `You are Corelyx Genesis. Convert natural-language automation descriptions into executable JSON program schemas.
+  const isPaidTier = userTier === "plus" || userTier === "pro" || userTier === "builder" || userTier === "unlimited";
+  const agentFirstSection = isPaidTier ? `
+AGENT-FIRST GUIDANCE (applies to this user's plan):
+Prefer agent nodes whenever the workflow involves natural language understanding. Specific triggers:
+  - Classifying or routing content by meaning (sentiment, topic, relevance, category)
+  - Extracting structured fields from unstructured text (email body, ticket description, form response)
+  - Summarising, drafting, or rewriting content
+  - Making judgment calls that depend on context (e.g. "is this urgent?", "which team should handle this?")
+  - Routing decisions where a simple string match would miss synonyms, paraphrasing, or edge cases
+Keep deterministic branch/filter nodes for exact field comparisons and boolean flags. Use agent for everything that requires reading and understanding text.
+Add a note node explaining which model the user should assign to each agent node.
+` : "";
 
+  return `You are Corelyx Genesis. Convert natural-language automation descriptions into executable JSON program schemas.
+${agentFirstSection}
 OUTPUT RULE: Emit only a single raw JSON object. No explanation, no markdown, no code fences. Start with { end with }.
 On failure, emit only one of the two error objects defined at the end.
 
@@ -471,9 +488,9 @@ Use AGENT for reasoning/summarization/decisions. Use CONNECTION for deterministi
 
 STEP NODE (connection: ALWAYS null):
 Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node output via its node ID: data['n1'].get('field',''), data['n2']['key'], etc. Never use data.get('field') directly — the flat merge is unreliable. Allowed: data['nX'].get(k,default), len(), str(), int(), float(), and/or/not, ==, !=, list comprehensions [x for x in ...], str.join/split/strip/upper/lower.
-  filter: {"logic_type":"filter","condition":"len(data['n1'].get('emails',[]))>0","pass_schema":null}
+  filter: {"logic_type":"filter","condition":"len(data['n2'].get('emails',[]))>0","pass_schema":null}  ← always data['nodeId'].get(...), never data.get(...)
   transform: {"logic_type":"transform","transformation":"{'key':data['n1']['key']}","input_schema":null,"output_schema":null}
-  loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}  → if this is node n3, downstream accesses {{n3.item}}
+  loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}  → if this is node n3 with item_var:"email", downstream uses data['n3']['email']['id'] or {{n3.email.id}}. item_var name becomes the key under the loop node ID.
   branch: {"logic_type":"branch","conditions":[{"condition":"data['n1'].get('x')==True","target_node_id":"n5"}],"default_branch":"n6"}
   delay: {"logic_type":"delay","seconds":3600}
   format: {"logic_type":"format","template":"Subject: {subject}","output_key":"text"}
@@ -556,7 +573,7 @@ CHECKLIST before output:
   1. Exactly 1 trigger node. 2. ≤12 executable nodes (note/group excluded). 3. All edge from/to reference real node IDs.
   4. connection field matches provided name exactly (or null for generic HTTP/step/agent/note/group). OAuth-backed HTTP fallbacks use that OAuth connection name and auth_value:"__OAUTH_CONNECTION__".
   5. Every non-trigger, non-note, non-group node has an incoming edge. 6. step nodes always have connection:null.
-  7. Gmail: never pass stub list to agent — always filter→loop→read_email first.
+  7. Gmail list_emails/search output is stubs ({id,threadId} only). Before any branch/filter/agent that checks subject, from, body, or labels: filter(non-empty) → loop → read_email → then use data['read_node']['subject'] etc. NEVER check email metadata on the loop item itself.
   8. Every operation with REQUIRED params has them filled (use "__USER_ASSIGNED__" for unknown resource IDs).
   9. {{expressions}} have exactly two braces: {{n1.field}}. 10. version_history:[].
   11. filter/loop/branch conditions ALWAYS use scoped access: data['n2'].get('field') — NEVER the flat data.get('field'). The flat merge is unreliable.

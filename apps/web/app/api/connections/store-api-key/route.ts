@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { upsertOAuthConnection } from "@/lib/oauth-token";
+import { checkPayPerUseConnectorAccess } from "@/lib/limits";
+import { PAY_PER_USE_PROVIDERS } from "@/lib/connector-tiers";
 
 /**
  * Store an API key (or any static credential) as a connection in Vault.
@@ -33,6 +35,14 @@ export async function POST(request: Request) {
   }
   if (typeof api_key !== "string" || !api_key.trim()) {
     return apiError("Missing or invalid 'api_key'", 400);
+  }
+
+  // Pay-per-use connectors require Solo plan or higher
+  if (PAY_PER_USE_PROVIDERS.has(provider.trim())) {
+    const access = await checkPayPerUseConnectorAccess(user.id);
+    if (!access.allowed) {
+      return apiError(access.upgradeMessage ?? access.reason ?? "Solo plan required", 403);
+    }
   }
 
   const resolvedLabel =

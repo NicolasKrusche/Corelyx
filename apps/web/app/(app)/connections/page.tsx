@@ -34,6 +34,7 @@ import {
   isPrimaryConnectionName,
 } from "@/lib/connection-utils";
 import { PROVIDER_ICON_URL } from "@/lib/provider-icons";
+import { PAY_PER_USE_PROVIDERS } from "@/lib/connector-tiers";
 
 type Connection = {
   id: string;
@@ -271,40 +272,9 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 
-/**
- * Providers that require a platform-funded API key and will be gated behind
- * the Pro plan. Everything else either uses the user's own OAuth account (free
- * for the platform) or a platform key that has a meaningful free tier.
- */
-const PRO_PROVIDERS = new Set([
-  // AI / ML
-  "openai", "replicate",
-  // Email (no user-OAuth flow — platform key required)
-  "customerio", "braze", "iterable", "postmark", "beehiiv",
-  // SMS / Voice
-  "twilio", "vonage", "telnyx", "openphone", "whatsapp",
-  // Analytics (paid)
-  "heap", "hotjar", "fullstory", "rudderstack",
-  // DevOps / Monitoring (paid)
-  "datadog", "opsgenie",
-  // Cloud / Storage (paid)
-  "awss3", "mux", "wistia",
-  // CRM / Sales intelligence (paid, no OAuth)
-  "copper", "closecrm", "freshsales", "insightly", "nutshell",
-  "clearbit", "zoominfo", "lusha",
-  // Finance / Payments (paid, no OAuth)
-  "adyen", "braintree", "chargebee", "recurly", "mollie",
-  "gocardless", "lemonsqueezy", "netsuite", "ramp", "expensify",
-  "paddle", "square",
-  // HR / People (paid, no OAuth)
-  "rippling", "workday", "personio", "hibob", "lattice", "workable",
-  // CMS / Content (paid)
-  "ghost", "framer", "invision",
-  // Support / CX (paid)
-  "gorgias", "freshservice", "kustomer", "crisp", "drift", "servicenow",
-  // Productivity / SEO (paid)
-  "semrush", "ahrefs", "paperform", "zeplin", "luma", "simplybook", "evernote",
-]);
+// PAY_PER_USE_PROVIDERS imported from @/lib/connector-tiers — providers that
+// bill the user's own external account per usage (Stripe, Twilio, OpenAI, etc.).
+// Connecting them requires Solo plan or higher.
 
 const POPULAR_PROVIDER_IDS = ["gmail", "slack", "notion", "sheets", "hubspot", "github", "asana", "drive"];
 
@@ -1455,7 +1425,7 @@ export default function ConnectionsPage() {
             {filteredAvailableProviders.length > 0 ? (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {filteredAvailableProviders.map((provider) => {
-                  const isPro = PRO_PROVIDERS.has(provider.id);
+                  const isPro = PAY_PER_USE_PROVIDERS.has(provider.id);
                   return (
                     <button
                       key={provider.id}
@@ -1470,7 +1440,7 @@ export default function ConnectionsPage() {
                           {isPro && (
                             <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
                               <Lock className="h-2.5 w-2.5" />
-                              Pro
+                              Solo
                             </span>
                           )}
                         </div>
@@ -1505,10 +1475,10 @@ export default function ConnectionsPage() {
               (p) => p.wave === 1 && !connectedProviders.has(p.id),
             );
             const moreFree = AVAILABLE_PROVIDERS.filter(
-              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && !PRO_PROVIDERS.has(p.id),
+              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && !PAY_PER_USE_PROVIDERS.has(p.id),
             );
             const morePro = AVAILABLE_PROVIDERS.filter(
-              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && PRO_PROVIDERS.has(p.id),
+              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && PAY_PER_USE_PROVIDERS.has(p.id),
             );
 
             const sections: Array<{ label: string; description: string; providers: Provider[]; isPro?: boolean }> = [];
@@ -1528,8 +1498,8 @@ export default function ConnectionsPage() {
             }
             if (morePro.length > 0) {
               sections.push({
-                label: "Pro plan",
-                description: "Billed per usage — available on Pro and above.",
+                label: "Solo plan",
+                description: "Billed per usage to your own account — requires Solo plan or higher. Connect with your own API key.",
                 providers: morePro,
                 isPro: true,
               });
@@ -1570,7 +1540,7 @@ export default function ConnectionsPage() {
                       {isPro ? (
                         <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
                           <Lock className="h-2.5 w-2.5" />
-                          Pro
+                          Solo
                         </span>
                       ) : (
                         <span className="shrink-0 text-xs font-medium text-muted-foreground/60">
@@ -1665,10 +1635,10 @@ export default function ConnectionsPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="truncate text-sm font-semibold">{activeProvider.label}</p>
-                          {PRO_PROVIDERS.has(activeProvider.id) && (
+                          {PAY_PER_USE_PROVIDERS.has(activeProvider.id) && (
                             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
                               <Lock className="h-2.5 w-2.5" />
-                              Pro
+                              Solo
                             </span>
                           )}
                         </div>

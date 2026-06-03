@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError } from "@/lib/api";
+import { checkPayPerUseConnectorAccess } from "@/lib/limits";
+import { PAY_PER_USE_PROVIDERS } from "@/lib/connector-tiers";
 
 /**
  * Catch-all OAuth route for providers that use API keys rather than OAuth2 redirect flows.
@@ -20,6 +22,14 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   if (!user) return apiError("Unauthorized", 401);
+
+  // Pay-per-use connectors require Solo plan or higher
+  if (PAY_PER_USE_PROVIDERS.has(provider)) {
+    const access = await checkPayPerUseConnectorAccess(user.id);
+    if (!access.allowed) {
+      return apiError(access.upgradeMessage ?? access.reason ?? "Solo plan required", 403);
+    }
+  }
 
   const { searchParams, origin } = new URL(request.url);
   const label = searchParams.get("label") ?? `${provider}:primary`;

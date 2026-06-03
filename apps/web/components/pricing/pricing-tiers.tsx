@@ -15,14 +15,14 @@ export const TIERS = [
     features: [
       { text: "2 programs", note: "(hard limit)" },
       { text: "50 runs / month" },
-      { text: "All 200+ connectors" },
+      { text: "150+ standard connectors", note: "(OAuth-based apps)" },
       { text: "7-day run history" },
       { text: "Visual editor only" },
       { text: "3 Genesis AI uses / month" },
       { text: "Manual & cron triggers" },
       { text: "Community support" },
     ],
-    missing: ["BYOK (Bring your own key)", "Human-in-the-loop approvals", "Error prevention (auto)"],
+    missing: ["BYOK (Bring your own key)", "Pay-per-use connectors (Stripe, Twilio, OpenAI…)", "Human-in-the-loop approvals", "Error prevention (auto)"],
   },
   {
     name: "Solo",
@@ -38,7 +38,7 @@ export const TIERS = [
     features: [
       { text: "5 programs" },
       { text: "75 runs / month" },
-      { text: "All 200+ connectors" },
+      { text: "All 200+ connectors", note: "(incl. Stripe, Twilio, OpenAI, AWS S3…)" },
       { text: "Bring your own API keys (BYOK)" },
       { text: "2,500 platform AI credits / month", note: "(use any model, no setup)" },
       { text: "30-day run history" },

@@ -27,7 +27,7 @@ const plans = [
       "Solo includes:",
       "5 programs",
       "75 runs / month",
-      "All 200+ connectors",
+      "All 200+ connectors (incl. Stripe, Twilio, OpenAI…)",
       "BYOK (bring your own API key)",
       "2,500 platform AI credits / month",
       "30-day run history",
