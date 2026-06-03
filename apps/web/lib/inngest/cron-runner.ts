@@ -100,16 +100,17 @@ export const cronRunner = inngest.createFunction(
         // Fetch program's connection name→id map so runtime can resolve connector nodes
         const { data: linkedConnsRaw } = await db
           .from("program_connections")
-          .select("connection_id, connections(id, name)")
+          .select("connection_id, connections(id, name, provider)")
           .eq("program_id", trigger.program_id);
 
         const connectionNameToId: Record<string, string> = {};
         for (const row of (linkedConnsRaw ?? []) as Array<{
           connection_id: string;
-          connections: { id: string; name: string } | null;
+          connections: { id: string; name: string; provider: string } | null;
         }>) {
           if (row.connections) {
             connectionNameToId[row.connections.name] = row.connections.id;
+            connectionNameToId[`${row.connections.provider}:primary`] = row.connections.id;
           }
         }
 

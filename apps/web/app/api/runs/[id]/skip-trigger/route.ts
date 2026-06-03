@@ -110,12 +110,12 @@ export async function POST(
 
   const connectionIds = (linkedConns ?? []).map((r: { connection_id: string }) => r.connection_id);
 
-  type ConnectionRow = { id: string; name: string };
+  type ConnectionRow = { id: string; name: string; provider: string };
   let connections: ConnectionRow[] = [];
   if (connectionIds.length > 0) {
     const { data } = await serviceClient
       .from("connections")
-      .select("id, name")
+      .select("id, name, provider")
       .in("id", connectionIds)
       .eq("workspace_id", access!.workspaceId);
     connections = (data ?? []) as ConnectionRow[];
@@ -130,7 +130,14 @@ export async function POST(
       user_id: user.id,
       schema,
       triggered_by: "manual",
-      connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
+      connections: (() => {
+        const connMap: Record<string, string> = {};
+        for (const c of connections) {
+          connMap[c.name] = c.id;
+          connMap[`${c.provider}:primary`] = c.id;
+        }
+        return connMap;
+      })(),
     });
     const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
     const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
