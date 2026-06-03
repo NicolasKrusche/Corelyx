@@ -529,11 +529,72 @@ async def get_existing_lock(
     return result.data if result is not None else None
 
 
+# Run statuses that mean the run is no longer doing work. A lock still held by
+# such a run is orphaned (the run was stopped/killed/crashed before releasing
+# it) and must not block new runs for the full lock TTL.
+_TERMINAL_RUN_STATUSES = ("completed", "success", "partial", "failed", "cancelled")
+
+# No legitimate run executes longer than the runtime's per-run timeout
+# (RUN_TIMEOUT_SECONDS = 600s). A lock still held by a run that started well
+# beyond that window means the run was killed (e.g. process OOM/redeploy)
+# without releasing its locks and left its status stuck at "running".
+_ORPHAN_RUN_AGE_SECONDS = 15 * 60
+
+
 async def cleanup_stale_locks(db: Client) -> int:
-    """Delete expired locks. Returns number deleted."""
-    now = datetime.now(timezone.utc).isoformat()
-    result = db.table("resource_locks").delete().lt("expires_at", now).execute()
-    return len(result.data)
+    """Delete locks that are either time-expired or orphaned.
+
+    A lock is orphaned when the run that holds it can no longer release it:
+      * the run is already in a terminal state (or no longer exists), or
+      * the run is still marked "running" but started long enough ago that it
+        must have been killed before its ``release_run_locks`` ran.
+
+    Without this cleanup such a lock keeps every new run that touches the same
+    connection blocked in the queue-wait path for up to the full
+    ``LOCK_TTL_MINUTES`` window — which surfaces as runs that never start.
+    """
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    deleted = 0
+
+    # 1. Time-expired locks.
+    expired = db.table("resource_locks").delete().lt("expires_at", now_iso).execute()
+    deleted += len(expired.data or [])
+
+    # 2. Locks whose holding run is terminal, missing, or a long-dead "running".
+    remaining = db.table("resource_locks").select("id, locked_by_run_id").execute()
+    rows = remaining.data or []
+    run_ids = list({r["locked_by_run_id"] for r in rows if r.get("locked_by_run_id")})
+    if not run_ids:
+        return deleted
+
+    runs_res = db.table("runs").select("id, status, started_at").in_("id", run_ids).execute()
+    runs_by_id = {r["id"]: r for r in (runs_res.data or [])}
+
+    def _is_orphaned(run_id: str) -> bool:
+        run = runs_by_id.get(run_id)
+        if run is None:
+            return True
+        if run.get("status") in _TERMINAL_RUN_STATUSES:
+            return True
+        started_at = run.get("started_at")
+        if started_at:
+            try:
+                started = datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+                if (now - started).total_seconds() > _ORPHAN_RUN_AGE_SECONDS:
+                    return True
+            except (ValueError, TypeError):
+                pass
+        return False
+
+    orphan_ids = [r["id"] for r in rows if _is_orphaned(r["locked_by_run_id"])]
+    if orphan_ids:
+        orphaned = db.table("resource_locks").delete().in_("id", orphan_ids).execute()
+        deleted += len(orphaned.data or [])
+
+    return deleted
 
 
 async def get_credential(ref: str, user_id: str) -> dict:
