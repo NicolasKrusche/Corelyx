@@ -181,7 +181,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
     return {
       id, type: "note", label: "Note", description: "", connection: null,
       position, status: "idle",
-      config: { content: "", color: (variant as { type: "note"; color: NoteColor }).color },
+      config: { content: "", color: (variant as { type: "note"; color: NoteColor }).color, width: 200, height: 120 },
     };
   }
 
@@ -261,7 +261,7 @@ function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
     schemaNode.type === "group"
       ? { width: (cfg.width as number) ?? 400, height: (cfg.height as number) ?? 300 }
       : schemaNode.type === "note"
-        ? { width: 200, height: 120 }
+        ? { width: (cfg.width as number) ?? 200, height: (cfg.height as number) ?? 120 }
         : undefined;
 
   // Groups must sit below every other node so clicks reach the nodes inside them.
@@ -992,7 +992,7 @@ export function EditorShell({
         });
       }
 
-      // Sync group frame dimensions back to schema config
+      // Sync node dimensions back to schema config (group frames + resizable notes)
       const dimensionChanges = changes.filter(
         (c): c is NodeChange & { type: "dimensions"; dimensions?: { width: number; height: number }; resizing?: boolean } =>
           c.type === "dimensions" && (c as { resizing?: boolean }).resizing === false
