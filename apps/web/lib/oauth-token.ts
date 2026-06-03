@@ -46,7 +46,19 @@ const PROVIDER_REFRESH: Record<string, {
   airtable: { endpoint: "https://airtable.com/oauth2/v1/token",                          auth: "basic", clientIdEnv: "AIRTABLE_CLIENT_ID", clientSecretEnv: "AIRTABLE_CLIENT_SECRET" },
   outlook:  { endpoint: "https://login.microsoftonline.com/common/oauth2/v2.0/token",   auth: "form", clientIdEnv: "MICROSOFT_CLIENT_ID",  clientSecretEnv: "MICROSOFT_CLIENT_SECRET" },
   asana:    { endpoint: "https://app.asana.com/-/oauth_token",                           auth: "form", clientIdEnv: "ASANA_CLIENT_ID",     clientSecretEnv: "ASANA_CLIENT_SECRET" },
-  typeform: { endpoint: "https://api.typeform.com/oauth/token",                          auth: "form", clientIdEnv: "TYPEFORM_CLIENT_ID",  clientSecretEnv: "TYPEFORM_CLIENT_SECRET" },
+  typeform:  { endpoint: "https://api.typeform.com/oauth/token",                          auth: "form",  clientIdEnv: "TYPEFORM_CLIENT_ID",        clientSecretEnv: "TYPEFORM_CLIENT_SECRET" },
+  linkedin:  { endpoint: "https://www.linkedin.com/oauth/v2/accessToken",                auth: "form",  clientIdEnv: "LINKEDIN_CLIENT_ID",        clientSecretEnv: "LINKEDIN_CLIENT_SECRET" },
+  facebook:  { endpoint: "https://graph.facebook.com/v19.0/oauth/access_token",         auth: "form",  clientIdEnv: "FACEBOOK_CLIENT_ID",        clientSecretEnv: "FACEBOOK_CLIENT_SECRET" },
+  instagram: { endpoint: "https://api.instagram.com/oauth/access_token",                auth: "form",  clientIdEnv: "INSTAGRAM_CLIENT_ID",       clientSecretEnv: "INSTAGRAM_CLIENT_SECRET" },
+  dropbox:   { endpoint: "https://api.dropboxapi.com/oauth2/token",                     auth: "basic", clientIdEnv: "DROPBOX_CLIENT_ID",         clientSecretEnv: "DROPBOX_CLIENT_SECRET" },
+  reddit:    { endpoint: "https://www.reddit.com/api/v1/access_token",                  auth: "basic", clientIdEnv: "REDDIT_CLIENT_ID",          clientSecretEnv: "REDDIT_CLIENT_SECRET" },
+  twitter:   { endpoint: "https://api.twitter.com/2/oauth2/token",                      auth: "basic", clientIdEnv: "TWITTER_CLIENT_ID",         clientSecretEnv: "TWITTER_CLIENT_SECRET" },
+  webflow:   { endpoint: "https://api.webflow.com/oauth/access_token",                  auth: "form",  clientIdEnv: "WEBFLOW_CLIENT_ID",         clientSecretEnv: "WEBFLOW_CLIENT_SECRET" },
+  wordpress: { endpoint: "https://public-api.wordpress.com/oauth2/token",               auth: "form",  clientIdEnv: "WORDPRESS_CLIENT_ID",       clientSecretEnv: "WORDPRESS_CLIENT_SECRET" },
+  miro:      { endpoint: "https://api.miro.com/v1/oauth/token",                         auth: "form",  clientIdEnv: "MIRO_CLIENT_ID",            clientSecretEnv: "MIRO_CLIENT_SECRET" },
+  vimeo:     { endpoint: "https://api.vimeo.com/oauth/access_token",                    auth: "basic", clientIdEnv: "VIMEO_CLIENT_ID",           clientSecretEnv: "VIMEO_CLIENT_SECRET" },
+  pinterest: { endpoint: "https://api.pinterest.com/v5/oauth/token",                    auth: "basic", clientIdEnv: "PINTEREST_CLIENT_ID",       clientSecretEnv: "PINTEREST_CLIENT_SECRET" },
+  hootsuite: { endpoint: "https://platform.hootsuite.com/oauth2/token",                 auth: "basic", clientIdEnv: "HOOTSUITE_CLIENT_ID",       clientSecretEnv: "HOOTSUITE_CLIENT_SECRET" },
 };
 
 // Providers with non-expiring tokens — never refresh

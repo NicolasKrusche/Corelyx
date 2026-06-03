@@ -63,6 +63,7 @@ from internal_auth import build_internal_service_headers
 from compliance import get_provider, policy_block_reason, provider_for_model
 
 TelemetryPayload = dict[str, int | float]
+EXECUTABLE_NODE_TYPES = {"trigger", "agent", "step", "connection"}
 
 # Best-effort price catalog used when the provider response does not include
 # explicit cost fields. Rates are USD per 1M tokens.
@@ -661,9 +662,12 @@ class ProgramExecutor:
         state: dict[str, Any] = {n.id: None for n in self.schema.nodes}
         state[trigger_node.id] = trigger_payload or {}
 
-        # Create node_execution rows for all nodes (idempotent — safe to re-dispatch)
+        # Create node_execution rows idempotently so re-dispatch is safe.
+        # Only executable nodes are inserted below; visual notes/groups remain
+        # in state for layout context but are never runtime work.
         for node in self.schema.nodes:
-            await create_node_execution(self.db, self.run_id, node.id)
+            if node.type in EXECUTABLE_NODE_TYPES:
+                await create_node_execution(self.db, self.run_id, node.id)
 
         # Check if trigger was pre-completed externally (e.g. "Skip trigger" UI action).
         # Use limit(1) (not .single()) so stale duplicate rows from legacy runs do not
@@ -857,7 +861,11 @@ class ProgramExecutor:
             descendants.add(nid)
             frontier.extend(e.to for e in self.edges_from.get(nid, []))
 
+        node_map = getattr(self, "node_map", None)
         for nid in descendants:
+            node = node_map.get(nid) if node_map else None
+            if node_map and (not node or node.type not in EXECUTABLE_NODE_TYPES):
+                continue
             await update_node_execution(
                 self.db,
                 self.run_id,
@@ -936,6 +944,9 @@ class ProgramExecutor:
             # already-saved workflows continue to resolve after prompt fixes.
             local_state["loop_id"] = local_state[loop_node_id]
 
+            # Track nodes skipped by branch/filter decisions within this iteration.
+            skipped_in_iteration: set[str] = set()
+
             for nid in body_order:
                 node = self.node_map.get(nid)
                 if not node:
@@ -944,6 +955,19 @@ class ProgramExecutor:
                 current_status = await get_run_status(self.db, self.run_id)
                 if current_status == "cancelled":
                     raise CancellationError()
+
+                # Skip nodes that were pruned by a branch or filter earlier in this
+                # iteration — mirrors the same logic the main BFS applies.
+                if nid in skipped_in_iteration:
+                    local_state[nid] = {"__skipped__": True}
+                    iteration_results[nid].append({"__skipped__": True})
+                    await update_node_execution(
+                        self.db, self.run_id, nid,
+                        status="skipped", completed_at="now()",
+                        data_region=self.data_region,
+                        retention_expiry=self.retention_expiry,
+                    )
+                    continue
 
                 # _resolve_input already handles everything:
                 # - flat merge from direct edges ({{field}})
@@ -967,6 +991,37 @@ class ProgramExecutor:
                 local_state[nid] = out
                 iteration_results[nid].append(out)
 
+                # Handle branch decisions: mark the non-selected path as skipped.
+                if isinstance(out, dict) and "__branch_target__" in out:
+                    selected = out["__branch_target__"]
+                    for e in self.edges_from.get(nid, []):
+                        if e.to != selected and e.to in body_ids:
+                            # Recursively mark all reachable nodes from the rejected
+                            # branch as skipped within this iteration's body.
+                            reject_frontier = [e.to]
+                            while reject_frontier:
+                                reject_nid = reject_frontier.pop()
+                                if reject_nid in skipped_in_iteration or reject_nid not in body_ids:
+                                    continue
+                                skipped_in_iteration.add(reject_nid)
+                                reject_frontier.extend(
+                                    fe.to for fe in self.edges_from.get(reject_nid, [])
+                                    if fe.to in body_ids
+                                )
+
+                # Handle filter short-circuits: skip all descendants within the body.
+                if isinstance(out, dict) and out.get("__filtered_out__") is True:
+                    filter_frontier = [e.to for e in self.edges_from.get(nid, []) if e.to in body_ids]
+                    while filter_frontier:
+                        reject_nid = filter_frontier.pop()
+                        if reject_nid in skipped_in_iteration or reject_nid not in body_ids:
+                            continue
+                        skipped_in_iteration.add(reject_nid)
+                        filter_frontier.extend(
+                            fe.to for fe in self.edges_from.get(reject_nid, [])
+                            if fe.to in body_ids
+                        )
+
         # Write aggregated results back to the shared state
         for nid, results in iteration_results.items():
             state[nid] = {"iterations": results, "count": len(items)}
@@ -982,6 +1037,14 @@ class ProgramExecutor:
             )
 
         return body_ids
+
+    _RESERVED_INPUT_KEYS = {
+        "__filtered_out__",
+        "__loop_items__",
+        "__branch_target__",
+        "__skip_descendants__",
+        "__skipped__",
+    }
 
     def _resolve_input(self, node_id: str, state: dict[str, Any]) -> dict:
         """Build the input dict for a node.
@@ -1000,11 +1063,15 @@ class ProgramExecutor:
         incoming = [e for e in self.schema.edges if e.to == node_id]
         resolved: dict[str, Any] = {}
 
-        # Layer 1: flat merge from direct upstream edges
+        # Layer 1: flat merge from direct upstream edges.
+        # Strip reserved control keys so branch/filter/loop signals don't leak
+        # into downstream node inputs.
         for edge in incoming:
             upstream = state.get(edge.from_node) or {}
             if not edge.data_mapping:
-                resolved.update(upstream)
+                for k, v in upstream.items():
+                    if k not in self._RESERVED_INPUT_KEYS:
+                        resolved[k] = v
             else:
                 for src_field, tgt_field in edge.data_mapping.items():
                     value = upstream.get(src_field)
@@ -2018,12 +2085,22 @@ class ProgramExecutor:
         lookup keyed by (user_id, name) for cron-triggered runs where the map
         is not available.
 
-        Also handles "provider:alias" style refs (e.g. "gmail:primary") that
-        Genesis generates — resolves to the first program-linked connection
-        with the matching provider when no exact name match exists.
+        Also handles Genesis-style "provider:alias" refs (e.g. "gmail:primary")
+        by matching against the provider slug of any program-linked connection,
+        falling back to any user-owned connection with that provider.
         """
         if conn_id := self._connection_name_to_id.get(connection_name):
             return conn_id
+
+        # Check the name→id map for "provider:id" entries injected by the
+        # web app when the node uses a Genesis provider-alias ref.
+        provider_entry = (
+            self._connection_name_to_id.get(f"__provider:{connection_name}")
+        )
+        if provider_entry:
+            return provider_entry
+
+        # Try exact name match in DB
         result = (
             self.db.table("connections")
             .select("id")
@@ -2036,10 +2113,13 @@ class ProgramExecutor:
             conn_id = str(result.data[0]["id"])
             self._connection_name_to_id[connection_name] = conn_id
             return conn_id
-        # Genesis uses "provider:alias" refs (e.g. "gmail:primary"). Resolve to
-        # the first program-linked connection whose provider matches.
-        if ":" in connection_name:
-            provider = connection_name.split(":")[0]
+
+        # Genesis uses "provider:alias" refs (e.g. "gmail:primary"). First try
+        # to resolve within program-linked connections (most precise), then fall
+        # back to any user-owned connection with that provider.
+        provider_match = re.match(r"^([\w-]+):[\w-]+$", connection_name)
+        if provider_match:
+            provider_slug = provider_match.group(1)
             pc_result = (
                 self.db.table("program_connections")
                 .select("connection_id")
@@ -2051,7 +2131,7 @@ class ProgramExecutor:
                 prov_result = (
                     self.db.table("connections")
                     .select("id")
-                    .eq("provider", provider)
+                    .eq("provider", provider_slug)
                     .in_("id", linked_ids)
                     .limit(1)
                     .execute()
@@ -2060,6 +2140,20 @@ class ProgramExecutor:
                     conn_id = str(prov_result.data[0]["id"])
                     self._connection_name_to_id[connection_name] = conn_id
                     return conn_id
+            # Fallback: any connection for this user with the matching provider
+            fallback = (
+                self.db.table("connections")
+                .select("id")
+                .eq("provider", provider_slug)
+                .eq("user_id", self.user_id)
+                .limit(1)
+                .execute()
+            )
+            if fallback.data:
+                conn_id = str(fallback.data[0]["id"])
+                self._connection_name_to_id[connection_name] = conn_id
+                return conn_id
+
         raise ExecutionError(
             "CONNECTION_NOT_FOUND",
             f"Connection '{connection_name}' not found for this user",

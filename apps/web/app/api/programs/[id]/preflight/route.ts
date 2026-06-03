@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
-import { validatePreFlight } from "@/lib/validation/pre-flight";
+import { buildDraftCompletenessPreFlight, validatePreFlight } from "@/lib/validation/pre-flight";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getProgramAccess } from "@/lib/workspaces";

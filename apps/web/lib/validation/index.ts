@@ -119,10 +119,22 @@ export function validatePostGenesis(
     // Genesis sometimes generates "provider:alias" style refs (e.g. "sheets:primary")
     // instead of the exact connection name. Accept these when the provider prefix
     // matches a linked connection's provider.
+    const providerAliasRegex = /^[\w-]+:[\w-]+$/;
+    const providerFromRef = providerAliasRegex.test(node.connection)
+      ? node.connection.split(":")[0]!
+      : null;
     const providerAliasMatch =
-      /^[\w-]+:[\w-]+$/.test(node.connection) &&
-      availableConnectionProviders.includes(node.connection.split(":")[0]!);
-    if (!nameMatch && !providerAliasMatch)
+      providerFromRef !== null &&
+      availableConnectionProviders.includes(providerFromRef);
+    // Also accept when the node's own config specifies a provider (e.g. a
+    // palette-created Gmail node with connection set to "My Gmail" whose
+    // config.provider is "gmail") and at least one linked connection has
+    // that provider.
+    const configProviderMatch =
+      node.config && typeof node.config === "object" && "provider" in node.config
+        ? availableConnectionProviders.includes((node.config as OAuthConnectionConfig).provider ?? "")
+        : false;
+    if (!nameMatch && !providerAliasMatch && !configProviderMatch)
       error("ERR_007", node.id, `${node.label} uses "${node.connection}" which is not connected to this program`, "Go to program settings and add this connection, or change the node to use an available connection");
   });
 

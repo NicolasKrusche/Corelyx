@@ -220,7 +220,16 @@ export async function POST(request: Request) {
       schema: runnableSchema,
       triggered_by: "manual",
       trigger_payload: trigger_payload ?? null,
-      connections: Object.fromEntries(connections.map((c) => [c.name, c.id])),
+      connections: (() => {
+        const connMap: Record<string, string> = {};
+        for (const c of connections) {
+          connMap[c.name] = c.id;
+          // Genesis nodes use "provider:alias" refs (e.g. "gmail:primary")
+          // so the runtime can resolve them without a DB fallback lookup.
+          connMap[`${c.provider}:primary`] = c.id;
+        }
+        return connMap;
+      })(),
       env_vars: envVars,
       compliance_mode: workspaceCompliance.compliance_mode,
       data_region: workspaceCompliance.data_region,
