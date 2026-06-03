@@ -20,6 +20,7 @@ const LEGACY_CREDITS_PER_USD = 1_000;
 
 type ProfileRow = {
   tier: string | null;
+  isAdmin: boolean;
   includedCreditsUsed: number;
   includedCreditsResetAt: string;
   purchasedCredits: number;
@@ -34,19 +35,21 @@ async function fetchCreditProfile(userId: string): Promise<ProfileRow> {
   const service = createServiceClient();
   const { data, error } = await service
     .from("profiles")
-    .select("tier, included_credits_used, included_credits_reset_at, purchased_credits")
+    .select("tier, is_admin, included_credits_used, included_credits_reset_at, purchased_credits")
     .eq("id", userId)
     .single();
 
   if (!error && data) {
     const row = data as unknown as {
       tier: string | null;
+      is_admin: boolean | null;
       included_credits_used: string | number;
       included_credits_reset_at: string;
       purchased_credits: string | number;
     };
     return {
       tier: row.tier,
+      isAdmin: row.is_admin === true,
       includedCreditsUsed: Number(row.included_credits_used),
       includedCreditsResetAt: row.included_credits_reset_at,
       purchasedCredits: Number(row.purchased_credits),
@@ -57,19 +60,21 @@ async function fetchCreditProfile(userId: string): Promise<ProfileRow> {
   // Keep reads working while the live database rolls through the credit-unit migration.
   const { data: legacyData, error: legacyError } = await service
     .from("profiles")
-    .select("tier, included_credits_used_usd, included_credits_reset_at, purchased_credits_usd")
+    .select("tier, is_admin, included_credits_used_usd, included_credits_reset_at, purchased_credits_usd")
     .eq("id", userId)
     .single();
 
   if (legacyError || !legacyData) throw new Error("Failed to fetch user credit balance");
   const legacyRow = legacyData as unknown as {
     tier: string | null;
+    is_admin: boolean | null;
     included_credits_used_usd: string | number;
     included_credits_reset_at: string;
     purchased_credits_usd: string | number;
   };
   return {
     tier: legacyRow.tier,
+    isAdmin: legacyRow.is_admin === true,
     includedCreditsUsed: Math.round(Number(legacyRow.included_credits_used_usd) * LEGACY_CREDITS_PER_USD),
     includedCreditsResetAt: legacyRow.included_credits_reset_at,
     purchasedCredits: Math.round(Number(legacyRow.purchased_credits_usd) * LEGACY_CREDITS_PER_USD),
@@ -103,12 +108,14 @@ async function maybeResetIncluded(userId: string, row: ProfileRow): Promise<numb
 export async function getUserCreditBalance(userId: string): Promise<CreditBalance> {
   const row = await fetchCreditProfile(userId);
   const includedCredits = getEntitlements(parseTier(row.tier)).includedAiCredits;
-  const includedUsed = await maybeResetIncluded(userId, row);
   const availablePurchased = Math.max(0, row.purchasedCredits);
 
-  if (includedCredits === null) {
+  // Admins and unlimited-tier users have no credit ceiling.
+  if (row.isAdmin || includedCredits === null) {
     return { availableIncluded: Infinity, availablePurchased, total: Infinity };
   }
+
+  const includedUsed = await maybeResetIncluded(userId, row);
 
   const availableIncluded = Math.max(0, includedCredits - includedUsed);
   return { availableIncluded, availablePurchased, total: availableIncluded + availablePurchased };
@@ -122,7 +129,8 @@ export async function deductUserCredits(userId: string, amountCredits: number): 
   const row = await fetchCreditProfile(userId).catch(() => null);
   if (!row) return false;
   const includedCredits = getEntitlements(parseTier(row.tier)).includedAiCredits;
-  if (includedCredits === null) return true;
+  // Admins and unlimited-tier users are never charged.
+  if (row.isAdmin || includedCredits === null) return true;
 
   const includedUsed = await maybeResetIncluded(userId, row);
   const currentPurchased = Math.max(0, row.purchasedCredits);
