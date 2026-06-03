@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getProgramAccess, canView } from "@/lib/workspaces";
+import { syncCronTriggers } from "@/lib/triggers/event-trigger-sync";
 import { TriggerManager } from "./trigger-manager";
 import { TriggerEventLog, type TriggerEvent } from "@/components/triggers/trigger-event-log";
 
@@ -36,22 +37,33 @@ export default async function TriggersPage({
 
   const { data: program, error: progError } = await supabase
     .from("programs")
-    .select("id, name")
+    .select("id, name, schema")
     .eq("id", id)
     .single();
 
   if (progError || !program) notFound();
 
-  const prog = program as unknown as { id: string; name: string };
+  const prog = program as unknown as { id: string; name: string; schema: unknown };
 
-  // Fetch triggers
+  // Heal any cron trigger nodes in the schema that don't yet have a triggers row.
+  // Best-effort: don't block page load on failure.
   const serviceClient = createServiceClient();
+  try {
+    await syncCronTriggers(serviceClient, id, prog.schema);
+  } catch (err) {
+    console.error("[triggers/page] syncCronTriggers failed:", err);
+  }
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-  const [triggersResult, eventsResult] = await Promise.all([
+  // Fetch triggers with enriched columns; fall back to base columns if the
+  // phase4 migration (webhook_token / next_run_at / last_fired_at) isn't applied.
+  const ENRICHED = "id, program_id, type, config, is_active, webhook_token, next_run_at, last_fired_at, created_at";
+  const BASE = "id, program_id, type, config, is_active, created_at";
+
+  const [triggersEnriched, eventsResult] = await Promise.all([
     serviceClient
       .from("triggers")
-      .select("id, program_id, type, config, is_active, webhook_token, next_run_at, last_fired_at, created_at")
+      .select(ENRICHED)
       .eq("program_id", id)
       .order("created_at", { ascending: false }),
     serviceClient
@@ -62,7 +74,15 @@ export default async function TriggersPage({
       .limit(50),
   ]);
 
-  const { data: triggersRaw } = triggersResult;
+  let triggersRaw = triggersEnriched.data;
+  if (triggersEnriched.error) {
+    const fallback = await serviceClient
+      .from("triggers")
+      .select(BASE)
+      .eq("program_id", id)
+      .order("created_at", { ascending: false });
+    triggersRaw = fallback.data;
+  }
   const triggerEvents = (eventsResult.data ?? []) as unknown as TriggerEvent[];
 
   type RawTrigger = TriggerRow & { webhook_token?: string };

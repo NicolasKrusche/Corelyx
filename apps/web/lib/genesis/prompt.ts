@@ -23,11 +23,13 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     tier: 1,
     full: `GMAIL:
   list_emails / search: params={query:string(REQUIRED),max_results:number} → output:{emails:[{id,threadId}]}
-    ⚠ emails are stubs only — ALWAYS follow with: filter("len(data.get('emails',[]))>0") → loop(over:"data['emails']",item_var:"email") → read_email(message_id:"{{loop_id.email.id}}")
+    ⚠ emails are stubs only — ALWAYS follow with: filter("len(data['n2'].get('emails',[]))>0") → loop(over:"data['n2']['emails']",item_var:"email") → read_email(message_id:"{{loop_node_id.email.id}}")
+    ⚠ Replace n2/loop_node_id with the actual node IDs you assign.
   read_email: params={message_id:string(REQUIRED)} → output:{message_id,subject,from,to,body,labels}
   send_email: params={to,subject,body(all REQUIRED),cc?,bcc?,reply_to_id?,thread_id?}
   archive_email: params={message_id:string(REQUIRED)} → output:{message_id,archived:true}
-  label_email: params={message_id(REQUIRED),add_label_ids?:["Human Name"],remove_label_ids?} — use plain names not IDs
+  label_email: params={message_id(REQUIRED),add_label_ids?:["Human Name"],remove_label_ids?} — use plain label names, never IDs. The runtime resolves names automatically.
+    ⚠ NEVER generate HTTP nodes to create labels before the loop. A POST to /gmail/v1/users/me/labels returns 409 if the label already exists and will halt the run. Instead: call label_email with the desired label name directly. If the label doesn't exist the user creates it manually — document this requirement in a note node (color:"yellow").
   list_threads: params={query,max_results} → output:{threads:[{id,historyId}]}
   get_attachment: params={message_id,attachment_id} → output:{data_base64,size_bytes,mime_type}`,
     gapReference: `GMAIL gaps:
@@ -493,7 +495,7 @@ NOTE NODE (sticky note — purely visual, never executed):
   Use for: manual-setup requirements, non-obvious data transformations, rate-limit warnings, credential instructions, or anything the user must act on before running.
   Example: {"id":"note1","type":"note","label":"⚠ Setup Required","description":"","connection":null,"config":{"content":"Before enabling this workflow, create a Slack incoming webhook at api.slack.com and paste the webhook URL into the HTTP node below.","color":"yellow"},"position":{"x":100,"y":420},"status":"idle"}
 
-GROUP NODE (frame container — purely visual, never executed):
+GROUP NODE (visual group container — purely visual, never executed):
   connection: null. Config: {"childIds":["n2","n3","n4"],"width":<number>,"height":<number>,"color":"zinc|blue|green|amber|pink"}
   ⚠ Never add edges to/from a group node. Does not count toward the 12-node limit.
   label MUST be a concise, descriptive name for what the enclosed nodes do together (e.g. "Email Fetching", "AI Summarisation", "Slack Notifications", "Data Enrichment"). Never use generic names like "Group 1" or "Step".
@@ -501,7 +503,7 @@ GROUP NODE (frame container — purely visual, never executed):
   childIds must reference real node IDs already in the graph.
   Example: {"id":"g1","type":"group","label":"Email Fetching","description":"","connection":null,"config":{"childIds":["n2","n3"],"width":740,"height":280,"color":"blue"},"position":{"x":360,"y":140},"status":"idle"}
 
-NOTE/GROUP GUIDANCE: For any workflow with 4+ executable nodes, include at least 1 group frame to cluster related steps. Add a note node whenever the workflow has a manual-setup dependency, credential requirement, or non-obvious behaviour the user must act on.
+NOTE/GROUP GUIDANCE: For any workflow with 4+ executable nodes, include at least 1 group to cluster related steps. Add a note node whenever the workflow has a manual-setup dependency, credential requirement, or non-obvious behaviour the user must act on.
 
 EVENT TRIGGER SOURCES (use with trigger_type:"event"):
   gmail:    event:"message.received" — fires when Gmail reports a new message.
@@ -532,7 +534,7 @@ COMPLETE EXAMPLE — Email processing workflow (cron → fetch emails → send S
   "nodes":[
     {"id":"n1","type":"trigger","label":"Every morning 8am","description":"Fires weekdays at 8am UTC.","connection":null,"config":{"trigger_type":"cron","expression":"0 8 * * 1-5","timezone":"UTC"},"position":{"x":100,"y":200},"status":"idle"},
     {"id":"n2","type":"connection","label":"Fetch unread emails","description":"Lists unread Gmail inbox emails.","connection":"My Gmail","config":{"scope_access":"read","scope_required":["https://www.googleapis.com/auth/gmail.readonly"],"operation":"list_emails","operation_params":{"query":"is:unread label:inbox","max_results":20}},"position":{"x":420,"y":200},"status":"idle"},
-    {"id":"n3","type":"step","label":"Filter non-empty","description":"Stops if no emails found.","connection":null,"config":{"logic_type":"filter","condition":"len(data.get('emails',[]))>0","pass_schema":null},"position":{"x":740,"y":200},"status":"idle"},
+    {"id":"n3","type":"step","label":"Filter non-empty","description":"Stops if no emails found.","connection":null,"config":{"logic_type":"filter","condition":"len(data['n2'].get('emails',[]))>0","pass_schema":null},"position":{"x":740,"y":200},"status":"idle"},
     {"id":"n4","type":"connection","label":"Send to Slack","description":"Sends summary to #general.","connection":"My Slack","config":{"scope_access":"write","scope_required":["chat:write"],"operation":"send_message","operation_params":{"channel":"#general","text":"Got {{len(data.get('emails',[]))}} emails"}},"position":{"x":1060,"y":200},"status":"idle"}
   ],
   "edges":[
@@ -557,6 +559,8 @@ CHECKLIST before output:
   7. Gmail: never pass stub list to agent — always filter→loop→read_email first.
   8. Every operation with REQUIRED params has them filled (use "__USER_ASSIGNED__" for unknown resource IDs).
   9. {{expressions}} have exactly two braces: {{n1.field}}. 10. version_history:[].
+  11. filter/loop/branch conditions ALWAYS use scoped access: data['n2'].get('field') — NEVER the flat data.get('field'). The flat merge is unreliable.
+  12. Gmail: NEVER generate HTTP label-creation nodes (POST /gmail/v1/users/me/labels). Use label_email with plain names; document manual label setup in a note node.
 
 AMBIGUITY RULES — resolve, don't reject:
   Missing resource IDs → "__USER_ASSIGNED__". Missing schedule → "0 8 * * *". Missing webhook method → POST.

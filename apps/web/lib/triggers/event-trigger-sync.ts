@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/api";
+import { CronExpressionParser } from "cron-parser";
 
 type Db = ReturnType<typeof createServiceClient>;
 
@@ -165,4 +166,126 @@ export async function syncEventTriggers(
     updated: plan.toUpdate.length,
     deleted: plan.toDelete.length,
   };
+}
+
+// ─── Cron trigger sync ────────────────────────────────────────────────────────
+
+/**
+ * Reconcile the `triggers` table so cron trigger nodes in the schema each have
+ * a corresponding row. Mirrors the event-trigger sync pattern, keyed by node_id
+ * stored inside the config. Safe to call on every schema save and on page load.
+ */
+export async function syncCronTriggers(
+  db: Db,
+  programId: string,
+  schema: unknown
+): Promise<{ inserted: number; updated: number; deleted: number }> {
+  if (!isRecord(schema)) return { inserted: 0, updated: 0, deleted: 0 };
+
+  const nodes = Array.isArray(schema.nodes) ? schema.nodes : [];
+  const triggerStates = Array.isArray(schema.triggers) ? schema.triggers : [];
+
+  const activeByNode = new Map<string, boolean>();
+  for (const state of triggerStates) {
+    if (isRecord(state) && typeof state.node_id === "string") {
+      activeByNode.set(state.node_id, state.is_active !== false);
+    }
+  }
+
+  // Collect desired cron trigger rows from schema nodes.
+  const desired: Array<{ node_id: string; config: JsonObject; is_active: boolean }> = [];
+  for (const node of nodes) {
+    if (!isRecord(node) || node.type !== "trigger" || typeof node.id !== "string") continue;
+    const cfg = isRecord(node.config) ? node.config : {};
+    if (cfg.trigger_type !== "cron") continue;
+    const expression = stringField(cfg.expression, "0 9 * * *");
+    const timezone = stringField(cfg.timezone, "UTC");
+    desired.push({
+      node_id: node.id,
+      config: { trigger_type: "cron", expression, timezone, node_id: node.id },
+      is_active: activeByNode.get(node.id) ?? true,
+    });
+  }
+
+  // Load existing cron rows owned by this program (identified by config.node_id).
+  // Fall back to base columns if next_run_at column is absent (pre-migration envs).
+  type CronRow = { id: string; config: JsonObject | null; is_active: boolean; next_run_at?: string | null };
+  let existing: CronRow[] = [];
+  {
+    const enriched = await db
+      .from("triggers")
+      .select("id, config, is_active, next_run_at")
+      .eq("program_id", programId)
+      .eq("type", "cron");
+    if (!enriched.error) {
+      existing = (enriched.data ?? []) as unknown as CronRow[];
+    } else {
+      const base = await db
+        .from("triggers")
+        .select("id, config, is_active")
+        .eq("program_id", programId)
+        .eq("type", "cron");
+      if (base.error) throw new Error(`Failed to load cron triggers for sync: ${base.error.message}`);
+      existing = (base.data ?? []) as unknown as CronRow[];
+    }
+  }
+
+  const owned = new Map<string, CronRow>();
+  for (const row of existing) {
+    const nodeId = row.config && typeof row.config.node_id === "string" ? row.config.node_id : null;
+    if (nodeId) owned.set(nodeId, row);
+  }
+
+  let inserted = 0, updated = 0, deleted = 0;
+
+  for (const d of desired) {
+    const existing = owned.get(d.node_id);
+    const nextRunAt = computeNextRunAt(
+      d.config.expression as string,
+      d.config.timezone as string
+    );
+
+    if (!existing) {
+      // Mirror the triggers POST route: only include next_run_at if present
+      // so the insert doesn't fail in envs where the column doesn't exist yet.
+      const insertPayload: Record<string, unknown> = {
+        program_id: programId,
+        type: "cron",
+        config: d.config,
+        is_active: d.is_active,
+      };
+      if (nextRunAt) insertPayload.next_run_at = nextRunAt;
+
+      const { error: insertError } = await db.from("triggers").insert(insertPayload as never);
+      if (!insertError) inserted++;
+    } else if (!configsEqual(d.config, existing.config) || existing.is_active !== d.is_active) {
+      const updatePayload: Record<string, unknown> = { config: d.config, is_active: d.is_active };
+      if (nextRunAt) updatePayload.next_run_at = nextRunAt;
+
+      await db
+        .from("triggers")
+        .update(updatePayload as never)
+        .eq("id", existing.id);
+      updated++;
+    }
+  }
+
+  // Delete rows for cron nodes that no longer exist in the schema.
+  const desiredNodeIds = new Set(desired.map((d) => d.node_id));
+  for (const [nodeId, row] of owned) {
+    if (!desiredNodeIds.has(nodeId)) {
+      await db.from("triggers").delete().eq("id", row.id);
+      deleted++;
+    }
+  }
+
+  return { inserted, updated, deleted };
+}
+
+function computeNextRunAt(expression: string, timezone: string): string | null {
+  try {
+    return CronExpressionParser.parse(expression, { tz: timezone }).next().toISOString();
+  } catch {
+    return null;
+  }
 }

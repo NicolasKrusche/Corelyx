@@ -7,6 +7,7 @@ import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
 import { loadWorkspaceComplianceSettings } from "@/lib/compliance/server";
 import { validateWorkflowCompliance } from "@/lib/compliance/workflow";
+import { normalizeSchema } from "@/lib/genesis/parsing";
 
 // POST /api/programs/[id]/preflight — run pre-flight checks before execution
 export async function POST(
@@ -33,37 +34,65 @@ export async function POST(
   if (progError || !program) return apiError("Program not found", 404);
 
   const programRow = program as unknown as { schema: unknown };
+  // Normalize the stored schema in-memory to heal known deviations (e.g. HTTP
+  // headers stored as {Name: value} instead of {key, value}) before strict parse.
+  normalizeSchema(programRow.schema);
   const executableSchema = ProgramSchemaZ.safeParse(programRow.schema);
   if (!executableSchema.success) {
+    // Derive per-node errors from Zod issue paths so the UI can highlight the
+    // specific nodes that are incomplete rather than showing a generic message.
+    const rawNodes = Array.isArray((programRow.schema as Record<string, unknown>)?.nodes)
+      ? ((programRow.schema as Record<string, unknown>).nodes as Array<Record<string, unknown>>)
+      : [];
+
+    const nodeErrorIds = new Set<string>();
+    for (const issue of executableSchema.error.issues) {
+      // Path shape for node issues: ["nodes", <index>, ...]
+      if (issue.path[0] === "nodes" && typeof issue.path[1] === "number") {
+        const n = rawNodes[issue.path[1]];
+        if (n?.id && typeof n.id === "string") nodeErrorIds.add(n.id);
+      }
+    }
+
+    const node_states: Record<string, "error"> = {};
+    for (const id of nodeErrorIds) node_states[id] = "error";
+
+    const failures = nodeErrorIds.size > 0
+      ? [...nodeErrorIds].map((id) => {
+          const n = rawNodes.find((r) => r.id === id);
+          const label = typeof n?.label === "string" ? n.label : id;
+          return {
+            node_id: id,
+            message: `"${label}" has incomplete or invalid configuration.`,
+            fix_suggestion: "Open this node and fill in all required fields.",
+          };
+        })
+      : [
+          {
+            node_id: null,
+            message: "This workflow is saved as a draft but is not ready to run.",
+            fix_suggestion: "Complete required node fields before validating or running.",
+          },
+        ];
+
+    const errors = failures.map((f) => ({
+      code: "PRE_DRAFT",
+      severity: "blocking" as const,
+      node_id: f.node_id,
+      edge_id: null,
+      message: f.message,
+      fix_suggestion: f.fix_suggestion,
+    }));
+
     return NextResponse.json(
       {
-        result: {
-          valid: false,
-          errors: [
-            {
-              code: "PRE_DRAFT",
-              severity: "blocking",
-              node_id: null,
-              edge_id: null,
-              message: "This workflow is saved as a draft but is not ready to run.",
-              fix_suggestion: "Complete required node fields before validating or running.",
-            },
-          ],
-          warnings: [],
-          node_states: {},
-        },
+        result: { valid: false, errors, warnings: [], node_states },
         checks: [
           {
             code: "PRE_004",
             label: "Draft completeness",
             status: "fail",
-            failures: [
-              {
-                node_id: null,
-                message: "This workflow is saved as a draft but is not ready to run.",
-                fix_suggestion: "Complete required node fields before validating or running.",
-              },
-            ],
+            failures,
           },
         ],
       },

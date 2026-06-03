@@ -48,6 +48,8 @@ export function RunPanel({ programId }: { programId: string }) {
   const [preflight, setPreflight] = useState<PreFlightResult | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [applyingFixId, setApplyingFixId] = useState<string | null>(null);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [stopping, setStopping] = useState(false);
 
   async function runPreflight() {
     setState("checking");
@@ -85,6 +87,8 @@ export function RunPanel({ programId }: { programId: string }) {
 
       if (res.ok) {
         const { run_id } = (await res.json()) as { run_id: string };
+        setActiveRunId(run_id);
+        setState("done");
         router.push(`/programs/${programId}/runs/${run_id}`);
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string; message?: string };
@@ -133,6 +137,21 @@ export function RunPanel({ programId }: { programId: string }) {
     }
   }
 
+  async function stopRun() {
+    if (!activeRunId) return;
+    setStopping(true);
+    setFetchError(null);
+    try {
+      await fetch(`/api/runs/${activeRunId}/cancel`, { method: "POST" });
+      setActiveRunId(null);
+      setState("done");
+    } catch {
+      setFetchError("Could not stop the run. Try refreshing.");
+    } finally {
+      setStopping(false);
+    }
+  }
+
   const allPassed = preflight?.result.valid === true;
   const failures = preflight?.checks.flatMap((check, checkIndex) =>
     check.failures.map((failure, failureIndex) => ({ check, checkIndex, failure, failureIndex }))
@@ -163,6 +182,22 @@ export function RunPanel({ programId }: { programId: string }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {activeRunId && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={stopRun}
+              disabled={stopping}
+              className="h-10 px-4 border-destructive/50 text-destructive hover:bg-destructive/10"
+            >
+              {stopping ? <Spinner /> : (
+                <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+                  <rect x="3" y="3" width="10" height="10" rx="1.5" />
+                </svg>
+              )}
+              {stopping ? "Stopping…" : "Stop"}
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"

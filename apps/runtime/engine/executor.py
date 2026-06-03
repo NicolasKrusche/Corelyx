@@ -2017,6 +2017,10 @@ class ProgramExecutor:
         Uses the name→id map supplied at construction time; falls back to a DB
         lookup keyed by (user_id, name) for cron-triggered runs where the map
         is not available.
+
+        Also handles "provider:alias" style refs (e.g. "gmail:primary") that
+        Genesis generates — resolves to the first program-linked connection
+        with the matching provider when no exact name match exists.
         """
         if conn_id := self._connection_name_to_id.get(connection_name):
             return conn_id
@@ -2028,14 +2032,38 @@ class ProgramExecutor:
             .limit(1)
             .execute()
         )
-        if not result.data:
-            raise ExecutionError(
-                "CONNECTION_NOT_FOUND",
-                f"Connection '{connection_name}' not found for this user",
+        if result.data:
+            conn_id = str(result.data[0]["id"])
+            self._connection_name_to_id[connection_name] = conn_id
+            return conn_id
+        # Genesis uses "provider:alias" refs (e.g. "gmail:primary"). Resolve to
+        # the first program-linked connection whose provider matches.
+        if ":" in connection_name:
+            provider = connection_name.split(":")[0]
+            pc_result = (
+                self.db.table("program_connections")
+                .select("connection_id")
+                .eq("program_id", self.program_id)
+                .execute()
             )
-        conn_id = str(result.data[0]["id"])
-        self._connection_name_to_id[connection_name] = conn_id  # cache
-        return conn_id
+            if pc_result.data:
+                linked_ids = [r["connection_id"] for r in pc_result.data]
+                prov_result = (
+                    self.db.table("connections")
+                    .select("id")
+                    .eq("provider", provider)
+                    .in_("id", linked_ids)
+                    .limit(1)
+                    .execute()
+                )
+                if prov_result.data:
+                    conn_id = str(prov_result.data[0]["id"])
+                    self._connection_name_to_id[connection_name] = conn_id
+                    return conn_id
+        raise ExecutionError(
+            "CONNECTION_NOT_FOUND",
+            f"Connection '{connection_name}' not found for this user",
+        )
 
     def _provider_for_connection(self, connection_id: str) -> str:
         """Look up the provider slug for a connection UUID from the DB."""

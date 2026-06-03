@@ -27,6 +27,7 @@ import {
   isJsonObject,
   workflowRequiresPayloadForManualRun,
 } from "@/lib/triggers/manual-run";
+import { normalizeSchema } from "@/lib/genesis/parsing";
 
 // POST /api/runs — create a run and dispatch to runtime
 export async function POST(request: Request) {
@@ -86,6 +87,8 @@ export async function POST(request: Request) {
 
   type ProgramRow = { id: string; schema: unknown; user_id: string; schema_version: number | null };
   const prog = program as unknown as ProgramRow;
+  // Normalize in-memory to heal known deviations before strict parse.
+  normalizeSchema(prog.schema);
   const schema = prog.schema as unknown as ProgramSchema;
   const executableSchema = ProgramSchemaZ.safeParse(schema);
   if (!executableSchema.success) {
