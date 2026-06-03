@@ -57,6 +57,20 @@ _ALLOWED_STRING_METHODS = {
 }
 
 
+# JavaScript-style literals accepted as aliases for their Python equivalents.
+# Conditions are frequently authored (by Genesis, the editor, or users) in
+# JS syntax — e.g. ``data['n8'].get('is_invoice')==true``. Python's parser
+# treats ``true``/``false``/``null`` as bare names, so without these aliases
+# every such condition fails with "Name 'true' is not allowed".
+_LITERAL_ALIASES = {
+    "true": True,
+    "false": False,
+    "null": None,
+    "none": None,
+    "undefined": None,
+}
+
+
 class SafeExpressionError(ValueError):
     """Raised when a workflow expression uses unsupported or unsafe syntax."""
 
@@ -116,6 +130,8 @@ class _ExpressionEvaluator:
         if isinstance(node, ast.Name):
             if node.id in self._context:
                 return self._context[node.id]
+            if node.id in _LITERAL_ALIASES:
+                return _LITERAL_ALIASES[node.id]
             raise SafeExpressionError(f"Name '{node.id}' is not allowed")
 
         if isinstance(node, ast.Dict):

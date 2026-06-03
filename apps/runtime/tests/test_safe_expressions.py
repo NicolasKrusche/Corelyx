@@ -27,6 +27,28 @@ class SafeExpressionsTests(unittest.TestCase):
             )
         )
 
+    def test_evaluate_condition_accepts_js_style_literals(self) -> None:
+        # Conditions authored in JS syntax (true/false/null) must evaluate
+        # the same as their Python equivalents.
+        self.assertTrue(
+            evaluate_condition(
+                "data['n8'].get('is_invoice')==true",
+                {"n8": {"is_invoice": True}},
+            )
+        )
+        self.assertFalse(
+            evaluate_condition(
+                "data['n8'].get('is_invoice')==true",
+                {"n8": {"is_invoice": False}},
+            )
+        )
+        self.assertTrue(
+            evaluate_condition("data.get('missing')==null", {})
+        )
+        self.assertFalse(
+            evaluate_condition("data.get('flag', false)", {})
+        )
+
     def test_evaluate_expression_rejects_private_attribute_access(self) -> None:
         with self.assertRaisesRegex(SafeExpressionError, "not allowed"):
             evaluate_expression("data.__class__", {"value": 1})
