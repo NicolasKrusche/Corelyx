@@ -370,8 +370,8 @@ const CATEGORIES: Category[] = [
       },
       {
         variant: { type: "group" } as NodeVariant,
-        label: "Group frame",
-        description: "Draw a labeled frame to visually group related nodes",
+        label: "Group",
+        description: "Draw a labeled group to visually cluster related nodes",
         icon: (
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5">
             <rect x="2" y="2" width="12" height="12" rx="2" strokeDasharray="3 2" />

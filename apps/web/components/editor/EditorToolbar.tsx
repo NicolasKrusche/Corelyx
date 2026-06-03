@@ -24,6 +24,8 @@ interface EditorToolbarProps {
   onSave: () => void;
   onValidate: () => void | Promise<void>;
   onRun: () => void;
+  activeRunId: string | null;
+  onStop: () => void;
   onRename: (name: string) => void;
   onBack: () => void;
   showPalette: boolean;
@@ -118,6 +120,8 @@ export function EditorToolbar({
   onSave,
   onValidate,
   onRun,
+  activeRunId,
+  onStop,
   onRename,
   onBack,
   showPalette,
@@ -379,6 +383,22 @@ export function EditorToolbar({
             <circle cx="13" cy="8" r="1.5" fill="currentColor" stroke="none" />
           </svg>
           Run with payload
+        </Button>
+      )}
+
+      {/* Stop — only visible while a run is active */}
+      {activeRunId && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onStop}
+          className="gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10"
+          title="Stop the current run"
+        >
+          <svg viewBox="0 0 16 16" fill="currentColor" className="h-3 w-3">
+            <rect x="3" y="3" width="10" height="10" rx="1.5" />
+          </svg>
+          Stop
         </Button>
       )}
 

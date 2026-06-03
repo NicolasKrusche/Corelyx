@@ -232,6 +232,21 @@ export function normalizeSchema(raw: unknown): void {
         ) {
           delete cfg.operation_params;
         }
+        // HTTP nodes: normalize headers/query_params from {Name: value} shorthand
+        // to the required {key, value} pair shape that the schema validator expects.
+        if (cfg.connector_type === "http") {
+          for (const field of ["headers", "query_params"] as const) {
+            if (!Array.isArray(cfg[field])) continue;
+            cfg[field] = (cfg[field] as unknown[]).map((item) => {
+              if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+              const obj = item as Record<string, unknown>;
+              if ("key" in obj && "value" in obj) return obj;
+              const entries = Object.entries(obj);
+              if (entries.length === 1) return { key: entries[0]![0], value: entries[0]![1] };
+              return obj;
+            });
+          }
+        }
       }
 
       if (!n.status) n.status = "idle";

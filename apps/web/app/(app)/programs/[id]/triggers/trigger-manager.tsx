@@ -276,8 +276,14 @@ function TriggerCard({
               <span className="text-foreground font-mono">{trigger.config.expression as string}</span>
               {" "}({(trigger.config.timezone as string) ?? "UTC"})
             </p>
-            {trigger.is_active && (
-              <p className="text-green-600 dark:text-green-400">Runs on schedule indefinitely — press Pause to stop.</p>
+            {trigger.is_active ? (
+              <p className="text-green-600 dark:text-green-400">
+                Fires automatically on this schedule — no need to run it manually. Press Pause to stop.
+              </p>
+            ) : (
+              <p className="text-yellow-600 dark:text-yellow-400">
+                Schedule is paused. Enable to resume automatic runs — manual runs still work while paused.
+              </p>
             )}
             <p>Next run: {formatDateTime(trigger.next_run_at)}</p>
             <p>Last fired: {formatDateTime(trigger.last_fired_at)}</p>

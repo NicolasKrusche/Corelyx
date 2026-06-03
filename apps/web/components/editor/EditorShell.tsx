@@ -1618,6 +1618,17 @@ export function EditorShell({
     }
   }, [performSave, programId, requiresTriggerPayload, state.isDirty, state.schema]);
 
+  const handleStop = useCallback(async () => {
+    if (!lastRunId) return;
+    try {
+      await fetch(`/api/runs/${lastRunId}/cancel`, { method: "POST" });
+      setCurrentRunStatus("cancelled");
+      setIsRunning(false);
+    } catch {
+      // non-fatal — user can still navigate away
+    }
+  }, [lastRunId]);
+
   // ── Test webhook ──────────────────────────────────────────────────────────
 
   const handleTestWebhook = useCallback(async () => {
@@ -1742,6 +1753,8 @@ export function EditorShell({
         onSave={() => performSave(state.schema)}
         onValidate={handleValidate}
         onRun={handleRun}
+        activeRunId={currentRunStatus === "running" ? lastRunId : null}
+        onStop={handleStop}
         onRename={(name) => dispatch({ type: "UPDATE_PROGRAM_NAME", name })}
         onBack={handleBack}
         showPalette={showPalette}

@@ -106,12 +106,12 @@ export function GroupNode({ id, data, selected }: NodeProps) {
       >
         {selected && dispatch && (
           <div className="nodrag pointer-events-auto absolute -top-8 right-0 z-20 flex items-center gap-1 rounded-md border border-border bg-popover px-1.5 py-1 shadow-md">
-            <span className="mr-0.5 text-[10px] font-medium text-muted-foreground">Frame</span>
+            <span className="mr-0.5 text-[10px] font-medium text-muted-foreground">Group</span>
             {COLORS.map((nextColor) => (
               <button
                 key={nextColor}
                 type="button"
-                aria-label={`${nextColor} frame`}
+                aria-label={`${nextColor} group`}
                 onClick={() => handleColorChange(nextColor)}
                 className={cn(
                   "h-4 w-4 rounded-full border-2 transition-transform hover:scale-110",
