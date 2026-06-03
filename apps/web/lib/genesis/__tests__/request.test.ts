@@ -66,7 +66,6 @@ describe("genesis request helpers", () => {
       "qwen/qwen3-coder:free",
       "openai/gpt-oss-120b:free",
       "meta-llama/llama-3.3-70b-instruct:free",
-      "google/gemma-3-27b-it:free",
     ]);
   });
 
