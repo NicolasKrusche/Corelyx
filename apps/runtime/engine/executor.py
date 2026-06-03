@@ -63,6 +63,7 @@ from internal_auth import build_internal_service_headers
 from compliance import get_provider, policy_block_reason, provider_for_model
 
 TelemetryPayload = dict[str, int | float]
+EXECUTABLE_NODE_TYPES = {"trigger", "agent", "step", "connection"}
 
 # Best-effort price catalog used when the provider response does not include
 # explicit cost fields. Rates are USD per 1M tokens.
@@ -661,9 +662,12 @@ class ProgramExecutor:
         state: dict[str, Any] = {n.id: None for n in self.schema.nodes}
         state[trigger_node.id] = trigger_payload or {}
 
-        # Create node_execution rows for all nodes (idempotent — safe to re-dispatch)
+        # Create node_execution rows idempotently so re-dispatch is safe.
+        # Only executable nodes are inserted below; visual notes/groups remain
+        # in state for layout context but are never runtime work.
         for node in self.schema.nodes:
-            await create_node_execution(self.db, self.run_id, node.id)
+            if node.type in EXECUTABLE_NODE_TYPES:
+                await create_node_execution(self.db, self.run_id, node.id)
 
         # Check if trigger was pre-completed externally (e.g. "Skip trigger" UI action).
         # Use limit(1) (not .single()) so stale duplicate rows from legacy runs do not
@@ -857,7 +861,11 @@ class ProgramExecutor:
             descendants.add(nid)
             frontier.extend(e.to for e in self.edges_from.get(nid, []))
 
+        node_map = getattr(self, "node_map", None)
         for nid in descendants:
+            node = node_map.get(nid) if node_map else None
+            if node_map and (not node or node.type not in EXECUTABLE_NODE_TYPES):
+                continue
             await update_node_execution(
                 self.db,
                 self.run_id,

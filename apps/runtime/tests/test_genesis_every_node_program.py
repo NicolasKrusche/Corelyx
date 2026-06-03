@@ -306,7 +306,7 @@ class GenesisEveryNodeProgramTests(unittest.IsolatedAsyncioTestCase):
         with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
              patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
              patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
+             patch("engine.executor.create_node_execution", new=AsyncMock()) as create_exec, \
              patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
              patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
              patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
@@ -327,6 +327,9 @@ class GenesisEveryNodeProgramTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result["note_1"])
         self.assertIn("group_1", result)
         self.assertIsNone(result["group_1"])
+        created_node_ids = {call.args[2] for call in create_exec.await_args_list}
+        self.assertNotIn("note_1", created_node_ids)
+        self.assertNotIn("group_1", created_node_ids)
 
 
 if __name__ == "__main__":
