@@ -326,6 +326,22 @@ export async function incrementGenesisUses(userId: string, workspaceId?: string 
     .eq(idColumn, idValue);
 }
 
+/** Check whether the user can connect pay-per-use providers (Solo+ only). */
+export async function checkPayPerUseConnectorAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
+  const ent = getEntitlements(profile.tier);
+
+  if (ent.payPerUseConnectors) return { allowed: true };
+
+  return {
+    allowed: false,
+    reason: "Pay-per-use connectors require Solo plan or higher",
+    upgradeMessage:
+      "Connectors like Stripe, Twilio, OpenAI, and AWS S3 bill your own account per usage. " +
+      "They require Solo plan or higher so you can connect them with your own API key. Upgrade to Solo to unlock them.",
+  };
+}
+
 /** Return how many days of run history this user is entitled to (null = unlimited). */
 export async function getRunHistoryDays(userId: string, workspaceId?: string | null): Promise<number | null> {
   const profile = await getBillingScope(userId, workspaceId);

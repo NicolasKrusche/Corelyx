@@ -35,6 +35,9 @@ export interface PlanEntitlements {
   maxTeamSeats: number | null;
   maxWorkspaces: number | null;
 
+  // Pay-per-use connectors (Stripe, Twilio, OpenAI, etc.) — requires own API key/OAuth account
+  payPerUseConnectors: boolean;
+
   // Platform AI credits included per month (null = unlimited, 0 = none)
   includedAiCredits: number | null;
 
@@ -53,6 +56,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: 3,
     triggers: { manual: true, cron: true, webhook: false, event: false, program: false },
     byok: false,
+    payPerUseConnectors: false,
     hitlApprovals: false,
     conflictDetection: false,
     priorityExecution: false,
@@ -68,6 +72,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: 5,
     triggers: { manual: true, cron: true, webhook: true, event: false, program: false },
     byok: true,
+    payPerUseConnectors: true,
     hitlApprovals: false,
     conflictDetection: false,
     priorityExecution: false,
@@ -83,6 +88,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
+    payPerUseConnectors: true,
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: false,
@@ -98,6 +104,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
+    payPerUseConnectors: true,
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: true,
@@ -113,6 +120,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
+    payPerUseConnectors: true,
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: true,
