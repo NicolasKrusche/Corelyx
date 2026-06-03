@@ -631,7 +631,18 @@ export function buildRefinementUserMessage(
     complianceSection,
     `Available connections:\n${connectionList}`,
     "",
-    "Return the complete canonical updated program schema as a single JSON object, not a patch. Preserve all nodes and edges that don't need to change. Only modify what the refinement request requires. Include every required top-level field, node field, config default, trigger entry, and edge field. Output only the raw JSON object — no explanation, no markdown, no code fences.",
+    "You are EDITING this existing program, not creating a new one. Apply the smallest change that satisfies the request — add, remove, or modify only the specific nodes/edges/fields it requires.",
+    "",
+    "EDIT RULES (these OVERRIDE the system prompt's generation defaults):",
+    "- Reuse the EXISTING `program_id` verbatim. Do NOT emit \"__GENERATED__\".",
+    "- Keep `program_name`, `execution_mode`, `created_at`, and `metadata` exactly as-is unless the request explicitly changes them. Update `updated_at` to the current time.",
+    "- For every node and edge that is NOT affected by the request, copy it through byte-for-byte: same `id`, `type`, `label`, `description`, `connection`, `config`, and `position`. Do NOT renumber, rename, reword, reorder, or re-lay-out unchanged nodes. Ignore the system prompt's \"n1, n2, …\" id convention and POSITIONS rule for nodes that already exist — preserve their current ids and positions.",
+    "- When MODIFYING a node, keep its existing `id` and `position`; change only the fields the request calls for.",
+    "- When ADDING a node, give it a new id that does not collide with any existing id (e.g. continue the existing numbering), wire it in with new edges, and reuse an existing node's nearby position as a starting point.",
+    "- When REMOVING a node, also remove every edge that references it and reconnect the surrounding nodes so the graph stays connected.",
+    "- Preserve any `__USER_ASSIGNED__` values (model, api_key_ref, etc.) already present — never overwrite a user's assigned model or key.",
+    "",
+    "Return the complete canonical updated program schema as a single JSON object, not a patch — but it must read as the original schema with only the requested edit applied. Include every required top-level field, node field, config default, trigger entry, and edge field. Output only the raw JSON object — no explanation, no markdown, no code fences.",
   ].join("\n");
 }
 
