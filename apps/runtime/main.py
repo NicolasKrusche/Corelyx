@@ -28,6 +28,7 @@ from cors_config import (
 from db import (
     get_active_cron_workflows,
     get_db,
+    get_user_run_plan,
     is_processing_restricted,
     release_run_locks,
     update_run,
@@ -167,6 +168,7 @@ async def trigger_workflow(workflow_id: str) -> None:
             run_id,
             workflow_id,
             user_id,
+            plan=get_user_run_plan(db, user_id),
             workspace_id=program_data.get("workspace_id"),
             compliance_mode=workspace_policy.get("compliance_mode", "standard"),
             data_region=workspace_policy.get("data_region"),
@@ -411,6 +413,7 @@ async def _run_program(
         program_id,
         user_id,
         connection_name_to_id=connection_name_to_id,
+        plan=get_user_run_plan(db, user_id),
         workspace_id=workspace_id,
         compliance_mode=policy.get("compliance_mode", "standard"),
         data_region=policy.get("data_region"),
