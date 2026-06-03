@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
-import { validatePreFlight } from "@/lib/validation/pre-flight";
+import { buildDraftCompletenessPreFlight, validatePreFlight } from "@/lib/validation/pre-flight";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
@@ -36,37 +36,7 @@ export async function POST(
   const executableSchema = ProgramSchemaZ.safeParse(programRow.schema);
   if (!executableSchema.success) {
     return NextResponse.json(
-      {
-        result: {
-          valid: false,
-          errors: [
-            {
-              code: "PRE_DRAFT",
-              severity: "blocking",
-              node_id: null,
-              edge_id: null,
-              message: "This workflow is saved as a draft but is not ready to run.",
-              fix_suggestion: "Complete required node fields before validating or running.",
-            },
-          ],
-          warnings: [],
-          node_states: {},
-        },
-        checks: [
-          {
-            code: "PRE_004",
-            label: "Draft completeness",
-            status: "fail",
-            failures: [
-              {
-                node_id: null,
-                message: "This workflow is saved as a draft but is not ready to run.",
-                fix_suggestion: "Complete required node fields before validating or running.",
-              },
-            ],
-          },
-        ],
-      },
+      buildDraftCompletenessPreFlight(programRow.schema, executableSchema.error),
       { status: 200 }
     );
   }
