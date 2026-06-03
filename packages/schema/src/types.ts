@@ -200,6 +200,9 @@ export interface NoteNode extends NodeBase {
 export interface NoteConfig {
   content: string;
   color: "yellow" | "blue" | "pink" | "green";
+  /** Persisted so the note reopens at its last resized dimensions. */
+  width?: number;
+  height?: number;
 }
 
 // GROUP NODE — frame container, never executed

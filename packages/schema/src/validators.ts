@@ -207,6 +207,8 @@ export const NoteNodeZ = NodeBaseZ.extend({
   config: z.object({
     content: z.string(),
     color: z.enum(["yellow", "blue", "pink", "green"]),
+    width: z.number().positive().optional(),
+    height: z.number().positive().optional(),
   }),
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import type { NodeProps } from "@xyflow/react";
+import { type NodeProps, NodeResizer } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 import type { NoteConfig } from "@flowos/schema";
 import { useOptionalEditorDispatch } from "@/lib/editor/state";
@@ -106,6 +106,17 @@ export function NoteNode({ id, data, selected }: NodeProps) {
         selected && "ring-2 ring-offset-1 ring-current/40",
       )}
     >
+      {/* Resize handles — visible when selected */}
+      {dispatch && (
+        <NodeResizer
+          isVisible={!!selected}
+          minWidth={140}
+          minHeight={80}
+          handleStyle={{ width: 10, height: 10, borderRadius: 3 }}
+          lineStyle={{ borderWidth: 1 }}
+        />
+      )}
+
       {/* Toolbar — only visible when selected */}
       {selected && dispatch && (
         <div className="absolute -top-7 left-0 flex items-center gap-1 z-10">
