@@ -1159,6 +1159,9 @@ class ProgramExecutor:
                 status="completed",
                 completed_at="now()",
                 output_payload=output,
+                # Clear any error recorded by an earlier retry attempt so a node
+                # that ultimately succeeded does not display a stale failure.
+                error_message=None,
                 data_region=self.data_region,
                 retention_expiry=self.retention_expiry,
                 **self._node_telemetry_payload(node.id),

@@ -13,7 +13,9 @@ function formatDuration(start: string | null, end: string | null): string {
   if (!start) return "—";
   const s = new Date(start).getTime();
   const e = end ? new Date(end).getTime() : Date.now();
-  const d = e - s;
+  // Clamp to 0: server-issued timestamps can be slightly ahead of the client
+  // clock, which would otherwise render a nonsensical negative duration.
+  const d = Math.max(0, e - s);
   if (d < 1000) return `${d}ms`;
   if (d < 60_000) return `${(d / 1000).toFixed(1)}s`;
   return `${Math.floor(d / 60_000)}m ${Math.floor((d % 60_000) / 1000)}s`;
@@ -136,6 +138,24 @@ function ErrorBlock({ message }: { message: string }) {
           {body}
         </p>
       </div>
+    </div>
+  );
+}
+
+// Shown while a node is still running but a prior attempt recorded an error.
+// This is a transient retry state — not a terminal failure — so it must not
+// use the alarming "could not finish" failure styling.
+function RetryingNote({ message }: { message: string }) {
+  const codeMatch = message.match(/^\[([A-Z_]+)\]\s*/);
+  const body = friendlyErrorMessage(
+    codeMatch ? message.slice(codeMatch[0].length) : message,
+    "A previous attempt failed — retrying."
+  );
+  return (
+    <div className="rounded border border-amber-300/60 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3 py-2 mt-1.5">
+      <p className="text-[11px] text-amber-800 dark:text-amber-400 whitespace-pre-wrap break-words leading-relaxed">
+        <span className="font-semibold">Retrying after an error.</span> {body}
+      </p>
     </div>
   );
 }
@@ -320,8 +340,13 @@ export function RunLogDrawer({
                   </p>
                 )}
 
-                {/* Error */}
-                {exec.error_message && <ErrorBlock message={exec.error_message} />}
+                {/* Error — only a terminal failure shows the hard error block.
+                    A still-running node with a recorded error is mid-retry. */}
+                {exec.error_message && (
+                  exec.status === "running"
+                    ? <RetryingNote message={exec.error_message} />
+                    : <ErrorBlock message={exec.error_message} />
+                )}
 
                 {/* I/O */}
                 <JsonViewer label="▸ Input"  data={exec.input_payload} />
