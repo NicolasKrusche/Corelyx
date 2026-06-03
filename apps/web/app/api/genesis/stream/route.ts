@@ -1,4 +1,3 @@
-import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { jsonrepair } from "jsonrepair";
@@ -14,6 +13,7 @@ import {
   runEuComplianceFilter,
 } from "@/lib/genesis/eu-compliance";
 import { ProgramSchemaZ } from "@flowos/schema";
+import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import {
   getDraftValidationMessage,
@@ -27,14 +27,16 @@ import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
 import { ensureProcessingAllowed } from "@/lib/compliance";
-import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
+import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
+  GenesisRequestSchema,
   getAllowedPlatformModels,
   getMissingConnectionIds,
   getModelCandidates,
   getProviderBaseURL,
+  isGenesisRefinementRequest,
   isKeyError,
   isPromptTooLarge,
   isRetryableModelError,
@@ -55,21 +57,6 @@ import { getEntitlements } from "@/lib/entitlements";
 // Default platform model — used when the user hasn't picked one.
 // Paid-tier users may override this via the `model` field in the request.
 const PLATFORM_MODEL = PLATFORM_DEFAULT_MODEL;
-
-const RequestSchema = z.object({
-  description: z.string().min(1).max(2000),
-  connection_ids: z.array(z.string().uuid()).max(10),
-  api_key_id: z.string().uuid().optional(),
-  use_platform_key: z.boolean().optional(),
-  model: z.string().min(1).optional(),
-  // Refinement (AI edit) mode — all three must be present together
-  existing_schema: z.unknown().optional(),
-  refinement: z.string().min(1).max(2000).optional(),
-  existing_program_id: z.string().uuid().optional(),
-}).refine(
-  (d) => d.use_platform_key === true || (!!d.api_key_id && !!d.model),
-  { message: "Either use_platform_key or both api_key_id and model are required" }
-);
 
 type StreamEvent =
   | { type: "meta"; program_name: string }
@@ -92,14 +79,18 @@ export async function POST(request: Request) {
   ]);
   if (processingRestriction) return processingRestriction;
 
-  const parsed = RequestSchema.safeParse(body);
+  const parsed = GenesisRequestSchema.safeParse(body);
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
   const { description, connection_ids, api_key_id, use_platform_key } = parsed.data;
-  const isRefinement = !!parsed.data.refinement && !!parsed.data.existing_schema;
+  const isRefinement = isGenesisRefinementRequest(parsed.data);
   const refinementText = parsed.data.refinement ?? null;
   const existingSchemaRaw = parsed.data.existing_schema ?? null;
   const usePlatformKey = use_platform_key === true;
+
+  if (!usePlatformKey && !api_key_id) {
+    return apiError("api_key_id is required when not using the platform key", 400);
+  }
 
   // Resolve the model to use.
   // Platform-key path: paid users may supply a `model` override; free users are
@@ -123,7 +114,7 @@ export async function POST(request: Request) {
       model = PLATFORM_MODEL;
     }
   } else {
-    model = parsed.data.model!;
+    model = parsed.data.model ?? "claude-sonnet-4-6";
   }
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const startedAt = Date.now();
@@ -132,17 +123,24 @@ export async function POST(request: Request) {
   const sanitizedDescription = sanitizeTextForLlm(isRefinement && refinementText ? refinementText : description);
   const serviceClient = createServiceClient();
 
-  // Stage 1: rate limit + workspace lookup are independent
-  const [rateLimitPassed, ws] = await Promise.all([
-    rateLimit(`genesis:${userId}`, 10, 60_000),
-    getActiveWorkspace(userId),
-  ]);
+  // Stage 1: rate limit and workspace resolution. Refinements use the program's
+  // workspace, not whichever workspace is currently active in the sidebar.
+  const rateLimitPassed = await rateLimit(`genesis:${userId}`, 10, 60_000);
 
   if (!rateLimitPassed) return sseErrorResponse("Too many requests. Please wait a moment and try again.", "RATE_LIMITED");
-  if (!ws) return sseErrorResponse("No active workspace", "NO_WORKSPACE");
-  if (!canContributeToWorkspace(ws.role)) return sseErrorResponse("Viewers cannot generate programs.", "FORBIDDEN");
 
-  const workspaceId = ws.workspaceId;
+  let workspaceId: string;
+  if (isRefinement) {
+    const access = await getProgramAccess(parsed.data.existing_program_id!, userId);
+    if (!canView(access)) return sseErrorResponse("Program not found", "PROGRAM_NOT_FOUND");
+    if (!canEdit(access)) return sseErrorResponse("Only program editors can refine.", "FORBIDDEN");
+    workspaceId = access!.workspaceId;
+  } else {
+    const ws = await getActiveWorkspace(userId);
+    if (!ws) return sseErrorResponse("No active workspace", "NO_WORKSPACE");
+    if (!canContributeToWorkspace(ws.role)) return sseErrorResponse("Viewers cannot generate programs.", "FORBIDDEN");
+    workspaceId = ws.workspaceId;
+  }
 
   // Stage 2: genesis limit, program limit, connections, and API keys all need workspaceId — run in parallel
   const pendingConnections = requestedConnectionIds.length > 0
@@ -412,7 +410,12 @@ export async function POST(request: Request) {
         }
 
         normalizeSchema(parsedSchema);
-        parsedSchema = normalizeProgramDraft(parsedSchema);
+        parsedSchema = normalizeProgramDraft(
+          parsedSchema,
+          isRefinement && existingSchemaRaw && typeof existingSchemaRaw === "object"
+            ? (existingSchemaRaw as Partial<ProgramSchema>)
+            : undefined
+        );
         const draftResult = validateProgramDraft(parsedSchema);
         if (!draftResult.success) {
           // Log the technical details server-side; send a user-friendly message downstream.
