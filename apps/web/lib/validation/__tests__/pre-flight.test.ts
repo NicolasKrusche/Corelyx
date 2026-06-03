@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { ProgramSchema } from "@flowos/schema";
-import { getDefaultModelForProvider, validatePreFlight } from "../pre-flight";
+import { ProgramSchemaZ, type ProgramSchema } from "@flowos/schema";
+import {
+  buildDraftCompletenessPreFlight,
+  getDefaultModelForProvider,
+  validatePreFlight,
+} from "../pre-flight";
 
 function makeSchema(overrides?: Partial<ProgramSchema>): ProgramSchema {
   const base: ProgramSchema = {
@@ -156,6 +160,77 @@ describe("pre-flight remediations", () => {
       type: "remove_invalid_edge",
       label: "Remove invalid edge",
       edge_id: "e-bad",
+    });
+  });
+
+  it("turns executable-schema failures into node-specific draft failures", () => {
+    const schema = makeSchema();
+    schema.nodes[1] = {
+      id: "n2",
+      type: "step",
+      label: "Spam branch",
+      description: "Routes email to deletion if classified as spam.",
+      position: { x: 300, y: 100 },
+      status: "idle",
+      connection: null,
+      config: {
+        logic_type: "branch",
+        conditions: [],
+        default_branch: "",
+      },
+    };
+
+    const parsed = ProgramSchemaZ.safeParse(schema);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error("Expected schema to fail executable validation");
+
+    const { result, checks } = buildDraftCompletenessPreFlight(schema, parsed.error);
+
+    expect(result.valid).toBe(false);
+    expect(result.node_states.n2).toBe("error");
+    expect(checks[0]?.label).toBe("Draft completeness");
+    expect(checks[0]?.failures.map((failure) => failure.message)).toEqual([
+      "Spam branch needs at least one branch condition.",
+      "Spam branch is missing a default branch.",
+    ]);
+  });
+
+  it("points draft completeness failures at incomplete HTTP nodes", () => {
+    const schema = makeSchema();
+    schema.nodes[1] = {
+      id: "n2",
+      type: "connection",
+      label: "Delete email",
+      description: "Permanently deletes each spam email.",
+      position: { x: 300, y: 100 },
+      status: "idle",
+      connection: null,
+      config: {
+        connector_type: "http",
+        method: "DELETE",
+        url: "",
+        auth_type: "none",
+        auth_value: null,
+        query_params: [],
+        headers: [],
+        body: null,
+        parse_response: true,
+        timeout_seconds: null,
+        retry: null,
+      },
+    };
+
+    const parsed = ProgramSchemaZ.safeParse(schema);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) throw new Error("Expected schema to fail executable validation");
+
+    const { result, checks } = buildDraftCompletenessPreFlight(schema, parsed.error);
+
+    expect(result.node_states.n2).toBe("error");
+    expect(checks[0]?.failures[0]).toMatchObject({
+      node_id: "n2",
+      message: "Delete email is missing the HTTP URL.",
+      fix_suggestion: "Open Delete email and enter the endpoint URL to call.",
     });
   });
 
