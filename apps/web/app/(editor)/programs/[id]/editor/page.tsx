@@ -114,7 +114,7 @@ export default async function EditorPage({
 
   // ── Run post-genesis validation ───────────────────────────────────────────
 
-  const initialValidation = validatePostGenesis(parsedSchema, linkedConnections);
+  const initialValidation = validatePostGenesis(parsedSchema, allConnections);
 
   // ── Feature flags ─────────────────────────────────────────────────────────
 

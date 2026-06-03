@@ -563,7 +563,7 @@ export function EditorShell({
     setPreFlightChecks(null);
 
     try {
-      const result = validatePostGenesis(state.schema, linkedConnections);
+      const result = validatePostGenesis(state.schema, allConnections);
       dispatch({ type: "SET_VALIDATION", result });
 
       const firstNodeIssue =
