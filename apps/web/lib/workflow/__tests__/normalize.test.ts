@@ -77,4 +77,34 @@ describe("workflow draft normalization", () => {
       expect(getDraftValidationMessage(result.error)).toContain("missing target node");
     }
   });
+
+  it("preserves existing identity fields when normalizing refinement output", () => {
+    const existing = normalizeProgramDraft({
+      program_id: "existing-program",
+      program_name: "Existing program",
+      created_at: "2026-01-01T00:00:00.000Z",
+      execution_mode: "approval_required",
+      metadata: {
+        description: "Existing description",
+        genesis_timestamp: "2026-01-01T00:00:00.000Z",
+      },
+      nodes: [{ id: "manual-1", type: "trigger", config: { trigger_type: "manual" } }],
+      edges: [],
+    });
+
+    const schema = normalizeProgramDraft(
+      {
+        nodes: [{ id: "manual-1", type: "trigger", config: { trigger_type: "manual" } }],
+        edges: [],
+      },
+      existing
+    );
+
+    expect(schema.program_id).toBe("existing-program");
+    expect(schema.program_name).toBe("Existing program");
+    expect(schema.created_at).toBe("2026-01-01T00:00:00.000Z");
+    expect(schema.execution_mode).toBe("approval_required");
+    expect(schema.metadata.description).toBe("Existing description");
+    expect(schema.metadata.genesis_timestamp).toBe("2026-01-01T00:00:00.000Z");
+  });
 });
