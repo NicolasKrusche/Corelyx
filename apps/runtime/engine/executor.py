@@ -1030,6 +1030,14 @@ class ProgramExecutor:
 
         return body_ids
 
+    _RESERVED_INPUT_KEYS = {
+        "__filtered_out__",
+        "__loop_items__",
+        "__branch_target__",
+        "__skip_descendants__",
+        "__skipped__",
+    }
+
     def _resolve_input(self, node_id: str, state: dict[str, Any]) -> dict:
         """Build the input dict for a node.
 
@@ -1047,11 +1055,15 @@ class ProgramExecutor:
         incoming = [e for e in self.schema.edges if e.to == node_id]
         resolved: dict[str, Any] = {}
 
-        # Layer 1: flat merge from direct upstream edges
+        # Layer 1: flat merge from direct upstream edges.
+        # Strip reserved control keys so branch/filter/loop signals don't leak
+        # into downstream node inputs.
         for edge in incoming:
             upstream = state.get(edge.from_node) or {}
             if not edge.data_mapping:
-                resolved.update(upstream)
+                for k, v in upstream.items():
+                    if k not in self._RESERVED_INPUT_KEYS:
+                        resolved[k] = v
             else:
                 for src_field, tgt_field in edge.data_mapping.items():
                     value = upstream.get(src_field)
