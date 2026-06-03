@@ -241,6 +241,42 @@ def get_db() -> Client:
     return create_client(url, key)
 
 
+# Tiers that carry the higher "paid" resource ceilings. "unlimited" and admins
+# are handled separately (no ceiling at all).
+_PAID_TIERS = {"plus", "pro", "builder"}
+
+
+def get_user_run_plan(db: Client, user_id: str) -> str:
+    """Resolve a user's run-limit plan: "unlimited", "paid", or "free".
+
+    Admins and unlimited-tier accounts get no resource ceiling (matching the
+    unlimited platform-credit behaviour); plus/pro/builder get the paid
+    ceilings; everyone else gets the free ceilings. Falls back to "free" on any
+    lookup error so a transient DB issue never silently grants unlimited usage.
+    """
+    if not user_id:
+        return "free"
+    try:
+        result = (
+            db.table("profiles")
+            .select("tier, is_admin")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return "free"
+        row = rows[0]
+        if row.get("is_admin") is True or row.get("tier") == "unlimited":
+            return "unlimited"
+        if row.get("tier") in _PAID_TIERS:
+            return "paid"
+        return "free"
+    except Exception:
+        return "free"
+
+
 def is_processing_restricted(db: Client, user_id: str) -> bool:
     result = (
         db.table("profiles")

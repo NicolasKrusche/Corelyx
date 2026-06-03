@@ -71,8 +71,27 @@ class RunLimits:
             return default
     
     def get_limits(self, is_paid_plan: bool = False) -> dict:
-        """Get limits for a user based on their plan."""
-        if is_paid_plan:
+        """Get limits for a user based on their plan (legacy boolean form)."""
+        return self.get_limits_for_plan("paid" if is_paid_plan else "free")
+
+    def get_limits_for_plan(self, plan: str) -> dict:
+        """Get resource limits for a plan tier.
+
+        ``"unlimited"`` (admin or unlimited-tier accounts) returns ``None`` for
+        every limit, which the limiter treats as "no cap" — matching the
+        unlimited platform-credit behaviour. ``"paid"`` returns the higher
+        paid ceilings; anything else falls back to the free-tier ceilings.
+        """
+        if plan == "unlimited":
+            return {
+                "max_nodes": None,
+                "max_llm_tokens": None,
+                "max_llm_calls": None,
+                "max_cost": None,
+                "max_execution_time": None,
+                "max_connector_calls": None,
+            }
+        if plan == "paid":
             return {
                 "max_nodes": self.max_nodes_per_run_paid,
                 "max_llm_tokens": self.max_llm_tokens_per_run_paid,
@@ -118,54 +137,61 @@ class RunLimiter:
     def check_node_limit(self) -> None:
         """Check and increment node execution count."""
         self.node_count += 1
-        if self.node_count > self.limits["max_nodes"]:
+        limit = self.limits.get("max_nodes")
+        if limit is not None and self.node_count > limit:
             raise RunLimitExceeded(
-                f"Run exceeded maximum node executions ({self.limits['max_nodes']}). "
+                f"Run exceeded maximum node executions ({limit}). "
                 "This may indicate an infinite loop."
             )
-    
+
     def check_llm_tokens(self, tokens: int) -> None:
         """Check and increment LLM token count."""
         self.llm_tokens += tokens
-        if self.llm_tokens > self.limits["max_llm_tokens"]:
+        limit = self.limits.get("max_llm_tokens")
+        if limit is not None and self.llm_tokens > limit:
             raise RunLimitExceeded(
-                f"Run exceeded maximum LLM tokens ({self.limits['max_llm_tokens']:,})."
+                f"Run exceeded maximum LLM tokens ({limit:,})."
             )
-    
+
     def check_llm_call(self) -> None:
         """Check and increment LLM call count."""
         self.llm_calls += 1
-        if self.llm_calls > self.limits["max_llm_calls"]:
+        limit = self.limits.get("max_llm_calls")
+        if limit is not None and self.llm_calls > limit:
             raise RunLimitExceeded(
-                f"Run exceeded maximum LLM calls ({self.limits['max_llm_calls']})."
+                f"Run exceeded maximum LLM calls ({limit})."
             )
-    
+
     def check_cost(self, additional_cost: float) -> None:
         """Check and increment estimated cost."""
         self.estimated_cost += additional_cost
-        if self.estimated_cost > self.limits["max_cost"]:
+        limit = self.limits.get("max_cost")
+        if limit is not None and self.estimated_cost > limit:
             raise RunLimitExceeded(
-                f"Run exceeded maximum cost (${self.limits['max_cost']:.2f})."
+                f"Run exceeded maximum cost (${limit:.2f})."
             )
-    
+
     def check_connector_call(self) -> None:
         """Check and increment connector call count."""
         self.connector_calls += 1
-        if self.connector_calls > self.limits["max_connector_calls"]:
+        limit = self.limits.get("max_connector_calls")
+        if limit is not None and self.connector_calls > limit:
             raise RunLimitExceeded(
-                f"Run exceeded maximum connector calls ({self.limits['max_connector_calls']})."
+                f"Run exceeded maximum connector calls ({limit})."
             )
-    
+
     def check_execution_time(self) -> None:
         """Check if execution time exceeded."""
         import time
         if self.start_time is None:
             return
-        
+        limit = self.limits.get("max_execution_time")
+        if limit is None:
+            return
         elapsed = time.time() - self.start_time
-        if elapsed > self.limits["max_execution_time"]:
+        if elapsed > limit:
             raise RunLimitExceeded(
-                f"Run exceeded maximum execution time ({self.limits['max_execution_time']}s)."
+                f"Run exceeded maximum execution time ({limit}s)."
             )
     
     def get_usage(self) -> dict:

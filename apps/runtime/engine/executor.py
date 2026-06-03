@@ -469,7 +469,7 @@ class ProgramExecutor:
         execution_mode: str = "autonomous",
         conflict_policy: str = "queue",
         connection_name_to_id: dict[str, str] | None = None,
-        is_paid_plan: bool = False,
+        plan: str = "free",
         workspace_id: str | None = None,
         compliance_mode: str = "standard",
         data_region: str | None = None,
@@ -504,7 +504,7 @@ class ProgramExecutor:
         self._run_telemetry: TelemetryPayload = _empty_telemetry()
         
         # Initialize run limiter for resource protection
-        limits = get_run_limits().get_limits(is_paid_plan)
+        limits = get_run_limits().get_limits_for_plan(plan)
         self._limiter = RunLimiter(limits, run_id)
         self._limiter.start()
 
@@ -2431,6 +2431,10 @@ class ProgramExecutor:
                 return await fn()
             except ExecutionError:
                 # ExecutionError (including OAUTH_TOKEN_FAILED) — never retry, always fatal
+                raise
+            except RunLimitExceeded:
+                # Resource-limit breaches are deterministic — retrying only burns
+                # more tokens/cost and fails again. Surface immediately.
                 raise
             except Exception as e:
                 last_error = e
