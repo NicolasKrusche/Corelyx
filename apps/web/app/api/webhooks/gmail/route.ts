@@ -32,10 +32,16 @@ type GmailPushPayload = {
   historyId?: string | number;
 };
 
-export async function POST(request: Request) {
-  const limited = await enforcePublicEndpointRateLimit(request, "gmail");
-  if (limited) return limited;
+// Google Pub/Sub redelivers any push it does not receive a 2xx ack for, with
+// backoff — so returning 4xx for an unprocessable ("poison") message makes
+// Pub/Sub retry it for the message's full retention window (days), which shows
+// up as a flood of requests. Acknowledge anything a retry cannot fix; reserve
+// non-2xx for genuinely transient failures where retrying can succeed.
+function acknowledge(extra: Record<string, unknown>) {
+  return NextResponse.json({ ok: true, accepted: true, ...extra });
+}
 
+export async function POST(request: Request) {
   const audience = process.env.PUBSUB_GMAIL_WEBHOOK_AUDIENCE;
   if (!audience) {
     serverLog({ level: "error", event: "webhooks.gmail.missing_config", message: "PUBSUB_GMAIL_WEBHOOK_AUDIENCE env var is not set." });
@@ -48,11 +54,18 @@ export async function POST(request: Request) {
     return apiError("Webhook not configured", 500);
   }
 
+  // Verify the Pub/Sub OIDC token first (Google JWKS are cached, so this is
+  // cheap). Rate-limiting is applied ONLY to unauthenticated callers: throttling
+  // legitimate Pub/Sub with 429 just triggers redelivery and amplifies load,
+  // so verified pushes are never rate-limited.
   const isValid = await verifyGooglePubSubOidc(
     request.headers.get("authorization"),
     { audience, serviceAccountEmail }
   );
-  if (!isValid) return apiError("Unauthorized", 401);
+  if (!isValid) {
+    const limited = await enforcePublicEndpointRateLimit(request, "gmail-unauth");
+    return limited ?? apiError("Unauthorized", 401);
+  }
 
   let envelope: PubSubEnvelope;
   const boundedBody = await readBoundedJsonBody<PubSubEnvelope>(request);
@@ -60,23 +73,23 @@ export async function POST(request: Request) {
   envelope = boundedBody.value;
 
   const messageId = envelope.message?.messageId;
-  if (!messageId) return apiError("Missing Pub/Sub messageId", 400);
+  if (!messageId) return acknowledge({ ignored: "missing_message_id" });
 
   const encodedData = envelope.message?.data;
-  if (!encodedData) return apiError("Missing Pub/Sub message data", 400);
+  if (!encodedData) return acknowledge({ ignored: "missing_message_data" });
 
   let gmailPayload: GmailPushPayload;
   try {
     const decoded = Buffer.from(encodedData, "base64").toString("utf-8");
     gmailPayload = JSON.parse(decoded) as GmailPushPayload;
   } catch {
-    return apiError("Invalid Pub/Sub message payload", 400);
+    return acknowledge({ ignored: "invalid_message_payload" });
   }
 
   const emailAddress = gmailPayload.emailAddress;
   const historyId = coerceHistoryId(gmailPayload.historyId);
   if (!emailAddress || !historyId) {
-    return apiError("Missing emailAddress/historyId in Gmail push payload", 400);
+    return acknowledge({ ignored: "missing_email_or_history_id" });
   }
 
   let isFirstDelivery: boolean;
