@@ -107,11 +107,14 @@ export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModel
 
 // ─── OpenRouter fallback chain ────────────────────────────────────────────────
 
+// Free OpenRouter models tried in order. Keep only slugs OpenRouter currently
+// serves — a removed/renamed slug returns "404 No endpoints found", and if it is
+// the last entry there is nothing left to fall back to, so the 404 surfaces to
+// the user. (google/gemma-3-27b-it:free was removed upstream and dropped here.)
 export const OPENROUTER_FALLBACK_MODELS = [
   "qwen/qwen3-coder:free",
   "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemma-3-27b-it:free",
 ] as const;
 
 export const KEY_PROVIDER_PRIORITY: Record<string, number> = {

@@ -582,7 +582,17 @@ export async function POST(request: Request) {
               pii_redactions: sanitizedDescription.redactions,
             },
           });
-          send({ type: "error", message });
+          // A stale/removed model slug returns "404 No endpoints found" and a
+          // busy free tier returns rate-limit/overloaded errors. Surface an
+          // actionable message instead of the raw provider 404 — the technical
+          // detail is preserved in the app log above.
+          const userMessage =
+            !isKeyError(err) && isRetryableModelError(err)
+              ? usePlatformKey
+                ? "The AI model is temporarily unavailable or busy. Please try again in a moment, or pick a different model."
+                : "The selected AI model is temporarily unavailable or busy. Please try again, or choose a different model in API Keys."
+              : message;
+          send({ type: "error", message: userMessage });
         }
       } finally {
         controller.close();
