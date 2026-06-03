@@ -295,6 +295,31 @@ function schemaNodeToReactFlowNode(schemaNode: SchemaNode): ReactFlowNode {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+// ─── Browser notification helpers ────────────────────────────────────────────
+
+/** Ask for permission once — called just before the AI edit starts. */
+function requestNotificationPermission(): void {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission === "default") {
+    void Notification.requestPermission();
+  }
+}
+
+/**
+ * Fire a desktop notification only when the user has navigated away from the
+ * tab. Does nothing if the tab is already focused or permission was denied.
+ */
+function notifyIfHidden(title: string, body: string): void {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission !== "granted") return;
+  if (document.visibilityState === "visible") return;
+  try {
+    new Notification(title, { body, icon: "/favicon.ico" });
+  } catch {
+    // Safari may throw even with permission granted; silently ignore
+  }
+}
+
 function makePreFlightErrorCheck(
   label: string,
   message: string,
@@ -1354,6 +1379,10 @@ export function EditorShell({
     const prompt = aiEditPrompt.trim();
     if (!prompt) return;
 
+    // Ask for notification permission now so we can alert the user if they
+    // switch tabs while the AI edit is running.
+    requestNotificationPermission();
+
     setAiEditLoading(true);
     setAiEditError(null);
 
@@ -1512,6 +1541,7 @@ export function EditorShell({
             setValidationNotice("AI edit applied. Review and save the draft.");
             setShowAiEdit(false);
             setAiEditPrompt("");
+            notifyIfHidden("Workflow edit complete", "Your AI edit is ready — switch back to review and save.");
           } else if (event.type === "error") {
             setAiEditError(typeof event.message === "string"
               ? event.message

@@ -15,6 +15,8 @@ interface ResizeStart {
   y: number;
   width: number;
   height: number;
+  /** Saved so we can restore it after the drag ends. */
+  savedTransition: string;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -31,12 +33,17 @@ export function PanelResizeHandle({ edge }: PanelResizeHandleProps) {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     const rect = panel.getBoundingClientRect();
+    // Suppress the panel's CSS height/width transition while dragging so every
+    // style mutation is applied instantly instead of being animated.
+    const savedTransition = panel.style.transition;
+    panel.style.transition = "none";
     startRef.current = {
       panel,
       x: event.clientX,
       y: event.clientY,
       width: rect.width,
       height: rect.height,
+      savedTransition,
     };
   }
 
@@ -56,7 +63,11 @@ export function PanelResizeHandle({ edge }: PanelResizeHandleProps) {
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
-    startRef.current = null;
+    if (startRef.current) {
+      // Restore the transition that was suppressed during drag.
+      startRef.current.panel.style.transition = startRef.current.savedTransition;
+      startRef.current = null;
+    }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
