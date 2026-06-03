@@ -85,7 +85,7 @@ export function AiEditPanel({
             <div className="space-y-1.5">
               <p className="text-sm font-semibold text-foreground">Editing your workflow…</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[180px]">
-                AI is reworking the graph. This usually takes 15–30 seconds.
+                AI is reworking the graph. This may take a moment.
               </p>
             </div>
           </div>
