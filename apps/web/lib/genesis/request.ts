@@ -16,7 +16,11 @@ export type GenesisApiKeyRow = {
 
 export const GenesisRequestSchema = z.object({
   description: z.string().max(2000),
-  connection_ids: z.array(z.string().uuid()).max(10),
+  // Upper bound is a sanity guard, not a product limit — Genesis selects what it
+  // needs from the provided connections. Note: very many connections enlarge the
+  // operation-reference section of the prompt, and the model's output token budget
+  // (GENESIS_MAX_TOKENS) still bounds how large a single generated graph can be.
+  connection_ids: z.array(z.string().uuid()).max(250),
   api_key_id: z.string().uuid().optional(),
   use_platform_key: z.boolean().optional(),
   model: z.string().min(1).optional(),
@@ -138,7 +142,14 @@ export const KEY_DEFAULT_MODELS: Record<string, string> = {
   openrouter: "qwen/qwen3-coder:free",
 };
 
-export const GENESIS_MAX_TOKENS = 8192;
+// Output token budget for a single generation. Larger graphs need more output
+// tokens; raised to allow many-node programs. Providers clamp this to the model's
+// own max output, so a model with a smaller cap will simply use its maximum.
+// Override per-deployment with GENESIS_MAX_TOKENS.
+export const GENESIS_MAX_TOKENS = (() => {
+  const parsed = Number.parseInt(process.env.GENESIS_MAX_TOKENS ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 16384;
+})();
 export const GENESIS_TEMPERATURE = 0;
 
 export function uniqueRequestedConnectionIds(connectionIds: string[]): string[] {
