@@ -112,6 +112,9 @@ const OAUTH_PROVIDER_LABELS: Record<string, string> = {
   sheets: "Google Sheets", calendar: "Google Calendar", docs: "Google Docs",
   drive: "Google Drive", airtable: "Airtable", hubspot: "HubSpot",
   typeform: "Typeform", asana: "Asana", outlook: "Outlook",
+  shopify: "Shopify", zoom: "Zoom", sentry: "Sentry", gitlab: "GitLab",
+  confluence: "Confluence", jira: "Jira", dropbox: "Dropbox",
+  todoist: "Todoist", calendly: "Calendly",
 };
 
 function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number; y: number }): SchemaNode {
@@ -240,6 +243,8 @@ const CONNECTION_SUBTYPES = [
   "http", "gmail", "notion", "slack", "github", "sheets",
   "calendar", "docs", "drive", "airtable", "hubspot",
   "typeform", "asana", "outlook",
+  "shopify", "zoom", "sentry", "gitlab", "confluence",
+  "jira", "dropbox", "todoist", "calendly",
 ] as const;
 
 function includesString(values: readonly string[], value: unknown): value is string {
