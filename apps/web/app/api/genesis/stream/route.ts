@@ -14,6 +14,7 @@ import {
 } from "@/lib/genesis/eu-compliance";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
+import { layoutSchema, DEFAULT_LAYOUT_DIRECTION } from "@/lib/schema/layout";
 import { validatePostGenesis } from "@/lib/validation";
 import {
   getDraftValidationMessage,
@@ -485,15 +486,24 @@ export async function POST(request: Request) {
         } else {
           send({ type: "status", message: "Saving program..." });
 
+          // The model is unreliable at computing node coordinates, so it tends to
+          // emit a straight line. Lay the graph out deterministically (branches and
+          // all) before persisting, using the caller's preferred orientation.
+          const layoutDirection = parsed.data.layout_direction ?? DEFAULT_LAYOUT_DIRECTION;
+          const savedSchema = {
+            ...schema,
+            nodes: layoutSchema(schema.nodes, schema.edges, layoutDirection),
+          };
+
           const { data: rawProgram, error: insertError } = await serviceClient
             .from("programs")
             .insert({
               user_id: userId,
               workspace_id: workspaceId,
-              name: schema.program_name,
+              name: savedSchema.program_name,
               description,
-              schema: schema as unknown as Record<string, unknown>,
-              execution_mode: mapExecutionMode(schema.execution_mode),
+              schema: savedSchema as unknown as Record<string, unknown>,
+              execution_mode: mapExecutionMode(savedSchema.execution_mode),
               ...(complianceObligations ? { ai_act_notes: complianceObligations } : {}),
             } as unknown as never)
             .select("id, name")
@@ -520,7 +530,7 @@ export async function POST(request: Request) {
             serviceClient.from("program_versions").insert({
               program_id: program.id,
               version: 0,
-              schema: schema as unknown as Record<string, unknown>,
+              schema: savedSchema as unknown as Record<string, unknown>,
               change_summary: "Genesis — AI-generated from description",
             } as unknown as never),
           ]);

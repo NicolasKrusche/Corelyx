@@ -647,12 +647,24 @@ function NewProgramPageInner() {
       return;
     }
 
+    // Honor the user's last-chosen layout orientation (set via the editor's
+    // Auto-layout control). Defaults to horizontal when unset.
+    const storedDirection =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("flowos.layoutDirection")
+        : null;
+    const layout_direction =
+      storedDirection === "horizontal" || storedDirection === "vertical"
+        ? storedDirection
+        : "horizontal";
+
     const payload = selection
       ? {
           description,
           connection_ids: [...selectedIds],
           api_key_id: selection.keyId,
           model: selection.modelId,
+          layout_direction,
         }
       : {
           description,
@@ -660,6 +672,7 @@ function NewProgramPageInner() {
           use_platform_key: true as const,
           // Include the chosen platform model (may be non-default for paid tiers)
           model: selectedPlatformModel,
+          layout_direction,
         };
 
     try {

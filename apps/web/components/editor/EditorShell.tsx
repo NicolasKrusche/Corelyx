@@ -23,7 +23,13 @@ import { editorReducer, initialEditorState, EditorDispatchContext } from "@/lib/
 import { writeClipboard, readClipboard, buildPastePayload } from "@/lib/editor/clipboard";
 import { DebugPanel } from "@/components/editor/DebugPanel";
 import { toReactFlow } from "@/lib/schema";
-import { applyDagreLayout, needsLayout } from "@/lib/schema/layout";
+import {
+  applyDagreLayout,
+  needsLayout,
+  layoutSchema,
+  DEFAULT_LAYOUT_DIRECTION,
+  type LayoutDirection,
+} from "@/lib/schema/layout";
 import { validatePostGenesis } from "@/lib/validation";
 
 import { TriggerNode } from "@/components/nodes/TriggerNode";
@@ -458,6 +464,37 @@ export function EditorShell({
     return toReactFlow(initialSchema, initialValidation).edges;
   });
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null);
+
+  // ── Auto-layout direction (user preference, persisted) ───────────────────
+  const [layoutDirection, setLayoutDirection] = React.useState<LayoutDirection>(() => {
+    if (typeof window === "undefined") return DEFAULT_LAYOUT_DIRECTION;
+    const stored = window.localStorage.getItem("flowos.layoutDirection");
+    return stored === "horizontal" || stored === "vertical" ? stored : DEFAULT_LAYOUT_DIRECTION;
+  });
+
+  const handleAutoLayout = React.useCallback(
+    (direction: LayoutDirection) => {
+      setLayoutDirection(direction);
+      try {
+        window.localStorage.setItem("flowos.layoutDirection", direction);
+      } catch {
+        // best-effort; preference just won't persist
+      }
+      const nodes = layoutSchema(state.schema.nodes, state.schema.edges, direction);
+      // RESTORE_VERSION replaces the schema, marks it dirty (auto-save persists),
+      // and is undoable — so the re-arrange can be reverted with Cmd+Z.
+      dispatch({ type: "RESTORE_VERSION", schema: { ...state.schema, nodes } });
+      // Fit the view once the schema→RF sync has applied the new positions.
+      setTimeout(() => {
+        try {
+          reactFlowInstanceRef.current?.fitView({ padding: 0.2, duration: 400 });
+        } catch {
+          // no-op if canvas not ready
+        }
+      }, 60);
+    },
+    [state.schema, dispatch]
+  );
 
   // ── Sync schema → RF nodes/edges when schema changes ─────────────────────
   // We skip the sync when the change originated from RF (to avoid loops).
@@ -1824,6 +1861,8 @@ export function EditorShell({
             if (apiKeys.length === 0) setAiEditMode("platform");
           }
         }}
+        onAutoLayout={handleAutoLayout}
+        layoutDirection={layoutDirection}
         onTestWebhook={() => setShowWebhookTest(true)}
         showRawSchema={rawSchemaEnabled && showRawSchema}
         onToggleRawSchema={rawSchemaEnabled ? () => {

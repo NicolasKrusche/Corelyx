@@ -23,6 +23,9 @@ export const GenesisRequestSchema = z.object({
   existing_schema: z.unknown().optional(),
   refinement: z.string().max(2000).optional(),
   existing_program_id: z.string().uuid().optional(),
+  // Preferred auto-layout orientation for the generated graph. The server lays
+  // the program out deterministically (the model is unreliable at coordinates).
+  layout_direction: z.enum(["horizontal", "vertical"]).optional(),
 }).superRefine((request, ctx) => {
   if (!isGenesisRefinementRequest(request) && request.description.length < 10) {
     ctx.addIssue({
