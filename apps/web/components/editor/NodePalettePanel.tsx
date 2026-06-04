@@ -13,7 +13,9 @@ export type ConnectionSubtype =
   | "http"
   | "gmail" | "notion" | "slack" | "github" | "sheets"
   | "calendar" | "docs" | "drive" | "airtable" | "hubspot"
-  | "typeform" | "asana" | "outlook";
+  | "typeform" | "asana" | "outlook"
+  | "shopify" | "zoom" | "sentry" | "gitlab" | "confluence"
+  | "jira" | "dropbox" | "todoist" | "calendly";
 
 export type NoteColor = "yellow" | "blue" | "pink" | "green";
 
@@ -349,6 +351,60 @@ const CATEGORIES: Category[] = [
         label: "Outlook",
         description: "Send and read Outlook mail",
         icon: <ProviderIcon provider="outlook" />,
+      },
+      {
+        variant: { type: "connection", subtype: "shopify" },
+        label: "Shopify",
+        description: "Manage orders, products, and customers",
+        icon: <ProviderIcon provider="shopify" />,
+      },
+      {
+        variant: { type: "connection", subtype: "zoom" },
+        label: "Zoom",
+        description: "Schedule and manage meetings",
+        icon: <ProviderIcon provider="zoom" />,
+      },
+      {
+        variant: { type: "connection", subtype: "sentry" },
+        label: "Sentry",
+        description: "Track issues and error events",
+        icon: <ProviderIcon provider="sentry" />,
+      },
+      {
+        variant: { type: "connection", subtype: "gitlab" },
+        label: "GitLab",
+        description: "Manage repos, issues, and merge requests",
+        icon: <ProviderIcon provider="gitlab" />,
+      },
+      {
+        variant: { type: "connection", subtype: "confluence" },
+        label: "Confluence",
+        description: "Read and write Confluence pages",
+        icon: <ProviderIcon provider="confluence" />,
+      },
+      {
+        variant: { type: "connection", subtype: "jira" },
+        label: "Jira",
+        description: "Create and update issues",
+        icon: <ProviderIcon provider="jira" />,
+      },
+      {
+        variant: { type: "connection", subtype: "dropbox" },
+        label: "Dropbox",
+        description: "List, upload, and share files",
+        icon: <ProviderIcon provider="dropbox" />,
+      },
+      {
+        variant: { type: "connection", subtype: "todoist" },
+        label: "Todoist",
+        description: "Manage tasks and projects",
+        icon: <ProviderIcon provider="todoist" />,
+      },
+      {
+        variant: { type: "connection", subtype: "calendly" },
+        label: "Calendly",
+        description: "Read scheduled events and invitees",
+        icon: <ProviderIcon provider="calendly" />,
       },
     ],
   },
