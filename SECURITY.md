@@ -65,7 +65,7 @@ For details on our technical and organizational measures, see [compliance_plan.m
 
 - TLS 1.3 for all data in transit; AES-256 at rest
 - Server-side-only secrets; OAuth tokens stored in Supabase Vault, never returned to the frontend
-- Pre-LLM PII sanitization for every prompt that leaves our infrastructure
+- Pre-LLM structured-identifier redaction (emails, phone numbers, IBANs, IP addresses, payment card numbers, and secrets) before a prompt leaves our infrastructure. Free-text prose, including names, is not removed.
 - Tenant-scoped row-level security (Postgres RLS) on all customer data
 - Centralized audit logging with tamper-evident retention
 - EU-only production hosting (Vercel EU edges, Railway EU region, Supabase EU region)

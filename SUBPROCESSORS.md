@@ -1,49 +1,42 @@
 # Corelyx — Subprocessors
 
-**Last updated:** 2026-04-28
-**Notification commitment:** Customers will be notified at least **30 days** before a new subprocessor begins processing personal data, in line with our DPA.
+**Last reviewed:** 2026-05-27
+**Notification commitment:** Customers are notified at least **30 days** before a new subprocessor begins processing personal data, in line with our DPA.
 
-This page lists every third-party service that processes personal data on Corelyx's behalf. It is the source of truth referenced from our Data Processing Agreement (DPA, GDPR Art. 28).
+This document lists the third-party services that may process personal data on Corelyx's behalf. The authoritative, always-current version is rendered from the code-backed provider registry at **[/subprocessors](https://www.corelyx.app/subprocessors)** and **[/data-residency](https://www.corelyx.app/data-residency)**; this file mirrors it for reference and must be kept in sync with `apps/web/lib/compliance/provider-registry.ts`.
 
-If you are a customer and want to be notified of changes, subscribe at [legal@corelyx.app](mailto:legal@corelyx.app).
+To be notified of changes, contact [legal@corelyx.app](mailto:legal@corelyx.app).
 
 ---
 
 ## Active subprocessors
-b
-| Service | Provider | Purpose | Data processed | Hosting region | Cross-border transfer mechanism |
+
+| Service | Provider | Purpose | Hosting region | Used by default | Transfer basis / status |
 |---|---|---|---|---|---|
-| Supabase | Supabase Inc. | Postgres database, auth, Vault for secrets | User accounts, workflow definitions, execution logs (metadata-only by default), encrypted OAuth tokens, encrypted API keys | EU (region pinned) | Subprocessor agreement; data residency confirmed in EU region. |
-| Vercel | Vercel Inc. | Web app hosting (frontend + API routes) | Account data in transit, request logs (no payloads stored), access logs | EU edge regions | Standard Contractual Clauses (SCC). |
-| Railway | Railway Corp. | Workflow runtime hosting (Python / LangGraph) | Workflow execution payloads in transit and during execution | EU region | SCC. |
-| Anthropic | Anthropic PBC | LLM API for Genesis + agent nodes (BYOK — only used if the customer's own Anthropic key is selected) | Sanitized workflow descriptions and sanitized agent inputs | US | DPA + SCC required before BYOK use. PII sanitization applied client-side before transfer. |
-| OpenAI | OpenAI OpCo LLC | LLM API for Genesis + agent nodes (BYOK) | Sanitized workflow descriptions and sanitized agent inputs | US | DPA + SCC required before BYOK use. PII sanitization applied. |
-| Google (Gemini) | Google LLC | LLM API (BYOK) | Sanitized prompts | US | DPA + SCC required. PII sanitization applied. |
-| Mistral AI | Mistral AI | LLM API (BYOK) | Sanitized prompts | EU (FR) — preferred for EU-only deployments | EU-to-EU. No SCC required. |
-| Groq | Groq Inc. | LLM API (BYOK) | Sanitized prompts | US | DPA + SCC required. PII sanitization applied. |
-| OpenRouter | OpenRouter Inc. | LLM API gateway (BYOK) | Sanitized prompts | US (proxies to underlying provider) | DPA + SCC required. PII sanitization applied. |
-| Stripe | Stripe Payments Europe Ltd. | Payment processing, billing | Billing email, customer ID, payment method metadata (no card data — tokenized by Stripe) | EU + US (Stripe is the controller for payment data per their terms) | SCC for any incidental US transfer. |
-| Inngest | Inngest Inc. | Trigger and scheduled-job orchestration | Trigger metadata, run identifiers (no payloads) | EU region | SCC. |
-| LiteLLM (self-hosted) | Operated by Corelyx on Railway (EU) | Internal LLM router (planned) | Sanitized prompts in transit | EU only | None — fully EU. |
+| Supabase | Supabase Inc. | Postgres database, authentication, Vault-backed secret references | EU region (eu-central-1, Frankfurt) for Corelyx production | Yes (always) | DPA + SCCs where any subprocessor involves third-country processing. **Approved.** |
+| Vercel | Vercel Inc. | Web app hosting (frontend + API routes) | EU regions (Frankfurt / Dublin); static assets via global CDN, no personal data cached at edge | Yes (always) | DPA + transfer addendum. EU-configured. |
+| Railway | Railway Corp. | Python workflow runtime hosting | EU West (Amsterdam) | Yes (always) | DPA + SCCs where applicable. |
+| Inngest | Inngest Inc. | Scheduling, retries, event dispatch, async orchestration | Provider-managed | Yes (always) | DPA + SCCs. Event metadata only — not full payloads; treat as third-country transfer risk until region confirmed. |
+| Resend | Resend Inc. | Transactional email (approvals, failures, account, billing notices) | United States (account data, email metadata, logs) | No — only when transactional email is sent | DPA + SCCs required for EEA personal data. No workflow content sent — addresses and transactional subject lines only. |
+| Stripe | Stripe Payments Europe Ltd. | Checkout, subscriptions, invoicing, payment processing, fraud prevention | Provider-managed global financial infrastructure | No — only when billing features are used | DPA, SCCs, and payment-law processing roles. No card data stored by Corelyx (tokenized by Stripe). |
+| OpenRouter | OpenRouter, Inc. | **LLM routing used by the Corelyx platform key to execute Genesis and agent nodes.** Also used if a customer configures their own OpenRouter key. | Provider-managed global routing (EU routing only on enterprise accounts) | **Yes — active whenever the Corelyx platform key is used** | **No countersigned DPA or SCCs currently in place.** Corelyx is pursuing an enterprise DPA. Until then, treat as a third-country transfer risk and do **not** route special-category personal data through the platform key. OpenRouter states prompts are not used for training or retained beyond request processing by default — verify at openrouter.ai/privacy. |
+| OpenAI | OpenAI OpCo LLC | Optional LLM inference for agent nodes / model ops | US by default; EU residency only for eligible configured API projects | No — only when selected or a customer key is configured | DPA + SCCs unless an eligible EU-resident project is verified. |
+| Anthropic | Anthropic PBC | Optional LLM inference for agent nodes | US for customer data unless otherwise agreed | No — only when selected or a customer key is configured | DPA + SCCs required for EEA personal data. Anthropic states API data is not used for training by default and is normally deleted within 30 days. |
+| Google | Google LLC | Google Sign-In (OAuth) for all users; optionally Gmail/Calendar/Docs/Drive/Sheets workflow actions when explicitly connected | Provider-managed; depends on Google account / Workspace region | Sign-In: yes. Connectors: only if connected | Google terms, DPA, SCCs, customer tenant controls. |
+
+**Note on AI processing:** Corelyx provides a **platform model key (routed via OpenRouter)** so users can run Genesis and agent nodes without bringing their own key. This is **not** "BYOK-only" — when the platform key is used, customer prompt data is processed by OpenRouter under Corelyx's account. Customers who need a signed DPA / EU residency for AI processing should configure their own EU-eligible provider key (e.g. Anthropic, OpenAI EU project, or EU-hosted Mistral) and/or enable **EU-only workspace mode**, which blocks unresolved-risk providers before a run executes.
+
+Structured-identifier redaction (email addresses, phone numbers, IBANs, IP addresses, payment card numbers, and secrets) is applied to prompts before they leave Corelyx infrastructure. Free-text prose, including names, is **not** removed.
 
 ---
 
 ## Connected third-party APIs (customer-controlled)
 
-When a customer authorizes Corelyx to access their account on Gmail, Notion, Slack, GitHub, Google Sheets / Drive / Calendar / Docs, Airtable, HubSpot, Asana, Typeform, Outlook, etc., the customer's workflows transfer data to those services. Corelyx is the data processor that initiates these calls on the customer's behalf.
+When a customer authorizes Corelyx to access an account on Gmail, Notion, Slack, GitHub, Google Sheets / Drive / Calendar / Docs, Airtable, HubSpot, Asana, Typeform, Outlook, GitLab, Jira, Confluence, Dropbox, Shopify, Zoom, Sentry, Todoist, Calendly, or any HTTP endpoint, the customer's workflows transfer data to those services.
 
-These are **not subprocessors of Corelyx** under GDPR (the customer is the controller and chose the integration), but they are listed here for transparency:
+These are **not subprocessors of Corelyx** under GDPR — the customer is the controller and chose the integration — but are listed for transparency. Customers can revoke access at any time from Connections settings; revocation purges the OAuth secret from Supabase Vault and the credential row from the database.
 
-| Provider | Operations exposed | Auth |
-|---|---|---|
-| Google (Gmail, Drive, Docs, Sheets, Calendar) | List / read / send / write / search per the connector op spec | OAuth 2.0 (token stored encrypted in Vault) |
-| Microsoft (Outlook) | List / read / send / move emails | OAuth 2.0 |
-| Slack | Messages, channels, reactions | OAuth 2.0 |
-| GitHub | Issues, PRs, file pushes | OAuth 2.0 |
-| Notion | Pages, databases, blocks | OAuth 2.0 |
-| Airtable, HubSpot, Asana, Typeform | Records, deals, tasks, responses | OAuth 2.0 |
-
-Customers can revoke access at any time from the Connections settings. Token revocation purges the OAuth secret from Supabase Vault and the credential row from the database.
+Customer-configured **HTTP endpoints** have no DPA/SCC coverage by default; the customer must document the recipient, transfer basis, and safeguards before routing personal data to them.
 
 ---
 
@@ -51,6 +44,7 @@ Customers can revoke access at any time from the Connections settings. Token rev
 
 | Date | Change |
 |---|---|
+| 2026-05-27 | Rewritten to match the code-backed provider registry: corrected the AI processing description (platform key routes through OpenRouter by default — not BYOK-only), removed an unbuilt internal router entry, and added newly supported connectors. |
 | 2026-04-28 | Initial publication. |
 
 ---
@@ -58,4 +52,3 @@ Customers can revoke access at any time from the Connections settings. Token rev
 ## Contact
 
 For DPA requests or subprocessor change notifications: [legal@corelyx.app](mailto:legal@corelyx.app)
-aaaaaASaasssSS
