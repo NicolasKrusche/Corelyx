@@ -9,6 +9,15 @@ type Db = ReturnType<typeof createServiceClient>;
 // missed renewal window never leaves a mailbox without push notifications.
 export const GMAIL_WATCH_REFRESH_AHEAD_MS = 24 * 60 * 60 * 1000;
 
+// An unfiltered Gmail watch publishes a Pub/Sub notification for *every* history
+// change in the mailbox — reads, archives, label edits, sent mail, draft saves —
+// not just newly received messages. That floods the webhook with edge requests
+// that have no messageAdded delta. Restricting the watch to the INBOX label means
+// Gmail only notifies us when a change touches the inbox, which is what the
+// "message.received" trigger cares about, and cuts notification volume sharply.
+export const GMAIL_WATCH_DEFAULT_LABEL_IDS = ["INBOX"];
+export const GMAIL_WATCH_DEFAULT_LABEL_FILTER_ACTION = "include";
+
 export interface GmailWatchMetadata {
   topic_name?: string | null;
   history_id?: string | number | null;
@@ -47,6 +56,23 @@ export function gmailWatchNeedsRefresh(
   const expiresAt = Date.parse(watch.expiration);
   if (Number.isNaN(expiresAt)) return true;
   return expiresAt - now <= GMAIL_WATCH_REFRESH_AHEAD_MS;
+}
+
+/**
+ * Build the `users.watch` request body. Defaults to an INBOX-only filter so the
+ * watch is not triggered by every mailbox change; callers may override the labels
+ * (e.g. to watch a custom label) by passing `labelIds`/`labelFilterAction`.
+ */
+export function buildGmailWatchRequestBody(
+  topicName: string,
+  options: Pick<EnsureGmailWatchOptions, "labelIds" | "labelFilterAction"> = {}
+): Record<string, unknown> {
+  const labelIds =
+    options.labelIds && options.labelIds.length > 0
+      ? options.labelIds
+      : GMAIL_WATCH_DEFAULT_LABEL_IDS;
+  const labelFilterAction = options.labelFilterAction || GMAIL_WATCH_DEFAULT_LABEL_FILTER_ACTION;
+  return { topicName, labelIds, labelFilterAction };
 }
 
 function _asRecord(value: unknown): Record<string, unknown> | null {
@@ -113,9 +139,7 @@ export async function ensureGmailWatch(
     return { ok: false, status: 500, error: message };
   }
 
-  const watchReqBody: Record<string, unknown> = { topicName };
-  if (options.labelIds && options.labelIds.length > 0) watchReqBody.labelIds = options.labelIds;
-  if (options.labelFilterAction) watchReqBody.labelFilterAction = options.labelFilterAction;
+  const watchReqBody = buildGmailWatchRequestBody(topicName, options);
 
   const watchRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/watch", {
     method: "POST",

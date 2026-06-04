@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   GMAIL_WATCH_REFRESH_AHEAD_MS,
+  buildGmailWatchRequestBody,
   getGmailWatchTopic,
   gmailWatchNeedsRefresh,
 } from "@/lib/triggers/gmail-watch";
@@ -31,6 +32,37 @@ describe("gmailWatchNeedsRefresh", () => {
   it("refreshes when inside the refresh-ahead window", () => {
     const expiration = new Date(NOW + GMAIL_WATCH_REFRESH_AHEAD_MS - 1000).toISOString();
     expect(gmailWatchNeedsRefresh({ history_id: "123", expiration }, NOW)).toBe(true);
+  });
+});
+
+describe("buildGmailWatchRequestBody", () => {
+  it("defaults to an INBOX-only include filter so we are not woken for every mailbox change", () => {
+    expect(buildGmailWatchRequestBody("projects/p/topics/t")).toEqual({
+      topicName: "projects/p/topics/t",
+      labelIds: ["INBOX"],
+      labelFilterAction: "include",
+    });
+  });
+
+  it("honours an explicit label override", () => {
+    expect(
+      buildGmailWatchRequestBody("projects/p/topics/t", {
+        labelIds: ["Label_123"],
+        labelFilterAction: "include",
+      })
+    ).toEqual({
+      topicName: "projects/p/topics/t",
+      labelIds: ["Label_123"],
+      labelFilterAction: "include",
+    });
+  });
+
+  it("falls back to the default when an empty label list is passed", () => {
+    expect(buildGmailWatchRequestBody("projects/p/topics/t", { labelIds: [] })).toEqual({
+      topicName: "projects/p/topics/t",
+      labelIds: ["INBOX"],
+      labelFilterAction: "include",
+    });
   });
 });
 
