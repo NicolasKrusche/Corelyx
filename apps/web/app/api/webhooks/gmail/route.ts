@@ -42,8 +42,15 @@ function acknowledge(extra: Record<string, unknown>) {
 }
 
 export async function POST(request: Request) {
-  const audience = process.env.PUBSUB_GMAIL_WEBHOOK_AUDIENCE;
-  if (!audience) {
+  // Comma-separated allow-list so the configured audience can include both the
+  // apex and www endpoint URLs (the token's `aud` is set on the subscription and
+  // can differ from the request host after a domain change). A mismatch otherwise
+  // 401s every push, which Pub/Sub retries — a self-inflicted request flood.
+  const audience = (process.env.PUBSUB_GMAIL_WEBHOOK_AUDIENCE ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (audience.length === 0) {
     serverLog({ level: "error", event: "webhooks.gmail.missing_config", message: "PUBSUB_GMAIL_WEBHOOK_AUDIENCE env var is not set." });
     return apiError("Webhook not configured", 500);
   }

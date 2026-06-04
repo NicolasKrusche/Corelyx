@@ -11,7 +11,13 @@ type OidcPayload = {
 };
 
 type GooglePubSubOidcOptions = {
-  audience: string;
+  // One audience, or an allow-list. The OIDC token's `aud` claim is whatever the
+  // Pub/Sub subscription was configured with — which can legitimately differ from
+  // the request host (e.g. apex vs www after a domain change). Accepting a small
+  // allow-list avoids 401 floods (which Pub/Sub then retries) without weakening
+  // security: the service-account-email + Google signature checks below are the
+  // real boundary — only tokens Google minted for your service account pass.
+  audience: string | string[];
   serviceAccountEmail: string;
 };
 
@@ -51,7 +57,8 @@ export async function verifyGooglePubSubOidc(
   if (header.alg !== "RS256") return false;
   if (!payload.exp || payload.exp < now) return false;
   if (!payload.iss || !GOOGLE_ISSUERS.has(payload.iss)) return false;
-  if (payload.aud !== options.audience) return false;
+  const allowedAudiences = Array.isArray(options.audience) ? options.audience : [options.audience];
+  if (!payload.aud || !allowedAudiences.includes(payload.aud)) return false;
   if (payload.email_verified !== true) return false;
   if (
     !payload.email ||

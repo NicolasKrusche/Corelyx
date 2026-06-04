@@ -78,4 +78,22 @@ describe("pubsub auth", () => {
       })
     ).resolves.toBe(false);
   });
+
+  it("accepts a token whose audience is in the configured allow-list", async () => {
+    await expect(
+      verifyGooglePubSubOidc(`Bearer ${signJwt({ aud: "https://www.corelyx.app/api/webhooks/gmail" })}`, {
+        audience: ["https://corelyx.app/api/webhooks/gmail", "https://www.corelyx.app/api/webhooks/gmail"],
+        serviceAccountEmail,
+      })
+    ).resolves.toBe(true);
+  });
+
+  it("still rejects an out-of-list audience even with an allow-list", async () => {
+    await expect(
+      verifyGooglePubSubOidc(`Bearer ${signJwt({ aud: "https://attacker.test" })}`, {
+        audience: [audience, "https://www.corelyx.app/api/webhooks/gmail"],
+        serviceAccountEmail,
+      })
+    ).resolves.toBe(false);
+  });
 });
