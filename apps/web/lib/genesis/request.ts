@@ -30,6 +30,9 @@ export const GenesisRequestSchema = z.object({
   // Preferred auto-layout orientation for the generated graph. The server lays
   // the program out deterministically (the model is unreliable at coordinates).
   layout_direction: z.enum(["horizontal", "vertical"]).optional(),
+  // "agent" generates a one-time agent (program_type:"agent") instead of a
+  // repeating workflow. Absent = workflow, preserving existing behavior.
+  program_type: z.enum(["workflow", "agent"]).optional(),
 }).superRefine((request, ctx) => {
   if (!isGenesisRefinementRequest(request) && request.description.length < 10) {
     ctx.addIssue({
@@ -71,8 +74,8 @@ export type PlatformModelOption = {
 
 export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
   {
-    id: "qwen/qwen3-coder:free",
-    label: "Qwen3 Coder",
+    id: "openai/gpt-oss-120b:free",
+    label: "GPT OSS 120B",
     sublabel: "Free · Fast",
     tier: "free",
   },
@@ -103,7 +106,7 @@ export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
 ];
 
 /** The model ID used when the user hasn't picked one (free tier default). */
-export const PLATFORM_DEFAULT_MODEL = "qwen/qwen3-coder:free";
+export const PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b:free";
 
 /** Returns allowed models for a given platform tier (all models whose tier ≤ userTier). */
 export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModelOption[] {
@@ -118,8 +121,10 @@ export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModel
 // serves — a removed/renamed slug returns "404 No endpoints found", and if it is
 // the last entry there is nothing left to fall back to, so the 404 surfaces to
 // the user. (google/gemma-3-27b-it:free was removed upstream and dropped here.)
+// qwen/qwen3-coder:free was dropped too — its endpoints stopped responding and
+// every attempt timed out before falling through, so generation now starts on
+// gpt-oss directly.
 export const OPENROUTER_FALLBACK_MODELS = [
-  "qwen/qwen3-coder:free",
   "openai/gpt-oss-120b:free",
   "meta-llama/llama-3.3-70b-instruct:free",
 ] as const;
@@ -139,7 +144,7 @@ export const KEY_DEFAULT_MODELS: Record<string, string> = {
   google: "gemini-1.5-pro",
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-large-latest",
-  openrouter: "qwen/qwen3-coder:free",
+  openrouter: "openai/gpt-oss-120b:free",
 };
 
 // Output token budget for a single generation. Larger graphs need more output

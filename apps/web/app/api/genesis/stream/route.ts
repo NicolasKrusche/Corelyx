@@ -7,7 +7,13 @@ export const maxDuration = 300;
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
-import { buildGenesisSystemPrompt, buildGenesisUserMessage, buildRefinementUserMessage } from "@/lib/genesis/prompt";
+import {
+  buildAgentSystemPrompt,
+  buildAgentUserMessage,
+  buildGenesisSystemPrompt,
+  buildGenesisUserMessage,
+  buildRefinementUserMessage,
+} from "@/lib/genesis/prompt";
 import {
   pickEuComplianceFilterKey,
   runEuComplianceFilter,
@@ -28,7 +34,7 @@ import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
 import { ensureProcessingAllowed } from "@/lib/compliance";
-import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
+import { canContributeToWorkspace, canEdit, canRunAgentInWorkspace, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
   GENESIS_TEMPERATURE,
@@ -85,6 +91,9 @@ export async function POST(request: Request) {
 
   const { description, connection_ids, api_key_id, use_platform_key } = parsed.data;
   const isRefinement = isGenesisRefinementRequest(parsed.data);
+  // One-time agent generation. Mutually exclusive with refinement in practice —
+  // refinement always edits an existing (workflow) program.
+  const isAgent = parsed.data.program_type === "agent" && !isRefinement;
   const refinementText = parsed.data.refinement ?? null;
   const existingSchemaRaw = parsed.data.existing_schema ?? null;
   const usePlatformKey = use_platform_key === true;
@@ -141,6 +150,16 @@ export async function POST(request: Request) {
     if (!ws) return sseErrorResponse("No active workspace", "NO_WORKSPACE");
     if (!canContributeToWorkspace(ws.role)) return sseErrorResponse("Viewers cannot generate programs.", "FORBIDDEN");
     workspaceId = ws.workspaceId;
+
+    // Agents act on the workspace, so creating one requires agent permission
+    // here (owner always allowed; others need the workspace's external-agent
+    // setting + minimum role). Fail fast rather than create an unrunnable agent.
+    if (isAgent && !(await canRunAgentInWorkspace(workspaceId, userId))) {
+      return sseErrorResponse(
+        "You don't have permission to run agents in this workspace.",
+        "AGENT_FORBIDDEN"
+      );
+    }
   }
 
   // Stage 2: genesis limit, program limit, connections, and API keys all need workspaceId — run in parallel
@@ -181,7 +200,10 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connections);
   const selectedProviders = availableConnections.map((conn) => conn.type);
-  const genesisSystemPrompt = buildGenesisSystemPrompt(selectedProviders.length > 0 ? selectedProviders : null);
+  const providersForPrompt = selectedProviders.length > 0 ? selectedProviders : null;
+  const genesisSystemPrompt = isAgent
+    ? buildAgentSystemPrompt(providersForPrompt)
+    : buildGenesisSystemPrompt(providersForPrompt);
 
   // Resolve API keys
   let keyCandidates: GenesisApiKeyRow[];
@@ -252,7 +274,9 @@ export async function POST(request: Request) {
 
         const userMessage = isRefinement && refinementText && existingSchemaRaw
           ? buildRefinementUserMessage(refinementText, existingSchemaRaw as object, availableConnections)
-          : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null);
+          : isAgent
+            ? buildAgentUserMessage(sanitizedDescription.value, availableConnections, null)
+            : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
@@ -441,6 +465,9 @@ export async function POST(request: Request) {
         }
         const schemaResult = ProgramSchemaZ.safeParse(parsedSchema);
         const schema = schemaResult.success ? schemaResult.data : draftResult.data;
+        // Keep the stored schema's discriminator aligned with the column even if
+        // the model forgot to emit program_type.
+        if (isAgent) (schema as { program_type?: string }).program_type = "agent";
         const validation = validatePostGenesis(schema as unknown as Parameters<typeof validatePostGenesis>[0], connections);
 
         // Await compliance before saving — catches late-arriving blocks if generation
@@ -505,6 +532,11 @@ export async function POST(request: Request) {
               schema: savedSchema as unknown as Record<string, unknown>,
               execution_mode: mapExecutionMode(savedSchema.execution_mode),
               ...(complianceObligations ? { ai_act_notes: complianceObligations } : {}),
+              // One-time agents are created paused, awaiting the user's approval
+              // of the plan before they may run.
+              ...(isAgent
+                ? { program_type: "agent", agent_state: "awaiting_approval" }
+                : {}),
             } as unknown as never)
             .select("id, name")
             .single();

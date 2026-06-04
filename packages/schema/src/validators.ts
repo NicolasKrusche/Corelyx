@@ -111,6 +111,28 @@ export const AgentNodeZ = NodeBaseZ.extend({
   config: AgentConfigZ,
 });
 
+// ─── AGENT TASK NODE ──────────────────────────────────────────────────────
+
+export const AgentTaskConfigZ = z.object({
+  objective: z.string(),
+  model: z.string().min(1),
+  api_key_ref: z.string().min(1),
+  max_iterations: z.number().int().min(1).max(25),
+  tools: z.array(z.string()),
+  scope_access: z.enum(["read", "write", "read_write"]),
+  requires_approval: z.boolean(),
+  approval_timeout_hours: z.number().min(0),
+  input_schema: DataSchemaZ.nullable(),
+  output_schema: DataSchemaZ.nullable(),
+  retry: RetryConfigZ,
+});
+
+export const AgentTaskNodeZ = NodeBaseZ.extend({
+  type: z.literal("agent_task"),
+  connection: z.string().nullable(),
+  config: AgentTaskConfigZ,
+});
+
 // ─── STEP NODE ────────────────────────────────────────────────────────────
 
 export const StepConfigZ = z.discriminatedUnion("logic_type", [
@@ -230,6 +252,7 @@ export const GroupNodeZ = NodeBaseZ.extend({
 export const NodeZ = z.discriminatedUnion("type", [
   TriggerNodeZ,
   AgentNodeZ,
+  AgentTaskNodeZ,
   StepNodeZ,
   ConnectionNodeZ,
   NoteNodeZ,
@@ -316,10 +339,15 @@ export const ProgramMetadataZ = z.object({
 
 // ─── PROGRAM SCHEMA ───────────────────────────────────────────────────────
 
+// Legacy schemas predate program_type and are always workflows — default it so
+// downstream consumers can rely on the field being present after validation.
+export const ProgramTypeZ = z.enum(["workflow", "agent"]).default("workflow");
+
 export const ProgramSchemaZ = z.object({
   version: z.literal("1.0"),
   program_id: z.string().min(1),
   program_name: z.string().min(1),
+  program_type: ProgramTypeZ,
   created_at: z.string().min(1),
   updated_at: z.string().min(1),
   execution_mode: z.enum(["autonomous", "approval_required", "supervised"]),
@@ -339,7 +367,7 @@ export type ProgramSchemaOutput = z.output<typeof ProgramSchemaZ>;
 // node config values that are not runnable yet.
 
 export const DraftNodeZ = NodeBaseZ.extend({
-  type: z.enum(["trigger", "agent", "step", "connection", "note", "group"]),
+  type: z.enum(["trigger", "agent", "agent_task", "step", "connection", "note", "group"]),
   connection: z.string().nullable(),
   config: z.record(z.unknown()),
 });
@@ -351,6 +379,7 @@ export const ProgramDraftSchemaZ = z
     version: z.literal("1.0"),
     program_id: z.string().min(1),
     program_name: z.string().min(1),
+    program_type: ProgramTypeZ,
     created_at: z.string().min(1),
     updated_at: z.string().min(1),
     execution_mode: z.enum(["autonomous", "approval_required", "supervised"]),

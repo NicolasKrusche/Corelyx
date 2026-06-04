@@ -62,8 +62,7 @@ describe("genesis request helpers", () => {
 
   it("adds OpenRouter fallback models without duplicates", () => {
     expect(getModelCandidates("openai", "gpt-4o")).toEqual(["gpt-4o"]);
-    expect(getModelCandidates("openrouter", "qwen/qwen3-coder:free")).toEqual([
-      "qwen/qwen3-coder:free",
+    expect(getModelCandidates("openrouter", "openai/gpt-oss-120b:free")).toEqual([
       "openai/gpt-oss-120b:free",
       "meta-llama/llama-3.3-70b-instruct:free",
     ]);
@@ -77,6 +76,37 @@ describe("genesis request helpers", () => {
         use_platform_key: true,
       }).success
     ).toBe(false);
+  });
+
+  it("accepts a one-time agent generation request", () => {
+    const result = GenesisRequestSchema.safeParse({
+      description: "Reconcile last quarter's invoices across Stripe and Sheets",
+      connection_ids: [],
+      use_platform_key: true,
+      program_type: "agent",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.program_type).toBe("agent");
+  });
+
+  it("defaults to a workflow when program_type is omitted", () => {
+    const result = GenesisRequestSchema.safeParse({
+      description: "Send a Slack message every morning at 9am",
+      connection_ids: [],
+      use_platform_key: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.program_type).toBeUndefined();
+  });
+
+  it("rejects an unknown program_type", () => {
+    const result = GenesisRequestSchema.safeParse({
+      description: "Do something undefined and strange to my account",
+      connection_ids: [],
+      use_platform_key: true,
+      program_type: "daemon",
+    });
+    expect(result.success).toBe(false);
   });
 
   it("allows AI edits for workflows with short names", () => {

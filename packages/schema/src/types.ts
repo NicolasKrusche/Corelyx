@@ -4,6 +4,9 @@ export interface ProgramSchema {
   version: "1.0";
   program_id: string;
   program_name: string;
+  // Discriminates a repeating workflow from a one-time agent. Absent on legacy
+  // schemas, which are always workflows — the validator defaults it accordingly.
+  program_type?: ProgramType;
   created_at: string;          // ISO 8601
   updated_at: string;          // ISO 8601
   execution_mode: ExecutionMode;
@@ -13,6 +16,15 @@ export interface ProgramSchema {
   version_history: VersionSnapshot[];
   metadata: ProgramMetadata;
 }
+
+/**
+ * "workflow" — the classic repeating automation (triggers, runs many times).
+ * "agent"    — a one-time, plan-then-run task. Same underlying graph engine,
+ *              but no triggers, runs once, and is discarded after success unless
+ *              the user saves it as a reusable template. Presented as a distinct
+ *              product surface so it is not mistaken for a free workflow.
+ */
+export type ProgramType = "workflow" | "agent";
 
 export type ExecutionMode = "autonomous" | "approval_required" | "supervised";
 
@@ -56,7 +68,14 @@ export type RunStatus = "success" | "failed" | "partial" | "running" | "waiting_
 
 // ─── NODES ────────────────────────────────────────────────────────────────
 
-export type Node = TriggerNode | AgentNode | StepNode | ConnectionNode | NoteNode | GroupNode;
+export type Node =
+  | TriggerNode
+  | AgentNode
+  | AgentTaskNode
+  | StepNode
+  | ConnectionNode
+  | NoteNode
+  | GroupNode;
 
 export interface NodeBase {
   id: string;
@@ -109,6 +128,39 @@ export interface AgentConfig {
   scope_access: "read" | "write" | "read_write";
   retry: RetryConfig;
   tools: string[];
+}
+
+// AGENT TASK NODE — a bounded autonomous tool-loop. The hybrid execution model:
+// the surrounding graph is a fixed, user-approved plan, but this single node may
+// reason and call allow-listed tools over several turns to accomplish its
+// objective. Only valid inside agent programs (program_type === "agent"); it is
+// never offered in the workflow editor palette, so workflows can't smuggle in
+// autonomous behavior.
+
+export interface AgentTaskNode extends NodeBase {
+  type: "agent_task";
+  connection: string | null;
+  config: AgentTaskConfig;
+}
+
+export interface AgentTaskConfig {
+  // Plain-language objective for this task step.
+  objective: string;
+  model: string | "__USER_ASSIGNED__";
+  api_key_ref: string | "__USER_ASSIGNED__";
+  // Hard ceiling on LLM↔tool turns so a loop can never run unbounded.
+  max_iterations: number; // 1–25
+  // Allow-listed tool ids the loop may call (account-introspection +
+  // connector operations). Empty = reasoning only, no side effects.
+  tools: string[];
+  // Highest side-effect level the loop is permitted to perform.
+  scope_access: "read" | "write" | "read_write";
+  // Pause for human approval before any write / side-effecting tool runs.
+  requires_approval: boolean;
+  approval_timeout_hours: number;
+  input_schema: DataSchema | null;
+  output_schema: DataSchema | null;
+  retry: RetryConfig;
 }
 
 // STEP NODE

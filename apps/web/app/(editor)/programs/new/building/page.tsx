@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -22,7 +22,11 @@ import { ControlFlowEdge } from "@/components/edges/ControlFlowEdge";
 import { EventEdge } from "@/components/edges/EventEdge";
 import { applyDagreLayout } from "@/lib/schema/layout";
 import { Button } from "@/components/ui/button";
-import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import {
+  useGenesisJob,
+  type GenesisJobNode,
+  type GenesisJobEdge,
+} from "@/components/genesis/genesis-job-provider";
 
 const NODE_TYPES = {
   trigger: TriggerNode,
@@ -37,37 +41,6 @@ const EDGE_TYPES = {
   event_subscription: EventEdge,
 };
 
-type LayoutDirection = "horizontal" | "vertical";
-
-type GenesisPayload = (
-  | { description: string; connection_ids: string[]; api_key_id: string; model: string }
-  | { description: string; connection_ids: string[]; use_platform_key: true; model?: string }
-) & { layout_direction?: LayoutDirection };
-
-type IncomingNode = {
-  id: string;
-  type: "trigger" | "agent" | "step" | "connection";
-  label?: string;
-  description?: string;
-  connection?: string | null;
-  config?: unknown;
-  position?: { x: number; y: number };
-};
-
-type IncomingEdge = {
-  id: string;
-  from: string;
-  to: string;
-  type?: "data_flow" | "control_flow" | "event_subscription";
-  label?: string | null;
-};
-
-const STORAGE_KEY = "flowos.genesis.pending";
-
-// Module-scope: prevents React 18 StrictMode's double-invoked effect from
-// starting the stream twice (and the first mount's cleanup from aborting it).
-let streamStarted = false;
-
 export default function BuildingPage() {
   return (
     <ReactFlowProvider>
@@ -76,226 +49,96 @@ export default function BuildingPage() {
   );
 }
 
+function toRfNode(incoming: GenesisJobNode): ReactFlowNode {
+  return {
+    id: incoming.id,
+    type: incoming.type,
+    position: incoming.position ?? { x: 0, y: 0 },
+    data: {
+      label: incoming.label ?? incoming.id,
+      description: incoming.description ?? "",
+      connection: incoming.connection ?? null,
+      status: "idle",
+      config: incoming.config ?? {},
+      validationState: "valid",
+      errors: [],
+      warnings: [],
+    },
+    draggable: false,
+    selectable: false,
+  };
+}
+
+function toRfEdge(incoming: GenesisJobEdge): ReactFlowEdge {
+  return {
+    id: incoming.id,
+    source: incoming.from,
+    target: incoming.to,
+    type: incoming.type ?? "data_flow",
+    label: incoming.label ?? undefined,
+    animated: incoming.type === "event_subscription",
+    markerEnd: { type: MarkerType.ArrowClosed },
+    data: {
+      condition: null,
+      data_mapping: null,
+      validationErrors: [],
+    },
+  };
+}
+
 function BuildingCanvas() {
   const router = useRouter();
   const rf = useReactFlow();
-  const [nodes, setNodes] = useState<ReactFlowNode[]>([]);
-  const [edges, setEdges] = useState<ReactFlowEdge[]>([]);
-  const [programName, setProgramName] = useState<string>("");
-  const [status, setStatus] = useState<string>("Contacting the model...");
-  const [thoughts, setThoughts] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { job, clear } = useGenesisJob();
 
-  // Mutable canvas state. We accumulate node/edge events here and flush to
-  // React state on an rAF so a burst of events triggers one Dagre relayout +
-  // one render, not one per event.
-  const nodesRef = useRef<ReactFlowNode[]>([]);
-  const edgesRef = useRef<ReactFlowEdge[]>([]);
-  const pendingFlushRef = useRef(false);
-  const fitViewScheduledRef = useRef(false);
-  const layoutDirectionRef = useRef<LayoutDirection>("horizontal");
+  // Track whether we ever had a job so a brief render gap (start() → navigate)
+  // doesn't bounce us straight back to /programs/new.
+  const sawJobRef = useRef(false);
+  if (job) sawJobRef.current = true;
 
-  // Read payload + start stream once. React StrictMode replays mount effects in
-  // development; without this guard, the replay can find sessionStorage already
-  // consumed and redirect back to the prompt page.
+  // No job to show (direct visit / refresh — the in-memory stream is gone).
   useEffect(() => {
-    if (streamStarted) return;
-    streamStarted = true;
+    if (job) return;
+    const t = setTimeout(() => {
+      if (!sawJobRef.current) router.replace("/programs/new");
+    }, 400);
+    return () => clearTimeout(t);
+  }, [job, router]);
 
-    const raw = typeof window !== "undefined" ? sessionStorage.getItem(STORAGE_KEY) : null;
-    if (!raw) {
-      streamStarted = false;
-      router.replace("/programs/new");
-      return;
+  // When the generation finishes while the user is watching, open the program.
+  useEffect(() => {
+    if (job?.done && job.programId) {
+      const id = job.programId;
+      clear();
+      router.replace(`/programs/${id}`);
     }
+  }, [job?.done, job?.programId, clear, router]);
 
-    let payload: GenesisPayload;
-    try {
-      payload = JSON.parse(raw);
-    } catch {
-      streamStarted = false;
-      router.replace("/programs/new");
-      return;
-    }
+  const { nodes, edges } = useMemo(() => {
+    const rfNodes = (job?.nodes ?? []).map(toRfNode);
+    const rfEdges = (job?.edges ?? []).map(toRfEdge);
+    return {
+      nodes: rfNodes.length > 0 ? applyDagreLayout(rfNodes, rfEdges, "TB") : rfNodes,
+      edges: rfEdges,
+    };
+  }, [job?.nodes, job?.edges]);
 
-    layoutDirectionRef.current = payload.layout_direction ?? "horizontal";
-    sessionStorage.removeItem(STORAGE_KEY);
-    runStream(payload).catch(() => {
-      // handled inside runStream
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const scheduleFlush = () => {
-    if (pendingFlushRef.current) return;
-    pendingFlushRef.current = true;
-    requestAnimationFrame(() => {
-      pendingFlushRef.current = false;
-      const laidOut = relayout(nodesRef.current, edgesRef.current, layoutDirectionRef.current);
-      nodesRef.current = laidOut;
-      setNodes(laidOut);
-      setEdges(edgesRef.current.slice());
-      scheduleFitView();
-    });
-  };
-
-  const scheduleFitView = () => {
-    if (fitViewScheduledRef.current) return;
-    fitViewScheduledRef.current = true;
-    // Fire once per animation cycle. fitView's own 400ms transition handles
-    // the smoothness — calling it on every node add just stacks animations.
-    setTimeout(() => {
-      fitViewScheduledRef.current = false;
+  // Refit the view as nodes stream in. fitView's own transition handles smoothness.
+  useEffect(() => {
+    const t = setTimeout(() => {
       try {
         rf.fitView({ padding: 0.2, duration: 400 });
       } catch {
         // no-op if canvas not ready
       }
     }, 450);
-  };
+    return () => clearTimeout(t);
+  }, [nodes.length, rf]);
 
-  const addNode = (incoming: IncomingNode) => {
-    if (nodesRef.current.some((n) => n.id === incoming.id)) return;
-    const rfNode: ReactFlowNode = {
-      id: incoming.id,
-      type: incoming.type,
-      position: incoming.position ?? { x: 0, y: 0 },
-      data: {
-        label: incoming.label ?? incoming.id,
-        description: incoming.description ?? "",
-        connection: incoming.connection ?? null,
-        status: "idle",
-        config: incoming.config ?? {},
-        validationState: "valid",
-        errors: [],
-        warnings: [],
-      },
-      draggable: false,
-      selectable: false,
-    };
-    nodesRef.current = [...nodesRef.current, rfNode];
-    scheduleFlush();
-  };
-
-  const addEdge = (incoming: IncomingEdge) => {
-    if (edgesRef.current.some((e) => e.id === incoming.id)) return;
-    const rfEdge: ReactFlowEdge = {
-      id: incoming.id,
-      source: incoming.from,
-      target: incoming.to,
-      type: incoming.type ?? "data_flow",
-      label: incoming.label ?? undefined,
-      animated: incoming.type === "event_subscription",
-      markerEnd: { type: MarkerType.ArrowClosed },
-      data: {
-        condition: null,
-        data_mapping: null,
-        validationErrors: [],
-      },
-    };
-    edgesRef.current = [...edgesRef.current, rfEdge];
-    scheduleFlush();
-  };
-
-  async function runStream(payload: GenesisPayload) {
-    try {
-      const res = await fetch("/api/genesis/stream", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok || !res.body) {
-        let message = "We could not start building the workflow. Please try again.";
-        try {
-          const body = (await res.clone().json()) as { error?: unknown; message?: unknown };
-          if (typeof body.message === "string") {
-            message = friendlyErrorMessage(body.message, message);
-          } else if (typeof body.error === "string") {
-            message = friendlyErrorMessage(body.error, message);
-          }
-        } catch {
-          // Keep the status message when the response is not JSON.
-        }
-        setError(message);
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let idx: number;
-        while ((idx = buffer.indexOf("\n\n")) !== -1) {
-          const frame = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 2);
-          const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
-          if (!dataLine) continue;
-          const json = dataLine.slice(6);
-          try {
-            const event = JSON.parse(json);
-            handleEvent(event);
-          } catch {
-            // ignore malformed frames
-          }
-        }
-      }
-    } catch (err) {
-      setError(friendlyErrorMessage((err as Error).message, "We could not connect. Check your internet connection and try again."));
-    } finally {
-      streamStarted = false;
-    }
-  }
-
-  function handleEvent(event: { type: string } & Record<string, unknown>) {
-    switch (event.type) {
-      case "meta": {
-        if (typeof event.program_name === "string") {
-          setProgramName(event.program_name);
-          setStatus(`Designing ${event.program_name}...`);
-          setThoughts((prev) => [...prev, `Named the program "${event.program_name}"`]);
-        }
-        return;
-      }
-      case "node": {
-        const incoming = event.node as IncomingNode;
-        addNode(incoming);
-        setThoughts((prev) => [
-          ...prev,
-          `Added ${incoming.type} node: ${incoming.label ?? incoming.id}`,
-        ]);
-        return;
-      }
-      case "edge": {
-        const incoming = event.edge as IncomingEdge;
-        addEdge(incoming);
-        setThoughts((prev) => [
-          ...prev,
-          `Connected ${incoming.from} → ${incoming.to}`,
-        ]);
-        return;
-      }
-      case "status": {
-        if (typeof event.message === "string") setStatus(event.message);
-        return;
-      }
-      case "done": {
-        const programId = event.program_id as string;
-        setStatus("Opening your program...");
-        router.replace(`/programs/${programId}`);
-        return;
-      }
-      case "error": {
-        setError(friendlyErrorMessage(typeof event.message === "string" ? event.message : null, "We could not build the workflow. Please try again."));
-        return;
-      }
-    }
-  }
+  const programName = job?.programName ?? "";
+  const error = job?.error ?? null;
+  const status = job?.status ?? "Contacting the model...";
+  const thoughts = job?.thoughts ?? [];
 
   return (
     <div className="fixed inset-y-0 left-16 right-0 z-10 bg-background">
@@ -328,12 +171,29 @@ function BuildingCanvas() {
                 {error ? "Generation failed" : status}
               </p>
             </div>
+            {!error && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => router.push("/dashboard")}
+              >
+                Continue in background
+              </Button>
+            )}
           </div>
           {error && (
             <div className="mt-3 space-y-2">
               <p className="text-xs text-destructive">{error}</p>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => router.replace("/programs/new")}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    clear();
+                    router.replace("/programs/new");
+                  }}
+                >
                   Back
                 </Button>
               </div>
@@ -363,15 +223,6 @@ function BuildingCanvas() {
       )}
     </div>
   );
-}
-
-function relayout(
-  nodes: ReactFlowNode[],
-  edges: ReactFlowEdge[],
-  direction: LayoutDirection
-): ReactFlowNode[] {
-  if (nodes.length === 0) return nodes;
-  return applyDagreLayout(nodes, edges, direction === "horizontal" ? "LR" : "TB");
 }
 
 function Spinner() {

@@ -8,6 +8,7 @@ import "./globals.css";
 import { CookieNotice } from "@/components/consent-banner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageBootstrap, LanguagePrompt } from "@/components/language-switcher";
+import { GenesisJobProvider } from "@/components/genesis/genesis-job-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -90,7 +91,9 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider>
             <LanguageBootstrap />
-            {children}
+            <GenesisJobProvider>
+              {children}
+            </GenesisJobProvider>
             <LanguagePrompt />
             <CookieNotice />
           </ThemeProvider>

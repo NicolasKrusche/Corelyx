@@ -34,6 +34,21 @@ class AgentConfig:
 
 
 @dataclass
+class AgentTaskConfig:
+    objective: str
+    model: str
+    api_key_ref: str
+    max_iterations: int
+    tools: list[str]
+    scope_access: Literal["read", "write", "read_write"]
+    requires_approval: bool
+    approval_timeout_hours: float
+    input_schema: Optional[dict]
+    output_schema: Optional[dict]
+    retry: RetryConfig
+
+
+@dataclass
 class TriggerConfig:
     trigger_type: str
     extra: dict = field(default_factory=dict)
@@ -82,7 +97,7 @@ class SchemaNode:
     label: str
     description: str
     connection: Optional[str]
-    config: Union[AgentConfig, TriggerConfig, StepConfig, ConnectionConfig]
+    config: Union[AgentConfig, AgentTaskConfig, TriggerConfig, StepConfig, ConnectionConfig]
     position: dict
     status: str
 
@@ -196,6 +211,36 @@ def _parse_node_config(
             scope_access=raw.get("scope_access", "read"),
             retry=_parse_retry(retry_raw),
             tools=list(raw.get("tools") or []),
+        )
+    elif node_type == "agent_task":
+        retry_raw = raw.get("retry") or {}
+        return AgentTaskConfig(
+            objective=raw.get("objective", ""),
+            model=raw.get("model", "__USER_ASSIGNED__"),
+            api_key_ref=raw.get("api_key_ref", "__USER_ASSIGNED__"),
+            max_iterations=_bounded_int(
+                raw.get("max_iterations"),
+                8,
+                field_name="max_iterations",
+                minimum=1,
+                maximum=25,
+            ),
+            tools=list(raw.get("tools") or []),
+            scope_access=cast(
+                Literal["read", "write", "read_write"],
+                raw.get("scope_access", "read"),
+            ),
+            requires_approval=bool(raw.get("requires_approval", False)),
+            approval_timeout_hours=_bounded_float(
+                raw.get("approval_timeout_hours"),
+                24.0,
+                field_name="approval_timeout_hours",
+                minimum=MIN_APPROVAL_TIMEOUT_HOURS,
+                maximum=MAX_APPROVAL_TIMEOUT_HOURS,
+            ),
+            input_schema=raw.get("input_schema"),
+            output_schema=raw.get("output_schema"),
+            retry=_parse_retry(retry_raw),
         )
     elif node_type == "trigger":
         trigger_type = raw.get("trigger_type", "manual")

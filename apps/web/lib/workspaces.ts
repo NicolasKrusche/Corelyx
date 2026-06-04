@@ -1,21 +1,32 @@
 import { createServiceClient } from "@/lib/api";
 export {
+  AGENT_MIN_ROLE_LABELS,
+  AGENT_MIN_ROLES,
   INVITABLE_WORKSPACE_ROLES,
   PROGRAM_ROLE_LABELS,
   PROGRAM_ROLES,
   PROGRAM_VISIBILITIES,
   WORKSPACE_ROLE_LABELS,
   WORKSPACE_ROLES,
+  agentRunAllowedForRole,
   canAssignWorkspaceRole,
   canContributeToWorkspace,
   canManageWorkspace,
   normalizeWorkspaceEmail,
+  type AgentMinRole,
+  type AgentWorkspaceSettings,
   type InvitableWorkspaceRole,
   type ProgramRole,
   type ProgramVisibility,
   type WorkspaceRole,
 } from "@/lib/workspace-types";
-import type { ProgramRole, ProgramVisibility, WorkspaceRole } from "@/lib/workspace-types";
+import {
+  agentRunAllowedForRole,
+  type AgentMinRole,
+  type ProgramRole,
+  type ProgramVisibility,
+  type WorkspaceRole,
+} from "@/lib/workspace-types";
 
 // ─── Active workspace resolution ─────────────────────────────────────────────
 
@@ -166,6 +177,39 @@ export async function getProgramAccess(
     programRole: null,
     effective: fallback,
   };
+}
+
+// ─── Agent execution permission ──────────────────────────────────────────────
+
+/**
+ * May this user run an agent that acts on the given workspace?
+ *
+ * The owner is always allowed. Other members are allowed only when the owner
+ * has enabled external agents and the member meets the configured minimum role.
+ * Mirrors `agentRunAllowedForRole`, loading the workspace settings first.
+ */
+export async function canRunAgentInWorkspace(
+  workspaceId: string,
+  userId: string
+): Promise<boolean> {
+  const role = await getWorkspaceRole(workspaceId, userId);
+  if (!role) return false;
+  if (role === "owner") return true;
+
+  const service = createServiceClient() as LooseClient;
+  const { data } = await service
+    .from("workspaces")
+    .select("allow_external_agents, agent_min_role")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  const settings = data as
+    | { allow_external_agents: boolean | null; agent_min_role: AgentMinRole | null }
+    | null;
+
+  return agentRunAllowedForRole(role, {
+    allowExternalAgents: settings?.allow_external_agents ?? false,
+    minRole: settings?.agent_min_role ?? "admin",
+  });
 }
 
 export function canEdit(access: EffectiveProgramAccess | null): boolean {

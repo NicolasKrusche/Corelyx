@@ -17,6 +17,8 @@ type Workspace = {
   description: string | null;
   default_program_visibility: "workspace" | "restricted";
   members_can_create_programs: boolean;
+  allow_external_agents: boolean;
+  agent_min_role: "admin" | "member" | "viewer";
   compliance_mode: "standard" | "eu_only";
   execution_log_retention_days: number;
   prompt_retention_days: number;
@@ -101,6 +103,8 @@ export function WorkspacesClient() {
   const [settingsDescription, setSettingsDescription] = useState("");
   const [settingsDefaultVisibility, setSettingsDefaultVisibility] = useState<"workspace" | "restricted">("workspace");
   const [settingsMembersCanCreate, setSettingsMembersCanCreate] = useState(true);
+  const [settingsAllowExternalAgents, setSettingsAllowExternalAgents] = useState(false);
+  const [settingsAgentMinRole, setSettingsAgentMinRole] = useState<"admin" | "member" | "viewer">("admin");
   const [settingsComplianceMode, setSettingsComplianceMode] = useState<"standard" | "eu_only">("standard");
   const [executionLogRetentionDays, setExecutionLogRetentionDays] = useState(90);
   const [promptRetentionDays, setPromptRetentionDays] = useState(0);
@@ -182,6 +186,8 @@ export function WorkspacesClient() {
     setSettingsDescription(selectedWorkspace.description ?? "");
     setSettingsDefaultVisibility(selectedWorkspace.default_program_visibility ?? "workspace");
     setSettingsMembersCanCreate(selectedWorkspace.members_can_create_programs ?? true);
+    setSettingsAllowExternalAgents(selectedWorkspace.allow_external_agents ?? false);
+    setSettingsAgentMinRole(selectedWorkspace.agent_min_role ?? "admin");
     setSettingsComplianceMode(selectedWorkspace.compliance_mode ?? "standard");
     setExecutionLogRetentionDays(selectedWorkspace.execution_log_retention_days ?? 90);
     setPromptRetentionDays(selectedWorkspace.prompt_retention_days ?? 0);
@@ -280,6 +286,8 @@ export function WorkspacesClient() {
         description: settingsDescription.trim() || null,
         default_program_visibility: settingsDefaultVisibility,
         members_can_create_programs: settingsMembersCanCreate,
+        allow_external_agents: settingsAllowExternalAgents,
+        agent_min_role: settingsAgentMinRole,
         compliance_mode: settingsComplianceMode,
         execution_log_retention_days: executionLogRetentionDays,
         prompt_retention_days: promptRetentionDays,
@@ -645,6 +653,41 @@ export function WorkspacesClient() {
                           <span className="text-sm">Members can create programs</span>
                         </label>
                         <p className="mt-1 text-xs text-muted-foreground">When off, only owners and admins can create programs.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">External agents</label>
+                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={settingsAllowExternalAgents}
+                            onChange={(e) => setSettingsAllowExternalAgents(e.target.checked)}
+                            className="h-4 w-4 rounded border-border"
+                          />
+                          <span className="text-sm">Allow other members&apos; agents to act here</span>
+                        </label>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          When off, only you (the owner) can run agents that act on this workspace.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Minimum role for agents</label>
+                        <select
+                          value={settingsAgentMinRole}
+                          onChange={(e) => setSettingsAgentMinRole(e.target.value as "admin" | "member" | "viewer")}
+                          disabled={!settingsAllowExternalAgents}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
+                        >
+                          <option value="admin">Admins only</option>
+                          <option value="member">Members and above</option>
+                          <option value="viewer">Any member (including viewers)</option>
+                        </select>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          The lowest role a member needs for their agents to act on this workspace. The owner is always allowed.
+                        </p>
                       </div>
                     </div>
 
