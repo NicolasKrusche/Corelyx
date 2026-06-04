@@ -477,7 +477,7 @@ UNIVERSAL NODE FIELDS (all required):
 CANONICAL OUTPUT: Every generated or refined workflow must include the complete top-level schema above, every required node field, every required config default for that node type, and every edge as {"id","from","to","type","data_mapping","condition","label"}. Valid node types: trigger, agent, step, connection, note, group. Do not output aliases like source/target, webhook/transform, or partial patch objects.
 
 POSITIONS: trigger at x:100 y:200. Each next node x+=320. Branches: y±220.
-GRAPH RULES: exactly 1 trigger, max 12 executable nodes (note/group excluded from count), no isolated executable nodes, every non-trigger/non-note/non-group node needs an incoming edge.
+GRAPH RULES: exactly 1 trigger, no isolated executable nodes, every non-trigger/non-note/non-group node needs an incoming edge. Use as many executable nodes as the task genuinely requires (there is no fixed node limit) — but do not pad the graph with unnecessary steps.
 
 TRIGGER NODE (connection: always null):
   manual: {"trigger_type":"manual"}
@@ -509,7 +509,7 @@ CONNECTION NODE:
 
 NOTE NODE (sticky note — purely visual, never executed):
   connection: null. Config: {"content":"<annotation text>","color":"yellow|blue|pink|green"}
-  ⚠ Never add edges to/from a note node. Does not count toward the 12-node limit.
+  ⚠ Never add edges to/from a note node. Note nodes are visual-only and never count as executable nodes.
   label MUST be a short title (e.g. "⚠ Setup Required", "How this works", "Important").
   content MUST be a full, helpful sentence or paragraph — never empty, never a placeholder.
     Write it as if explaining to the user what they need to know or do (e.g. "Before enabling this workflow, create a Slack incoming webhook at api.slack.com and paste the URL into the HTTP node.").
@@ -519,7 +519,7 @@ NOTE NODE (sticky note — purely visual, never executed):
 
 GROUP NODE (visual group container — purely visual, never executed):
   connection: null. Config: {"childIds":["n2","n3","n4"],"width":<number>,"height":<number>,"color":"zinc|blue|green|amber|pink"}
-  ⚠ Never add edges to/from a group node. Does not count toward the 12-node limit.
+  ⚠ Never add edges to/from a group node. Group nodes are visual-only and never count as executable nodes.
   label MUST be a concise, descriptive name for what the enclosed nodes do together (e.g. "Email Fetching", "AI Summarisation", "Slack Notifications", "Data Enrichment"). Never use generic names like "Group 1" or "Step".
   Position: x = (min child x) − 60, y = (min child y) − 60. Width/height must cover all childIds with ~60 px padding on each side.
   childIds must reference real node IDs already in the graph.
@@ -575,7 +575,7 @@ UPSTREAM REFERENCES: Use {{node_id.field}} in operation_params to reference upst
   Only reference nodes upstream (earlier in execution path).
 
 CHECKLIST before output:
-  1. Exactly 1 trigger node. 2. ≤12 executable nodes (note/group excluded). 3. All edge from/to reference real node IDs.
+  1. Exactly 1 trigger node. 2. Every executable node is reachable (no isolated nodes). 3. All edge from/to reference real node IDs.
   4. connection field matches provided name exactly (or null for generic HTTP/step/agent/note/group). OAuth-backed HTTP fallbacks use that OAuth connection name and auth_value:"__OAUTH_CONNECTION__".
   5. Every non-trigger, non-note, non-group node has an incoming edge. 6. step nodes always have connection:null.
   7. Gmail list_emails/search output is stubs ({id,threadId} only). Before any branch/filter/agent that checks subject, from, body, or labels: filter(non-empty) → loop → read_email → then use data['read_node']['subject'] etc. NEVER check email metadata on the loop item itself.
