@@ -57,6 +57,7 @@ _REQUIRED_SECRETS = [
     "next:connections:token", # runtime → web (OAuth token fetch)
     "next:vault",             # runtime → web (Vault secret fetch)
     "next:credits",           # runtime → web (credit deduction)
+    "next:agent-tools",       # runtime → web (agent_task account tools)
 ]
 for _audience in _REQUIRED_SECRETS:
     try:

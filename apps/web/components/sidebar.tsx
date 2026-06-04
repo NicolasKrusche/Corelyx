@@ -824,6 +824,8 @@ export function Sidebar({
         <div className="space-y-0.5">
           <NavItem href="/dashboard" label={tNav("home")} active={pathname === "/dashboard"}
             icon={<GridIcon />} isDark={isDark} />
+          <NavItem href="/agents" label="Agents" active={pathname.startsWith("/agents")}
+            icon={<AgentIcon />} isDark={isDark} />
           <NavItem href="/workspaces" label={tNav("workspaces")} active={pathname.startsWith("/workspaces")}
             icon={<WorkspaceIcon />} isDark={isDark} />
           <NavItem href="/runs" label={tNav("runs")} active={pathname.startsWith("/runs")}
@@ -2593,6 +2595,17 @@ function GridIcon() {
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+function AgentIcon() {
+  // A spark inside a frame — visually distinct from the workflow/grid icons so
+  // one-time agents read as their own thing.
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <rect x="4" y="6" width="16" height="13" rx="2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3M9 12.5l1.4 1.4L13.5 11" />
+      <circle cx="8.5" cy="16" r="0.6" fill="currentColor" /><circle cx="15.5" cy="16" r="0.6" fill="currentColor" />
     </svg>
   );
 }

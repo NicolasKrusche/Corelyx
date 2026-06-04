@@ -15,6 +15,7 @@ import type { ValidationResult } from "@/lib/validation";
 import { TEMPLATES } from "@/lib/templates";
 import { writeClientLog } from "@/lib/client-logs";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import { useGenesisJob } from "@/components/genesis/genesis-job-provider";
 
 type Connection = {
   id: string;
@@ -145,6 +146,7 @@ async function readJsonSafely(response: Response) {
 
 function NewProgramPageInner() {
   const router = useRouter();
+  const { start: startGenesisJob } = useGenesisJob();
   const searchParams = useSearchParams();
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [step, setStep] = useState<Step>("describe");
@@ -179,7 +181,7 @@ function NewProgramPageInner() {
   const connectionsPopoverRef = useRef<HTMLDivElement | null>(null);
   // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
-  const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("qwen/qwen3-coder:free");
+  const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b:free");
 
   useEffect(() => {
     if (!connectionsOpen) return;
@@ -239,7 +241,7 @@ function NewProgramPageInner() {
         if (!data) return;
         const models = (data.models ?? []) as PlatformModel[];
         setPlatformModels(models);
-        setSelectedPlatformModel(data.defaultModel ?? "qwen/qwen3-coder:free");
+        setSelectedPlatformModel(data.defaultModel ?? "openai/gpt-oss-120b:free");
       })
       .catch(() => { /* non-fatal — stays on default free model */ });
   }, []);
@@ -250,7 +252,7 @@ function NewProgramPageInner() {
     google: "gemini-1.5-pro",
     groq: "llama-3.3-70b-versatile",
     mistral: "mistral-large-latest",
-    openrouter: "qwen/qwen3-coder:free",
+    openrouter: "openai/gpt-oss-120b:free",
   };
 
   // Providers ranked by Genesis suitability (large prompt support, reliability)
@@ -653,10 +655,8 @@ function NewProgramPageInner() {
       typeof window !== "undefined"
         ? window.localStorage.getItem("flowos.layoutDirection")
         : null;
-    const layout_direction =
-      storedDirection === "horizontal" || storedDirection === "vertical"
-        ? storedDirection
-        : "horizontal";
+    const layout_direction: "horizontal" | "vertical" =
+      storedDirection === "vertical" ? "vertical" : "horizontal";
 
     const payload = selection
       ? {
@@ -675,20 +675,9 @@ function NewProgramPageInner() {
           layout_direction,
         };
 
-    try {
-      sessionStorage.setItem("flowos.genesis.pending", JSON.stringify(payload));
-    } catch {
-      setInlinePhase("connections");
-      setInlineMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: "Could not start the build — sessionStorage is unavailable in this browser.",
-        },
-      ]);
-      return;
-    }
-
+    // Hand the job to the app-wide provider so it keeps running even if the user
+    // leaves the building page to do something else; they'll be notified on done.
+    startGenesisJob(payload);
     router.push("/programs/new/building");
   };
 
