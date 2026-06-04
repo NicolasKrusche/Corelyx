@@ -6,6 +6,7 @@ import { getValidOAuthToken } from "@/lib/oauth-token";
 import { signWebhookToken } from "@/lib/webhooks/signed-token";
 import { canContributeToWorkspace, getWorkspaceRole } from "@/lib/workspaces";
 import { ensureGmailWatch } from "@/lib/triggers/gmail-watch";
+import { canonicalWebhookUrl } from "@/lib/canonical-url";
 
 type ConnectionRow = {
   id: string;
@@ -97,11 +98,10 @@ async function _setupGmailWatch(
     return apiError(result.error, result.status);
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return NextResponse.json({
     provider: "gmail",
     watch: result.watch,
-    webhook_url: `${appUrl}/api/webhooks/gmail`,
+    webhook_url: canonicalWebhookUrl("/api/webhooks/gmail"),
   });
 }
 
@@ -116,7 +116,7 @@ async function _setupSheetsWatch(
     return apiError("sheets watch requires spreadsheet_id", 400);
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const sheetsWebhookUrl = canonicalWebhookUrl("/api/webhooks/sheets");
   const tokenSecret = process.env.GOOGLE_WEBHOOK_TOKEN_SECRET ?? process.env.RUNTIME_SECRET;
   if (!tokenSecret) {
     return apiError("Missing GOOGLE_WEBHOOK_TOKEN_SECRET (or RUNTIME_SECRET)", 500);
@@ -147,7 +147,7 @@ async function _setupSheetsWatch(
       body: JSON.stringify({
         id: channelId,
         type: "web_hook",
-        address: `${appUrl}/api/webhooks/sheets`,
+        address: sheetsWebhookUrl,
         token: watchToken,
       }),
       cache: "no-store",
@@ -195,7 +195,7 @@ async function _setupSheetsWatch(
     provider: "sheets",
     spreadsheet_id: spreadsheetId,
     watch: sheetsWatches[spreadsheetId],
-    webhook_url: `${appUrl}/api/webhooks/sheets`,
+    webhook_url: sheetsWebhookUrl,
   });
 }
 
@@ -207,8 +207,7 @@ async function _setupSlackWatch(
   connection: ConnectionRow,
   db: ReturnType<typeof createServiceClient>
 ) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const webhookUrl = `${appUrl}/api/webhooks/slack`;
+  const webhookUrl = canonicalWebhookUrl("/api/webhooks/slack");
 
   const metadata = connection.metadata ?? {};
   const nextMetadata: Record<string, unknown> = {
@@ -241,8 +240,7 @@ async function _setupGitHubWatch(
   body: Record<string, unknown>,
   db: ReturnType<typeof createServiceClient>
 ) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const webhookUrl = `${appUrl}/api/webhooks/github`;
+  const webhookUrl = canonicalWebhookUrl("/api/webhooks/github");
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET ?? "";
 
   const repo = typeof body.repo === "string" ? body.repo.trim() : "";
