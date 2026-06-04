@@ -22,6 +22,7 @@ export interface Database {
           processing_restricted: boolean;
           processing_restricted_at: string | null;
           processing_restriction_reason: string | null;
+          analytics_opt_out: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -40,6 +41,7 @@ export interface Database {
           processing_restricted?: boolean;
           processing_restricted_at?: string | null;
           processing_restriction_reason?: string | null;
+          analytics_opt_out?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -58,6 +60,7 @@ export interface Database {
           processing_restricted?: boolean;
           processing_restricted_at?: string | null;
           processing_restriction_reason?: string | null;
+          analytics_opt_out?: boolean;
           created_at?: string;
           updated_at?: string;
         };

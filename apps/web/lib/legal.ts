@@ -90,6 +90,11 @@ export const dataCategories: TextItem[] = [
     body:
       "Plan tier, Stripe customer or subscription references, checkout events, and legally required billing records.",
   },
+  {
+    title: "Workflow content (and possible special-category data)",
+    body:
+      "When you run a workflow, Corelyx processes the content it acts on — for example email bodies, documents, or form responses. That content can incidentally contain special categories of personal data under Art. 9 GDPR (e.g. health, religion, political opinions, or trade-union membership), because Corelyx cannot control what an incoming email or document says. Corelyx does not intentionally collect special-category data, does not use it to train any model, processes it only to perform the automation you configured, and stores execution logs in metadata-only form by default so content is not retained. Before the content of a workflow step is sent to an AI model, structured identifiers (email addresses, phone numbers, IBANs, IP addresses, payment card numbers) are redacted; free-text prose, including any special-category content within it, is not removed and is processed by the selected model provider. You remain responsible for having a lawful basis and, where required, an Art. 9(2) condition for the data you route through Corelyx, and should not route special-category data through the Corelyx platform key (which uses OpenRouter without a countersigned DPA — use your own EU-eligible model key instead).",
+  },
 ];
 
 export const legalBases: TextItem[] = [
@@ -138,9 +143,9 @@ export const coreServiceProviders: ProcessorEntry[] = [
     legalBasis:
       "Art. 6(1)(b) GDPR for hosting and delivery; Art. 6(1)(f) GDPR for security and uptime.",
     dataLocation:
-      "Global CDN plus region-based compute. Vercel documents multiple compute-capable regions, and Functions default to iad1 (Washington, D.C., USA) unless configured otherwise.",
+      "Server compute is configured to run in EU regions (Frankfurt / Dublin). Static assets may be served from global CDN edge nodes, but personal data is not cached at the edge.",
     transferNotes:
-      "Expect international transfers unless you intentionally keep all relevant compute and storage in-region. Use the Vercel DPA and transfer addenda where required.",
+      "Personal data processed by the web layer stays within the EEA. The Vercel DPA and transfer addenda apply to any incidental provider-side processing.",
   },
   {
     name: "Railway",
@@ -389,7 +394,7 @@ export const retentionItems: TextItem[] = [
   {
     title: "Account and program data",
     body:
-      "Kept for the duration of your contract plus 7 years, as required by applicable tax and accounting law. You may delete your account at any time via account settings.",
+      "Kept for the duration of your contract and deleted when you delete your account. You may delete programs, connections, and your account at any time via account settings. We do not retain account or workflow content for tax purposes — only the billing records described below are kept long-term.",
   },
   {
     title: "Email and workflow content",
@@ -404,7 +409,7 @@ export const retentionItems: TextItem[] = [
   {
     title: "Run history and application logs",
     body:
-      "Log data is retained for 90 days, after which it is deleted. Technical metadata such as IP addresses are anonymised after 7 days.",
+      "Operational log data is retained for 90 days, after which it is deleted. Corelyx does not persist IP addresses in its application database; where an IP address incidentally appears in a diagnostic log entry, it is anonymised within 7 days by an automated retention job. Provider-side logs (e.g. hosting) follow their own retention schedules.",
   },
   {
     title: "Billing and tax records",

@@ -92,6 +92,8 @@ export function EuComplianceCenter({
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<StatusMessage | null>(null);
+  const [analyticsOptOut, setAnalyticsOptOut] = useState(false);
+  const [analyticsSaving, setAnalyticsSaving] = useState(false);
 
   const panelClass = variant === "compact"
     ? "rounded-2xl border border-border bg-card p-5 shadow-sm"
@@ -121,7 +123,28 @@ export function EuComplianceCenter({
 
   useEffect(() => {
     void refreshRequests();
+    void (async () => {
+      const res = await fetch("/api/settings/analytics", { cache: "no-store" });
+      if (!res.ok) return;
+      const body = (await res.json().catch(() => null)) as { opt_out?: boolean } | null;
+      if (body && typeof body.opt_out === "boolean") setAnalyticsOptOut(body.opt_out);
+    })();
   }, []);
+
+  async function handleAnalyticsToggle(nextOptOut: boolean) {
+    setAnalyticsSaving(true);
+    setAnalyticsOptOut(nextOptOut);
+    const res = await fetch("/api/settings/analytics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ opt_out: nextOptOut }),
+    });
+    if (!res.ok) {
+      setAnalyticsOptOut(!nextOptOut); // revert on failure
+      setStatus({ type: "error", message: "Could not update your analytics preference." });
+    }
+    setAnalyticsSaving(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -165,6 +188,25 @@ export function EuComplianceCenter({
         <p className="mt-3 text-sm text-foreground">
           Access customer-facing compliance materials, GDPR rights controls, export tooling, request tracking, and audit evidence for this workspace.
         </p>
+      </section>
+
+      <section className={panelClass}>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Usage analytics</p>
+        <label className="mt-3 flex items-start gap-3 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0"
+            checked={analyticsOptOut}
+            disabled={analyticsSaving}
+            onChange={(e) => void handleAnalyticsToggle(e.target.checked)}
+          />
+          <span className="leading-relaxed text-muted-foreground">
+            Opt out of aggregated, non-attributable usage statistics used for product improvement.
+            We never include workflow content in these statistics. When opted out, your activity is
+            excluded from aggregated product-improvement analytics. This does not affect essential
+            operational, security, or billing processing.
+          </span>
+        </label>
       </section>
 
       <section className={panelClass}>
