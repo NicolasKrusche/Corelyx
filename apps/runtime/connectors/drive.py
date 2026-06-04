@@ -14,6 +14,17 @@ _BASE = "https://www.googleapis.com/drive/v3"
 _UPLOAD_BASE = "https://www.googleapis.com/upload/drive/v3"
 
 
+def _escape_query_value(value: Any) -> str:
+    """Escape a value for use inside a single-quoted Google Drive ``q`` term.
+
+    Per the Drive v3 API, within a query string a backslash is escaped as ``\\\\``
+    and a single quote as ``\\'``. Without this, a value containing an apostrophe
+    (e.g. a filename like ``O'Brien``) breaks the query syntax and the API returns
+    400 "Invalid Value" on the ``q`` parameter.
+    """
+    return str(value).replace("\\", "\\\\").replace("'", "\\'")
+
+
 class DriveConnector(IConnector):
     provider = "drive"
     supported_operations = [
@@ -60,11 +71,11 @@ class DriveConnector(IConnector):
     ) -> dict:
         query_parts: list[str] = ["trashed = false"]
         if params.get("query"):
-            query_parts.append(f"name contains '{params['query']}'")
+            query_parts.append(f"name contains '{_escape_query_value(params['query'])}'")
         if params.get("folder_id"):
-            query_parts.append(f"'{params['folder_id']}' in parents")
+            query_parts.append(f"'{_escape_query_value(params['folder_id'])}' in parents")
         if params.get("mime_type"):
-            query_parts.append(f"mimeType = '{params['mime_type']}'")
+            query_parts.append(f"mimeType = '{_escape_query_value(params['mime_type'])}'")
         q = " and ".join(query_parts)
         r = await request_with_rate_limit(
             client, "GET", f"{_BASE}/files",
