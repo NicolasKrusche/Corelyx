@@ -108,8 +108,9 @@ export function validatePostGenesis(
       error("ERR_005", null, "Circular connection detected with no exit condition", "Add a branch node with an exit condition to break the loop");
   });
 
-  if (execNodes.length > 12)
-    error("ERR_006", null, "Program exceeds maximum of 12 nodes", "Split this program into two smaller programs and use a program_output trigger to chain them");
+  // (Node-count ceiling removed — programs may contain any number of executable
+  // nodes. Note: very large graphs may still be constrained at generation time by
+  // the model's output token budget.)
 
   // ─── Connection References ─────────────────────────────────────────────
 
