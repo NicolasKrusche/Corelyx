@@ -37,9 +37,12 @@ const EDGE_TYPES = {
   event_subscription: EventEdge,
 };
 
-type GenesisPayload =
+type LayoutDirection = "horizontal" | "vertical";
+
+type GenesisPayload = (
   | { description: string; connection_ids: string[]; api_key_id: string; model: string }
-  | { description: string; connection_ids: string[]; use_platform_key: true; model?: string };
+  | { description: string; connection_ids: string[]; use_platform_key: true; model?: string }
+) & { layout_direction?: LayoutDirection };
 
 type IncomingNode = {
   id: string;
@@ -90,6 +93,7 @@ function BuildingCanvas() {
   const edgesRef = useRef<ReactFlowEdge[]>([]);
   const pendingFlushRef = useRef(false);
   const fitViewScheduledRef = useRef(false);
+  const layoutDirectionRef = useRef<LayoutDirection>("horizontal");
 
   // Read payload + start stream once. React StrictMode replays mount effects in
   // development; without this guard, the replay can find sessionStorage already
@@ -114,6 +118,7 @@ function BuildingCanvas() {
       return;
     }
 
+    layoutDirectionRef.current = payload.layout_direction ?? "horizontal";
     sessionStorage.removeItem(STORAGE_KEY);
     runStream(payload).catch(() => {
       // handled inside runStream
@@ -126,7 +131,7 @@ function BuildingCanvas() {
     pendingFlushRef.current = true;
     requestAnimationFrame(() => {
       pendingFlushRef.current = false;
-      const laidOut = relayout(nodesRef.current, edgesRef.current);
+      const laidOut = relayout(nodesRef.current, edgesRef.current, layoutDirectionRef.current);
       nodesRef.current = laidOut;
       setNodes(laidOut);
       setEdges(edgesRef.current.slice());
@@ -360,9 +365,13 @@ function BuildingCanvas() {
   );
 }
 
-function relayout(nodes: ReactFlowNode[], edges: ReactFlowEdge[]): ReactFlowNode[] {
+function relayout(
+  nodes: ReactFlowNode[],
+  edges: ReactFlowEdge[],
+  direction: LayoutDirection
+): ReactFlowNode[] {
   if (nodes.length === 0) return nodes;
-  return applyDagreLayout(nodes, edges, "TB");
+  return applyDagreLayout(nodes, edges, direction === "horizontal" ? "LR" : "TB");
 }
 
 function Spinner() {

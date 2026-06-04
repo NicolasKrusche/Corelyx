@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { ValidationResult } from "@/lib/validation";
+import type { LayoutDirection } from "@/lib/schema/layout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,10 @@ interface EditorToolbarProps {
   onTogglePalette: () => void;
   onHistory: () => void;
   onAiEdit: () => void;
+  /** Re-arrange all nodes with the deterministic auto-layout in the given direction. */
+  onAutoLayout: (direction: LayoutDirection) => void;
+  /** The user's last-used layout direction, shown as the active option in the menu. */
+  layoutDirection: LayoutDirection;
   /** Present only when the trigger is a webhook — shows the Test button. */
   onTestWebhook?: () => void;
   /** Raw schema editor — only present when the user has the dev toggle enabled. */
@@ -97,6 +102,25 @@ function HistoryIcon() {
   );
 }
 
+function LayoutIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
+      <rect x="2" y="6" width="4" height="4" rx="1" />
+      <rect x="10" y="2" width="4" height="4" rx="1" />
+      <rect x="10" y="10" width="4" height="4" rx="1" />
+      <path d="M6 8h2M8 8V4h2M8 8v4h2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CaretIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3 w-3 opacity-60">
+      <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ─── Separator ────────────────────────────────────────────────────────────────
 
 function Sep() {
@@ -128,6 +152,8 @@ export function EditorToolbar({
   onTogglePalette,
   onHistory,
   onAiEdit,
+  onAutoLayout,
+  layoutDirection,
   onTestWebhook,
   showRawSchema,
   onToggleRawSchema,
@@ -137,6 +163,7 @@ export function EditorToolbar({
   const hasErrors = validationResult && !validationResult.valid;
   const isValid = validationResult?.valid === true;
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(programName);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -298,6 +325,56 @@ export function EditorToolbar({
         <HistoryIcon />
         History
       </Button>
+
+      {/* Auto-layout — re-arrange nodes; choose horizontal or vertical */}
+      <div className="relative">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setLayoutMenuOpen((open) => !open)}
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+          title="Auto-arrange the nodes"
+          aria-haspopup="menu"
+          aria-expanded={layoutMenuOpen}
+        >
+          <LayoutIcon />
+          Auto-layout
+          <CaretIcon />
+        </Button>
+        {layoutMenuOpen && (
+          <>
+            {/* click-away backdrop */}
+            <div className="fixed inset-0 z-40" onClick={() => setLayoutMenuOpen(false)} />
+            <div
+              role="menu"
+              className="absolute top-full left-0 mt-1 z-50 min-w-[168px] rounded-md border border-border bg-popover p-1 shadow-md"
+            >
+              {(["horizontal", "vertical"] as const).map((dir) => (
+                <button
+                  key={dir}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setLayoutMenuOpen(false);
+                    onAutoLayout(dir);
+                  }}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-accent",
+                    layoutDirection === dir ? "text-foreground" : "text-muted-foreground"
+                  )}
+                >
+                  {dir === "horizontal" ? "Horizontal" : "Vertical"}
+                  {layoutDirection === dir && (
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5">
+                      <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Edit with AI */}
       <Button
