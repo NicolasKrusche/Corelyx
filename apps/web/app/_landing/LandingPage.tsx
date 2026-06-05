@@ -571,35 +571,68 @@ function ControlSection() {
   return (
     <section id="control" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
-        <div className="grid gap-16 lg:grid-cols-[1fr_1fr] lg:items-start">
-          <Reveal>
-            <p className="mb-3 text-sm font-medium text-[#f05a28]">Control plane</p>
-            <h2 className="max-w-sm text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-              Built for teams accountable for automation.
-            </h2>
-            <p className="mt-5 max-w-sm text-base leading-7 text-[#6b7280]">
-              Corelyx keeps routine steps fast and sensitive steps reviewable,
-              with enough evidence to understand what happened after the run.
+        <Reveal>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="mb-3 text-sm font-medium text-[#f05a28]">Control plane</p>
+              <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+                Built for teams accountable for automation.
+              </h2>
+            </div>
+            <p className="max-w-sm text-base leading-7 text-[#6b7280] lg:text-right">
+              Routine steps stay fast. Sensitive steps stay reviewable. Every run
+              leaves a record you can hand to whoever asks.
             </p>
-          </Reveal>
-
-          <div className="grid gap-6 sm:grid-cols-2">
-            {CONTROL_FEATURES.map((feature, i) => {
-              const Icon = feature.icon;
-              return (
-                <Reveal key={feature.title} i={i * 0.1}>
-                  <article className="rounded-2xl border border-[#e8eaed] bg-white p-6">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff4f0]">
-                      <Icon className="h-[18px] w-[18px] text-[#f05a28]" strokeWidth={1.75} />
-                    </div>
-                    <h3 className="mt-4 text-sm font-semibold text-[#111318]">{feature.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[#6b7280]">{feature.body}</p>
-                  </article>
-                </Reveal>
-              );
-            })}
           </div>
-        </div>
+        </Reveal>
+
+        {/* Control console */}
+        <Reveal i={0.15}>
+          <div className="mt-12 overflow-hidden rounded-2xl border border-[#e1e4e8] bg-white shadow-[0_1px_0_rgba(17,19,24,0.03),0_30px_60px_-30px_rgba(17,19,24,0.22)]">
+            {/* Console chrome */}
+            <div className="flex items-center gap-2 border-b border-[#eceef1] bg-[#fbfcfd] px-5 py-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#f05a28]/80" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#f0c15a]/80" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#6fdc96]/80" />
+              <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.14em] text-[#9ca3af]">
+                control · runtime · audit
+              </span>
+              <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#d8efe2] bg-[#f1faf5] px-2.5 py-0.5 text-[11px] font-medium text-[#1f8a5b]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#1f8a5b]" />
+                Operational
+              </span>
+            </div>
+
+            {/* Capability rows — seam grid */}
+            <div className="grid gap-px bg-[#eceef1] sm:grid-cols-2">
+              {CONTROL_FEATURES.map((feature, i) => {
+                const Icon = feature.icon;
+                return (
+                  <article
+                    key={feature.title}
+                    className="group relative bg-white p-6 transition-colors hover:bg-[#fcfcfd] sm:p-7"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs tabular-nums text-[#c2c7cf]">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="h-px flex-1 bg-[#f0f1f3]" />
+                      <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
+                    </div>
+                    <h3 className="mt-4 text-base font-semibold tracking-tight text-[#111318]">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-[#6b7280]">{feature.body}</p>
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-[#f05a28] transition-transform duration-300 group-hover:scale-x-100"
+                    />
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
