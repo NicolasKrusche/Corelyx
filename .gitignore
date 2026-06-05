@@ -43,6 +43,11 @@ Thumbs.db
 .venv/
 venv/
 
+# Coverage
+.coverage
+coverage.xml
+cov_output.txt
+
 # Internal working documents (not for external distribution)
 plan.md
 plan_advanced.md

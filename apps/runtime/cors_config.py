@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from typing import Any
 from urllib.parse import urlparse
 
 PRODUCTION_ENV_NAMES = ("NODE_ENV", "VERCEL_ENV", "APP_ENV", "RUNTIME_ENV")
@@ -98,3 +99,13 @@ def get_cors_allowed_origins(
         )
 
     return _unique(origins)
+
+
+def build_cors_middleware(env: Mapping[str, str | None] | None = None) -> dict[str, Any]:
+    """Build CORS middleware configuration kwargs for FastAPI/Starlette CORSMiddleware."""
+    return {
+        "allow_origins": get_cors_allowed_origins(env),
+        "allow_methods": CORS_ALLOWED_METHODS,
+        "allow_headers": CORS_ALLOWED_HEADERS,
+        "allow_credentials": True,
+    }
