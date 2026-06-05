@@ -6,18 +6,31 @@ import { useRef } from "react";
 import { legalIdentity } from "@/lib/legal";
 import {
   ArrowRight,
+  BarChart3,
+  Bot,
+  Boxes,
   Building2,
   Cable,
   Check,
-  CirclePlay,
+  CreditCard,
   Eye,
   FileText,
+  Filter,
+  Gauge,
   GitBranch,
+  Headphones,
   KeyRound,
   LockKeyhole,
+  MessageSquare,
+  Plug,
   Radio,
+  Repeat,
   ShieldCheck,
+  Sparkles,
+  UserPlus,
   Users,
+  Webhook,
+  Workflow,
 } from "lucide-react";
 
 const INTEGRATIONS = [
@@ -35,30 +48,164 @@ const INTEGRATIONS = [
   "Google Drive",
 ];
 
-const OPERATING_POINTS = [
-  "Automatic AI inventory",
-  "AI Act risk classification",
-  "Governance evidence for every workflow",
+// Outcome-focused value strip under the hero (honest — no fabricated logos).
+const TRUST_ITEMS = [
+  { label: "Describe it, it builds", detail: "Genesis turns plain language into a working graph" },
+  { label: "Human-in-the-loop", detail: "Approvals gate sensitive steps before they run" },
+  { label: "200+ integrations", detail: "Scoped, server-side connector access" },
+  { label: "EU-hosted & auditable", detail: "Every run keeps a reviewable record" },
 ];
 
-const WORKFLOW_STEPS = [
+const HERO_POINTS = [
+  "Describe it — Genesis builds the workflow",
+  "Human approval on sensitive steps",
+  "EU-hosted · credentials stay server-side",
+];
+
+const HOW_IT_WORKS = [
   {
     num: "01",
-    label: "Define",
-    title: "Describe the operational outcome",
-    body: "Start from a plain-language request, a blank graph, or an existing workflow pattern. Corelyx turns the work into validated triggers, branches, connector calls, and approval points.",
+    title: "Describe the outcome",
+    body: "Type “when a lead emails us, qualify it and add it to HubSpot” — or start from a blank graph. Genesis drafts the triggers, steps, and approval points for you.",
   },
   {
     num: "02",
-    label: "Review",
-    title: "Inspect the graph before it runs",
-    body: "Operators can see where data moves, which systems are called, and which steps require a human decision. The visual graph stays tied to the executable schema.",
+    title: "Review before it runs",
+    body: "The visual graph stays tied to the executable schema, so what you see is exactly what executes. Nothing runs behind your back.",
   },
   {
     num: "03",
-    label: "Operate",
-    title: "Run with a traceable record",
-    body: "Launch manually, schedule work, or respond to events. Each run keeps node status, outputs, failures, approvals, and compliance context in one place.",
+    title: "Refine in natural language",
+    body: "Adjust a step, add a branch, or tighten a permission by asking — no rebuilding from scratch.",
+  },
+];
+
+const USE_CASES = [
+  {
+    icon: UserPlus,
+    title: "Lead qualification & routing",
+    body: "Classify inbound email, enrich it, and create the CRM record — with an approval before any outreach.",
+  },
+  {
+    icon: Sparkles,
+    title: "Customer onboarding",
+    body: "Kick off welcome sequences across Gmail, Slack, and Notion the moment a deal closes.",
+  },
+  {
+    icon: CreditCard,
+    title: "Invoice & payment ops",
+    body: "Watch Stripe events, reconcile, and notify finance — with a gate on anything sensitive.",
+  },
+  {
+    icon: Headphones,
+    title: "Support triage & escalation",
+    body: "Categorize tickets, draft responses with AI, and route the edge cases to a person.",
+  },
+  {
+    icon: BarChart3,
+    title: "Pipeline hygiene & reporting",
+    body: "Deduplicate, sort, and roll up CRM data into a weekly digest — automatically.",
+  },
+  {
+    icon: MessageSquare,
+    title: "Content & social publishing",
+    body: "Turn a brief into scheduled posts across your tools, with review before anything goes live.",
+  },
+];
+
+const CORE_BENEFITS = [
+  {
+    icon: Gauge,
+    title: "Predictable, reviewable workflows",
+    body: "The visual graph is the execution contract — inspect where data moves and which systems are called before it runs. Every run keeps node status, inputs, sanitized outputs, and failures.",
+  },
+  {
+    icon: Users,
+    title: "Human-in-the-loop control",
+    body: "Route sensitive actions — sending messages, changing customer data, moving money — to the right person with approval queues. High-impact steps pause until someone approves, and the decision is recorded.",
+  },
+  {
+    icon: Boxes,
+    title: "Building blocks for anything",
+    body: "Branches, loops, transforms, AI steps, and bounded autonomous agent tasks — composed visually, validated automatically, and runnable on a schedule, a webhook, or an event.",
+  },
+];
+
+const BUILDING_BLOCKS = [
+  {
+    icon: Workflow,
+    name: "Workflows",
+    body: "A validated graph of triggers, steps, and approvals — what you see is exactly what runs.",
+    example: "New form response → enrich → Slack the team.",
+  },
+  {
+    icon: Plug,
+    name: "App connectors",
+    body: "200+ apps with scoped, server-side credentials, so a workflow only gets the access it needs.",
+    example: "Create a HubSpot contact with write-only access.",
+  },
+  {
+    icon: Sparkles,
+    name: "AI steps",
+    body: "Bring your own key or use platform credits across Anthropic, OpenAI, Groq, Google, and OpenRouter.",
+    example: "Classify intent from an inbound email.",
+  },
+  {
+    icon: Bot,
+    name: "Agent tasks",
+    body: "A bounded autonomous tool-loop — capped iterations, allow-listed tools, approval before any write.",
+    example: "Research a company and draft a summary, safely.",
+  },
+  {
+    icon: ShieldCheck,
+    name: "Approvals",
+    body: "Human checkpoints with timeouts that pause a run until someone decides.",
+    example: "Hold an outbound message until a manager signs off.",
+  },
+];
+
+const DEEP_DIVE = [
+  {
+    icon: Radio,
+    title: "Triggers",
+    body: "Start a workflow however the work actually arrives.",
+    examples: ["Schedule (cron)", "App event (200+ apps)", "Incoming webhook", "Manual run", "Another workflow's output"],
+  },
+  {
+    icon: Plug,
+    title: "App steps",
+    body: "Call the tools your team already uses, with credentials resolved server-side through Vault.",
+    examples: ["Send a Slack message", "Create a HubSpot deal", "Append a Google Sheet row", "Upload to S3"],
+  },
+  {
+    icon: Sparkles,
+    title: "AI steps",
+    body: "Built-in patterns for extraction, classification, and writing — plus custom prompts and model choice.",
+    examples: ["Classify a ticket", "Extract fields from an email", "Summarize a thread", "Draft a reply"],
+  },
+  {
+    icon: Users,
+    title: "Human-in-the-loop",
+    body: "Insert approval checkpoints anywhere judgment is needed; the run pauses with full context until someone decides.",
+    examples: ["Approve before sending", "Approve before a CRM write", "Approve before an agent acts"],
+  },
+  {
+    icon: Webhook,
+    title: "Webhooks",
+    body: "Catch events from anything that can POST, and trigger runs at a unique endpoint.",
+    examples: ["A form vendor's webhook", "A billing event", "A custom internal service"],
+  },
+  {
+    icon: Filter,
+    title: "Data utilities",
+    body: "Shape data between steps without writing glue code.",
+    examples: ["Transform & filter", "Parse JSON / CSV", "Deduplicate & sort", "Format with a template"],
+  },
+  {
+    icon: ShieldCheck,
+    title: "Governance & audit",
+    body: "Every run produces a reviewable record on EU-hosted infrastructure.",
+    examples: ["Export a processing record", "Trace a failed run", "Review who approved what"],
   },
 ];
 
@@ -113,33 +260,22 @@ const COMPLIANCE_CARDS = [
 ];
 
 const GOVERNANCE_LINKS = [
-  {
-    href: "/dpa",
-    title: "Data Processing Agreement",
-    body: "Processor terms for procurement and privacy review.",
-  },
-  {
-    href: "/subprocessors",
-    title: "Subprocessor Registry",
-    body: "A public inventory of infrastructure, model, and connector providers.",
-  },
-  {
-    href: "/dpia-template",
-    title: "DPIA Template",
-    body: "A structured starting point for higher-risk automation assessments.",
-  },
-  {
-    href: "/data-export-schema",
-    title: "Data Export Schema",
-    body: "Machine-readable account and workflow export documentation.",
-  },
+  { href: "/dpa", title: "Data Processing Agreement", body: "Processor terms for procurement and privacy review." },
+  { href: "/subprocessors", title: "Subprocessor Registry", body: "A public inventory of infrastructure, model, and connector providers." },
+  { href: "/dpia-template", title: "DPIA Template", body: "A structured starting point for higher-risk automation assessments." },
+  { href: "/data-export-schema", title: "Data Export Schema", body: "Machine-readable account and workflow export documentation." },
 ];
 
-const TRUST_ITEMS = [
-  { label: "Automatic inventory", detail: "Every workflow becomes an AI system record" },
-  { label: "AI Act classification", detail: "Risk and required controls are documented" },
-  { label: "Human approval gates", detail: "Pause sensitive steps before execution" },
-  { label: "Audit-ready evidence", detail: "Runs, approvals, overrides, and outcomes" },
+// Social proof is implemented but gated OFF until real, attributable quotes and
+// a real rating exist. Do NOT flip this to true with placeholder content — that
+// would be fabricated social proof on a public page.
+const SHOW_TESTIMONIALS = false;
+const TESTIMONIALS = [
+  { quote: "Saved our ops team about six hours a week in the first month.", role: "Founder, B2B SaaS" },
+  { quote: "The first automation tool my non-technical team didn't need me to babysit.", role: "Automation engineer" },
+  { quote: "I described the process and it built it. I edited two steps and shipped.", role: "Operations lead" },
+  { quote: "Approvals mean I finally trust automation with customer data.", role: "Agency owner" },
+  { quote: "EU hosting and audit logs got us through the security review fast.", role: "CTO" },
 ];
 
 const fadeUp: Variants = {
@@ -176,16 +312,26 @@ function Reveal({
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="mb-3 text-sm font-medium text-[#f05a28]">{children}</p>;
+}
+
 export default function LandingPage() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-white text-[#111318]">
       <SiteHeader />
       <HeroSection />
       <TrustBar />
-      <WorkflowSection />
-      <ControlSection />
-      <ComplianceSection />
+      <HowItWorksSection />
+      <UseCasesSection />
       <IntegrationsSection />
+      <CoreBenefitsSection />
+      <ControlSection />
+      <BuildingBlocksSection />
+      <VisualEditorSection />
+      <DeepDiveSection />
+      <ComplianceSection />
+      <SocialProofSection />
       <FinalCta />
       <SiteFooter />
     </main>
@@ -208,12 +354,11 @@ function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm text-white/40 md:flex">
-          <a href="#workflow" className="transition-colors hover:text-white/70">How it works</a>
-          <a href="#compliance" className="transition-colors hover:text-white/70">Compliance</a>
+          <a href="#how" className="transition-colors hover:text-white/70">How it works</a>
+          <a href="#use-cases" className="transition-colors hover:text-white/70">Use cases</a>
           <a href="#integrations" className="transition-colors hover:text-white/70">Integrations</a>
           <Link href="/security" className="transition-colors hover:text-white/70">Security</Link>
           <Link href="/pricing" className="transition-colors hover:text-white/70">Pricing</Link>
-          <a href="mailto:support@corelyx.app" className="transition-colors hover:text-white/70">Contact</a>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -221,13 +366,13 @@ function SiteHeader() {
             href="/login"
             className="hidden text-sm text-white/40 transition-colors hover:text-white/70 sm:block"
           >
-            Sign in
+            Log in
           </Link>
           <Link
             href="/signup"
             className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#f05a28] px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Start free
+            Start for free
           </Link>
         </div>
       </div>
@@ -271,9 +416,11 @@ function HeroSection() {
               transition={{ duration: 0.55, delay: 0.08, ease: "easeOut" }}
               className="text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-[56px]"
             >
-              AI automation that governs
+              AI automation your
               <br />
-              <span className="text-white/30">every workflow.</span>
+              team will actually
+              <br />
+              <span className="text-white/30">trust.</span>
             </motion.h1>
 
             <motion.p
@@ -282,9 +429,9 @@ function HeroSection() {
               transition={{ duration: 0.5, delay: 0.16, ease: "easeOut" }}
               className="mt-6 max-w-md text-base leading-7 text-white/40 sm:text-lg sm:leading-8"
             >
-              Build agent workflows visually while Corelyx automatically
-              inventories, classifies, documents, audits, reviews, and governs
-              each AI system.
+              Describe what you want to automate in plain language. Corelyx turns
+              it into a workflow you can see, review, and run — with humans in the
+              loop wherever it matters.
             </motion.p>
 
             <motion.div
@@ -297,16 +444,15 @@ function HeroSection() {
                 href="/signup"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-[#111318] transition-colors hover:bg-white/90"
               >
-                Build a workflow
+                Start for free
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                href="/login"
+              <a
+                href="#how"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 text-sm font-medium text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white/70"
               >
-                <CirclePlay className="h-4 w-4" />
-                Open workspace
-              </Link>
+                See how it works
+              </a>
             </motion.div>
 
             <motion.div
@@ -315,7 +461,7 @@ function HeroSection() {
               transition={{ duration: 0.6, delay: 0.34 }}
               className="mt-7 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2"
             >
-              {OPERATING_POINTS.map((point) => (
+              {HERO_POINTS.map((point) => (
                 <div key={point} className="flex items-center gap-2 text-sm text-white/30">
                   <Check className="h-3.5 w-3.5 shrink-0 text-[#75d7a3]" />
                   <span>{point}</span>
@@ -361,24 +507,14 @@ function HeroCard() {
           className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:32px_32px]"
         />
 
-        {/* Flow lines — no viewBox so SVG units = CSS px 1:1.
-            Node H≈56px. Centers X of right col: 248+74=322.
-            trigger: right=180 cY=88
-            classify: left=248 right=396 cY=144 bottom=172
-            crm:      cY=224 bottom=252
-            approval: left=248 right=396 top=260 cY=288
-            policy-box: bottom-4 right-4 ≈ top=271 left=canvas-152 */}
+        {/* Flow lines — no viewBox so SVG units = CSS px 1:1. */}
         <svg aria-hidden="true" className="absolute inset-0 h-full w-full">
           <defs>
-            {/* all arrowheads auto-orient to path direction */}
             <marker id="arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
               <path d="M0,1 L0,5 L5,3 z" fill="rgba(117,215,163,0.6)" />
             </marker>
             <marker id="arr-o" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
               <path d="M0,1 L0,5 L5,3 z" fill="rgba(240,90,40,0.6)" />
-            </marker>
-            <marker id="arr-b" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-              <path d="M0,1 L0,5 L5,3 z" fill="rgba(127,183,255,0.6)" />
             </marker>
             <marker id="arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
               <path d="M0,1 L0,5 L5,3 z" fill="rgba(239,68,68,0.6)" />
@@ -388,22 +524,15 @@ function HeroCard() {
             </marker>
           </defs>
 
-          {/* 1. trigger → classify (horizontal) */}
           <path d="M180,88 C218,88 218,144 248,144"
             stroke="rgba(117,215,163,0.4)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
             markerEnd="url(#arr-g)" className="edge-animate" />
-
-          {/* 2. classify → crm (short vertical, happy path) */}
           <path d="M322,172 C322,180 322,188 322,196"
             stroke="rgba(240,90,40,0.55)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
             markerEnd="url(#arr-o)" className="edge-animate" />
-
-          {/* 3. classify error path — curves LEFT past trigger, arrives at approval */}
           <path d="M248,155 C195,155 195,288 248,288"
             stroke="rgba(239,68,68,0.4)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
             markerEnd="url(#arr-r)" className="edge-animate" />
-
-          {/* 4. approval → policy route box (bottom-right panel) */}
           <path d="M396,288 C434,288 442,308 442,316"
             stroke="rgba(243,154,194,0.45)" strokeWidth="1.5" strokeDasharray="5,3" fill="none"
             markerEnd="url(#arr-p)" className="edge-animate" />
@@ -413,7 +542,7 @@ function HeroCard() {
         <FlowNode className="left-8 top-[60px]" tone="green" title="Gmail trigger" subtitle="new inbound lead" floatDelay={0} />
         <FlowNode className="left-[248px] top-[116px]" tone="orange" title="Classify intent" subtitle="model: fast" floatDelay={0.5} />
         <FlowNode className="left-[248px] top-[196px]" tone="blue" title="CRM update" subtitle="HubSpot contact" floatDelay={1} />
-        <FlowNode className="left-[248px] top-[260px] opacity-50" tone="pink" title="Approval gate" subtitle="Art. 22 · waiting" floatDelay={1.5} />
+        <FlowNode className="left-[248px] top-[260px] opacity-50" tone="pink" title="Approval gate" subtitle="waiting · review" floatDelay={1.5} />
 
         {/* Run panel */}
         <motion.div
@@ -437,7 +566,7 @@ function HeroCard() {
             {[
               { label: "Complete", value: "11 / 14" },
               { label: "Waiting", value: "1" },
-              { label: "Art. 30", value: "filed" },
+              { label: "Audited", value: "yes" },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between border-b border-white/[0.05] pb-2.5 last:border-b-0 last:pb-0">
                 <span className="text-[10px] text-white/25">{label}</span>
@@ -523,38 +652,66 @@ function FlowNode({
 function TrustBar() {
   return (
     <section className="border-b border-[#e8eaed] bg-white">
-      <div className="mx-auto grid max-w-6xl gap-y-6 px-5 py-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
-        {TRUST_ITEMS.map((item, i) => (
-          <div key={item.label} className={i > 0 ? "lg:border-l lg:border-[#e8eaed] lg:pl-8" : ""}>
-            <p className="text-sm font-semibold text-[#111318]">{item.label}</p>
-            <p className="mt-1 text-sm text-[#6b7280]">{item.detail}</p>
-          </div>
-        ))}
+      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+        {/* Logo row goes here once real customer logos exist. */}
+        <div className="grid gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+          {TRUST_ITEMS.map((item, i) => (
+            <div key={item.label} className={i > 0 ? "lg:border-l lg:border-[#e8eaed] lg:pl-8" : ""}>
+              <p className="text-sm font-semibold text-[#111318]">{item.label}</p>
+              <p className="mt-1 text-sm text-[#6b7280]">{item.detail}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function WorkflowSection() {
+function HowItWorksSection() {
   return (
-    <section id="workflow" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
+    <section id="how" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal>
-          <p className="mb-3 text-sm font-medium text-[#f05a28]">How it works</p>
+          <SectionLabel>How it works</SectionLabel>
           <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-            A visual graph with operational guardrails.
+            Building an automation should feel like explaining it to a teammate.
           </h2>
           <p className="mt-5 max-w-xl text-base leading-7 text-[#6b7280]">
-            Corelyx uses the visual editor as the planning surface and the validated
-            workflow schema as the execution contract. Teams can review what was
-            generated before trusting it in production.
+            Genesis turns a plain-language request into a validated workflow. You
+            stay in control — review the graph, then run it.
           </p>
         </Reveal>
 
-        <div className="mt-16 grid gap-px bg-[#e8eaed] rounded-2xl overflow-hidden sm:grid-cols-3">
-          {WORKFLOW_STEPS.map((step, index) => (
-            <Reveal key={step.label} i={index * 0.15}>
-              <article className="bg-white p-8 h-full">
+        {/* Genesis prompt mock */}
+        <Reveal i={0.1}>
+          <div className="mt-12 overflow-hidden rounded-2xl border border-[#e1e4e8] bg-[#fbfcfd] p-4 sm:p-5">
+            <div className="flex items-center gap-2 rounded-xl border border-[#e8eaed] bg-white px-4 py-3">
+              <Sparkles className="h-4 w-4 shrink-0 text-[#f05a28]" />
+              <span className="text-sm text-[#111318]">
+                When a lead emails us, qualify it and add it to HubSpot
+              </span>
+              <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#fff4f0] px-2.5 py-1 text-[11px] font-semibold text-[#f05a28]">
+                Build with Genesis
+                <ArrowRight className="h-3 w-3" />
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[#9ca3af]">
+              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">Gmail trigger</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">Classify</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">Approval</span>
+              <ArrowRight className="h-3 w-3" />
+              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">HubSpot</span>
+            </div>
+            {/* Replace this mock with a real Genesis screenshot/recording when available. */}
+          </div>
+        </Reveal>
+
+        <div className="mt-8 grid gap-px overflow-hidden rounded-2xl bg-[#e8eaed] sm:grid-cols-3">
+          {HOW_IT_WORKS.map((step, index) => (
+            <Reveal key={step.num} i={index * 0.15}>
+              <article className="h-full bg-white p-8">
                 <span className="font-mono text-xs font-medium text-[#d1d5db]">{step.num}</span>
                 <h3 className="mt-5 text-base font-semibold text-[#111318]">{step.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-[#6b7280]">{step.body}</p>
@@ -567,14 +724,132 @@ function WorkflowSection() {
   );
 }
 
+function UseCasesSection() {
+  return (
+    <section id="use-cases" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <SectionLabel>Use cases</SectionLabel>
+          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+            Run the operations that used to eat your week.
+          </h2>
+          <p className="mt-5 max-w-xl text-base leading-7 text-[#6b7280]">
+            Teams use Corelyx to automate whole processes end to end — not just
+            single tasks.
+          </p>
+        </Reveal>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {USE_CASES.map((useCase, i) => {
+            const Icon = useCase.icon;
+            return (
+              <Reveal key={useCase.title} i={(i % 3) * 0.1}>
+                <article className="h-full rounded-2xl border border-[#e8eaed] bg-white p-6">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff4f0]">
+                    <Icon className="h-[18px] w-[18px] text-[#f05a28]" strokeWidth={1.75} />
+                  </div>
+                  <h3 className="mt-4 text-sm font-semibold text-[#111318]">{useCase.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#6b7280]">{useCase.body}</p>
+                </article>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function IntegrationsSection() {
+  const doubled = [...INTEGRATIONS, ...INTEGRATIONS];
+
+  return (
+    <section id="integrations" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+          <Reveal>
+            <SectionLabel>Integrations</SectionLabel>
+            <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+              Deeply integrated with 200+ of the apps you already run on.
+            </h2>
+          </Reveal>
+          <Reveal i={0.2}>
+            <Link
+              href="/signup"
+              className="inline-flex h-10 w-max items-center gap-2 rounded-full bg-[#111318] px-5 text-sm font-medium text-white transition-colors hover:bg-[#1f2329]"
+            >
+              Connect your tools
+              <Cable className="h-3.5 w-3.5" />
+            </Link>
+          </Reveal>
+        </div>
+
+        <Reveal i={0.15}>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-[#6b7280]">
+            Gmail, Slack, Notion, HubSpot, Stripe, Airtable, Google Sheets and
+            hundreds more — each connector exposes scoped operations
+            (read / write / read-write), so a workflow only ever gets the access
+            it needs.
+          </p>
+        </Reveal>
+
+        <div className="relative mt-12 overflow-hidden rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] py-5">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-[#f8f9fb] to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-[#f8f9fb] to-transparent" />
+          <div className="flex animate-marquee items-center gap-8 px-6" style={{ width: "max-content" }}>
+            {doubled.map((name, i) => (
+              <div key={`${name}-${i}`} className="flex items-center gap-8 whitespace-nowrap">
+                <span className="text-sm font-medium text-[#6b7280]">{name}</span>
+                <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CoreBenefitsSection() {
+  return (
+    <section className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <SectionLabel>Why teams pick Corelyx</SectionLabel>
+          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+            Powerful where it counts. Predictable everywhere else.
+          </h2>
+        </Reveal>
+
+        <div className="mt-12 grid gap-5 lg:grid-cols-3">
+          {CORE_BENEFITS.map((benefit, i) => {
+            const Icon = benefit.icon;
+            return (
+              <Reveal key={benefit.title} i={i * 0.1}>
+                <article className="h-full rounded-2xl border border-[#e8eaed] bg-white p-7">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff4f0]">
+                    <Icon className="h-5 w-5 text-[#f05a28]" strokeWidth={1.75} />
+                  </div>
+                  <h3 className="mt-5 text-base font-semibold text-[#111318]">{benefit.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-[#6b7280]">{benefit.body}</p>
+                </article>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ControlSection() {
   return (
-    <section id="control" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+    <section id="control" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="mb-3 text-sm font-medium text-[#f05a28]">Control plane</p>
+              <SectionLabel>Control plane</SectionLabel>
               <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
                 Built for teams accountable for automation.
               </h2>
@@ -638,12 +913,163 @@ function ControlSection() {
   );
 }
 
+function BuildingBlocksSection() {
+  return (
+    <section id="building-blocks" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <SectionLabel>Building blocks</SectionLabel>
+          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+            A small set of primitives that compose into real systems.
+          </h2>
+        </Reveal>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {BUILDING_BLOCKS.map((block, i) => {
+            const Icon = block.icon;
+            return (
+              <Reveal key={block.name} i={(i % 3) * 0.1}>
+                <article className="flex h-full flex-col rounded-2xl border border-[#e8eaed] bg-white p-6">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fff4f0]">
+                      <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
+                    </span>
+                    <h3 className="text-sm font-semibold text-[#111318]">{block.name}</h3>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-[#6b7280]">{block.body}</p>
+                  <p className="mt-4 border-t border-[#f0f1f3] pt-3 text-xs leading-5 text-[#9ca3af]">
+                    <span className="font-medium text-[#6b7280]">Example: </span>
+                    {block.example}
+                  </p>
+                </article>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function VisualEditorSection() {
+  const basics = [
+    { icon: GitBranch, label: "Branches", note: "route on conditions" },
+    { icon: Repeat, label: "Loops", note: "act on each item in a list" },
+    { icon: Filter, label: "Filters", note: "stop runs that don't match" },
+  ];
+  const advanced = [
+    "Chain workflows — one program's output triggers the next",
+    "Shape data with transforms, parse, deduplicate, and sort",
+    "Scoped delays between steps",
+    "Approval gates on any step that touches sensitive data",
+  ];
+
+  return (
+    <section className="bg-white px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <SectionLabel>Visual editor</SectionLabel>
+          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+            Precise control — without the tangled wiring diagram.
+          </h2>
+          <p className="mt-5 max-w-xl text-base leading-7 text-[#6b7280]">
+            The canvas stays readable as your logic grows, and the graph you build
+            is the graph that runs.
+          </p>
+        </Reveal>
+
+        <div className="mt-12 grid gap-5 lg:grid-cols-2">
+          <Reveal>
+            <article className="h-full rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] p-7">
+              <h3 className="text-sm font-semibold text-[#111318]">The basics</h3>
+              <div className="mt-5 space-y-4">
+                {basics.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#e8eaed] bg-white">
+                        <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
+                      </span>
+                      <p className="text-sm text-[#111318]">
+                        <span className="font-semibold">{item.label}</span>
+                        <span className="text-[#9ca3af]"> — {item.note}</span>
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+          </Reveal>
+
+          <Reveal i={0.1}>
+            <article className="h-full rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] p-7">
+              <h3 className="text-sm font-semibold text-[#111318]">Advanced primitives</h3>
+              <ul className="mt-5 space-y-3">
+                {advanced.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#f05a28]" strokeWidth={2.25} />
+                    <span className="text-sm leading-6 text-[#6b7280]">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DeepDiveSection() {
+  return (
+    <section className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <SectionLabel>Under the hood</SectionLabel>
+          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+            Everything you need to build, in one place.
+          </h2>
+        </Reveal>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {DEEP_DIVE.map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <Reveal key={item.title} i={(i % 3) * 0.1}>
+                <article className="flex h-full flex-col rounded-2xl border border-[#e8eaed] bg-white p-6">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fff4f0]">
+                      <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
+                    </span>
+                    <h3 className="text-sm font-semibold text-[#111318]">{item.title}</h3>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-[#6b7280]">{item.body}</p>
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {item.examples.map((example) => (
+                      <span
+                        key={example}
+                        className="rounded-md border border-[#eceef1] bg-[#f8f9fb] px-2 py-1 text-[11px] text-[#6b7280]"
+                      >
+                        {example}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ComplianceSection() {
   return (
     <section id="compliance" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal>
-          <p className="mb-3 text-sm font-medium text-[#f05a28]">Governance</p>
+          <SectionLabel>Governance</SectionLabel>
           <div className="grid gap-8 lg:grid-cols-2 lg:items-end">
             <h2 className="text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
               Compliance material that stays close to the product.
@@ -664,6 +1090,9 @@ function ComplianceSection() {
               <Reveal key={card.title} i={i * 0.1}>
                 <article className="grid gap-4 py-7 sm:grid-cols-[160px_1fr_2fr] sm:items-center">
                   <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#f8f9fb]">
+                      <Icon className="h-4 w-4 text-[#6b7280]" strokeWidth={1.75} />
+                    </span>
                     <span className="rounded-full border border-[#e8eaed] bg-[#f8f9fb] px-2.5 py-1 text-xs font-medium text-[#6b7280]">
                       {card.tag}
                     </span>
@@ -721,49 +1150,30 @@ function ComplianceSection() {
   );
 }
 
-function IntegrationsSection() {
-  const doubled = [...INTEGRATIONS, ...INTEGRATIONS];
+function SocialProofSection() {
+  // Gated off until real, attributable testimonials and a real rating exist.
+  if (!SHOW_TESTIMONIALS) return null;
 
   return (
-    <section id="integrations" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+    <section className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
-          <Reveal>
-            <p className="mb-3 text-sm font-medium text-[#f05a28]">Integrations</p>
-            <h2 className="max-w-sm text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-              Connect common work tools.
-            </h2>
-          </Reveal>
-          <Reveal i={0.2}>
-            <Link
-              href="/signup"
-              className="inline-flex h-10 w-max items-center gap-2 rounded-full bg-[#111318] px-5 text-sm font-medium text-white transition-colors hover:bg-[#1f2329]"
-            >
-              Connect tools
-              <Cable className="h-3.5 w-3.5" />
-            </Link>
-          </Reveal>
-        </div>
-
-        <div className="relative mt-12 overflow-hidden rounded-2xl border border-[#e8eaed] bg-white py-5">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-white to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-white to-transparent" />
-          <div className="flex animate-marquee items-center gap-8 px-6" style={{ width: "max-content" }}>
-            {doubled.map((name, i) => (
-              <div key={`${name}-${i}`} className="flex items-center gap-8 whitespace-nowrap">
-                <span className="text-sm font-medium text-[#6b7280]">{name}</span>
-                <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Reveal i={0.3}>
-          <p className="mt-6 max-w-lg text-sm leading-6 text-[#9ca3af]">
-            Connector requests run server-side. Browser clients receive the result
-            they need, not the credential material used to fetch it.
-          </p>
+        <Reveal>
+          <SectionLabel>Loved by the people who use it</SectionLabel>
+          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+            Operators and engineers, same reaction.
+          </h2>
         </Reveal>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {TESTIMONIALS.map((testimonial, i) => (
+            <Reveal key={testimonial.role} i={(i % 3) * 0.1}>
+              <figure className="h-full rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] p-6">
+                <blockquote className="text-sm leading-6 text-[#111318]">“{testimonial.quote}”</blockquote>
+                <figcaption className="mt-4 text-xs font-medium text-[#9ca3af]">{testimonial.role}</figcaption>
+              </figure>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -771,22 +1181,21 @@ function IntegrationsSection() {
 
 function FinalCta() {
   return (
-    <section className="bg-[#07080a] px-5 py-24 sm:px-8 sm:py-32">
-      <div className="mx-auto max-w-6xl">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -mt-24 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-[#f05a28]/[0.05] blur-3xl"
-        />
-        <div className="relative grid gap-12 lg:grid-cols-[1fr_auto] lg:items-center">
+    <section className="relative overflow-hidden bg-[#07080a] px-5 py-24 sm:px-8 sm:py-32">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-0 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-[#f05a28]/[0.06] blur-3xl"
+      />
+      <div className="relative mx-auto max-w-6xl">
+        <div className="grid gap-12 lg:grid-cols-[1fr_auto] lg:items-center">
           <Reveal>
-            <p className="mb-4 text-sm font-medium text-[#f05a28]">Get started</p>
+            <SectionLabel>Get started</SectionLabel>
             <h2 className="max-w-xl text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
-              Build one controlled workflow, then expand.
+              Automate your first workflow today.
             </h2>
             <p className="mt-5 max-w-xl text-base leading-7 text-white/40">
-              Start with a recurring operational task, inspect the generated graph,
-              and add approval steps where the workflow touches sensitive data or
-              external systems.
+              Describe it in a sentence. Review the graph. Run it — with humans in
+              the loop where it counts. Free plan, no credit card required.
             </p>
           </Reveal>
           <Reveal i={0.2}>
@@ -795,7 +1204,7 @@ function FinalCta() {
                 href="/signup"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-[#111318] transition-colors hover:bg-white/90"
               >
-                Create an account
+                Start for free
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -835,35 +1244,30 @@ const FOOTER_COLUMNS = [
   {
     title: "Product",
     links: [
+      { label: "How it works", href: "/#how" },
+      { label: "Use cases", href: "/#use-cases" },
+      { label: "Integrations", href: "/#integrations" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Integrations", href: "/integrations" },
-      { label: "Templates", href: "/templates" },
-      { label: "Use cases", href: "/use-cases" },
-      { label: "Compare", href: "/compare" },
-      { label: "Docs", href: "/docs" },
-      { label: "Blog", href: "/blog" },
+    ],
+  },
+  {
+    title: "Build",
+    links: [
+      { label: "Workflows", href: "/#building-blocks" },
+      { label: "Agent tasks", href: "/#building-blocks" },
+      { label: "Approvals", href: "/#control" },
       { label: "Sign in", href: "/login" },
     ],
   },
   {
-    title: "Compliance",
+    title: "Trust & legal",
     links: [
-      { label: "Trust Center", href: "/trust" },
-      { label: "GDPR", href: "/gdpr" },
-      { label: "AI Act", href: "/ai-act" },
-      { label: "Compliance", href: "/compliance" },
       { label: "Security", href: "/security" },
-      { label: "DPA", href: "/dpa" },
-      { label: "Subprocessors", href: "/subprocessors" },
-      { label: "DPIA Template", href: "/dpia-template" },
-      { label: "Export Schema", href: "/data-export-schema" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
+      { label: "DPA", href: "/dpa" },
+      { label: "Subprocessors", href: "/subprocessors" },
+      { label: "DPIA", href: "/dpia-template" },
       { label: "Impressum", href: "/impressum" },
     ],
   },
@@ -911,7 +1315,7 @@ function SiteFooter() {
               </p>
               <ul className="mt-4 space-y-3">
                 {col.links.map((link) => (
-                  <li key={link.href}>
+                  <li key={`${col.title}-${link.label}`}>
                     <Link
                       href={link.href}
                       className="text-sm text-[#6b7280] transition-colors hover:text-[#111318]"
