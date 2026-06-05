@@ -157,7 +157,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               <Badge variant={latestRun.status === "failed" ? "destructive" : latestRun.status === "completed" ? "default" : "warning"} className="text-[10px]">
                 {latestRun.status}
               </Badge>
-              <Link href={`/runs/${latestRun.id}`} className="text-xs text-primary hover:underline">View log</Link>
+              <Link href={`/programs/${program.id}/runs/${latestRun.id}`} className="text-xs text-primary hover:underline">View log</Link>
             </div>
           </div>
           {summary && <p className="whitespace-pre-wrap text-sm text-foreground/90">{summary}</p>}

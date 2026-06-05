@@ -38,7 +38,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const program = prog as { id: string; program_type: string | null; schema_version: number | null; agent_state: string | null } | null;
   if (!program) return apiError("Agent not found", 404);
   if (program.program_type !== "agent") return apiError("This program is not an agent.", 400);
-  if (program.agent_state === "running") return apiError("This agent is already running.", 409);
+
+  // Block only if a run is genuinely still active. Relying on agent_state alone
+  // can wedge the agent if a previous run died without reporting completion.
+  const { data: activeRun } = await service
+    .from("runs")
+    .select("id, status")
+    .eq("program_id", programId)
+    .in("status", ["pending", "running"])
+    .limit(1)
+    .maybeSingle();
+  if (activeRun) return apiError("This agent is already running.", 409);
 
   // Agents bill like workflows — count against the workspace run allowance.
   const limit = await checkRunLimit(user.id, access!.workspaceId);

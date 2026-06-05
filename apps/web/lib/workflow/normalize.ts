@@ -7,7 +7,7 @@ type FilterStepConfig = Extract<StepConfig, { logic_type: "filter" }>;
 type BranchStepConfig = Extract<StepConfig, { logic_type: "branch" }>;
 type TransformStepConfig = Extract<StepConfig, { logic_type: "transform" }>;
 
-const VALID_NODE_TYPES = new Set(["trigger", "agent", "step", "connection", "note", "group"]);
+const VALID_NODE_TYPES = new Set(["trigger", "agent", "agent_task", "step", "connection", "note", "group"]);
 const VALID_EDGE_TYPES = new Set(["data_flow", "control_flow", "event_subscription"]);
 const VALID_TRIGGER_TYPES = new Set(["cron", "event", "webhook", "manual", "program_output"]);
 const STEP_TYPE_ALIASES = new Set(["transform", "filter", "branch", "delay", "loop", "format", "parse", "deduplicate", "sort"]);
@@ -250,6 +250,22 @@ function normalizeConfig(type: SchemaNode["type"], config: MutableRecord): Schem
     };
   }
 
+  if (type === "agent_task") {
+    return {
+      objective: typeof config.objective === "string" ? config.objective : "",
+      model: stringValue(config.model, "__USER_ASSIGNED__"),
+      api_key_ref: stringValue(config.api_key_ref, "__USER_ASSIGNED__"),
+      max_iterations: numberValue(config.max_iterations, 8),
+      tools: Array.isArray(config.tools) ? config.tools.filter((tool): tool is string => typeof tool === "string") : [],
+      scope_access: config.scope_access === "write" || config.scope_access === "read_write" ? config.scope_access : "read",
+      requires_approval: booleanValue(config.requires_approval, false),
+      approval_timeout_hours: numberValue(config.approval_timeout_hours, 24),
+      input_schema: isRecord(config.input_schema) ? config.input_schema as never : null,
+      output_schema: isRecord(config.output_schema) ? config.output_schema as never : null,
+      retry: isRecord(config.retry) ? { ...DEFAULT_RETRY, ...config.retry } as never : DEFAULT_RETRY,
+    } as never;
+  }
+
   if (config.connector_type === "http") {
     return {
       connector_type: "http",
@@ -307,7 +323,7 @@ export function normalizeProgramDraft(raw: unknown, fallback?: Partial<ProgramSc
     return {
       id: finalId,
       type,
-      label: stringValue(n.label, type === "trigger" ? "Manual Trigger" : type === "step" ? "Workflow Step" : type === "agent" ? "AI Agent" : type === "note" ? "Note" : type === "group" ? "Group" : "Connection"),
+      label: stringValue(n.label, type === "trigger" ? "Manual Trigger" : type === "step" ? "Workflow Step" : type === "agent" ? "AI Agent" : type === "agent_task" ? "Agent Task" : type === "note" ? "Note" : type === "group" ? "Group" : "Connection"),
       description: typeof n.description === "string" ? n.description : "",
       position: normalizePosition(n.position, index),
       status: stringValue(n.status, "idle"),
