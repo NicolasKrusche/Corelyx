@@ -25,12 +25,20 @@ for _provider, _cls in sorted(REGISTRY.items()):
 
             def test_unsupported_operation_raises(self) -> None:
                 inst = cls()
-                # Must be called inside an async test helper; here we run it via asyncio.run
                 import asyncio
-                # Some stubs validate params before the match block, so we only assert that
-                # a ConnectorError is raised for an invalid operation name.
-                with self.assertRaises(ConnectorError):
-                    asyncio.run(inst.execute("__nonexistent_operation__", {}, "token"))
+                from unittest.mock import AsyncMock, MagicMock, patch
+                # Some connectors (e.g., jira) make pre-flight HTTP calls before the
+                # operation match block. Mock request_with_rate_limit so those checks
+                # don't hit the network while still asserting unsupported ops raise.
+                mock_resp = MagicMock()
+                mock_resp.status_code = 200
+                if provider == "jira":
+                    mock_resp.json.return_value = [{"id": "site1"}]
+                else:
+                    mock_resp.json.return_value = {}
+                with patch("connectors.rate_limit.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
+                    with self.assertRaises(ConnectorError):
+                        asyncio.run(inst.execute("__nonexistent_operation__", {}, "token"))
 
         _TestConnector.__name__ = f"Test{cls.__name__}"
         return _TestConnector
