@@ -2,8 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Rocket, Shield, Sparkles, Users, type LucideIcon } from "lucide-react";
 import type { BillingInterval, PaidTier } from "@/lib/billing";
 import { BillingCheckoutButton } from "@/components/billing-checkout-button";
+import {
+  PricingTable,
+  PricingTableBody,
+  PricingTableCell,
+  PricingTableHead,
+  PricingTableHeader,
+  PricingTablePlan,
+  PricingTableRow,
+} from "@/components/ui/pricing-table";
+import { COMPARISON_FEATURES } from "@/lib/pricing-features";
 
 export const TIERS = [
   {
@@ -155,6 +166,20 @@ type EnterpriseCTA = {
   href: string;
 };
 
+const PLAN_META: { icon: LucideIcon; badge: string }[] = [
+  { icon: Sparkles, badge: "Free" },
+  { icon: Shield, badge: "For individuals" },
+  { icon: Users, badge: "Most popular" },
+  { icon: Rocket, badge: "For agencies" },
+];
+
+const ctaClasses = (style: TierCTA["style"], popular: boolean) =>
+  popular
+    ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
+    : style === "primary"
+      ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
+      : "border border-border bg-background/50 hover:bg-accent hover:border-border/80";
+
 export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpriseCta: EnterpriseCTA }) {
   const [interval, setInterval] = useState<"month" | "year">("year");
 
@@ -162,7 +187,7 @@ export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpr
     <div className="space-y-6">
       {/* Billing toggle */}
       <div className="flex justify-center">
-        <div className="inline-flex items-center rounded-xl border border-border bg-background/50 p-1 gap-1">
+        <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-background/50 p-1">
           <button
             onClick={() => setInterval("month")}
             className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
@@ -189,124 +214,92 @@ export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpr
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
-        {TIERS.map((tier, i) => {
-          const cta = ctas[i];
-          const displayLabel = interval === "year" && cta.labelYear ? cta.labelYear : cta.label;
-          const isYearlyPaid = interval === "year" && "yearlyPrice" in tier;
-          const displayPrice = isYearlyPaid ? tier.yearlyPrice : tier.price;
-          const displayPeriod = isYearlyPaid ? "/ month" : tier.period;
-          const billedAs = isYearlyPaid && "yearlyBilledAs" in tier ? tier.yearlyBilledAs : null;
-          const roiText = "roiYear" in tier && "roiMonth" in tier
-            ? interval === "year" ? tier.roiYear : tier.roiMonth
-            : null;
+      {/* Comparison table */}
+      <PricingTable className="mx-auto max-w-5xl">
+        <PricingTableHeader>
+          <PricingTableRow>
+            <th />
+            {TIERS.map((tier, i) => {
+              const meta = PLAN_META[i];
+              const cta = ctas[i];
+              const isPaid = "yearlyPrice" in tier;
+              const showYearly = interval === "year" && isPaid;
+              const displayPrice = showYearly ? (tier as { yearlyPrice: string }).yearlyPrice : tier.price;
+              const compareAt = showYearly ? tier.price : undefined;
+              const displayLabel = interval === "year" && cta.labelYear ? cta.labelYear : cta.label;
+              const billedAs = showYearly && "yearlyBilledAs" in tier ? tier.yearlyBilledAs : null;
+              const roiText = "roiYear" in tier && "roiMonth" in tier
+                ? interval === "year" ? tier.roiYear : tier.roiMonth
+                : null;
 
-          return (
-            <div
-              key={tier.name}
-              className={`relative rounded-2xl border p-7 flex flex-col gap-6 ${
-                tier.highlight
-                  ? "border-primary/40 bg-card shadow-[0_0_0_1px_hsl(var(--primary)/0.2),0_24px_48px_rgba(0,0,0,0.4)]"
-                  : "border-border bg-card"
-              }`}
-            >
-              {tier.highlight && (
-                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent rounded-t-2xl" />
-              )}
-              {"badge" in tier && tier.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-[11px] font-bold text-primary tracking-wide">
-                    {tier.badge}
-                  </span>
-                </div>
-              )}
-
-              <div className="xl:min-h-[168px]">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">{tier.name}</p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-4xl font-black">{displayPrice}</span>
-                  <span className="text-sm text-muted-foreground">{displayPeriod}</span>
-                </div>
-                {billedAs && (
-                  <p className="text-[11px] text-muted-foreground/50 mt-0.5 mb-1">{billedAs}</p>
-                )}
-                {roiText && (
-                  <p className="text-[11px] font-medium text-green-400/80 mt-1 mb-1">{roiText}</p>
-                )}
-                <p className="text-sm text-muted-foreground leading-relaxed mt-1">{tier.description}</p>
-              </div>
-
-              <div className="flex min-h-[88px] flex-col gap-2">
-                {cta.style === "disabled" ? (
-                  <span className="w-full text-center rounded-xl px-5 py-3 text-sm font-bold border border-border bg-background/50 opacity-50 cursor-default">
-                    {displayLabel}
-                  </span>
-                ) : cta.checkout ? (
-                  <>
-                    <BillingCheckoutButton
-                      tier={cta.checkout.tier}
-                      interval={interval}
-                      className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 disabled:cursor-wait disabled:opacity-70 ${
-                        cta.style === "primary"
-                          ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
-                          : "border border-border bg-background/50 hover:bg-accent hover:border-border/80"
-                      }`}
-                    >
-                      {displayLabel}
-                    </BillingCheckoutButton>
-                  </>
-                ) : (
-                  <Link
-                    href={cta.href ?? "/dashboard"}
-                    className={`w-full text-center rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 ${
-                      cta.style === "primary"
-                        ? "bg-primary text-primary-foreground shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]"
-                        : "border border-border bg-background/50 hover:bg-accent hover:border-border/80"
-                    }`}
+              return (
+                <th key={tier.name} className="p-1">
+                  <PricingTablePlan
+                    name={tier.name}
+                    badge={("badge" in tier && tier.badge) || meta.badge}
+                    icon={meta.icon}
+                    price={displayPrice}
+                    compareAt={compareAt}
+                    className={
+                      tier.highlight
+                        ? "border-primary/40 shadow-[0_0_0_1px_hsl(var(--primary)/0.2),0_18px_40px_rgba(0,0,0,0.35)]"
+                        : undefined
+                    }
                   >
-                    {displayLabel}
-                  </Link>
-                )}
-                {"socialProof" in tier && tier.socialProof && (
-                  <p className="text-center text-[11px] text-muted-foreground/50">{tier.socialProof}</p>
-                )}
-                {"trust" in tier && tier.trust && (
-                  <p className="text-center text-[11px] text-muted-foreground/40">{tier.trust}</p>
-                )}
-              </div>
+                    {billedAs && (
+                      <p className="text-muted-foreground/60 mb-1 text-center text-[11px]">{billedAs}</p>
+                    )}
+                    {roiText && (
+                      <p className="mb-2 text-center text-[11px] font-medium text-green-400/80">{roiText}</p>
+                    )}
 
-              <div className="space-y-2.5">
-                {tier.features.map((f) => (
-                  <div key={f.text} className="flex items-start gap-2.5">
-                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 text-green-400 shrink-0 mt-0.5">
-                      <path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm text-foreground/80">
-                      {f.text}
-                      {"note" in f && f.note && (
-                        <span className="ml-1.5 text-[11px] text-muted-foreground/50 font-medium">{f.note}</span>
-                      )}
-                    </span>
-                  </div>
-                ))}
-                {tier.missing.map((f) => (
-                  <div key={f} className="flex items-start gap-2.5 opacity-35">
-                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5">
-                      <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
-                    </svg>
-                    <span className="text-sm text-muted-foreground">{f}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                    {cta.style === "disabled" ? (
+                      <span className="block w-full cursor-default rounded-lg border border-border bg-background/50 px-5 py-2.5 text-center text-sm font-bold opacity-50">
+                        {displayLabel}
+                      </span>
+                    ) : cta.checkout ? (
+                      <BillingCheckoutButton
+                        tier={cta.checkout.tier}
+                        interval={interval}
+                        className={`w-full rounded-lg px-5 py-2.5 text-center text-sm font-bold transition-all duration-200 disabled:cursor-wait disabled:opacity-70 ${ctaClasses(cta.style, tier.highlight)}`}
+                      >
+                        {displayLabel}
+                      </BillingCheckoutButton>
+                    ) : (
+                      <Link
+                        href={cta.href ?? "/dashboard"}
+                        className={`block w-full rounded-lg px-5 py-2.5 text-center text-sm font-bold transition-all duration-200 ${ctaClasses(cta.style, tier.highlight)}`}
+                      >
+                        {displayLabel}
+                      </Link>
+                    )}
+
+                    {"socialProof" in tier && tier.socialProof && (
+                      <p className="text-muted-foreground/50 mt-2 text-center text-[11px]">{tier.socialProof}</p>
+                    )}
+                    {"trust" in tier && tier.trust && (
+                      <p className="text-muted-foreground/40 mt-2 text-center text-[11px]">{tier.trust}</p>
+                    )}
+                  </PricingTablePlan>
+                </th>
+              );
+            })}
+          </PricingTableRow>
+        </PricingTableHeader>
+        <PricingTableBody>
+          {COMPARISON_FEATURES.map((feature) => (
+            <PricingTableRow key={feature.label}>
+              <PricingTableHead>{feature.label}</PricingTableHead>
+              {TIERS.map((tier, i) => (
+                <PricingTableCell key={tier.name}>{feature.values[i]}</PricingTableCell>
+              ))}
+            </PricingTableRow>
+          ))}
+        </PricingTableBody>
+      </PricingTable>
 
       {/* Enterprise banner */}
-      <div className="relative rounded-2xl border border-border bg-card px-8 py-7 flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
+      <div className="relative mx-auto flex max-w-5xl flex-col gap-6 rounded-2xl border border-border bg-card px-8 py-7 md:flex-row md:items-center md:gap-10">
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-muted-foreground/20 to-transparent rounded-t-2xl" />
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">{ENTERPRISE_TIER.name}</p>
@@ -332,7 +325,6 @@ export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpr
           </a>
           <p className="mt-2 text-center text-[11px] text-muted-foreground/40">No commitment required</p>
         </div>
-      </div>
       </div>
     </div>
   );
