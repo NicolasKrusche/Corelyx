@@ -20,6 +20,7 @@ import {
   type DashboardFailedRun,
 } from "@/components/dashboard/dashboard-attention-panel";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { UpgradeBannerNudge } from "@/components/dashboard/upgrade-banner-nudge";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { getUserCreditBalance } from "@/lib/credits";
 import { formatCredits } from "@/lib/credit-packs";
@@ -186,7 +187,7 @@ export default async function DashboardPage({
       .select("id, name")
       .eq("id", activeWorkspace.workspaceId)
       .single(),
-    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+    supabase.from("profiles").select("display_name, tier").eq("id", user.id).single(),
     supabase
       .from("programs")
       .select("id, name, description, execution_mode, is_active, schema_version, last_run_at, created_at, updated_at, folder_id")
@@ -359,11 +360,15 @@ export default async function DashboardPage({
       programName: programs.find((program) => program.id === run.program_id)?.name ?? t("unknownWorkflow"),
       triggeredBy: run.triggered_by,
     }));
-  const displayName = (profileResult.data as { display_name?: string | null } | null)?.display_name?.split(" ")[0];
+  const profile = profileResult.data as { display_name?: string | null; tier?: string | null } | null;
+  const displayName = profile?.display_name?.split(" ")[0];
+  const isFreeTier = (profile?.tier ?? "free") === "free";
   const workspaceName = workspace?.name ?? t("unknownWorkflow");
 
   return (
     <div className="mx-auto w-full max-w-[1480px] space-y-5 pb-8 text-foreground">
+      {isFreeTier && <UpgradeBannerNudge />}
+
       {creditBalance && creditBalance.total !== Infinity && creditBalance.total < 1_000 && (
         <section className="flex items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm">
           <p className="font-medium text-amber-700 dark:text-amber-300">
