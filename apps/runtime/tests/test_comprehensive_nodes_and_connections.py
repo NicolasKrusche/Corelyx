@@ -134,6 +134,7 @@ def _executor(program: ProgramSchema) -> ProgramExecutor:
     executor._limiter.check_llm_tokens = Mock()
     executor._limiter.check_cost = Mock()
     executor._limiter.check_connector_call = Mock()
+    executor.dry_run = False
     return executor
 
 
