@@ -58,17 +58,17 @@ const HOW_IT_WORKS = [
   {
     num: "01",
     title: "Describe the outcome",
-    body: "Type “when a lead emails us, qualify it and add it to HubSpot” — or start from a blank graph. Genesis drafts the triggers, steps, and approval points for you.",
+    body: "Tell Genesis what you want in plain language. It drafts the triggers, steps, and approvals.",
   },
   {
     num: "02",
     title: "Review before it runs",
-    body: "The visual graph stays tied to the executable schema, so what you see is exactly what executes. Nothing runs behind your back.",
+    body: "The graph is tied to the executable schema — what you see is exactly what runs.",
   },
   {
     num: "03",
-    title: "Refine in natural language",
-    body: "Adjust a step, add a branch, or tighten a permission by asking — no rebuilding from scratch.",
+    title: "Refine by asking",
+    body: "Add a branch or tighten a permission in natural language. No rebuilding from scratch.",
   },
 ];
 
@@ -623,6 +623,183 @@ function TrustBar() {
   );
 }
 
+// ---- In-code product mock visuals (no real screenshots available yet) ----
+
+function MockChrome({ label, badge }: { label: string; badge?: React.ReactNode }) {
+  return (
+    <div className="flex h-9 items-center gap-2 border-b border-[#eceef1] bg-[#fbfcfd] px-4">
+      <span className="h-2 w-2 rounded-full bg-[#ff6b57]/70" />
+      <span className="h-2 w-2 rounded-full bg-[#f0c15a]/70" />
+      <span className="h-2 w-2 rounded-full bg-[#6fdc96]/70" />
+      <span className="ml-2 font-mono text-[11px] text-[#9ca3af]">{label}</span>
+      {badge && <span className="ml-auto">{badge}</span>}
+    </div>
+  );
+}
+
+function GenesisGraphMock() {
+  const nodes = [
+    { label: "Gmail trigger", sub: "inbound lead", dot: "bg-[#75d7a3]" },
+    { label: "Classify", sub: "intent · fast", dot: "bg-[#f0a33c]" },
+    { label: "Approval", sub: "review", dot: "bg-[#f39ac2]" },
+    { label: "HubSpot", sub: "create contact", dot: "bg-[#7fb7ff]" },
+  ];
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#e1e4e8] bg-[#fbfcfd] p-4 shadow-[0_1px_0_rgba(17,19,24,0.03),0_30px_60px_-30px_rgba(17,19,24,0.22)] sm:p-5">
+      <div className="flex items-center gap-2 rounded-xl border border-[#e8eaed] bg-white px-4 py-3">
+        <Sparkles className="h-4 w-4 shrink-0 text-[#f05a28]" />
+        <span className="text-sm text-[#111318]">When a lead emails us, qualify it and add it to HubSpot</span>
+        <span className="ml-auto hidden items-center gap-1.5 rounded-full bg-[#fff4f0] px-2.5 py-1 text-[11px] font-semibold text-[#f05a28] sm:inline-flex">
+          Genesis
+          <ArrowRight className="h-3 w-3" />
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {nodes.map((n, i) => (
+          <div key={n.label} className="relative rounded-xl border border-[#e8eaed] bg-white p-3">
+            <span className={`mb-2 block h-1.5 w-1.5 rounded-full ${n.dot}`} />
+            <p className="text-[12px] font-semibold text-[#111318]">{n.label}</p>
+            <p className="mt-0.5 text-[10px] text-[#9ca3af]">{n.sub}</p>
+            {i < nodes.length - 1 && (
+              <ArrowRight className="absolute -right-[11px] top-1/2 hidden h-3.5 w-3.5 -translate-y-1/2 text-[#d1d5db] sm:block" />
+            )}
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 flex items-center gap-2 px-1 text-[11px] text-[#9ca3af]">
+        <Check className="h-3.5 w-3.5 text-[#1f8a5b]" strokeWidth={2.5} />
+        Generated &amp; validated · ready to review
+      </p>
+    </div>
+  );
+}
+
+function RunMock() {
+  const steps = [
+    { tone: "done", title: "Gmail trigger", sub: "new inbound lead" },
+    { tone: "done", title: "Classify intent", sub: "model · fast" },
+    { tone: "wait", title: "Approval gate", sub: "waiting on you" },
+    { tone: "queued", title: "HubSpot update", sub: "create contact" },
+  ];
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#e1e4e8] bg-white shadow-[0_1px_0_rgba(17,19,24,0.03),0_30px_60px_-30px_rgba(17,19,24,0.22)]">
+      <MockChrome
+        label="run / lead-ops · #1284"
+        badge={
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eafaf2] px-2 py-0.5 text-[10px] font-medium text-[#1f8a5b]">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#1f8a5b]" />
+            running
+          </span>
+        }
+      />
+      <div className="space-y-2 p-4">
+        {steps.map((s) => (
+          <div key={s.title} className="flex items-center gap-3 rounded-xl border border-[#eceef1] bg-[#fcfdfe] px-3 py-2.5">
+            {s.tone === "done" && <Check className="h-4 w-4 shrink-0 text-[#1f8a5b]" strokeWidth={2.5} />}
+            {s.tone === "wait" && <span className="h-3.5 w-3.5 shrink-0 animate-pulse rounded-full border-2 border-[#f0a33c]" />}
+            {s.tone === "queued" && <span className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-[#d1d5db]" />}
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-[#111318]">{s.title}</p>
+              <p className="text-[11px] text-[#9ca3af]">{s.sub}</p>
+            </div>
+            {s.tone === "wait" && (
+              <div className="ml-auto flex gap-1.5">
+                <span className="rounded-md bg-[#111318] px-2 py-1 text-[10px] font-semibold text-white">Approve</span>
+                <span className="rounded-md border border-[#e8eaed] px-2 py-1 text-[10px] font-medium text-[#6b7280]">Decline</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between border-t border-[#eceef1] px-4 py-2.5 text-[11px] text-[#9ca3af]">
+        <span>2 / 4 steps complete</span>
+        <span className="font-medium text-[#f0a33c]">1 awaiting you</span>
+      </div>
+    </div>
+  );
+}
+
+function LightNode({
+  className,
+  dot,
+  title,
+  sub,
+}: {
+  className: string;
+  dot: string;
+  title: string;
+  sub: string;
+}) {
+  return (
+    <div className={`absolute w-[124px] rounded-lg border border-[#e6e8eb] bg-white px-2.5 py-2 shadow-[0_4px_14px_rgba(17,19,24,0.06)] ${className}`}>
+      <span className={`mb-1 block h-1.5 w-1.5 rounded-full ${dot}`} />
+      <p className="text-[11px] font-semibold leading-tight text-[#111318]">{title}</p>
+      <p className="mt-0.5 text-[10px] text-[#9ca3af]">{sub}</p>
+    </div>
+  );
+}
+
+function LightEditorMock() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#e1e4e8] bg-white shadow-[0_1px_0_rgba(17,19,24,0.03),0_30px_60px_-30px_rgba(17,19,24,0.22)]">
+      <MockChrome
+        label="workflow / onboarding / editor"
+        badge={<span className="rounded-md border border-[#e8eaed] bg-white px-2 py-0.5 text-[10px] text-[#9ca3af]">editing</span>}
+      />
+      <div className="relative h-[320px] overflow-hidden bg-[#fafbfc]">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-[linear-gradient(to_right,rgba(17,19,24,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(17,19,24,0.03)_1px,transparent_1px)] bg-[size:28px_28px]"
+        />
+        <svg aria-hidden="true" className="absolute inset-0 h-full w-full">
+          <defs>
+            <marker id="le-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,1 L0,5 L5,3 z" fill="rgba(160,165,172,0.95)" />
+            </marker>
+          </defs>
+          <path d="M130,150 C168,150 168,150 200,150" stroke="rgba(160,165,172,0.6)" strokeWidth="1.5" fill="none" markerEnd="url(#le-arr)" />
+          <path d="M324,150 C348,150 348,76 372,76" stroke="rgba(117,215,163,0.55)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#le-arr)" />
+          <path d="M324,150 C348,150 348,180 372,180" stroke="rgba(127,183,255,0.55)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#le-arr)" />
+          <path d="M324,150 C348,150 348,262 372,262" stroke="rgba(243,154,194,0.55)" strokeWidth="1.5" strokeDasharray="5,3" fill="none" markerEnd="url(#le-arr)" />
+        </svg>
+        <LightNode className="left-6 top-[128px]" dot="bg-[#75d7a3]" title="Deal won" sub="HubSpot trigger" />
+        <LightNode className="left-[200px] top-[128px]" dot="bg-[#f0a33c]" title="Branch" sub="enterprise?" />
+        <LightNode className="left-[372px] top-[54px]" dot="bg-[#75d7a3]" title="Loop seats" sub="invite each user" />
+        <LightNode className="left-[372px] top-[158px]" dot="bg-[#7fb7ff]" title="Welcome email" sub="Gmail · send" />
+        <LightNode className="left-[372px] top-[240px]" dot="bg-[#f39ac2]" title="Approval" sub="manager sign-off" />
+        <div className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full border border-[#d8efe2] bg-[#f1faf5] px-2.5 py-0.5 text-[10px] font-medium text-[#1f8a5b]">
+          <Check className="h-3 w-3" strokeWidth={2.5} />
+          Schema valid
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppTile({ name }: { name: string }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-[#e8eaed] bg-white px-3 py-2.5">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#f3f4f6] text-[11px] font-bold text-[#6b7280]">
+        {name.slice(0, 1)}
+      </span>
+      <span className="truncate text-sm font-medium text-[#374151]">{name}</span>
+    </div>
+  );
+}
+
+function LogoGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      {INTEGRATIONS.map((name) => (
+        <AppTile key={name} name={name} />
+      ))}
+      <div className="flex items-center justify-center rounded-xl border border-dashed border-[#d6dae0] bg-[#f8f9fb] px-3 py-2.5 text-sm font-medium text-[#9ca3af]">
+        + 190 more
+      </div>
+    </div>
+  );
+}
+
 function HowItWorksSection() {
   return (
     <section id="how" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
@@ -638,29 +815,10 @@ function HowItWorksSection() {
           </p>
         </Reveal>
 
-        {/* Genesis prompt mock */}
+        {/* Genesis prompt → generated graph visual */}
         <Reveal i={0.1}>
-          <div className="mt-12 overflow-hidden rounded-2xl border border-[#e1e4e8] bg-[#fbfcfd] p-4 sm:p-5">
-            <div className="flex items-center gap-2 rounded-xl border border-[#e8eaed] bg-white px-4 py-3">
-              <Sparkles className="h-4 w-4 shrink-0 text-[#f05a28]" />
-              <span className="text-sm text-[#111318]">
-                When a lead emails us, qualify it and add it to HubSpot
-              </span>
-              <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#fff4f0] px-2.5 py-1 text-[11px] font-semibold text-[#f05a28]">
-                Build with Genesis
-                <ArrowRight className="h-3 w-3" />
-              </span>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 px-1 text-[11px] text-[#9ca3af]">
-              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">Gmail trigger</span>
-              <ArrowRight className="h-3 w-3" />
-              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">Classify</span>
-              <ArrowRight className="h-3 w-3" />
-              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">Approval</span>
-              <ArrowRight className="h-3 w-3" />
-              <span className="rounded-md border border-[#e8eaed] bg-white px-2 py-1 font-mono">HubSpot</span>
-            </div>
-            {/* Replace this mock with a real Genesis screenshot/recording when available. */}
+          <div className="mt-12">
+            <GenesisGraphMock />
           </div>
         </Reveal>
 
@@ -695,23 +853,34 @@ function UseCasesSection() {
           </div>
         </Reveal>
 
-        <div className="grid sm:grid-cols-2 sm:gap-x-14">
-          {USE_CASES.map((useCase, i) => (
-            <Reveal key={useCase.title} i={(i % 2) * 0.08}>
-              <div className="group flex gap-5 border-b border-[#eceef1] py-7">
-                <span className="font-mono text-sm tabular-nums text-[#d1d5db] transition-colors group-hover:text-[#f05a28]">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <h3 className="flex items-center gap-2 text-base font-semibold text-[#111318]">
-                    {useCase.title}
-                    <ArrowRight className="h-3.5 w-3.5 -translate-x-1 text-[#f05a28] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-[#6b7280]">{useCase.body}</p>
+        <div className="grid gap-12 lg:grid-cols-[1fr_380px] lg:gap-16">
+          <div>
+            {USE_CASES.map((useCase, i) => (
+              <Reveal key={useCase.title} i={(i % 3) * 0.08}>
+                <div className="group flex gap-5 border-b border-[#eceef1] py-6">
+                  <span className="font-mono text-sm tabular-nums text-[#d1d5db] transition-colors group-hover:text-[#f05a28]">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <h3 className="flex items-center gap-2 text-base font-semibold text-[#111318]">
+                      {useCase.title}
+                      <ArrowRight className="h-3.5 w-3.5 -translate-x-1 text-[#f05a28] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-[#6b7280]">{useCase.body}</p>
+                  </div>
                 </div>
-              </div>
-            </Reveal>
-          ))}
+              </Reveal>
+            ))}
+          </div>
+
+          <Reveal i={0.15}>
+            <div className="lg:sticky lg:top-24">
+              <RunMock />
+              <p className="mt-3 px-1 text-xs text-[#9ca3af]">
+                A live run of “Lead qualification” — paused on the human approval step.
+              </p>
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -719,17 +888,19 @@ function UseCasesSection() {
 }
 
 function IntegrationsSection() {
-  const doubled = [...INTEGRATIONS, ...INTEGRATIONS];
-
   return (
     <section id="integrations" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <Reveal>
             <SectionLabel>Integrations</SectionLabel>
             <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-              Deeply integrated with 200+ of the apps you already run on.
+              Deeply integrated with 200+ of the apps you run on.
             </h2>
+            <p className="mt-4 max-w-md text-sm leading-6 text-[#6b7280]">
+              Each connector exposes scoped operations — a workflow only gets the
+              access it needs.
+            </p>
           </Reveal>
           <Reveal i={0.2}>
             <Link
@@ -742,27 +913,11 @@ function IntegrationsSection() {
           </Reveal>
         </div>
 
-        <Reveal i={0.15}>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-[#6b7280]">
-            Gmail, Slack, Notion, HubSpot, Stripe, Airtable, Google Sheets and
-            hundreds more — each connector exposes scoped operations
-            (read / write / read-write), so a workflow only ever gets the access
-            it needs.
-          </p>
-        </Reveal>
-
-        <div className="relative mt-12 overflow-hidden rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] py-5">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-[#f8f9fb] to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-[#f8f9fb] to-transparent" />
-          <div className="flex animate-marquee items-center gap-8 px-6" style={{ width: "max-content" }}>
-            {doubled.map((name, i) => (
-              <div key={`${name}-${i}`} className="flex items-center gap-8 whitespace-nowrap">
-                <span className="text-sm font-medium text-[#6b7280]">{name}</span>
-                <span className="h-1 w-1 rounded-full bg-[#d1d5db]" />
-              </div>
-            ))}
+        <Reveal i={0.1}>
+          <div className="mt-12">
+            <LogoGrid />
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -935,45 +1090,40 @@ function VisualEditorSection() {
   return (
     <section className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
-        <div className="grid gap-12 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-16">
+        <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr] lg:items-center lg:gap-16">
           <Reveal>
             <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
               Precise control — without the tangled wiring diagram.
             </h2>
             <p className="mt-5 max-w-md text-base leading-7 text-[#6b7280]">
               The canvas stays readable as your logic grows, and the graph you
-              build is the graph that runs. Start with the basics; reach for the
-              advanced primitives when you need them.
+              build is the graph that runs.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-4">
+            <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3">
               {basics.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="flex items-center gap-2.5">
+                  <div key={item.label} className="flex items-center gap-2">
                     <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
                     <span className="text-sm font-medium text-[#111318]">{item.label}</span>
-                    <span className="text-sm text-[#9ca3af]">{item.note}</span>
                   </div>
                 );
               })}
             </div>
+
+            <ul className="mt-6 space-y-2.5">
+              {advanced.map((item) => (
+                <li key={item} className="flex items-start gap-2.5">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#f05a28]" strokeWidth={2.25} />
+                  <span className="text-sm leading-6 text-[#6b7280]">{item}</span>
+                </li>
+              ))}
+            </ul>
           </Reveal>
 
           <Reveal i={0.1}>
-            <div className="rounded-2xl border border-[#e1e4e8] bg-[#fbfcfd] p-6 sm:p-8">
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#9ca3af]">
-                Advanced primitives
-              </p>
-              <ul className="mt-5 divide-y divide-[#eceef1]">
-                {advanced.map((item) => (
-                  <li key={item} className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#f05a28]" strokeWidth={2.25} />
-                    <span className="text-sm leading-6 text-[#3f444d]">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <LightEditorMock />
           </Reveal>
         </div>
       </div>
