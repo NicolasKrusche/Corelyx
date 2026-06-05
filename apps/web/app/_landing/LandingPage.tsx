@@ -779,62 +779,132 @@ function FinalCta() {
   );
 }
 
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
+const FOOTER_COLUMNS = [
+  {
+    title: "Product",
+    links: [
+      { label: "Pricing", href: "/pricing" },
+      { label: "Integrations", href: "/integrations" },
+      { label: "Templates", href: "/templates" },
+      { label: "Use cases", href: "/use-cases" },
+      { label: "Compare", href: "/compare" },
+      { label: "Docs", href: "/docs" },
+      { label: "Blog", href: "/blog" },
+      { label: "Sign in", href: "/login" },
+    ],
+  },
+  {
+    title: "Compliance",
+    links: [
+      { label: "Trust Center", href: "/trust" },
+      { label: "GDPR", href: "/gdpr" },
+      { label: "AI Act", href: "/ai-act" },
+      { label: "Compliance", href: "/compliance" },
+      { label: "Security", href: "/security" },
+      { label: "DPA", href: "/dpa" },
+      { label: "Subprocessors", href: "/subprocessors" },
+      { label: "DPIA Template", href: "/dpia-template" },
+      { label: "Export Schema", href: "/data-export-schema" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
+      { label: "Impressum", href: "/impressum" },
+    ],
+  },
+];
+
 function SiteFooter() {
   return (
-    <footer className="border-t border-[#e8eaed] bg-white px-5 py-10 sm:px-8">
+    <footer className="border-t border-[#e8eaed] bg-white px-5 py-12 sm:px-8 sm:py-16">
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          {/* Brand column */}
           <div>
             <div className="flex items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/pictures/logo-no-bg.png" alt="" aria-hidden className="h-5 w-5 object-contain opacity-60" />
               <span className="text-sm font-semibold text-[#111318]">Corelyx</span>
             </div>
-            <p className="mt-2 text-xs text-[#9ca3af]">
+            <p className="mt-3 max-w-[220px] text-sm leading-6 text-[#6b7280]">
+              AI workflow automation built for GDPR compliance.
+            </p>
+            <p className="mt-4 text-xs text-[#9ca3af]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/austria-heart-removebg.png" alt="Austria Flag" className="mr-1 inline-block h-3 w-auto" />
               Built in Austria · EU-first infrastructure
             </p>
-            <p className="mt-1 text-xs text-[#9ca3af]">
-              © {new Date().getFullYear()} {legalIdentity.entityName}
+            <p className="mt-3 text-xs text-[#9ca3af]">
+              <a href="mailto:support@corelyx.app" className="transition-colors hover:text-[#6b7280]">support@corelyx.app</a>
             </p>
-            <p className="mt-1 max-w-sm text-xs leading-5 text-[#9ca3af]">
-              Contracting entity: {legalIdentity.contractingEntity}. Responsible person:{" "}
-              {legalIdentity.representative}.{" "}
-              {legalIdentity.addressLines.length > 0
-                ? `Registered address: ${legalIdentity.addressLines.join(", ")}.`
-                : "Registered address: see Impressum."}{" "}
-              Governing law: {legalIdentity.applicableLaw}.
-            </p>
-            <p className="mt-2 text-xs text-[#9ca3af]">
-              <a href="mailto:support@corelyx.app" className="hover:text-[#6b7280] transition-colors">support@corelyx.app</a>
-            </p>
+            <a
+              href="https://instagram.com/corelyx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e8eaed] text-[#9ca3af] transition-colors hover:border-[#d1d5db] hover:text-[#111318]"
+              aria-label="Corelyx on Instagram"
+            >
+              <InstagramIcon className="h-4 w-4" />
+            </a>
           </div>
 
-          <nav aria-label="Footer navigation">
-            <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#6b7280]">
-              <li><Link href="/pricing" className="transition-colors hover:text-[#111318]">Pricing</Link></li>
-              <li><Link href="/trust" className="transition-colors hover:text-[#111318]">Trust Center</Link></li>
-              <li><Link href="/docs" className="transition-colors hover:text-[#111318]">Docs</Link></li>
-              <li><Link href="/gdpr" className="transition-colors hover:text-[#111318]">GDPR</Link></li>
-              <li><Link href="/ai-act" className="transition-colors hover:text-[#111318]">AI Act</Link></li>
-              <li><Link href="/compliance" className="transition-colors hover:text-[#111318]">Compliance</Link></li>
-              <li><Link href="/templates" className="transition-colors hover:text-[#111318]">Templates</Link></li>
-              <li><Link href="/compare" className="transition-colors hover:text-[#111318]">Compare</Link></li>
-              <li><Link href="/blog" className="transition-colors hover:text-[#111318]">Blog</Link></li>
-              <li><Link href="/integrations" className="transition-colors hover:text-[#111318]">Integrations</Link></li>
-              <li><Link href="/use-cases" className="transition-colors hover:text-[#111318]">Use cases</Link></li>
-              <li><Link href="/security" className="transition-colors hover:text-[#111318]">Security</Link></li>
-              <li><Link href="/privacy" className="transition-colors hover:text-[#111318]">Privacy</Link></li>
-              <li><Link href="/terms" className="transition-colors hover:text-[#111318]">Terms</Link></li>
-              <li><Link href="/dpa" className="transition-colors hover:text-[#111318]">DPA</Link></li>
-              <li><Link href="/subprocessors" className="transition-colors hover:text-[#111318]">Subprocessors</Link></li>
-              <li><Link href="/dpia-template" className="transition-colors hover:text-[#111318]">DPIA</Link></li>
-              <li><Link href="/data-export-schema" className="transition-colors hover:text-[#111318]">Export schema</Link></li>
-              <li><Link href="/impressum" className="transition-colors hover:text-[#111318]">Impressum</Link></li>
-              <li><Link href="/login" className="transition-colors hover:text-[#111318]">Sign in</Link></li>
-            </ul>
-          </nav>
+          {/* Link columns */}
+          {FOOTER_COLUMNS.map((col) => (
+            <nav key={col.title} aria-label={`${col.title} links`}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#9ca3af]">
+                {col.title}
+              </p>
+              <ul className="mt-4 space-y-3">
+                {col.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-[#6b7280] transition-colors hover:text-[#111318]"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
+
+        {/* Bottom bar */}
+        <div className="mt-12 flex flex-col gap-2 border-t border-[#e8eaed] pt-6">
+          <p className="text-xs text-[#9ca3af]">
+            &copy; {new Date().getFullYear()} {legalIdentity.entityName}. All rights reserved.
+          </p>
+          <p className="max-w-3xl text-xs leading-5 text-[#9ca3af]">
+            Contracting entity: {legalIdentity.contractingEntity}. Responsible person:{" "}
+            {legalIdentity.representative}.{" "}
+            {legalIdentity.addressLines.length > 0
+              ? `Registered address: ${legalIdentity.addressLines.join(", ")}.`
+              : "Registered address: see Impressum."}{" "}
+            Governing law: {legalIdentity.applicableLaw}.
+          </p>
         </div>
       </div>
     </footer>
