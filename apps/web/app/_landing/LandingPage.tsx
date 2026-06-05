@@ -6,31 +6,23 @@ import { useRef } from "react";
 import { legalIdentity } from "@/lib/legal";
 import {
   ArrowRight,
-  BarChart3,
   Bot,
-  Boxes,
   Building2,
   Cable,
   Check,
-  CreditCard,
   Eye,
   FileText,
   Filter,
-  Gauge,
   GitBranch,
-  Headphones,
   KeyRound,
   LockKeyhole,
-  MessageSquare,
   Plug,
   Radio,
   Repeat,
   ShieldCheck,
   Sparkles,
-  UserPlus,
   Users,
   Webhook,
-  Workflow,
 } from "lucide-react";
 
 const INTEGRATIONS = [
@@ -82,32 +74,26 @@ const HOW_IT_WORKS = [
 
 const USE_CASES = [
   {
-    icon: UserPlus,
     title: "Lead qualification & routing",
     body: "Classify inbound email, enrich it, and create the CRM record — with an approval before any outreach.",
   },
   {
-    icon: Sparkles,
     title: "Customer onboarding",
     body: "Kick off welcome sequences across Gmail, Slack, and Notion the moment a deal closes.",
   },
   {
-    icon: CreditCard,
     title: "Invoice & payment ops",
     body: "Watch Stripe events, reconcile, and notify finance — with a gate on anything sensitive.",
   },
   {
-    icon: Headphones,
     title: "Support triage & escalation",
     body: "Categorize tickets, draft responses with AI, and route the edge cases to a person.",
   },
   {
-    icon: BarChart3,
     title: "Pipeline hygiene & reporting",
     body: "Deduplicate, sort, and roll up CRM data into a weekly digest — automatically.",
   },
   {
-    icon: MessageSquare,
     title: "Content & social publishing",
     body: "Turn a brief into scheduled posts across your tools, with review before anything goes live.",
   },
@@ -115,97 +101,68 @@ const USE_CASES = [
 
 const CORE_BENEFITS = [
   {
-    icon: Gauge,
-    title: "Predictable, reviewable workflows",
-    body: "The visual graph is the execution contract — inspect where data moves and which systems are called before it runs. Every run keeps node status, inputs, sanitized outputs, and failures.",
+    title: "Predictable & reviewable",
+    body: "The visual graph is the execution contract — inspect where data moves and which systems are called before it runs. Every run keeps status, inputs, sanitized outputs, and failures.",
   },
   {
-    icon: Users,
-    title: "Human-in-the-loop control",
-    body: "Route sensitive actions — sending messages, changing customer data, moving money — to the right person with approval queues. High-impact steps pause until someone approves, and the decision is recorded.",
+    title: "Human-in-the-loop",
+    body: "Route sensitive actions — sending messages, changing customer data, moving money — to the right person. High-impact steps pause until someone approves, and the decision is recorded.",
   },
   {
-    icon: Boxes,
-    title: "Building blocks for anything",
+    title: "Composable, not rigid",
     body: "Branches, loops, transforms, AI steps, and bounded autonomous agent tasks — composed visually, validated automatically, and runnable on a schedule, a webhook, or an event.",
   },
 ];
 
-const BUILDING_BLOCKS = [
+// Merged building-blocks + deep-dive: one authoritative list of what you build with.
+const BUILD_WITH = [
   {
-    icon: Workflow,
-    name: "Workflows",
-    body: "A validated graph of triggers, steps, and approvals — what you see is exactly what runs.",
-    example: "New form response → enrich → Slack the team.",
+    icon: Radio,
+    label: "Triggers",
+    body: "Start a workflow however the work actually arrives.",
+    example: "cron · 200+ app events · webhook · manual · another workflow's output",
   },
   {
     icon: Plug,
-    name: "App connectors",
-    body: "200+ apps with scoped, server-side credentials, so a workflow only gets the access it needs.",
-    example: "Create a HubSpot contact with write-only access.",
+    label: "App steps",
+    body: "Call the 200+ tools your team already uses, with credentials resolved server-side through Vault.",
+    example: "send a Slack message · create a HubSpot deal · append a Sheet · upload to S3",
   },
   {
     icon: Sparkles,
-    name: "AI steps",
-    body: "Bring your own key or use platform credits across Anthropic, OpenAI, Groq, Google, and OpenRouter.",
-    example: "Classify intent from an inbound email.",
+    label: "AI steps",
+    body: "Extraction, classification, and writing — built-in or custom, with model choice across five providers (BYOK or platform credits).",
+    example: "classify a ticket · extract fields · summarize a thread · draft a reply",
   },
   {
     icon: Bot,
-    name: "Agent tasks",
-    body: "A bounded autonomous tool-loop — capped iterations, allow-listed tools, approval before any write.",
-    example: "Research a company and draft a summary, safely.",
-  },
-  {
-    icon: ShieldCheck,
-    name: "Approvals",
-    body: "Human checkpoints with timeouts that pause a run until someone decides.",
-    example: "Hold an outbound message until a manager signs off.",
-  },
-];
-
-const DEEP_DIVE = [
-  {
-    icon: Radio,
-    title: "Triggers",
-    body: "Start a workflow however the work actually arrives.",
-    examples: ["Schedule (cron)", "App event (200+ apps)", "Incoming webhook", "Manual run", "Another workflow's output"],
-  },
-  {
-    icon: Plug,
-    title: "App steps",
-    body: "Call the tools your team already uses, with credentials resolved server-side through Vault.",
-    examples: ["Send a Slack message", "Create a HubSpot deal", "Append a Google Sheet row", "Upload to S3"],
-  },
-  {
-    icon: Sparkles,
-    title: "AI steps",
-    body: "Built-in patterns for extraction, classification, and writing — plus custom prompts and model choice.",
-    examples: ["Classify a ticket", "Extract fields from an email", "Summarize a thread", "Draft a reply"],
+    label: "Agent tasks",
+    body: "A bounded autonomous tool-loop: capped iterations, allow-listed tools, approval before any write.",
+    example: "research a company and draft a summary — without going off the rails",
   },
   {
     icon: Users,
-    title: "Human-in-the-loop",
-    body: "Insert approval checkpoints anywhere judgment is needed; the run pauses with full context until someone decides.",
-    examples: ["Approve before sending", "Approve before a CRM write", "Approve before an agent acts"],
+    label: "Human-in-the-loop",
+    body: "Approval checkpoints anywhere judgment is needed; the run pauses with full context until someone decides.",
+    example: "approve before sending · before a CRM write · before an agent acts",
   },
   {
     icon: Webhook,
-    title: "Webhooks",
-    body: "Catch events from anything that can POST, and trigger runs at a unique endpoint.",
-    examples: ["A form vendor's webhook", "A billing event", "A custom internal service"],
+    label: "Webhooks",
+    body: "Catch events from anything that can POST and trigger runs at a unique endpoint.",
+    example: "form vendors · billing events · internal services",
   },
   {
     icon: Filter,
-    title: "Data utilities",
+    label: "Data utilities",
     body: "Shape data between steps without writing glue code.",
-    examples: ["Transform & filter", "Parse JSON / CSV", "Deduplicate & sort", "Format with a template"],
+    example: "transform · filter · parse JSON/CSV · deduplicate · sort",
   },
   {
     icon: ShieldCheck,
-    title: "Governance & audit",
+    label: "Governance & audit",
     body: "Every run produces a reviewable record on EU-hosted infrastructure.",
-    examples: ["Export a processing record", "Trace a failed run", "Review who approved what"],
+    example: "processing records · failure traces · approval history",
   },
 ];
 
@@ -329,7 +286,6 @@ export default function LandingPage() {
       <ControlSection />
       <BuildingBlocksSection />
       <VisualEditorSection />
-      <DeepDiveSection />
       <ComplianceSection />
       <SocialProofSection />
       <FinalCta />
@@ -726,34 +682,36 @@ function HowItWorksSection() {
 
 function UseCasesSection() {
   return (
-    <section id="use-cases" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
+    <section id="use-cases" className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal>
-          <SectionLabel>Use cases</SectionLabel>
-          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-            Run the operations that used to eat your week.
-          </h2>
-          <p className="mt-5 max-w-xl text-base leading-7 text-[#6b7280]">
-            Teams use Corelyx to automate whole processes end to end — not just
-            single tasks.
-          </p>
+          <div className="flex flex-col gap-4 border-b border-[#111318] pb-8 sm:flex-row sm:items-end sm:justify-between">
+            <h2 className="max-w-xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+              The processes that used to eat your week.
+            </h2>
+            <p className="max-w-xs text-sm leading-6 text-[#6b7280]">
+              Whole operations, automated end to end — not just single tasks.
+            </p>
+          </div>
         </Reveal>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {USE_CASES.map((useCase, i) => {
-            const Icon = useCase.icon;
-            return (
-              <Reveal key={useCase.title} i={(i % 3) * 0.1}>
-                <article className="h-full rounded-2xl border border-[#e8eaed] bg-white p-6">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff4f0]">
-                    <Icon className="h-[18px] w-[18px] text-[#f05a28]" strokeWidth={1.75} />
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold text-[#111318]">{useCase.title}</h3>
+        <div className="grid sm:grid-cols-2 sm:gap-x-14">
+          {USE_CASES.map((useCase, i) => (
+            <Reveal key={useCase.title} i={(i % 2) * 0.08}>
+              <div className="group flex gap-5 border-b border-[#eceef1] py-7">
+                <span className="font-mono text-sm tabular-nums text-[#d1d5db] transition-colors group-hover:text-[#f05a28]">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h3 className="flex items-center gap-2 text-base font-semibold text-[#111318]">
+                    {useCase.title}
+                    <ArrowRight className="h-3.5 w-3.5 -translate-x-1 text-[#f05a28] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
+                  </h3>
                   <p className="mt-2 text-sm leading-6 text-[#6b7280]">{useCase.body}</p>
-                </article>
-              </Reveal>
-            );
-          })}
+                </div>
+              </div>
+            </Reveal>
+          ))}
         </div>
       </div>
     </section>
@@ -812,30 +770,30 @@ function IntegrationsSection() {
 
 function CoreBenefitsSection() {
   return (
-    <section className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
-      <div className="mx-auto max-w-6xl">
+    <section className="relative overflow-hidden bg-[#07080a] px-5 py-24 sm:px-8 sm:py-32">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-24 left-1/2 h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-[#f05a28]/[0.06] blur-3xl"
+      />
+      <div className="relative mx-auto max-w-6xl">
         <Reveal>
-          <SectionLabel>Why teams pick Corelyx</SectionLabel>
-          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-            Powerful where it counts. Predictable everywhere else.
+          <h2 className="max-w-2xl text-3xl font-semibold leading-[1.15] tracking-tight text-white sm:text-4xl">
+            Powerful where it counts.
+            <br />
+            <span className="text-white/30">Predictable everywhere else.</span>
           </h2>
         </Reveal>
 
-        <div className="mt-12 grid gap-5 lg:grid-cols-3">
-          {CORE_BENEFITS.map((benefit, i) => {
-            const Icon = benefit.icon;
-            return (
-              <Reveal key={benefit.title} i={i * 0.1}>
-                <article className="h-full rounded-2xl border border-[#e8eaed] bg-white p-7">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff4f0]">
-                    <Icon className="h-5 w-5 text-[#f05a28]" strokeWidth={1.75} />
-                  </div>
-                  <h3 className="mt-5 text-base font-semibold text-[#111318]">{benefit.title}</h3>
-                  <p className="mt-2 text-sm leading-7 text-[#6b7280]">{benefit.body}</p>
-                </article>
-              </Reveal>
-            );
-          })}
+        <div className="mt-16 grid gap-y-10 lg:grid-cols-3 lg:gap-y-0">
+          {CORE_BENEFITS.map((benefit, i) => (
+            <Reveal key={benefit.title} i={i * 0.12}>
+              <div className={i > 0 ? "lg:border-l lg:border-white/10 lg:pl-10" : "lg:pr-10"}>
+                <span className="block h-1 w-7 rounded-full bg-[#f05a28]" />
+                <h3 className="mt-6 text-lg font-semibold text-white">{benefit.title}</h3>
+                <p className="mt-3 max-w-xs text-sm leading-7 text-white/45">{benefit.body}</p>
+              </div>
+            </Reveal>
+          ))}
         </div>
       </div>
     </section>
@@ -917,34 +875,44 @@ function BuildingBlocksSection() {
   return (
     <section id="building-blocks" className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
-        <Reveal>
-          <SectionLabel>Building blocks</SectionLabel>
-          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-            A small set of primitives that compose into real systems.
-          </h2>
-        </Reveal>
+        <div className="grid gap-12 lg:grid-cols-[330px_1fr] lg:gap-16">
+          <Reveal>
+            <div className="lg:sticky lg:top-24">
+              <SectionLabel>Building blocks</SectionLabel>
+              <h2 className="text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+                Everything you need to build, in one place.
+              </h2>
+              <p className="mt-4 max-w-sm text-base leading-7 text-[#6b7280]">
+                A small set of primitives that compose into real systems — from a
+                one-step alert to a multi-stage agent with approvals.
+              </p>
+              <Link
+                href="/signup"
+                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#f05a28] transition-colors hover:text-[#d44a1d]"
+              >
+                Start building
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </Reveal>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {BUILDING_BLOCKS.map((block, i) => {
-            const Icon = block.icon;
-            return (
-              <Reveal key={block.name} i={(i % 3) * 0.1}>
-                <article className="flex h-full flex-col rounded-2xl border border-[#e8eaed] bg-white p-6">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fff4f0]">
-                      <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
-                    </span>
-                    <h3 className="text-sm font-semibold text-[#111318]">{block.name}</h3>
+          <div>
+            {BUILD_WITH.map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <Reveal key={item.label} i={(i % 4) * 0.06}>
+                  <div className="flex gap-4 border-t border-[#e2e5e9] py-6 first:border-t-0 first:pt-0">
+                    <Icon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#f05a28]" strokeWidth={1.75} />
+                    <div>
+                      <h3 className="text-base font-semibold text-[#111318]">{item.label}</h3>
+                      <p className="mt-1.5 text-sm leading-6 text-[#6b7280]">{item.body}</p>
+                      <p className="mt-2 font-mono text-[11px] leading-5 text-[#9ca3af]">{item.example}</p>
+                    </div>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-[#6b7280]">{block.body}</p>
-                  <p className="mt-4 border-t border-[#f0f1f3] pt-3 text-xs leading-5 text-[#9ca3af]">
-                    <span className="font-medium text-[#6b7280]">Example: </span>
-                    {block.example}
-                  </p>
-                </article>
-              </Reveal>
-            );
-          })}
+                </Reveal>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
@@ -967,97 +935,46 @@ function VisualEditorSection() {
   return (
     <section className="bg-white px-5 py-24 sm:px-8 sm:py-32">
       <div className="mx-auto max-w-6xl">
-        <Reveal>
-          <SectionLabel>Visual editor</SectionLabel>
-          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-            Precise control — without the tangled wiring diagram.
-          </h2>
-          <p className="mt-5 max-w-xl text-base leading-7 text-[#6b7280]">
-            The canvas stays readable as your logic grows, and the graph you build
-            is the graph that runs.
-          </p>
-        </Reveal>
-
-        <div className="mt-12 grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-12 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-16">
           <Reveal>
-            <article className="h-full rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] p-7">
-              <h3 className="text-sm font-semibold text-[#111318]">The basics</h3>
-              <div className="mt-5 space-y-4">
-                {basics.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.label} className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#e8eaed] bg-white">
-                        <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
-                      </span>
-                      <p className="text-sm text-[#111318]">
-                        <span className="font-semibold">{item.label}</span>
-                        <span className="text-[#9ca3af]"> — {item.note}</span>
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </article>
+            <h2 className="max-w-md text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
+              Precise control — without the tangled wiring diagram.
+            </h2>
+            <p className="mt-5 max-w-md text-base leading-7 text-[#6b7280]">
+              The canvas stays readable as your logic grows, and the graph you
+              build is the graph that runs. Start with the basics; reach for the
+              advanced primitives when you need them.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-4">
+              {basics.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="flex items-center gap-2.5">
+                    <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
+                    <span className="text-sm font-medium text-[#111318]">{item.label}</span>
+                    <span className="text-sm text-[#9ca3af]">{item.note}</span>
+                  </div>
+                );
+              })}
+            </div>
           </Reveal>
 
           <Reveal i={0.1}>
-            <article className="h-full rounded-2xl border border-[#e8eaed] bg-[#f8f9fb] p-7">
-              <h3 className="text-sm font-semibold text-[#111318]">Advanced primitives</h3>
-              <ul className="mt-5 space-y-3">
+            <div className="rounded-2xl border border-[#e1e4e8] bg-[#fbfcfd] p-6 sm:p-8">
+              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#9ca3af]">
+                Advanced primitives
+              </p>
+              <ul className="mt-5 divide-y divide-[#eceef1]">
                 {advanced.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
+                  <li key={item} className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#f05a28]" strokeWidth={2.25} />
-                    <span className="text-sm leading-6 text-[#6b7280]">{item}</span>
+                    <span className="text-sm leading-6 text-[#3f444d]">{item}</span>
                   </li>
                 ))}
               </ul>
-            </article>
+            </div>
           </Reveal>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DeepDiveSection() {
-  return (
-    <section className="bg-[#f8f9fb] px-5 py-24 sm:px-8 sm:py-32">
-      <div className="mx-auto max-w-6xl">
-        <Reveal>
-          <SectionLabel>Under the hood</SectionLabel>
-          <h2 className="max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-[#111318] sm:text-4xl">
-            Everything you need to build, in one place.
-          </h2>
-        </Reveal>
-
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {DEEP_DIVE.map((item, i) => {
-            const Icon = item.icon;
-            return (
-              <Reveal key={item.title} i={(i % 3) * 0.1}>
-                <article className="flex h-full flex-col rounded-2xl border border-[#e8eaed] bg-white p-6">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fff4f0]">
-                      <Icon className="h-4 w-4 text-[#f05a28]" strokeWidth={1.75} />
-                    </span>
-                    <h3 className="text-sm font-semibold text-[#111318]">{item.title}</h3>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-[#6b7280]">{item.body}</p>
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {item.examples.map((example) => (
-                      <span
-                        key={example}
-                        className="rounded-md border border-[#eceef1] bg-[#f8f9fb] px-2 py-1 text-[11px] text-[#6b7280]"
-                      >
-                        {example}
-                      </span>
-                    ))}
-                  </div>
-                </article>
-              </Reveal>
-            );
-          })}
         </div>
       </div>
     </section>
