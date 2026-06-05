@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play, FlaskConical, Trash2, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 export function AgentActions({
@@ -23,6 +24,7 @@ export function AgentActions({
   const [busy, setBusy] = useState<null | "run" | "dry" | "save" | "delete">(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(savedTemplate);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isRunning = state === "running";
 
@@ -73,7 +75,7 @@ export function AgentActions({
 
   async function remove() {
     if (busy) return;
-    if (!confirm("Delete this agent? This cannot be undone.")) return;
+    setConfirmDelete(false);
     setBusy("delete");
     setError(null);
     try {
@@ -111,9 +113,9 @@ export function AgentActions({
           </Button>
         )}
         {canEdit && (
-          <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => void remove()} disabled={busy !== null}>
+          <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)} disabled={busy !== null}>
             <Trash2 className="mr-1.5 h-4 w-4" />
-            Delete
+            {busy === "delete" ? "Deleting…" : "Delete"}
           </Button>
         )}
       </div>
@@ -126,6 +128,15 @@ export function AgentActions({
       </p>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this agent?"
+        description="This permanently deletes the agent, its plan, and its run history. This cannot be undone."
+        confirmLabel="Delete agent"
+        onConfirm={() => void remove()}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
