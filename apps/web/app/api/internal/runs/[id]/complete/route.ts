@@ -64,10 +64,34 @@ export async function POST(
   // which may be a non-UUID premade ID when schema.program_id was not patched.
   const { data: runRow } = await db
     .from("runs")
-    .select("program_id")
+    .select("program_id, triggered_by")
     .eq("id", params.id)
     .single();
   const program_id: string = (runRow as { program_id: string } | null)?.program_id ?? "";
+  const runTriggeredBy: string = (runRow as { triggered_by?: string } | null)?.triggered_by ?? "";
+
+  // ── Agent lifecycle: move the agent off "running" when its run finishes, so a
+  // failed/finished agent isn't stuck and can be restarted. Dry runs return the
+  // agent to "awaiting_approval"; real runs land on completed/failed.
+  if (program_id && (runTriggeredBy === "agent_manual" || runTriggeredBy === "agent_dry_run")) {
+    const { data: agentProg } = await db
+      .from("programs")
+      .select("program_type")
+      .eq("id", program_id)
+      .single();
+    if ((agentProg as { program_type?: string } | null)?.program_type === "agent") {
+      const nextState =
+        runTriggeredBy === "agent_dry_run"
+          ? "awaiting_approval"
+          : status === "completed"
+            ? "completed"
+            : "failed";
+      await db
+        .from("programs")
+        .update({ agent_state: nextState, updated_at: new Date().toISOString() } as never)
+        .eq("id", program_id);
+    }
+  }
 
   // ── 1. Release resource locks ──────────────────────────────────────────────
   await db

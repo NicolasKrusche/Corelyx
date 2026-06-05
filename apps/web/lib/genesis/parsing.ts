@@ -91,7 +91,10 @@ function normalizeDataSchema(schema: unknown): void {
   if (s.items) normalizeDataSchema(s.items);
 }
 
-const VALID_NODE_TYPES = new Set(["trigger", "agent", "step", "connection"]);
+// Includes agent_task/note/group so normalization never coerces them — notably
+// agent_task carries scope_access, which would otherwise be mis-inferred as a
+// connection node (an OAuth node with no connection reference).
+const VALID_NODE_TYPES = new Set(["trigger", "agent", "agent_task", "step", "connection", "note", "group"]);
 
 const NODE_TYPE_MAP: Record<string, string> = {
   action: "connection",
