@@ -43,6 +43,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!program) return apiError("Agent not found", 404);
   if (program.program_type !== "agent") return apiError("This program is not an agent.", 400);
 
+  // One-time agents: once a real run has succeeded, the agent is done and can't
+  // be run again. (Dry runs return the agent to "awaiting_approval", and failed
+  // runs stay retryable, so neither of those is blocked here.)
+  if (program.agent_state === "completed") {
+    return apiError("This agent has already completed and can't be run again.", 409);
+  }
+
   // Agents have no editor step to assign a model/key. Build an ordered list of
   // credential candidates (the user's keys by provider priority, then the
   // platform key) so the runtime can fall through on credit/auth failures, and
