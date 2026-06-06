@@ -130,6 +130,7 @@ def _make_executor(schema: ProgramSchema, **kwargs: Any) -> ProgramExecutor:
     executor._limiter.check_llm_tokens = Mock()
     executor._limiter.check_cost = Mock()
     executor._limiter.check_connector_call = Mock()
+    executor._agent_credentials = None
     executor.dry_run = bool(kwargs.get("dry_run", False))
     return executor
 
@@ -755,7 +756,7 @@ class TestAgentExecutionPaths(unittest.IsolatedAsyncioTestCase):
              patch("engine.executor.update_node_execution", new=AsyncMock()):
             mock_client.return_value.post = AsyncMock(side_effect=[resp1, resp2])
             summary, invocations = await executor._agent_loop_openai(
-                cfg, "key", "openai", "node-1", "sys", "input", ["tool_1"], 3
+                cfg, "key", "openai", "node-1", "sys", "input", ["tool_1"], 3, cfg.model
             )
         self.assertEqual(summary, "final")
         self.assertEqual(len(invocations), 1)
@@ -791,7 +792,7 @@ class TestAgentExecutionPaths(unittest.IsolatedAsyncioTestCase):
              patch("engine.executor.update_node_execution", new=AsyncMock()):
             mock_client.return_value.post = AsyncMock(side_effect=[resp1, resp2])
             summary, invocations = await executor._agent_loop_anthropic(
-                cfg, "key", "node-1", "sys", "input", ["tool_1"], 3
+                cfg, "key", "node-1", "sys", "input", ["tool_1"], 3, cfg.model
             )
         self.assertEqual(summary, "final")
         self.assertEqual(len(invocations), 1)
@@ -954,7 +955,7 @@ class TestAgentExecutionPaths(unittest.IsolatedAsyncioTestCase):
             retry=RetryConfig(1, "none", 0.0, False), input_schema=None, output_schema=None,
             approval_timeout_hours=24.0, tools=[],
         )
-        self.assertEqual(executor._agent_task_base_url(cfg2, "unknown"), "https://openrouter.ai/api/v1")
+        self.assertEqual(executor._agent_task_base_url(cfg2.model, "unknown"), "https://openrouter.ai/api/v1")
 
 
 # ─────────────────────────────────────────────────────────────
