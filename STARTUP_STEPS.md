@@ -33,7 +33,7 @@ Expected status: `200`.
 
 ## 3. Start The Runtime API
 
-Run in terminal 2:
+Run in terminal 2: 
 
 ```powershell
 cd /d C:\NexFlow\apps\runtime
