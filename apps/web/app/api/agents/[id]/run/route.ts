@@ -3,6 +3,7 @@ import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canRun, canView, canRunAgentInWorkspace, getProgramAccess } from "@/lib/workspaces";
 import { checkRunLimit } from "@/lib/limits";
+import { KEY_DEFAULT_MODELS, KEY_PROVIDER_PRIORITY, PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/request";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import { buildRuntimeExecuteHeaders, runtimeDispatchConfigError } from "@/lib/runtime-dispatch";
 import { serverLog } from "@/lib/server-log";
@@ -32,12 +33,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const service = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
   const { data: prog } = await service
     .from("programs")
-    .select("id, program_type, schema_version, agent_state")
+    .select("id, program_type, schema_version, agent_state, schema")
     .eq("id", programId)
     .maybeSingle();
-  const program = prog as { id: string; program_type: string | null; schema_version: number | null; agent_state: string | null } | null;
+  const program = prog as {
+    id: string; program_type: string | null; schema_version: number | null;
+    agent_state: string | null; schema: Record<string, unknown> | null;
+  } | null;
   if (!program) return apiError("Agent not found", 404);
   if (program.program_type !== "agent") return apiError("This program is not an agent.", 400);
+
+  // Agents have no editor step to assign a model/key, so resolve any
+  // "__USER_ASSIGNED__" placeholders on agent/agent_task nodes to a real
+  // credential now: prefer the user's best BYOK key, else the platform key.
+  // Persisted because the runtime loads the schema from the DB (S15).
+  const resolveError = await resolveAgentCredentials(service, programId, access!.workspaceId, program.schema);
+  if (resolveError) return resolveError;
 
   // Block only if a run is genuinely still active. Relying on agent_state alone
   // can wedge the agent if a previous run died without reporting completion.
@@ -106,4 +117,66 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   return NextResponse.json({ run_id: runId, dry_run: dryRun });
+}
+
+type RunService = ReturnType<typeof createServiceClient> & { from(t: string): any };
+
+/**
+ * Replace "__USER_ASSIGNED__" model/api_key_ref on agent/agent_task nodes with a
+ * usable credential and persist the schema. Returns an error Response if no
+ * credential is available, otherwise null.
+ */
+async function resolveAgentCredentials(
+  service: RunService,
+  programId: string,
+  workspaceId: string,
+  rawSchema: Record<string, unknown> | null
+): Promise<Response | null> {
+  const schema = (rawSchema ?? {}) as { nodes?: Array<Record<string, any>> };
+  const nodes = Array.isArray(schema.nodes) ? schema.nodes : [];
+  const isAiNode = (n: Record<string, any>) => n?.type === "agent" || n?.type === "agent_task";
+  const needs = nodes.some(
+    (n) => isAiNode(n) && n?.config &&
+      (n.config.api_key_ref === "__USER_ASSIGNED__" || n.config.model === "__USER_ASSIGNED__")
+  );
+  if (!needs) return null;
+
+  const { data: keyRows } = await service
+    .from("api_keys")
+    .select("id, provider")
+    .eq("workspace_id", workspaceId)
+    .eq("is_valid", true);
+  const keys = ((keyRows ?? []) as Array<{ id: string; provider: string }>).sort(
+    (a, b) => (KEY_PROVIDER_PRIORITY[a.provider] ?? 99) - (KEY_PROVIDER_PRIORITY[b.provider] ?? 99)
+  );
+  const best = keys[0];
+
+  let resolvedRef: string;
+  let resolvedModel: string;
+  if (best) {
+    resolvedRef = best.id;
+    resolvedModel = KEY_DEFAULT_MODELS[best.provider] ?? PLATFORM_DEFAULT_MODEL;
+  } else if (process.env.PLATFORM_OPENROUTER_API_KEY) {
+    resolvedRef = "platform";
+    resolvedModel = PLATFORM_DEFAULT_MODEL;
+  } else {
+    return apiError(
+      "No API key available to run this agent. Add one in Settings → API Keys.",
+      402
+    );
+  }
+
+  for (const n of nodes) {
+    if (isAiNode(n) && n?.config) {
+      if (n.config.api_key_ref === "__USER_ASSIGNED__") n.config.api_key_ref = resolvedRef;
+      if (n.config.model === "__USER_ASSIGNED__") n.config.model = resolvedModel;
+    }
+  }
+
+  const { error } = await service
+    .from("programs")
+    .update({ schema: schema as unknown as Record<string, unknown>, updated_at: new Date().toISOString() } as never)
+    .eq("id", programId);
+  if (error) return apiError("Could not prepare the agent for running.", 500);
+  return null;
 }
