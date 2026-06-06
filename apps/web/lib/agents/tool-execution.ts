@@ -77,8 +77,7 @@ export async function executeAgentTool(input: {
   const { userId, tool, args, context } = input;
   const def = getAgentTool(tool);
   if (!def) {
-    const gate = agentToolGate({ toolScope: "unknown", destructive: false, dryRun: context.dryRun, targetWorkspaceAllowed: false });
-    return { ok: false, error: gate.allow ? "Unknown tool." : gate.reason };
+    return { ok: false, error: "Unknown tool." };
   }
 
   const service = createServiceClient() as LooseClient;
