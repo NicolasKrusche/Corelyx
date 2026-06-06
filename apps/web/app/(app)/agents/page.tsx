@@ -133,11 +133,7 @@ export default async function AgentsPage() {
     agents = (data ?? []) as AgentRow[];
   }
 
-  const running = agents.filter((a) => a.agent_state === "running").length;
-  const completed = agents.filter(
-    (a) => a.agent_state === "completed"
-  ).length;
-  const pending = agents.filter(
+  const needsAttention = agents.filter(
     (a) => a.agent_state === "awaiting_approval"
   ).length;
 
@@ -151,9 +147,11 @@ export default async function AgentsPage() {
               <Bot className="h-4 w-4 text-primary" />
             </span>
             <h1 className="text-xl font-bold tracking-tight">Agents</h1>
-            <span className="rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[11px] font-semibold text-primary">
-              One-time
-            </span>
+            {needsAttention > 0 && (
+              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                {needsAttention} awaiting approval
+              </span>
+            )}
           </div>
           <p className="mt-2 max-w-lg text-sm text-muted-foreground">
             One-time agents handle a single, well-defined task. Describe it,
@@ -169,44 +167,6 @@ export default async function AgentsPage() {
           New agent
         </Link>
       </div>
-
-      {/* ── Stats row ──────────────────────────────────── */}
-      {agents.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          {[
-            {
-              label: "Running",
-              value: running,
-              color: "text-primary",
-              bg: "bg-primary/8",
-            },
-            {
-              label: "Pending approval",
-              value: pending,
-              color: "text-amber-500",
-              bg: "bg-amber-500/8",
-            },
-            {
-              label: "Completed",
-              value: completed,
-              color: "text-emerald-500",
-              bg: "bg-emerald-500/8",
-            },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className={`rounded-xl border p-4 ${s.bg}`}
-            >
-              <p className={`text-2xl font-black tabular-nums ${s.color}`}>
-                {s.value}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {s.label}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ── Agent list ─────────────────────────────────── */}
       {agents.length === 0 ? (
