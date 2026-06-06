@@ -36,7 +36,20 @@ export async function setSystemFlags(
       },
       { onConflict: "key" }
     );
-  if (error) throw new Error(`Failed to update system flags: ${error.message}`);
+  if (error) {
+    // The most common cause is the migration not being applied yet.
+    const missingTable =
+      error.code === "42P01" || // undefined_table
+      error.code === "PGRST205" || // PostgREST: relation not found in schema cache
+      /system_settings/i.test(error.message ?? "");
+    if (missingTable) {
+      throw new Error(
+        "The system_settings table doesn't exist yet. Apply migration " +
+          "20260606140000_system_settings.sql to the database, then try again."
+      );
+    }
+    throw new Error(`Failed to update system flags: ${error.message}`);
+  }
 
   invalidateSystemFlagsCache();
   return next;
