@@ -23,7 +23,7 @@ interface AccentDef {
   soft: string;
   /** Handle fill */
   handle: string;
-  /** Strong rgba glow */
+  /** Strong rgba glow (used only for the selection ring) */
   glow: string;
   /** Faint rgba glow */
   glowSoft: string;
@@ -38,7 +38,7 @@ const ACCENT: Record<NodeAccent, AccentDef> = {
   slate:  { solid: "bg-slate-400",   text: "text-slate-500 dark:text-slate-400",     soft: "bg-slate-500/10 text-slate-600 dark:text-slate-300",      handle: "!bg-slate-400",   glow: "rgba(100,116,139,0.5)", glowSoft: "rgba(100,116,139,0.16)" },
 };
 
-// ─── Handle ───────────────────────────────────────────────────────────────────
+// ─── Target handle ────────────────────────────────────────────────────────────
 
 export function NodeHandle({
   type,
@@ -63,7 +63,7 @@ export function NodeHandle({
   );
 }
 
-// ─── Per-node "+" add button (opens an inline add menu) ────────────────────────
+// ─── Source handle with an embedded "+" add button ────────────────────────────
 
 const ADD_OPTIONS: { label: string; icon: LucideIcon; variant: NodeVariant }[] = [
   { label: "Add step", icon: Shuffle, variant: { type: "step", subtype: "transform" } },
@@ -71,33 +71,33 @@ const ADD_OPTIONS: { label: string; icon: LucideIcon; variant: NodeVariant }[] =
   { label: "Add AI agent", icon: Sparkles, variant: { type: "agent" } },
 ];
 
-export function NodeAddButton({ nodeId }: { nodeId: string }) {
+export function SourceAddHandle({ nodeId, accent }: { nodeId: string; accent: NodeAccent }) {
   const { addConnectedNode } = useNodeCanvas();
   const [open, setOpen] = useState(false);
 
-  if (!addConnectedNode) return null;
-
   return (
-    <div className="nodrag nopan absolute left-1/2 top-full z-30 -translate-x-1/2 pt-2">
-      <button
-        type="button"
-        aria-label="Add connected node"
+    <>
+      <Handle
+        type="source"
+        position={Position.Bottom}
         onClick={(e) => {
+          if (!addConnectedNode) return;
           e.stopPropagation();
           setOpen((o) => !o);
         }}
         className={cn(
-          "grid h-5 w-5 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-all duration-150 hover:scale-110 hover:border-primary/40 hover:text-foreground",
-          open && "scale-110 border-primary/50 text-foreground",
+          "!flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-card transition-transform duration-150 hover:!scale-110",
+          accent && ACCENT[accent].handle,
         )}
+        style={{ boxShadow: `0 0 0 3px ${ACCENT[accent].glowSoft}` }}
       >
-        <Plus className="h-3 w-3" strokeWidth={2.5} />
-      </button>
+        {addConnectedNode && <Plus className="pointer-events-none h-3 w-3 text-white" strokeWidth={3} />}
+      </Handle>
 
-      {open && (
+      {open && addConnectedNode && (
         <>
           <div className="nodrag nopan fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="nodrag nopan absolute left-1/2 top-full z-30 mt-1 w-44 -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-xl">
+          <div className="nodrag nopan absolute left-1/2 top-full z-30 mt-3 w-44 -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-xl">
             {ADD_OPTIONS.map((opt) => {
               const OptIcon = opt.icon;
               return (
@@ -121,7 +121,7 @@ export function NodeAddButton({ nodeId }: { nodeId: string }) {
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
 
@@ -241,13 +241,6 @@ export function NodeShell({
       )}
       style={{ boxShadow }}
     >
-      {/* Accent hairline at the very top */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-[2px]"
-        style={{ background: `linear-gradient(90deg, transparent, ${a.glow}, transparent)` }}
-      />
-
       {/* Status indicator — top right */}
       <div className="absolute right-2.5 top-2.5">
         <StatusIcon status={status} />
@@ -256,16 +249,12 @@ export function NodeShell({
       {/* Header: medallion + title */}
       <div className="flex items-start gap-2.5">
         {logo ? (
-          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-inset ring-black/10 dark:bg-zinc-100">
-            <ProviderLogo provider={logo.provider} label={logo.label} className="h-5 w-5" />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white ring-1 ring-inset ring-black/10 dark:bg-zinc-100">
+            <ProviderLogo provider={logo.provider} label={logo.label} className="h-6 w-6" />
           </div>
         ) : (
-          <div
-            className={cn("relative grid h-10 w-10 shrink-0 place-items-center rounded-xl", a.solid)}
-            style={{ boxShadow: `0 4px 10px -3px ${a.glow}` }}
-          >
-            <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/15" />
-            <Icon className="relative h-[18px] w-[18px] text-white" strokeWidth={2} />
+          <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", a.solid)}>
+            <Icon className="h-[18px] w-[18px] text-white" strokeWidth={2} />
           </div>
         )}
 

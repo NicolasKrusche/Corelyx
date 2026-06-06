@@ -15,7 +15,7 @@ import {
   Type,
   type LucideIcon,
 } from "lucide-react";
-import { NodeShell, NodeHandle, NodeAddButton } from "./NodeShell";
+import { NodeShell, NodeHandle, SourceAddHandle } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, StepConfig } from "@flowos/schema";
 
@@ -75,8 +75,7 @@ export function StepNode({ id, data, selected }: NodeProps) {
         warning={nodeData.warnings?.[0]?.message}
       />
 
-      <NodeHandle type="source" position={Position.Bottom} accent="sky" />
-      <NodeAddButton nodeId={id} />
+      <SourceAddHandle nodeId={id} accent="sky" />
     </>
   );
 }

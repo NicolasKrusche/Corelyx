@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import { Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { Clock, MousePointerClick, Webhook, Workflow, Zap, type LucideIcon } from "lucide-react";
-import { NodeShell, NodeHandle, NodeAddButton } from "./NodeShell";
+import { NodeShell, SourceAddHandle } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, TriggerConfig } from "@flowos/schema";
 
@@ -55,8 +54,7 @@ export function TriggerNode({ id, data, selected }: NodeProps) {
       />
 
       {/* Source handle only — triggers have no incoming connections */}
-      <NodeHandle type="source" position={Position.Bottom} accent="green" />
-      <NodeAddButton nodeId={id} />
+      <SourceAddHandle nodeId={id} accent="green" />
     </>
   );
 }
