@@ -28,7 +28,12 @@ from schema import (
     SchemaNode,
     StepConfig,
 )
-from engine.agent_tools import build_anthropic_tools, build_openai_tools, tool_name_to_id
+from engine.agent_tools import (
+    build_anthropic_tools,
+    build_openai_tools,
+    tool_name_to_id,
+    with_always_available_tools,
+)
 from connectors import get_connector
 from connectors.base import ConnectorError
 from db import (
@@ -1320,14 +1325,19 @@ class ProgramExecutor:
         )
         system_prompt = (
             f"{guard}\n\nYou are an autonomous task agent. Objective:\n{cfg.objective}\n\n"
-            f"Use the available tools to accomplish the objective, then STOP and reply with a concise "
-            f"plain-text summary of what you did and anything needing human follow-up.{dry_run_note}"
+            f"Use the available tools to accomplish the objective. When you have findings, results, "
+            f"or anything the user should see, call corelyx.report_to_user with a clear title and a "
+            f"well-formatted body (markdown is supported) to deliver it to them. Then STOP and reply "
+            f"with a concise plain-text summary of what you did and anything needing human "
+            f"follow-up.{dry_run_note}"
         )
         sanitized_system = sanitize_text_for_llm(system_prompt)
         sanitized_input = sanitize_value_for_llm(input_data)
         input_json = json.dumps(sanitized_input.value)
         max_iterations = max(1, min(int(cfg.max_iterations or 8), 25))
-        allowed_tools = list(cfg.tools or [])
+        # Reporting back to the user is always available, even if the generated
+        # plan didn't list it explicitly.
+        allowed_tools = with_always_available_tools(list(cfg.tools or []))
 
         # Ordered credential candidates from the web run dispatch let us fall
         # through keys (and finally the platform key) when one is out of credits
@@ -1560,6 +1570,7 @@ class ProgramExecutor:
             "context": {
                 "home_workspace_id": self.workspace_id,
                 "dry_run": self.dry_run,
+                "run_id": self.run_id,
             },
         }
         body = json.dumps(payload, separators=(",", ":"))

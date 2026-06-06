@@ -68,6 +68,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       "Summary of the workspace: program counts by type, run counts by status over a window, connection health, and credit balance.",
     scope: "read",
   },
+  {
+    id: "corelyx.report_to_user",
+    label: "Report to the user",
+    description:
+      "Relay findings back to the user in a report window. Args: title (string), body (markdown/plain text). Call this to present results (e.g. a summary of why last week's runs failed) before finishing. Safe to use in dry runs.",
+    scope: "read",
+  },
   // ── Write / orchestration ─────────────────────────────────────────────────
   {
     id: "corelyx.trigger_program",
@@ -101,6 +108,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
 ];
 
 export const AGENT_TOOL_IDS = AGENT_TOOLS.map((t) => t.id);
+
+/**
+ * Tools every agent_task gets regardless of its configured `tools` array.
+ * Reporting back to the user is a core agent capability, so we never want a
+ * generated agent to be unable to relay its findings.
+ */
+export const ALWAYS_AVAILABLE_AGENT_TOOL_IDS = ["corelyx.report_to_user"] as const;
 
 const AGENT_TOOL_BY_ID = new Map(AGENT_TOOLS.map((t) => [t.id, t]));
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play, FlaskConical, Trash2, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,15 +23,29 @@ export function AgentActions({
   const router = useRouter();
   const [busy, setBusy] = useState<null | "run" | "dry" | "save" | "delete">(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [saved, setSaved] = useState(savedTemplate);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isRunning = state === "running";
 
+  // The detail page is a server component, so reports and the final state only
+  // appear on a re-fetch. While the agent is running, poll so its report window
+  // and completion show up live without the user manually refreshing.
+  useEffect(() => {
+    if (!isRunning) {
+      setNotice(null);
+      return;
+    }
+    const interval = setInterval(() => router.refresh(), 3500);
+    return () => clearInterval(interval);
+  }, [isRunning, router]);
+
   async function run(dryRun: boolean) {
     if (busy) return;
     setBusy(dryRun ? "dry" : "run");
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch(`/api/agents/${agentId}/run`, {
         method: "POST",
@@ -43,8 +57,17 @@ export function AgentActions({
         setError(friendlyResponseMessage(data, "Could not start the agent. Please try again."));
         return;
       }
-      // Refresh so the new run + state show up.
+      // Refresh so the new run + state show up, then guide the user to where the
+      // report will load.
+      setNotice(
+        dryRun
+          ? "Dry run started — the preview report will appear in “Agent report” above as it works."
+          : "Agent started — its report will appear in “Agent report” above as it works."
+      );
       router.refresh();
+      setTimeout(() => {
+        document.getElementById("agent-report")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
     } catch {
       setError("We couldn't reach the server. Please try again.");
     } finally {
@@ -126,6 +149,13 @@ export function AgentActions({
         your data, so you can preview what the agent will do before approving it.
         {!saved && " Unsaved agents are discarded after a successful run."}
       </p>
+
+      {notice && !error && (
+        <p className="flex items-center gap-2 text-sm text-primary">
+          <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          {notice}
+        </p>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

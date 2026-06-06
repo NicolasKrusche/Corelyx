@@ -60,6 +60,21 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
         "description": "Summary of program counts, run statuses, and connection health.",
         "parameters": {"type": "object", "properties": {}},
     },
+    "corelyx.report_to_user": {
+        "description": (
+            "Relay findings back to the user in a report window. Use this to "
+            "present results (e.g. a summary of why last week's runs failed) "
+            "before finishing. Safe to call in dry runs."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Short report heading."},
+                "body": {"type": "string", "description": "The report content (markdown or plain text)."},
+            },
+            "required": ["body"],
+        },
+    },
     "corelyx.trigger_program": {
         "description": "Manually trigger an existing workflow to run.",
         "parameters": {
@@ -99,6 +114,20 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
         },
     },
 }
+
+
+# Tools every agent_task gets regardless of its configured `tools` array.
+# Mirrors ALWAYS_AVAILABLE_AGENT_TOOL_IDS in apps/web/lib/genesis/agent-tools.ts.
+ALWAYS_AVAILABLE_AGENT_TOOL_IDS = ["corelyx.report_to_user"]
+
+
+def with_always_available_tools(allowed_ids: list[str]) -> list[str]:
+    """Append the always-available tool ids (e.g. report_to_user), de-duped."""
+    out = list(allowed_ids)
+    for tid in ALWAYS_AVAILABLE_AGENT_TOOL_IDS:
+        if tid not in out:
+            out.append(tid)
+    return out
 
 
 def is_known_agent_tool(tool_id: str) -> bool:

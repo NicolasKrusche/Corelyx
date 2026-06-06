@@ -43,6 +43,7 @@ export async function POST(request: Request) {
   const context: AgentToolContext = {
     homeWorkspaceId,
     dryRun: rawContext.dry_run === true,
+    runId: typeof rawContext.run_id === "string" ? rawContext.run_id : undefined,
   };
 
   const outcome = await executeAgentTool({ userId, tool, args, context });

@@ -17,6 +17,8 @@ export type AgentToolContext = {
   homeWorkspaceId: string;
   /** When true, write tools are simulated, never executed. */
   dryRun: boolean;
+  /** The run executing this agent — used to tie reports to the run. */
+  runId?: string;
 };
 
 export type AgentToolResult =
@@ -116,6 +118,8 @@ export async function executeAgentTool(input: {
         return await listConnections(service, memberWorkspaceIds);
       case "corelyx.get_account_stats":
         return await getAccountStats(service, userId, memberWorkspaceIds);
+      case "corelyx.report_to_user":
+        return await reportToUser(service, userId, context, args);
       case "corelyx.trigger_program":
         return await triggerProgram(service, userId, memberWorkspaceIds, args);
       case "corelyx.set_program_active":
@@ -270,6 +274,57 @@ async function getAccountStats(service: LooseClient, userId: string, workspaceId
       recent_runs_by_status: runsByStatus,
       recent_runs_sampled: runRows.length,
     },
+  };
+}
+
+/**
+ * Relay a structured report back to the user. Read-safe (no account mutation),
+ * so it runs in dry runs too. The report is tied to the executing run; the run
+ * is re-verified to belong to the acting user before anything is stored.
+ */
+async function reportToUser(
+  service: LooseClient,
+  userId: string,
+  context: AgentToolContext,
+  args: Record<string, unknown>
+): Promise<AgentToolResult> {
+  if (!context.runId) {
+    return { ok: false, error: "No run context available to attach the report to." };
+  }
+  const title = typeof args.title === "string" && args.title.trim() ? args.title.trim().slice(0, 200) : "Report";
+  const bodyRaw = typeof args.body === "string" ? args.body : "";
+  const body = bodyRaw.trim().slice(0, 20000);
+  if (!body) return { ok: false, error: "body (string) is required and cannot be empty." };
+  const data = args.data && typeof args.data === "object" && !Array.isArray(args.data) ? args.data : null;
+
+  // Re-derive program ownership from the run — never trust client-supplied ids.
+  const { data: runRow } = await service
+    .from("runs")
+    .select("id, program_id, user_id")
+    .eq("id", context.runId)
+    .maybeSingle();
+  const run = runRow as { id: string; program_id: string; user_id: string | null } | null;
+  if (!run || run.user_id !== userId) {
+    return { ok: false, error: "Run not found or not accessible." };
+  }
+
+  const { data: inserted, error } = await service
+    .from("agent_reports")
+    .insert({
+      run_id: run.id,
+      program_id: run.program_id,
+      user_id: userId,
+      title,
+      body,
+      data,
+      dry_run: context.dryRun,
+    } as never)
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    result: { report_id: (inserted as { id: string }).id, delivered: true },
   };
 }
 
