@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Sparkles, AlertTriangle, ShieldAlert, Wrench } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertTriangle, ShieldAlert, Wrench, FileText } from "lucide-react";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { canView, canRun, canEdit, getProgramAccess } from "@/lib/workspaces";
@@ -72,6 +72,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
     | null;
 
   let summary: string | null = null;
+  let reports: Array<{ id: string; title: string; body: string; dry_run: boolean; created_at: string }> = [];
   if (latestRun) {
     const { data: nodeExecs } = await service
       .from("node_executions")
@@ -81,10 +82,19 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
       const s = ne.output_payload?.summary;
       if (typeof s === "string" && s.trim()) summary = s;
     }
+
+    // Structured reports the agent relayed via corelyx.report_to_user.
+    const { data: reportRows } = await service
+      .from("agent_reports")
+      .select("id, title, body, dry_run, created_at")
+      .eq("run_id", latestRun.id)
+      .order("created_at", { ascending: true });
+    reports = (reportRows ?? []) as typeof reports;
   }
 
   const userCanRun = canRun(access);
   const userCanEdit = canEdit(access);
+  const isRunning = state === "running";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-2">
@@ -146,6 +156,39 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           )}
         </ol>
       </div>
+
+      {/* Reports the agent relayed back to the user. The anchor lets the Run
+          button scroll the user here so they know where output will appear. */}
+      {(reports.length > 0 || isRunning) && (
+        <div id="agent-report" className="scroll-mt-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 shrink-0 text-primary" />
+            <p className="text-sm font-semibold">Agent report</p>
+            {isRunning && <Badge variant="warning" className="text-[10px]">working…</Badge>}
+          </div>
+
+          {reports.map((report) => (
+            <div key={report.id} className="rounded-2xl border glass-card p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold">{report.title}</p>
+                {report.dry_run && <Badge variant="secondary" className="text-[10px]">preview</Badge>}
+              </div>
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{report.body}</div>
+            </div>
+          ))}
+
+          {isRunning && (
+            <div className="flex items-center gap-3 rounded-2xl border border-dashed glass-card p-5 text-sm text-muted-foreground">
+              <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+              <span>
+                {reports.length > 0
+                  ? "The agent is still working — more may appear here."
+                  : "The agent is working. Its report will appear here when it’s ready."}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Latest run result */}
       {latestRun && (
