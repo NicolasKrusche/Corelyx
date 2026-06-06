@@ -72,7 +72,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     id: "corelyx.report_to_user",
     label: "Report to the user",
     description:
-      "Relay findings back to the user in a report window. Args: title (string), body (markdown/plain text). Call this to present results (e.g. a summary of why last week's runs failed) before finishing. Safe to use in dry runs.",
+      "Relay findings back to the user in a rich report window. Args: title (string), body (GitHub-flavored markdown — use headings, **bold**, bullet lists, and tables for readability), and optional data.metrics (array of {label, value, tone:'good'|'warn'|'bad'}) rendered as graphical stat cards. Call this to present results (e.g. why last week's runs failed) before finishing. Safe to use in dry runs.",
     scope: "read",
   },
   // ── Write / orchestration ─────────────────────────────────────────────────
