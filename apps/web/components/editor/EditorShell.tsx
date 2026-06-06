@@ -51,6 +51,7 @@ import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/comp
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
 import type { AiEditMode } from "@/components/editor/AiEditPanel";
 import { RawSchemaPanel } from "@/components/editor/RawSchemaPanel";
+import { NodeCanvasContext } from "@/components/nodes/node-canvas-context";
 import { useRawSchemaMode } from "@/lib/raw-schema-mode";
 
 import type { ProgramSchema, Node as SchemaNode, TriggerConfig, StepConfig } from "@flowos/schema";
@@ -356,6 +357,7 @@ interface EditorShellProps {
 
 type EditorContextMenu =
   | { kind: "node"; nodeId: string; x: number; y: number }
+  | { kind: "edge"; edgeId: string; x: number; y: number }
   | { kind: "pane"; x: number; y: number; flowPosition: { x: number; y: number } }
   | null;
 
@@ -1109,9 +1111,9 @@ export function EditorShell({
   );
 
   const onEdgeClick = useCallback(
-    (_: React.MouseEvent, edge: ReactFlowEdge) => {
-      setContextMenu(null);
-      dispatch({ type: "SELECT_EDGE", edgeId: edge.id });
+    (event: React.MouseEvent, edge: ReactFlowEdge) => {
+      event.preventDefault();
+      setContextMenu({ kind: "edge", edgeId: edge.id, x: event.clientX, y: event.clientY });
     },
     []
   );
@@ -1168,6 +1170,47 @@ export function EditorShell({
     },
     []
   );
+
+  // Create a new node of `variant` directly below `sourceId` and connect them.
+  // Powers the per-node "+" add button.
+  const addConnectedNode = useCallback(
+    (sourceId: string, variant: NodeVariant) => {
+      const src = state.schema.nodes.find((node) => node.id === sourceId);
+      const position = src
+        ? { x: src.position.x, y: src.position.y + 150 }
+        : { x: 380, y: 240 };
+
+      const id = crypto.randomUUID();
+      const schemaNode = makeDefaultNode(variant, id, position);
+      const edgeId = crypto.randomUUID();
+
+      dispatch({ type: "UPDATE_NODE", nodeId: id, patch: schemaNode });
+      dispatch({
+        type: "ADD_EDGE",
+        edge: { id: edgeId, from: sourceId, to: id, type: "data_flow", data_mapping: null, condition: null, label: null },
+      });
+      dispatch({ type: "SELECT_NODE", nodeId: id });
+
+      skipSyncRef.current = true;
+      setRfNodes((prev) => [...prev, schemaNodeToReactFlowNode(schemaNode)]);
+      setRfEdges((prev) =>
+        addEdge(
+          {
+            id: edgeId,
+            source: sourceId,
+            target: id,
+            type: "data_flow",
+            markerEnd: { type: MarkerType.ArrowClosed },
+            data: { condition: null, data_mapping: null, validationErrors: [] },
+          },
+          prev,
+        ),
+      );
+    },
+    [state.schema.nodes]
+  );
+
+  const canvasActions = React.useMemo(() => ({ addConnectedNode }), [addConnectedNode]);
 
   const handleAddNode = useCallback(
     (variant: NodeVariant) => {
@@ -1956,6 +1999,7 @@ export function EditorShell({
           </div>
         )}
 
+        <NodeCanvasContext.Provider value={canvasActions}>
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}
@@ -1981,6 +2025,7 @@ export function EditorShell({
           elementsSelectable={!isMobile}
           fitView
           fitViewOptions={{ padding: 0.15 }}
+          proOptions={{ hideAttribution: true }}
           defaultEdgeOptions={{
             type: "data_flow",
             markerEnd: { type: MarkerType.ArrowClosed },
@@ -2006,6 +2051,7 @@ export function EditorShell({
             maskColor={isDarkTheme ? "rgba(0, 0, 0, 0.35)" : "rgba(255, 255, 255, 0.55)"}
           />
         </ReactFlow>
+        </NodeCanvasContext.Provider>
 
         {/* Node sidebar — slides in from right (hidden when history panel is open) */}
         {contextMenu && !isMobile && (
@@ -2069,6 +2115,34 @@ export function EditorShell({
                   }}
                 >
                   Delete
+                </button>
+              </>
+            ) : contextMenu.kind === "edge" ? (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
+                  onClick={() => {
+                    dispatch({ type: "SELECT_EDGE", edgeId: contextMenu.edgeId });
+                    setContextMenu(null);
+                  }}
+                >
+                  Configure
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full rounded px-2 py-1.5 text-left text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    const edgeId = contextMenu.edgeId;
+                    dispatch({ type: "REMOVE_EDGE", edgeId });
+                    skipSyncRef.current = true;
+                    setRfEdges((prev) => prev.filter((edge) => edge.id !== edgeId));
+                    setContextMenu(null);
+                  }}
+                >
+                  Delete connection
                 </button>
               </>
             ) : (

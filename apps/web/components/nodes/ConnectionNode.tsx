@@ -4,7 +4,7 @@ import React from "react";
 import { Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { Globe, Plug } from "lucide-react";
-import { NodeShell, NodeHandle } from "./NodeShell";
+import { NodeShell, NodeHandle, NodeAddButton } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type {
   NodeStatus,
@@ -38,7 +38,7 @@ function isOAuthConnectionConfig(config: ConnectionConfig): config is OAuthConne
   return config.connector_type !== "http";
 }
 
-export function ConnectionNode({ data, selected }: NodeProps) {
+export function ConnectionNode({ id, data, selected }: NodeProps) {
   const nodeData = data as unknown as ConnectionNodeData;
   const httpConfig = isHttpConnectionConfig(nodeData.config) ? nodeData.config : null;
   const oauthConfig = isOAuthConnectionConfig(nodeData.config) ? nodeData.config : null;
@@ -61,6 +61,7 @@ export function ConnectionNode({ data, selected }: NodeProps) {
         status={nodeData.status}
         accent="blue"
         icon={httpConfig ? Globe : Plug}
+        logo={oauthConfig ? { provider: oauthConfig.provider, label: nodeData.label || "Connection" } : undefined}
         kicker={kicker}
         title={nodeData.label || "Untitled Connection"}
         subtitle={nodeData.description}
@@ -70,6 +71,7 @@ export function ConnectionNode({ data, selected }: NodeProps) {
       />
 
       <NodeHandle type="source" position={Position.Bottom} accent="blue" />
+      <NodeAddButton nodeId={id} />
     </>
   );
 }

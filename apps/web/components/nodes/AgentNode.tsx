@@ -4,7 +4,7 @@ import React from "react";
 import { Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { Bot } from "lucide-react";
-import { NodeShell, NodeHandle, type NodeBadge } from "./NodeShell";
+import { NodeShell, NodeHandle, NodeAddButton, type NodeBadge } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, AgentConfig } from "@flowos/schema";
 
@@ -19,7 +19,7 @@ interface AgentNodeData {
   warnings: ValidationWarning[];
 }
 
-export function AgentNode({ data, selected }: NodeProps) {
+export function AgentNode({ id, data, selected }: NodeProps) {
   const nodeData = data as unknown as AgentNodeData;
   const config = nodeData.config as AgentConfig | undefined;
   const isUnassigned = config?.model === "__USER_ASSIGNED__";
@@ -49,6 +49,7 @@ export function AgentNode({ data, selected }: NodeProps) {
       />
 
       <NodeHandle type="source" position={Position.Bottom} accent="purple" />
+      <NodeAddButton nodeId={id} />
     </>
   );
 }
