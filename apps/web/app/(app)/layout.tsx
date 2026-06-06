@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
+import { MaintenanceAdminBanner } from "@/components/maintenance-admin-banner";
 import { ensureAvatarBucket } from "@/lib/avatar-storage";
 
 type AppLayoutUser = {
@@ -139,6 +140,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <rect width="100%" height="100%" filter="url(#obsidian-cells)" />
         </svg>
         <div className="w-full">
+          <MaintenanceAdminBanner isAdmin={isAdmin} />
           <WelcomeOfferBanner
             createdAt={profile?.created_at ?? appUser.created_at}
             tier={profile?.tier ?? "free"}
