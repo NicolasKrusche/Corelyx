@@ -150,6 +150,39 @@ export function normalizeSchema(raw: unknown): void {
         }
       }
 
+      // The internal "corelyx" agent toolset (report_to_user, list_runs, …) is
+      // NOT a connectable OAuth provider. Planners sometimes model the "report
+      // back to the user" step as a connection node pointing at a bogus
+      // "corelyx" / "corelyx:primary" connection, which then fails at runtime
+      // with: Connection 'corelyx:primary' not found for this user. Repair it
+      // into the agent_task tool-loop that actually delivers the report, so the
+      // broken connection ref never reaches the runtime.
+      if (n.type === "connection") {
+        const cfg = (n.config && typeof n.config === "object" ? n.config : {}) as Record<string, unknown>;
+        const ref = typeof n.connection === "string" ? n.connection : "";
+        const refProvider = ref.includes(":") ? ref.split(":")[0] : ref;
+        if (refProvider === "corelyx" || cfg.provider === "corelyx") {
+          n.type = "agent_task";
+          n.connection = null;
+          n.config = {
+            objective:
+              (typeof n.description === "string" && n.description) ||
+              (typeof n.label === "string" && n.label) ||
+              "Report the results back to the user.",
+            model: "__USER_ASSIGNED__",
+            api_key_ref: "__USER_ASSIGNED__",
+            max_iterations: 4,
+            tools: ["corelyx.report_to_user"],
+            scope_access: "read",
+            requires_approval: false,
+            approval_timeout_hours: 24,
+            input_schema: null,
+            output_schema: null,
+            retry: { max_attempts: 2, backoff: "exponential", backoff_base_seconds: 5, fail_program_on_exhaust: false },
+          };
+        }
+      }
+
       if (n.type === "trigger" && n.config && typeof n.config === "object") {
         const cfg = n.config as Record<string, unknown>;
 
