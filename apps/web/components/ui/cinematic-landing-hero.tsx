@@ -14,13 +14,6 @@ if (typeof window !== "undefined") {
 const INJECTED_STYLES = `
   .gsap-reveal { visibility: hidden; }
 
-  /* Environment Overlays */
-  .film-grain {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      pointer-events: none; z-index: 50; opacity: 0.05; mix-blend-mode: overlay;
-      background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)"/></svg>');
-  }
-
   .bg-grid-theme {
       background-size: 60px 60px;
       background-image:
@@ -75,8 +68,8 @@ const INJECTED_STYLES = `
 
   .card-sheen {
       position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 50;
-      background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(240,90,40,0.10) 0%, transparent 40%);
-      mix-blend-mode: screen; transition: opacity 0.3s ease;
+      background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(240,90,40,0.12) 0%, transparent 40%);
+      transition: opacity 0.3s ease;
   }
 
   /* Realistic iPhone Mockup Hardware */
@@ -113,9 +106,9 @@ const INJECTED_STYLES = `
   }
 
   .floating-ui-badge {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
+      /* Solid translucent fill instead of backdrop-filter — keeps the glass look
+         without the per-frame backdrop blur cost during scroll. */
+      background: linear-gradient(135deg, rgba(28, 26, 38, 0.92) 0%, rgba(16, 16, 24, 0.92) 100%);
       box-shadow:
           0 0 0 1px rgba(255, 255, 255, 0.1),
           0 25px 50px -12px rgba(0, 0, 0, 0.8),
@@ -314,7 +307,6 @@ export function CinematicHero({
       {...props}
     >
       <style dangerouslySetInnerHTML={{ __html: INJECTED_STYLES }} />
-      <div className="film-grain" aria-hidden="true" />
       <div className="bg-grid-theme absolute inset-0 z-0 pointer-events-none opacity-50" aria-hidden="true" />
 
       {/* BACKGROUND LAYER: Hero Texts */}
