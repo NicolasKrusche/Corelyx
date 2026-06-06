@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Play, FlaskConical, Trash2, Bookmark } from "lucide-react";
+import { Play, FlaskConical, Trash2, Bookmark, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
@@ -28,6 +28,7 @@ export function AgentActions({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isRunning = state === "running";
+  const isCompleted = state === "completed";
 
   // The detail page is a server component, so reports and the final state only
   // appear on a re-fetch. While the agent is running, poll so its report window
@@ -117,11 +118,11 @@ export function AgentActions({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {canRun && (
+        {canRun && !isCompleted && (
           <>
             <Button onClick={() => void run(false)} disabled={busy !== null || isRunning}>
               <Play className="mr-1.5 h-4 w-4" />
-              {busy === "run" ? "Starting…" : isRunning ? "Running…" : state === "completed" ? "Run again" : "Approve & run"}
+              {busy === "run" ? "Starting…" : isRunning ? "Running…" : "Approve & run"}
             </Button>
             <Button variant="outline" onClick={() => void run(true)} disabled={busy !== null || isRunning}>
               <FlaskConical className="mr-1.5 h-4 w-4" />
@@ -143,12 +144,20 @@ export function AgentActions({
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        <FlaskConical className="mr-1 inline h-3 w-3" />
-        Dry run executes read-only steps and <span className="font-medium">simulates</span> anything that would change
-        your data, so you can preview what the agent will do before approving it.
-        {!saved && " Unsaved agents are discarded after a successful run."}
-      </p>
+      {isCompleted ? (
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+          This agent has completed its one-time run and can&apos;t be run again. Its report is shown above.
+          {canEdit && " Save it as a template to reuse the plan for a new agent."}
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          <FlaskConical className="mr-1 inline h-3 w-3" />
+          Dry run executes read-only steps and <span className="font-medium">simulates</span> anything that would change
+          your data, so you can preview what the agent will do before approving it.
+          {!saved && " Unsaved agents are discarded after a successful run."}
+        </p>
+      )}
 
       {notice && !error && (
         <p className="flex items-center gap-2 text-sm text-primary">
