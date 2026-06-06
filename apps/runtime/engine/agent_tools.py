@@ -62,15 +62,42 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
     },
     "corelyx.report_to_user": {
         "description": (
-            "Relay findings back to the user in a report window. Use this to "
-            "present results (e.g. a summary of why last week's runs failed) "
-            "before finishing. Safe to call in dry runs."
+            "Relay findings back to the user in a rich report window. Use this to "
+            "present results (e.g. why last week's runs failed) before finishing. "
+            "Format the body as GitHub-flavored markdown — headings, bold, bullet "
+            "lists, and tables all render. Optionally pass data.metrics for "
+            "graphical stat cards. Safe to call in dry runs."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "title": {"type": "string", "description": "Short report heading."},
-                "body": {"type": "string", "description": "The report content (markdown or plain text)."},
+                "body": {
+                    "type": "string",
+                    "description": (
+                        "The report content as GitHub-flavored markdown. Use ## headings, "
+                        "**bold**, bullet/numbered lists, and | pipe | tables | for readability."
+                    ),
+                },
+                "data": {
+                    "type": "object",
+                    "description": "Optional structured extras rendered graphically.",
+                    "properties": {
+                        "metrics": {
+                            "type": "array",
+                            "description": "Headline stat cards shown above the body.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "label": {"type": "string"},
+                                    "value": {"type": ["string", "number"]},
+                                    "tone": {"type": "string", "enum": ["default", "good", "warn", "bad"]},
+                                },
+                                "required": ["label", "value"],
+                            },
+                        }
+                    },
+                },
             },
             "required": ["body"],
         },

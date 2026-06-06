@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/api";
 import { canView, canRun, canEdit, getProgramAccess } from "@/lib/workspaces";
 import { isDestructiveAgentTool } from "@/lib/genesis/agent-tools";
 import { Badge } from "@/components/ui/badge";
+import { AgentReport } from "@/components/ui/agent-report";
 import { AgentActions } from "./agent-actions";
 
 export const metadata = { robots: { index: false, follow: false } };
@@ -72,7 +73,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
     | null;
 
   let summary: string | null = null;
-  let reports: Array<{ id: string; title: string; body: string; dry_run: boolean; created_at: string }> = [];
+  let reports: Array<{ id: string; title: string; body: string; data: unknown; dry_run: boolean; created_at: string }> = [];
   if (latestRun) {
     const { data: nodeExecs } = await service
       .from("node_executions")
@@ -86,7 +87,7 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
     // Structured reports the agent relayed via corelyx.report_to_user.
     const { data: reportRows } = await service
       .from("agent_reports")
-      .select("id, title, body, dry_run, created_at")
+      .select("id, title, body, data, dry_run, created_at")
       .eq("run_id", latestRun.id)
       .order("created_at", { ascending: true });
     reports = (reportRows ?? []) as typeof reports;
@@ -168,13 +169,13 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           </div>
 
           {reports.map((report) => (
-            <div key={report.id} className="rounded-2xl border glass-card p-5">
-              <div className="mb-2 flex items-center gap-2">
-                <p className="min-w-0 flex-1 truncate text-sm font-semibold">{report.title}</p>
-                {report.dry_run && <Badge variant="secondary" className="text-[10px]">preview</Badge>}
-              </div>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{report.body}</div>
-            </div>
+            <AgentReport
+              key={report.id}
+              title={report.title}
+              body={report.body}
+              dryRun={report.dry_run}
+              data={report.data}
+            />
           ))}
 
           {isRunning && (

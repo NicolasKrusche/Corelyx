@@ -1326,9 +1326,11 @@ class ProgramExecutor:
         system_prompt = (
             f"{guard}\n\nYou are an autonomous task agent. Objective:\n{cfg.objective}\n\n"
             f"Use the available tools to accomplish the objective. When you have findings, results, "
-            f"or anything the user should see, call corelyx.report_to_user with a clear title and a "
-            f"well-formatted body (markdown is supported) to deliver it to them. Then STOP and reply "
-            f"with a concise plain-text summary of what you did and anything needing human "
+            f"or anything the user should see, call corelyx.report_to_user to deliver it. Make the "
+            f"report graphical and easy to read: write the body as GitHub-flavored markdown with "
+            f"## headings, **bold**, bullet lists, and | pipe | tables | where they help, and pass "
+            f"data.metrics (e.g. counts of failures) for headline stat cards when relevant. Then STOP "
+            f"and reply with a concise plain-text summary of what you did and anything needing human "
             f"follow-up.{dry_run_note}"
         )
         sanitized_system = sanitize_text_for_llm(system_prompt)
