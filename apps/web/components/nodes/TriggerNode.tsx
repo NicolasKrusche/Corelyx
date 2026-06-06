@@ -4,7 +4,7 @@ import React from "react";
 import { Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { Clock, MousePointerClick, Webhook, Workflow, Zap, type LucideIcon } from "lucide-react";
-import { NodeShell, NodeHandle } from "./NodeShell";
+import { NodeShell, NodeHandle, NodeAddButton } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, TriggerConfig } from "@flowos/schema";
 
@@ -35,7 +35,7 @@ const TRIGGER_TYPE_ICON: Record<TriggerConfig["trigger_type"], LucideIcon> = {
   program_output: Workflow,
 };
 
-export function TriggerNode({ data, selected }: NodeProps) {
+export function TriggerNode({ id, data, selected }: NodeProps) {
   const nodeData = data as unknown as TriggerNodeData;
   const triggerType = nodeData.config?.trigger_type as TriggerConfig["trigger_type"] | undefined;
 
@@ -56,6 +56,7 @@ export function TriggerNode({ data, selected }: NodeProps) {
 
       {/* Source handle only — triggers have no incoming connections */}
       <NodeHandle type="source" position={Position.Bottom} accent="green" />
+      <NodeAddButton nodeId={id} />
     </>
   );
 }

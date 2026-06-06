@@ -15,7 +15,7 @@ import {
   Type,
   type LucideIcon,
 } from "lucide-react";
-import { NodeShell, NodeHandle } from "./NodeShell";
+import { NodeShell, NodeHandle, NodeAddButton } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, StepConfig } from "@flowos/schema";
 
@@ -54,7 +54,7 @@ const LOGIC_TYPE_ICON: Record<StepConfig["logic_type"], LucideIcon> = {
   sort: ArrowUpDown,
 };
 
-export function StepNode({ data, selected }: NodeProps) {
+export function StepNode({ id, data, selected }: NodeProps) {
   const nodeData = data as unknown as StepNodeData;
   const logicType = nodeData.config?.logic_type as StepConfig["logic_type"] | undefined;
 
@@ -76,6 +76,7 @@ export function StepNode({ data, selected }: NodeProps) {
       />
 
       <NodeHandle type="source" position={Position.Bottom} accent="sky" />
+      <NodeAddButton nodeId={id} />
     </>
   );
 }

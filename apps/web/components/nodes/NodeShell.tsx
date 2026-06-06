@@ -1,19 +1,22 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Handle, Position } from "@xyflow/react";
-import type { LucideIcon } from "lucide-react";
+import { Plug, Plus, Shuffle, Sparkles, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NodeStatus } from "@flowos/schema";
 import type { NodeValidationState } from "@/lib/validation";
+import type { NodeVariant } from "@/components/editor/NodePalettePanel";
+import { useNodeCanvas } from "./node-canvas-context";
+import { ProviderLogo } from "./ProviderLogo";
 
 // ─── Accent system ────────────────────────────────────────────────────────────
 
 export type NodeAccent = "green" | "sky" | "blue" | "purple" | "amber" | "slate";
 
 interface AccentDef {
-  /** Medallion gradient */
-  grad: string;
+  /** Solid medallion fill */
+  solid: string;
   /** Kicker / accent text */
   text: string;
   /** Soft chip background + text (badges) */
@@ -27,12 +30,12 @@ interface AccentDef {
 }
 
 const ACCENT: Record<NodeAccent, AccentDef> = {
-  green:  { grad: "from-emerald-400 to-green-600",   text: "text-emerald-600 dark:text-emerald-400", soft: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300", handle: "!bg-emerald-500", glow: "rgba(16,185,129,0.55)", glowSoft: "rgba(16,185,129,0.18)" },
-  sky:    { grad: "from-sky-400 to-blue-600",        text: "text-sky-600 dark:text-sky-400",         soft: "bg-sky-500/10 text-sky-600 dark:text-sky-300",            handle: "!bg-sky-500",     glow: "rgba(14,165,233,0.55)", glowSoft: "rgba(14,165,233,0.18)" },
-  blue:   { grad: "from-blue-400 to-indigo-600",     text: "text-blue-600 dark:text-blue-400",       soft: "bg-blue-500/10 text-blue-600 dark:text-blue-300",         handle: "!bg-blue-500",    glow: "rgba(59,130,246,0.55)", glowSoft: "rgba(59,130,246,0.18)" },
-  purple: { grad: "from-fuchsia-400 to-purple-600",  text: "text-purple-600 dark:text-purple-400",   soft: "bg-purple-500/10 text-purple-600 dark:text-purple-300",   handle: "!bg-purple-500",  glow: "rgba(168,85,247,0.55)", glowSoft: "rgba(168,85,247,0.18)" },
-  amber:  { grad: "from-amber-300 to-orange-500",    text: "text-amber-600 dark:text-amber-400",     soft: "bg-amber-500/10 text-amber-600 dark:text-amber-300",      handle: "!bg-amber-500",   glow: "rgba(245,158,11,0.55)", glowSoft: "rgba(245,158,11,0.18)" },
-  slate:  { grad: "from-slate-300 to-slate-500",     text: "text-slate-500 dark:text-slate-400",     soft: "bg-slate-500/10 text-slate-600 dark:text-slate-300",      handle: "!bg-slate-400",   glow: "rgba(100,116,139,0.5)", glowSoft: "rgba(100,116,139,0.16)" },
+  green:  { solid: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", soft: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300", handle: "!bg-emerald-500", glow: "rgba(16,185,129,0.55)", glowSoft: "rgba(16,185,129,0.18)" },
+  sky:    { solid: "bg-sky-500",     text: "text-sky-600 dark:text-sky-400",         soft: "bg-sky-500/10 text-sky-600 dark:text-sky-300",            handle: "!bg-sky-500",     glow: "rgba(14,165,233,0.55)", glowSoft: "rgba(14,165,233,0.18)" },
+  blue:   { solid: "bg-blue-500",    text: "text-blue-600 dark:text-blue-400",       soft: "bg-blue-500/10 text-blue-600 dark:text-blue-300",         handle: "!bg-blue-500",    glow: "rgba(59,130,246,0.55)", glowSoft: "rgba(59,130,246,0.18)" },
+  purple: { solid: "bg-purple-500",  text: "text-purple-600 dark:text-purple-400",   soft: "bg-purple-500/10 text-purple-600 dark:text-purple-300",   handle: "!bg-purple-500",  glow: "rgba(168,85,247,0.55)", glowSoft: "rgba(168,85,247,0.18)" },
+  amber:  { solid: "bg-amber-500",   text: "text-amber-600 dark:text-amber-400",     soft: "bg-amber-500/10 text-amber-600 dark:text-amber-300",      handle: "!bg-amber-500",   glow: "rgba(245,158,11,0.55)", glowSoft: "rgba(245,158,11,0.18)" },
+  slate:  { solid: "bg-slate-400",   text: "text-slate-500 dark:text-slate-400",     soft: "bg-slate-500/10 text-slate-600 dark:text-slate-300",      handle: "!bg-slate-400",   glow: "rgba(100,116,139,0.5)", glowSoft: "rgba(100,116,139,0.16)" },
 };
 
 // ─── Handle ───────────────────────────────────────────────────────────────────
@@ -57,6 +60,68 @@ export function NodeHandle({
       )}
       style={{ boxShadow: `0 0 0 3px ${a.glowSoft}` }}
     />
+  );
+}
+
+// ─── Per-node "+" add button (opens an inline add menu) ────────────────────────
+
+const ADD_OPTIONS: { label: string; icon: LucideIcon; variant: NodeVariant }[] = [
+  { label: "Add step", icon: Shuffle, variant: { type: "step", subtype: "transform" } },
+  { label: "Add connection", icon: Plug, variant: { type: "connection", subtype: "http" } },
+  { label: "Add AI agent", icon: Sparkles, variant: { type: "agent" } },
+];
+
+export function NodeAddButton({ nodeId }: { nodeId: string }) {
+  const { addConnectedNode } = useNodeCanvas();
+  const [open, setOpen] = useState(false);
+
+  if (!addConnectedNode) return null;
+
+  return (
+    <div className="nodrag nopan absolute left-1/2 top-full z-30 -translate-x-1/2 pt-2">
+      <button
+        type="button"
+        aria-label="Add connected node"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        className={cn(
+          "grid h-5 w-5 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-all duration-150 hover:scale-110 hover:border-primary/40 hover:text-foreground",
+          open && "scale-110 border-primary/50 text-foreground",
+        )}
+      >
+        <Plus className="h-3 w-3" strokeWidth={2.5} />
+      </button>
+
+      {open && (
+        <>
+          <div className="nodrag nopan fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="nodrag nopan absolute left-1/2 top-full z-30 mt-1 w-44 -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover p-1 shadow-xl">
+            {ADD_OPTIONS.map((opt) => {
+              const OptIcon = opt.icon;
+              return (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addConnectedNode(nodeId, opt.variant);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm text-popover-foreground transition-colors hover:bg-accent"
+                >
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                    <OptIcon className="h-3.5 w-3.5" />
+                  </span>
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -113,6 +178,8 @@ export interface NodeShellProps {
   status?: NodeStatus;
   accent: NodeAccent;
   icon: LucideIcon;
+  /** When set, render the connector's brand logo instead of the lucide icon. */
+  logo?: { provider?: string | null; label: string };
   /** Small uppercase kicker, e.g. "Trigger · Webhook" */
   kicker: string;
   title: string;
@@ -137,6 +204,7 @@ export function NodeShell({
   status,
   accent,
   icon: Icon,
+  logo,
   kicker,
   title,
   subtitle,
@@ -187,14 +255,19 @@ export function NodeShell({
 
       {/* Header: medallion + title */}
       <div className="flex items-start gap-2.5">
-        <div
-          className={cn("relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br", a.grad)}
-          style={{ boxShadow: `0 5px 12px -3px ${a.glow}` }}
-        >
-          <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-b from-white/30 to-transparent" />
-          <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/25" />
-          <Icon className="relative h-[18px] w-[18px] text-white" strokeWidth={2} />
-        </div>
+        {logo ? (
+          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-inset ring-black/10 dark:bg-zinc-100">
+            <ProviderLogo provider={logo.provider} label={logo.label} className="h-5 w-5" />
+          </div>
+        ) : (
+          <div
+            className={cn("relative grid h-10 w-10 shrink-0 place-items-center rounded-xl", a.solid)}
+            style={{ boxShadow: `0 4px 10px -3px ${a.glow}` }}
+          >
+            <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/15" />
+            <Icon className="relative h-[18px] w-[18px] text-white" strokeWidth={2} />
+          </div>
+        )}
 
         <div className="min-w-0 flex-1 pr-4 pt-0.5">
           <p className={cn("truncate text-[10px] font-semibold uppercase tracking-[0.07em]", a.text)}>{kicker}</p>
