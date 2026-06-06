@@ -46,11 +46,14 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!canEdit(access)) return apiError("Only editors can delete this agent.", 403);
 
   const service = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
-  const { error } = await service
+  const { data, error } = await service
     .from("programs")
     .delete()
     .eq("id", programId)
-    .eq("program_type", "agent");
+    .eq("program_type", "agent")
+    .select("id")
+    .maybeSingle();
   if (error) return apiError(error.message, 500);
+  if (!data) return apiError("Agent not found", 404);
   return NextResponse.json({ deleted: true });
 }
