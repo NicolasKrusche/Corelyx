@@ -225,6 +225,8 @@ export function CinematicHero({
             rotationX: -yVal * 12,
             ease: "power3.out",
             duration: 1.2,
+            overwrite: "auto",
+            force3D: true,
           });
         }
       });
@@ -242,11 +244,14 @@ export function CinematicHero({
     const isMobile = window.innerWidth < 768;
 
     const ctx = gsap.context(() => {
-      gsap.set(".text-track", { autoAlpha: 0, y: 60, scale: 0.85, filter: "blur(20px)", rotationX: -20 });
+      // GPU-accelerate transforms for smoother scrubbing.
+      gsap.defaults({ force3D: true });
+
+      gsap.set(".text-track", { autoAlpha: 0, y: 60, scale: 0.85, filter: "blur(10px)", rotationX: -20 });
       gsap.set(".text-days", { autoAlpha: 1, clipPath: "inset(0 100% 0 0)" });
       gsap.set(".main-card", { y: window.innerHeight + 200, autoAlpha: 1 });
       gsap.set([".card-left-text", ".card-right-text", ".mockup-scroll-wrapper", ".floating-badge", ".phone-widget"], { autoAlpha: 0 });
-      gsap.set(".cta-wrapper", { autoAlpha: 0, scale: 0.8, filter: "blur(30px)" });
+      gsap.set(".cta-wrapper", { autoAlpha: 0, scale: 0.8, filter: "blur(16px)" });
 
       const introTl = gsap.timeline({ delay: 0.3 });
       introTl
@@ -257,15 +262,17 @@ export function CinematicHero({
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: "+=7000",
+          end: "+=5200",
           pin: true,
-          scrub: 1,
+          scrub: 0.8,
           anticipatePin: 1,
+          fastScrollEnd: true,
+          invalidateOnRefresh: true,
         },
       });
 
       scrollTl
-        .to([".hero-text-wrapper", ".bg-grid-theme"], { scale: 1.15, filter: "blur(20px)", opacity: 0.2, ease: "power2.inOut", duration: 2 }, 0)
+        .to([".hero-text-wrapper", ".bg-grid-theme"], { scale: 1.15, filter: "blur(8px)", opacity: 0.2, ease: "power2.inOut", duration: 2 }, 0)
         .to(".main-card", { y: 0, ease: "power3.inOut", duration: 2 }, 0)
         .to(".main-card", { width: "100%", height: "100%", borderRadius: "0px", ease: "power3.inOut", duration: 1.5 })
         .fromTo(".mockup-scroll-wrapper",
