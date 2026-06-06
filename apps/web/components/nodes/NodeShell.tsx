@@ -86,7 +86,7 @@ export function SourceAddHandle({ nodeId, accent }: { nodeId: string; accent: No
           setOpen((o) => !o);
         }}
         className={cn(
-          "!flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-card transition-transform duration-150 hover:!scale-110",
+          "!flex !h-5 !w-5 !items-center !justify-center !rounded-full !border-2 !border-card",
           accent && ACCENT[accent].handle,
         )}
         style={{ boxShadow: `0 0 0 3px ${ACCENT[accent].glowSoft}` }}
