@@ -1,24 +1,53 @@
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
+import { readSystemFlags, type SystemFlags } from "@/lib/system-flags";
+import { setSystemFlags } from "@/lib/system-flags-server";
+import { MAINTENANCE_AREAS, activeDisabledAreaKeys } from "@/lib/maintenance-areas";
 import { revalidatePath } from "next/cache";
 import { AlertTriangle, Power, Shield, AlertCircle } from "lucide-react";
 
 async function getCurrentStatus() {
+  // Force a fresh read so the page reflects the toggle immediately after a write.
+  const flags = await readSystemFlags(true);
   return {
-    maintenanceMode: process.env.EMERGENCY_MAINTENANCE_MODE === "true",
-    disableGenesis: process.env.DISABLE_GENESIS_GENERATION === "true",
-    disableExecution: process.env.DISABLE_WORKFLOW_EXECUTION === "true",
+    maintenanceMode: flags.maintenanceMode,
+    disabledAreas: new Set(activeDisabledAreaKeys(flags)),
   };
 }
 
-async function updateFeatureFlag(key: string, value: boolean) {
+async function assertAdmin() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await hasTechnicalAccess(user.id, user.email))) {
+    throw new Error("Unauthorized");
+  }
+  return user;
+}
+
+// Persist a flag change to the DB-backed system_settings row. Re-authenticates
+// (never trusts the page render) before writing.
+async function applyFlag(patch: Partial<SystemFlags>) {
   "use server";
-  
-  // In production, this would update via Vercel API or similar
-  // For now, we'll just set the env var for the current process
-  process.env[key] = value ? "true" : "false";
-  
+  const user = await assertAdmin();
+  await setSystemFlags(patch, user.id);
+  revalidatePath("/admin/emergency");
+}
+
+// Enable/disable a single app area (scoped maintenance).
+async function toggleArea(key: string, disabled: boolean) {
+  "use server";
+  const user = await assertAdmin();
+  const flags = await readSystemFlags(true);
+  const next = new Set(activeDisabledAreaKeys(flags));
+  if (disabled) next.add(key);
+  else next.delete(key);
+  // Write the canonical list; also clear the legacy booleans so they can't
+  // resurrect an area the admin just re-enabled.
+  await setSystemFlags(
+    { disabledAreas: [...next], disableGenesis: false, disableExecution: false },
+    user.id
+  );
   revalidatePath("/admin/emergency");
 }
 
@@ -30,7 +59,7 @@ export default async function EmergencyControlsPage() {
 
   const status = await getCurrentStatus();
   
-  const anyActive = status.maintenanceMode || status.disableGenesis || status.disableExecution;
+  const anyActive = status.maintenanceMode || status.disabledAreas.size > 0;
   
   return (
     <div className="space-y-6">
@@ -54,14 +83,11 @@ export default async function EmergencyControlsPage() {
               <div className="mt-2 text-sm text-red-700">
                 <ul className="list-disc pl-5 space-y-1">
                   {status.maintenanceMode && (
-                    <li>Full maintenance mode - all API requests blocked</li>
+                    <li>Full maintenance mode - entire app blocked for non-admins</li>
                   )}
-                  {status.disableGenesis && (
-                    <li>Genesis generation disabled</li>
-                  )}
-                  {status.disableExecution && (
-                    <li>Workflow execution disabled</li>
-                  )}
+                  {MAINTENANCE_AREAS.filter((a) => status.disabledAreas.has(a.key)).map((a) => (
+                    <li key={a.key}>{a.label} disabled</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -89,10 +115,7 @@ export default async function EmergencyControlsPage() {
           </ul>
           
           <div className="flex gap-4">
-            <form action={async () => {
-              "use server";
-              await updateFeatureFlag("EMERGENCY_MAINTENANCE_MODE", true);
-            }}>
+            <form action={applyFlag.bind(null, { maintenanceMode: true })}>
               <button
                 type="submit"
                 disabled={status.maintenanceMode}
@@ -108,10 +131,7 @@ export default async function EmergencyControlsPage() {
             </form>
             
             {status.maintenanceMode && (
-              <form action={async () => {
-                "use server";
-                await updateFeatureFlag("EMERGENCY_MAINTENANCE_MODE", false);
-              }}>
+              <form action={applyFlag.bind(null, { maintenanceMode: false })}>
                 <button
                   type="submit"
                   className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
@@ -125,76 +145,43 @@ export default async function EmergencyControlsPage() {
         </div>
       </div>
       
-      {/* Feature-Specific Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Genesis Control */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Genesis Generation</h2>
-          </div>
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-gray-700">Status</span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                status.disableGenesis 
-                  ? "bg-red-100 text-red-800" 
-                  : "bg-green-100 text-green-800"
-              }`}>
-                {status.disableGenesis ? "DISABLED" : "ENABLED"}
-              </span>
-            </div>
-            
-            <form action={async () => {
-              "use server";
-              await updateFeatureFlag("DISABLE_GENESIS_GENERATION", !status.disableGenesis);
-            }}>
-              <button
-                type="submit"
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  status.disableGenesis
-                    ? "bg-green-100 text-green-700 hover:bg-green-200"
-                    : "bg-red-100 text-red-700 hover:bg-red-200"
-                }`}
-              >
-                {status.disableGenesis ? "Enable Genesis" : "Disable Genesis"}
-              </button>
-            </form>
-          </div>
+      {/* Scoped maintenance — disable individual parts of the app */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Partial maintenance</h2>
+          <p className="text-sm text-gray-500">
+            Disable specific areas while the rest of the app keeps running. Admins can still use disabled areas.
+          </p>
         </div>
-        
-        {/* Workflow Execution Control */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Workflow Execution</h2>
-          </div>
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-gray-700">Status</span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                status.disableExecution 
-                  ? "bg-red-100 text-red-800" 
-                  : "bg-green-100 text-green-800"
-              }`}>
-                {status.disableExecution ? "DISABLED" : "ENABLED"}
-              </span>
-            </div>
-            
-            <form action={async () => {
-              "use server";
-              await updateFeatureFlag("DISABLE_WORKFLOW_EXECUTION", !status.disableExecution);
-            }}>
-              <button
-                type="submit"
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  status.disableExecution
-                    ? "bg-green-100 text-green-700 hover:bg-green-200"
-                    : "bg-red-100 text-red-700 hover:bg-red-200"
-                }`}
-              >
-                {status.disableExecution ? "Enable Execution" : "Disable Execution"}
-              </button>
-            </form>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-gray-100">
+          {MAINTENANCE_AREAS.map((area) => {
+            const disabled = status.disabledAreas.has(area.key);
+            return (
+              <div key={area.key} className="bg-white p-6">
+                <div className="flex items-start justify-between mb-2 gap-3">
+                  <h3 className="text-sm font-semibold text-gray-900">{area.label}</h3>
+                  <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    disabled ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                  }`}>
+                    {disabled ? "DISABLED" : "ENABLED"}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mb-4">{area.description}</p>
+                <form action={toggleArea.bind(null, area.key, !disabled)}>
+                  <button
+                    type="submit"
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      disabled
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-red-100 text-red-700 hover:bg-red-200"
+                    }`}
+                  >
+                    {disabled ? `Enable ${area.label}` : `Disable ${area.label}`}
+                  </button>
+                </form>
+              </div>
+            );
+          })}
         </div>
       </div>
       
@@ -206,22 +193,19 @@ export default async function EmergencyControlsPage() {
         </h3>
         <div className="text-sm text-yellow-800 space-y-2">
           <p>
-            If the dashboard controls fail, you can manually set environment variables:
+            The toggles above write to the database and take effect within ~10s — no
+            redeploy needed. Admins (ADMIN_EMAILS, or a founder/dev role) can still
+            browse the app while maintenance mode is on to verify the fix.
+          </p>
+          <p>
+            Break-glass fallback only — if the database is unreachable, these Vercel
+            env vars force a flag on (they require a redeploy to change):
           </p>
           <pre className="bg-yellow-100 p-3 rounded mt-2 overflow-x-auto">
-{`# Emergency stop everything
-EMERGENCY_MAINTENANCE_MODE=true
-
-# Disable specific features
+{`EMERGENCY_MAINTENANCE_MODE=true
 DISABLE_GENESIS_GENERATION=true
-DISABLE_WORKFLOW_EXECUTION=true
-
-# Reset circuit breakers
-# (Requires runtime restart or API call)`}
+DISABLE_WORKFLOW_EXECUTION=true`}
           </pre>
-          <p className="mt-2">
-            Then restart the web and runtime services.
-          </p>
         </div>
       </div>
     </div>

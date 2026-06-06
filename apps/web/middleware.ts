@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import type { Database } from "@flowos/db";
 import { applySecurityHeaders } from "@/lib/security-headers";
-import { maintenanceMiddleware } from "@/lib/maintenance-middleware";
+import { maintenanceGate } from "@/lib/maintenance-middleware";
 import { looksLikeToken } from "@/lib/personal-tokens";
 import { isSessionExemptApiRoute } from "@/lib/session-exempt-api-routes";
 
@@ -77,6 +77,7 @@ const PUBLIC_ROUTES = [
   "/api/u/",
   "/u/",
   "/api/health",
+  "/maintenance",
   "/privacy",
   "/terms",
   "/dpa",
@@ -144,6 +145,15 @@ export async function middleware(request: NextRequest) {
     return nextWithSecurity();
   }
 
+  // Maintenance mode / feature kill-switches (DB-backed — toggled at runtime
+  // with no redeploy). Runs before bearer-token auth so external API callers are
+  // gated too; internal runtime callbacks above are intentionally exempt.
+  const maintenanceResponse = await maintenanceGate(request);
+  if (maintenanceResponse) {
+    applySecurityHeaders(maintenanceResponse.headers, nonce);
+    return maintenanceResponse;
+  }
+
   // Personal API token bearer auth — only applies to /api/ routes.
   // If a valid crlx_ token is presented we inject x-token-user-id so that
   // getAuthUser() in the route handler can resolve the user without cookies.
@@ -163,13 +173,6 @@ export async function middleware(request: NextRequest) {
         return NextResponse.json({ error: "Invalid or expired API token." }, { status: 401 });
       }
     }
-  }
-
-  // Check maintenance mode and feature flags
-  const maintenanceResponse = maintenanceMiddleware(request);
-  if (maintenanceResponse) {
-    applySecurityHeaders(maintenanceResponse.headers, nonce);
-    return maintenanceResponse;
   }
 
   if (isSessionExemptApiRoute(pathname)) {
