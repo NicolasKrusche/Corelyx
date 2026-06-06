@@ -25,13 +25,27 @@ async function assertAdmin() {
   return user;
 }
 
+// Persist flags, surfacing any failure as an inline error on the page instead
+// of letting it bubble up to the app-wide error boundary (a crash here is the
+// worst time to lose the emergency controls).
+async function persist(patch: Partial<SystemFlags>, userId: string) {
+  let err: string | null = null;
+  try {
+    await setSystemFlags(patch, userId);
+  } catch (e) {
+    err = e instanceof Error ? e.message : "Failed to update system flags.";
+  }
+  if (err) redirect(`/admin/emergency?error=${encodeURIComponent(err)}`);
+  revalidatePath("/admin/emergency");
+  redirect("/admin/emergency"); // clear any stale ?error from the URL
+}
+
 // Persist a flag change to the DB-backed system_settings row. Re-authenticates
 // (never trusts the page render) before writing.
 async function applyFlag(patch: Partial<SystemFlags>) {
   "use server";
   const user = await assertAdmin();
-  await setSystemFlags(patch, user.id);
-  revalidatePath("/admin/emergency");
+  await persist(patch, user.id);
 }
 
 // Enable/disable a single app area (scoped maintenance).
@@ -44,23 +58,27 @@ async function toggleArea(key: string, disabled: boolean) {
   else next.delete(key);
   // Write the canonical list; also clear the legacy booleans so they can't
   // resurrect an area the admin just re-enabled.
-  await setSystemFlags(
+  await persist(
     { disabledAreas: [...next], disableGenesis: false, disableExecution: false },
     user.id
   );
-  revalidatePath("/admin/emergency");
 }
 
-export default async function EmergencyControlsPage() {
+export default async function EmergencyControlsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/dashboard");
   if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
 
+  const { error: actionError } = await searchParams;
   const status = await getCurrentStatus();
-  
+
   const anyActive = status.maintenanceMode || status.disabledAreas.size > 0;
-  
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -68,7 +86,17 @@ export default async function EmergencyControlsPage() {
         <h1 className="text-2xl font-bold text-gray-900">Emergency Controls</h1>
         <p className="text-gray-600">Kill switches and emergency stops</p>
       </div>
-      
+
+      {actionError && (
+        <div className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+          <div>
+            <p className="font-semibold">Couldn&apos;t update maintenance settings</p>
+            <p className="mt-1">{actionError}</p>
+          </div>
+        </div>
+      )}
+
       {/* Emergency Banner */}
       {anyActive && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4">
