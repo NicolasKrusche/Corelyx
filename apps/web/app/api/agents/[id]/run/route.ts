@@ -43,12 +43,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!program) return apiError("Agent not found", 404);
   if (program.program_type !== "agent") return apiError("This program is not an agent.", 400);
 
-  // Agents have no editor step to assign a model/key, so resolve any
-  // "__USER_ASSIGNED__" placeholders on agent/agent_task nodes to a real
-  // credential now: prefer the user's best BYOK key, else the platform key.
-  // Persisted because the runtime loads the schema from the DB (S15).
-  const resolveError = await resolveAgentCredentials(service, programId, access!.workspaceId, program.schema);
-  if (resolveError) return resolveError;
+  // Agents have no editor step to assign a model/key. Build an ordered list of
+  // credential candidates (the user's keys by provider priority, then the
+  // platform key) so the runtime can fall through on credit/auth failures, and
+  // bake the first into any "__USER_ASSIGNED__" placeholders (persisted because
+  // the runtime loads the schema from the DB, S15).
+  const cred = await resolveAgentCredentials(service, programId, access!.workspaceId, program.schema);
+  if (cred.error) return cred.error;
 
   // Block only if a run is genuinely still active. Relying on agent_state alone
   // can wedge the agent if a previous run died without reporting completion.
@@ -92,10 +93,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq("id", programId);
 
   // The runtime loads schema/user from the run+program rows (S15); it only needs
-  // the run id plus the trigger_payload (which carries the dry-run flag).
+  // the run id plus the trigger_payload (dry-run flag + credential candidates for
+  // key fallback).
   const runtimeBody = JSON.stringify({
     run_id: runId,
-    trigger_payload: dryRun ? { __dry_run__: true } : {},
+    trigger_payload: {
+      ...(dryRun ? { __dry_run__: true } : {}),
+      ...(cred.candidates.length > 0 ? { __agent_credentials__: cred.candidates } : {}),
+    },
   });
   try {
     const res = await fetch(`${getRuntimeUrl()}/execute`, {
@@ -121,25 +126,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
 type RunService = ReturnType<typeof createServiceClient> & { from(t: string): any };
 
+type AgentCredential = { ref: string; model: string };
+
 /**
- * Replace "__USER_ASSIGNED__" model/api_key_ref on agent/agent_task nodes with a
- * usable credential and persist the schema. Returns an error Response if no
- * credential is available, otherwise null.
+ * Build the ordered credential candidates for an agent's AI nodes (the user's
+ * valid keys by provider priority, then the platform key), bake the first into
+ * any "__USER_ASSIGNED__" placeholders, and persist. Returns the candidate list
+ * (for the runtime's key-fallback) or an error Response when nothing is usable.
  */
 async function resolveAgentCredentials(
   service: RunService,
   programId: string,
   workspaceId: string,
   rawSchema: Record<string, unknown> | null
-): Promise<Response | null> {
+): Promise<{ error: Response | null; candidates: AgentCredential[] }> {
   const schema = (rawSchema ?? {}) as { nodes?: Array<Record<string, any>> };
   const nodes = Array.isArray(schema.nodes) ? schema.nodes : [];
   const isAiNode = (n: Record<string, any>) => n?.type === "agent" || n?.type === "agent_task";
-  const needs = nodes.some(
-    (n) => isAiNode(n) && n?.config &&
-      (n.config.api_key_ref === "__USER_ASSIGNED__" || n.config.model === "__USER_ASSIGNED__")
-  );
-  if (!needs) return null;
+  const hasAiNodes = nodes.some(isAiNode);
+  if (!hasAiNodes) return { error: null, candidates: [] };
 
   const { data: keyRows } = await service
     .from("api_keys")
@@ -149,34 +154,40 @@ async function resolveAgentCredentials(
   const keys = ((keyRows ?? []) as Array<{ id: string; provider: string }>).sort(
     (a, b) => (KEY_PROVIDER_PRIORITY[a.provider] ?? 99) - (KEY_PROVIDER_PRIORITY[b.provider] ?? 99)
   );
-  const best = keys[0];
 
-  let resolvedRef: string;
-  let resolvedModel: string;
-  if (best) {
-    resolvedRef = best.id;
-    resolvedModel = KEY_DEFAULT_MODELS[best.provider] ?? PLATFORM_DEFAULT_MODEL;
-  } else if (process.env.PLATFORM_OPENROUTER_API_KEY) {
-    resolvedRef = "platform";
-    resolvedModel = PLATFORM_DEFAULT_MODEL;
-  } else {
-    return apiError(
-      "No API key available to run this agent. Add one in Settings → API Keys.",
-      402
-    );
+  const candidates: AgentCredential[] = keys.map((k) => ({
+    ref: k.id,
+    model: KEY_DEFAULT_MODELS[k.provider] ?? PLATFORM_DEFAULT_MODEL,
+  }));
+  // Platform key (Corelyx credits) is the last-resort candidate.
+  if (process.env.PLATFORM_OPENROUTER_API_KEY) {
+    candidates.push({ ref: "platform", model: PLATFORM_DEFAULT_MODEL });
   }
 
+  if (candidates.length === 0) {
+    return {
+      error: apiError("No API key available to run this agent. Add one in Settings → API Keys.", 402),
+      candidates: [],
+    };
+  }
+
+  // Bake the first candidate into any unresolved placeholders so the saved schema
+  // is self-consistent (the runtime still gets the full list for fallback).
+  const first = candidates[0]!;
+  let changed = false;
   for (const n of nodes) {
     if (isAiNode(n) && n?.config) {
-      if (n.config.api_key_ref === "__USER_ASSIGNED__") n.config.api_key_ref = resolvedRef;
-      if (n.config.model === "__USER_ASSIGNED__") n.config.model = resolvedModel;
+      if (n.config.api_key_ref === "__USER_ASSIGNED__") { n.config.api_key_ref = first.ref; changed = true; }
+      if (n.config.model === "__USER_ASSIGNED__") { n.config.model = first.model; changed = true; }
     }
   }
+  if (changed) {
+    const { error } = await service
+      .from("programs")
+      .update({ schema: schema as unknown as Record<string, unknown>, updated_at: new Date().toISOString() } as never)
+      .eq("id", programId);
+    if (error) return { error: apiError("Could not prepare the agent for running.", 500), candidates };
+  }
 
-  const { error } = await service
-    .from("programs")
-    .update({ schema: schema as unknown as Record<string, unknown>, updated_at: new Date().toISOString() } as never)
-    .eq("id", programId);
-  if (error) return apiError("Could not prepare the agent for running.", 500);
-  return null;
+  return { error: null, candidates };
 }
