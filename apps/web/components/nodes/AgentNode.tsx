@@ -4,7 +4,7 @@ import React from "react";
 import { Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { Bot } from "lucide-react";
-import { NodeShell, NodeHandle, NodeAddButton, type NodeBadge } from "./NodeShell";
+import { NodeShell, NodeHandle, SourceAddHandle, type NodeBadge } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, AgentConfig } from "@flowos/schema";
 
@@ -48,8 +48,7 @@ export function AgentNode({ id, data, selected }: NodeProps) {
         warning={nodeData.warnings?.[0]?.message}
       />
 
-      <NodeHandle type="source" position={Position.Bottom} accent="purple" />
-      <NodeAddButton nodeId={id} />
+      <SourceAddHandle nodeId={id} accent="purple" />
     </>
   );
 }

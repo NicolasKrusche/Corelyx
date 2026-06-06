@@ -2,36 +2,12 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-
-// Map our connector provider slugs → simple-icons CDN slugs.
-const SIMPLE_ICON_SLUG: Record<string, string> = {
-  gmail: "gmail",
-  notion: "notion",
-  slack: "slack",
-  github: "github",
-  sheets: "googlesheets",
-  calendar: "googlecalendar",
-  docs: "googledocs",
-  drive: "googledrive",
-  airtable: "airtable",
-  hubspot: "hubspot",
-  typeform: "typeform",
-  asana: "asana",
-  outlook: "microsoftoutlook",
-  shopify: "shopify",
-  zoom: "zoom",
-  sentry: "sentry",
-  gitlab: "gitlab",
-  confluence: "confluence",
-  jira: "jira",
-  dropbox: "dropbox",
-  todoist: "todoist",
-  calendly: "calendly",
-};
+import { PROVIDER_ICON_URL } from "@/lib/provider-icons";
 
 /**
- * Renders a connector's brand logo from the simple-icons CDN, with a monogram
- * fallback for unknown providers or if the image fails to load (e.g. blocked).
+ * Renders a connector's brand logo using the same icon source as the "Add node"
+ * sidebar (PROVIDER_ICON_URL), with a 2-letter monogram fallback for unknown
+ * providers or if the image fails to load.
  */
 export function ProviderLogo({
   provider,
@@ -43,13 +19,13 @@ export function ProviderLogo({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const slug = provider ? SIMPLE_ICON_SLUG[provider] : undefined;
+  const url = provider ? PROVIDER_ICON_URL[provider] : undefined;
 
-  if (slug && !failed) {
+  if (url && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={`https://cdn.simpleicons.org/${slug}`}
+        src={url}
         alt=""
         aria-hidden="true"
         draggable={false}
@@ -60,10 +36,10 @@ export function ProviderLogo({
     );
   }
 
-  const letter = (label || provider || "?").trim().slice(0, 1).toUpperCase();
+  const text = (provider || label || "?").trim().slice(0, 2).toUpperCase();
   return (
-    <span className={cn("grid place-items-center text-[11px] font-bold text-zinc-500", className)} aria-hidden="true">
-      {letter}
+    <span className={cn("grid place-items-center text-[10px] font-bold text-zinc-500", className)} aria-hidden="true">
+      {text}
     </span>
   );
 }

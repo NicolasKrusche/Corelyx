@@ -1212,6 +1212,50 @@ export function EditorShell({
 
   const canvasActions = React.useMemo(() => ({ addConnectedNode }), [addConnectedNode]);
 
+  // Split a connection: drop a new step node between the edge's source and target.
+  const insertNodeOnEdge = useCallback(
+    (edgeId: string) => {
+      const edge = state.schema.edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+
+      const fromNode = state.schema.nodes.find((n) => n.id === edge.from);
+      const toNode = state.schema.nodes.find((n) => n.id === edge.to);
+      const position =
+        fromNode && toNode
+          ? { x: (fromNode.position.x + toNode.position.x) / 2, y: (fromNode.position.y + toNode.position.y) / 2 }
+          : fromNode
+            ? { x: fromNode.position.x, y: fromNode.position.y + 150 }
+            : { x: 380, y: 240 };
+
+      const id = crypto.randomUUID();
+      const schemaNode = makeDefaultNode({ type: "step", subtype: "transform" }, id, position);
+      const e1 = crypto.randomUUID();
+      const e2 = crypto.randomUUID();
+      const mkEdge = (eid: string, from: string, to: string): ReactFlowEdge => ({
+        id: eid,
+        source: from,
+        target: to,
+        type: "data_flow",
+        markerEnd: { type: MarkerType.ArrowClosed },
+        data: { condition: null, data_mapping: null, validationErrors: [] },
+      });
+
+      dispatch({ type: "REMOVE_EDGE", edgeId });
+      dispatch({ type: "UPDATE_NODE", nodeId: id, patch: schemaNode });
+      dispatch({ type: "ADD_EDGE", edge: { id: e1, from: edge.from, to: id, type: "data_flow", data_mapping: null, condition: null, label: null } });
+      dispatch({ type: "ADD_EDGE", edge: { id: e2, from: id, to: edge.to, type: "data_flow", data_mapping: null, condition: null, label: null } });
+      dispatch({ type: "SELECT_NODE", nodeId: id });
+
+      skipSyncRef.current = true;
+      setRfNodes((prev) => [...prev, schemaNodeToReactFlowNode(schemaNode)]);
+      setRfEdges((prev) => {
+        const without = prev.filter((e) => e.id !== edgeId);
+        return addEdge(mkEdge(e2, id, edge.to), addEdge(mkEdge(e1, edge.from, id), without));
+      });
+    },
+    [state.schema.edges, state.schema.nodes]
+  );
+
   const handleAddNode = useCallback(
     (variant: NodeVariant) => {
       if (contextAddPosition) {
@@ -2124,11 +2168,11 @@ export function EditorShell({
                   role="menuitem"
                   className="w-full rounded px-2 py-1.5 text-left hover:bg-accent"
                   onClick={() => {
-                    dispatch({ type: "SELECT_EDGE", edgeId: contextMenu.edgeId });
+                    insertNodeOnEdge(contextMenu.edgeId);
                     setContextMenu(null);
                   }}
                 >
-                  Configure
+                  Insert step
                 </button>
                 <button
                   type="button"

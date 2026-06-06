@@ -4,7 +4,7 @@ import React from "react";
 import { Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { Globe, Plug } from "lucide-react";
-import { NodeShell, NodeHandle, NodeAddButton } from "./NodeShell";
+import { NodeShell, NodeHandle, SourceAddHandle } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type {
   NodeStatus,
@@ -70,8 +70,7 @@ export function ConnectionNode({ id, data, selected }: NodeProps) {
         warning={nodeData.warnings?.[0]?.message}
       />
 
-      <NodeHandle type="source" position={Position.Bottom} accent="blue" />
-      <NodeAddButton nodeId={id} />
+      <SourceAddHandle nodeId={id} accent="blue" />
     </>
   );
 }
