@@ -108,6 +108,7 @@ def _make_executor(schema: ProgramSchema, **kwargs: Any) -> ProgramExecutor:
     executor._limiter.check_llm_tokens = Mock()
     executor._limiter.check_cost = Mock()
     executor._limiter.check_connector_call = Mock()
+    executor._agent_credentials = None
     executor.dry_run = bool(kwargs.get("dry_run", False))
     return executor
 
