@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/api";
 export type NotificationPrefKey =
   | "run_failures"
   | "approvals"
+  | "agent_reports"
   | "run_limit_warnings"
   | "security_alerts"
   | "product_updates";
@@ -17,6 +18,7 @@ export type NotificationPrefs = Record<NotificationPrefKey, boolean>;
 const DEFAULTS: NotificationPrefs = {
   run_failures:       true,
   approvals:          true,
+  agent_reports:      true,
   run_limit_warnings: true,
   security_alerts:    true,
   product_updates:    false,

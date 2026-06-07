@@ -1,7 +1,7 @@
 import { NonRetriableError, cron } from "inngest";
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
-import { sendApprovalEmail } from "@/lib/email";
+import { sendApprovalEmail, sendAgentQuestionEmail } from "@/lib/email";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
 
 type PendingApproval = {
@@ -11,6 +11,8 @@ type PendingApproval = {
     node_label?: string;
     program_id?: string;
     reason?: string;
+    kind?: string;
+    question?: string;
   } | null;
   created_at: string;
   node_executions: {
@@ -81,8 +83,19 @@ export const approvalNotifier = inngest.createFunction(
         const reason = approval.context?.reason;
 
         try {
-          const canSend = await isNotificationEnabled(approval.user_id, "approvals");
-          if (canSend) {
+          // Agent questions (corelyx.ask_user) are stored as "question" approvals.
+          // They get an agent-aware email that links straight to the agent, gated
+          // by the agent_reports preference rather than the workflow approvals one.
+          if (approval.context?.kind === "question" && approval.context?.program_id) {
+            if (await isNotificationEnabled(approval.user_id, "agent_reports")) {
+              await sendAgentQuestionEmail({
+                to: email,
+                agentName: programName,
+                agentId: approval.context.program_id,
+                question: approval.context.question ?? "Your agent needs your input to continue.",
+              });
+            }
+          } else if (await isNotificationEnabled(approval.user_id, "approvals")) {
             await sendApprovalEmail({
               to: email,
               nodeLabel,
