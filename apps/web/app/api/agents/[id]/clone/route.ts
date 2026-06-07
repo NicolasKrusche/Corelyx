@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 import { checkAgentAccess, checkProgramLimit } from "@/lib/limits";
+import { buildClonedAgentSchema } from "@/lib/agents/lineage";
 
 // POST /api/agents/[id]/clone — spin up a fresh one-time agent from an existing
 // agent's plan. This is how an agent "repeats" without becoming a workflow: each
@@ -53,12 +54,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   // Copy the plan, give it a fresh program_id, and stamp lineage so the run path
   // can find prior reports from earlier runs of the same agent.
-  const schema = JSON.parse(JSON.stringify(source.schema ?? {})) as Record<string, unknown>;
-  const metadata = (schema.metadata && typeof schema.metadata === "object" ? schema.metadata : {}) as Record<string, unknown>;
-  const lineageId = typeof metadata.agent_lineage_id === "string" ? metadata.agent_lineage_id : source.id;
-  schema.program_id = crypto.randomUUID();
-  schema.program_type = "agent";
-  schema.metadata = { ...metadata, agent_lineage_id: lineageId, cloned_from: source.id };
+  const schema = buildClonedAgentSchema(source.schema, source.id, crypto.randomUUID());
 
   const { data: rawProgram, error: insertError } = await service
     .from("programs")
