@@ -6,6 +6,7 @@ import {
   Bot,
   CheckCircle2,
   ExternalLink,
+  FileDown,
   FileText,
   ShieldAlert,
   Wrench,
@@ -24,6 +25,7 @@ import { AgentReport } from "@/components/ui/agent-report";
 import { AgentActions } from "./agent-actions";
 import { AgentQuestion } from "./agent-question";
 import { AgentSchedule } from "./agent-schedule";
+import { AgentPermissions } from "./agent-permissions";
 
 export const metadata = { robots: { index: false, follow: false } };
 
@@ -115,6 +117,13 @@ export default async function AgentDetailPage({
   if (!program || program.program_type !== "agent") notFound();
 
   const state = program.agent_state ?? "draft";
+  const schemaMeta = (program.schema?.metadata && typeof program.schema.metadata === "object"
+    ? (program.schema.metadata as Record<string, unknown>)
+    : {});
+  const caps = (schemaMeta.capabilities && typeof schemaMeta.capabilities === "object"
+    ? (schemaMeta.capabilities as Record<string, unknown>)
+    : {});
+  const allowWrites = caps.allow_writes !== false; // default: may make changes
   const rawNodes = (
     Array.isArray(program.schema?.nodes) ? program.schema!.nodes : []
   ) as RawNode[];
@@ -350,6 +359,9 @@ export default async function AgentDetailPage({
         </ol>
       </div>
 
+      {/* ── Permissions (capability scope) ────────────── */}
+      <AgentPermissions agentId={program.id} allowWrites={allowWrites} canEdit={userCanEdit} />
+
       {/* ── Schedule (standing agent) ─────────────────── */}
       <AgentSchedule agentId={program.id} canEdit={userCanEdit} />
 
@@ -483,6 +495,13 @@ export default async function AgentDetailPage({
               >
                 View log <ExternalLink className="h-3 w-3" />
               </Link>
+              <a
+                href={`/api/agents/${program.id}/audit`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+                download
+              >
+                Export audit <FileDown className="h-3 w-3" />
+              </a>
             </div>
           </div>
 

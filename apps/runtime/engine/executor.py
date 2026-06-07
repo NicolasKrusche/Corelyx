@@ -10,7 +10,8 @@ import re
 import socket
 import time
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlsplit
+import html as _html_module
+from urllib.parse import urljoin, urlsplit
 from typing import Any, Callable
 
 import httpx
@@ -137,6 +138,16 @@ _AGENT_KEY_ERROR_MARKERS = (
 # its agent_task nodes — a runaway guard independent of per-node max_iterations.
 MAX_AGENT_TOOL_CALLS_PER_RUN = 100
 
+# Account-orchestration tools that are unconditionally writes. Mirrors the
+# scope:"write" entries in apps/web/lib/genesis/agent-tools.ts. corelyx.call_connector
+# is intentionally excluded — it is read/write-mixed and gated per-operation.
+WRITE_AGENT_TOOL_IDS = frozenset({
+    "corelyx.trigger_program",
+    "corelyx.set_program_active",
+    "corelyx.create_workflow",
+    "corelyx.update_program",
+})
+
 
 def _is_agent_key_error(message: str) -> bool:
     """True when an agent LLM error is about the KEY (credits/auth), so the run
@@ -156,6 +167,20 @@ _CONNECTOR_READ_PREFIXES = (
 def _connector_op_is_write(operation: str) -> bool:
     """Heuristic: True when a connector operation has side effects (a write)."""
     return not (operation or "").lower().startswith(_CONNECTOR_READ_PREFIXES)
+
+
+def _strip_html_to_text(raw: str) -> str:
+    """Reduce an HTML document to readable text for agent web_fetch.
+
+    Drops script/style/head content and tags, unescapes entities, and collapses
+    whitespace. Deliberately simple (no external deps) — good enough to feed an LLM.
+    """
+    cleaned = re.sub(r"(?is)<(script|style|head|noscript)\b.*?</\1>", " ", raw)
+    cleaned = re.sub(r"(?s)<[^>]+>", " ", cleaned)
+    cleaned = _html_module.unescape(cleaned)
+    cleaned = re.sub(r"[ \t\f\v]+", " ", cleaned)
+    cleaned = re.sub(r"\n\s*\n\s*", "\n\n", cleaned)
+    return cleaned.strip()
 
 
 def _agent_tool_invocation_record(tool_id: str, result: dict) -> dict[str, Any]:
@@ -538,6 +563,9 @@ class ProgramExecutor:
     # __new__) still have these agent-run fields; __init__ overrides per instance.
     _agent_tool_calls_made: int = 0
     _prior_agent_reports: "list[dict[str, str]] | None" = None
+    # User-set capability scope for this agent run (None = unrestricted).
+    # {"allow_writes": bool, "allowed_providers": list[str] | None}
+    _agent_capabilities: "dict | None" = None
 
     def __init__(
         self,
@@ -763,6 +791,9 @@ class ProgramExecutor:
                 self._prior_agent_reports = [
                     p for p in priors if isinstance(p, dict) and p.get("body")
                 ]
+            caps = trigger_payload.get("__agent_capabilities__")
+            if isinstance(caps, dict):
+                self._agent_capabilities = caps
 
         # Build initial state: each node_id maps to its output (None = not yet run)
         state: dict[str, Any] = {n.id: None for n in self.schema.nodes}
@@ -1638,6 +1669,59 @@ class ProgramExecutor:
             return "https://openrouter.ai/api/v1"
         return "https://api.openai.com/v1"
 
+    async def _execute_agent_web_fetch(self, args: dict) -> dict:
+        """Fetch a public URL (HTTP GET) and return its text for the agent.
+
+        Read-only. SSRF-guarded via _validate_outbound_url on every hop (redirects
+        are followed manually so each target is re-validated against private/
+        loopback/metadata ranges). HTML is reduced to text; output is bounded.
+        """
+        url = args.get("url")
+        if not isinstance(url, str) or not url.strip():
+            return {"ok": False, "error": "url (string) is required."}
+        current = url.strip()
+
+        client = _get_llm_client()
+        headers = {"User-Agent": "CorelyxAgent/1.0 (+https://corelyx.app)", "Accept": "text/html,application/json,text/plain,*/*"}
+        max_hops = 4
+        try:
+            resp = None
+            for _hop in range(max_hops + 1):
+                _validate_outbound_url(current)  # raises ExecutionError on private/blocked
+                resp = await client.get(current, headers=headers, follow_redirects=False, timeout=20.0)
+                if resp.status_code in (301, 302, 303, 307, 308):
+                    location = resp.headers.get("location")
+                    if not location:
+                        break
+                    current = urljoin(current, location)
+                    continue
+                break
+            else:
+                return {"ok": False, "error": "Too many redirects."}
+        except ExecutionError as exc:
+            return {"ok": False, "error": exc.message}
+        except Exception as exc:
+            return {"ok": False, "error": f"Fetch failed: {exc}"}
+
+        if resp is None:
+            return {"ok": False, "error": "No response."}
+
+        content_type = resp.headers.get("content-type", "")
+        body = resp.text or ""
+        if "html" in content_type.lower():
+            body = _strip_html_to_text(body)
+        truncated = len(body) > 20000
+        return {
+            "ok": True,
+            "result": {
+                "url": current,
+                "status": resp.status_code,
+                "content_type": content_type,
+                "truncated": truncated,
+                "content": body[:20000],
+            },
+        }
+
     async def _execute_agent_ask_user(self, args: dict, node_id: str | None) -> dict:
         """Pause the agent and ask the user a question, then resume with the answer.
 
@@ -1781,6 +1865,22 @@ class ProgramExecutor:
 
         raise ExecutionError("AGENT_QUESTION_TIMEOUT", "The question to the user timed out without an answer.")
 
+    def _agent_allows_writes(self) -> bool:
+        """Whether the user's capability scope permits write actions (default yes)."""
+        caps = self._agent_capabilities
+        return not isinstance(caps, dict) or caps.get("allow_writes", True) is not False
+
+    def _agent_provider_allowed(self, provider_id: str) -> bool:
+        """Whether the user's capability scope permits this connector provider.
+        allowed_providers absent/None = all providers allowed."""
+        caps = self._agent_capabilities
+        if not isinstance(caps, dict):
+            return True
+        allowed = caps.get("allowed_providers")
+        if not isinstance(allowed, list):
+            return True
+        return provider_id in allowed
+
     def _record_agent_llm_usage(self, node_id: str, model: str, data: dict) -> None:
         """Record token usage + cost for one agent_task LLM call and enforce the
         run's token/cost ceilings (the same limiter used by workflow LLM calls).
@@ -1830,11 +1930,22 @@ class ProgramExecutor:
             }
         self._agent_tool_calls_made += 1
 
+        # User capability scope: a read-only agent may not use write tools. (The
+        # read/write-mixed connector tool is gated per-operation in its handler.)
+        if not self._agent_allows_writes() and tool_id in WRITE_AGENT_TOOL_IDS:
+            return {
+                "ok": False,
+                "error": f"'{tool_id}' is disabled: this agent is restricted to read-only by the user.",
+            }
+
         if tool_id == "corelyx.call_connector":
             return await self._execute_agent_connector_tool(args, node_id, scope_access)
 
         if tool_id == "corelyx.ask_user":
             return await self._execute_agent_ask_user(args, node_id)
+
+        if tool_id == "corelyx.web_fetch":
+            return await self._execute_agent_web_fetch(args)
 
         endpoint_path = "/api/internal/agent-tools"
         payload = {
@@ -1903,6 +2014,13 @@ class ProgramExecutor:
         is_write = _connector_op_is_write(operation)
         tel_node = node_id or "agent_task"
 
+        # User capability scope (set before approval) overrides the plan.
+        if is_write and not self._agent_allows_writes():
+            return {
+                "ok": False,
+                "error": f"Operation '{operation}' is a write, but the user restricted this agent to read-only.",
+            }
+
         # A read-only agent_task may never perform a write side effect.
         if is_write and scope_access == "read":
             return {
@@ -1935,6 +2053,12 @@ class ProgramExecutor:
             provider_id = self._provider_for_connection(connection_id)
         except ExecutionError as e:
             return {"ok": False, "error": e.message}
+
+        if not self._agent_provider_allowed(provider_id):
+            return {
+                "ok": False,
+                "error": f"Provider '{provider_id}' is not in this agent's allowed apps (set by the user).",
+            }
 
         try:
             await self._enforce_provider_policy(provider_id, tel_node)

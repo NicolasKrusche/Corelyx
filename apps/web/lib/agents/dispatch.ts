@@ -144,12 +144,21 @@ export async function dispatchAgentRun(
 
   const priorReports = await gatherPriorReports(service, workspaceId, programId, program.schema, runId);
 
+  // User-set capability scope (read-only / allowed apps), enforced at runtime.
+  const metadata = (program.schema?.metadata && typeof program.schema.metadata === "object"
+    ? program.schema.metadata
+    : {}) as Record<string, unknown>;
+  const capabilities = metadata.capabilities && typeof metadata.capabilities === "object"
+    ? (metadata.capabilities as Record<string, unknown>)
+    : null;
+
   const runtimeBody = JSON.stringify({
     run_id: runId,
     trigger_payload: {
       ...(dryRun ? { __dry_run__: true } : {}),
       ...(cred.candidates.length > 0 ? { __agent_credentials__: cred.candidates } : {}),
       ...(priorReports.length > 0 ? { __prior_reports__: priorReports } : {}),
+      ...(capabilities ? { __agent_capabilities__: capabilities } : {}),
       ...(opts.triggerExtra ?? {}),
     },
   });

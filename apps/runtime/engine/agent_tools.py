@@ -102,6 +102,22 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
             "required": ["body"],
         },
     },
+    "corelyx.web_fetch": {
+        "description": (
+            "Fetch the contents of a public web page or API URL (HTTP GET) and "
+            "return its text. Use to read pages, docs, or APIs that aren't a "
+            "connected app. HTML is reduced to text; output is truncated. Only "
+            "public http/https URLs are allowed (internal/private addresses are "
+            "blocked). Read-only and safe in dry runs."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "A public http(s) URL to fetch."},
+            },
+            "required": ["url"],
+        },
+    },
     "corelyx.call_connector": {
         "description": (
             "Call one operation on one of the user's connected apps directly "
