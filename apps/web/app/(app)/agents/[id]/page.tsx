@@ -124,6 +124,7 @@ export default async function AgentDetailPage({
     ? (schemaMeta.capabilities as Record<string, unknown>)
     : {});
   const allowWrites = caps.allow_writes !== false; // default: may make changes
+  const maxCostUsd = typeof caps.max_cost_usd === "number" ? caps.max_cost_usd : null;
   const rawNodes = (
     Array.isArray(program.schema?.nodes) ? program.schema!.nodes : []
   ) as RawNode[];
@@ -133,7 +134,7 @@ export default async function AgentDetailPage({
 
   const { data: runRows } = await service
     .from("runs")
-    .select("id, status, error_message, triggered_by, created_at")
+    .select("id, status, error_message, triggered_by, created_at, estimated_cost_usd")
     .eq("program_id", id)
     .order("created_at", { ascending: false })
     .limit(1);
@@ -143,6 +144,7 @@ export default async function AgentDetailPage({
     error_message: string | null;
     triggered_by: string | null;
     created_at: string;
+    estimated_cost_usd: number | null;
   } | null;
 
   let summary: string | null = null;
@@ -360,7 +362,7 @@ export default async function AgentDetailPage({
       </div>
 
       {/* ── Permissions (capability scope) ────────────── */}
-      <AgentPermissions agentId={program.id} allowWrites={allowWrites} canEdit={userCanEdit} />
+      <AgentPermissions agentId={program.id} allowWrites={allowWrites} maxCostUsd={maxCostUsd} canEdit={userCanEdit} />
 
       {/* ── Schedule (standing agent) ─────────────────── */}
       <AgentSchedule agentId={program.id} canEdit={userCanEdit} />
@@ -480,6 +482,11 @@ export default async function AgentDetailPage({
               {latestRun.triggered_by === "agent_dry_run" && (
                 <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                   dry run
+                </span>
+              )}
+              {typeof latestRun.estimated_cost_usd === "number" && latestRun.estimated_cost_usd > 0 && (
+                <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  ~${latestRun.estimated_cost_usd.toFixed(latestRun.estimated_cost_usd < 0.01 ? 4 : 2)}
                 </span>
               )}
             </div>
