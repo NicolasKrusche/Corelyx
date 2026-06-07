@@ -82,6 +82,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       "Pause and ask the user a question, then continue with their answer. Use when blocked, when a decision is needed, or when information is missing — instead of guessing on anything consequential. The run waits for the reply. Safe in dry runs. Always available (no scope needed).",
     scope: "read",
   },
+  {
+    id: "corelyx.web_fetch",
+    label: "Fetch a web page",
+    description:
+      "Fetch the contents of a public web page or API URL (HTTP GET) and return its text. Use to read pages, docs, or APIs that aren't a connected app. HTML is reduced to text and output is truncated. Only public http/https URLs are allowed (internal/private addresses are blocked). Read-only, safe in dry runs.",
+    scope: "read",
+  },
   // ── Write / orchestration ─────────────────────────────────────────────────
   {
     id: "corelyx.call_connector",

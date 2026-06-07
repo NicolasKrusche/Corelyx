@@ -1,0 +1,147 @@
+"""Tests for #3 web_fetch and #4 capability scoping on agents."""
+from __future__ import annotations
+
+import unittest
+from unittest.mock import AsyncMock, Mock, patch
+
+from engine.executor import ExecutionError, _strip_html_to_text
+from tests.test_comprehensive_nodes_and_connections import _executor, _node, _program
+
+
+def _agent_executor():
+    node = _node("a1", "agent_task", {}, connection=None)
+    ex = _executor(_program([node], []))
+    ex._resolve_connection_id = Mock(return_value="conn-1")
+    ex._provider_for_connection = Mock(return_value="slack")
+    ex._fetch_oauth_token = AsyncMock(return_value="token")
+    ex._enforce_provider_policy = AsyncMock()
+    return ex
+
+
+def _resp(status=200, text="hello", headers=None):
+    r = Mock()
+    r.status_code = status
+    r.text = text
+    r.headers = headers or {"content-type": "text/plain"}
+    return r
+
+
+# ─── #3 web_fetch ─────────────────────────────────────────────────────────────
+
+class WebFetchTests(unittest.IsolatedAsyncioTestCase):
+    async def test_requires_url(self):
+        ex = _agent_executor()
+        res = await ex._execute_agent_web_fetch({})
+        self.assertFalse(res["ok"])
+        self.assertIn("url", res["error"])
+
+    async def test_blocks_private_address(self):
+        ex = _agent_executor()
+        # Real SSRF guard runs (no network) and rejects internal hosts.
+        res = await ex._execute_agent_web_fetch({"url": "http://169.254.169.254/latest/meta-data"})
+        self.assertFalse(res["ok"])
+
+    async def test_blocks_non_http_scheme(self):
+        ex = _agent_executor()
+        res = await ex._execute_agent_web_fetch({"url": "file:///etc/passwd"})
+        self.assertFalse(res["ok"])
+
+    async def test_fetches_and_strips_html(self):
+        ex = _agent_executor()
+        client = Mock()
+        client.get = AsyncMock(return_value=_resp(
+            text="<html><head><style>x{}</style></head><body><h1>Hi</h1><p>There</p></body></html>",
+            headers={"content-type": "text/html; charset=utf-8"},
+        ))
+        with patch("engine.executor._validate_outbound_url", return_value=None), \
+             patch("engine.executor._get_llm_client", return_value=client):
+            res = await ex._execute_agent_web_fetch({"url": "https://example.com"})
+        self.assertTrue(res["ok"])
+        self.assertNotIn("<", res["result"]["content"])
+        self.assertIn("Hi", res["result"]["content"])
+        self.assertNotIn("x{}", res["result"]["content"])  # style stripped
+
+    async def test_follows_redirect_and_revalidates(self):
+        ex = _agent_executor()
+        client = Mock()
+        client.get = AsyncMock(side_effect=[
+            _resp(status=302, headers={"location": "https://example.com/final"}),
+            _resp(status=200, text="done", headers={"content-type": "text/plain"}),
+        ])
+        validate = Mock(return_value=None)
+        with patch("engine.executor._validate_outbound_url", validate), \
+             patch("engine.executor._get_llm_client", return_value=client):
+            res = await ex._execute_agent_web_fetch({"url": "https://example.com"})
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["result"]["content"], "done")
+        self.assertEqual(validate.call_count, 2)  # both hops validated
+
+    async def test_truncates_long_content(self):
+        ex = _agent_executor()
+        client = Mock()
+        client.get = AsyncMock(return_value=_resp(text="A" * 50000))
+        with patch("engine.executor._validate_outbound_url", return_value=None), \
+             patch("engine.executor._get_llm_client", return_value=client):
+            res = await ex._execute_agent_web_fetch({"url": "https://example.com"})
+        self.assertTrue(res["result"]["truncated"])
+        self.assertEqual(len(res["result"]["content"]), 20000)
+
+
+class StripHtmlTests(unittest.TestCase):
+    def test_collapses_and_unescapes(self):
+        out = _strip_html_to_text("<p>Hello&amp;bye</p>\n\n\n<div>  x  </div>")
+        self.assertIn("Hello&bye", out)
+        self.assertNotIn("<p>", out)
+
+
+# ─── #4 capability scoping ────────────────────────────────────────────────────
+
+class CapabilityScopeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_read_only_blocks_write_connector_op(self):
+        ex = _agent_executor()
+        ex._agent_capabilities = {"allow_writes": False}
+        res = await ex._execute_agent_connector_tool(
+            {"connection": "slack:main", "operation": "send_message"}, "a1", "read_write"
+        )
+        self.assertFalse(res["ok"])
+        self.assertIn("read-only", res["error"])
+
+    async def test_read_only_allows_read_connector_op(self):
+        ex = _agent_executor()
+        ex._agent_capabilities = {"allow_writes": False}
+        connector = Mock()
+        connector.supported_operations = ["list_channels"]
+        connector.execute = AsyncMock(return_value={"channels": []})
+        with patch("engine.executor.get_connector", return_value=connector):
+            res = await ex._execute_agent_connector_tool(
+                {"connection": "slack:main", "operation": "list_channels"}, "a1", "read"
+            )
+        self.assertTrue(res["ok"])
+
+    async def test_provider_allow_list_blocks_other_providers(self):
+        ex = _agent_executor()
+        ex._agent_capabilities = {"allow_writes": True, "allowed_providers": ["hubspot"]}
+        connector = Mock()
+        connector.supported_operations = ["list_channels"]
+        with patch("engine.executor.get_connector", return_value=connector):
+            res = await ex._execute_agent_connector_tool(
+                {"connection": "slack:main", "operation": "list_channels"}, "a1", "read"
+            )
+        self.assertFalse(res["ok"])
+        self.assertIn("allowed apps", res["error"])
+
+    async def test_read_only_blocks_write_account_tool(self):
+        ex = _agent_executor()
+        ex._agent_capabilities = {"allow_writes": False}
+        res = await ex._call_agent_tool("corelyx.trigger_program", {"program_id": "p1"}, "a1", "read_write")
+        self.assertFalse(res["ok"])
+        self.assertIn("read-only", res["error"])
+
+    async def test_unrestricted_by_default(self):
+        ex = _agent_executor()
+        self.assertTrue(ex._agent_allows_writes())
+        self.assertTrue(ex._agent_provider_allowed("anything"))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -16,13 +16,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body = (await request.json().catch(() => ({}))) as {
     agent_saved_template?: unknown;
     agent_discard_after_run?: unknown;
+    allow_writes?: unknown;
   };
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof body.agent_saved_template === "boolean") update.agent_saved_template = body.agent_saved_template;
   if (typeof body.agent_discard_after_run === "boolean") update.agent_discard_after_run = body.agent_discard_after_run;
-  if (Object.keys(update).length === 1) return apiError("No valid fields to update.", 400);
 
   const service = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
+
+  // Capability scope (allow_writes) lives in schema.metadata.capabilities so the
+  // runtime can enforce it. Read-modify-write the schema when it changes.
+  if (typeof body.allow_writes === "boolean") {
+    const { data: progRow } = await service
+      .from("programs")
+      .select("schema")
+      .eq("id", programId)
+      .eq("program_type", "agent")
+      .maybeSingle();
+    if (!progRow) return apiError("Agent not found", 404);
+    const schema = ((progRow as { schema: Record<string, unknown> | null }).schema ?? {}) as Record<string, unknown>;
+    const metadata = (schema.metadata && typeof schema.metadata === "object" ? schema.metadata : {}) as Record<string, unknown>;
+    const capabilities = (metadata.capabilities && typeof metadata.capabilities === "object" ? metadata.capabilities : {}) as Record<string, unknown>;
+    schema.metadata = { ...metadata, capabilities: { ...capabilities, allow_writes: body.allow_writes } };
+    update.schema = schema;
+  }
+
+  if (Object.keys(update).length === 1) return apiError("No valid fields to update.", 400);
+
   const { data, error } = await service
     .from("programs")
     .update(update as never)
