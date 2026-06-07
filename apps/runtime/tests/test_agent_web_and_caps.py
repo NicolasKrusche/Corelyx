@@ -143,5 +143,35 @@ class CapabilityScopeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(ex._agent_provider_allowed("anything"))
 
 
+class CostCapTests(unittest.TestCase):
+    def _usage(self, cost):
+        # gpt-4o-mini unknown to pricing table in tests → use reported cost in usage.
+        return {"usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2, "cost": cost}}
+
+    def test_under_cap_ok(self):
+        ex = _agent_executor()
+        ex._limiter = Mock()
+        ex._agent_capabilities = {"max_cost_usd": 1.0}
+        ex._record_agent_llm_usage("a1", "m", self._usage(0.4))
+        ex._record_agent_llm_usage("a1", "m", self._usage(0.4))  # total 0.8 < 1.0
+        self.assertAlmostEqual(ex._agent_run_cost_usd, 0.8, places=4)
+
+    def test_over_cap_raises(self):
+        ex = _agent_executor()
+        ex._limiter = Mock()
+        ex._agent_capabilities = {"max_cost_usd": 1.0}
+        ex._record_agent_llm_usage("a1", "m", self._usage(0.6))
+        with self.assertRaises(ExecutionError) as ctx:
+            ex._record_agent_llm_usage("a1", "m", self._usage(0.6))  # total 1.2 > 1.0
+        self.assertEqual(ctx.exception.code, "AGENT_COST_CAP")
+
+    def test_no_cap_never_raises(self):
+        ex = _agent_executor()
+        ex._limiter = Mock()
+        ex._agent_capabilities = {}
+        for _ in range(5):
+            ex._record_agent_llm_usage("a1", "m", self._usage(100.0))  # no cap → fine
+
+
 if __name__ == "__main__":
     unittest.main()

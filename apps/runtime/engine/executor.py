@@ -562,6 +562,7 @@ class ProgramExecutor:
     # Class-level defaults so construction paths that bypass __init__ (tests using
     # __new__) still have these agent-run fields; __init__ overrides per instance.
     _agent_tool_calls_made: int = 0
+    _agent_run_cost_usd: float = 0.0
     _prior_agent_reports: "list[dict[str, str]] | None" = None
     # User-set capability scope for this agent run (None = unrestricted).
     # {"allow_writes": bool, "allowed_providers": list[str] | None}
@@ -1907,6 +1908,18 @@ class ProgramExecutor:
             total_tokens=total_tokens,
             estimated_cost_usd=estimated_cost_usd,
         )
+
+        # User-set per-agent spend cap (capability scope). Aborts the run once the
+        # accumulated agent LLM cost crosses the ceiling, so a standing agent can't
+        # run up an unbounded bill.
+        self._agent_run_cost_usd += estimated_cost_usd
+        caps = self._agent_capabilities
+        cap = caps.get("max_cost_usd") if isinstance(caps, dict) else None
+        if isinstance(cap, (int, float)) and cap > 0 and self._agent_run_cost_usd > cap:
+            raise ExecutionError(
+                "AGENT_COST_CAP",
+                f"Agent stopped: it reached its ${cap:.2f} spend cap for this run.",
+            )
 
     async def _call_agent_tool(
         self,

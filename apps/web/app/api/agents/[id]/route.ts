@@ -17,6 +17,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     agent_saved_template?: unknown;
     agent_discard_after_run?: unknown;
     allow_writes?: unknown;
+    max_cost_usd?: unknown;
   };
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof body.agent_saved_template === "boolean") update.agent_saved_template = body.agent_saved_template;
@@ -24,9 +25,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const service = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
 
-  // Capability scope (allow_writes) lives in schema.metadata.capabilities so the
-  // runtime can enforce it. Read-modify-write the schema when it changes.
-  if (typeof body.allow_writes === "boolean") {
+  // Capability scope lives in schema.metadata.capabilities so the runtime can
+  // enforce it. Read-modify-write the schema when any capability changes.
+  const setsAllowWrites = typeof body.allow_writes === "boolean";
+  const setsMaxCost = typeof body.max_cost_usd === "number" || body.max_cost_usd === null;
+  if (setsAllowWrites || setsMaxCost) {
     const { data: progRow } = await service
       .from("programs")
       .select("schema")
@@ -37,7 +40,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const schema = ((progRow as { schema: Record<string, unknown> | null }).schema ?? {}) as Record<string, unknown>;
     const metadata = (schema.metadata && typeof schema.metadata === "object" ? schema.metadata : {}) as Record<string, unknown>;
     const capabilities = (metadata.capabilities && typeof metadata.capabilities === "object" ? metadata.capabilities : {}) as Record<string, unknown>;
-    schema.metadata = { ...metadata, capabilities: { ...capabilities, allow_writes: body.allow_writes } };
+    const nextCaps = { ...capabilities };
+    if (setsAllowWrites) nextCaps.allow_writes = body.allow_writes;
+    if (setsMaxCost) {
+      // null clears the cap; a positive number sets it (bounded for sanity).
+      nextCaps.max_cost_usd = body.max_cost_usd === null
+        ? null
+        : Math.max(0, Math.min(Number(body.max_cost_usd), 1000));
+    }
+    schema.metadata = { ...metadata, capabilities: nextCaps };
     update.schema = schema;
   }
 

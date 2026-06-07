@@ -16,10 +16,45 @@ import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 type Phase = "describe" | "building" | "error";
 
-const EXAMPLES = [
-  "Go through my failed workflow runs from the last 7 days, figure out which ones broke because a connection expired, and send me a Slack summary.",
-  "Check all HubSpot deals that have been in 'Proposal Sent' for more than 14 days and draft a follow-up email for each one.",
-  "Pull this week's support tickets from Zendesk, group them by topic, and write a summary I can paste into the team standup.",
+type Starter = { title: string; blurb: string; prompt: string };
+
+const STARTERS: Starter[] = [
+  {
+    title: "Stale deal chaser",
+    blurb: "Find deals stuck in a stage and draft follow-ups",
+    prompt:
+      "Check all HubSpot deals that have been in 'Proposal Sent' for more than 14 days and draft a follow-up email for each one. Ask me before sending anything.",
+  },
+  {
+    title: "Support ticket digest",
+    blurb: "Group this week's tickets and summarise for standup",
+    prompt:
+      "Pull this week's support tickets from Zendesk, group them by topic, and write a summary I can paste into the team standup.",
+  },
+  {
+    title: "Broken workflow triage",
+    blurb: "Find why runs failed and report back",
+    prompt:
+      "Go through my failed workflow runs from the last 7 days, figure out which ones broke because a connection expired, and send me a Slack summary.",
+  },
+  {
+    title: "Inbox triager",
+    blurb: "Classify new emails and flag what needs me",
+    prompt:
+      "Review my unread Gmail from today, classify each as urgent / FYI / can-ignore, and give me a short list of the ones that need a reply, with a suggested response for each.",
+  },
+  {
+    title: "Competitor watch",
+    blurb: "Check a page for changes and summarise",
+    prompt:
+      "Fetch our top competitor's pricing page, compare it to what you found last time, and tell me what changed.",
+  },
+  {
+    title: "Weekly metrics recap",
+    blurb: "Pull numbers and write a recap",
+    prompt:
+      "Pull this week's key numbers from Stripe (new revenue, churn) and write a short recap I can share with the team.",
+  },
 ];
 
 function Spinner() {
@@ -302,26 +337,27 @@ export function NewAgentForm() {
         </p>
       )}
 
-      {/* Examples */}
+      {/* Starter templates */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Lightbulb className="h-3.5 w-3.5 text-muted-foreground/60" />
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-            Examples
+            Start from a template
           </p>
         </div>
-        <div className="space-y-2">
-          {EXAMPLES.map((ex) => (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {STARTERS.map((s) => (
             <button
-              key={ex}
+              key={s.title}
               type="button"
               onClick={() => {
-                setDescription(ex);
+                setDescription(s.prompt);
                 textareaRef.current?.focus();
               }}
-              className="w-full rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-foreground"
+              className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-left transition-colors hover:border-primary/30 hover:bg-primary/5"
             >
-              {ex}
+              <p className="text-sm font-semibold">{s.title}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{s.blurb}</p>
             </button>
           ))}
         </div>

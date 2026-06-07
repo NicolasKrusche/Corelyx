@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Eye, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
 /**
@@ -12,16 +13,47 @@ import { friendlyResponseMessage } from "@/lib/friendly-errors";
 export function AgentPermissions({
   agentId,
   allowWrites,
+  maxCostUsd,
   canEdit,
 }: {
   agentId: string;
   allowWrites: boolean;
+  maxCostUsd: number | null;
   canEdit: boolean;
 }) {
   const router = useRouter();
   const [writes, setWrites] = useState(allowWrites);
+  const [cap, setCap] = useState<string>(maxCostUsd != null ? String(maxCostUsd) : "");
+  const [savingCap, setSavingCap] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function saveCap() {
+    if (savingCap) return;
+    setSavingCap(true);
+    setError(null);
+    try {
+      const trimmed = cap.trim();
+      const value = trimmed === "" ? null : Number(trimmed);
+      if (value !== null && (!Number.isFinite(value) || value < 0)) {
+        setError("Enter a valid dollar amount, or leave blank for no cap.");
+        return;
+      }
+      const res = await fetch(`/api/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ max_cost_usd: value }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(friendlyResponseMessage(data, "Could not save the spend cap."));
+        return;
+      }
+      router.refresh();
+    } finally {
+      setSavingCap(false);
+    }
+  }
 
   async function set(next: boolean) {
     if (busy || next === writes) return;
@@ -90,6 +122,35 @@ export function AgentPermissions({
             );
           })}
         </div>
+        {/* Spend cap */}
+        <div className="border-t border-border/50 pt-3">
+          <p className="text-sm font-medium">Spend cap per run</p>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Stop a run once its AI cost passes this amount. Leave blank for no cap.
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center rounded-lg border border-border/60 bg-background px-2.5">
+              <span className="text-sm text-muted-foreground">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                inputMode="decimal"
+                disabled={!canEdit || savingCap}
+                value={cap}
+                onChange={(e) => setCap(e.target.value)}
+                placeholder="none"
+                className="w-24 bg-transparent px-1.5 py-1.5 text-sm outline-none"
+              />
+            </div>
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => void saveCap()} disabled={savingCap}>
+                {savingCap ? "Saving…" : "Save cap"}
+              </Button>
+            )}
+          </div>
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     </div>
