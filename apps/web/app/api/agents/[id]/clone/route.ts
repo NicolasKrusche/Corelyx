@@ -9,10 +9,13 @@ import { cloneAgentProgram } from "@/lib/agents/dispatch";
 // clone is a new one-time run awaiting approval. Lineage is tracked in
 // schema.metadata.agent_lineage_id so prior reports can carry over (cross-run
 // memory). The new agent starts paused at "awaiting_approval".
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: sourceId } = await params;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const body = (await request.json().catch(() => ({}))) as { adjustment?: unknown };
+  const adjustment = typeof body.adjustment === "string" ? body.adjustment : null;
 
   const access = await getProgramAccess(sourceId, user.id);
   if (!canView(access)) return apiError("Agent not found", 404);
@@ -52,7 +55,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } | null;
   if (!source || source.program_type !== "agent") return apiError("Agent not found", 404);
 
-  const cloned = await cloneAgentProgram(service, source, user.id, workspaceId);
+  const cloned = await cloneAgentProgram(service, source, user.id, workspaceId, adjustment);
   if (!cloned.ok) return apiError(cloned.error, 500);
 
   return NextResponse.json({ agent: cloned.program });

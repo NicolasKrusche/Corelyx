@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Play, FlaskConical, Trash2, Bookmark, CheckCircle2, RotateCcw } from "lucide-react";
+import { Play, FlaskConical, Trash2, Bookmark, CheckCircle2, RotateCcw, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
@@ -26,6 +27,8 @@ export function AgentActions({
   const [notice, setNotice] = useState<string | null>(null);
   const [saved, setSaved] = useState(savedTemplate);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustment, setAdjustment] = useState("");
 
   const isRunning = state === "running";
   const isCompleted = state === "completed";
@@ -76,12 +79,16 @@ export function AgentActions({
     }
   }
 
-  async function runAgain() {
+  async function runAgain(adjustment?: string) {
     if (busy) return;
     setBusy("clone");
     setError(null);
     try {
-      const res = await fetch(`/api/agents/${agentId}/clone`, { method: "POST" });
+      const res = await fetch(`/api/agents/${agentId}/clone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(adjustment ? { adjustment } : {}),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(friendlyResponseMessage(data, "Could not create a new run. Please try again."));
@@ -151,10 +158,16 @@ export function AgentActions({
           </>
         )}
         {canEdit && isCompleted && (
-          <Button onClick={() => void runAgain()} disabled={busy !== null}>
-            <RotateCcw className="mr-1.5 h-4 w-4" />
-            {busy === "clone" ? "Setting up…" : "Run again"}
-          </Button>
+          <>
+            <Button onClick={() => void runAgain()} disabled={busy !== null}>
+              <RotateCcw className="mr-1.5 h-4 w-4" />
+              {busy === "clone" ? "Setting up…" : "Run again"}
+            </Button>
+            <Button variant="outline" onClick={() => setAdjustOpen((v) => !v)} disabled={busy !== null}>
+              <Pencil className="mr-1.5 h-4 w-4" />
+              Adjust &amp; re-run
+            </Button>
+          </>
         )}
         {canEdit && (
           <Button variant="outline" onClick={() => void toggleSaved()} disabled={busy !== null}>
@@ -169,6 +182,29 @@ export function AgentActions({
           </Button>
         )}
       </div>
+
+      {adjustOpen && isCompleted && (
+        <div className="space-y-2 rounded-xl border border-border/60 p-3">
+          <p className="text-xs font-medium">What should change this time?</p>
+          <Textarea
+            className="min-h-[70px] resize-none text-sm"
+            placeholder="e.g. only email accounts in the Enterprise segment; skip anyone contacted in the last week"
+            value={adjustment}
+            onChange={(e) => setAdjustment(e.target.value)}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => void runAgain(adjustment.trim() || undefined)}
+              disabled={busy !== null || adjustment.trim().length === 0}
+            >
+              {busy === "clone" ? "Setting up…" : "Create adjusted run"}
+            </Button>
+            <Button variant="ghost" onClick={() => setAdjustOpen(false)} disabled={busy !== null}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isCompleted ? (
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">

@@ -191,9 +191,24 @@ export async function cloneAgentProgram(
   service: Service,
   source: { id: string; name: string; description: string | null; schema: Record<string, unknown> | null; execution_mode: string | null },
   userId: string,
-  workspaceId: string
+  workspaceId: string,
+  adjustment?: string | null
 ): Promise<{ ok: true; program: { id: string; name: string } } | { ok: false; error: string }> {
   const schema = buildClonedAgentSchema(source.schema, source.id, crypto.randomUUID());
+
+  // Iterate loop: append the user's adjustment to every agent_task objective so the
+  // re-run reasons with the new guidance (e.g. "this time, only email VIP accounts").
+  const adj = typeof adjustment === "string" ? adjustment.trim().slice(0, 1000) : "";
+  if (adj) {
+    const nodes = Array.isArray((schema as { nodes?: unknown }).nodes)
+      ? ((schema as { nodes: Array<Record<string, any>> }).nodes)
+      : [];
+    for (const n of nodes) {
+      if (n?.type === "agent_task" && n?.config && typeof n.config.objective === "string") {
+        n.config.objective = `${n.config.objective}\n\nUser adjustment for this run: ${adj}`;
+      }
+    }
+  }
 
   const { data: rawProgram, error: insertError } = await service
     .from("programs")

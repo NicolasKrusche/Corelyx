@@ -23,6 +23,18 @@ const TONE_CLASS: Record<NonNullable<AgentReportMetric["tone"]>, string> = {
   bad: "text-destructive",
 };
 
+const OUTCOME_META: Record<string, { label: string; cls: string }> = {
+  success: { label: "Success", cls: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/20 dark:text-emerald-400" },
+  partial: { label: "Partial", cls: "bg-amber-500/10 text-amber-600 ring-amber-500/20 dark:text-amber-400" },
+  failed: { label: "Failed", cls: "bg-destructive/10 text-destructive ring-destructive/20" },
+};
+
+function parseOutcome(data: unknown): { label: string; cls: string } | null {
+  if (!data || typeof data !== "object") return null;
+  const o = (data as { outcome?: unknown }).outcome;
+  return typeof o === "string" && o in OUTCOME_META ? OUTCOME_META[o] : null;
+}
+
 function parseMetrics(data: unknown): AgentReportMetric[] {
   if (!data || typeof data !== "object") return [];
   const raw = (data as { metrics?: unknown }).metrics;
@@ -54,12 +66,18 @@ export function AgentReport({
   data?: unknown;
 }) {
   const metrics = parseMetrics(data);
+  const outcome = parseOutcome(data);
 
   return (
     <div className="rounded-2xl border glass-card p-5">
       <div className="mb-3 flex items-center gap-2">
         <FileText className="h-4 w-4 shrink-0 text-primary" />
         <p className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</p>
+        {outcome && (
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${outcome.cls}`}>
+            {outcome.label}
+          </span>
+        )}
         {dryRun && <Badge variant="secondary" className="text-[10px]">preview</Badge>}
       </div>
 
