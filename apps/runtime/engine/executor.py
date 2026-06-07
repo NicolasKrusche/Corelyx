@@ -1404,13 +1404,16 @@ class ProgramExecutor:
         )
         system_prompt = (
             f"{guard}\n\nYou are an autonomous task agent. Objective:\n{cfg.objective}\n\n"
-            f"Use the available tools to accomplish the objective. When you have findings, results, "
-            f"or anything the user should see, call corelyx.report_to_user to deliver it. Make the "
-            f"report graphical and easy to read: write the body as GitHub-flavored markdown with "
-            f"## headings, **bold**, bullet lists, and | pipe | tables | where they help, and pass "
-            f"data.metrics (e.g. counts of failures) for headline stat cards when relevant. Then STOP "
-            f"and reply with a concise plain-text summary of what you did and anything needing human "
-            f"follow-up.{dry_run_note}"
+            f"Use the available tools to accomplish the objective. If you are blocked, missing "
+            f"information, or unsure about a consequential action, call corelyx.ask_user instead of "
+            f"guessing. BEFORE you finish, VERIFY your work: re-check each part of the objective and "
+            f"confirm it was actually accomplished (e.g. re-read what you wrote, confirm the send "
+            f"succeeded); if something is incomplete, fix it or clearly flag it. When done, call "
+            f"corelyx.report_to_user to deliver results — set its `outcome` to 'success', 'partial', "
+            f"or 'failed' based on your verification, and write the body as GitHub-flavored markdown "
+            f"(## headings, **bold**, bullet lists, | pipe | tables |) with data.metrics for headline "
+            f"stat cards when relevant. Then STOP and reply with a concise plain-text summary of what "
+            f"you did and anything needing human follow-up.{dry_run_note}"
         )
         # Cross-run memory: surface what earlier runs of this agent's lineage found
         # so a re-run builds on prior context instead of starting cold.

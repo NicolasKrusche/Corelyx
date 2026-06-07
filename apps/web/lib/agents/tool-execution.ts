@@ -301,7 +301,15 @@ async function reportToUser(
   const bodyRaw = typeof args.body === "string" ? args.body : "";
   const body = bodyRaw.trim().slice(0, 20000);
   if (!body) return { ok: false, error: "body (string) is required and cannot be empty." };
-  const data = args.data && typeof args.data === "object" && !Array.isArray(args.data) ? args.data : null;
+  const baseData = args.data && typeof args.data === "object" && !Array.isArray(args.data)
+    ? (args.data as Record<string, unknown>)
+    : {};
+  // The agent's verified self-assessment (success/partial/failed) — stored in the
+  // report data so the UI/inbox/email can show a clear "did it work?" signal.
+  const outcome = args.outcome === "success" || args.outcome === "partial" || args.outcome === "failed"
+    ? args.outcome
+    : null;
+  const data = outcome ? { ...baseData, outcome } : (Object.keys(baseData).length > 0 ? baseData : null);
 
   // Re-derive program ownership from the run — never trust client-supplied ids.
   const { data: runRow } = await service

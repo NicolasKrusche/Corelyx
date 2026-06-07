@@ -79,6 +79,11 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
                         "**bold**, bullet/numbered lists, and | pipe | tables | for readability."
                     ),
                 },
+                "outcome": {
+                    "type": "string",
+                    "enum": ["success", "partial", "failed"],
+                    "description": "Your verified self-assessment of whether the objective was achieved.",
+                },
                 "data": {
                     "type": "object",
                     "description": "Optional structured extras rendered graphically.",
