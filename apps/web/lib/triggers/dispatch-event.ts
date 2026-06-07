@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/api";
 import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
+import { fireAgentTrigger } from "@/lib/agents/dispatch";
 import { getProcessingRestriction } from "@/lib/compliance";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import {
@@ -26,6 +27,9 @@ type ProgramRow = {
   execution_mode: string;
   is_active: boolean;
   conflict_policy: string | null;
+  program_type: string | null;
+  name: string;
+  description: string | null;
 };
 
 export interface DispatchEventInput {
@@ -171,7 +175,7 @@ export async function dispatchEventTriggers(
     matching.map(async (trigger) => {
       const { data: programRaw } = await db
         .from("programs")
-        .select("id, schema, user_id, workspace_id, execution_mode, is_active, conflict_policy")
+        .select("id, schema, user_id, workspace_id, execution_mode, is_active, conflict_policy, program_type, name, description")
         .eq("id", trigger.program_id)
         .single();
 
@@ -191,9 +195,6 @@ export async function dispatchEventTriggers(
       const runLimitCheck = await checkRunLimit(program.user_id, program.workspace_id);
       if (!runLimitCheck.allowed) return;
 
-      const conflict = await _checkAndAcquireSlot(db, program.id, program.conflict_policy);
-      if (!conflict.allowed) return;
-
       const triggeredBy = input.triggered_by ?? `event:${input.source}:${input.event}`;
       const triggerPayload = buildEventTriggerPayload({
         triggerId: trigger.id,
@@ -202,6 +203,27 @@ export async function dispatchEventTriggers(
         payload,
         connectionId: input.connection_id,
       });
+
+      // Standing agent: each matching event spawns a fresh one-time agent
+      // (clone + reason from scratch + prior-run memory). No conflict slot — the
+      // clone is brand new — so concurrent events each get their own agent.
+      if (program.program_type === "agent") {
+        const fired = await fireAgentTrigger(
+          db as Parameters<typeof fireAgentTrigger>[0],
+          program,
+          "agent_event",
+          triggerPayload
+        );
+        await db
+          .from("triggers")
+          .update({ last_fired_at: new Date().toISOString() } as never)
+          .eq("id", trigger.id);
+        if (fired.ok) runIds.push(fired.runId);
+        return;
+      }
+
+      const conflict = await _checkAndAcquireSlot(db, program.id, program.conflict_policy);
+      if (!conflict.allowed) return;
 
       const { data: runRaw } = await db
         .from("runs")

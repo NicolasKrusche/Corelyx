@@ -12,6 +12,7 @@ import {
   readRuntimeRejectionDetails,
 } from "@/lib/runtime-dispatch";
 import { recordTriggerEvent } from "@/lib/trigger-events";
+import { fireAgentTrigger } from "@/lib/agents/dispatch";
 
 /**
  * Inngest function: runs every minute, finds all active cron triggers that are
@@ -51,7 +52,7 @@ export const cronRunner = inngest.createFunction(
         // Fetch program schema + user_id
         const { data: program, error: progErr } = await db
           .from("programs")
-          .select("id, schema, user_id, workspace_id, execution_mode")
+          .select("id, schema, user_id, workspace_id, execution_mode, program_type, name, description")
           .eq("id", trigger.program_id)
           .eq("is_active", true)
           .single();
@@ -75,6 +76,26 @@ export const cronRunner = inngest.createFunction(
         if (!limitCheck.allowed) {
           logger.warn(`Skipping cron trigger ${trigger.id}: run limit reached for user ${userId}`);
           recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "cron", status: "skipped", message: "Monthly run limit reached" });
+          return;
+        }
+
+        // Standing agent: each scheduled fire spawns a fresh one-time agent
+        // (clone + reason from scratch + prior-run memory), then advances next_run_at.
+        if ((program as Record<string, unknown>).program_type === "agent") {
+          const fireResult = await fireAgentTrigger(
+            db as Parameters<typeof fireAgentTrigger>[0],
+            program as unknown as Parameters<typeof fireAgentTrigger>[1],
+            "agent_cron",
+            { trigger_id: trigger.id }
+          );
+          if (fireResult.ok) {
+            fired++;
+            recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: fireResult.runId, source: "cron", status: "dispatched" });
+          } else {
+            logger.error(`Cron agent fire failed for trigger ${trigger.id}: ${fireResult.error}`);
+            recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "cron", status: "failed", message: fireResult.error });
+          }
+          await advanceNextRun(db, trigger, logger);
           return;
         }
 
@@ -162,30 +183,32 @@ export const cronRunner = inngest.createFunction(
         fired++;
         recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "dispatched" });
 
-        // Update last_fired_at and compute next_run_at
-        const expr = (trigger.config as Record<string, unknown>).expression as string;
-        const timezone = ((trigger.config as Record<string, unknown>).timezone as string) ?? "UTC";
-        let nextRun: string | null = null;
-        try {
-          const interval = CronExpressionParser.parse(expr, {
-            currentDate: new Date(),
-            tz: timezone,
-          });
-          nextRun = interval.next().toISOString();
-        } catch {
-          logger.warn(`Invalid cron expression for trigger ${trigger.id}: ${expr}`);
-        }
-
-        await db
-          .from("triggers")
-          .update({
-            last_fired_at: new Date().toISOString(),
-            next_run_at: nextRun,
-          } as never)
-          .eq("id", trigger.id);
+        await advanceNextRun(db, trigger, logger);
       });
     }
 
     return { fired };
   }
 );
+
+/** Stamp last_fired_at and compute the next_run_at from the cron expression. */
+async function advanceNextRun(
+  db: ReturnType<typeof createServiceClient>,
+  trigger: { id: string; config: Record<string, unknown> },
+  logger: { warn: (msg: string) => void }
+): Promise<void> {
+  const expr = trigger.config.expression as string;
+  const timezone = (trigger.config.timezone as string) ?? "UTC";
+  let nextRun: string | null = null;
+  try {
+    nextRun = CronExpressionParser.parse(expr, { currentDate: new Date(), tz: timezone })
+      .next()
+      .toISOString();
+  } catch {
+    logger.warn(`Invalid cron expression for trigger ${trigger.id}: ${expr}`);
+  }
+  await db
+    .from("triggers")
+    .update({ last_fired_at: new Date().toISOString(), next_run_at: nextRun } as never)
+    .eq("id", trigger.id);
+}

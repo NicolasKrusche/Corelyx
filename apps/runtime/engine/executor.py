@@ -1638,6 +1638,149 @@ class ProgramExecutor:
             return "https://openrouter.ai/api/v1"
         return "https://api.openai.com/v1"
 
+    async def _execute_agent_ask_user(self, args: dict, node_id: str | None) -> dict:
+        """Pause the agent and ask the user a question, then resume with the answer.
+
+        Reuses the approvals table + Realtime/poll wait that powers HITL approvals:
+        a "question" approval is created and the run blocks until the user answers
+        (free text in decision_note) or declines. Available to all agent users —
+        it is read-safe (no account mutation), so it also runs in dry runs.
+        """
+        question = args.get("question")
+        if not isinstance(question, str) or not question.strip():
+            return {"ok": False, "error": "question (string) is required."}
+        question = question.strip()[:2000]
+
+        node = self.node_map.get(node_id or "") if node_id else None
+        node_label = getattr(node, "label", None) or "Agent question"
+
+        # Resolve the agent_task node_execution row to attach the approval to.
+        try:
+            row = (
+                self.db.table("node_executions")
+                .select("id")
+                .eq("run_id", self.run_id)
+                .eq("node_id", node_id)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            node_exec_id = row.data[0]["id"] if row.data else None
+        except Exception as exc:
+            return {"ok": False, "error": f"Could not record the question: {exc}"}
+        if not node_exec_id:
+            return {"ok": False, "error": "No node execution to attach the question to."}
+
+        timeout_hours = 24.0
+        if isinstance(node, SchemaNode) and isinstance(node.config, AgentTaskConfig):
+            try:
+                timeout_hours = float(node.config.approval_timeout_hours)
+            except (TypeError, ValueError):
+                timeout_hours = 24.0
+
+        try:
+            approval = await create_approval(
+                self.db,
+                node_exec_id,
+                self.user_id,
+                {
+                    "kind": "question",
+                    "question": question,
+                    "node_label": node_label,
+                    "program_id": self.program_id,
+                    "reason": "Agent asked a question",
+                    "requested_action": f"Answer the agent: {question}",
+                    "timeout_hours": timeout_hours,
+                    "dry_run": self.dry_run,
+                },
+            )
+        except Exception as exc:
+            return {"ok": False, "error": f"Could not deliver the question: {exc}"}
+
+        approval_id = approval.get("id")
+        if not approval_id:
+            return {"ok": False, "error": "Question was created but has no id to wait on."}
+
+        try:
+            answer = await self._wait_for_agent_answer(approval_id, timeout_hours * 3600)
+        except CancellationError:
+            raise
+        except ExecutionError as exc:
+            # Timeout (or similar) — let the agent proceed/stop rather than fail the run.
+            return {"ok": False, "error": exc.message}
+
+        if answer is None:
+            return {"ok": True, "result": {"answered": False, "note": "The user declined to answer."}}
+        return {"ok": True, "result": {"answered": True, "answer": answer}}
+
+    async def _wait_for_agent_answer(self, approval_id: str, timeout_seconds: float) -> str | None:
+        """Wait for the user to answer an agent question. Returns the answer text
+        (decision_note) when answered, None when declined (rejected), and raises on
+        timeout/cancellation. Keyed on the approval id so multiple questions per
+        agent_task node each wait on their own row."""
+        resolved = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        channel = None
+
+        def _on_change(payload: Any) -> None:
+            record = None
+            if isinstance(payload, dict):
+                record = payload.get("record") or payload.get("new")
+            if isinstance(record, dict) and record.get("id") == approval_id:
+                if record.get("status") in ("approved", "rejected"):
+                    loop.call_soon_threadsafe(resolved.set)
+
+        try:
+            channel = self.db.channel(f"agent_question:{approval_id}")
+            channel.on_postgres_changes(
+                "UPDATE",
+                schema="public",
+                table="approvals",
+                filter=f"id=eq.{approval_id}",
+                callback=_on_change,
+            ).subscribe()
+        except Exception as exc:
+            print(f"[executor] question realtime unavailable for {approval_id}; polling: {exc}", flush=True)
+            channel = None
+
+        deadline = time.time() + timeout_seconds
+        fallback_interval = 15.0
+        try:
+            while time.time() < deadline:
+                if await get_run_status(self.db, self.run_id) == "cancelled":
+                    raise CancellationError()
+
+                res = (
+                    self.db.table("approvals")
+                    .select("status, decision_note")
+                    .eq("id", approval_id)
+                    .limit(1)
+                    .execute()
+                )
+                rows = res.data or []
+                if rows:
+                    status = rows[0].get("status")
+                    if status == "approved":
+                        return rows[0].get("decision_note") or ""
+                    if status == "rejected":
+                        return None
+
+                remaining = max(0.0, deadline - time.time())
+                try:
+                    await asyncio.wait_for(resolved.wait(), timeout=min(fallback_interval, remaining))
+                except asyncio.TimeoutError:
+                    continue
+                finally:
+                    resolved.clear()
+        finally:
+            if channel is not None:
+                try:
+                    channel.unsubscribe()
+                except Exception:
+                    pass
+
+        raise ExecutionError("AGENT_QUESTION_TIMEOUT", "The question to the user timed out without an answer.")
+
     def _record_agent_llm_usage(self, node_id: str, model: str, data: dict) -> None:
         """Record token usage + cost for one agent_task LLM call and enforce the
         run's token/cost ceilings (the same limiter used by workflow LLM calls).
@@ -1689,6 +1832,9 @@ class ProgramExecutor:
 
         if tool_id == "corelyx.call_connector":
             return await self._execute_agent_connector_tool(args, node_id, scope_access)
+
+        if tool_id == "corelyx.ask_user":
+            return await self._execute_agent_ask_user(args, node_id)
 
         endpoint_path = "/api/internal/agent-tools"
         payload = {

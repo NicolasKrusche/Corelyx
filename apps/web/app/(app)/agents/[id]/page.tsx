@@ -22,6 +22,8 @@ import { isDestructiveAgentTool } from "@/lib/genesis/agent-tools";
 import { Badge } from "@/components/ui/badge";
 import { AgentReport } from "@/components/ui/agent-report";
 import { AgentActions } from "./agent-actions";
+import { AgentQuestion } from "./agent-question";
+import { AgentSchedule } from "./agent-schedule";
 
 export const metadata = { robots: { index: false, follow: false } };
 
@@ -150,18 +152,22 @@ export default async function AgentDetailPage({
     dry_run: boolean;
     created_at: string;
   }> = [];
+  let pendingQuestions: Array<{ id: string; question: string }> = [];
 
+  const nodeExecIds: string[] = [];
   if (latestRun) {
     const { data: nodeExecs } = await service
       .from("node_executions")
-      .select("node_id, status, error_message, output_payload")
+      .select("id, node_id, status, error_message, output_payload")
       .eq("run_id", latestRun.id);
     for (const ne of (nodeExecs ?? []) as Array<{
+      id: string;
       node_id: string;
       status: string | null;
       error_message: string | null;
       output_payload: Record<string, unknown> | null;
     }>) {
+      if (ne.id) nodeExecIds.push(ne.id);
       const s = ne.output_payload?.summary;
       if (typeof s === "string" && s.trim()) summary = s;
       const rawCalls = ne.output_payload?.tool_calls;
@@ -190,6 +196,20 @@ export default async function AgentDetailPage({
       .eq("run_id", latestRun.id)
       .order("created_at", { ascending: true });
     reports = (reportRows ?? []) as typeof reports;
+
+    // Pending questions the agent asked mid-run (corelyx.ask_user) — the run is
+    // paused until these are answered.
+    if (nodeExecIds.length > 0) {
+      const { data: questionRows } = await service
+        .from("approvals")
+        .select("id, status, context, node_execution_id")
+        .in("node_execution_id", nodeExecIds)
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+      pendingQuestions = ((questionRows ?? []) as Array<{ id: string; context: Record<string, unknown> | null }>)
+        .filter((r) => r.context?.kind === "question" && typeof r.context?.question === "string")
+        .map((r) => ({ id: r.id, question: r.context!.question as string }));
+    }
   }
 
   const userCanRun = canRun(access);
@@ -329,6 +349,14 @@ export default async function AgentDetailPage({
           )}
         </ol>
       </div>
+
+      {/* ── Schedule (standing agent) ─────────────────── */}
+      <AgentSchedule agentId={program.id} canEdit={userCanEdit} />
+
+      {/* ── Pending agent questions ───────────────────── */}
+      {pendingQuestions.map((q) => (
+        <AgentQuestion key={q.id} approvalId={q.id} question={q.question} />
+      ))}
 
       {/* ── Live activity transcript ──────────────────── */}
       {latestRun && (state === "running" || execByNode.size > 0) && (

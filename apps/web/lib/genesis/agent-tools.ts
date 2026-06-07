@@ -75,6 +75,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       "Relay findings back to the user in a rich report window. Args: title (string), body (GitHub-flavored markdown — use headings, **bold**, bullet lists, and tables for readability), and optional data.metrics (array of {label, value, tone:'good'|'warn'|'bad'}) rendered as graphical stat cards. Call this to present results (e.g. why last week's runs failed) before finishing. Safe to use in dry runs.",
     scope: "read",
   },
+  {
+    id: "corelyx.ask_user",
+    label: "Ask the user",
+    description:
+      "Pause and ask the user a question, then continue with their answer. Use when blocked, when a decision is needed, or when information is missing — instead of guessing on anything consequential. The run waits for the reply. Safe in dry runs. Always available (no scope needed).",
+    scope: "read",
+  },
   // ── Write / orchestration ─────────────────────────────────────────────────
   {
     id: "corelyx.call_connector",
@@ -121,7 +128,10 @@ export const AGENT_TOOL_IDS = AGENT_TOOLS.map((t) => t.id);
  * Reporting back to the user is a core agent capability, so we never want a
  * generated agent to be unable to relay its findings.
  */
-export const ALWAYS_AVAILABLE_AGENT_TOOL_IDS = ["corelyx.report_to_user"] as const;
+export const ALWAYS_AVAILABLE_AGENT_TOOL_IDS = [
+  "corelyx.report_to_user",
+  "corelyx.ask_user",
+] as const;
 
 const AGENT_TOOL_BY_ID = new Map(AGENT_TOOLS.map((t) => [t.id, t]));
 
