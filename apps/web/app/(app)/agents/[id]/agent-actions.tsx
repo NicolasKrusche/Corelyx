@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Play, FlaskConical, Trash2, Bookmark, CheckCircle2 } from "lucide-react";
+import { Play, FlaskConical, Trash2, Bookmark, CheckCircle2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
@@ -21,7 +21,7 @@ export function AgentActions({
   canEdit: boolean;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<null | "run" | "dry" | "save" | "delete">(null);
+  const [busy, setBusy] = useState<null | "run" | "dry" | "save" | "delete" | "clone">(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [saved, setSaved] = useState(savedTemplate);
@@ -69,6 +69,26 @@ export function AgentActions({
       setTimeout(() => {
         document.getElementById("agent-report")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
+    } catch {
+      setError("We couldn't reach the server. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runAgain() {
+    if (busy) return;
+    setBusy("clone");
+    setError(null);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/clone`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(friendlyResponseMessage(data, "Could not create a new run. Please try again."));
+        return;
+      }
+      const newId = data?.agent?.id as string | undefined;
+      if (newId) router.push(`/agents/${newId}`);
     } catch {
       setError("We couldn't reach the server. Please try again.");
     } finally {
@@ -129,6 +149,12 @@ export function AgentActions({
               {busy === "dry" ? "Starting…" : "Dry run"}
             </Button>
           </>
+        )}
+        {canEdit && isCompleted && (
+          <Button onClick={() => void runAgain()} disabled={busy !== null}>
+            <RotateCcw className="mr-1.5 h-4 w-4" />
+            {busy === "clone" ? "Setting up…" : "Run again"}
+          </Button>
         )}
         {canEdit && (
           <Button variant="outline" onClick={() => void toggleSaved()} disabled={busy !== null}>

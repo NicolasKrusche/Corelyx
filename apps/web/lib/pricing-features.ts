@@ -36,6 +36,7 @@ export const COMPARISON_FEATURES: FeatureItem[] = [
     values: ["—", "2,500", "10,000", "15,000"],
   },
   { label: "Genesis AI uses / month", values: ["3", "5", "Unlimited", "Unlimited"] },
+  { label: "AI agents (one-time tasks)", values: [false, true, true, true] },
   { label: "Human-in-the-loop approvals", values: [false, false, true, true] },
   { label: "Error prevention (auto)", values: [false, false, true, true] },
   { label: "Run history", values: ["7 days", "30 days", "90 days", "1 year"] },

@@ -249,6 +249,20 @@ export async function checkConflictDetectionAccess(userId: string, workspaceId?:
   };
 }
 
+export async function checkAgentAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
+  const ent = getEntitlements(profile.tier);
+
+  if (ent.agents) return { allowed: true };
+
+  return {
+    allowed: false,
+    reason: "AI agents require Solo plan or higher",
+    upgradeMessage:
+      "One-time AI agents are not available on the Free plan. Upgrade to Solo to plan, approve, and run agents.",
+  };
+}
+
 export async function checkBYOKAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
   const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);

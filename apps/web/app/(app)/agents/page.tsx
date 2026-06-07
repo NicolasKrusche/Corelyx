@@ -14,6 +14,9 @@ import {
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
+import { getUserTier } from "@/lib/limits";
+import { getEntitlements } from "@/lib/entitlements";
+import { AgentsUpsell } from "./_upsell";
 
 export const metadata = {
   title: "Agents",
@@ -116,6 +119,13 @@ export default async function AgentsPage() {
   if (!user) redirect("/login");
 
   const ws = await getActiveWorkspace(user.id);
+
+  // Agents are a Solo+ feature — Free users see the upsell instead of the list.
+  const tier = await getUserTier(user.id, ws?.workspaceId ?? null);
+  if (!getEntitlements(tier).agents) {
+    return <AgentsUpsell />;
+  }
+
   const service = createServiceClient() as ReturnType<
     typeof createServiceClient
   > & { from(t: string): any };

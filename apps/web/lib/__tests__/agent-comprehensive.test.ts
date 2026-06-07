@@ -678,6 +678,7 @@ describe("agent tool runtime parity", () => {
       "corelyx.list_connections",
       "corelyx.get_account_stats",
       "corelyx.report_to_user",
+      "corelyx.call_connector",
       "corelyx.trigger_program",
       "corelyx.set_program_active",
       "corelyx.create_workflow",
@@ -689,7 +690,7 @@ describe("agent tool runtime parity", () => {
   });
 
   it("TS tool count equals Python tool count", () => {
-    expect(AGENT_TOOLS.length).toBe(11);
+    expect(AGENT_TOOLS.length).toBe(12);
   });
 
   it.each(AGENT_TOOLS)("%s has scope defined", (tool) => {

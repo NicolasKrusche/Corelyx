@@ -56,6 +56,15 @@ const STATE_STYLES: Record<string, string> = {
     "text-blue-600 bg-blue-500/10 border-blue-500/25 dark:text-blue-400",
 };
 
+// Per-step execution dot colour for the live activity transcript.
+const EXEC_DOT: Record<string, string> = {
+  running: "bg-primary animate-pulse",
+  completed: "bg-emerald-500",
+  failed: "bg-destructive",
+  skipped: "bg-muted-foreground/40",
+  pending: "bg-muted-foreground/30",
+};
+
 const RUN_STATUS_STYLES: Record<string, string> = {
   completed:
     "text-emerald-600 bg-emerald-500/10 border-emerald-500/25 dark:text-emerald-400",
@@ -126,6 +135,13 @@ export default async function AgentDetailPage({
   } | null;
 
   let summary: string | null = null;
+  // node_id → execution state, for the live activity transcript.
+  type NodeExec = {
+    status: string;
+    error_message: string | null;
+    toolCalls: Array<{ tool: string; ok: boolean; simulated: boolean; error?: string }>;
+  };
+  const execByNode = new Map<string, NodeExec>();
   let reports: Array<{
     id: string;
     title: string;
@@ -138,13 +154,34 @@ export default async function AgentDetailPage({
   if (latestRun) {
     const { data: nodeExecs } = await service
       .from("node_executions")
-      .select("output_payload")
+      .select("node_id, status, error_message, output_payload")
       .eq("run_id", latestRun.id);
     for (const ne of (nodeExecs ?? []) as Array<{
+      node_id: string;
+      status: string | null;
+      error_message: string | null;
       output_payload: Record<string, unknown> | null;
     }>) {
       const s = ne.output_payload?.summary;
       if (typeof s === "string" && s.trim()) summary = s;
+      const rawCalls = ne.output_payload?.tool_calls;
+      const toolCalls = Array.isArray(rawCalls)
+        ? (rawCalls as Array<Record<string, unknown>>)
+            .filter((c) => typeof c?.tool === "string")
+            .map((c) => ({
+              tool: c.tool as string,
+              ok: c.ok === true,
+              simulated: c.simulated === true,
+              error: typeof c.error === "string" ? c.error : undefined,
+            }))
+        : [];
+      if (ne.node_id) {
+        execByNode.set(ne.node_id, {
+          status: ne.status ?? "pending",
+          error_message: ne.error_message,
+          toolCalls,
+        });
+      }
     }
 
     const { data: reportRows } = await service
@@ -292,6 +329,70 @@ export default async function AgentDetailPage({
           )}
         </ol>
       </div>
+
+      {/* ── Live activity transcript ──────────────────── */}
+      {latestRun && (state === "running" || execByNode.size > 0) && (
+        <div className="rounded-2xl border bg-card/80 shadow-sm">
+          <div className="flex items-center justify-between border-b px-5 py-4">
+            <p className="text-sm font-semibold">Activity</p>
+            {isRunning && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                live
+              </span>
+            )}
+          </div>
+          <ol className="divide-y divide-border/50">
+            {planNodes.map((node) => {
+              const exec = execByNode.get(node.id);
+              const status = exec?.status ?? "pending";
+              return (
+                <li key={node.id} className="flex gap-3 px-5 py-3">
+                  <span
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${EXEC_DOT[status] ?? EXEC_DOT.pending}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {node.label ?? node.id}
+                      </span>
+                      <span className="text-[11px] capitalize text-muted-foreground">
+                        {status}
+                      </span>
+                    </div>
+                    {exec && exec.toolCalls.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {exec.toolCalls.map((c, i) => (
+                          <span
+                            key={`${c.tool}-${i}`}
+                            title={c.error}
+                            className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${
+                              !c.ok
+                                ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                : c.simulated
+                                  ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                  : "border-border bg-muted/40 text-muted-foreground"
+                            }`}
+                          >
+                            <Wrench className="h-2.5 w-2.5" />
+                            {c.tool}
+                            {c.simulated && c.ok ? " (simulated)" : ""}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {exec?.error_message && (
+                      <p className="mt-1 text-[11px] text-destructive">
+                        {exec.error_message}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
 
       {/* ── Agent reports ─────────────────────────────── */}
       {(reports.length > 0 || isRunning) && (

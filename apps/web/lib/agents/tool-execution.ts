@@ -80,6 +80,13 @@ export async function executeAgentTool(input: {
     return { ok: false, error: "Unknown tool." };
   }
 
+  // Connector calls are executed natively by the runtime (it owns the connector
+  // layer, OAuth tokens, and dry-run simulation), so they never round-trip here.
+  // Guard against accidental dispatch with a clear message.
+  if (tool === "corelyx.call_connector") {
+    return { ok: false, error: "corelyx.call_connector is executed by the runtime, not the web tool endpoint." };
+  }
+
   const service = createServiceClient() as LooseClient;
   const memberWorkspaceIds = await getUserWorkspaceIds(service, userId);
   if (memberWorkspaceIds.length === 0) {

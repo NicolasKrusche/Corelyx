@@ -33,7 +33,7 @@ export const TIERS = [
       { text: "Manual & cron triggers" },
       { text: "Community support" },
     ],
-    missing: ["BYOK (Bring your own key)", "Pay-per-use connectors (Stripe, Twilio, OpenAI…)", "Human-in-the-loop approvals", "Error prevention (auto)"],
+    missing: ["AI agents (one-time tasks)", "BYOK (Bring your own key)", "Pay-per-use connectors (Stripe, Twilio, OpenAI…)", "Human-in-the-loop approvals", "Error prevention (auto)"],
   },
   {
     name: "Solo",
@@ -50,6 +50,7 @@ export const TIERS = [
       { text: "5 programs" },
       { text: "75 runs / month" },
       { text: "All 200+ connectors", note: "(incl. Stripe, Twilio, OpenAI, AWS S3…)" },
+      { text: "AI agents", note: "(plan, approve & run one-time tasks)" },
       { text: "Bring your own API keys (BYOK)" },
       { text: "2,500 platform AI credits / month", note: "(use any model, no setup)" },
       { text: "30-day run history" },
@@ -72,6 +73,7 @@ export const TIERS = [
     features: [
       { text: "Unlimited programs" },
       { text: "Up to 3 team seats" },
+      { text: "AI agents", note: "(plan, approve & run one-time tasks)" },
       { text: "Human-in-the-loop approvals" },
       { text: "Error prevention (auto)" },
       { text: "500 runs / month — enough for daily automations across your whole team" },

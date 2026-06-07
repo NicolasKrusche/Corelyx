@@ -30,6 +30,8 @@ export interface PlanEntitlements {
   hitlApprovals: boolean;
   conflictDetection: boolean;
   priorityExecution: boolean;
+  // One-time AI agents (plan a task, approve, run once). Solo and above.
+  agents: boolean;
 
   // Collaboration
   maxTeamSeats: number | null;
@@ -60,6 +62,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     hitlApprovals: false,
     conflictDetection: false,
     priorityExecution: false,
+    agents: false,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
     includedAiCredits: 0,
@@ -76,6 +79,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     hitlApprovals: false,
     conflictDetection: false,
     priorityExecution: false,
+    agents: true,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
     includedAiCredits: 2_500,
@@ -92,6 +96,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: false,
+    agents: true,
     maxTeamSeats: 3,
     maxWorkspaces: 3,
     includedAiCredits: 10_000,
@@ -108,6 +113,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: true,
+    agents: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCredits: 15_000,
@@ -124,6 +130,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: true,
+    agents: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCredits: null,
