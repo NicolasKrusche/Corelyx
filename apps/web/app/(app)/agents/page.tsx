@@ -111,6 +111,59 @@ function RelativeDate({ iso }: { iso: string }) {
   );
 }
 
+function AgentRowLink({
+  agent,
+  scheduled,
+  hasQuestion,
+}: {
+  agent: AgentRow;
+  scheduled: boolean;
+  hasQuestion: boolean;
+}) {
+  const state = agent.agent_state ?? "draft";
+  const meta = STATE_META[state];
+  return (
+    <Link
+      href={`/agents/${agent.id}`}
+      className="group flex items-center justify-between gap-4 rounded-2xl border border-border/80 bg-card/80 px-5 py-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${meta?.dot ?? "bg-muted-foreground/40"}`} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold group-hover:text-primary">{agent.name}</p>
+            {agent.agent_saved_template && (
+              <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                Saved
+              </span>
+            )}
+            {scheduled && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <Clock className="h-2.5 w-2.5" /> Scheduled
+              </span>
+            )}
+          </div>
+          {agent.description && (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{agent.description}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        {hasQuestion && (
+          <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+            Needs answer
+          </span>
+        )}
+        <StateChip state={state} />
+        <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+          <Clock className="h-3 w-3" />
+          <RelativeDate iso={agent.created_at} />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 export default async function AgentsPage() {
   const supabase = await createServerClient();
   const {
@@ -143,9 +196,33 @@ export default async function AgentsPage() {
     agents = (data ?? []) as AgentRow[];
   }
 
-  const needsAttention = agents.filter(
-    (a) => a.agent_state === "awaiting_approval"
-  ).length;
+  // Inbox signals: which agents have a paused question, and which are scheduled.
+  const pendingQuestionIds = new Set<string>();
+  const scheduledIds = new Set<string>();
+  const agentIds = agents.map((a) => a.id);
+  if (agentIds.length > 0) {
+    const [{ data: qRows }, { data: trigRows }] = await Promise.all([
+      service.from("approvals").select("context").eq("user_id", user.id).eq("status", "pending"),
+      service.from("triggers").select("program_id, type, is_active").in("program_id", agentIds).eq("is_active", true),
+    ]);
+    const agentIdSet = new Set(agentIds);
+    for (const r of (qRows ?? []) as Array<{ context: Record<string, unknown> | null }>) {
+      const pid = r.context?.program_id;
+      if (r.context?.kind === "question" && typeof pid === "string" && agentIdSet.has(pid)) {
+        pendingQuestionIds.add(pid);
+      }
+    }
+    for (const t of (trigRows ?? []) as Array<{ program_id: string; type: string }>) {
+      if (t.type !== "manual") scheduledIds.add(t.program_id);
+    }
+  }
+
+  // "Needs you" = waiting on plan approval or a paused question.
+  const needsInput = agents.filter(
+    (a) => a.agent_state === "awaiting_approval" || pendingQuestionIds.has(a.id)
+  );
+  const restAgents = agents.filter((a) => !needsInput.includes(a));
+  const needsAttention = needsInput.length;
 
   return (
     <div className="space-y-8">
@@ -198,51 +275,42 @@ export default async function AgentsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {agents.map((agent) => {
-            const state = agent.agent_state ?? "draft";
-            const meta = STATE_META[state];
-            return (
-              <Link
-                key={agent.id}
-                href={`/agents/${agent.id}`}
-                className="group flex items-center justify-between gap-4 rounded-2xl border border-border/80 bg-card/80 px-5 py-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
-              >
-                {/* Left: dot + name */}
-                <div className="flex min-w-0 items-center gap-3">
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${meta?.dot ?? "bg-muted-foreground/40"}`}
-                  />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-semibold group-hover:text-primary">
-                        {agent.name}
-                      </p>
-                      {agent.agent_saved_template && (
-                        <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                          Saved
-                        </span>
-                      )}
-                    </div>
-                    {agent.description && (
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {agent.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
+        <div className="space-y-8">
+          {/* Needs your input */}
+          {needsInput.length > 0 && (
+            <div className="space-y-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">
+                Needs your input
+              </p>
+              {needsInput.map((agent) => (
+                <AgentRowLink
+                  key={agent.id}
+                  agent={agent}
+                  scheduled={scheduledIds.has(agent.id)}
+                  hasQuestion={pendingQuestionIds.has(agent.id)}
+                />
+              ))}
+            </div>
+          )}
 
-                {/* Right: state + date */}
-                <div className="flex shrink-0 items-center gap-3">
-                  <StateChip state={state} />
-                  <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-                    <Clock className="h-3 w-3" />
-                    <RelativeDate iso={agent.created_at} />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+          {/* Everything else */}
+          {restAgents.length > 0 && (
+            <div className="space-y-2.5">
+              {needsInput.length > 0 && (
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  All agents
+                </p>
+              )}
+              {restAgents.map((agent) => (
+                <AgentRowLink
+                  key={agent.id}
+                  agent={agent}
+                  scheduled={scheduledIds.has(agent.id)}
+                  hasQuestion={false}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

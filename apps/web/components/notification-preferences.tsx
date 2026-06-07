@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 type Prefs = {
   run_failures:       boolean;
   approvals:          boolean;
+  agent_reports:      boolean;
   run_limit_warnings: boolean;
   security_alerts:    boolean;
   product_updates:    boolean;
@@ -23,6 +24,11 @@ const ITEMS: { key: PrefKey; label: string; caption: string; locked?: boolean }[
     key: "approvals",
     label: "Approval requests",
     caption: "Email when a workflow step needs your sign-off.",
+  },
+  {
+    key: "agent_reports",
+    label: "Agent updates",
+    caption: "Email when an agent finishes or needs your input.",
   },
   {
     key: "run_limit_warnings",

@@ -7,6 +7,7 @@ import { getUserNotificationPrefs, type NotificationPrefs } from "@/lib/notifica
 const PatchBodyZ = z.object({
   run_failures:       z.boolean().optional(),
   approvals:          z.boolean().optional(),
+  agent_reports:      z.boolean().optional(),
   run_limit_warnings: z.boolean().optional(),
   security_alerts:    z.boolean().optional(),
   product_updates:    z.boolean().optional(),

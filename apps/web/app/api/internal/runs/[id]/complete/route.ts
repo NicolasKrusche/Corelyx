@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
-import { sendRunFailureEmail } from "@/lib/email";
+import { sendRunFailureEmail, sendAgentReportEmail } from "@/lib/email";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
 import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
@@ -71,25 +71,62 @@ export async function POST(
   const runTriggeredBy: string = (runRow as { triggered_by?: string } | null)?.triggered_by ?? "";
 
   // ── Agent lifecycle: move the agent off "running" when its run finishes, so a
-  // failed/finished agent isn't stuck and can be restarted. Dry runs return the
-  // agent to "awaiting_approval"; real runs land on completed/failed.
-  if (program_id && (runTriggeredBy === "agent_manual" || runTriggeredBy === "agent_dry_run")) {
+  // failed/finished agent isn't stuck and can be restarted. Covers every agent
+  // run kind — manual, dry-run, and triggered (cron/webhook/event). Dry runs
+  // return the agent to "awaiting_approval"; real runs land on completed/failed.
+  const isAgentRun = program_id && runTriggeredBy.startsWith("agent_");
+  let agentName: string | null = null;
+  if (isAgentRun) {
     const { data: agentProg } = await db
       .from("programs")
-      .select("program_type")
+      .select("program_type, name")
       .eq("id", program_id)
       .single();
-    if ((agentProg as { program_type?: string } | null)?.program_type === "agent") {
-      const nextState =
-        runTriggeredBy === "agent_dry_run"
-          ? "awaiting_approval"
-          : status === "completed"
-            ? "completed"
-            : "failed";
+    const agentRow = agentProg as { program_type?: string; name?: string } | null;
+    if (agentRow?.program_type === "agent") {
+      agentName = agentRow.name ?? "Agent";
+      const isDryRun = runTriggeredBy === "agent_dry_run";
+      const nextState = isDryRun
+        ? "awaiting_approval"
+        : status === "completed"
+          ? "completed"
+          : "failed";
       await db
         .from("programs")
         .update({ agent_state: nextState, updated_at: new Date().toISOString() } as never)
         .eq("id", program_id);
+
+      // Notify the owner that the agent finished, with its latest report summary.
+      // Skipped for dry runs (previews) and failures (covered by the failure email).
+      if (!isDryRun && status === "completed") {
+        try {
+          const [{ data: userData }, { data: reportRow }] = await Promise.all([
+            db.auth.admin.getUserById(user_id),
+            db
+              .from("agent_reports")
+              .select("title, body")
+              .eq("run_id", params.id)
+              .eq("dry_run", false)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+          const email = userData?.user?.email;
+          const report = reportRow as { title: string | null; body: string | null } | null;
+          if (email && await isNotificationEnabled(user_id, "agent_reports")) {
+            const summary = (report?.body ?? "The agent completed its run. Open it to see what it did.").slice(0, 1200);
+            await sendAgentReportEmail({
+              to: email,
+              agentName,
+              agentId: program_id,
+              reportTitle: report?.title ?? `${agentName} finished`,
+              summary,
+            });
+          }
+        } catch {
+          serverLog({ level: "error", event: "runs.complete.agent_report_email_failed", message: "Agent report notification email could not be sent." });
+        }
+      }
     }
   }
 
