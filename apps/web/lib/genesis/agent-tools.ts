@@ -77,6 +77,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   },
   // ── Write / orchestration ─────────────────────────────────────────────────
   {
+    id: "corelyx.call_connector",
+    label: "Call a connected app",
+    description:
+      "Call one operation on one of the user's connected apps directly (e.g. Slack send_message, HubSpot create_note, Gmail list_threads). This is what lets an agent ACT on apps dynamically while reasoning — decide per item, then do it — instead of pre-wiring every action as a connection node. Args: connection (the connection name / provider:alias as listed), operation (a supported operation for that provider), params (operation arguments). Read operations run even in dry-run; write operations are simulated in dry-run. Executed by the runtime against the user's own connection credentials.",
+    scope: "write",
+  },
+  {
     id: "corelyx.trigger_program",
     label: "Run a workflow",
     description:

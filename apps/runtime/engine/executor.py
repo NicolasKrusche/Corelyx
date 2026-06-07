@@ -133,11 +133,44 @@ _AGENT_KEY_ERROR_MARKERS = (
 )
 
 
+# Hard ceiling on how many tool calls a single agent run may make across all of
+# its agent_task nodes — a runaway guard independent of per-node max_iterations.
+MAX_AGENT_TOOL_CALLS_PER_RUN = 100
+
+
 def _is_agent_key_error(message: str) -> bool:
     """True when an agent LLM error is about the KEY (credits/auth), so the run
     should fall through to the next credential rather than fail outright."""
     lowered = message.lower()
     return any(marker in lowered for marker in _AGENT_KEY_ERROR_MARKERS)
+
+
+# Operation-name prefixes that denote a side-effect-free read. Anything else is
+# treated as a write (conservative: unknown ops are simulated in agent dry-runs).
+_CONNECTOR_READ_PREFIXES = (
+    "get_", "list_", "search_", "fetch_", "read_", "find_", "query_",
+    "retrieve_", "lookup_", "check_", "describe_", "count_", "download_",
+)
+
+
+def _connector_op_is_write(operation: str) -> bool:
+    """Heuristic: True when a connector operation has side effects (a write)."""
+    return not (operation or "").lower().startswith(_CONNECTOR_READ_PREFIXES)
+
+
+def _agent_tool_invocation_record(tool_id: str, result: dict) -> dict[str, Any]:
+    """Build the persisted audit entry for one agent tool call.
+
+    Stored in the agent_task node's output_payload.tool_calls (and surfaced in the
+    UI transcript). Records outcome only — never tool arguments — so credentials
+    and PII in params are not logged.
+    """
+    record: dict[str, Any] = {"tool": tool_id, "ok": result.get("ok", False)}
+    if result.get("simulated"):
+        record["simulated"] = True
+    if not result.get("ok") and result.get("error"):
+        record["error"] = str(result.get("error"))[:300]
+    return record
 
 
 def _safe_json_args(raw: Any) -> dict:
@@ -501,6 +534,11 @@ def _ip_is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
 
 
 class ProgramExecutor:
+    # Class-level defaults so construction paths that bypass __init__ (tests using
+    # __new__) still have these agent-run fields; __init__ overrides per instance.
+    _agent_tool_calls_made: int = 0
+    _prior_agent_reports: "list[dict[str, str]] | None" = None
+
     def __init__(
         self,
         schema: ProgramSchema,
@@ -531,6 +569,11 @@ class ProgramExecutor:
         # the web run dispatch so the runtime can fall through keys (and finally the
         # platform key) when one is out of credits / invalid.
         self._agent_credentials: list[dict[str, str]] | None = None
+        # Guardrail: total agent tool calls allowed across the whole run.
+        self._agent_tool_calls_made = 0
+        # Cross-run memory: prior agent reports (same lineage) supplied by the web
+        # run dispatch, injected into agent_task context. [{title, body, created_at}]
+        self._prior_agent_reports: list[dict[str, str]] | None = None
         self.compliance_mode = compliance_mode if compliance_mode in {"standard", "eu_only"} else "standard"
         self.data_region = data_region or "eu-central-1"
         try:
@@ -715,6 +758,11 @@ class ProgramExecutor:
             creds = trigger_payload.get("__agent_credentials__")
             if isinstance(creds, list) and creds:
                 self._agent_credentials = [c for c in creds if isinstance(c, dict) and c.get("ref")]
+            priors = trigger_payload.get("__prior_reports__")
+            if isinstance(priors, list) and priors:
+                self._prior_agent_reports = [
+                    p for p in priors if isinstance(p, dict) and p.get("body")
+                ]
 
         # Build initial state: each node_id maps to its output (None = not yet run)
         state: dict[str, Any] = {n.id: None for n in self.schema.nodes}
@@ -1333,6 +1381,17 @@ class ProgramExecutor:
             f"and reply with a concise plain-text summary of what you did and anything needing human "
             f"follow-up.{dry_run_note}"
         )
+        # Cross-run memory: surface what earlier runs of this agent's lineage found
+        # so a re-run builds on prior context instead of starting cold.
+        if self._prior_agent_reports:
+            prior_lines = ["\n\nCONTEXT FROM PRIOR RUNS OF THIS AGENT (most recent first; for reference only):"]
+            for p in self._prior_agent_reports[:3]:
+                title = str(p.get("title") or "Report")
+                body = str(p.get("body") or "")[:2000]
+                when = str(p.get("created_at") or "")
+                prior_lines.append(f"\n--- {title} ({when}) ---\n{body}")
+            system_prompt = system_prompt + "".join(prior_lines)
+
         sanitized_system = sanitize_text_for_llm(system_prompt)
         sanitized_input = sanitize_value_for_llm(input_data)
         input_json = json.dumps(sanitized_input.value)
@@ -1451,7 +1510,9 @@ class ProgramExecutor:
                     f"Agent task model error {resp.status_code} (model={model}): {resp.text[:300]}",
                     node_id,
                 )
-            msg = ((resp.json().get("choices") or [{}])[0].get("message")) or {}
+            data = resp.json()
+            self._record_agent_llm_usage(node_id, model, data)
+            msg = ((data.get("choices") or [{}])[0].get("message")) or {}
             assistant_msg: dict[str, Any] = {"role": "assistant", "content": msg.get("content") or ""}
             tool_calls = msg.get("tool_calls") or []
             if tool_calls:
@@ -1465,13 +1526,19 @@ class ProgramExecutor:
                 fn = call.get("function") or {}
                 tool_id = tool_name_to_id(fn.get("name", ""))
                 args = _safe_json_args(fn.get("arguments"))
-                result = await self._call_agent_tool(tool_id, args)
-                tool_invocations.append({"tool": tool_id, "ok": result.get("ok", False)})
+                result = await self._call_agent_tool(tool_id, args, node_id, cfg.scope_access)
+                tool_invocations.append(_agent_tool_invocation_record(tool_id, result))
                 messages.append({
                     "role": "tool",
                     "tool_call_id": call.get("id", tool_id),
                     "content": json.dumps(result)[:4000],
                 })
+
+            if self._agent_tool_calls_made >= MAX_AGENT_TOOL_CALLS_PER_RUN:
+                return (
+                    "Stopped: reached the per-run agent tool-call budget before completing the objective.",
+                    tool_invocations,
+                )
 
         return "Reached the maximum number of tool iterations before completing the objective.", tool_invocations
 
@@ -1519,7 +1586,9 @@ class ProgramExecutor:
                     f"Agent task model error {resp.status_code} (model={model}): {resp.text[:300]}",
                     node_id,
                 )
-            content_blocks = resp.json().get("content") or []
+            data = resp.json()
+            self._record_agent_llm_usage(node_id, model, data)
+            content_blocks = data.get("content") or []
             messages.append({"role": "assistant", "content": content_blocks})
 
             tool_uses = [b for b in content_blocks if isinstance(b, dict) and b.get("type") == "tool_use"]
@@ -1534,14 +1603,20 @@ class ProgramExecutor:
             for use in tool_uses:
                 tool_id = tool_name_to_id(use.get("name", ""))
                 args = use.get("input") if isinstance(use.get("input"), dict) else {}
-                result = await self._call_agent_tool(tool_id, args)
-                tool_invocations.append({"tool": tool_id, "ok": result.get("ok", False)})
+                result = await self._call_agent_tool(tool_id, args, node_id, cfg.scope_access)
+                tool_invocations.append(_agent_tool_invocation_record(tool_id, result))
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": use.get("id", ""),
                     "content": json.dumps(result)[:4000],
                 })
             messages.append({"role": "user", "content": tool_results})
+
+            if self._agent_tool_calls_made >= MAX_AGENT_TOOL_CALLS_PER_RUN:
+                return (
+                    "Stopped: reached the per-run agent tool-call budget before completing the objective.",
+                    tool_invocations,
+                )
 
         return "Reached the maximum number of tool iterations before completing the objective.", tool_invocations
 
@@ -1563,8 +1638,58 @@ class ProgramExecutor:
             return "https://openrouter.ai/api/v1"
         return "https://api.openai.com/v1"
 
-    async def _call_agent_tool(self, tool_id: str, args: dict) -> dict:
-        """Authorize + execute one account tool via the Next.js internal endpoint."""
+    def _record_agent_llm_usage(self, node_id: str, model: str, data: dict) -> None:
+        """Record token usage + cost for one agent_task LLM call and enforce the
+        run's token/cost ceilings (the same limiter used by workflow LLM calls).
+
+        Without this, agent_task loops were untracked and unbounded on spend;
+        check_llm_tokens/check_cost raise when the run's ceiling is exceeded.
+        """
+        prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(data)
+        reported_cost = _extract_reported_cost_usd(data)
+        estimated_cost_usd = (
+            reported_cost
+            if reported_cost is not None
+            else _estimate_cost_usd(model, prompt_tokens, completion_tokens)
+        )
+        self._limiter.check_llm_tokens(total_tokens)
+        self._limiter.check_cost(estimated_cost_usd)
+        self._record_telemetry(
+            node_id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            estimated_cost_usd=estimated_cost_usd,
+        )
+
+    async def _call_agent_tool(
+        self,
+        tool_id: str,
+        args: dict,
+        node_id: str | None = None,
+        scope_access: str = "read",
+    ) -> dict:
+        """Authorize + execute one agent tool.
+
+        Connector calls (corelyx.call_connector) execute natively here, reusing the
+        runtime's connector layer (token refresh, provider policy, dry-run). Every
+        other (corelyx.*) account tool round-trips to the Next.js internal endpoint,
+        which is the security authority for account orchestration.
+        """
+        # Runaway guard: cap total tool calls across the whole run.
+        if self._agent_tool_calls_made >= MAX_AGENT_TOOL_CALLS_PER_RUN:
+            return {
+                "ok": False,
+                "error": (
+                    f"Agent tool-call budget reached ({MAX_AGENT_TOOL_CALLS_PER_RUN} per run). "
+                    "Stop calling tools and report what you have so far."
+                ),
+            }
+        self._agent_tool_calls_made += 1
+
+        if tool_id == "corelyx.call_connector":
+            return await self._execute_agent_connector_tool(args, node_id, scope_access)
+
         endpoint_path = "/api/internal/agent-tools"
         payload = {
             "tool": tool_id,
@@ -1603,6 +1728,105 @@ class ProgramExecutor:
             except Exception as exc:
                 return {"ok": False, "error": f"Tool call error: {exc}"}
         return {"ok": False, "error": "Tool endpoint unreachable."}
+
+    async def _execute_agent_connector_tool(
+        self,
+        args: dict,
+        node_id: str | None,
+        scope_access: str,
+    ) -> dict:
+        """Execute a single connector operation chosen dynamically by an agent_task.
+
+        Reuses the same machinery as connection nodes (connection resolution,
+        provider policy, OAuth token fetch/refresh, native connector dispatch).
+        Security: scoped to the acting user's connections; read-only steps may not
+        write; dry-run simulates writes (but lets reads run for real previews).
+        """
+        connection_ref = args.get("connection") or args.get("connection_name")
+        operation = args.get("operation")
+        params = args.get("params")
+        if not isinstance(connection_ref, str) or not connection_ref:
+            return {"ok": False, "error": "connection (string) is required."}
+        if not isinstance(operation, str) or not operation:
+            return {"ok": False, "error": "operation (string) is required."}
+        if params is None:
+            params = {}
+        elif not isinstance(params, dict):
+            return {"ok": False, "error": "params must be an object."}
+
+        is_write = _connector_op_is_write(operation)
+        tel_node = node_id or "agent_task"
+
+        # A read-only agent_task may never perform a write side effect.
+        if is_write and scope_access == "read":
+            return {
+                "ok": False,
+                "error": (
+                    f"Operation '{operation}' is a write action, but this agent step has "
+                    "read-only access (scope_access=read). It was refused."
+                ),
+            }
+
+        # Dry-run: simulate writes, never execute them. Reads still run so previews
+        # reflect real data.
+        if is_write and self.dry_run:
+            return {
+                "ok": True,
+                "simulated": True,
+                "result": {
+                    "would_execute": {
+                        "connection": connection_ref,
+                        "operation": operation,
+                        "params": params,
+                    }
+                },
+            }
+
+        self._limiter.check_connector_call()
+
+        try:
+            connection_id = self._resolve_connection_id(connection_ref)
+            provider_id = self._provider_for_connection(connection_id)
+        except ExecutionError as e:
+            return {"ok": False, "error": e.message}
+
+        try:
+            await self._enforce_provider_policy(provider_id, tel_node)
+        except ExecutionError as e:
+            return {"ok": False, "error": e.message}
+
+        connector = get_connector(provider_id)
+        if connector is None:
+            return {"ok": False, "error": f"No native connector available for provider '{provider_id}'."}
+        if operation not in connector.supported_operations:
+            supported = ", ".join(connector.supported_operations[:30])
+            return {
+                "ok": False,
+                "error": f"Operation '{operation}' is not supported by '{provider_id}'. Supported: {supported}",
+            }
+
+        try:
+            access_token = await self._fetch_oauth_token(connection_id)
+        except ExecutionError as e:
+            return {"ok": False, "error": e.message}
+
+        try:
+            self._record_telemetry(tel_node, connector_api_calls=1)
+            result = await connector.execute(operation, params, access_token)
+            return {"ok": True, "result": result}
+        except ConnectorError as exc:
+            if exc.code == "TOKEN_EXPIRED":
+                # Cached token rejected — force a refresh and retry once.
+                try:
+                    access_token = await self._fetch_oauth_token(connection_id, force_refresh=True)
+                    self._record_telemetry(tel_node, connector_api_calls=1)
+                    result = await connector.execute(operation, params, access_token)
+                    return {"ok": True, "result": result}
+                except ConnectorError as retry_exc:
+                    return {"ok": False, "error": f"{retry_exc.code}: {retry_exc.message}"}
+            return {"ok": False, "error": f"{exc.code}: {exc.message}"}
+        except Exception as exc:
+            return {"ok": False, "error": f"Connector call failed: {exc}"}
 
     async def _call_llm(
         self,

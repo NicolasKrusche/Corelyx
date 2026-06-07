@@ -102,6 +102,37 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
             "required": ["body"],
         },
     },
+    "corelyx.call_connector": {
+        "description": (
+            "Call one operation on one of the user's connected apps directly "
+            "(e.g. send a Slack message, create a HubSpot note, list Gmail "
+            "threads). Use this to ACT on apps dynamically while reasoning — "
+            "decide per item what to do, then do it. Discover available "
+            "connections with corelyx.list_connections first. `connection` is the "
+            "connection name (or provider:alias) exactly as listed; `operation` "
+            "must be a supported operation for that provider; `params` are the "
+            "operation arguments. Read operations (get_/list_/search_/…) run even "
+            "in dry-run; write operations are simulated in dry-run."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "connection": {
+                    "type": "string",
+                    "description": "Connection name or provider:alias as listed by corelyx.list_connections.",
+                },
+                "operation": {
+                    "type": "string",
+                    "description": "A supported operation name for that provider's connector.",
+                },
+                "params": {
+                    "type": "object",
+                    "description": "Operation arguments.",
+                },
+            },
+            "required": ["connection", "operation"],
+        },
+    },
     "corelyx.trigger_program": {
         "description": "Manually trigger an existing workflow to run.",
         "parameters": {

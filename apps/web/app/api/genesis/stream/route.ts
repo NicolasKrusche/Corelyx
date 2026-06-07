@@ -27,7 +27,7 @@ import {
   normalizeProgramDraft,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
-import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
+import { checkAgentAccess, checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
@@ -150,6 +150,18 @@ export async function POST(request: Request) {
     if (!ws) return sseErrorResponse("No active workspace", "NO_WORKSPACE");
     if (!canContributeToWorkspace(ws.role)) return sseErrorResponse("Viewers cannot generate programs.", "FORBIDDEN");
     workspaceId = ws.workspaceId;
+
+    // Agents are a Solo+ feature — block building one on the Free plan before we
+    // spend a Genesis use creating something that could never run.
+    if (isAgent) {
+      const agentAccess = await checkAgentAccess(userId, workspaceId);
+      if (!agentAccess.allowed) {
+        return sseErrorResponse(
+          agentAccess.upgradeMessage ?? "Agents require an upgrade.",
+          "AGENTS_REQUIRE_UPGRADE"
+        );
+      }
+    }
 
     // Agents act on the workspace, so creating one requires agent permission
     // here (owner always allowed; others need the workspace's external-agent
