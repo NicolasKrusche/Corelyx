@@ -83,6 +83,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     scope: "read",
   },
   {
+    id: "corelyx.search_knowledge",
+    label: "Search knowledge base",
+    description:
+      "Search the workspace's knowledge base (docs, playbooks, brand voice, customer notes the user added) for context relevant to the task. Call before drafting or deciding so output reflects the user's world, not generic boilerplate. Args: query (string), optional limit. Returns the most relevant snippets. Read-only.",
+    scope: "read",
+  },
+  {
     id: "corelyx.web_fetch",
     label: "Fetch a web page",
     description:
