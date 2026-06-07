@@ -19,6 +19,7 @@ import {
   verifyWebhookSignature,
 } from "@/lib/webhook-trigger-auth";
 import { recordTriggerEvent } from "@/lib/trigger-events";
+import { fireAgentTrigger } from "@/lib/agents/dispatch";
 
 /**
  * POST /api/triggers/webhook/[token]
@@ -116,11 +117,14 @@ export async function POST(
     workspace_id: string;
     execution_mode: string;
     is_active: boolean;
+    program_type: string | null;
+    name: string;
+    description: string | null;
   };
 
   const { data: programRaw, error: programError } = await db
     .from("programs")
-    .select("id, schema, user_id, workspace_id, execution_mode, is_active")
+    .select("id, schema, user_id, workspace_id, execution_mode, is_active, program_type, name, description")
     .eq("id", trigger.program_id)
     .single();
 
@@ -157,6 +161,27 @@ export async function POST(
   const runLimitCheck = await checkRunLimit(program.user_id, program.workspace_id);
   if (!runLimitCheck.allowed) {
     return NextResponse.json({ error: "Run limit reached for this account" }, { status: 429 });
+  }
+
+  // Standing agent: each fire spawns a fresh one-time agent (clone + reason from
+  // scratch + prior-run memory) rather than replaying a fixed graph.
+  if (program.program_type === "agent") {
+    const fired = await fireAgentTrigger(
+      db as Parameters<typeof fireAgentTrigger>[0],
+      program,
+      "agent_webhook",
+      { trigger_id: trigger.id, webhook_payload: payload }
+    );
+    await db
+      .from("triggers")
+      .update({ last_fired_at: new Date().toISOString() } as never)
+      .eq("id", trigger.id);
+    if (!fired.ok) {
+      recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "webhook", status: "failed", message: fired.error });
+      return NextResponse.json({ error: fired.error }, { status: fired.status });
+    }
+    recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: fired.runId, source: "webhook", status: "dispatched", payload: Object.keys(payload).length > 0 ? payload : undefined });
+    return NextResponse.json({ run_id: fired.runId, status: "running" }, { status: 202 });
   }
 
   // Check conflict policy before creating run

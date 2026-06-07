@@ -133,6 +133,25 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
             "required": ["connection", "operation"],
         },
     },
+    "corelyx.ask_user": {
+        "description": (
+            "Pause and ask the user a question when you are blocked, need a "
+            "decision, or need missing information — then continue with their "
+            "answer. Use this instead of guessing on anything consequential "
+            "(which record, whether to send, ambiguous criteria). The run waits "
+            "for the reply. Keep the question short and specific. Safe in dry runs."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "The question to ask the user. Be specific and self-contained.",
+                },
+            },
+            "required": ["question"],
+        },
+    },
     "corelyx.trigger_program": {
         "description": "Manually trigger an existing workflow to run.",
         "parameters": {
@@ -176,7 +195,7 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
 
 # Tools every agent_task gets regardless of its configured `tools` array.
 # Mirrors ALWAYS_AVAILABLE_AGENT_TOOL_IDS in apps/web/lib/genesis/agent-tools.ts.
-ALWAYS_AVAILABLE_AGENT_TOOL_IDS = ["corelyx.report_to_user"]
+ALWAYS_AVAILABLE_AGENT_TOOL_IDS = ["corelyx.report_to_user", "corelyx.ask_user"]
 
 
 def with_always_available_tools(allowed_ids: list[str]) -> list[str]:
