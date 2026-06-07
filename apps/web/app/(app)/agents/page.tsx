@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  BookOpen,
   Bot,
   CheckCircle2,
   CircleDashed,
@@ -246,13 +247,22 @@ export default async function AgentsPage() {
           </p>
         </div>
 
-        <Link
-          href="/agents/new"
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          New agent
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/agents/knowledge"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-background/50 px-3.5 py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
+          >
+            <BookOpen className="h-4 w-4" />
+            Knowledge
+          </Link>
+          <Link
+            href="/agents/new"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            New agent
+          </Link>
+        </div>
       </div>
 
       {/* ── Agent list ─────────────────────────────────── */}

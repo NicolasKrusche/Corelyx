@@ -107,6 +107,22 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
             "required": ["body"],
         },
     },
+    "corelyx.search_knowledge": {
+        "description": (
+            "Search the workspace's knowledge base (docs, playbooks, brand voice, "
+            "customer notes the user added) for context relevant to your task. Call "
+            "this before drafting or deciding so your output reflects the user's "
+            "world instead of being generic. Returns the most relevant snippets."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "What to look up."},
+                "limit": {"type": "integer", "description": "Max snippets (default 3)."},
+            },
+            "required": ["query"],
+        },
+    },
     "corelyx.web_fetch": {
         "description": (
             "Fetch the contents of a public web page or API URL (HTTP GET) and "

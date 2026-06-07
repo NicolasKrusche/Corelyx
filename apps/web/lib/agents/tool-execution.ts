@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/api";
 import { canRunAgentInWorkspace } from "@/lib/workspaces";
 import { getAgentTool } from "@/lib/genesis/agent-tools";
+import { rankKnowledge } from "@/lib/agents/knowledge";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import { buildRuntimeExecuteHeaders } from "@/lib/runtime-dispatch";
 import { ProgramSchemaZ } from "@flowos/schema";
@@ -124,6 +125,8 @@ export async function executeAgentTool(input: {
         return await listConnections(service, memberWorkspaceIds);
       case "corelyx.get_account_stats":
         return await getAccountStats(service, userId, memberWorkspaceIds);
+      case "corelyx.search_knowledge":
+        return await searchKnowledge(service, memberWorkspaceIds, args);
       case "corelyx.report_to_user":
         return await reportToUser(service, userId, context, args);
       case "corelyx.trigger_program":
@@ -257,6 +260,28 @@ async function listConnections(service: LooseClient, workspaceIds: string[]): Pr
     .order("name", { ascending: true });
   if (error) return { ok: false, error: error.message };
   return { ok: true, result: { connections: data ?? [] } };
+}
+
+async function searchKnowledge(service: LooseClient, workspaceIds: string[], args: Record<string, unknown>): Promise<AgentToolResult> {
+  const query = typeof args.query === "string" ? args.query.trim() : "";
+  if (!query) return { ok: false, error: "query (string) is required." };
+  const limit = asInt(args.limit, 3, 10);
+
+  const { data, error } = await service
+    .from("agent_knowledge")
+    .select("id, title, content")
+    .in("workspace_id", workspaceIds)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) return { ok: false, error: error.message };
+
+  const docs = ((data ?? []) as Array<{ id: string; title: string | null; content: string | null }>).map((d) => ({
+    id: d.id,
+    title: d.title ?? "Untitled",
+    content: d.content ?? "",
+  }));
+  const hits = rankKnowledge(query, docs, limit).map((h) => ({ title: h.title, excerpt: h.excerpt }));
+  return { ok: true, result: { results: hits, searched: docs.length } };
 }
 
 async function getAccountStats(service: LooseClient, userId: string, workspaceIds: string[]): Promise<AgentToolResult> {
