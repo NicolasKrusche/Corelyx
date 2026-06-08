@@ -48,7 +48,7 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
     ],
     label_email: [
       { key: "message_id", label: "Message ID", type: "string", required: true },
-      { key: "label_ids", label: "Add labels", type: "array", placeholder: "STARRED, Label_123" },
+      { key: "add_label_ids", label: "Add labels", type: "array", placeholder: "STARRED, Label_123" },
       { key: "remove_label_ids", label: "Remove labels", type: "array", placeholder: "UNREAD" },
     ],
   },
@@ -73,7 +73,14 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
     ],
     create_database_entry: [
       { key: "database_id", label: "Database ID", type: "string", required: true },
-      { key: "properties", label: "Properties", type: "json", required: true, hint: "Notion properties object" },
+      { key: "_title", label: "Title", type: "string" },
+      { key: "_body", label: "Body", type: "text" },
+      { key: "properties", label: "Properties", type: "json", hint: "Optional Notion properties object" },
+    ],
+    create_database: [
+      { key: "parent_page_id", label: "Parent page ID", type: "string", required: true },
+      { key: "title", label: "Database title", type: "string" },
+      { key: "properties", label: "Properties", type: "json", hint: "Optional Notion property schema" },
     ],
   },
   slack: {
@@ -117,7 +124,7 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
     get_pr_diff: [
       { key: "owner", label: "Owner", type: "string", required: true },
       { key: "repo", label: "Repository", type: "string", required: true },
-      { key: "pull_number", label: "PR number", type: "number", required: true },
+      { key: "pr_number", label: "PR number", type: "number", required: true },
     ],
     push_file: [
       { key: "owner", label: "Owner", type: "string", required: true },
@@ -196,25 +203,45 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
     ],
     append_to_document: [
       { key: "document_id", label: "Document ID", type: "string", required: true },
-      { key: "content", label: "Content to append", type: "text", required: true },
+      { key: "text", label: "Content to append", type: "text", required: true },
+    ],
+    append_text: [
+      { key: "document_id", label: "Document ID", type: "string", required: true },
+      { key: "text", label: "Content to append", type: "text", required: true },
     ],
     replace_text: [
       { key: "document_id", label: "Document ID", type: "string", required: true },
-      { key: "search_text", label: "Search text", type: "string", required: true },
-      { key: "replacement", label: "Replacement text", type: "string", required: true },
+      { key: "find", label: "Search text", type: "string", required: true },
+      { key: "replace", label: "Replacement text", type: "string" },
+      { key: "match_case", label: "Match case", type: "boolean" },
     ],
   },
   drive: {
     list_files: [
       { key: "query", label: "Query", type: "string", placeholder: "name contains 'report' and trashed=false" },
-      { key: "page_size", label: "Page size", type: "number", placeholder: "20" },
+      { key: "folder_id", label: "Folder ID", type: "string" },
+      { key: "mime_type", label: "MIME type", type: "string", placeholder: "application/pdf" },
+      { key: "max_results", label: "Max results", type: "number", placeholder: "20" },
+    ],
+    get_file: [
+      { key: "file_id", label: "File ID", type: "string", required: true },
     ],
     get_file_metadata: [
       { key: "file_id", label: "File ID", type: "string", required: true },
     ],
+    upload_file: [
+      { key: "name", label: "File name", type: "string", required: true },
+      { key: "content_base64", label: "Content (base64)", type: "text", required: true },
+      { key: "mime_type", label: "MIME type", type: "string", placeholder: "text/plain" },
+      { key: "parent_id", label: "Parent folder ID", type: "string" },
+    ],
     create_folder: [
       { key: "name", label: "Folder name", type: "string", required: true },
       { key: "parent_id", label: "Parent folder ID", type: "string" },
+    ],
+    move_file: [
+      { key: "file_id", label: "File ID", type: "string", required: true },
+      { key: "folder_id", label: "Destination folder ID", type: "string", required: true },
     ],
     delete_file: [
       { key: "file_id", label: "File ID", type: "string", required: true },
@@ -264,22 +291,38 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
       { key: "contact_id", label: "Contact ID", type: "string", required: true },
     ],
     create_contact: [
-      { key: "properties", label: "Properties", type: "json", required: true, hint: '{"email":"a@b.com","firstname":"Alice"}' },
+      { key: "email", label: "Email", type: "string", required: true },
+      { key: "firstname", label: "First name", type: "string" },
+      { key: "lastname", label: "Last name", type: "string" },
+      { key: "phone", label: "Phone", type: "string" },
+      { key: "company", label: "Company", type: "string" },
     ],
     update_contact: [
       { key: "contact_id", label: "Contact ID", type: "string", required: true },
-      { key: "properties", label: "Properties to update", type: "json", required: true },
+      { key: "email", label: "Email", type: "string" },
+      { key: "firstname", label: "First name", type: "string" },
+      { key: "lastname", label: "Last name", type: "string" },
+      { key: "phone", label: "Phone", type: "string" },
+      { key: "company", label: "Company", type: "string" },
     ],
     list_deals: [
       { key: "limit", label: "Limit", type: "number", placeholder: "100" },
       { key: "after", label: "After (cursor)", type: "string" },
     ],
     create_deal: [
-      { key: "properties", label: "Properties", type: "json", required: true, hint: '{"dealname":"Big Deal","amount":"10000"}' },
+      { key: "deal_name", label: "Deal name", type: "string", required: true },
+      { key: "amount", label: "Amount", type: "number" },
+      { key: "dealstage", label: "Deal stage", type: "string" },
+      { key: "closedate", label: "Close date", type: "string" },
+      { key: "pipeline", label: "Pipeline", type: "string" },
     ],
     update_deal: [
       { key: "deal_id", label: "Deal ID", type: "string", required: true },
-      { key: "properties", label: "Properties to update", type: "json", required: true },
+      { key: "deal_name", label: "Deal name", type: "string" },
+      { key: "amount", label: "Amount", type: "number" },
+      { key: "dealstage", label: "Deal stage", type: "string" },
+      { key: "closedate", label: "Close date", type: "string" },
+      { key: "pipeline", label: "Pipeline", type: "string" },
     ],
   },
   typeform: {
@@ -289,6 +332,13 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
     ],
     get_form: [
       { key: "form_id", label: "Form ID", type: "string", required: true },
+    ],
+    get_responses: [
+      { key: "form_id", label: "Form ID", type: "string", required: true },
+      { key: "page_size", label: "Page size", type: "number", placeholder: "25" },
+      { key: "since", label: "Since (ISO 8601)", type: "string" },
+      { key: "until", label: "Until (ISO 8601)", type: "string" },
+      { key: "completed", label: "Completed only", type: "boolean" },
     ],
     list_responses: [
       { key: "form_id", label: "Form ID", type: "string", required: true },
@@ -301,38 +351,38 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
   asana: {
     list_tasks: [
       { key: "project_id", label: "Project ID", type: "string", required: true },
-      { key: "assignee", label: "Assignee (email or GID)", type: "string" },
-      { key: "completed_since", label: "Completed since (ISO 8601)", type: "string" },
+      { key: "completed", label: "Completed", type: "boolean" },
+      { key: "limit", label: "Limit", type: "number", placeholder: "50" },
     ],
     get_task: [
       { key: "task_id", label: "Task GID", type: "string", required: true },
     ],
     create_task: [
-      { key: "workspace_id", label: "Workspace GID", type: "string", required: true },
+      { key: "project_id", label: "Project ID", type: "string", required: true },
       { key: "name", label: "Task name", type: "string", required: true },
       { key: "notes", label: "Notes", type: "text" },
       { key: "due_on", label: "Due date (YYYY-MM-DD)", type: "string" },
       { key: "assignee", label: "Assignee (email or GID)", type: "string" },
-      { key: "projects", label: "Project GIDs", type: "array" },
     ],
     update_task: [
       { key: "task_id", label: "Task GID", type: "string", required: true },
       { key: "name", label: "Name", type: "string" },
       { key: "notes", label: "Notes", type: "text" },
       { key: "due_on", label: "Due date (YYYY-MM-DD)", type: "string" },
-      { key: "completed", label: "Completed", type: "boolean" },
+      { key: "assignee", label: "Assignee (email or GID)", type: "string" },
     ],
     complete_task: [
       { key: "task_id", label: "Task GID", type: "string", required: true },
     ],
     list_projects: [
-      { key: "workspace_id", label: "Workspace GID", type: "string", required: true },
+      { key: "workspace_id", label: "Workspace GID", type: "string" },
+      { key: "limit", label: "Limit", type: "number", placeholder: "50" },
     ],
   },
   outlook: {
     list_emails: [
       { key: "folder", label: "Folder", type: "string", placeholder: "Inbox" },
-      { key: "top", label: "Max messages", type: "number", placeholder: "20" },
+      { key: "max_results", label: "Max messages", type: "number", placeholder: "20" },
       { key: "filter", label: "OData filter", type: "string", placeholder: "isRead eq false" },
     ],
     read_email: [
@@ -343,11 +393,11 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
       { key: "subject", label: "Subject", type: "string", required: true },
       { key: "body", label: "Body", type: "text", required: true },
       { key: "cc", label: "CC", type: "string" },
-      { key: "is_html", label: "HTML body", type: "boolean" },
+      { key: "body_type", label: "Body type", type: "string", placeholder: "Text" },
     ],
     reply_email: [
       { key: "message_id", label: "Message ID", type: "string", required: true },
-      { key: "comment", label: "Reply text", type: "text", required: true },
+      { key: "body", label: "Reply text", type: "text" },
     ],
     delete_email: [
       { key: "message_id", label: "Message ID", type: "string", required: true },

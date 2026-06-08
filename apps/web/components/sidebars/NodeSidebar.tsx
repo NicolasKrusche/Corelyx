@@ -28,6 +28,7 @@ import {
   isUnassignedParamValue,
   type ParamField,
 } from "@/lib/connectors/operation-params";
+import { CONNECTOR_OPERATIONS, OPERATION_SCOPES } from "@/lib/connectors/catalog";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { MODEL_PRESETS } from "@/lib/model-presets";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
@@ -62,126 +63,6 @@ interface NodeSidebarProps {
   onClose: () => void;
   onDelete: (nodeId: string) => void;
 }
-
-// ─── Operations catalog — exact match with runtime connectors ─────────────────
-
-const CONNECTOR_OPERATIONS: Record<string, string[]> = {
-  // ── Implemented connectors ──────────────────────────────────────────────────
-  gmail:    ["list_emails", "list_threads", "search", "read_email", "get_attachment", "send_email", "archive_email", "label_email"],
-  notion:   ["read_page", "create_page", "append_to_page", "query_database", "create_database_entry"],
-  slack:    ["send_message", "read_channel", "list_channels", "create_channel"],
-  github:   ["create_issue", "comment_on_issue", "list_prs", "get_pr_diff", "push_file"],
-  sheets:   ["read_range", "write_range", "append_row", "list_sheets", "create_sheet", "clear_range"],
-  // ── Connectors planned (operations will work once connector is added) ────────
-  calendar: ["list_events", "get_event", "create_event", "update_event", "delete_event"],
-  docs:     ["read_document", "create_document", "append_to_document", "replace_text"],
-  drive:    ["list_files", "get_file_metadata", "create_folder", "delete_file", "share_file"],
-  airtable: ["list_records", "get_record", "create_record", "update_record", "delete_record"],
-  hubspot:  ["list_contacts", "get_contact", "create_contact", "update_contact", "list_deals", "create_deal", "update_deal"],
-  typeform: ["list_forms", "get_form", "list_responses"],
-  asana:    ["list_tasks", "get_task", "create_task", "update_task", "complete_task", "list_projects"],
-  outlook:  ["list_emails", "read_email", "send_email", "reply_email", "delete_email", "list_folders", "move_email"],
-};
-
-const OPERATION_SCOPES: Record<string, Record<string, string[]>> = {
-  gmail: {
-    list_emails:    ["https://www.googleapis.com/auth/gmail.readonly"],
-    list_threads:   ["https://www.googleapis.com/auth/gmail.readonly"],
-    search:         ["https://www.googleapis.com/auth/gmail.readonly"],
-    read_email:     ["https://www.googleapis.com/auth/gmail.readonly"],
-    get_attachment: ["https://www.googleapis.com/auth/gmail.readonly"],
-    send_email:     ["https://www.googleapis.com/auth/gmail.send"],
-    archive_email:  ["https://www.googleapis.com/auth/gmail.modify"],
-    label_email:    ["https://www.googleapis.com/auth/gmail.modify"],
-  },
-  notion: {
-    read_page:             [],
-    query_database:        [],
-    create_page:           [],
-    append_to_page:        [],
-    create_database_entry: [],
-    create_database:       [],
-  },
-  slack: {
-    send_message:   ["chat:write"],
-    read_channel:   ["channels:history", "groups:history"],
-    list_channels:  ["channels:read"],
-    create_channel: ["channels:manage"],
-  },
-  github: {
-    create_issue:     ["repo"],
-    comment_on_issue: ["repo"],
-    list_prs:         ["repo"],
-    get_pr_diff:      ["repo"],
-    push_file:        ["repo"],
-  },
-  sheets: {
-    read_range:  ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-    list_sheets: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-    write_range: ["https://www.googleapis.com/auth/spreadsheets"],
-    append_row:  ["https://www.googleapis.com/auth/spreadsheets"],
-    create_sheet:["https://www.googleapis.com/auth/spreadsheets"],
-    clear_range: ["https://www.googleapis.com/auth/spreadsheets"],
-  },
-  calendar: {
-    list_events:  ["https://www.googleapis.com/auth/calendar.readonly"],
-    get_event:    ["https://www.googleapis.com/auth/calendar.readonly"],
-    create_event: ["https://www.googleapis.com/auth/calendar"],
-    update_event: ["https://www.googleapis.com/auth/calendar"],
-    delete_event: ["https://www.googleapis.com/auth/calendar"],
-  },
-  docs: {
-    read_document:      ["https://www.googleapis.com/auth/documents.readonly"],
-    create_document:    ["https://www.googleapis.com/auth/documents"],
-    append_to_document: ["https://www.googleapis.com/auth/documents"],
-    replace_text:       ["https://www.googleapis.com/auth/documents"],
-  },
-  drive: {
-    list_files:        ["https://www.googleapis.com/auth/drive.readonly"],
-    get_file_metadata: ["https://www.googleapis.com/auth/drive.readonly"],
-    create_folder:     ["https://www.googleapis.com/auth/drive"],
-    share_file:        ["https://www.googleapis.com/auth/drive"],
-    delete_file:       ["https://www.googleapis.com/auth/drive"],
-  },
-  airtable: {
-    list_records:  ["data.records:read", "schema.bases:read"],
-    get_record:    ["data.records:read", "schema.bases:read"],
-    create_record: ["data.records:read", "data.records:write", "schema.bases:read"],
-    update_record: ["data.records:read", "data.records:write", "schema.bases:read"],
-    delete_record: ["data.records:read", "data.records:write", "schema.bases:read"],
-  },
-  hubspot: {
-    list_contacts:  ["crm.objects.contacts.read"],
-    get_contact:    ["crm.objects.contacts.read"],
-    create_contact: ["crm.objects.contacts.read", "crm.objects.contacts.write"],
-    update_contact: ["crm.objects.contacts.read", "crm.objects.contacts.write"],
-    list_deals:     ["crm.objects.deals.read"],
-    create_deal:    ["crm.objects.deals.read", "crm.objects.deals.write"],
-    update_deal:    ["crm.objects.deals.read", "crm.objects.deals.write"],
-  },
-  typeform: {
-    list_forms:     ["forms:read"],
-    get_form:       ["forms:read"],
-    list_responses: ["responses:read", "forms:read"],
-  },
-  asana: {
-    list_projects: ["default"],
-    list_tasks:    ["default"],
-    get_task:      ["default"],
-    create_task:   ["default"],
-    update_task:   ["default"],
-    complete_task: ["default"],
-  },
-  outlook: {
-    list_emails:  ["Mail.Read"],
-    read_email:   ["Mail.Read"],
-    send_email:   ["Mail.Send"],
-    reply_email:  ["Mail.Send"],
-    delete_email: ["Mail.ReadWrite"],
-    list_folders: ["Mail.Read"],
-    move_email:   ["Mail.ReadWrite"],
-  },
-};
 
 // ─── Cron presets ─────────────────────────────────────────────────────────────
 
