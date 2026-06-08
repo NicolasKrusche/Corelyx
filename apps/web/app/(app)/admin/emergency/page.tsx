@@ -12,6 +12,7 @@ async function getCurrentStatus() {
   const flags = await readSystemFlags(true);
   return {
     maintenanceMode: flags.maintenanceMode,
+    maintenanceMessage: flags.maintenanceMessage ?? "",
     disabledAreas: new Set(activeDisabledAreaKeys(flags)),
   };
 }
@@ -46,6 +47,17 @@ async function applyFlag(patch: Partial<SystemFlags>) {
   "use server";
   const user = await assertAdmin();
   await persist(patch, user.id);
+}
+
+// Save the optional message shown on the maintenance page / in 503 responses.
+// Use it for timing ("Back by ~15:00 UTC") or context. Empty clears it (falls
+// back to the default copy).
+async function saveMaintenanceMessage(formData: FormData) {
+  "use server";
+  const user = await assertAdmin();
+  const raw = formData.get("message");
+  const message = typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 500) : null;
+  await persist({ maintenanceMessage: message }, user.id);
 }
 
 // Enable/disable a single app area (scoped maintenance).
@@ -173,6 +185,33 @@ export default async function EmergencyControlsPage({
         </div>
       </div>
       
+      {/* Maintenance message — shown on the maintenance page + 503 responses */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Maintenance message</h2>
+          <p className="text-sm text-gray-500">
+            Optional. Shown to users on the maintenance page and in API 503s during full
+            maintenance. Good for timing, e.g. &ldquo;Back by ~15:00 UTC&rdquo;. Leave blank for the default.
+          </p>
+        </div>
+        <form action={saveMaintenanceMessage} className="p-6 space-y-3">
+          <textarea
+            name="message"
+            defaultValue={status.maintenanceMessage}
+            maxLength={500}
+            rows={3}
+            placeholder="e.g. Upgrading our database — back by ~15:00 UTC. Thanks for your patience!"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+          >
+            Save message
+          </button>
+        </form>
+      </div>
+
       {/* Scoped maintenance — disable individual parts of the app */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
