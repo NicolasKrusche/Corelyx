@@ -102,6 +102,23 @@ class TestRegistryMeta(unittest.TestCase):
                         rf"(?<![a-z0-9_]){re.escape(operation)}(?![a-z0-9_])",
                     )
 
+    def test_web_connector_catalog_matches_runtime_operations(self) -> None:
+        """Keep the editor's selectable operations aligned with runtime support."""
+
+        repo_root = Path(__file__).resolve().parents[3]
+        catalog_path = repo_root / "apps" / "web" / "lib" / "connectors" / "catalog.ts"
+        catalog = catalog_path.read_text(encoding="utf-8")
+        body = catalog.split(
+            "export const CONNECTOR_OPERATIONS: Record<string, string[]> = {", 1
+        )[1].split("\n};", 1)[0]
+
+        for match in re.finditer(r"^  ([a-z][a-z0-9_]*): \[([^\]]*)\]", body, re.M):
+            provider = match.group(1)
+            operations = re.findall(r'"([a-z][a-z0-9_]*)"', match.group(2))
+            with self.subTest(provider=provider):
+                self.assertIn(provider, REGISTRY)
+                self.assertEqual(operations, REGISTRY[provider]().supported_operations)
+
 
 if __name__ == "__main__":
     unittest.main()

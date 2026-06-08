@@ -486,7 +486,7 @@ export const PREMADE_BROWSE_PROGRAMS: BrowseProgram[] = [
     tags: ["typeform", "hubspot", "sales"],
     nodes: [
       eventTrigger(0, "trigger-1", "typeform", "response.completed"),
-      connectionNode(1, "typeform-responses", "typeform", "Fetch responses", "Reads recent Typeform submissions.", "list_responses", {
+      connectionNode(1, "typeform-responses", "typeform", "Fetch responses", "Reads recent Typeform submissions.", "get_responses", {
         form_id: SENTINEL,
         page_size: 25,
         completed: true,
@@ -785,7 +785,7 @@ export const PREMADE_BROWSE_PROGRAMS: BrowseProgram[] = [
     tags: ["typeform", "hubspot", "support"],
     nodes: [
       cronTrigger(0, "trigger-1", "Hourly NPS scan", "Runs once per hour.", "0 * * * *"),
-      connectionNode(1, "typeform-responses", "typeform", "Read NPS responses", "Loads recent Typeform responses.", "list_responses", {
+      connectionNode(1, "typeform-responses", "typeform", "Read NPS responses", "Loads recent Typeform responses.", "get_responses", {
         form_id: SENTINEL,
         page_size: 50,
         completed: true,
