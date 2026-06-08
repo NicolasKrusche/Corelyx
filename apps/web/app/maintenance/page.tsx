@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Wrench } from "lucide-react";
 import { readSystemFlags, DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/system-flags";
 import { getMaintenanceArea } from "@/lib/maintenance-areas";
+import { MaintenanceAutoRecover } from "./maintenance-auto-recover";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function MaintenancePage({
         </div>
         <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
         <p className="mt-3 text-gray-600">{message}</p>
+        <MaintenanceAutoRecover area={area} />
         <p className="mt-8 text-sm text-gray-400">Corelyx</p>
       </div>
     </main>
