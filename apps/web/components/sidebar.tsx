@@ -1327,7 +1327,7 @@ function SettingsModal({
       .catch(() => { if (!cancelled) setTokenError(tSettings("modal.tokensLoadError")); })
       .finally(() => { if (!cancelled) setTokensLoading(false); });
     return () => { cancelled = true; };
-  }, [tab]);
+  }, [tab, tSettings]);
 
   async function handleCreateToken(e: React.FormEvent) {
     e.preventDefault();

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { authCallbackUrl, completePostLoginSetup } from "@/lib/auth/client";
 import { signInWithBrowserWallet, type Web3Chain } from "@/lib/auth/web3";
@@ -111,7 +112,7 @@ export default function SignupPage() {
         <div className="grid min-h-screen lg:grid-cols-2">
           <section className="relative flex items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
             <Link href="/" className="absolute left-6 top-6 flex items-center gap-2 sm:left-10 lg:left-16">
-              <img src="/pictures/logo-no-bg.png" alt="" className="h-6 w-6 object-contain" aria-hidden />
+              <Image src="/pictures/logo-no-bg.png" alt="" width={24} height={24} className="h-6 w-6 object-contain" aria-hidden />
               <span className="text-sm font-semibold text-foreground/80 transition-colors hover:text-foreground">Corelyx</span>
             </Link>
             <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-7 text-center shadow-xl sm:p-8">
@@ -149,7 +150,7 @@ export default function SignupPage() {
 
           {/* Brand mark */}
           <Link href="/" className="absolute left-6 top-6 flex items-center gap-2 sm:left-10 lg:left-16">
-            <img src="/pictures/logo-no-bg.png" alt="" className="h-6 w-6 object-contain" aria-hidden />
+            <Image src="/pictures/logo-no-bg.png" alt="" width={24} height={24} className="h-6 w-6 object-contain" aria-hidden />
             <span className="text-sm font-semibold text-foreground/80 transition-colors hover:text-foreground">Corelyx</span>
           </Link>
 

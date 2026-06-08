@@ -92,7 +92,7 @@ export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
     tier: "standard",
   },
   {
-    id: "anthropic/claude-sonnet-4-6",
+    id: "anthropic/claude-sonnet-4.6",
     label: "Claude Sonnet 4.6",
     sublabel: "Best quality",
     tier: "premium",
@@ -121,11 +121,9 @@ export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModel
 // serves — a removed/renamed slug returns "404 No endpoints found", and if it is
 // the last entry there is nothing left to fall back to, so the 404 surfaces to
 // the user. (google/gemma-3-27b-it:free was removed upstream and dropped here.)
-// qwen/qwen3-coder:free was dropped too — its endpoints stopped responding and
-// every attempt timed out before falling through, so generation now starts on
-// gpt-oss directly.
 export const OPENROUTER_FALLBACK_MODELS = [
   "openai/gpt-oss-120b:free",
+  "qwen/qwen3-coder:free",
   "meta-llama/llama-3.3-70b-instruct:free",
 ] as const;
 
