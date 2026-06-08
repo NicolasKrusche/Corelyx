@@ -1642,6 +1642,16 @@ class ProgramExecutor:
                     continue
                 raise
 
+            # Never finish blank: if the model produced no summary (and made no
+            # tool calls), say so plainly so the UI explains what happened instead
+            # of showing an empty run — usually a weak model that didn't tool-call.
+            if not (final_summary or "").strip():
+                final_summary = (
+                    "The agent finished without producing a summary or report"
+                    + (" and made no tool calls" if not tool_invocations else "")
+                    + ". The model may not have called any tools — try a more capable model."
+                )
+
             return {
                 "summary": final_summary,
                 "tool_calls": tool_invocations,
