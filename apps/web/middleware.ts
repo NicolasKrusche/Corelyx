@@ -77,6 +77,7 @@ const PUBLIC_ROUTES = [
   "/api/u/",
   "/u/",
   "/api/health",
+  "/api/status",
   "/maintenance",
   "/privacy",
   "/terms",
