@@ -1057,12 +1057,12 @@ function NewProgramPageInner() {
                   <Input
                     id="model"
                     className="mt-1"
-                    placeholder="e.g. claude-sonnet-4-6 or anthropic/claude-sonnet-4-6"
+                    placeholder="e.g. claude-sonnet-4-6 or anthropic/claude-sonnet-4.6"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    For OpenRouter use format: <span className="font-mono">anthropic/claude-sonnet-4-6</span>
+                    For OpenRouter use format: <span className="font-mono">anthropic/claude-sonnet-4.6</span>
                   </p>
                 </div>
               )}

@@ -737,7 +737,7 @@ export function EditorShell({
     } finally {
       setIsValidating(false);
     }
-  }, [linkedConnections, performSave, programId, state.isDirty, state.schema]);
+  }, [allConnections, performSave, programId, state.isDirty, state.schema]);
 
   // Re-validate whenever linkedConnections grows (e.g. after auto-linking)
   useEffect(() => {

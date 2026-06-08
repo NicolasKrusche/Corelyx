@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   GenesisRequestSchema,
+  OPENROUTER_FALLBACK_MODELS,
+  PLATFORM_MODEL_CATALOG,
   getMissingConnectionIds,
   getModelCandidates,
   sortApiKeyFallbacks,
@@ -64,8 +66,16 @@ describe("genesis request helpers", () => {
     expect(getModelCandidates("openai", "gpt-4o")).toEqual(["gpt-4o"]);
     expect(getModelCandidates("openrouter", "openai/gpt-oss-120b:free")).toEqual([
       "openai/gpt-oss-120b:free",
+      "qwen/qwen3-coder:free",
       "meta-llama/llama-3.3-70b-instruct:free",
     ]);
+  });
+
+  it("uses current OpenRouter slugs for platform model options", () => {
+    const ids = PLATFORM_MODEL_CATALOG.map((model) => model.id);
+    expect(ids).toContain("anthropic/claude-sonnet-4.6");
+    expect(ids).not.toContain("anthropic/claude-sonnet-4-6");
+    expect(OPENROUTER_FALLBACK_MODELS).toContain("qwen/qwen3-coder:free");
   });
 
   it("keeps the minimum description length for new workflow generation", () => {
