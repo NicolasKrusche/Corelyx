@@ -30,6 +30,7 @@ class DriveConnector(IConnector):
     supported_operations = [
         "list_files",
         "get_file",
+        "get_file_metadata",
         "upload_file",
         "create_folder",
         "move_file",

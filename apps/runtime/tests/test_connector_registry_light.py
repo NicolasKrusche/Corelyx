@@ -1,6 +1,8 @@
 """Lightweight registry-wide connector tests (no I/O)."""
 from __future__ import annotations
 
+import re
+from pathlib import Path
 import unittest
 
 from connectors import REGISTRY, get_connector
@@ -72,6 +74,33 @@ class TestRegistryMeta(unittest.TestCase):
         self.assertNotIn("__init__", REGISTRY)
         self.assertNotIn("base", REGISTRY)
         self.assertNotIn("rate_limit", REGISTRY)
+
+    def test_genesis_prompt_covers_runtime_connectors(self) -> None:
+        """Keep Genesis operation names synced with native runtime connectors."""
+
+        repo_root = Path(__file__).resolve().parents[3]
+        prompt_path = repo_root / "apps" / "web" / "lib" / "genesis" / "prompt.ts"
+        prompt = prompt_path.read_text(encoding="utf-8")
+        body = prompt.split(
+            "const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {", 1
+        )[1].split("\n};", 1)[0]
+        matches = list(re.finditer(r"^  ([a-z][a-z0-9_]*): \{", body, re.M))
+        chunks: dict[str, str] = {}
+        for index, match in enumerate(matches):
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(body)
+            chunks[match.group(1)] = body[match.start():end]
+
+        self.assertEqual(set(REGISTRY), set(chunks))
+
+        for provider, cls in sorted(REGISTRY.items()):
+            chunk = chunks[provider]
+            connector = cls()
+            for operation in connector.supported_operations:
+                with self.subTest(provider=provider, operation=operation):
+                    self.assertRegex(
+                        chunk,
+                        rf"(?<![a-z0-9_]){re.escape(operation)}(?![a-z0-9_])",
+                    )
 
 
 if __name__ == "__main__":

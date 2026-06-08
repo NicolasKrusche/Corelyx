@@ -18,6 +18,7 @@ class DocsConnector(IConnector):
         "read_document",
         "create_document",
         "append_text",
+        "append_to_document",
         "replace_text",
     ]
 
