@@ -116,6 +116,12 @@ export function validatePostGenesis(
 
   execNodes.forEach((node) => {
     if (!node.connection) return;
+    // "corelyx" (and "corelyx:<alias>") is the internal platform reference for
+    // account tools like corelyx.report_to_user. It is not a connectable app and
+    // has no DB row, but it is always available at runtime — never flag it as a
+    // missing connection. (Pre-flight applies the same allowance for the
+    // "platform" API-key ref.)
+    if (isInternalPlatformRef(node.connection)) return;
     const nameMatch = availableConnectionNames.includes(node.connection);
     // Genesis sometimes generates "provider:alias" style refs (e.g. "sheets:primary")
     // instead of the exact connection name. Accept these when the provider prefix
@@ -261,6 +267,16 @@ export function validatePostGenesis(
   });
 
   return { valid: errors.length === 0, errors, warnings, node_states };
+}
+
+// ─── Internal Platform Reference ───────────────────────────────────────────
+
+// The internal "corelyx" reference covers the account tools (e.g.
+// corelyx.report_to_user) that the runtime auto-provides. It is matched as the
+// bare "corelyx" or a "corelyx:<alias>" form. These are not connectable apps and
+// must never be treated as missing connections.
+function isInternalPlatformRef(connection: string): boolean {
+  return connection === "corelyx" || connection.startsWith("corelyx:");
 }
 
 // ─── Cycle Detection (DFS) ─────────────────────────────────────────────────
