@@ -1349,6 +1349,18 @@ class TestAuthTokenCreditPaths(unittest.IsolatedAsyncioTestCase):
                 await executor._fetch_api_key("platform")
         self.assertEqual(ctx.exception.code, "PLATFORM_KEY_MISSING")
 
+    async def test_fetch_api_key_user_assigned_sentinel_uses_platform(self) -> None:
+        # An unresolved "__USER_ASSIGNED__" placeholder must resolve to the shared
+        # platform key, never hit the vault (which would 404).
+        schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
+        executor = _make_executor(schema)
+        with patch.dict(os.environ, {"PLATFORM_LLM_API_KEY": "platform-secret"}, clear=False):
+            with patch("httpx.AsyncClient") as mock_client:
+                key, provider = await executor._fetch_api_key("__USER_ASSIGNED__")
+                mock_client.assert_not_called()
+        self.assertEqual(key, "platform-secret")
+        self.assertEqual(provider, "openrouter")
+
     async def test_fetch_api_key_vault_non_json(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
