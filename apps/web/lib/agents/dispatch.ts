@@ -2,7 +2,7 @@ import type { createServiceClient } from "@/lib/api";
 import { checkAgentAccess, checkRunLimit } from "@/lib/limits";
 import { gatherPriorReports } from "@/lib/agents/lineage";
 import { buildClonedAgentSchema } from "@/lib/agents/lineage";
-import { KEY_DEFAULT_MODELS, KEY_PROVIDER_PRIORITY, PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/request";
+import { AGENT_PLATFORM_DEFAULT_MODEL, KEY_DEFAULT_MODELS, KEY_PROVIDER_PRIORITY } from "@/lib/genesis/request";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import { buildRuntimeExecuteHeaders } from "@/lib/runtime-dispatch";
 import { serverLog } from "@/lib/server-log";
@@ -43,10 +43,11 @@ async function resolveAgentCredentials(
 
   const candidates: AgentCredential[] = keys.map((k) => ({
     ref: k.id,
-    model: KEY_DEFAULT_MODELS[k.provider] ?? PLATFORM_DEFAULT_MODEL,
+    model: KEY_DEFAULT_MODELS[k.provider] ?? AGENT_PLATFORM_DEFAULT_MODEL,
   }));
   if (process.env.PLATFORM_OPENROUTER_API_KEY) {
-    candidates.push({ ref: "platform", model: PLATFORM_DEFAULT_MODEL });
+    // Agents need a dependable tool-caller, not the free default model.
+    candidates.push({ ref: "platform", model: AGENT_PLATFORM_DEFAULT_MODEL });
   }
   if (candidates.length === 0) {
     return { error: "No API key available to run this agent. Add one in Settings → API Keys.", candidates: [] };

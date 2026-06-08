@@ -108,6 +108,14 @@ export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
 /** The model ID used when the user hasn't picked one (free tier default). */
 export const PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b:free";
 
+/**
+ * Platform model for agent tool-loops (agent_task) when running on the platform
+ * key. Agents are a tool-calling loop, so they need a reliable tool-caller — the
+ * free default does not call tools dependably. gpt-4o-mini is cheap, fast, and a
+ * solid tool-caller; agents are Solo+ (standard tier), so this model is permitted.
+ */
+export const AGENT_PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini";
+
 /** Returns allowed models for a given platform tier (all models whose tier ≤ userTier). */
 export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModelOption[] {
   const ORDER: PlatformModelTier[] = ["free", "standard", "premium"];
