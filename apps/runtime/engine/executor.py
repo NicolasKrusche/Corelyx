@@ -73,6 +73,16 @@ from compliance import get_provider, policy_block_reason, provider_for_model
 TelemetryPayload = dict[str, int | float]
 EXECUTABLE_NODE_TYPES = {"trigger", "agent", "agent_task", "step", "connection"}
 
+# Schema sentinel for an AI node whose key/model the user never assigned. The web
+# dispatch (resolveAgentCredentials) normally bakes a real key in or passes
+# ordered credential candidates, but paths that skip that step (e.g. a scheduled
+# or webhook-triggered workflow containing an agent node) can leave the sentinel
+# in place. The runtime must never forward it to the vault — treat it as the
+# shared platform key so the run still has a usable credential.
+USER_ASSIGNED_SENTINEL = "__USER_ASSIGNED__"
+# Mirrors apps/web/lib/genesis/request.ts PLATFORM_DEFAULT_MODEL.
+PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b:free"
+
 # Best-effort price catalog used when the provider response does not include
 # explicit cost fields. Rates are USD per 1M tokens.
 MODEL_PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
@@ -1336,14 +1346,21 @@ class ProgramExecutor:
         # Check LLM call limits before fetching API key
         self._limiter.check_llm_call()
 
-        use_platform_key = cfg.api_key_ref == "platform"
+        # An unresolved "__USER_ASSIGNED__" placeholder must never be fetched from
+        # the vault (it would 404). Fall back to the shared platform key/model.
+        api_key_ref = cfg.api_key_ref
+        if api_key_ref == USER_ASSIGNED_SENTINEL:
+            api_key_ref = "platform"
+        if cfg.model == USER_ASSIGNED_SENTINEL:
+            cfg.model = PLATFORM_DEFAULT_MODEL
+        use_platform_key = api_key_ref == "platform"
 
         # Check platform credit balance before fetching the key
         if use_platform_key and self.user_id:
             await self._check_platform_credits()
 
         # Fetch API key from Next.js internal endpoint (keeps key off this service)
-        api_key, provider = await self._fetch_api_key(cfg.api_key_ref)
+        api_key, provider = await self._fetch_api_key(api_key_ref)
         provider_id = "openrouter" if use_platform_key else provider_for_model(cfg.model, provider)
         await self._enforce_provider_policy(provider_id, node.id, model_id=cfg.model)
 
@@ -1445,6 +1462,12 @@ class ProgramExecutor:
             has_more = idx < len(candidates) - 1
             ref = str(cand.get("ref") or cfg.api_key_ref)
             model = str(cand.get("model") or cfg.model)
+            # An unresolved "__USER_ASSIGNED__" placeholder must never be fetched
+            # from the vault (it would 404). Fall back to the platform key/model.
+            if ref == USER_ASSIGNED_SENTINEL:
+                ref = "platform"
+            if model == USER_ASSIGNED_SENTINEL:
+                model = PLATFORM_DEFAULT_MODEL
             use_platform_key = ref == "platform"
 
             try:
@@ -3157,7 +3180,9 @@ class ProgramExecutor:
         Returns (value, provider).
         'platform' is a sentinel that uses the shared OpenRouter proxy key.
         """
-        if api_key_ref == "platform":
+        # An unresolved placeholder is never a real vault ref — resolve it to the
+        # shared platform key rather than issuing a guaranteed-404 vault lookup.
+        if api_key_ref in ("platform", USER_ASSIGNED_SENTINEL):
             key = os.environ.get("PLATFORM_LLM_API_KEY", "")
             if not key:
                 raise ExecutionError(
