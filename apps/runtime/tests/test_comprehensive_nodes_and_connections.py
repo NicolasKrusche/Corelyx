@@ -1040,6 +1040,66 @@ class FullProgramTests(unittest.IsolatedAsyncioTestCase):
 # ─── Agent Node Tests ───────────────────────────────────────────────────────
 
 class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_platform_agent_falls_back_after_openrouter_429(self) -> None:
+        node = _node("a1", "agent", AgentConfig(
+            model="openai/gpt-oss-120b:free",
+            api_key_ref="platform",
+            system_prompt="Test",
+            input_schema=None,
+            output_schema=None,
+            requires_approval=False,
+            approval_timeout_hours=1,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=True),
+            tools=[],
+        ))
+        executor = _executor(_program([node], []))
+        executor._fetch_api_key = AsyncMock(return_value=("key", "openrouter"))
+        executor._enforce_provider_policy = AsyncMock()
+        executor._check_platform_credits = AsyncMock()
+
+        rate_limited = Mock(
+            is_success=False,
+            status_code=429,
+            text='{"error":{"message":"Provider returned error","code":429}}',
+        )
+        succeeded = Mock(
+            is_success=True,
+            json=Mock(return_value={
+                "choices": [{"message": {"content": '{"answer": 42}'}}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            }),
+        )
+
+        with patch("engine.executor.update_node_execution", new=AsyncMock()) as update_mock, \
+             patch("engine.executor.get_llm_circuit") as mock_circuit, \
+             patch("engine.executor._get_llm_client") as mock_client:
+            circuit = Mock()
+
+            async def _circuit_call(fn, *args, **kwargs):
+                return await fn(*args)
+
+            circuit.call = AsyncMock(side_effect=_circuit_call)
+            mock_circuit.return_value = circuit
+            client = Mock()
+            client.post = AsyncMock(side_effect=[rate_limited, succeeded])
+            mock_client.return_value = client
+
+            result = await executor._execute_node(node, {"question": "What is 6*7?"})
+
+        self.assertEqual(result["answer"], 42)
+        attempted_models = [call.kwargs["json"]["model"] for call in client.post.await_args_list]
+        self.assertEqual(attempted_models, [
+            "openai/gpt-oss-120b:free",
+            "qwen/qwen3-coder:free",
+        ])
+        fallback_updates = [
+            call.kwargs.get("error_message", "")
+            for call in update_mock.await_args_list
+        ]
+        self.assertTrue(any("trying fallback model qwen/qwen3-coder:free" in msg for msg in fallback_updates))
+
     async def test_agent_node_requires_approval_in_supervised_mode(self) -> None:
         node = _node("a1", "agent", AgentConfig(
             model="gpt-4",

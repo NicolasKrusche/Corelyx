@@ -10,6 +10,7 @@ import re
 import socket
 import time
 from datetime import datetime, timedelta, timezone
+from dataclasses import replace
 import html as _html_module
 from urllib.parse import urljoin, urlsplit
 from typing import Any, Callable
@@ -108,6 +109,14 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
     "gemini-1.5-pro": (3.50, 10.50),
     "gemini-1.5-flash": (0.35, 1.05),
 }
+
+OPENROUTER_PLATFORM_FALLBACK_MODELS: tuple[str, ...] = (
+    "qwen/qwen3-coder:free",
+    "openai/gpt-oss-120b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+)
+
+RETRYABLE_LLM_STATUS_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
 
 HTTP_OAUTH_ALLOWED_HOSTS: dict[str, set[str]] = {
     "airtable": {"api.airtable.com"},
@@ -303,6 +312,44 @@ def _estimate_cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -
     prompt_cost = (max(0, prompt_tokens) / 1_000_000) * prompt_rate
     completion_cost = (max(0, completion_tokens) / 1_000_000) * completion_rate
     return _round_cost(prompt_cost + completion_cost)
+
+
+def _unique_model_candidates(requested_model: str, fallback_models: tuple[str, ...]) -> list[str]:
+    candidates: list[str] = []
+    for model in (requested_model, *fallback_models):
+        if model and model not in candidates:
+            candidates.append(model)
+    return candidates
+
+
+def _llm_error_status_code(error: Exception | str) -> int | None:
+    match = re.search(r"LLM API error\s+(\d{3})", str(error))
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _is_retryable_llm_error(error: Exception | str) -> bool:
+    status_code = _llm_error_status_code(error)
+    if status_code is not None:
+        return status_code in RETRYABLE_LLM_STATUS_CODES
+
+    message = str(error).lower()
+    return any(
+        needle in message
+        for needle in (
+            "rate limit",
+            "rate-limit",
+            "temporarily unavailable",
+            "temporarily rate-limited",
+            "provider returned error",
+            "upstream",
+            "timeout",
+        )
+    )
 
 
 def _resolve_path(expr: str, data: Any) -> Any:
@@ -1368,10 +1415,13 @@ class ProgramExecutor:
         circuit = get_llm_circuit()
         try:
             return await circuit.call(
-                self._with_retry,
-                lambda: self._call_llm(cfg, api_key, provider_id, input_data, node.id, deduct_credits=use_platform_key),
-                cfg.retry,
+                self._call_llm_with_platform_fallback,
+                cfg,
+                api_key,
+                provider_id,
+                input_data,
                 node.id,
+                use_platform_key,
             )
         except CircuitOpenError as e:
             raise ExecutionError(
@@ -1379,6 +1429,82 @@ class ProgramExecutor:
                 f"LLM service temporarily unavailable due to repeated failures. Please try again later.",
                 node.id,
             ) from e
+
+    async def _call_llm_with_platform_fallback(
+        self,
+        cfg: AgentConfig,
+        api_key: str,
+        provider: str,
+        input_data: dict,
+        node_id: str,
+        deduct_credits: bool,
+    ) -> dict:
+        if provider != "openrouter" or not deduct_credits:
+            return await self._with_retry(
+                lambda: self._call_llm(cfg, api_key, provider, input_data, node_id, deduct_credits=deduct_credits),
+                cfg.retry,
+                node_id,
+            )
+
+        model_candidates = _unique_model_candidates(cfg.model, OPENROUTER_PLATFORM_FALLBACK_MODELS)
+        if len(model_candidates) == 1:
+            return await self._with_retry(
+                lambda: self._call_llm(cfg, api_key, provider, input_data, node_id, deduct_credits=deduct_credits),
+                cfg.retry,
+                node_id,
+            )
+
+        strict_retry = replace(cfg.retry, fail_program_on_exhaust=True)
+        last_error: ExecutionError | None = None
+        for index, candidate_model in enumerate(model_candidates):
+            candidate_cfg = cfg if candidate_model == cfg.model else replace(cfg, model=candidate_model)
+            try:
+                return await self._with_retry(
+                    lambda candidate_cfg=candidate_cfg: self._call_llm(
+                        candidate_cfg,
+                        api_key,
+                        provider,
+                        input_data,
+                        node_id,
+                        deduct_credits=deduct_credits,
+                    ),
+                    strict_retry,
+                    node_id,
+                )
+            except ExecutionError as exc:
+                if exc.code != "MAX_RETRIES_EXHAUSTED":
+                    raise
+
+                last_error = exc
+                has_next_model = index < len(model_candidates) - 1
+                if not has_next_model or not _is_retryable_llm_error(exc.message):
+                    break
+
+                await update_node_execution(
+                    self.db,
+                    self.run_id,
+                    node_id,
+                    error_message=(
+                        f"LLM model {candidate_model} failed with a retryable provider error; "
+                        f"trying fallback model {model_candidates[index + 1]}."
+                    ),
+                    **self._node_telemetry_payload(node_id),
+                )
+
+        err_msg = last_error.message if last_error else "Unknown error after model fallback attempts"
+        if cfg.retry.fail_program_on_exhaust:
+            raise ExecutionError("MAX_RETRIES_EXHAUSTED", err_msg, node_id) from last_error
+
+        await update_node_execution(
+            self.db,
+            self.run_id,
+            node_id,
+            status="failed",
+            error_message=f"[Retries exhausted - continuing run] {err_msg}",
+            completed_at="now()",
+            **self._node_telemetry_payload(node_id),
+        )
+        return {}
 
     # ── Agent task (bounded tool-loop) ────────────────────────────────────────
 
@@ -3357,7 +3483,8 @@ class ProgramExecutor:
                 error_msg = str(e)
                 # Don't retry 4xx errors — they are permanent (bad model ID, bad auth, etc.)
                 is_client_error = any(
-                    f"LLM API error {code}" in error_msg or f"returned {code}" in error_msg
+                    (f"LLM API error {code}" in error_msg or f"returned {code}" in error_msg)
+                    and code not in RETRYABLE_LLM_STATUS_CODES
                     for code in range(400, 500)
                 )
                 await update_node_execution(
@@ -3388,7 +3515,7 @@ class ProgramExecutor:
             self.run_id,
             node_id,
             status="failed",
-            error_message=f"[Retries exhausted — continuing run] {err_msg}",
+            error_message=f"[Retries exhausted - continuing run] {err_msg}",
             completed_at="now()",
             **self._node_telemetry_payload(node_id),
         )
