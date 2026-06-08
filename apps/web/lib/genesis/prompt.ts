@@ -132,9 +132,9 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     upsert by key → HTTP PATCH /v0/{baseId}/{table} body:{performUpsert:{fieldsToMergeOn:[...]},records:[...]}
     bulk update / bulk delete → HTTP PATCH or DELETE /v0/{baseId}/{table}?records[]=...`,
   },
-  google_calendar: {
+  calendar: {
     tier: 1,
-    full: `GOOGLE CALENDAR (provider: google_calendar):
+    full: `GOOGLE CALENDAR (provider: calendar):
   list_events: params={calendar_id:"primary",time_min?,time_max?,query?,max_results?} → output:{events:[{id,summary,start,end,status,html_link}]}
     time_min/time_max: ISO8601 datetime strings e.g. "2026-04-12T00:00:00Z"
   get_event: params={event_id(REQUIRED),calendar_id:"primary"} → output:{id,summary,description,start,end,attendees,location,status,html_link}
@@ -148,16 +148,17 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     accept / decline invite → update_event then patch the relevant attendee responseStatus
     add/remove conference link → update_event with conferenceData via HTTP PATCH /calendars/{cid}/events/{eid}?conferenceDataVersion=1`,
   },
-  google_drive: {
+  drive: {
     tier: 1,
     full: `GOOGLE DRIVE:
   list_files: params={query?,folder_id?,mime_type?,max_results?} → output:{files:[{id,name,mimeType,size,modifiedTime,webViewLink}]}
     mime_type examples: "application/vnd.google-apps.spreadsheet", "application/pdf", "application/vnd.google-apps.document"
-  get_file: params={file_id(REQUIRED)} → output:{id,name,mimeType,size,modifiedTime,webViewLink,description}
+  get_file / get_file_metadata: params={file_id(REQUIRED)} → output:{id,name,mimeType,size,modifiedTime,webViewLink,description}
   upload_file: params={name(REQUIRED),content_base64(REQUIRED),mime_type?,parent_id?} → output:{file_id,name,web_view_link}
     Use to save any file (e.g. email attachment) to Drive. content_base64 comes from gmail get_attachment output field "data_base64".
   create_folder: params={name(REQUIRED),parent_id?} → output:{folder_id,name}
   move_file: params={file_id(REQUIRED),folder_id(REQUIRED)} → output:{file_id,name,moved:true}
+  share_file: params={file_id(REQUIRED),email(REQUIRED),role?} → output:{file_id,permission_id,role,email}
   delete_file: params={file_id(REQUIRED)} → output:{file_id,deleted:true}`,
     gapReference: `GOOGLE DRIVE gaps:
     download file content (binary) → HTTP GET https://www.googleapis.com/drive/v3/files/{id}?alt=media (set parse_response:false)
@@ -166,12 +167,12 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     permissions / sharing → HTTP /drive/v3/files/{id}/permissions (POST/GET/DELETE)
     rename → HTTP PATCH /drive/v3/files/{id} body:{name}`,
   },
-  google_docs: {
+  docs: {
     tier: 1,
     full: `GOOGLE DOCS:
   read_document: params={document_id(REQUIRED)} → output:{document_id,title,text,revision_id}
   create_document: params={title?,content?} → output:{document_id,title}
-  append_text: params={document_id(REQUIRED),text(REQUIRED)} → output:{document_id,appended:true}
+  append_text / append_to_document: params={document_id(REQUIRED),text(REQUIRED)} → output:{document_id,appended:true}
   replace_text: params={document_id(REQUIRED),find(REQUIRED),replace?,match_case?} → output:{document_id,occurrences_replaced}`,
     gapReference: `GOOGLE DOCS gaps:
     rich edits — insert image / table / heading / styled run → HTTP POST https://docs.googleapis.com/v1/documents/{id}:batchUpdate body:{requests:[{insertText|updateTextStyle|insertInlineImage|insertTable,...}]}
@@ -252,6 +253,84 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     tier: 2,
     medium: `ZOOMINFO: search_contacts (query), get_company_intelligence (company_name)`,
   },
+  activecampaign: { tier: 3, stub: `ACTIVE CAMPAIGN: list_contacts, create_contact, add_tag, list_automations, create_deal` },
+  acuityscheduling: { tier: 3, stub: `ACUITY SCHEDULING: list_appointments, create_appointment` },
+  adyen: { tier: 3, stub: `ADYEN: list_payments, create_payment` },
+  ahrefs: { tier: 3, stub: `AHREFS: get_site_overview, get_backlinks` },
+  aircall: { tier: 3, stub: `AIRCALL: list_calls, get_call_details` },
+  amplitude: { tier: 3, stub: `AMPLITUDE: get_event_segmentation, list_users` },
+  basecamp: { tier: 3, stub: `BASECAMP: list_projects, list_todos, create_todo, list_messages, create_message` },
+  bitbucket: { tier: 3, stub: `BITBUCKET: list_repos, list_pull_requests, create_pull_request, list_issues, create_issue` },
+  brevo: { tier: 3, stub: `BREVO: send_email, list_contacts, create_contact, list_campaigns, send_sms` },
+  buffer: { tier: 3, stub: `BUFFER: create_update, get_profiles, get_pending_updates, analyze_post` },
+  chargebee: { tier: 3, stub: `CHARGEBEE: list_subscriptions, get_subscription, list_customers, list_invoices, create_subscription` },
+  clickup: { tier: 3, stub: `CLICKUP: list_tasks, create_task, update_task, list_spaces, list_folders` },
+  closecrm: { tier: 3, stub: `CLOSE CRM: list_leads, create_lead, update_lead, list_contacts, create_activity` },
+  coda: { tier: 3, stub: `CODA: list_docs, get_doc, list_tables, list_rows, insert_row, update_row` },
+  constantcontact: { tier: 3, stub: `CONSTANT CONTACT: list_contacts, create_contact, list_campaigns, create_campaign` },
+  convertkit: { tier: 3, stub: `CONVERTKIT: list_subscribers, add_subscriber, list_forms, list_sequences, tag_subscriber` },
+  copper: { tier: 3, stub: `COPPER: list_contacts, create_contact, list_opportunities, create_opportunity, update_contact` },
+  customerio: { tier: 3, stub: `CUSTOMER.IO: identify_customer, track_event, send_email, list_campaigns` },
+  discord: { tier: 3, stub: `DISCORD: send_message, list_channels, create_message, get_guild_members` },
+  drip: { tier: 3, stub: `DRIP: list_subscribers, create_subscriber, apply_tag, list_campaigns, record_event` },
+  facebook: { tier: 3, stub: `FACEBOOK: post_to_page, get_page_posts, get_page_insights, reply_to_comment` },
+  freshdesk: { tier: 3, stub: `FRESHDESK: list_tickets, create_ticket` },
+  freshsales: { tier: 3, stub: `FRESHSALES: list_contacts, create_contact, update_contact, list_deals, create_deal` },
+  googlechat: { tier: 3, stub: `GOOGLE CHAT: send_message, list_spaces, create_message` },
+  height: { tier: 3, stub: `HEIGHT: list_tasks, create_task, update_task, list_lists` },
+  hootsuite: { tier: 3, stub: `HOOTSUITE: create_message, list_social_profiles, get_analytics, schedule_post` },
+  insightly: { tier: 3, stub: `INSIGHTLY: list_contacts, create_contact, list_opportunities, create_opportunity` },
+  instagram: { tier: 3, stub: `INSTAGRAM: get_media, post_image, get_insights, get_comments` },
+  klaviyo: { tier: 3, stub: `KLAVIYO: list_lists, add_profile_to_list, create_profile, track_event, list_campaigns` },
+  linear: { tier: 3, stub: `LINEAR: list_issues, create_issue, update_issue, list_projects, get_issue` },
+  mailchimp: { tier: 3, stub: `MAILCHIMP: list_audiences, add_member, update_member, list_campaigns, send_campaign` },
+  monday: { tier: 3, stub: `MONDAY: list_boards, list_items, create_item, update_item, create_update` },
+  nifty: { tier: 3, stub: `NIFTY: list_projects, list_tasks, create_task, update_task` },
+  paddle: { tier: 3, stub: `PADDLE: list_products, list_subscriptions, list_transactions, get_customer` },
+  paypal: { tier: 3, stub: `PAYPAL: list_transactions, create_invoice, get_order, list_subscriptions` },
+  pinterest: { tier: 3, stub: `PINTEREST: list_boards, create_pin, get_board_pins, get_analytics` },
+  recurly: { tier: 3, stub: `RECURLY: list_subscriptions, get_subscription, list_accounts, list_invoices` },
+  reddit: { tier: 3, stub: `REDDIT: submit_post, get_subreddit_posts, get_comments, search_subreddit` },
+  rippling: { tier: 3, stub: `RIPPLING: list_employees, get_employee` },
+  rocketchat: { tier: 3, stub: `ROCKETCHAT: send_message, list_channels, post_message, get_channel_messages` },
+  rudderstack: { tier: 3, stub: `RUDDERSTACK: track_event, identify_user` },
+  salesforce: { tier: 3, stub: `SALESFORCE: query, create_record, update_record, list_objects, get_record` },
+  sanity: { tier: 3, stub: `SANITY: query_documents, create_document` },
+  segment: { tier: 3, stub: `SEGMENT: track_event, identify_user` },
+  semrush: { tier: 3, stub: `SEMRUSH: get_domain_analytics, get_keywords` },
+  sendgrid: { tier: 3, stub: `SENDGRID: send_email, list_contacts, add_contact, list_lists, create_campaign` },
+  servicenow: { tier: 3, stub: `SERVICENOW: list_incidents, create_incident` },
+  simplybook: { tier: 3, stub: `SIMPLYBOOK: list_bookings, create_booking` },
+  smartsheet: { tier: 3, stub: `SMARTSHEET: list_sheets, get_sheet, add_row, update_row, list_columns` },
+  square: { tier: 3, stub: `SQUARE: list_transactions, list_customers, create_customer, list_catalog, list_orders` },
+  storyblok: { tier: 3, stub: `STORYBLOK: list_stories, create_story` },
+  stripe: { tier: 3, stub: `STRIPE: list_customers, create_customer, list_payments, create_payment_link, list_subscriptions, retrieve_invoice` },
+  supabase: { tier: 3, stub: `SUPABASE: query_table, insert_record` },
+  surveymonkey: { tier: 3, stub: `SURVEYMONKEY: list_surveys, get_responses` },
+  tally: { tier: 3, stub: `TALLY: list_forms, get_responses` },
+  teams: { tier: 3, stub: `TEAMS: send_message, list_channels, list_teams, create_channel` },
+  teamwork: { tier: 3, stub: `TEAMWORK: list_projects, list_tasks, create_task, update_task, list_milestones` },
+  telegram: { tier: 3, stub: `TELEGRAM: send_message, send_photo, get_chat, get_updates` },
+  telnyx: { tier: 3, stub: `TELNYX: send_sms, list_messages` },
+  tiktok: { tier: 3, stub: `TIKTOK: get_ad_accounts, list_campaigns, get_campaign_stats` },
+  toggl: { tier: 3, stub: `TOGGL: list_time_entries, create_time_entry` },
+  trello: { tier: 3, stub: `TRELLO: list_boards, list_cards, create_card, update_card, list_lists, add_comment` },
+  twilio: { tier: 3, stub: `TWILIO: send_sms, send_whatsapp` },
+  twitter: { tier: 3, stub: `TWITTER: post_tweet, list_tweets` },
+  vercel: { tier: 3, stub: `VERCEL: list_projects, trigger_deploy` },
+  vimeo: { tier: 3, stub: `VIMEO: list_videos, upload_video` },
+  vonage: { tier: 3, stub: `VONAGE: send_sms, send_message` },
+  webex: { tier: 3, stub: `WEBEX: send_message, list_rooms, create_room, list_people` },
+  webflow: { tier: 3, stub: `WEBFLOW: list_sites, query_cms` },
+  whatsapp: { tier: 3, stub: `WHATSAPP: send_text_message, send_template_message, get_phone_number_id` },
+  wistia: { tier: 3, stub: `WISTIA: list_videos, get_video` },
+  wordpress: { tier: 3, stub: `WORDPRESS: list_posts, create_post` },
+  workable: { tier: 3, stub: `WORKABLE: list_candidates, get_candidate` },
+  workday: { tier: 3, stub: `WORKDAY: list_workers, get_worker` },
+  wrike: { tier: 3, stub: `WRIKE: list_tasks, create_task, update_task, list_folders, list_projects` },
+  youtube: { tier: 3, stub: `YOUTUBE: list_videos, get_video, list_channels, get_channel_analytics` },
+  zohocrm: { tier: 3, stub: `ZOHO CRM: list_contacts, create_contact, update_contact, list_leads, create_deal` },
+  zohoprojects: { tier: 3, stub: `ZOHO PROJECTS: list_projects, list_tasks, create_task, update_task` },
   // Tier 3 stubs (condensed)
   auth0: { tier: 3, stub: `AUTH0: list_users, get_user` },
   awss3: { tier: 3, stub: `AWS S3: list_objects, upload_object` },
