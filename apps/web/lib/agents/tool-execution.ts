@@ -253,9 +253,14 @@ async function getRun(service: LooseClient, userId: string, args: Record<string,
 }
 
 async function listConnections(service: LooseClient, workspaceIds: string[]): Promise<AgentToolResult> {
+  // NOTE: the connections table has no token-expiry column — the OAuth token
+  // (and its expiry) lives in Vault, referenced by vault_secret_id. Connection
+  // health is tracked here via is_valid + last_validated_at, so that's what we
+  // expose. Selecting a non-existent token_expires_at column previously made this
+  // tool error, which stalled agents on ask_user ("provide token expiry").
   const { data, error } = await service
     .from("connections")
-    .select("id, name, provider, is_valid, token_expires_at, workspace_id")
+    .select("id, name, provider, is_valid, last_validated_at, workspace_id")
     .in("workspace_id", workspaceIds)
     .order("name", { ascending: true });
   if (error) return { ok: false, error: error.message };

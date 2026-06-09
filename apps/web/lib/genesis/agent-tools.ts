@@ -58,7 +58,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     id: "corelyx.list_connections",
     label: "List connections",
     description:
-      "List connected apps in this workspace with provider, validity, and token expiry so the agent can spot broken or expiring connections.",
+      "List connected apps in this workspace with provider, validity (is_valid), and last validation time (last_validated_at) so the agent can spot broken or invalid connections. Token expiry is not tracked on the connection record — treat is_valid=false as a broken/expired connection.",
     scope: "read",
   },
   {
