@@ -225,3 +225,106 @@ export function getValidInternalServiceClaims(
     return null;
   }
 }
+
+/**
+ * Which secret the web side WOULD use to verify this audience:
+ *  - "scoped": INTERNAL_SERVICE_AUTH_SECRET_<AUD> is set (the required prod path)
+ *  - "shared": only the shared INTERNAL_SERVICE_AUTH_SECRET/RUNTIME_SECRET is set
+ *              AND the env allows the fallback (i.e. not production)
+ *  - "none":   nothing usable — verification will throw → 401
+ * Reports the source, never the value. The asymmetry that causes "secret is set
+ * everywhere but still 401" shows up as web="none"/"scoped" while the runtime
+ * happily signs via its own "shared" fallback.
+ */
+export function describeInternalSecretSource(audience: string): "scoped" | "shared" | "none" {
+  if (process.env[getScopedSecretEnvName(audience)]) return "scoped";
+  const shared = process.env.INTERNAL_SERVICE_AUTH_SECRET ?? process.env.RUNTIME_SECRET ?? "";
+  if (shared && allowsSharedSecretFallback()) return "shared";
+  return "none";
+}
+
+export type InternalAuthDiagnosis = {
+  ok: boolean;
+  /** Machine-readable failure reason (safe to log). */
+  reason: string;
+  /** Flat, secret-free context safe to pass to serverLog.details. */
+  detail: Record<string, string | number | boolean | null>;
+};
+
+/**
+ * Like getValidInternalServiceClaims, but instead of collapsing every failure to
+ * null it reports WHICH check failed — so an operator can tell a secret mismatch
+ * (signature_mismatch / secret_unavailable_on_web) apart from a path rewrite
+ * (path_mismatch) or clock drift (expired / not_yet_valid) from the logs alone.
+ * NEVER logs the token, signature, or secret value.
+ */
+export function diagnoseInternalServiceToken(
+  headers: HeaderLike,
+  audience: string,
+  options: { nowMs?: number } & RequestBinding = {}
+): InternalAuthDiagnosis {
+  const secretSource = describeInternalSecretSource(audience);
+  const scopedEnv = getScopedSecretEnvName(audience);
+
+  const token = headers.get(INTERNAL_SERVICE_TOKEN_HEADER);
+  if (!token) {
+    return { ok: false, reason: "no_token", detail: { audience, secretSource } };
+  }
+  if (secretSource === "none") {
+    return {
+      ok: false,
+      reason: "secret_unavailable_on_web",
+      detail: { audience, scopedEnv, prodFallbackDisabled: !allowsSharedSecretFallback() },
+    };
+  }
+
+  const [payloadSegment, receivedSignature] = token.split(".");
+  if (!payloadSegment || !receivedSignature) {
+    return { ok: false, reason: "malformed_token", detail: { audience, secretSource } };
+  }
+
+  let expectedSignature: string;
+  try {
+    expectedSignature = signPayloadSegment(payloadSegment, getInternalServiceSecret(audience));
+  } catch {
+    return { ok: false, reason: "secret_unavailable_on_web", detail: { audience, scopedEnv } };
+  }
+  if (!safeEqual(receivedSignature, expectedSignature)) {
+    return { ok: false, reason: "signature_mismatch", detail: { audience, secretSource, scopedEnv } };
+  }
+
+  const claims = parseClaims(payloadSegment);
+  if (!claims) {
+    return { ok: false, reason: "bad_claims", detail: { audience, secretSource } };
+  }
+  if (claims.aud !== audience) {
+    return { ok: false, reason: "audience_mismatch", detail: { expected: audience, got: claims.aud } };
+  }
+
+  const nowSeconds = Math.floor((options.nowMs ?? Date.now()) / 1000);
+  if (claims.exp <= claims.iat) {
+    return { ok: false, reason: "bad_lifetime", detail: { iat: claims.iat, exp: claims.exp } };
+  }
+  if (claims.exp - claims.iat > MAX_TOKEN_LIFETIME_SECONDS) {
+    return { ok: false, reason: "lifetime_too_long", detail: { lifetime: claims.exp - claims.iat } };
+  }
+  if (claims.iat - CLOCK_SKEW_SECONDS > nowSeconds) {
+    return { ok: false, reason: "not_yet_valid", detail: { iat: claims.iat, now: nowSeconds, aheadBySeconds: claims.iat - nowSeconds } };
+  }
+  if (claims.exp + CLOCK_SKEW_SECONDS < nowSeconds) {
+    return { ok: false, reason: "expired", detail: { exp: claims.exp, now: nowSeconds, expiredBySeconds: nowSeconds - claims.exp } };
+  }
+  if (options.method && claims.htm !== options.method.toUpperCase()) {
+    return { ok: false, reason: "method_mismatch", detail: { expected: options.method.toUpperCase(), got: claims.htm ?? null } };
+  }
+  if (options.path && claims.path !== options.path) {
+    return { ok: false, reason: "path_mismatch", detail: { expected: options.path, got: claims.path ?? null } };
+  }
+  if (options.body !== undefined && claims.bh !== bodyHash(options.body)) {
+    return { ok: false, reason: "body_mismatch", detail: { audience } };
+  }
+  if (!claims.sub) {
+    return { ok: false, reason: "missing_subject", detail: { audience, secretSource } };
+  }
+  return { ok: true, reason: "ok", detail: { audience, secretSource } };
+}

@@ -2133,6 +2133,7 @@ class ProgramExecutor:
             },
         }
         body = json.dumps(payload, separators=(",", ":"))
+        auth_failure_status: int | None = None
         for endpoint_url in self._nextjs_endpoint_candidates(endpoint_path):
             try:
                 client = _get_llm_client()
@@ -2156,9 +2157,31 @@ class ProgramExecutor:
                         return {"ok": False, "error": "Tool endpoint returned non-JSON."}
                 if resp.status_code in (301, 302, 307, 308, 404):
                     continue
+                # 401/403 mean the runtime's internal service token was rejected by
+                # the web app — a server-to-server misconfiguration, never something
+                # the agent or the end user can fix. Remember it and try the
+                # origin-only fallback candidate, but do NOT return it as a tool
+                # result: if we feed "HTTP 401" back into the loop the model
+                # misreads it as a missing user credential and pesters the user with
+                # corelyx.ask_user ("provide an access token"). Abort the run instead.
+                if resp.status_code in (401, 403):
+                    auth_failure_status = resp.status_code
+                    continue
                 return {"ok": False, "error": f"Tool call failed (HTTP {resp.status_code})."}
             except Exception as exc:
                 return {"ok": False, "error": f"Tool call error: {exc}"}
+        if auth_failure_status is not None:
+            raise ExecutionError(
+                "INTERNAL_AUTH_FAILED",
+                (
+                    f"Agent account tool '{tool_id}' could not authenticate to the "
+                    f"app (HTTP {auth_failure_status}). This is an internal "
+                    "configuration issue, not a missing user credential: the "
+                    "INTERNAL_SERVICE_AUTH_SECRET_NEXT_AGENT_TOOLS secret must be "
+                    "set to the same value on both the runtime and the web app."
+                ),
+                node_id,
+            )
         return {"ok": False, "error": "Tool endpoint unreachable."}
 
     async def _execute_agent_connector_tool(
