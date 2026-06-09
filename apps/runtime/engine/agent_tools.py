@@ -53,7 +53,12 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
         },
     },
     "corelyx.list_connections": {
-        "description": "List connected apps with provider, validity, and token expiry.",
+        "description": (
+            "List connected apps with provider, validity (is_valid), and last "
+            "validation time (last_validated_at). Token expiry is not tracked on "
+            "the connection record — treat is_valid=false as a broken/expired "
+            "connection."
+        ),
         "parameters": {"type": "object", "properties": {}},
     },
     "corelyx.get_account_stats": {
