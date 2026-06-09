@@ -188,6 +188,17 @@ class TestGmailConnectorDeep(unittest.IsolatedAsyncioTestCase):
             await GmailConnector().execute("label_email", {}, "tok")
         self.assertEqual(ctx.exception.code, "MISSING_PARAM")
 
+    async def test_label_email_no_labels_raises_before_api_call(self):
+        # A modify call with neither add nor remove labels makes Gmail return a
+        # cryptic 400 ("No label ... updates provided"). The connector must catch
+        # this up front and never hit the API.
+        request_mock = AsyncMock()
+        with patch("connectors.gmail.request_with_rate_limit", new=request_mock):
+            with self.assertRaises(ConnectorError) as ctx:
+                await GmailConnector().execute("label_email", {"message_id": "m1"}, "tok")
+        self.assertEqual(ctx.exception.code, "MISSING_PARAM")
+        request_mock.assert_not_called()
+
     async def test_label_email_http_error(self):
         mock = _fake_response(status_code=400, text="Bad Request")
         with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=mock)):
