@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
-import { getValidInternalServiceClaims } from "@/lib/internal-auth";
+import { getValidInternalServiceClaims, diagnoseInternalServiceToken } from "@/lib/internal-auth";
 import { executeAgentTool, type AgentToolContext } from "@/lib/agents/tool-execution";
+import { serverLog } from "@/lib/server-log";
 
 // POST /api/internal/agent-tools
 // Called by the Python runtime while executing an agent_task tool-loop.
@@ -12,11 +13,20 @@ import { executeAgentTool, type AgentToolContext } from "@/lib/agents/tool-execu
 // canRunAgentInWorkspace on the resolved TARGET workspace, and dry-run simulates
 // (never executes) write tools — both enforced in executeAgentTool.
 export async function POST(request: Request) {
-  const claims = getValidInternalServiceClaims(request.headers, "next:agent-tools", {
-    method: "POST",
-    path: new URL(request.url).pathname,
-  });
-  if (!claims?.sub) return apiError("Unauthorized", 401);
+  const binding = { method: "POST", path: new URL(request.url).pathname };
+  const claims = getValidInternalServiceClaims(request.headers, "next:agent-tools", binding);
+  if (!claims?.sub) {
+    // Report WHICH check failed so a 401 here is diagnosable from the logs alone
+    // (secret mismatch vs path rewrite vs clock skew). Never logs token/secret.
+    const diag = diagnoseInternalServiceToken(request.headers, "next:agent-tools", binding);
+    serverLog({
+      level: "error",
+      event: "agent.tools.auth_rejected",
+      message: "Internal agent-tools token rejected.",
+      details: { reason: diag.reason, ...diag.detail },
+    });
+    return apiError("Unauthorized", 401);
+  }
   const userId = claims.sub;
 
   let body: unknown;
