@@ -378,12 +378,30 @@ class GmailConnector(IConnector):
         remove_ids = await self._resolve_label_names(client, headers, [str(l) for l in remove_raw]) \
             if _needs_resolve(remove_raw) else [str(l) for l in remove_raw]
 
+        # Gmail rejects a modify call with no label changes ("No label ... updates
+        # provided", 400). Surface a clear, actionable error instead of the raw
+        # API failure when neither add nor remove labels were supplied.
+        if not add_ids and not remove_ids:
+            raise ConnectorError(
+                "MISSING_PARAM",
+                "label_email requires at least one label to add or remove "
+                "(set add_label_names/add_label_ids or remove_label_names/remove_label_ids)",
+            )
+
+        # Only send the keys that actually have values so empty arrays never reach
+        # the Gmail API.
+        body: dict = {}
+        if add_ids:
+            body["addLabelIds"] = add_ids
+        if remove_ids:
+            body["removeLabelIds"] = remove_ids
+
         r = await request_with_rate_limit(
             client,
             "POST",
             f"{_BASE}/messages/{message_id}/modify",
             headers=headers,
-            json={"addLabelIds": add_ids, "removeLabelIds": remove_ids},
+            json=body,
         )
         _raise_for_status(r, "label_email")
         return {"message_id": message_id, "labels": r.json().get("labelIds", [])}
