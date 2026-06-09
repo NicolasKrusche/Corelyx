@@ -1,7 +1,9 @@
 """Gmail native connector."""
 from __future__ import annotations
 
+import asyncio
 import base64
+import random
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -133,9 +135,8 @@ class GmailConnector(IConnector):
                 "read_email when the upstream event or search can be empty.",
             )
 
-        r = await request_with_rate_limit(
+        r = await _get_with_precondition_retry(
             client,
-            "GET",
             f"{_BASE}/messages/{message_id}",
             headers=headers,
             params={"format": "full"},
@@ -394,15 +395,61 @@ class GmailConnector(IConnector):
         message_id: str,
         attachment_id: str,
     ) -> bytes:
-        r = await request_with_rate_limit(
+        r = await _get_with_precondition_retry(
             client,
-            "GET",
             f"{_BASE}/messages/{message_id}/attachments/{attachment_id}",
             headers=headers,
         )
         _raise_for_status(r, "get_attachment")
         data = r.json().get("data", "")
         return _decode_base64url(str(data))
+
+
+def _is_transient_precondition(r: httpx.Response) -> bool:
+    """True when Gmail returns a 400 ``failedPrecondition``.
+
+    Gmail intermittently rejects ``messages.get`` (and related per-message reads)
+    with ``400 FAILED_PRECONDITION`` / "Precondition check failed" even when the
+    OAuth token and message id are valid — Google documents this as a transient
+    backend state that succeeds on retry. Detect it by reason/status so we only
+    retry this specific case and still fail fast on genuine 400s (e.g. bad id).
+    """
+    if r.status_code != 400:
+        return False
+    try:
+        error = r.json().get("error", {})
+    except Exception:
+        return "failedprecondition" in r.text.lower()
+    if str(error.get("status", "")).upper() == "FAILED_PRECONDITION":
+        return True
+    return any(
+        str(e.get("reason", "")).lower() == "failedprecondition"
+        for e in error.get("errors", [])
+        if isinstance(e, dict)
+    )
+
+
+async def _get_with_precondition_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    headers: dict,
+    params: dict | None = None,
+    max_attempts: int = 4,
+) -> httpx.Response:
+    """GET that retries Gmail's transient 400 ``failedPrecondition`` with backoff."""
+    delay = 0.5
+    r: httpx.Response | None = None
+    for attempt in range(1, max_attempts + 1):
+        r = await request_with_rate_limit(
+            client, "GET", url, headers=headers, params=params
+        )
+        if attempt >= max_attempts or not _is_transient_precondition(r):
+            return r
+        await asyncio.sleep(delay + random.uniform(0, 0.25))
+        delay = min(delay * 2, 5.0)
+    assert r is not None  # loop runs at least once
+    return r
 
 
 def _raise_for_status(r: httpx.Response, operation: str) -> None:

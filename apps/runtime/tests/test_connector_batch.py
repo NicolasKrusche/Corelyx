@@ -98,6 +98,57 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
                 await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
         self.assertIn("read_email failed", str(ctx.exception))
 
+    async def test_read_email_retries_transient_precondition(self) -> None:
+        """Gmail's intermittent 400 failedPrecondition is retried, not surfaced."""
+        precondition = _fake_response(
+            status_code=400,
+            json_data={
+                "error": {
+                    "code": 400,
+                    "message": "Precondition check failed.",
+                    "errors": [{"reason": "failedPrecondition"}],
+                    "status": "FAILED_PRECONDITION",
+                }
+            },
+        )
+        success = _fake_response({
+            "id": "msg1",
+            "threadId": "t1",
+            "snippet": "snip",
+            "payload": {"mimeType": "text/plain", "body": {"data": "SGVsbG8=", "size": 5}},
+            "labelIds": ["INBOX"],
+        })
+        mock = AsyncMock(side_effect=[precondition, precondition, success])
+        with patch("connectors.gmail.request_with_rate_limit", new=mock), \
+                patch("connectors.gmail.asyncio.sleep", new=AsyncMock()):
+            result = await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
+        self.assertEqual(result["message_id"], "msg1")
+        self.assertEqual(mock.await_count, 3)
+
+    async def test_read_email_gives_up_after_persistent_precondition(self) -> None:
+        precondition = _fake_response(
+            status_code=400,
+            json_data={"error": {"status": "FAILED_PRECONDITION", "message": "Precondition check failed."}},
+        )
+        with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=precondition)), \
+                patch("connectors.gmail.asyncio.sleep", new=AsyncMock()):
+            with self.assertRaises(ConnectorError) as ctx:
+                await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
+        self.assertIn("read_email failed (400)", str(ctx.exception))
+
+    async def test_read_email_does_not_retry_other_400(self) -> None:
+        """A genuine 400 (e.g. invalid id) must fail fast without retrying."""
+        bad = _fake_response(
+            status_code=400,
+            json_data={"error": {"status": "INVALID_ARGUMENT", "message": "Invalid id value"}},
+        )
+        mock = AsyncMock(return_value=bad)
+        with patch("connectors.gmail.request_with_rate_limit", new=mock), \
+                patch("connectors.gmail.asyncio.sleep", new=AsyncMock()):
+            with self.assertRaises(ConnectorError):
+                await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
+        self.assertEqual(mock.await_count, 1)
+
     async def test_send_email_success(self) -> None:
         mock_resp = _fake_response({"id": "sent1", "threadId": "t1"})
         with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
