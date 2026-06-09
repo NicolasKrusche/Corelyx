@@ -32,6 +32,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   read_email: params={message_id:string(REQUIRED)} → output:{message_id,subject,from,to,body,labels}
   send_email: params={to,subject,body(all REQUIRED),cc?,bcc?,reply_to_id?,thread_id?}
   archive_email: params={message_id:string(REQUIRED)} → output:{message_id,archived:true}
+  delete_email: params={message_id:string(REQUIRED),permanent?:boolean} → output:{message_id,deleted:true,permanent} — defaults to moving the message to Trash (reversible). Set permanent:true only when the user explicitly wants an irreversible delete (requires broad mail scope).
   label_email: params={message_id(REQUIRED),add_label_ids?:["Human Name"],remove_label_ids?} — use plain label names, never IDs. The runtime resolves names automatically.
     ⚠ NEVER generate HTTP nodes to create labels before the loop. A POST to /gmail/v1/users/me/labels returns 409 if the label already exists and will halt the run. Instead: call label_email with the desired label name directly. If the label doesn't exist the user creates it manually — document this requirement in a note node (color:"yellow").
   list_threads: params={query,max_results} → output:{threads:[{id,historyId}]}
@@ -40,7 +41,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     mark read / unread → label_email with remove_label_ids:["UNREAD"] (read) or add_label_ids:["UNREAD"] (unread)
     star / mark important → label_email with STARRED / IMPORTANT
     forward an email → read_email + send_email composing forwarded body
-    move to trash (not archive) → HTTP POST https://gmail.googleapis.com/gmail/v1/users/me/messages/{{n4.email.id}}/trash using the selected Gmail OAuth connection when the loop node is n4
+    move to trash / delete (not archive) → delete_email with message_id (defaults to Trash). Use permanent:true only for explicit irreversible deletes.
     create draft → HTTP POST https://gmail.googleapis.com/gmail/v1/users/me/drafts
     list / manage labels → HTTP /gmail/v1/users/me/labels
     save attachment to Drive → get_attachment then drive upload_file with content_base64 from data_base64`,

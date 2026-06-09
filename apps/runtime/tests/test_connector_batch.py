@@ -138,6 +138,43 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
                 await GmailConnector().execute("archive_email", {"message_id": "msg1"}, "tok")
         self.assertIn("archive_email failed", str(ctx.exception))
 
+    async def test_delete_email_trashes_by_default(self) -> None:
+        mock_resp = _fake_response({"id": "msg1", "labelIds": ["TRASH"]})
+        mock_call = AsyncMock(return_value=mock_resp)
+        with patch("connectors.gmail.request_with_rate_limit", new=mock_call):
+            result = await GmailConnector().execute("delete_email", {"message_id": "msg1"}, "tok")
+        self.assertTrue(result["deleted"])
+        self.assertFalse(result["permanent"])
+        # Defaults to the reversible trash endpoint via POST.
+        method, url = mock_call.await_args.args[1], mock_call.await_args.args[2]
+        self.assertEqual(method, "POST")
+        self.assertTrue(url.endswith("/messages/msg1/trash"))
+
+    async def test_delete_email_permanent(self) -> None:
+        mock_resp = _fake_response({})
+        mock_call = AsyncMock(return_value=mock_resp)
+        with patch("connectors.gmail.request_with_rate_limit", new=mock_call):
+            result = await GmailConnector().execute(
+                "delete_email", {"message_id": "msg1", "permanent": True}, "tok"
+            )
+        self.assertTrue(result["deleted"])
+        self.assertTrue(result["permanent"])
+        method, url = mock_call.await_args.args[1], mock_call.await_args.args[2]
+        self.assertEqual(method, "DELETE")
+        self.assertTrue(url.endswith("/messages/msg1"))
+
+    async def test_delete_email_missing_param(self) -> None:
+        with self.assertRaises(ConnectorError) as ctx:
+            await GmailConnector().execute("delete_email", {}, "tok")
+        self.assertEqual(ctx.exception.code, "MISSING_PARAM")
+
+    async def test_delete_email_http_error(self) -> None:
+        mock_resp = _fake_response(status_code=403, text="Forbidden")
+        with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
+            with self.assertRaises(ConnectorError) as ctx:
+                await GmailConnector().execute("delete_email", {"message_id": "msg1"}, "tok")
+        self.assertIn("delete_email failed", str(ctx.exception))
+
 
 class TestSlackConnector(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_success(self) -> None:
