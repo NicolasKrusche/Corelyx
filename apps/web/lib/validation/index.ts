@@ -151,6 +151,15 @@ export function validatePostGenesis(
       error("ERR_009", maybeStep.id, `Step node ${maybeStep.label} cannot connect to an external app`, "Step nodes are for logic only. Use an agent node to interact with apps");
   });
 
+  // agent_task is an agent-only node (a bounded autonomous tool-loop). Workflows
+  // must never contain one — flag it so it can be removed before publishing.
+  if (schema.program_type !== "agent") {
+    execNodes.forEach((node) => {
+      if (node.type === "agent_task")
+        error("ERR_013", node.id, `${node.label} is an Agent Task node, which can only run inside an agent`, "Delete this node — Agent Task steps are not available in workflows");
+    });
+  }
+
   // ─── Data Flow ─────────────────────────────────────────────────────────
 
   edges.forEach((edge) => {

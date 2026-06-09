@@ -343,20 +343,41 @@ export const ProgramMetadataZ = z.object({
 // downstream consumers can rely on the field being present after validation.
 export const ProgramTypeZ = z.enum(["workflow", "agent"]).default("workflow");
 
-export const ProgramSchemaZ = z.object({
-  version: z.literal("1.0"),
-  program_id: z.string().min(1),
-  program_name: z.string().min(1),
-  program_type: ProgramTypeZ,
-  created_at: z.string().min(1),
-  updated_at: z.string().min(1),
-  execution_mode: z.enum(["autonomous", "approval_required", "supervised"]),
-  nodes: z.array(NodeZ),
-  edges: z.array(EdgeZ),
-  triggers: z.array(TriggerZ),
-  version_history: z.array(VersionSnapshotZ),
-  metadata: ProgramMetadataZ,
-});
+// agent_task is the hybrid autonomous tool-loop node. It is only valid inside
+// agent programs — workflows must never contain one. Enforce that here so the
+// canonical contract rejects it regardless of how the schema was produced.
+function refineAgentTaskScope(
+  schema: { program_type?: "workflow" | "agent"; nodes: Array<{ type: string }> },
+  ctx: z.RefinementCtx
+): void {
+  if (schema.program_type === "agent") return;
+  schema.nodes.forEach((node, index) => {
+    if (node.type === "agent_task") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["nodes", index, "type"],
+        message: "agent_task nodes are only allowed in agents, not workflows",
+      });
+    }
+  });
+}
+
+export const ProgramSchemaZ = z
+  .object({
+    version: z.literal("1.0"),
+    program_id: z.string().min(1),
+    program_name: z.string().min(1),
+    program_type: ProgramTypeZ,
+    created_at: z.string().min(1),
+    updated_at: z.string().min(1),
+    execution_mode: z.enum(["autonomous", "approval_required", "supervised"]),
+    nodes: z.array(NodeZ),
+    edges: z.array(EdgeZ),
+    triggers: z.array(TriggerZ),
+    version_history: z.array(VersionSnapshotZ),
+    metadata: ProgramMetadataZ,
+  })
+  .superRefine(refineAgentTaskScope);
 
 export type ProgramSchemaInput = z.input<typeof ProgramSchemaZ>;
 export type ProgramSchemaOutput = z.output<typeof ProgramSchemaZ>;
@@ -407,6 +428,8 @@ export const ProgramDraftSchemaZ = z
         });
       }
     }
+
+    refineAgentTaskScope(schema, ctx);
 
     const triggerNodeIds = new Set(
       schema.nodes.filter((node) => node.type === "trigger").map((node) => node.id)
