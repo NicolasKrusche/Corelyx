@@ -28,6 +28,7 @@ class GmailConnector(IConnector):
         "send_email",
         "archive_email",
         "label_email",
+        "delete_email",
     ]
 
     async def execute(
@@ -55,6 +56,8 @@ class GmailConnector(IConnector):
                     return await self._archive_email(client, headers, params)
                 case "label_email":
                     return await self._label_email(client, headers, params)
+                case "delete_email":
+                    return await self._delete_email(client, headers, params)
                 case _:
                     raise ConnectorError(
                         "UNSUPPORTED_OPERATION",
@@ -294,6 +297,35 @@ class GmailConnector(IConnector):
         )
         _raise_for_status(r, "archive_email")
         return {"message_id": message_id, "archived": True}
+
+    async def _delete_email(
+        self, client: httpx.AsyncClient, headers: dict, params: dict
+    ) -> dict:
+        message_id = params.get("message_id")
+        if not message_id:
+            raise ConnectorError("MISSING_PARAM", "delete_email requires 'message_id'")
+
+        # Default to trashing (reversible, needs only gmail.modify). Permanent
+        # delete requires the broad https://mail.google.com/ scope, so it is opt-in.
+        permanent = bool(params.get("permanent", False))
+        if permanent:
+            r = await request_with_rate_limit(
+                client,
+                "DELETE",
+                f"{_BASE}/messages/{message_id}",
+                headers=headers,
+            )
+            _raise_for_status(r, "delete_email")
+            return {"message_id": message_id, "deleted": True, "permanent": True}
+
+        r = await request_with_rate_limit(
+            client,
+            "POST",
+            f"{_BASE}/messages/{message_id}/trash",
+            headers=headers,
+        )
+        _raise_for_status(r, "delete_email")
+        return {"message_id": message_id, "deleted": True, "permanent": False}
 
     async def _resolve_label_names(
         self, client: httpx.AsyncClient, headers: dict, names: list[str]
