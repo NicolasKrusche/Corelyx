@@ -156,8 +156,9 @@ export function normalizeSchema(raw: unknown): void {
       // "corelyx" / "corelyx:primary" connection, which then fails at runtime
       // with: Connection 'corelyx:primary' not found for this user. Repair it
       // into the agent_task tool-loop that actually delivers the report, so the
-      // broken connection ref never reaches the runtime.
-      if (n.type === "connection") {
+      // broken connection ref never reaches the runtime. agent_task is agent-only,
+      // so this repair must never fire for workflows.
+      if (n.type === "connection" && schema.program_type === "agent") {
         const cfg = (n.config && typeof n.config === "object" ? n.config : {}) as Record<string, unknown>;
         const ref = typeof n.connection === "string" ? n.connection : "";
         const refProvider = ref.includes(":") ? ref.split(":")[0] : ref;
