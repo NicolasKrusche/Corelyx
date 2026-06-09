@@ -29,7 +29,7 @@ Quick check:
 Invoke-WebRequest http://localhost:3000 -UseBasicParsing | Select-Object StatusCode
 ```
 
-Expected status: `200`. 
+Expected status: `200`.  
 
 ## 3. Start The Runtime API
 
