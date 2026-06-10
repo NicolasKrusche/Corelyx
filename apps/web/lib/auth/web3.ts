@@ -3,13 +3,15 @@ import type { createBrowserClient } from "@/lib/supabase/client";
 export type Web3Chain = "ethereum" | "solana";
 type BrowserSupabaseClient = ReturnType<typeof createBrowserClient>;
 
-// EIP-4361 requires a nonce of at least 8 alphanumeric characters.
+// EIP-4361 requires a nonce of at least 8 alphanumeric characters. It must be
+// unpredictable (it's the anti-replay value the wallet signs), so use a CSPRNG.
 function generateNonce(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  return Array.from(
-    { length: 16 },
-    () => chars[Math.floor(Math.random() * chars.length)]
-  ).join("");
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  // 62 doesn't divide 256 evenly, but the resulting ~0.4% bias per character is
+  // negligible for a 16-char anti-replay nonce.
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
 }
 
 declare global {
