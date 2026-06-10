@@ -6,7 +6,7 @@ const STEPS: GuidedTourStep[] = [
   {
     id: "welcome",
     title: "Welcome to Corelyx",
-    body: "Before you build anything, a quick look around: eight stops covering the AI builder, your workflows, and where everything lives.",
+    body: "Want a quick look around before you build anything? Takes about a minute — the AI builder, your workflows, and where everything lives.",
   },
   {
     id: "genesis",

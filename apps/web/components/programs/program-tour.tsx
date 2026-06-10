@@ -52,7 +52,7 @@ export function ProgramTour() {
       doneKey="corelyx-program-tour-done"
       autoStartOnce
       welcomeCta="Show me this page"
-      welcomeFootnote="Five quick stops · Esc leaves any time"
+      welcomeFootnote="Press Esc to close this at any time."
       finishLabel="Got it"
     />
   );
