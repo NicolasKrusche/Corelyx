@@ -334,7 +334,9 @@
       "search": "Szukaj",
       "workspaceUsage": "Użycie przestrzeni roboczej",
       "switchWorkspace": "Przełącz przestrzeń roboczą",
-      "createWorkspace": "Utwórz przestrzeń roboczą"
+      "createWorkspace": "Utwórz przestrzeń roboczą",
+      "manageWorkspaces": "Zarządzaj przestrzeniami roboczymi",
+      "newWorkspacePlaceholder": "Nazwa nowej przestrzeni roboczej"
     },
     "workspace": { "fallback": "Przestrzeń robocza" },
     "usage": {
@@ -358,6 +360,7 @@
     },
     "errors": {
       "switchWorkspace": "Nie można przełączyć przestrzeni roboczej. Spróbuj ponownie.",
+      "createWorkspace": "Nie można utworzyć przestrzeni roboczej. Spróbuj ponownie.",
       "networkError": "Nie można nawiązać połączenia. Sprawdź swoje połączenie z internetem i spróbuj ponownie."
     },
     "saved": "Zapisano.",

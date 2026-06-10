@@ -334,7 +334,9 @@
       "search": "Zoeken",
       "workspaceUsage": "Gebruik werkruimte",
       "switchWorkspace": "Werkruimte wisselen",
-      "createWorkspace": "Werkruimte aanmaken"
+      "createWorkspace": "Werkruimte aanmaken",
+      "manageWorkspaces": "Werkruimten beheren",
+      "newWorkspacePlaceholder": "Naam nieuwe werkruimte"
     },
     "workspace": { "fallback": "Werkruimte" },
     "usage": {
@@ -358,6 +360,7 @@
     },
     "errors": {
       "switchWorkspace": "Kan niet van werkruimte wisselen. Probeer het opnieuw.",
+      "createWorkspace": "Kan de werkruimte niet aanmaken. Probeer het opnieuw.",
       "networkError": "Kan geen verbinding maken. Controleer uw internetverbinding en probeer het opnieuw."
     },
     "saved": "Opgeslagen.",

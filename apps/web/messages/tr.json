@@ -334,7 +334,9 @@
       "search": "Ara",
       "workspaceUsage": "Çalışma alanı kullanımı",
       "switchWorkspace": "Çalışma alanını değiştir",
-      "createWorkspace": "Çalışma alanı oluştur"
+      "createWorkspace": "Çalışma alanı oluştur",
+      "manageWorkspaces": "Çalışma alanlarını yönet",
+      "newWorkspacePlaceholder": "Yeni çalışma alanı adı"
     },
     "workspace": { "fallback": "Çalışma Alanı" },
     "usage": {
@@ -358,6 +360,7 @@
     },
     "errors": {
       "switchWorkspace": "Çalışma alanı değiştirilemedi. Lütfen tekrar deneyin.",
+      "createWorkspace": "Çalışma alanı oluşturulamadı. Lütfen tekrar deneyin.",
       "networkError": "Bağlanamadık. İnternet bağlantınızı kontrol edin ve tekrar deneyin."
     },
     "saved": "Kaydedildi.",

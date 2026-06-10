@@ -334,7 +334,9 @@
       "search": "검색",
       "workspaceUsage": "워크스페이스 사용량",
       "switchWorkspace": "워크스페이스 전환",
-      "createWorkspace": "워크스페이스 만들기"
+      "createWorkspace": "워크스페이스 만들기",
+      "manageWorkspaces": "워크스페이스 관리",
+      "newWorkspacePlaceholder": "새 워크스페이스 이름"
     },
     "workspace": { "fallback": "워크스페이스" },
     "usage": {
@@ -358,6 +360,7 @@
     },
     "errors": {
       "switchWorkspace": "워크스페이스를 전환할 수 없습니다. 다시 시도해 주세요.",
+      "createWorkspace": "워크스페이스를 만들 수 없습니다. 다시 시도해 주세요.",
       "networkError": "연결할 수 없습니다. 인터넷 연결을 확인하고 다시 시도해 주세요."
     },
     "saved": "저장됨.",
