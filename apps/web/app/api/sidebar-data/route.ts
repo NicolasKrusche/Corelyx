@@ -52,7 +52,7 @@ export async function GET(request: Request) {
         ? db.from("programs").select("id").eq("workspace_id", workspaceId)
         : Promise.resolve({ data: [] }),
       workspaceIds.length > 0
-        ? db.from("workspaces").select("id, name").in("id", workspaceIds)
+        ? db.from("workspaces").select("id, name, tier").in("id", workspaceIds)
         : Promise.resolve({ data: [] }),
       workspaceId
         ? db
@@ -90,13 +90,14 @@ export async function GET(request: Request) {
     : parseTier(billingData?.tier);
 
   // Workspace list with roles
-  const workspaceRows = ((workspacesRes as { data: Array<{ id: string; name: string }> | null })
+  const workspaceRows = ((workspacesRes as { data: Array<{ id: string; name: string; tier?: string | null }> | null })
     .data ?? []);
   const roleMap = new Map(memberships.map((m) => [m.workspace_id, m.role]));
   const workspaces = workspaceRows.map((w) => ({
     id: w.id,
     name: w.name,
     role: roleMap.get(w.id) ?? "member",
+    tier: parseTier(w.tier),
   }));
 
   return NextResponse.json({

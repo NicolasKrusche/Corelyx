@@ -323,6 +323,7 @@ type SidebarWorkspace = {
   id: string;
   name: string;
   role: string;
+  tier?: Tier;
 };
 
 const TIER_CLASSES: Record<Tier, string> = {
@@ -332,6 +333,42 @@ const TIER_CLASSES: Record<Tier, string> = {
   builder:   "bg-blue-500/25 text-blue-100 border-blue-300/30",
   unlimited: "bg-amber-500/20 text-amber-100 border-amber-300/30",
 };
+
+const WORKSPACE_MARK_GRADIENTS = [
+  "linear-gradient(135deg, #79f04a 0%, #1fb6ff 100%)",
+  "linear-gradient(135deg, #38bdf8 0%, #e12fb8 100%)",
+  "linear-gradient(135deg, #f59e0b 0%, #ec4899 52%, #6366f1 100%)",
+  "linear-gradient(135deg, #a3e635 0%, #14b8a6 48%, #3b82f6 100%)",
+  "linear-gradient(135deg, #f97316 0%, #ef4444 45%, #8b5cf6 100%)",
+];
+
+function workspaceMarkGradient(workspace: SidebarWorkspace | null | undefined, fallback: string) {
+  const key = workspace?.id || workspace?.name || fallback;
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return WORKSPACE_MARK_GRADIENTS[hash % WORKSPACE_MARK_GRADIENTS.length];
+}
+
+function WorkspaceMark({
+  workspace,
+  fallback,
+  className,
+}: {
+  workspace?: SidebarWorkspace | null;
+  fallback: string;
+  className?: string;
+}) {
+  const label = workspace?.name?.trim() || fallback;
+  return (
+    <span
+      aria-hidden
+      className={cn("flex shrink-0 items-center justify-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]", className)}
+      style={{ background: workspaceMarkGradient(workspace, label) }}
+    />
+  );
+}
 
 export function Sidebar({
   isAdmin = false,
@@ -420,6 +457,7 @@ export function Sidebar({
   const genesisUsageRatio = genesisUsageTotal ? genesisUsageCurrent / genesisUsageTotal : 0;
   const genesisUsagePercent = genesisUsageTotal ? Math.min(100, Math.round(genesisUsageRatio * 100)) : 0;
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+  const activeWorkspaceTierLabel = tTiers(activeWorkspace?.tier ?? tier);
 
   type SidebarData = {
     pendingApprovalsCount: number;
@@ -692,7 +730,7 @@ export function Sidebar({
       </div>
 
       <div className="px-3 pt-3">
-        <div ref={workspaceMenuRef} className="relative mb-2">
+        <div ref={workspaceMenuRef} className="relative mb-3">
           <button
             type="button"
             aria-label="Active workspace"
@@ -700,82 +738,121 @@ export function Sidebar({
             disabled={switchingWorkspace}
             onClick={() => setWorkspaceMenuOpen((open) => !open)}
             className={cn(
-              "flex h-10 w-full items-center overflow-hidden rounded-lg border text-sm shadow-sm transition-colors",
+              "flex h-14 w-full items-center overflow-hidden rounded-xl text-sm transition-colors disabled:opacity-70",
               isDark
-                ? "border-white/10 bg-white/10 text-white hover:bg-white/15"
-                : "border-black/10 bg-white/60 text-gray-900 hover:bg-white"
+                ? "text-white hover:bg-white/8"
+                : "text-gray-950 hover:bg-black/5"
             )}
           >
-            <span className="flex h-full w-10 shrink-0 items-center justify-center"><WorkspaceIcon /></span>
-            <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-xs font-semibold opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
-              {activeWorkspace?.name ?? tSidebar("workspace.fallback")}
+            <span className="flex h-full w-10 shrink-0 items-center justify-center">
+              <WorkspaceMark
+                workspace={activeWorkspace}
+                fallback={tSidebar("workspace.fallback")}
+                className="h-8 w-8"
+              />
             </span>
-            <span className={cn(
-              "mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-all duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
-              workspaceMenuOpen && "rotate-180",
-              isDark ? "text-blue-100/80" : "text-gray-500"
-            )}>
-              <ChevronDownIcon />
+            <span className="hidden min-w-0 flex-1 items-center gap-2 truncate whitespace-nowrap text-left opacity-0 transition-opacity duration-150 group-hover/side:flex group-hover/side:opacity-100 group-data-[open]/side:flex group-data-[open]/side:opacity-100">
+              <span className="min-w-0 truncate text-base font-semibold">
+                {activeWorkspace?.name ?? tSidebar("workspace.fallback")}
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1 text-sm font-semibold leading-none",
+                  isDark ? "bg-white/10 text-white/85" : "bg-black/10 text-gray-800"
+                )}
+              >
+                {activeWorkspaceTierLabel}
+              </span>
+            </span>
+            <span
+              className={cn(
+                "mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border opacity-0 transition-colors duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100",
+                isDark
+                  ? "border-white/10 bg-white/10 text-white/80 hover:bg-white/15"
+                  : "border-black/10 bg-white/70 text-gray-700 hover:bg-white"
+              )}
+            >
+              <SwitcherChevronsIcon />
             </span>
           </button>
 
           {workspaceMenuOpen && (
             <div
               className={cn(
-                "absolute left-0 top-11 z-50 w-[208px] overflow-hidden rounded-xl border p-1.5 shadow-2xl backdrop-blur-xl",
+                "absolute left-0 top-[58px] z-50 w-[280px] overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl",
                 isDark
-                  ? "border-white/10 bg-slate-950/95 text-white shadow-black/40"
-                  : "border-black/10 bg-white/95 text-gray-900 shadow-black/15"
+                  ? "border-white/10 bg-[#161616]/95 text-white shadow-black/45"
+                  : "border-black/10 bg-white/95 text-gray-950 shadow-black/15"
               )}
             >
-              <div className={cn("px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-widest", isDark ? "text-blue-100/50" : "text-gray-500")}>
-                {tSidebar("nav.switchWorkspace")}
+              <div className={cn("px-4 pb-2 pt-4 text-xs font-bold uppercase", isDark ? "text-white/55" : "text-gray-500")}>
+                {tNav("workspaces")}
               </div>
-              <div className="max-h-60 overflow-y-auto">
+              <div className="max-h-72 overflow-y-auto px-2 pb-2">
                 {workspaces.length === 0 ? (
                   <Link
                     href="/workspaces"
                     onClick={() => setWorkspaceMenuOpen(false)}
                     className={cn(
-                      "flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
-                      isDark ? "text-blue-100/80 hover:bg-white/8 hover:text-white" : "text-gray-600 hover:bg-black/5 hover:text-gray-950"
+                      "flex w-full items-center rounded-xl px-3 py-3 text-left text-sm font-medium transition-colors",
+                      isDark ? "text-white/75 hover:bg-white/8 hover:text-white" : "text-gray-600 hover:bg-black/5 hover:text-gray-950"
                     )}
                   >
                     {tSidebar("nav.createWorkspace")}
                   </Link>
                 ) : workspaces.map((workspace) => {
                   const selected = workspace.id === activeWorkspaceId;
+                  const workspaceTier = workspace.tier ?? tier;
                   return (
                     <button
                       key={workspace.id}
                       type="button"
                       onClick={() => { void switchWorkspace(workspace.id); }}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors",
                         selected
                           ? isDark
-                            ? "bg-white/14 text-white"
+                            ? "bg-white/10 text-white"
                             : "bg-black/8 text-gray-950"
                           : isDark
-                            ? "text-blue-100/80 hover:bg-white/8 hover:text-white"
+                            ? "text-white/80 hover:bg-white/8 hover:text-white"
                             : "text-gray-600 hover:bg-black/5 hover:text-gray-950"
                       )}
                     >
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: selected ? palette.activeBar : "transparent", boxShadow: selected ? `0 0 0 3px ${palette.activeBar}22` : undefined }}
+                      <WorkspaceMark
+                        workspace={workspace}
+                        fallback={tSidebar("workspace.fallback")}
+                        className="h-10 w-10"
                       />
-                      <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
-                      <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] capitalize", isDark ? "bg-white/8 text-blue-100/70" : "bg-black/5 text-gray-500")}>
-                        {workspace.role}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-base font-semibold leading-tight">{workspace.name}</span>
+                        <span className={cn("mt-0.5 block truncate text-sm leading-tight", isDark ? "text-white/55" : "text-gray-500")}>
+                          {tTiers(workspaceTier)}
+                        </span>
+                      </span>
+                      <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center", selected ? "opacity-100" : "opacity-0")}>
+                        <CheckIcon />
                       </span>
                     </button>
                   );
                 })}
               </div>
               {workspaceSwitchError && (
-                <p className="px-2.5 pb-1 pt-2 text-[11px] text-red-400">{workspaceSwitchError}</p>
+                <p className="px-5 pb-2 pt-1 text-[11px] text-red-400">{workspaceSwitchError}</p>
               )}
+              <Link
+                href="/workspaces"
+                onClick={() => setWorkspaceMenuOpen(false)}
+                className={cn(
+                  "flex h-14 items-center gap-3 border-t px-5 text-sm font-medium transition-colors",
+                  isDark
+                    ? "border-white/10 bg-white/[0.02] text-white/65 hover:bg-white/8 hover:text-white"
+                    : "border-black/10 bg-black/[0.02] text-gray-600 hover:bg-black/5 hover:text-gray-950"
+                )}
+              >
+                <PlusIcon />
+                <span>{tSidebar("nav.createWorkspace")}</span>
+              </Link>
             </div>
           )}
         </div>
@@ -2728,6 +2805,20 @@ function ChevronDownIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+  );
+}
+function SwitcherChevronsIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.9}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m8 9 4-4 4 4M16 15l-4 4-4-4" />
+    </svg>
+  );
+}
+function CheckIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" />
     </svg>
   );
 }
