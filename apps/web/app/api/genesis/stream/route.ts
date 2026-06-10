@@ -25,6 +25,7 @@ import { validatePostGenesis } from "@/lib/validation";
 import {
   getDraftValidationMessage,
   normalizeProgramDraft,
+  pruneUnresolvedReferences,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
 import { checkAgentAccess, checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
@@ -453,6 +454,28 @@ export async function POST(request: Request) {
             ? (existingSchemaRaw as Partial<ProgramSchema>)
             : undefined
         );
+        // The model occasionally emits an edge to a node it renamed or never
+        // produced. A single dangling reference would otherwise fail the whole
+        // draft and force the user to "rephrase" an almost-valid plan. Prune
+        // those before validating — the user reviews the plan before it runs.
+        const pruned = pruneUnresolvedReferences(parsedSchema as ProgramSchema);
+        if (pruned.removedEdges > 0 || pruned.removedTriggers > 0) {
+          await writeAppLog(supabase, {
+            userId,
+            level: "info",
+            source: "Genesis",
+            event: "genesis.stream.pruned_unresolved_references",
+            status: "completed",
+            message: "Removed edges/triggers referencing missing nodes from generated draft.",
+            durationMs: Date.now() - startedAt,
+            details: {
+              requested_model: model,
+              model_used: modelUsed,
+              removed_edges: pruned.removedEdges,
+              removed_triggers: pruned.removedTriggers,
+            },
+          });
+        }
         const draftResult = validateProgramDraft(parsedSchema);
         if (!draftResult.success) {
           // Log the technical details server-side; send a user-friendly message downstream.

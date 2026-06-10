@@ -366,29 +366,72 @@ describe("executeAgentTool comprehensive", () => {
 
   // ── get_program ────────────────────────────────────────────────────────
   describe("corelyx.get_program", () => {
-    it.each([
-      { program_id: "p1" },
-      { program_id: "invalid" },
-      { program_id: "" },
-      { program_id: null },
-      { program_id: undefined },
-      {},
-    ])("get_program with args %j", async (args) => {
-      const hasId = typeof args.program_id === "string" && args.program_id.length > 0;
+    const UUID = "11111111-1111-1111-1111-111111111111";
+
+    it("looks up directly by UUID program_id", async () => {
       globalThis.__mockService._reset();
       globalThis.__mockService._queueResult([{ workspace_id: ws1 }]); // memberships
-      if (hasId) {
-        globalThis.__mockService._queueResult({ id: args.program_id, name: "Test", program_type: "workflow" }); // programs
-      } else {
-        globalThis.__mockService._queueResult(null);
-      }
-      const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args, context });
-      if (hasId) {
-        expect(result.ok).toBe(true);
-      } else {
+      globalThis.__mockService._queueResult({ id: UUID, name: "Test", program_type: "workflow" }); // maybeSingle
+      const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args: { program_id: UUID }, context });
+      expect(result.ok).toBe(true);
+    });
+
+    it("returns not-found for an unknown UUID", async () => {
+      globalThis.__mockService._reset();
+      globalThis.__mockService._queueResult([{ workspace_id: ws1 }]);
+      globalThis.__mockService._queueResult(null); // maybeSingle → no row
+      const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args: { program_id: UUID }, context });
+      expect(result.ok).toBe(false);
+    });
+
+    it("resolves a non-UUID program_id by name instead of leaking a DB error", async () => {
+      globalThis.__mockService._reset();
+      globalThis.__mockService._queueResult([{ workspace_id: ws1 }]);
+      globalThis.__mockService._queueResult([{ id: UUID, name: "My Workflow", program_type: "workflow" }]); // exact ilike
+      const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args: { program_id: "My Workflow" }, context });
+      expect(result.ok).toBe(true);
+    });
+
+    it("resolves the name arg via a contains fallback", async () => {
+      globalThis.__mockService._reset();
+      globalThis.__mockService._queueResult([{ workspace_id: ws1 }]);
+      globalThis.__mockService._queueResult([]); // exact ilike → none
+      globalThis.__mockService._queueResult([{ id: UUID, name: "My Workflow", program_type: "workflow" }]); // contains ilike
+      const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args: { name: "workflow" }, context });
+      expect(result.ok).toBe(true);
+    });
+
+    it("asks for disambiguation when multiple programs match a name", async () => {
+      globalThis.__mockService._reset();
+      globalThis.__mockService._queueResult([{ workspace_id: ws1 }]);
+      globalThis.__mockService._queueResult([
+        { id: UUID, name: "Daily Report", program_type: "workflow" },
+        { id: "22222222-2222-2222-2222-222222222222", name: "Daily Report", program_type: "agent" },
+      ]); // exact ilike → 2
+      const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args: { name: "Daily Report" }, context });
+      expect(result.ok).toBe(false);
+      expect((result as { error: string }).error).toContain("Multiple programs match");
+    });
+
+    it("returns a clean not-found when no program matches a name", async () => {
+      globalThis.__mockService._reset();
+      globalThis.__mockService._queueResult([{ workspace_id: ws1 }]);
+      globalThis.__mockService._queueResult([]); // exact ilike → none
+      globalThis.__mockService._queueResult([]); // contains ilike → none
+      const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args: { name: "nope" }, context });
+      expect(result.ok).toBe(false);
+      expect((result as { error: string }).error).toContain("No program found");
+    });
+
+    it.each([{}, { program_id: "" }, { program_id: null }, { name: "" }])(
+      "rejects when neither program_id nor name is provided: %j",
+      async (args) => {
+        globalThis.__mockService._reset();
+        globalThis.__mockService._queueResult([{ workspace_id: ws1 }]);
+        const result = await executeAgentTool({ userId, tool: "corelyx.get_program", args, context });
         expect(result.ok).toBe(false);
       }
-    });
+    );
   });
 
   // ── list_runs ──────────────────────────────────────────────────────────
@@ -471,11 +514,13 @@ describe("executeAgentTool comprehensive", () => {
     it("returns stats", async () => {
       globalThis.__mockService._reset();
       globalThis.__mockService._queueResult([{ workspace_id: ws1 }]);
-      // 4 queries: workflows, agents, connections, recentRuns
+      // 6 queries: workflows, agents, activeWorkflows, activeAgents, connections, recentRuns
       // The mock returns { data, error } from the builder; count is not extracted
       // so we just verify the function completes and returns the expected shape.
       globalThis.__mockService._queueResult({ count: 5 });
       globalThis.__mockService._queueResult({ count: 2 });
+      globalThis.__mockService._queueResult({ count: 4 });
+      globalThis.__mockService._queueResult({ count: 1 });
       globalThis.__mockService._queueResult({ count: 3 });
       globalThis.__mockService._queueResult([{ status: "success" }, { status: "failed" }]);
       const result = await executeAgentTool({ userId, tool: "corelyx.get_account_stats", args: {}, context });
@@ -483,6 +528,9 @@ describe("executeAgentTool comprehensive", () => {
       const r = result as any;
       expect(r.result).toHaveProperty("workflow_count");
       expect(r.result).toHaveProperty("agent_count");
+      expect(r.result).toHaveProperty("active_workflow_count");
+      expect(r.result).toHaveProperty("active_agent_count");
+      expect(r.result).toHaveProperty("active_program_count");
       expect(r.result).toHaveProperty("connection_count");
       expect(r.result).toHaveProperty("recent_runs_sampled");
     });
