@@ -368,10 +368,18 @@ export function normalizeProgramDraft(raw: unknown, fallback?: Partial<ProgramSc
 
   const metadata = isRecord(source.metadata) ? source.metadata : {};
   const programName = stringValue(source.program_name ?? source.name ?? fallback?.program_name, "Untitled program");
+  // Preserve program_type. Dropping it defaulted every draft to "workflow",
+  // which makes ProgramDraftSchemaZ reject agent_task nodes (only valid in
+  // agents) — breaking one-time agent generation.
+  const programType =
+    source.program_type === "agent" || source.program_type === "workflow"
+      ? source.program_type
+      : fallback?.program_type;
   const normalized = {
     version: "1.0",
     program_id: stringValue(source.program_id ?? fallback?.program_id, crypto.randomUUID()),
     program_name: programName,
+    ...(programType ? { program_type: programType } : {}),
     created_at: stringValue(source.created_at ?? fallback?.created_at, now),
     updated_at: now,
     execution_mode: source.execution_mode === "autonomous" || source.execution_mode === "approval_required" || source.execution_mode === "supervised"

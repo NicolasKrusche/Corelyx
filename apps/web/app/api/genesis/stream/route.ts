@@ -454,6 +454,11 @@ export async function POST(request: Request) {
             ? (existingSchemaRaw as Partial<ProgramSchema>)
             : undefined
         );
+        // Stamp the agent discriminator before validation: agent programs use
+        // agent_task nodes, which ProgramDraftSchemaZ only permits when
+        // program_type === "agent". The model sometimes omits it, so set it from
+        // the request rather than trusting the model output.
+        if (isAgent) (parsedSchema as { program_type?: string }).program_type = "agent";
         // The model occasionally emits an edge to a node it renamed or never
         // produced. A single dangling reference would otherwise fail the whole
         // draft and force the user to "rephrase" an almost-valid plan. Prune
