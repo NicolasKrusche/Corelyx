@@ -54,6 +54,7 @@ function NavItem({
   active,
   badge,
   isDark = true,
+  tourId,
 }: {
   href: string;
   label: string;
@@ -61,11 +62,13 @@ function NavItem({
   active: boolean;
   badge?: number;
   isDark?: boolean;
+  tourId?: string;
 }) {
   return (
     <Link
       href={href}
       title={label}
+      data-tour={tourId}
       className={cn(
         "relative flex h-8 items-center overflow-hidden rounded-lg text-sm transition-colors",
         active
@@ -417,6 +420,19 @@ export function Sidebar({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+  // Forced open while the product tour points at sidebar items
+  const [tourOpen, setTourOpen] = useState(false);
+
+  useEffect(() => {
+    const onTourStart = () => setTourOpen(true);
+    const onTourEnd = () => setTourOpen(false);
+    window.addEventListener("corelyx:tour-start", onTourStart);
+    window.addEventListener("corelyx:tour-end", onTourEnd);
+    return () => {
+      window.removeEventListener("corelyx:tour-start", onTourStart);
+      window.removeEventListener("corelyx:tour-end", onTourEnd);
+    };
+  }, []);
 
   // Collapse workspace usage when the mobile sidebar closes
   useEffect(() => {
@@ -733,7 +749,7 @@ export function Sidebar({
       )}
 
     <aside
-      data-open={mobileOpen ? "" : undefined}
+      data-open={mobileOpen || tourOpen ? "" : undefined}
       className={cn(
         "group/side fixed left-0 top-0 z-40 flex h-full flex-col border-r",
         // Mobile: full width drawer, slides in/out
@@ -772,6 +788,7 @@ export function Sidebar({
           <button
             type="button"
             aria-label="Active workspace"
+            data-tour="workspace-switcher"
             aria-expanded={workspaceMenuOpen}
             disabled={switchingWorkspace}
             onClick={() => setWorkspaceMenuOpen((open) => !open)}
@@ -944,6 +961,7 @@ export function Sidebar({
         <Link
           href="/programs/new"
           title="Create new"
+          data-tour="create-new"
           className="flex h-10 w-full items-center overflow-hidden rounded-lg text-sm font-semibold text-white transition-colors"
           style={{ backgroundColor: palette.btnBg }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.backgroundColor = palette.btnHover; }}
@@ -987,11 +1005,11 @@ export function Sidebar({
           <NavItem href="/dashboard" label={tNav("home")} active={pathname === "/dashboard"}
             icon={<GridIcon />} isDark={isDark} />
           <NavItem href="/agents" label="Agents" active={pathname.startsWith("/agents")}
-            icon={<AgentIcon />} isDark={isDark} />
+            icon={<AgentIcon />} isDark={isDark} tourId="nav-agents" />
           <NavItem href="/runs" label={tNav("runs")} active={pathname.startsWith("/runs")}
-            icon={<RunsIcon />} badge={failedRuns} isDark={isDark} />
+            icon={<RunsIcon />} badge={failedRuns} isDark={isDark} tourId="nav-runs" />
           <NavItem href="/approvals" label={tNav("approvals")} active={pathname.startsWith("/approvals")}
-            icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} />
+            icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} tourId="nav-approvals" />
         </div>
 
         {/* ── DATA ───────────────────────────────────────────────────────── */}
@@ -1000,7 +1018,7 @@ export function Sidebar({
           <NavItem href="/browse" label={tNav("browse")} active={pathname.startsWith("/browse")}
             icon={<BrowseIcon />} isDark={isDark} />
           <NavItem href="/connections" label={tNav("connections")} active={pathname.startsWith("/connections")}
-            icon={<LinkIcon />} isDark={isDark} />
+            icon={<LinkIcon />} isDark={isDark} tourId="nav-connections" />
         </div>
 
         {/* ── SETTINGS ───────────────────────────────────────────────────── */}
@@ -1117,6 +1135,7 @@ export function Sidebar({
             setUsageOpen((v) => !v);
           }}
           title={tSidebar("nav.workspaceUsage")}
+          data-tour="usage"
           className={cn(
             "flex h-8 w-full items-center overflow-hidden rounded-lg text-sm transition-colors mb-1",
             isDark
