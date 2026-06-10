@@ -400,6 +400,47 @@ export function validateProgramDraft(schema: unknown) {
   return ProgramDraftSchemaZ.safeParse(schema);
 }
 
+/**
+ * Drop edges that reference a node id that does not exist in the graph, and
+ * trigger-index entries whose trigger node is gone.
+ *
+ * Intended for the *generation* flow (Genesis), where the model occasionally
+ * emits an edge to a node it renamed or never produced — a single such edge
+ * otherwise fails the whole draft (`ProgramDraftSchemaZ` rejects dangling
+ * references) and the user is told to "rephrase" a plan that was 95% valid.
+ * Since the user reviews and approves the generated plan before it runs,
+ * pruning a stray edge degrades far more gracefully than a hard failure.
+ *
+ * NOT applied inside `normalizeProgramDraft`: the import/editor path
+ * deliberately keeps dangling references so validation can surface an
+ * actionable error rather than silently deleting user-authored edges.
+ *
+ * Returns the same object reference with `edges`/`triggers` filtered, plus a
+ * count of what was removed (for logging).
+ */
+export function pruneUnresolvedReferences<T extends ProgramSchema>(
+  schema: T
+): { schema: T; removedEdges: number; removedTriggers: number } {
+  const nodeIds = new Set(schema.nodes.map((node) => node.id));
+  const triggerNodeIds = new Set(
+    schema.nodes.filter((node) => node.type === "trigger").map((node) => node.id)
+  );
+
+  const keptEdges = schema.edges.filter(
+    (edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to)
+  );
+  const keptTriggers = schema.triggers.filter((trigger) =>
+    triggerNodeIds.has(trigger.node_id)
+  );
+
+  const removedEdges = schema.edges.length - keptEdges.length;
+  const removedTriggers = schema.triggers.length - keptTriggers.length;
+
+  schema.edges = keptEdges;
+  schema.triggers = keptTriggers;
+  return { schema, removedEdges, removedTriggers };
+}
+
 export function getDraftValidationMessage(error: z.ZodError): string {
   const first = error.issues[0];
   if (!first) return "Workflow draft is not structurally valid.";

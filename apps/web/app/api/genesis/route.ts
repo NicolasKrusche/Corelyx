@@ -26,6 +26,7 @@ import { validatePostGenesis } from "@/lib/validation";
 import {
   getDraftValidationMessage,
   normalizeProgramDraft,
+  pruneUnresolvedReferences,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
 import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
@@ -705,6 +706,9 @@ export async function POST(request: Request) {
   // Normalize common model deviations before validation
   normalizeSchema(parsed_schema);
   parsed_schema = normalizeProgramDraft(parsed_schema, isRefinement && existing_schema ? existing_schema as Partial<ProgramSchema> : undefined);
+  // Drop edges/triggers that reference missing nodes (model renamed/forgot a
+  // node) so one stray reference doesn't fail an otherwise-valid generated plan.
+  pruneUnresolvedReferences(parsed_schema as ProgramSchema);
 
   const draftResult = validateProgramDraft(parsed_schema);
   if (!draftResult.success) {

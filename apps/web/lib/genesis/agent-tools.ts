@@ -38,7 +38,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   {
     id: "corelyx.get_program",
     label: "Get program",
-    description: "Fetch one program's schema, metadata, connections, and last-run summary by id.",
+    description: "Fetch one program's schema, metadata, connections, and last-run summary. Identify it by program_id (a UUID) or by name (pass name when you only know the program's title).",
     scope: "read",
   },
   {
@@ -65,7 +65,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     id: "corelyx.get_account_stats",
     label: "Account stats",
     description:
-      "Summary of the workspace: program counts by type, run counts by status over a window, connection health, and credit balance.",
+      "Summary of the workspace: program counts by type (total and currently active/live), run counts by status over a window, connection health, and credit balance.",
     scope: "read",
   },
   {
