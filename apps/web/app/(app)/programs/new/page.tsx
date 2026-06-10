@@ -67,13 +67,6 @@ const MODEL_PROVIDER_LABELS: Record<string, string> = {
   cohere: "Command",
 };
 
-const INLINE_PLANNING_UPDATES = [
-  "Reading your request for triggers, actions, and conditions...",
-  "Sketching the workflow shape and the apps it should touch...",
-  "Preparing the connection choices before generation...",
-  "One more thing: choose the app connections to grant access.",
-];
-
 const GENERATION_THINKING_UPDATES = [
   "Turning the prompt into concrete workflow requirements...",
   "Choosing the trigger, execution mode, and node sequence...",
@@ -179,6 +172,10 @@ function NewProgramPageInner() {
   const [isCreatingScratch, setIsCreatingScratch] = useState(false);
   const [scratchCreateError, setScratchCreateError] = useState<string | null>(null);
   const connectionsPopoverRef = useRef<HTMLDivElement | null>(null);
+  // Resolves with the initial connection ids so a submit that races the load
+  // still grants access; set to true once the user customizes the selection.
+  const connectionsLoadRef = useRef<Promise<string[]>>(Promise.resolve([]));
+  const connectionsTouchedRef = useRef(false);
   // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
   const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b:free");
@@ -222,15 +219,20 @@ function NewProgramPageInner() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/connections")
+    connectionsLoadRef.current = fetch("/api/connections")
       .then((r) => r.json())
       .then((data) => {
         const valid = data.filter((c: Connection) => c.is_valid);
         setConnections(valid);
-        setSelectedIds(new Set(valid.map((c: Connection) => c.id)));
+        const ids = valid.map((c: Connection) => c.id);
+        setSelectedIds(new Set(ids));
         setLoadingConnections(false);
+        return ids;
       })
-      .catch(() => setLoadingConnections(false));
+      .catch(() => {
+        setLoadingConnections(false);
+        return [] as string[];
+      });
   }, []);
 
   // Fetch available platform models once on mount
@@ -313,6 +315,7 @@ function NewProgramPageInner() {
   }
 
   function toggleConnection(id: string) {
+    connectionsTouchedRef.current = true;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -574,14 +577,10 @@ function NewProgramPageInner() {
 
     setDescription(trimmedMessage);
     setInlineMessages([{ role: "user", text: trimmedMessage }]);
-    setInlinePhase("thinking");
-
-    for (let i = 0; i < INLINE_PLANNING_UPDATES.length; i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 850));
-      appendInlineAssistantMessage(INLINE_PLANNING_UPDATES[i]);
-    }
-
-    setInlinePhase("connections");
+    // Start generation right away — no scripted planning messages, no
+    // connections confirmation step. All valid connections are granted by
+    // default and Genesis picks what it needs.
+    await handleInlineGenerate(trimmedMessage);
   };
 
   const runInlinePlan = async (message: string) => {
@@ -626,8 +625,9 @@ function NewProgramPageInner() {
     router.push(source === "browse" ? "/browse" : "/programs/import");
   };
 
-  const handleInlineGenerate = async () => {
-    if (description.trim().length < 10) {
+  const handleInlineGenerate = async (descriptionOverride?: string) => {
+    const descriptionToUse = (descriptionOverride ?? description).trim();
+    if (descriptionToUse.length < 10) {
       setInlineMessages((prev) => [
         ...prev,
         { role: "assistant", text: "Please describe your workflow in a bit more detail before generating." },
@@ -658,17 +658,22 @@ function NewProgramPageInner() {
     const layout_direction: "horizontal" | "vertical" =
       storedDirection === "vertical" ? "vertical" : "horizontal";
 
+    // If the user customized the selection, honor it; otherwise wait for the
+    // initial load so a fast submit still grants all valid connections.
+    const loadedIds = await connectionsLoadRef.current;
+    const connectionIds = connectionsTouchedRef.current ? [...selectedIds] : loadedIds;
+
     const payload = selection
       ? {
-          description,
-          connection_ids: [...selectedIds],
+          description: descriptionToUse,
+          connection_ids: connectionIds,
           api_key_id: selection.keyId,
           model: selection.modelId,
           layout_direction,
         }
       : {
-          description,
-          connection_ids: [...selectedIds],
+          description: descriptionToUse,
+          connection_ids: connectionIds,
           use_platform_key: true as const,
           // Include the chosen platform model (may be non-default for paid tiers)
           model: selectedPlatformModel,
@@ -740,7 +745,7 @@ function NewProgramPageInner() {
         </div>
       )}
 
-      {(inlinePhase === "connections" || inlinePhase === "generating" || inlinePhase === "opening") && (
+      {inlinePhase === "connections" && (
         <div className="space-y-3 rounded-xl border border-border bg-background/80 p-3">
           {loadingConnections ? (
             <p className="text-sm text-muted-foreground">Loading available connections...</p>
@@ -768,14 +773,20 @@ function NewProgramPageInner() {
                       <div className="flex gap-2 text-xs">
                         <button
                           type="button"
-                          onClick={() => setSelectedIds(new Set(connections.map((c) => c.id)))}
+                          onClick={() => {
+                            connectionsTouchedRef.current = true;
+                            setSelectedIds(new Set(connections.map((c) => c.id)));
+                          }}
                           className="text-muted-foreground hover:text-foreground"
                         >
                           All
                         </button>
                         <button
                           type="button"
-                          onClick={() => setSelectedIds(new Set())}
+                          onClick={() => {
+                            connectionsTouchedRef.current = true;
+                            setSelectedIds(new Set());
+                          }}
                           className="text-muted-foreground hover:text-foreground"
                         >
                           None
@@ -810,15 +821,15 @@ function NewProgramPageInner() {
           <div className="flex flex-wrap gap-2 pt-1">
             <Button
               size="sm"
-              disabled={inlinePhase === "generating" || inlinePhase === "opening" || isCreatingScratch}
-              onClick={handleInlineGenerate}
+              disabled={isCreatingScratch}
+              onClick={() => { void handleInlineGenerate(); }}
             >
-              {inlinePhase === "generating" || inlinePhase === "opening" ? "Generating..." : "Generate Program"}
+              Generate Program
             </Button>
             <Button
               size="sm"
               variant="outline"
-              disabled={inlinePhase === "generating" || inlinePhase === "opening" || isCreatingScratch}
+              disabled={isCreatingScratch}
               onClick={() => { void handleCreateBlankProgram(); }}
             >
               {isCreatingScratch ? "Opening editor..." : "Start from scratch"}
