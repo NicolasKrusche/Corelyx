@@ -24,11 +24,17 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
         },
     },
     "corelyx.get_program": {
-        "description": "Fetch one program's schema, metadata, and status by id.",
+        "description": (
+            "Fetch one program's schema, metadata, and status. Identify it by "
+            "program_id (a UUID) or by name — pass name when you only know the "
+            "program's title (e.g. the user named it in their answer)."
+        ),
         "parameters": {
             "type": "object",
-            "properties": {"program_id": {"type": "string"}},
-            "required": ["program_id"],
+            "properties": {
+                "program_id": {"type": "string", "description": "The program's UUID."},
+                "name": {"type": "string", "description": "The program's name (exact or partial)."},
+            },
         },
     },
     "corelyx.list_runs": {
@@ -57,7 +63,7 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
         "parameters": {"type": "object", "properties": {}},
     },
     "corelyx.get_account_stats": {
-        "description": "Summary of program counts, run statuses, and connection health.",
+        "description": "Summary of program counts (total and currently active/live), run statuses, and connection health.",
         "parameters": {"type": "object", "properties": {}},
     },
     "corelyx.report_to_user": {

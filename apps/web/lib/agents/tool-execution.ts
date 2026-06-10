@@ -187,6 +187,16 @@ function asInt(value: unknown, fallback: number, max: number): number {
   return Math.min(Math.floor(n), max);
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string): boolean {
+  return UUID_RE.test(value.trim());
+}
+
+const PROGRAM_DETAIL_SELECT =
+  "id, name, description, program_type, is_active, agent_state, execution_mode, schema, schema_version, created_at, updated_at, workspace_id";
+
 // ─── Read tools ──────────────────────────────────────────────────────────────
 
 async function listPrograms(service: LooseClient, workspaceIds: string[], args: Record<string, unknown>): Promise<AgentToolResult> {
@@ -205,17 +215,65 @@ async function listPrograms(service: LooseClient, workspaceIds: string[], args: 
 }
 
 async function getProgram(service: LooseClient, workspaceIds: string[], args: Record<string, unknown>): Promise<AgentToolResult> {
-  const programId = typeof args.program_id === "string" ? args.program_id : null;
-  if (!programId) return { ok: false, error: "program_id is required." };
-  const { data, error } = await service
+  const programId = typeof args.program_id === "string" ? args.program_id.trim() : "";
+  const name = typeof args.name === "string" ? args.name.trim() : "";
+  if (!programId && !name) {
+    return { ok: false, error: "Provide program_id (a UUID) or name." };
+  }
+
+  // Fast path: a real UUID — look it up directly.
+  if (programId && isUuid(programId)) {
+    const { data, error } = await service
+      .from("programs")
+      .select(PROGRAM_DETAIL_SELECT)
+      .eq("id", programId)
+      .in("workspace_id", workspaceIds)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: "Program not found or not accessible." };
+    return { ok: true, result: { program: data } };
+  }
+
+  // Otherwise resolve by name. This covers the common case where a non-UUID
+  // value arrives in program_id (e.g. the user answered an agent question with
+  // the program's name) — querying `id = <name>` would otherwise make Postgres
+  // raise "invalid input syntax for type uuid", leaking a DB error and trapping
+  // the agent in a re-ask loop.
+  const lookup = name || programId;
+  const escaped = lookup.replace(/[%_]/g, (m) => `\\${m}`);
+  // Exact (case-insensitive) match first, then fall back to a contains match.
+  let { data, error } = await service
     .from("programs")
-    .select("id, name, description, program_type, is_active, agent_state, execution_mode, schema, schema_version, created_at, updated_at, workspace_id")
-    .eq("id", programId)
+    .select(PROGRAM_DETAIL_SELECT)
     .in("workspace_id", workspaceIds)
-    .maybeSingle();
+    .ilike("name", escaped)
+    .order("updated_at", { ascending: false })
+    .limit(5);
   if (error) return { ok: false, error: error.message };
-  if (!data) return { ok: false, error: "Program not found or not accessible." };
-  return { ok: true, result: { program: data } };
+  let matches = (data ?? []) as Array<Record<string, unknown>>;
+  if (matches.length === 0) {
+    ({ data, error } = await service
+      .from("programs")
+      .select(PROGRAM_DETAIL_SELECT)
+      .in("workspace_id", workspaceIds)
+      .ilike("name", `%${escaped}%`)
+      .order("updated_at", { ascending: false })
+      .limit(5));
+    if (error) return { ok: false, error: error.message };
+    matches = (data ?? []) as Array<Record<string, unknown>>;
+  }
+
+  if (matches.length === 0) {
+    return { ok: false, error: `No program found matching "${lookup}". Use list_programs to see available programs.` };
+  }
+  if (matches.length > 1) {
+    const candidates = matches.map((p) => `${String(p.name)} (${String(p.id)})`).join(", ");
+    return {
+      ok: false,
+      error: `Multiple programs match "${lookup}": ${candidates}. Call get_program again with the exact program_id.`,
+    };
+  }
+  return { ok: true, result: { program: matches[0] } };
 }
 
 async function listRuns(service: LooseClient, userId: string, args: Record<string, unknown>): Promise<AgentToolResult> {
@@ -285,9 +343,11 @@ async function searchKnowledge(service: LooseClient, workspaceIds: string[], arg
 }
 
 async function getAccountStats(service: LooseClient, userId: string, workspaceIds: string[]): Promise<AgentToolResult> {
-  const [workflows, agents, connections, recentRuns] = await Promise.all([
+  const [workflows, agents, activeWorkflows, activeAgents, connections, recentRuns] = await Promise.all([
     service.from("programs").select("id", { count: "exact", head: true }).in("workspace_id", workspaceIds).eq("program_type", "workflow"),
     service.from("programs").select("id", { count: "exact", head: true }).in("workspace_id", workspaceIds).eq("program_type", "agent"),
+    service.from("programs").select("id", { count: "exact", head: true }).in("workspace_id", workspaceIds).eq("program_type", "workflow").eq("is_active", true),
+    service.from("programs").select("id", { count: "exact", head: true }).in("workspace_id", workspaceIds).eq("program_type", "agent").eq("is_active", true),
     service.from("connections").select("id", { count: "exact", head: true }).in("workspace_id", workspaceIds),
     service.from("runs").select("status").eq("user_id", userId).order("created_at", { ascending: false }).limit(200),
   ]);
@@ -296,11 +356,17 @@ async function getAccountStats(service: LooseClient, userId: string, workspaceId
     acc[r.status] = (acc[r.status] ?? 0) + 1;
     return acc;
   }, {});
+  const activeWorkflowCount = activeWorkflows.count ?? 0;
+  const activeAgentCount = activeAgents.count ?? 0;
   return {
     ok: true,
     result: {
       workflow_count: workflows.count ?? 0,
       agent_count: agents.count ?? 0,
+      active_workflow_count: activeWorkflowCount,
+      active_agent_count: activeAgentCount,
+      // Total programs (workflows + agents) currently toggled on / live.
+      active_program_count: activeWorkflowCount + activeAgentCount,
       connection_count: connections.count ?? 0,
       recent_runs_by_status: runsByStatus,
       recent_runs_sampled: runRows.length,
