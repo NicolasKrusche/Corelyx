@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useReducer, useEffect, useRef, useCallback } from "react";
+import React, { useReducer, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -49,6 +49,7 @@ import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
 import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/components/editor/NodePalettePanel";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
+import { EditorTour } from "@/components/editor/editor-tour";
 import type { AiEditMode } from "@/components/editor/AiEditPanel";
 import { RawSchemaPanel } from "@/components/editor/RawSchemaPanel";
 import { NodeCanvasContext } from "@/components/nodes/node-canvas-context";
@@ -1909,6 +1910,11 @@ export function EditorShell({
   return (
     <EditorDispatchContext.Provider value={dispatch}>
     <div className="flex flex-col h-screen w-screen overflow-hidden">
+      {/* First-visit guided tour of the editor controls */}
+      <Suspense>
+        <EditorTour />
+      </Suspense>
+
       {/* Toolbar — fixed at top */}
       <EditorToolbar
         programId={programId}

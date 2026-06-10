@@ -279,6 +279,7 @@ export function EditorToolbar({
         onClick={onTogglePalette}
         className="gap-1.5"
         title="Add node (toggle palette)"
+        data-tour="editor-add-node"
       >
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5">
           <path d="M8 3v10M3 8h10" strokeLinecap="round" />
@@ -383,6 +384,7 @@ export function EditorToolbar({
         onClick={onAiEdit}
         className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:border-primary/60"
         title="Edit this program with AI"
+        data-tour="editor-ai-edit"
       >
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
           <path d="M8 2l1.5 3L13 6.5 9.5 8 8 11.5 6.5 8 3 6.5 6.5 5z" strokeLinejoin="round" />
@@ -415,6 +417,7 @@ export function EditorToolbar({
         disabled={isValidating}
         className="gap-1.5"
         title="Check the workflow before running it"
+        data-tour="editor-validate"
       >
         <ValidateIcon />
         {isValidating ? "Validating..." : "Validate"}
@@ -440,6 +443,7 @@ export function EditorToolbar({
         disabled={!isDirty || isSaving}
         className="gap-1.5"
         title="Save (Cmd+S)"
+        data-tour="editor-save"
       >
         <SaveIcon />
         {isSaving ? "Saving…" : "Save"}
@@ -494,6 +498,7 @@ export function EditorToolbar({
               : "bg-green-600 hover:bg-green-700 text-white"
           )}
           title={hasErrors ? "Run will show validation issues if the workflow is not executable" : "Run program"}
+          data-tour="editor-run"
         >
           <RunIcon />
           {isRunning ? "Starting…" : "Run"}
