@@ -29,7 +29,7 @@ ALTER TABLE public.workspace_env_vars ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "workspace_env_vars_select" ON public.workspace_env_vars
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.workspace_members wm
+      SELECT 1 FROM public.workspace_memberships wm
       WHERE wm.workspace_id = workspace_env_vars.workspace_id
         AND wm.user_id = auth.uid()
     )
@@ -39,7 +39,7 @@ CREATE POLICY "workspace_env_vars_select" ON public.workspace_env_vars
 CREATE POLICY "workspace_env_vars_insert" ON public.workspace_env_vars
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.workspace_members wm
+      SELECT 1 FROM public.workspace_memberships wm
       WHERE wm.workspace_id = workspace_env_vars.workspace_id
         AND wm.user_id = auth.uid()
         AND wm.role IN ('owner', 'admin', 'member')
@@ -50,7 +50,7 @@ CREATE POLICY "workspace_env_vars_insert" ON public.workspace_env_vars
 CREATE POLICY "workspace_env_vars_delete" ON public.workspace_env_vars
   FOR DELETE USING (
     EXISTS (
-      SELECT 1 FROM public.workspace_members wm
+      SELECT 1 FROM public.workspace_memberships wm
       WHERE wm.workspace_id = workspace_env_vars.workspace_id
         AND wm.user_id = auth.uid()
         AND wm.role IN ('owner', 'admin', 'member')
@@ -61,7 +61,7 @@ CREATE POLICY "workspace_env_vars_delete" ON public.workspace_env_vars
 CREATE POLICY "workspace_env_vars_update" ON public.workspace_env_vars
   FOR UPDATE USING (
     EXISTS (
-      SELECT 1 FROM public.workspace_members wm
+      SELECT 1 FROM public.workspace_memberships wm
       WHERE wm.workspace_id = workspace_env_vars.workspace_id
         AND wm.user_id = auth.uid()
         AND wm.role IN ('owner', 'admin', 'member')

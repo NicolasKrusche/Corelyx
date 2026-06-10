@@ -47,6 +47,7 @@ venv/
 .coverage
 coverage.xml
 cov_output.txt
+automation/artifacts/
 apps/runtime/tests/fixtures/genesis-free-model-suite/
 
 # Internal working documents (not for external distribution)
