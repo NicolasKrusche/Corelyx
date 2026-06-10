@@ -34,8 +34,8 @@ export function GuidedTour({
   autoStartOnce = false,
   expandSidebar = false,
   welcomeCta = "Show me around",
-  welcomeDismiss = "I'll explore on my own",
-  welcomeFootnote = "Takes about a minute · Esc leaves any time",
+  welcomeDismiss = "Skip for now",
+  welcomeFootnote = "You can replay the tour later from the Get started panel.",
   finishLabel = "Done",
   finishDestination,
 }: {
@@ -170,7 +170,7 @@ export function GuidedTour({
   const isLast = index === steps.length - 1;
   const anchored = Boolean(step.target && rect);
 
-  const cardWidth = anchored ? 340 : isFirst ? 460 : 420;
+  const cardWidth = anchored ? 340 : isFirst ? 430 : 420;
   let cardStyle: React.CSSProperties;
   if (anchored && rect) {
     const margin = 16;
@@ -219,37 +219,32 @@ export function GuidedTour({
       {isFirst ? (
         <div
           style={cardStyle}
-          className="overflow-hidden rounded-3xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-300"
+          className="rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-300"
         >
-          <div className="relative px-8 pb-8 pt-10 text-center">
-            {/* Soft brand glow behind the logo */}
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-36"
-              style={{ background: "radial-gradient(ellipse 80% 100% at 50% 0%, hsl(var(--primary) / 0.14), transparent 70%)" }}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/pictures/logo-no-bg.png" alt="" className="relative mx-auto h-12 w-12 object-contain" />
-            <h2 className="relative mt-5 text-2xl font-black tracking-tight">{step.title}</h2>
-            <p className="relative mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              {step.body}
-            </p>
-            <div className="relative mt-7 flex flex-col items-center gap-3">
+          <div className="px-7 pb-6 pt-7">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/pictures/logo-no-bg.png" alt="" className="h-8 w-8 object-contain" />
+              <h2 className="text-lg font-semibold tracking-tight">{step.title}</h2>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+            <div className="mt-6 flex items-center gap-2">
               <button
                 type="button"
                 onClick={next}
-                className="w-full max-w-[280px] rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-[0_0_24px_hsl(var(--primary)/0.35)] transition-all hover:opacity-95 hover:shadow-[0_0_32px_hsl(var(--primary)/0.5)]"
+                className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
               >
                 {welcomeCta}
               </button>
               <button
                 type="button"
                 onClick={() => finish()}
-                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+                className="rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 {welcomeDismiss}
               </button>
             </div>
-            <p className="relative mt-5 text-[11px] text-muted-foreground/60">{welcomeFootnote}</p>
+            <p className="mt-4 text-xs text-muted-foreground/70">{welcomeFootnote}</p>
           </div>
         </div>
       ) : (

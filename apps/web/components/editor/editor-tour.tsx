@@ -57,7 +57,7 @@ export function EditorTour() {
       doneKey="corelyx-editor-tour-done"
       autoStartOnce
       welcomeCta="Show me the controls"
-      welcomeFootnote="Five quick stops · Esc leaves any time"
+      welcomeFootnote="Press Esc to close this at any time."
       finishLabel="Start editing"
     />
   );
