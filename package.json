@@ -10,6 +10,9 @@
     "clean": "turbo run clean"
   },
   "devDependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@playwright/test": "^1.60.0",
+    "tsx": "^4.22.4",
     "turbo": "^2.0.0",
     "typescript": "^5.4.5"
   },
