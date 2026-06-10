@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
@@ -33,6 +34,7 @@ import { ExecutionControls } from "./execution-controls";
 import { PublishPanel } from "./publish-panel";
 import { SharePanel } from "./share-panel";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
+import { ProgramTour } from "@/components/programs/program-tour";
 import { MiniGraphCanvas } from "@/components/programs/program-mini-graph";
 import type { Json } from "@flowos/db";
 import { createServiceClient } from "@/lib/api";
@@ -282,7 +284,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div data-tour="program-actions" className="flex shrink-0 flex-wrap items-center gap-2">
             <Button asChild variant="outline" size="sm" className="h-9">
               <Link href={`/programs/${id}/runs`}>
                 <RefreshCw className="h-4 w-4" />
@@ -305,7 +307,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                 </Button>
                 <DeleteProgramButton programId={program.id} programName={program.name} />
                 <Button asChild size="sm" className="h-9 px-4">
-                  <Link href={`/programs/${program.id}/editor`}>
+                  <Link href={`/programs/${program.id}/editor`} data-tour="program-open-editor">
                     <ExternalLink className="h-4 w-4" />
                     Open editor
                   </Link>
@@ -344,7 +346,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <main className="space-y-4">
-          <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
+          <section data-tour="program-topology" className="overflow-hidden rounded-lg border glass-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -397,14 +399,18 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
           </section>
 
           {userCanEdit && (
-            <ExecutionControls
-              programId={program.id}
-              executionMode={program.execution_mode ?? "supervised"}
-              conflictPolicy={program.conflict_policy ?? "queue"}
-            />
+            <div data-tour="program-execution">
+              <ExecutionControls
+                programId={program.id}
+                executionMode={program.execution_mode ?? "supervised"}
+                conflictPolicy={program.conflict_policy ?? "queue"}
+              />
+            </div>
           )}
 
-          <RunPanel programId={program.id} />
+          <div data-tour="program-run">
+            <RunPanel programId={program.id} />
+          </div>
 
           <section className="overflow-hidden rounded-lg border glass-card shadow-sm">
             <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -613,6 +619,10 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
           </Button>
         </aside>
       </div>
+
+      <Suspense>
+        <ProgramTour />
+      </Suspense>
     </div>
   );
 }
