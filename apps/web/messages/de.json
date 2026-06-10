@@ -339,7 +339,9 @@
       "search": "Suche",
       "workspaceUsage": "Arbeitsbereich-Nutzung",
       "switchWorkspace": "Arbeitsbereich wechseln",
-      "createWorkspace": "Arbeitsbereich erstellen"
+      "createWorkspace": "Arbeitsbereich erstellen",
+      "manageWorkspaces": "Arbeitsbereiche verwalten",
+      "newWorkspacePlaceholder": "Name des neuen Arbeitsbereichs"
     },
     "workspace": {
       "fallback": "Arbeitsbereich"
@@ -365,6 +367,7 @@
     },
     "errors": {
       "switchWorkspace": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuchen Sie es erneut.",
+      "createWorkspace": "Arbeitsbereich konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
       "networkError": "Verbindung konnte nicht hergestellt werden. Überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
     },
     "saved": "Gespeichert.",

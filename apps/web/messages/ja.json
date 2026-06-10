@@ -334,7 +334,9 @@
       "search": "検索",
       "workspaceUsage": "ワークスペースの使用状況",
       "switchWorkspace": "ワークスペースを切り替え",
-      "createWorkspace": "ワークスペースを作成"
+      "createWorkspace": "ワークスペースを作成",
+      "manageWorkspaces": "ワークスペースを管理",
+      "newWorkspacePlaceholder": "新しいワークスペース名"
     },
     "workspace": { "fallback": "ワークスペース" },
     "usage": {
@@ -358,6 +360,7 @@
     },
     "errors": {
       "switchWorkspace": "ワークスペースを切り替えられませんでした。もう一度お試しください。",
+      "createWorkspace": "ワークスペースを作成できませんでした。もう一度お試しください。",
       "networkError": "接続できませんでした。インターネット接続を確認してもう一度お試しください。"
     },
     "saved": "保存しました。",

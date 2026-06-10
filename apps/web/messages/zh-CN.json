@@ -334,7 +334,9 @@
       "search": "搜索",
       "workspaceUsage": "工作区用量",
       "switchWorkspace": "切换工作区",
-      "createWorkspace": "创建工作区"
+      "createWorkspace": "创建工作区",
+      "manageWorkspaces": "管理工作区",
+      "newWorkspacePlaceholder": "新工作区名称"
     },
     "workspace": { "fallback": "工作区" },
     "usage": {
@@ -358,6 +360,7 @@
     },
     "errors": {
       "switchWorkspace": "无法切换工作区。请重试。",
+      "createWorkspace": "无法创建工作区。请重试。",
       "networkError": "无法连接。请检查您的网络连接后重试。"
     },
     "saved": "已保存。",

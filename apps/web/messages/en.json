@@ -339,7 +339,9 @@
       "search": "Search",
       "workspaceUsage": "Workspace usage",
       "switchWorkspace": "Switch workspace",
-      "createWorkspace": "Create a workspace"
+      "createWorkspace": "Create a workspace",
+      "manageWorkspaces": "Manage workspaces",
+      "newWorkspacePlaceholder": "New workspace name"
     },
     "workspace": {
       "fallback": "Workspace"
@@ -365,6 +367,7 @@
     },
     "errors": {
       "switchWorkspace": "We could not switch workspaces. Please try again.",
+      "createWorkspace": "We could not create the workspace. Please try again.",
       "networkError": "We could not connect. Check your internet connection and try again."
     },
     "saved": "Saved.",

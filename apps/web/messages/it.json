@@ -334,7 +334,9 @@
       "search": "Cerca",
       "workspaceUsage": "Utilizzo spazio di lavoro",
       "switchWorkspace": "Cambia spazio di lavoro",
-      "createWorkspace": "Crea uno spazio di lavoro"
+      "createWorkspace": "Crea uno spazio di lavoro",
+      "manageWorkspaces": "Gestisci spazi di lavoro",
+      "newWorkspacePlaceholder": "Nome del nuovo spazio di lavoro"
     },
     "workspace": { "fallback": "Spazio di lavoro" },
     "usage": {
@@ -358,6 +360,7 @@
     },
     "errors": {
       "switchWorkspace": "Impossibile cambiare spazio di lavoro. Riprova.",
+      "createWorkspace": "Impossibile creare lo spazio di lavoro. Riprova.",
       "networkError": "Impossibile connettersi. Controlla la connessione a internet e riprova."
     },
     "saved": "Salvato.",
