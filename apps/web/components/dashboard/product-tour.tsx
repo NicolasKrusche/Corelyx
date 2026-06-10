@@ -80,7 +80,7 @@ const STEPS: TourStep[] = [
   {
     id: "finish",
     title: "That's the tour!",
-    body: "Best first step: type what you want to automate into the new-automation box and watch Genesis build it. You can replay this tour any time from the Get started panel.",
+    body: "You know your way around now. The button below takes you straight to the builder — describe your first automation and Genesis will put it together. You can replay this tour any time from the Get started panel.",
   },
 ];
 
@@ -116,16 +116,19 @@ export function ProductTour() {
 
   const step = active ? STEPS[index] : undefined;
 
-  const finish = useCallback(() => {
-    setActive(false);
-    setRect(null);
-    try {
-      localStorage.setItem(TOUR_DONE_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    router.replace("/dashboard", { scroll: false });
-  }, [router]);
+  const finish = useCallback(
+    (destination: string = "/dashboard") => {
+      setActive(false);
+      setRect(null);
+      try {
+        localStorage.setItem(TOUR_DONE_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+      router.replace(destination, { scroll: false });
+    },
+    [router]
+  );
 
   const next = useCallback(() => {
     setIndex((i) => Math.min(STEPS.length - 1, i + 1));
@@ -175,7 +178,7 @@ export function ProductTour() {
       if (e.key === "Escape") finish();
       else if (e.key === "ArrowRight" || e.key === "Enter") {
         e.preventDefault();
-        if (index >= STEPS.length - 1) finish();
+        if (index >= STEPS.length - 1) finish("/programs/new");
         else next();
       } else if (e.key === "ArrowLeft") back();
     };
@@ -185,10 +188,11 @@ export function ProductTour() {
 
   if (!active || !step) return null;
 
+  const isFirst = index === 0;
   const isLast = index === STEPS.length - 1;
   const anchored = Boolean(step.target && rect);
 
-  const cardWidth = 340;
+  const cardWidth = anchored ? 340 : isFirst ? 460 : 420;
   let cardStyle: React.CSSProperties;
   if (anchored && rect) {
     const margin = 16;
@@ -210,7 +214,7 @@ export function ProductTour() {
       top: "50%",
       left: "50%",
       transform: "translate(-50%, -50%)",
-      width: Math.min(420, typeof window !== "undefined" ? window.innerWidth - 32 : 420),
+      width: Math.min(cardWidth, typeof window !== "undefined" ? window.innerWidth - 32 : cardWidth),
     };
   }
 
@@ -234,57 +238,98 @@ export function ProductTour() {
       )}
 
       {/* Popup card */}
-      <div
-        style={cardStyle}
-        className="rounded-2xl border border-border bg-popover p-5 text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-bold leading-snug">{step.title}</p>
-          {!isLast && (
-            <button
-              type="button"
-              onClick={finish}
-              className="shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Skip tour
-            </button>
-          )}
-        </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{step.body}</p>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          {/* Progress dots */}
-          <div className="flex items-center gap-1">
-            {STEPS.map((s, i) => (
-              <span
-                key={s.id}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === index ? "w-5 bg-primary" : i < index ? "w-1.5 bg-primary/50" : "w-1.5 bg-border"
-                }`}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {index > 0 && (
+      {isFirst ? (
+        <div
+          style={cardStyle}
+          className="overflow-hidden rounded-3xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-300"
+        >
+          <div className="relative px-8 pb-8 pt-10 text-center">
+            {/* Soft brand glow behind the logo */}
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-36"
+              style={{ background: "radial-gradient(ellipse 80% 100% at 50% 0%, hsl(var(--primary) / 0.14), transparent 70%)" }}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pictures/logo-no-bg.png" alt="" className="relative mx-auto h-12 w-12 object-contain" />
+            <h2 className="relative mt-5 text-2xl font-black tracking-tight">Welcome to Corelyx</h2>
+            <p className="relative mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              Before you build anything, a quick look around: eight stops covering the AI
+              builder, your workflows, and where everything lives.
+            </p>
+            <div className="relative mt-7 flex flex-col items-center gap-3">
               <button
                 type="button"
-                onClick={back}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                onClick={next}
+                className="w-full max-w-[280px] rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-[0_0_24px_hsl(var(--primary)/0.35)] transition-all hover:opacity-95 hover:shadow-[0_0_32px_hsl(var(--primary)/0.5)]"
               >
-                Back
+                Show me around
               </button>
-            )}
-            <button
-              type="button"
-              onClick={isLast ? finish : next}
-              className="rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              {index === 0 ? "Show me around" : isLast ? "Start building" : "Next"}
-            </button>
+              <button
+                type="button"
+                onClick={() => finish()}
+                className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                I&apos;ll explore on my own
+              </button>
+            </div>
+            <p className="relative mt-5 text-[11px] text-muted-foreground/60">
+              Takes about a minute · Esc leaves any time
+            </p>
           </div>
         </div>
-      </div>
+      ) : (
+        <div
+          style={cardStyle}
+          className="rounded-2xl border border-border bg-popover p-5 text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-bold leading-snug">{step.title}</p>
+            {!isLast && (
+              <button
+                type="button"
+                onClick={() => finish()}
+                className="shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Skip tour
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{step.body}</p>
+
+          <div className="mt-4 flex items-center justify-between gap-3">
+            {/* Progress dots */}
+            <div className="flex items-center gap-1">
+              {STEPS.map((s, i) => (
+                <span
+                  key={s.id}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    i === index ? "w-5 bg-primary" : i < index ? "w-1.5 bg-primary/50" : "w-1.5 bg-border"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {index > 0 && (
+                <button
+                  type="button"
+                  onClick={back}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  Back
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={isLast ? () => finish("/programs/new") : next}
+                className="rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                {isLast ? "Create your first workflow" : "Next"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
