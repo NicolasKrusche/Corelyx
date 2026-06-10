@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import {
@@ -20,6 +21,7 @@ import {
   type DashboardFailedRun,
 } from "@/components/dashboard/dashboard-attention-panel";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { ProductTour } from "@/components/dashboard/product-tour";
 import { UpgradeBannerNudge } from "@/components/dashboard/upgrade-banner-nudge";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { getUserCreditBalance } from "@/lib/credits";
@@ -416,7 +418,7 @@ export default async function DashboardPage({
         <StatCard label={t("awaitingYou")} value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? t("reviewNow") : t("allClear")} Icon={CircleAlert} tone="amber" series={approvalsSeries} />
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.09] via-card/90 to-card/75 shadow-sm">
+      <section data-tour="genesis" className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.09] via-card/90 to-card/75 shadow-sm">
         <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/20">
@@ -468,6 +470,10 @@ export default async function DashboardPage({
         hasConnections={(connectionsResult.count ?? 0) > 0}
         hasApiKeys={(apiKeysResult.count ?? 0) > 0}
       />
+
+      <Suspense>
+        <ProductTour />
+      </Suspense>
     </div>
   );
 }

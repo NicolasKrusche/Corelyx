@@ -88,13 +88,21 @@ export function OnboardingChecklist({ hasPrograms, hasConnections, hasApiKeys }:
               {completedCount}/{steps.length}
             </span>
           </div>
-          <button
-            onClick={dismiss}
-            className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-            title="Dismiss"
-          >
-            Skip
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard?tour=1"
+              className="text-[11px] font-medium text-primary/70 hover:text-primary transition-colors"
+            >
+              Replay the tour
+            </Link>
+            <button
+              onClick={dismiss}
+              className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+              title="Dismiss"
+            >
+              Skip
+            </button>
+          </div>
         </div>
 
         {/* Steps */}
