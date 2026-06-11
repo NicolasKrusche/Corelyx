@@ -51,6 +51,9 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
       { key: "add_label_ids", label: "Add labels", type: "array", placeholder: "STARRED, Label_123" },
       { key: "remove_label_ids", label: "Remove labels", type: "array", placeholder: "UNREAD" },
     ],
+    delete_email: [
+      { key: "message_id", label: "Message ID", type: "string", required: true },
+    ],
   },
   notion: {
     read_page: [

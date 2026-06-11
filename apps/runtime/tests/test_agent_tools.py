@@ -60,9 +60,17 @@ class TestBuildOpenAITools(unittest.TestCase):
         self.assertEqual(names, ["corelyx__list_programs", "corelyx__get_program", "corelyx__list_runs"])
 
     def test_required_fields_in_parameters(self):
+        result = build_openai_tools(["corelyx.get_run"])
+        params = result[0]["function"]["parameters"]
+        self.assertEqual(params.get("required"), ["run_id"])
+
+    def test_get_program_accepts_id_or_name(self):
+        # get_program resolves by program_id OR name, so neither is required.
         result = build_openai_tools(["corelyx.get_program"])
         params = result[0]["function"]["parameters"]
-        self.assertEqual(params.get("required"), ["program_id"])
+        self.assertIsNone(params.get("required"))
+        self.assertIn("program_id", params["properties"])
+        self.assertIn("name", params["properties"])
 
 
 class TestBuildAnthropicTools(unittest.TestCase):
@@ -113,9 +121,9 @@ class TestBuildAnthropicTools(unittest.TestCase):
         self.assertEqual(names, ["corelyx__list_programs", "corelyx__get_program", "corelyx__list_runs"])
 
     def test_required_fields_in_input_schema(self):
-        result = build_anthropic_tools(["corelyx.get_program"])
+        result = build_anthropic_tools(["corelyx.get_run"])
         schema = result[0]["input_schema"]
-        self.assertEqual(schema.get("required"), ["program_id"])
+        self.assertEqual(schema.get("required"), ["run_id"])
 
 
 class TestToolNameToId(unittest.TestCase):
