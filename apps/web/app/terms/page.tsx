@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: { url: "https://www.corelyx.app/terms" },
 };
 
-const LAST_UPDATED = "April 24, 2026";
+const LAST_UPDATED = "June 11, 2026";
 
 const sections = [
   {
@@ -103,21 +103,23 @@ Consumer right of withdrawal: If you are a consumer, you have a 14-day right of 
   {
     id: "liability",
     title: "7. Liability and Disclaimers",
-    content: `AI-generated outputs: The platform produces results using AI models (machine learning). These results — including categorisations, summaries, data transfers, and automated actions — may be incorrect, incomplete, or unsuitable. We assume no liability for damages arising from incorrect, incomplete, or misdirected automated actions, including wrong email categorisations, unintended data deletions, incorrect database entries, or actions that fail to execute. You are expressly responsible for reviewing all actions performed or proposed by the platform before and after execution.
+    content: `7.1 No guarantee of correctness of AI outputs: The platform produces results using AI models (machine learning) provided by third parties. The nature of this technology means that outputs are probabilistic, not deterministic. We do not warrant or guarantee that AI-generated outputs — including categorisations, summaries, classifications, data transfers, generated text, and automated actions — are accurate, complete, current, or suitable for any particular purpose. AI outputs may contain errors, omissions, or fabricated information ("hallucinations"). You are expressly responsible for reviewing all outputs and all actions performed or proposed by the platform before relying on them or allowing them to take effect.
 
-By enabling automated workflows, you confirm you have understood how each automation works and accept responsibility for all actions it triggers on your systems and data.
+We assume no liability for damages arising from incorrect, incomplete, or misdirected automated actions, including wrong email categorisations, unintended data deletions, incorrect database entries, messages sent to wrong recipients, or actions that fail to execute. By enabling automated workflows, you confirm you have understood how each automation works and accept responsibility for all actions it triggers on your systems and data.
 
-Availability: For the Free plan no uptime guarantee is given. For Pro and Max plans we target 99% monthly availability. Maintenance windows will be announced with reasonable advance notice.
+7.2 No professional advice: AI-generated outputs do not constitute and must not be relied upon as professional advice of any kind — in particular not legal, tax, accounting, financial, investment, medical, psychological, or other regulated professional advice. Outputs are provided for informational and automation purposes only. If you require professional advice, consult a qualified professional. You must not use the Service as the sole basis for decisions with legal, financial, or health-related consequences for yourself or third parties.
 
-Outages caused by third-party service providers (in particular the Anthropic API, Google APIs, or Stripe) do not give rise to liability on our part.
+7.3 No guarantee of availability: We do not guarantee uninterrupted or error-free availability of the Service. For the Free plan no uptime commitment is given. For Pro and Max plans we target 99% monthly availability; this is a service target, not a guaranteed SLA, and does not give rise to claims unless mandatory law provides otherwise. Maintenance windows will be announced with reasonable advance notice where practical. Outages or degradations caused by third-party providers (in particular AI model APIs such as the Anthropic API, Google APIs, hosting infrastructure, or Stripe) or by force majeure do not give rise to liability on our part.
 
 The Service is provided "as is" and "as available". To the extent permitted by applicable law, we make no warranties, express or implied, regarding merchantability, fitness for a particular purpose, or non-infringement. Third-party services connected through Corelyx may become unavailable or change without notice — we are not responsible for this.
 
-Liability cap: To the extent permitted by applicable law, our total liability to you for all claims arising from or related to the Service shall not exceed the greater of (a) three times your monthly subscription amount in the month the damage occurs, or (b) EUR 500.
+7.4 Exclusion of indirect and consequential damages: To the extent permitted by applicable law, we are not liable for indirect damages, consequential damages, loss of profit, loss of revenue, loss of business, loss of anticipated savings, loss of goodwill, loss or corruption of data, business interruption, or claims of third parties against you, regardless of the legal basis (contract, tort, or otherwise), even if we were advised of the possibility of such damages.
 
-This cap does not apply to damages caused by intent, gross negligence, personal injury, or where mandatory statutory rules preclude limitation. Liability for damages caused intentionally or by gross negligence cannot be limited under Austrian law (§ 6 KSchG for consumers; § 879 ABGB generally). Liability for personal injury or death caused by our fault cannot be limited. Statutory consumer rights under applicable EU directives are not affected.
+7.5 Liability cap: To the extent permitted by applicable law, our total aggregate liability to you for all claims arising from or related to the Service in any 12-month period shall not exceed the total fees actually paid by you to Corelyx in the 12 months preceding the event giving rise to the claim, or EUR 500 if no fees were paid in that period (Free plan).
 
-For business customers (non-consumers), liability for slight negligence is excluded to the fullest extent permitted by Austrian commercial law.
+7.6 Mandatory exceptions: The exclusions and limitations in this Section 7 do not apply to (a) damages caused by intent (Vorsatz) or gross negligence (grobe Fahrlässigkeit), (b) personal injury or death caused by our fault, (c) liability under the Austrian Product Liability Act (PHG), or (d) where mandatory statutory rules preclude limitation. Liability for damages caused intentionally or by gross negligence cannot be limited under Austrian law (§ 6 KSchG for consumers; § 879 ABGB generally). In case of a breach of essential contractual obligations (Kardinalpflichten) caused by slight negligence, liability is limited to the foreseeable damage typical for this type of contract.
+
+For business customers (non-consumers), liability for slight negligence is otherwise excluded to the fullest extent permitted by Austrian commercial law, and claims must be brought within 12 months of knowledge of the damage.
 
 If you are a consumer, nothing in this section affects your statutory rights under Austrian or applicable EU law, including rights to a conforming digital service under the EU Digital Content Directive (Directive 2019/770 as implemented in Austria).`,
   },
