@@ -178,7 +178,8 @@ def _is_agent_key_error(message: str) -> bool:
 # Operation-name prefixes that denote a side-effect-free read. Anything else is
 # treated as a write (conservative: unknown ops are simulated in agent dry-runs).
 _CONNECTOR_READ_PREFIXES = (
-    "get_", "list_", "search_", "fetch_", "read_", "find_", "query_",
+    # "search" (no underscore) also covers gmail's bare "search" operation.
+    "get_", "list_", "search", "fetch_", "read_", "find_", "query_",
     "retrieve_", "lookup_", "check_", "describe_", "count_", "download_",
 )
 
@@ -186,6 +187,21 @@ _CONNECTOR_READ_PREFIXES = (
 def _connector_op_is_write(operation: str) -> bool:
     """Heuristic: True when a connector operation has side effects (a write)."""
     return not (operation or "").lower().startswith(_CONNECTOR_READ_PREFIXES)
+
+
+# Operations that destroy or irreversibly alter data. These always require human
+# approval at runtime, regardless of node config or execution mode — a generated
+# or hand-edited schema must not be able to opt out of the safety gate.
+_CONNECTOR_DESTRUCTIVE_PREFIXES = (
+    "delete_", "remove_", "clear_", "purge_", "trash_", "destroy_", "drop_",
+)
+
+
+def _connector_op_is_destructive(operation: str, params: dict | None = None) -> bool:
+    """True when a connector operation destroys data (or is flagged permanent)."""
+    if (operation or "").lower().startswith(_CONNECTOR_DESTRUCTIVE_PREFIXES):
+        return True
+    return bool((params or {}).get("permanent"))
 
 
 def _strip_html_to_text(raw: str) -> str:
@@ -1460,8 +1476,13 @@ class ProgramExecutor:
     async def _execute_agent(self, node: SchemaNode, input_data: dict) -> dict:
         cfg: AgentConfig = node.config  # type: ignore[assignment]
 
-        # Supervised mode: every agent needs approval regardless of node config
-        needs_approval = cfg.requires_approval or self.execution_mode == "supervised"
+        # Supervised mode: every agent needs approval regardless of node config.
+        # approval_required mode: every agent with write capability needs approval.
+        needs_approval = (
+            cfg.requires_approval
+            or self.execution_mode == "supervised"
+            or (self.execution_mode == "approval_required" and cfg.scope_access != "read")
+        )
 
         if needs_approval:
             approved = await self._request_step_approval(node, input_data, "Agent approval required")
@@ -1667,7 +1688,12 @@ class ProgramExecutor:
         """
         cfg: AgentTaskConfig = node.config  # type: ignore[assignment]
 
-        needs_approval = cfg.requires_approval or self.execution_mode == "supervised"
+        # approval_required mode: any tool-loop with write capability needs approval.
+        needs_approval = (
+            cfg.requires_approval
+            or self.execution_mode == "supervised"
+            or (self.execution_mode == "approval_required" and cfg.scope_access != "read")
+        )
         if needs_approval:
             approved = await self._request_step_approval(node, input_data, "Agent task approval required")
             if not approved:
@@ -2874,6 +2900,57 @@ class ProgramExecutor:
                             "the upstream value can be empty.",
                             node.id,
                         )
+
+                op_is_write = _connector_op_is_write(cfg.operation)
+                op_is_destructive = _connector_op_is_destructive(cfg.operation, resolved_params)
+
+                # Default-deny: a write operation needs the node's explicit write
+                # scope. Nodes default to scope_access="read", so writes are opt-in.
+                if op_is_write and cfg.scope_access == "read":
+                    raise ExecutionError(
+                        "SCOPE_DENIED",
+                        f"Operation '{cfg.operation}' is a write action, but this node "
+                        "only has read access (scope_access=read). Open the node and "
+                        "grant write access to allow it.",
+                        node.id,
+                    )
+
+                # Dry-run preview: simulate writes instead of executing them, so a
+                # user can see exactly what WOULD happen before any side effect.
+                # Checked before the approval gate — a preview never needs approval.
+                if op_is_write and self.dry_run:
+                    return {
+                        "simulated": True,
+                        "operation": cfg.operation,
+                        "provider": provider_id,
+                        "params": {k: v for k, v in resolved_params.items()},
+                        "note": "Dry-run: this write was simulated, not executed.",
+                    }
+
+                # Mandatory approval gate: destructive operations ALWAYS pause for
+                # human approval (not configurable away); in approval_required mode
+                # every write does. Supervised/manual modes already gate upstream.
+                if op_is_destructive or (
+                    op_is_write and self.execution_mode == "approval_required"
+                ):
+                    reason = (
+                        f"Destructive action approval required ({cfg.operation})"
+                        if op_is_destructive
+                        else f"Write action approval required ({cfg.operation})"
+                    )
+                    approved = await self._request_step_approval(node, input_data, reason)
+                    if not approved:
+                        await update_node_execution(
+                            self.db,
+                            self.run_id,
+                            node.id,
+                            status="skipped",
+                            completed_at="now()",
+                            data_region=self.data_region,
+                            retention_expiry=self.retention_expiry,
+                            **self._node_telemetry_payload(node.id),
+                        )
+                        return {}
 
                 try:
                     self._record_telemetry(node.id, connector_api_calls=1)
