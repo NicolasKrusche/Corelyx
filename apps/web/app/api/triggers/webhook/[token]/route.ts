@@ -20,6 +20,12 @@ import {
 } from "@/lib/webhook-trigger-auth";
 import { recordTriggerEvent } from "@/lib/trigger-events";
 import { fireAgentTrigger } from "@/lib/agents/dispatch";
+import {
+  credentialScopeId,
+  isAnySecurityLocked,
+  isSecurityLocked,
+  recordSecurityEvent,
+} from "@/lib/security/sentinel";
 
 /**
  * POST /api/triggers/webhook/[token]
@@ -37,6 +43,13 @@ export async function POST(
 
   const params = await routeParams;
   const { token } = params;
+  // Sentinel containment: a token under an active security lock (e.g. after a
+  // burst of forged signatures) is rejected before any work happens. The scope
+  // id is a hash — the raw token never reaches the security tables.
+  const tokenScopeId = credentialScopeId(token);
+  if (await isSecurityLocked("webhook_token", tokenScopeId)) {
+    return apiError("Not found", 404);
+  }
   const boundedBody = await readBoundedTextBody(request);
   if (!boundedBody.ok) return boundedBody.response;
   const rawBody = boundedBody.text;
@@ -44,6 +57,13 @@ export async function POST(
   const timestamp = request.headers.get(WEBHOOK_TIMESTAMP_HEADER);
 
   if (!signature || !timestamp) {
+    await recordSecurityEvent({
+      event: "webhook.signature_failed",
+      severity: "warning",
+      scopeType: "webhook_token",
+      scopeId: tokenScopeId,
+      details: { reason: "missing_signature_headers" },
+    });
     return apiError("Not found", 404);
   }
 
@@ -56,6 +76,13 @@ export async function POST(
         timestamp,
       })
     ) {
+      await recordSecurityEvent({
+        event: "webhook.signature_failed",
+        severity: "warning",
+        scopeType: "webhook_token",
+        scopeId: tokenScopeId,
+        details: { reason: "invalid_signature" },
+      });
       return apiError("Not found", 404);
     }
   } catch {
@@ -134,6 +161,21 @@ export async function POST(
 
   if (!program.is_active) {
     return apiError("Program is not active", 409);
+  }
+
+  // Sentinel containment: a program (or its owner) under a security lock —
+  // applied automatically after repeated anomalies, or manually by an admin —
+  // must not execute, no matter how the run was triggered.
+  if (
+    await isAnySecurityLocked([
+      { scopeType: "program", scopeId: program.id },
+      { scopeType: "user", scopeId: program.user_id },
+    ])
+  ) {
+    return NextResponse.json(
+      { error: "SECURITY_LOCKED", message: "This program is temporarily locked for security review." },
+      { status: 423 }
+    );
   }
 
   const restriction = await getProcessingRestriction(program.user_id, db);

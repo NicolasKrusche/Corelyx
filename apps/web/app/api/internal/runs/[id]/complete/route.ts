@@ -13,6 +13,7 @@ import {
 import { getProcessingRestriction } from "@/lib/compliance";
 import { recordTriggerEvent } from "@/lib/trigger-events";
 import { serverLog } from "@/lib/server-log";
+import { isAnySecurityLocked, recordSecurityEvent } from "@/lib/security/sentinel";
 
 /**
  * POST /api/internal/runs/[id]/complete
@@ -38,6 +39,14 @@ export async function POST(
       body: rawBody,
     })
   ) {
+    // Repeated failures on an internal route are either an attack or a secret
+    // misconfiguration — both deserve an admin alert (rule: internal.auth_failed).
+    await recordSecurityEvent({
+      event: "internal.auth_failed",
+      severity: "warning",
+      scopeType: "route",
+      scopeId: "/api/internal/runs/complete",
+    });
     return apiError("Unauthorized", 401);
   }
 
@@ -138,6 +147,20 @@ export async function POST(
 
   // ── 1b. Send failure email ─────────────────────────────────────────────────
   if (status === "failed") {
+    // Sentinel: a program failing many times in a short window (runaway
+    // trigger loop, abuse, or a broken integration hammering providers) gets
+    // auto-locked and admins alerted. Thresholds sit far above normal failure
+    // rates — see SENTINEL_RULES["run.failed"].
+    if (program_id) {
+      await recordSecurityEvent({
+        event: "run.failed",
+        severity: "info",
+        scopeType: "program",
+        scopeId: program_id,
+        userId: user_id,
+        details: { triggeredBy: triggered_by ?? runTriggeredBy ?? null },
+      });
+    }
     try {
       const [{ data: userData }, { data: programData }] = await Promise.all([
         db.auth.admin.getUserById(user_id),
@@ -199,6 +222,17 @@ export async function POST(
 
           const restriction = await getProcessingRestriction(prog.user_id, db);
           if (restriction.restricted) continue;
+
+          // Sentinel containment: don't chain into a locked program/owner.
+          if (
+            await isAnySecurityLocked([
+              { scopeType: "program", scopeId: prog.id },
+              { scopeType: "user", scopeId: prog.user_id },
+            ])
+          ) {
+            recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Security lock active" });
+            continue;
+          }
 
           // Check conflict policy
           const { data: activeRuns } = await db

@@ -28,6 +28,7 @@ import {
   workflowRequiresPayloadForManualRun,
 } from "@/lib/triggers/manual-run";
 import { normalizeSchema } from "@/lib/genesis/parsing";
+import { isAnySecurityLocked } from "@/lib/security/sentinel";
 
 // POST /api/runs — create a run and dispatch to runtime
 export async function POST(request: Request) {
@@ -53,6 +54,19 @@ export async function POST(request: Request) {
   const access = await getProgramAccess(program_id, user.id);
   if (!canView(access)) return apiError("Program not found", 404);
   if (!canRun(access)) return apiError("You do not have permission to run this program.", 403);
+
+  // Sentinel containment: programs/users under a security lock cannot run.
+  if (
+    await isAnySecurityLocked([
+      { scopeType: "program", scopeId: program_id },
+      { scopeType: "user", scopeId: user.id },
+    ])
+  ) {
+    return NextResponse.json(
+      { error: "SECURITY_LOCKED", message: "This program is temporarily locked for security review." },
+      { status: 423 }
+    );
+  }
 
   const { data: program, error: progError } = await supabase
     .from("programs")
