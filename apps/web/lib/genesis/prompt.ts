@@ -587,6 +587,8 @@ Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node o
 
 CONNECTION NODE:
   OAuth: connection field MUST match provided name exactly. Config: {"provider":"gmail|notion|slack|github|sheets|calendar|docs|drive|airtable|hubspot|typeform|asana|outlook","scope_access":"read|write|read_write","scope_required":["..."],"operation":"op_name","operation_params":{...}}
+  scope_access is DEFAULT-DENY at runtime: a write operation on a node with scope_access:"read" is refused. Set "read" for read-only operations and "write" exactly when the operation has side effects — never default to "read_write".
+  Destructive operations (delete_*, remove_*, clear_*, or permanent:true) ALWAYS pause the run for human approval at runtime. Mention this in the relevant node's description so the user expects the pause.
   HTTP: connection:null for generic credentials, or the exact provided OAuth connection name when calling that provider's REST API. Config: {"connector_type":"http","method":"GET|POST|PUT|PATCH|DELETE","url":"https://...","auth_type":"none|bearer|basic|api_key_header|api_key_query","auth_value":null|"__OAUTH_CONNECTION__","query_params":[],"headers":[],"body":null,"parse_response":true,"timeout_seconds":30,"retry":null}
 
 NOTE NODE (sticky note — purely visual, never executed):

@@ -1122,7 +1122,7 @@ class TestConnectionExecutionPaths(unittest.IsolatedAsyncioTestCase):
             [
                 {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
                 {"id": "c", "type": "connection", "config": {
-                    "connector_type": "oauth", "scope_access": "read", "scope_required": [], "operation": "send",
+                    "connector_type": "oauth", "scope_access": "write", "scope_required": [], "operation": "send",
                 }, "connection": "gmail:primary"},
             ],
             [{"id": "e1", "from": "t", "to": "c", "type": "data_flow"}],
@@ -1143,7 +1143,7 @@ class TestConnectionExecutionPaths(unittest.IsolatedAsyncioTestCase):
             [
                 {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
                 {"id": "c", "type": "connection", "config": {
-                    "connector_type": "oauth", "scope_access": "read", "scope_required": [], "operation": "send",
+                    "connector_type": "oauth", "scope_access": "write", "scope_required": [], "operation": "send",
                 }, "connection": "gmail:primary"},
             ],
             [{"id": "e1", "from": "t", "to": "c", "type": "data_flow"}],

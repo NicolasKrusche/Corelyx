@@ -131,6 +131,22 @@ function inferNodeType(config: Record<string, unknown>): string | null {
   return null;
 }
 
+// Mirrors the runtime's read-prefix heuristic (_CONNECTOR_READ_PREFIXES in
+// apps/runtime/engine/executor.py). Used only as the default-deny fallback when
+// Genesis omitted scope_access: read ops get "read", anything else gets "write"
+// so the runtime's write gate doesn't refuse a legitimately generated write node.
+const READ_OPERATION_PREFIXES = [
+  // "search" (no underscore) also covers gmail's bare "search" operation.
+  "get_", "list_", "search", "fetch_", "read_", "find_", "query_",
+  "retrieve_", "lookup_", "check_", "describe_", "count_", "download_",
+];
+
+function inferScopeAccessFromOperation(operation: unknown): "read" | "write" {
+  const op = typeof operation === "string" ? operation.toLowerCase() : "";
+  if (!op) return "read";
+  return READ_OPERATION_PREFIXES.some((prefix) => op.startsWith(prefix)) ? "read" : "write";
+}
+
 export function normalizeSchema(raw: unknown): void {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
   const schema = raw as Record<string, unknown>;
@@ -259,7 +275,10 @@ export function normalizeSchema(raw: unknown): void {
         }
         const validScopeAccess = new Set(["read", "write", "read_write"]);
         if (!cfg.scope_access || !validScopeAccess.has(cfg.scope_access as string)) {
-          cfg.scope_access = "read_write";
+          // Default-deny: missing/invalid scope falls back to read-only. Write
+          // operations on a read-scoped node are refused at runtime, so Genesis
+          // (and users) must grant write access explicitly.
+          cfg.scope_access = inferScopeAccessFromOperation(cfg.operation);
         }
         if (cfg.operation === "" || cfg.operation === null) delete cfg.operation;
         if (
