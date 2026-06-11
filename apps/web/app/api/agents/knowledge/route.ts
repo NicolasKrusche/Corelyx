@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { getActiveWorkspace, canContributeToWorkspace } from "@/lib/workspaces";
 import { checkAgentAccess } from "@/lib/limits";
+import { indexKnowledgeDoc } from "@/lib/agents/knowledge-index";
 
 type Service = ReturnType<typeof createServiceClient> & { from(t: string): any };
+
+const KNOWLEDGE_DOC_FIELDS =
+  "id, title, content, source_type, source_name, embedding_status, created_at, updated_at";
 
 // GET /api/agents/knowledge — list the active workspace's knowledge entries.
 export async function GET() {
@@ -15,7 +19,7 @@ export async function GET() {
   const service = createServiceClient() as Service;
   const { data, error } = await service
     .from("agent_knowledge")
-    .select("id, title, content, created_at")
+    .select(KNOWLEDGE_DOC_FIELDS)
     .eq("workspace_id", ws.workspaceId)
     .order("created_at", { ascending: false });
   if (error) return apiError(error.message, 500);
@@ -52,9 +56,23 @@ export async function POST(request: Request) {
       user_id: user.id,
       title: title || "Untitled",
       content,
+      source_type: "text",
     } as never)
-    .select("id, title, content, created_at")
+    .select(KNOWLEDGE_DOC_FIELDS)
     .single();
   if (error) return apiError(error.message, 500);
-  return NextResponse.json({ knowledge: data }, { status: 201 });
+
+  // Chunk + embed for semantic retrieval. Non-blocking on failure — the doc is
+  // saved either way and keyword search still covers it.
+  const doc = data as { id: string };
+  const indexed = await indexKnowledgeDoc(service, {
+    id: doc.id,
+    workspaceId: ws.workspaceId,
+    content,
+  });
+
+  return NextResponse.json(
+    { knowledge: { ...(data as Record<string, unknown>), embedding_status: indexed.status } },
+    { status: 201 }
+  );
 }

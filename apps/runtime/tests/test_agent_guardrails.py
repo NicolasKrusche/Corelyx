@@ -75,6 +75,52 @@ class ToolCallBudgetTests(unittest.IsolatedAsyncioTestCase):
         ex._execute_agent_connector_tool.assert_awaited_once()
 
 
+class EnsureAgentReportTests(unittest.IsolatedAsyncioTestCase):
+    async def test_skips_when_report_already_delivered(self):
+        ex = _agent_executor()
+        node = ex.node_map["a1"]
+        ex._call_agent_tool = AsyncMock()
+        invocations = [{"tool": "corelyx.report_to_user", "ok": True}]
+        out = await ex._ensure_agent_report(node, Mock(scope_access="read"), "done", invocations)
+        self.assertEqual(out, invocations)
+        ex._call_agent_tool.assert_not_called()
+
+    async def test_synthesizes_report_when_model_skipped_it(self):
+        ex = _agent_executor()
+        node = ex.node_map["a1"]
+        ex._call_agent_tool = AsyncMock(return_value={"ok": True, "result": {"delivered": True}})
+        out = await ex._ensure_agent_report(
+            node, Mock(scope_access="read"), "Email drafted and sent.", []
+        )
+        ex._call_agent_tool.assert_awaited_once()
+        call = ex._call_agent_tool.await_args
+        self.assertEqual(call.args[0], "corelyx.report_to_user")
+        self.assertEqual(call.args[1]["body"], "Email drafted and sent.")
+        self.assertTrue(call.args[1]["data"]["auto_generated"])
+        self.assertTrue(call.kwargs["bypass_budget"])
+        self.assertEqual(out[-1], {"tool": "corelyx.report_to_user", "ok": True})
+
+    async def test_failed_report_call_does_not_count_as_delivered(self):
+        ex = _agent_executor()
+        node = ex.node_map["a1"]
+        ex._call_agent_tool = AsyncMock(return_value={"ok": True, "result": {}})
+        invocations = [{"tool": "corelyx.report_to_user", "ok": False, "error": "boom"}]
+        out = await ex._ensure_agent_report(node, Mock(scope_access="read"), "summary", invocations)
+        ex._call_agent_tool.assert_awaited_once()
+        self.assertEqual(len(out), 2)
+
+    async def test_bypass_budget_allows_report_when_budget_exhausted(self):
+        ex = _agent_executor()
+        ex._agent_tool_calls_made = MAX_AGENT_TOOL_CALLS_PER_RUN
+        # The budget guard must not short-circuit a bypassed call; it should
+        # proceed to dispatch (here: fail at the network layer instead).
+        ex._nextjs_endpoint_candidates = Mock(return_value=[])
+        res = await ex._call_agent_tool(
+            "corelyx.report_to_user", {"body": "x"}, "a1", "read", bypass_budget=True
+        )
+        self.assertNotIn("budget", str(res.get("error", "")).lower())
+
+
 class AgentUsageTrackingTests(unittest.TestCase):
     def test_records_tokens_and_enforces_limits(self):
         ex = _agent_executor()

@@ -35,42 +35,35 @@ type AgentRow = {
 
 const STATE_META: Record<
   string,
-  { label: string; icon: React.ReactNode; dot: string }
+  { label: string; icon: React.ReactNode }
 > = {
   draft: {
     label: "Draft",
-    icon: <CircleDashed className="h-3.5 w-3.5" />,
-    dot: "bg-muted-foreground/40",
+    icon: <CircleDashed className="h-3 w-3" />,
   },
   awaiting_approval: {
     label: "Awaiting approval",
-    icon: <ShieldCheck className="h-3.5 w-3.5" />,
-    dot: "bg-amber-400",
+    icon: <ShieldCheck className="h-3 w-3" />,
   },
   approved: {
     label: "Approved",
-    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-    dot: "bg-blue-400",
+    icon: <CheckCircle2 className="h-3 w-3" />,
   },
   running: {
     label: "Running",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    dot: "bg-primary",
+    icon: <Loader2 className="h-3 w-3 animate-spin" />,
   },
   completed: {
     label: "Completed",
-    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-    dot: "bg-emerald-400",
+    icon: <CheckCircle2 className="h-3 w-3" />,
   },
   failed: {
     label: "Failed",
-    icon: <CircleX className="h-3.5 w-3.5" />,
-    dot: "bg-destructive",
+    icon: <CircleX className="h-3 w-3" />,
   },
   discarded: {
     label: "Discarded",
-    icon: <CircleDashed className="h-3.5 w-3.5" />,
-    dot: "bg-muted-foreground/30",
+    icon: <CircleDashed className="h-3 w-3" />,
   },
 };
 
@@ -85,8 +78,7 @@ const STATE_COLORS: Record<string, string> = {
 function StateChip({ state }: { state: string }) {
   const meta = STATE_META[state];
   const colors =
-    STATE_COLORS[state] ??
-    "text-muted-foreground bg-muted/60 ring-border/50";
+    STATE_COLORS[state] ?? "text-muted-foreground bg-muted/60 ring-border/50";
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${colors}`}
@@ -112,7 +104,7 @@ function RelativeDate({ iso }: { iso: string }) {
   );
 }
 
-function AgentRowLink({
+function AgentCard({
   agent,
   scheduled,
   hasQuestion,
@@ -122,41 +114,48 @@ function AgentRowLink({
   hasQuestion: boolean;
 }) {
   const state = agent.agent_state ?? "draft";
-  const meta = STATE_META[state];
   return (
     <Link
       href={`/agents/${agent.id}`}
-      className="group flex items-center justify-between gap-4 rounded-2xl border border-border/80 bg-card/80 px-5 py-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+      className="group flex flex-col rounded-2xl border glass-card p-5 transition-all hover:shadow-md"
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${meta?.dot ?? "bg-muted-foreground/40"}`} />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold group-hover:text-primary">{agent.name}</p>
-            {agent.agent_saved_template && (
-              <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Saved
-              </span>
-            )}
-            {scheduled && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                <Clock className="h-2.5 w-2.5" /> Scheduled
-              </span>
-            )}
-          </div>
-          {agent.description && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{agent.description}</p>
-          )}
-        </div>
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <Bot className="h-[18px] w-[18px] text-primary" />
+        </span>
+        <StateChip state={state} />
       </div>
-      <div className="flex shrink-0 items-center gap-3">
+
+      <p className="mt-3 truncate text-sm font-semibold group-hover:text-primary">
+        {agent.name}
+      </p>
+      {agent.description ? (
+        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          {agent.description}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs italic text-muted-foreground/60">
+          No description
+        </p>
+      )}
+
+      <div className="mt-4 flex items-center gap-2 border-t border-border/40 pt-3">
         {hasQuestion && (
-          <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+          <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 ring-1 ring-amber-500/25 dark:text-amber-400">
             Needs answer
           </span>
         )}
-        <StateChip state={state} />
-        <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+        {agent.agent_saved_template && (
+          <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Saved
+          </span>
+        )}
+        {scheduled && (
+          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <Clock className="h-2.5 w-2.5" /> Scheduled
+          </span>
+        )}
+        <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground">
           <Clock className="h-3 w-3" />
           <RelativeDate iso={agent.created_at} />
         </span>
@@ -236,8 +235,8 @@ export default async function AgentsPage() {
             </span>
             <h1 className="text-xl font-bold tracking-tight">Agents</h1>
             {needsAttention > 0 && (
-              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                {needsAttention} awaiting approval
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 ring-1 ring-amber-500/25 dark:text-amber-400">
+                {needsAttention} need{needsAttention === 1 ? "s" : ""} you
               </span>
             )}
           </div>
@@ -265,7 +264,7 @@ export default async function AgentsPage() {
         </div>
       </div>
 
-      {/* ── Agent list ─────────────────────────────────── */}
+      {/* ── Agent grid ─────────────────────────────────── */}
       {agents.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
@@ -288,38 +287,42 @@ export default async function AgentsPage() {
         <div className="space-y-8">
           {/* Needs your input */}
           {needsInput.length > 0 && (
-            <div className="space-y-2.5">
+            <section className="space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">
                 Needs your input
               </p>
-              {needsInput.map((agent) => (
-                <AgentRowLink
-                  key={agent.id}
-                  agent={agent}
-                  scheduled={scheduledIds.has(agent.id)}
-                  hasQuestion={pendingQuestionIds.has(agent.id)}
-                />
-              ))}
-            </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {needsInput.map((agent) => (
+                  <AgentCard
+                    key={agent.id}
+                    agent={agent}
+                    scheduled={scheduledIds.has(agent.id)}
+                    hasQuestion={pendingQuestionIds.has(agent.id)}
+                  />
+                ))}
+              </div>
+            </section>
           )}
 
           {/* Everything else */}
           {restAgents.length > 0 && (
-            <div className="space-y-2.5">
+            <section className="space-y-3">
               {needsInput.length > 0 && (
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                   All agents
                 </p>
               )}
-              {restAgents.map((agent) => (
-                <AgentRowLink
-                  key={agent.id}
-                  agent={agent}
-                  scheduled={scheduledIds.has(agent.id)}
-                  hasQuestion={false}
-                />
-              ))}
-            </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {restAgents.map((agent) => (
+                  <AgentCard
+                    key={agent.id}
+                    agent={agent}
+                    scheduled={scheduledIds.has(agent.id)}
+                    hasQuestion={false}
+                  />
+                ))}
+              </div>
+            </section>
           )}
         </div>
       )}
