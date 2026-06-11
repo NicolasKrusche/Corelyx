@@ -361,6 +361,15 @@ export function RunLogDrawer({
                 {/* I/O */}
                 <JsonViewer label="▸ Input"  data={exec.input_payload} />
                 <JsonViewer label="▸ Output" data={exec.output_payload} />
+
+                {/* AI transparency disclaimer — shown on every AI-produced output */}
+                {(node?.type === "agent" || node?.type === "agent_task") &&
+                  exec.output_payload != null && (
+                    <p className="text-[10px] text-muted-foreground/70 italic">
+                      ⚠ AI-generated output — may contain errors and is not professional
+                      advice. Verify before relying on it.
+                    </p>
+                  )}
               </div>
             );
           })
