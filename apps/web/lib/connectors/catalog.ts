@@ -1,5 +1,5 @@
 export const CONNECTOR_OPERATIONS: Record<string, string[]> = {
-  gmail: ["list_emails", "list_threads", "search", "read_email", "get_attachment", "send_email", "archive_email", "label_email"],
+  gmail: ["list_emails", "list_threads", "search", "read_email", "get_attachment", "send_email", "archive_email", "label_email", "delete_email"],
   notion: ["read_page", "create_page", "append_to_page", "query_database", "create_database_entry", "create_database"],
   slack: ["send_message", "read_channel", "list_channels", "create_channel"],
   github: ["create_issue", "comment_on_issue", "list_prs", "get_pr_diff", "push_file"],
@@ -24,6 +24,9 @@ export const OPERATION_SCOPES: Record<string, Record<string, string[]>> = {
     send_email: ["https://www.googleapis.com/auth/gmail.send"],
     archive_email: ["https://www.googleapis.com/auth/gmail.modify"],
     label_email: ["https://www.googleapis.com/auth/gmail.modify"],
+    // Default (trash) only needs gmail.modify; permanent:true would need the
+    // broad https://mail.google.com/ scope, which we intentionally do not request.
+    delete_email: ["https://www.googleapis.com/auth/gmail.modify"],
   },
   notion: {
     read_page: [],
