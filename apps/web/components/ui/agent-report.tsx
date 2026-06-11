@@ -133,6 +133,11 @@ export function AgentReport({
           {body}
         </ReactMarkdown>
       </div>
+
+      <p className="mt-4 border-t border-border/40 pt-2 text-[10px] italic text-muted-foreground/70">
+        ⚠ AI-generated report — may contain errors and is not professional advice.
+        Verify important results before relying on them.
+      </p>
     </div>
   );
 }
