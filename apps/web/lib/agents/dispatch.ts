@@ -6,6 +6,7 @@ import { AGENT_PLATFORM_DEFAULT_MODEL, KEY_DEFAULT_MODELS, KEY_PROVIDER_PRIORITY
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import { buildRuntimeExecuteHeaders } from "@/lib/runtime-dispatch";
 import { serverLog } from "@/lib/server-log";
+import { isAnySecurityLocked } from "@/lib/security/sentinel";
 
 type Service = ReturnType<typeof createServiceClient> & { from(t: string): any };
 
@@ -104,6 +105,17 @@ export async function dispatchAgentRun(
   } | null;
   if (!program) return { ok: false, error: "Agent not found.", status: 404 };
   if (program.program_type !== "agent") return { ok: false, error: "This program is not an agent.", status: 400 };
+
+  // Sentinel containment: every agent dispatch path (manual, cron, webhook,
+  // event) funnels through here, so locked agents/owners are stopped centrally.
+  if (
+    await isAnySecurityLocked([
+      { scopeType: "program", scopeId: programId },
+      { scopeType: "user", scopeId: userId },
+    ])
+  ) {
+    return { ok: false, error: "This agent is temporarily locked for security review.", status: 423 };
+  }
 
   const cred = await resolveAgentCredentials(service, programId, workspaceId, program.schema);
   if (cred.error) return { ok: false, error: cred.error, status: 402 };
