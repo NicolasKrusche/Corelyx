@@ -87,8 +87,8 @@ export function AgentSchedule({ agentId, canEdit }: { agentId: string; canEdit: 
   if (!canEdit && triggers.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border bg-card/80 shadow-sm">
-      <div className="flex items-center justify-between border-b px-5 py-4">
+    <div className="rounded-2xl border glass-panel">
+      <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
         <div className="flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-primary" />
           <p className="text-sm font-semibold">Schedule</p>
@@ -103,7 +103,7 @@ export function AgentSchedule({ agentId, canEdit }: { agentId: string; canEdit: 
 
       <div className="space-y-3 px-5 py-4">
         {triggers.length === 0 && !adding && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Run this agent automatically on a schedule. Each run reasons from scratch with memory of its
             past runs — a standing agent, not a fixed workflow.
           </p>

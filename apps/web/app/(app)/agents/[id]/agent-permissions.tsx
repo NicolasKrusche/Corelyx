@@ -87,16 +87,16 @@ export function AgentPermissions({
   ];
 
   return (
-    <div className="rounded-2xl border bg-card/80 shadow-sm">
-      <div className="flex items-center gap-2 border-b px-5 py-4">
+    <div className="rounded-2xl border glass-panel">
+      <div className="flex items-center gap-2 border-b border-border/50 px-5 py-4">
         <ShieldCheck className="h-4 w-4 text-primary" />
         <p className="text-sm font-semibold">Permissions</p>
       </div>
       <div className="space-y-3 px-5 py-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Decide what this agent is allowed to do. Enforced while it runs, whatever its plan says.
         </p>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2">
           {options.map((o) => {
             const active = writes === o.value;
             const interactive = canEdit && !busy;
@@ -125,7 +125,7 @@ export function AgentPermissions({
         {/* Spend cap */}
         <div className="border-t border-border/50 pt-3">
           <p className="text-sm font-medium">Spend cap per run</p>
-          <p className="mb-2 text-xs text-muted-foreground">
+          <p className="mb-2 text-[11px] text-muted-foreground">
             Stop a run once its AI cost passes this amount. Leave blank for no cap.
           </p>
           <div className="flex items-center gap-2">

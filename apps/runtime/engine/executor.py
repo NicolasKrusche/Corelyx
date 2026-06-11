@@ -1801,6 +1801,12 @@ class ProgramExecutor:
                     + ". The model may not have called any tools — try a more capable model."
                 )
 
+            # Every agent run must end with a user report. If the model skipped
+            # corelyx.report_to_user, persist its final summary as the report.
+            tool_invocations = await self._ensure_agent_report(
+                node, cfg, final_summary, tool_invocations
+            )
+
             return {
                 "summary": final_summary,
                 "tool_calls": tool_invocations,
@@ -2229,12 +2235,50 @@ class ProgramExecutor:
                 f"Agent stopped: it reached its ${cap:.2f} spend cap for this run.",
             )
 
+    async def _ensure_agent_report(
+        self,
+        node: Any,
+        cfg: AgentTaskConfig,
+        final_summary: str,
+        tool_invocations: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Guarantee every agent run leaves a user report.
+
+        The system prompt asks the model to call corelyx.report_to_user before
+        finishing, but weaker models sometimes skip it and just reply with text.
+        When no successful report was delivered, persist the final summary as
+        the report so the run never ends report-less.
+        """
+        delivered = any(
+            inv.get("tool") == "corelyx.report_to_user" and inv.get("ok")
+            for inv in tool_invocations
+        )
+        if delivered:
+            return tool_invocations
+
+        body = (final_summary or "").strip()[:20000] or (
+            "The agent finished without producing any output."
+        )
+        node_label = getattr(node, "label", None)
+        title = f"{node_label} — run summary" if node_label else "Run summary"
+        result = await self._call_agent_tool(
+            "corelyx.report_to_user",
+            {"title": title, "body": body, "data": {"auto_generated": True}},
+            node.id,
+            cfg.scope_access,
+            bypass_budget=True,
+        )
+        out = list(tool_invocations)
+        out.append(_agent_tool_invocation_record("corelyx.report_to_user", result))
+        return out
+
     async def _call_agent_tool(
         self,
         tool_id: str,
         args: dict,
         node_id: str | None = None,
         scope_access: str = "read",
+        bypass_budget: bool = False,
     ) -> dict:
         """Authorize + execute one agent tool.
 
@@ -2243,8 +2287,10 @@ class ProgramExecutor:
         other (corelyx.*) account tool round-trips to the Next.js internal endpoint,
         which is the security authority for account orchestration.
         """
-        # Runaway guard: cap total tool calls across the whole run.
-        if self._agent_tool_calls_made >= MAX_AGENT_TOOL_CALLS_PER_RUN:
+        # Runaway guard: cap total tool calls across the whole run. The
+        # runtime-synthesized fallback report bypasses it so a budget-exhausted
+        # run can still deliver its report.
+        if not bypass_budget and self._agent_tool_calls_made >= MAX_AGENT_TOOL_CALLS_PER_RUN:
             return {
                 "ok": False,
                 "error": (
