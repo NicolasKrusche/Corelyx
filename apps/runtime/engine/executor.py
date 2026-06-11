@@ -508,11 +508,95 @@ class ConflictError(ExecutionError):
         )
 
 
+class HallucinationError(ExecutionError):
+    """Raised when the post-execution groundedness check flags an agent output.
+
+    Unlike a normal node failure (which fails the branch but lets independent
+    branches continue), this aborts the ENTIRE run immediately: downstream nodes
+    must never act on fabricated content.
+    """
+
+    def __init__(self, node_id: str | None, details: str) -> None:
+        super().__init__(
+            "HALLUCINATION_DETECTED",
+            "Run aborted: this AI step's output failed the hallucination check — "
+            f"{details}. No further steps were executed. Review the step's "
+            "instructions and input data, then run the program again.",
+            node_id,
+        )
+
+
 # S13: hard cap on loop iteration count to prevent cost/DoS via attacker-shaped
 # upstream lists. Schemas that legitimately need more iterations should be split.
 MAX_LOOP_ITEMS = 100
 LLM_REQUEST_TIMEOUT_SECONDS = 120.0
 LLM_TEMPERATURE = 0
+
+# ── Hallucination (groundedness) check ────────────────────────────────────────
+# After every agent node call, a second LLM pass audits whether the answer is
+# grounded in the node's input data. A confident "hallucinated" verdict aborts
+# the whole run (HallucinationError) so downstream nodes never act on fabricated
+# content. The check FAILS OPEN: if the judge call itself errors or returns an
+# unparseable verdict, the run continues — the checker must never be the thing
+# that breaks an otherwise healthy run. Disable platform-wide with
+# HALLUCINATION_CHECK_ENABLED=false (e.g. to halve LLM cost per agent node).
+HALLUCINATION_CHECK_ENV = "HALLUCINATION_CHECK_ENABLED"
+HALLUCINATION_CONFIDENCE_THRESHOLD = 0.7
+
+_HALLUCINATION_JUDGE_PROMPT = (
+    "You are a strict groundedness auditor for an automation platform. You receive JSON with: "
+    "'task' (the instructions an AI step was given), 'source_data' (the exact input data that "
+    "step received), and 'ai_answer' (what the step returned).\n\n"
+    "Decide whether ai_answer contains HALLUCINATED content: factual claims presented as if "
+    "derived from source_data that are NOT supported by it — invented entities, names, numbers, "
+    "IDs, dates, quotes, or statements that contradict source_data.\n\n"
+    "NOT hallucination: content the task explicitly asked to generate or compose (drafts, "
+    "summaries in new words, translations, creative text); reformatting or restructuring of "
+    "supported facts; reasonable classifications or judgments the task asked for; omissions. "
+    "If the task is generative and ai_answer makes no factual claims about source_data, the "
+    "verdict is 'not_applicable'.\n\n"
+    "Respond with ONLY a JSON object, no prose:\n"
+    '{"verdict": "grounded" | "hallucinated" | "not_applicable", '
+    '"confidence": <number 0.0-1.0>, '
+    '"issues": ["<short description of each unsupported claim>"]}'
+)
+
+
+def _hallucination_check_enabled() -> bool:
+    return os.environ.get(HALLUCINATION_CHECK_ENV, "true").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def _parse_hallucination_verdict(raw: Any) -> tuple[str, float, list[str]]:
+    """Extract (verdict, confidence, issues) from the judge response, tolerating
+    prose-wrapped JSON. Anything unparseable yields ("", 0.0, []) → fail open."""
+    data: dict[str, Any] = raw if isinstance(raw, dict) else {}
+    if "verdict" not in data and isinstance(data.get("text"), str):
+        match = re.search(r"\{.*\}", data["text"], re.DOTALL)
+        if match:
+            try:
+                parsed = json.loads(match.group(0))
+                data = parsed if isinstance(parsed, dict) else {}
+            except (json.JSONDecodeError, ValueError):
+                data = {}
+        else:
+            data = {}
+    verdict = str(data.get("verdict") or "").strip().lower()
+    try:
+        confidence = float(data.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    issues_raw = data.get("issues")
+    issues = (
+        [str(i).strip() for i in issues_raw if str(i).strip()]
+        if isinstance(issues_raw, list)
+        else []
+    )
+    return verdict, confidence, issues
 
 _LLM_CLIENT: httpx.AsyncClient | None = None
 
@@ -990,6 +1074,10 @@ class ProgramExecutor:
                         block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
                         **self._node_telemetry_payload(edge.to),
                     )
+                    # A confirmed hallucination aborts the ENTIRE run immediately —
+                    # independent branches must not keep acting on fabricated content.
+                    if e.code == "HALLUCINATION_DETECTED":
+                        raise
                     if target_node.type == "agent":
                         agent_cfg = target_node.config
                         if (
@@ -1414,7 +1502,7 @@ class ProgramExecutor:
         # Execute with retry and circuit breaker protection
         circuit = get_llm_circuit()
         try:
-            return await circuit.call(
+            output = await circuit.call(
                 self._call_llm_with_platform_fallback,
                 cfg,
                 api_key,
@@ -1429,6 +1517,67 @@ class ProgramExecutor:
                 f"LLM service temporarily unavailable due to repeated failures. Please try again later.",
                 node.id,
             ) from e
+
+        # Groundedness audit: abort the whole run if the answer is hallucinated.
+        await self._verify_agent_output(
+            cfg, api_key, provider_id, input_data, output, node.id, use_platform_key
+        )
+        return output
+
+    async def _verify_agent_output(
+        self,
+        cfg: AgentConfig,
+        api_key: str,
+        provider: str,
+        input_data: dict,
+        output: dict,
+        node_id: str,
+        deduct_credits: bool,
+    ) -> None:
+        """Second-pass LLM judge that checks an agent answer for hallucinations.
+
+        Raises HallucinationError (aborts the entire run) on a confident
+        "hallucinated" verdict. Fails open on judge errors or unparseable
+        verdicts — the checker must never break an otherwise healthy run.
+        """
+        if not _hallucination_check_enabled():
+            return
+        if not output or not isinstance(output, dict):
+            return  # nothing produced (e.g. retries exhausted in continue mode)
+        if not input_data:
+            return  # no source data to ground against (purely generative step)
+
+        judge_cfg = replace(
+            cfg,
+            system_prompt=_HALLUCINATION_JUDGE_PROMPT,
+            input_schema=None,
+            output_schema=None,
+            tools=[],
+        )
+        judge_input = {
+            "task": cfg.system_prompt or "",
+            "source_data": input_data,
+            "ai_answer": output,
+        }
+        try:
+            verdict_raw = await self._call_llm(
+                judge_cfg, api_key, provider, judge_input, node_id, deduct_credits=deduct_credits
+            )
+        except ExecutionError:
+            # Run limits (token/cost/credit) must keep their normal abort semantics.
+            raise
+        except Exception as exc:
+            print(f"[hallucination-check] judge call failed for node {node_id}; continuing: {exc}", flush=True)
+            return
+
+        verdict, confidence, issues = _parse_hallucination_verdict(verdict_raw)
+        if verdict == "hallucinated" and confidence >= HALLUCINATION_CONFIDENCE_THRESHOLD:
+            details = (
+                "; ".join(issues[:3])
+                if issues
+                else "the answer contains claims not supported by the step's input data"
+            )
+            raise HallucinationError(node_id, details)
 
     async def _call_llm_with_platform_fallback(
         self,
