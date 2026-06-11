@@ -448,7 +448,7 @@ export default async function DashboardPage({
               <h2 className="text-sm font-bold">{t("yourWorkflows")}</h2>
               <p className="mt-0.5 text-[11px] text-muted-foreground">{t("workflowsSubtitle", { workspace: workspaceName })}</p>
             </div>
-            <Link href="/programs/new" className="text-xs font-semibold text-primary transition-colors hover:text-primary/80">
+            <Link href="/dashboard" className="text-xs font-semibold text-primary transition-colors hover:text-primary/80">
               {t("viewAll")}
             </Link>
           </div>
