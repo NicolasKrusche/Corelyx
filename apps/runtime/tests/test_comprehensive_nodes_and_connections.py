@@ -1074,7 +1074,8 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
 
         with patch("engine.executor.update_node_execution", new=AsyncMock()) as update_mock, \
              patch("engine.executor.get_llm_circuit") as mock_circuit, \
-             patch("engine.executor._get_llm_client") as mock_client:
+             patch("engine.executor._get_llm_client") as mock_client, \
+             patch.object(executor, "_verify_agent_output", new=AsyncMock()):
             circuit = Mock()
 
             async def _circuit_call(fn, *args, **kwargs):
