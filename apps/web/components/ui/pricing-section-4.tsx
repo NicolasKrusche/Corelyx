@@ -95,6 +95,7 @@ function BillingToggle({
       <button
         type="button"
         onClick={() => onChange(true)}
+        aria-label="Yearly (2 months free)"
         className={cn(
           "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
           isYearly
@@ -103,7 +104,7 @@ function BillingToggle({
         )}
       >
         Yearly
-        <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold leading-none text-primary">
+        <span aria-hidden="true" className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold leading-none text-primary">
           2 months free
         </span>
       </button>

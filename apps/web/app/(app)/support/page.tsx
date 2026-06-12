@@ -5,7 +5,7 @@ import { parseTier } from "@/lib/entitlements";
 import { SettingsSupportTab } from "@/components/settings-support-tab";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Support — Corelyx" };
+export const metadata: Metadata = { title: "Support" };
 
 export default async function SupportPage() {
   const supabase = await createServerClient();

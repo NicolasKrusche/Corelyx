@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const db = createServiceClient() as any;
   const { data } = await db.from("posts").select("title").eq("slug", slug).single();
   const post = data as { title: string } | null;
-  return { title: post ? `${post.title} – Corelyx` : "Updates – Corelyx" };
+  return { title: post ? post.title : "Updates" };
 }
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {

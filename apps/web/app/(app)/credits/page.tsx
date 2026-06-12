@@ -19,7 +19,7 @@ import { PlanPreviewToggle } from "./plan-preview-toggle";
 import { formatCredits } from "@/lib/credit-packs";
 import { BillingCheckoutButton } from "@/components/billing-checkout-button";
 
-export const metadata: Metadata = { title: "Credits & Usage — Corelyx" };
+export const metadata: Metadata = { title: "Credits & Usage" };
 
 const TIER_LABEL: Record<string, string> = {
   free: "Free", plus: "Solo", pro: "Team", builder: "Scale", unlimited: "Unlimited",

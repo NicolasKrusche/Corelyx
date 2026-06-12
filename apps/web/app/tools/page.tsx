@@ -5,7 +5,7 @@ import { SITE_URL } from "@/lib/seo/content";
 import { createServerClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Free AI Compliance Tools | Corelyx",
+  title: "Free AI Compliance Tools",
   description:
     "Free AI governance tools for AI Act risk classification, AI inventory, DPIA drafts, governance maturity, and compliance documentation.",
   alternates: { canonical: `${SITE_URL}/tools` },

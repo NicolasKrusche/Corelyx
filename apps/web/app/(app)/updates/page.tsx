@@ -13,7 +13,7 @@ type Post = {
 };
 
 export const metadata = {
-  title: "Updates – Corelyx",
+  title: "Updates",
 };
 
 export default async function UpdatesPage() {
