@@ -33,7 +33,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
-import { hasPiiRedactions, sanitizeTextForLlm } from "@/lib/privacy/pii";
+import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, canEdit, canRunAgentInWorkspace, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
@@ -131,7 +131,10 @@ export async function POST(request: Request) {
   const startedAt = Date.now();
   // For refinements, run compliance on what the user actually typed (the edit instruction),
   // not the program name which is passed as description in that mode.
-  const sanitizedDescription = sanitizeTextForLlm(isRefinement && refinementText ? refinementText : description);
+  // One reversible session per request: the model sees stable [EMAIL_1]-style
+  // placeholders; streamed nodes/edges and the final schema are rehydrated.
+  const piiSession = new PseudonymizationSession();
+  const sanitizedDescription = piiSession.sanitizeText(isRefinement && refinementText ? refinementText : description);
   const serviceClient = createServiceClient();
 
   // Stage 1: rate limit and workspace resolution. Refinements use the program's
@@ -251,9 +254,11 @@ export async function POST(request: Request) {
 
       const pushChunk = (chunk: string) => {
         const delta = scanner.feed(chunk);
-        if (delta.programName) send({ type: "meta", program_name: delta.programName });
-        for (const node of delta.newNodes) send({ type: "node", node });
-        for (const edge of delta.newEdges) send({ type: "edge", edge });
+        // Live-preview events carry model output → rehydrate placeholders so
+        // the user reviews the real values, not [EMAIL_1].
+        if (delta.programName) send({ type: "meta", program_name: piiSession.rehydrateText(delta.programName) });
+        for (const node of delta.newNodes) send({ type: "node", node: piiSession.rehydrateValue(node) });
+        for (const edge of delta.newEdges) send({ type: "edge", edge: piiSession.rehydrateValue(edge) });
       };
 
       let rawText = "";
@@ -391,9 +396,9 @@ export async function POST(request: Request) {
 
         // Emit any trailing nodes/edges the streaming pass was holding back
         const finalDelta = scanner.finalize();
-        if (finalDelta.programName) send({ type: "meta", program_name: finalDelta.programName });
-        for (const node of finalDelta.newNodes) send({ type: "node", node });
-        for (const edge of finalDelta.newEdges) send({ type: "edge", edge });
+        if (finalDelta.programName) send({ type: "meta", program_name: piiSession.rehydrateText(finalDelta.programName) });
+        for (const node of finalDelta.newNodes) send({ type: "node", node: piiSession.rehydrateValue(node) });
+        for (const edge of finalDelta.newEdges) send({ type: "edge", edge: piiSession.rehydrateValue(edge) });
 
         if (!rawText) throw new Error("The AI did not respond. Please try again in a moment.");
 
@@ -428,6 +433,10 @@ export async function POST(request: Request) {
             );
           }
         }
+
+        // Put the real values back into the parsed schema (the model only ever
+        // saw placeholders), so the saved workflow is configured with usable data.
+        parsedSchema = piiSession.rehydrateValue(parsedSchema);
 
         if (parsedSchema && typeof parsedSchema === "object" && "error" in parsedSchema) {
           const genesisError = parsedSchema as Record<string, unknown>;
@@ -659,7 +668,7 @@ export async function POST(request: Request) {
               requested_model: model,
               model_used: modelUsed,
               description: truncateForLog(sanitizedDescription.value, 1000),
-              raw_preview: truncateForLog(sanitizeTextForLlm(rawText).value, 2000),
+              raw_preview: truncateForLog(piiSession.sanitizeText(rawText).value, 2000),
               pii_redacted: hasPiiRedactions(sanitizedDescription.redactions),
               pii_redactions: sanitizedDescription.redactions,
             },

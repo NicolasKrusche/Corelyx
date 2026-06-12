@@ -174,6 +174,7 @@ async def trigger_workflow(workflow_id: str) -> None:
             compliance_mode=workspace_policy.get("compliance_mode", "standard"),
             data_region=workspace_policy.get("data_region"),
             execution_log_retention_days=workspace_policy.get("execution_log_retention_days", 90),
+            pii_mode=workspace_policy.get("pii_mode", "auto"),
         )
         await executor.execute(None)
         final_status = "completed"
@@ -419,6 +420,7 @@ async def _run_program(
         compliance_mode=policy.get("compliance_mode", "standard"),
         data_region=policy.get("data_region"),
         execution_log_retention_days=policy.get("execution_log_retention_days", 90),
+        pii_mode=policy.get("pii_mode", "auto"),
     )
     try:
         await asyncio.wait_for(executor.execute(trigger_payload), timeout=RUN_TIMEOUT_SECONDS)

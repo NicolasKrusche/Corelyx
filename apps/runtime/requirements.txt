@@ -9,3 +9,9 @@ httpx==0.27.2
 pydantic==2.12.5
 python-dotenv==1.2.2
 apscheduler>=3.10.0,<4.0.0
+
+# Optional — strict PII tier (local person-name NER). Install ONE of these to
+# enable [PERSON_n] pseudonymization; without them strict mode covers
+# structured identifiers only (engine/ner.py degrades gracefully).
+# gliner>=0.2.13            # best recall, multilingual PII-tuned (pulls torch)
+# spacy>=3.7 ; python_version >= "3.11"   # lighter; also: python -m spacy download xx_ent_wiki_sm

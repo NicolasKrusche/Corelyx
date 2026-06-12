@@ -11,10 +11,10 @@ from engine.pii import (
 
 
 class SanitizeTextCreditCardTests(unittest.TestCase):
-    def test_redacts_valid_visa(self) -> None:
+    def test_pseudonymizes_valid_visa(self) -> None:
         # 4242 4242 4242 4242 passes Luhn.
         result = sanitize_text_for_llm("Card: 4242 4242 4242 4242")
-        self.assertIn("[REDACTED_CREDIT_CARD]", result.value)
+        self.assertIn("[CREDIT_CARD_1]", result.value)
         self.assertNotIn("4242 4242 4242 4242", result.value)
         self.assertTrue(result.redacted)
 
@@ -53,34 +53,34 @@ class SanitizeTextSecretTests(unittest.TestCase):
 
 
 class SanitizeTextOtherPatternsTests(unittest.TestCase):
-    def test_redacts_email(self) -> None:
+    def test_pseudonymizes_email(self) -> None:
         result = sanitize_text_for_llm("Contact ada@example.com")
-        self.assertIn("[REDACTED_EMAIL]", result.value)
+        self.assertIn("[EMAIL_1]", result.value)
         self.assertNotIn("ada@example.com", result.value)
 
-    def test_redacts_iban(self) -> None:
+    def test_pseudonymizes_iban(self) -> None:
         result = sanitize_text_for_llm("IBAN DE89370400440532013000")
-        self.assertIn("[REDACTED_IBAN]", result.value)
+        self.assertIn("[IBAN_1]", result.value)
         self.assertNotIn("DE89370400440532013000", result.value)
 
-    def test_redacts_ssn(self) -> None:
+    def test_pseudonymizes_ssn(self) -> None:
         result = sanitize_text_for_llm("SSN 123-45-6789")
-        self.assertIn("[REDACTED_NATIONAL_ID]", result.value)
+        self.assertIn("[NATIONAL_ID_1]", result.value)
         self.assertNotIn("123-45-6789", result.value)
 
-    def test_redacts_ipv4(self) -> None:
+    def test_pseudonymizes_ipv4(self) -> None:
         result = sanitize_text_for_llm("IP 192.168.0.1")
-        self.assertIn("[REDACTED_IP_ADDRESS]", result.value)
+        self.assertIn("[IP_ADDRESS_1]", result.value)
         self.assertNotIn("192.168.0.1", result.value)
 
-    def test_redacts_us_phone(self) -> None:
+    def test_pseudonymizes_us_phone(self) -> None:
         result = sanitize_text_for_llm("Call (415) 555-0199")
-        self.assertIn("[REDACTED_PHONE]", result.value)
+        self.assertIn("[PHONE_1]", result.value)
         self.assertNotIn("(415) 555-0199", result.value)
 
-    def test_redacts_international_phone(self) -> None:
+    def test_pseudonymizes_international_phone(self) -> None:
         result = sanitize_text_for_llm("Dial +44 20 7946 0958")
-        self.assertIn("[REDACTED_PHONE]", result.value)
+        self.assertIn("[PHONE_1]", result.value)
         self.assertNotIn("+44 20 7946 0958", result.value)
 
     def test_no_redaction_when_clean(self) -> None:
@@ -92,7 +92,7 @@ class SanitizeTextOtherPatternsTests(unittest.TestCase):
 class SanitizeValueTests(unittest.TestCase):
     def test_string_delegates_to_text(self) -> None:
         result = sanitize_value_for_llm("email: test@example.com")
-        self.assertIn("[REDACTED_EMAIL]", result.value)
+        self.assertIn("[EMAIL_1]", result.value)
 
     def test_int_unchanged(self) -> None:
         result = sanitize_value_for_llm(42)
@@ -113,19 +113,19 @@ class SanitizeValueTests(unittest.TestCase):
 
     def test_list_sanitizes_items(self) -> None:
         result = sanitize_value_for_llm(["a@b.com", "safe"])
-        self.assertIn("[REDACTED_EMAIL]", result.value[0])
+        self.assertIn("[EMAIL_1]", result.value[0])
         self.assertEqual(result.value[1], "safe")
 
     def test_tuple_returns_tuple(self) -> None:
         result = sanitize_value_for_llm(("a@b.com", "safe"))
         self.assertIsInstance(result.value, tuple)
-        self.assertIn("[REDACTED_EMAIL]", result.value[0])
+        self.assertIn("[EMAIL_1]", result.value[0])
 
     def test_dict_sanitizes_keys_and_values(self) -> None:
         result = sanitize_value_for_llm({"owner: a@b.com": {"phone": "123-45-6789"}})
         safe = str(result.value)
-        self.assertIn("[REDACTED_EMAIL]", safe)
-        self.assertIn("[REDACTED_NATIONAL_ID]", safe)
+        self.assertIn("[EMAIL_1]", safe)
+        self.assertIn("[NATIONAL_ID_1]", safe)
 
     def test_circular_reference(self) -> None:
         a = []
@@ -149,8 +149,8 @@ class SanitizeValueTests(unittest.TestCase):
         }
         result = sanitize_value_for_llm(data)
         serialized = str(result.value)
-        self.assertIn("[REDACTED_EMAIL]", serialized)
-        self.assertIn("[REDACTED_CREDIT_CARD]", serialized)
+        self.assertIn("[EMAIL_1]", serialized)
+        self.assertIn("[CREDIT_CARD_1]", serialized)
         self.assertNotIn("u1@example.com", serialized)
 
 
