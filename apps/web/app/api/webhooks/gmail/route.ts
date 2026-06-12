@@ -52,13 +52,13 @@ export async function POST(request: Request) {
     .filter(Boolean);
   if (audience.length === 0) {
     serverLog({ level: "error", event: "webhooks.gmail.missing_config", message: "PUBSUB_GMAIL_WEBHOOK_AUDIENCE env var is not set." });
-    return apiError("Webhook not configured", 500);
+    return apiError("Webhook not configured", 503);
   }
 
   const serviceAccountEmail = process.env.PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL;
   if (!serviceAccountEmail) {
     serverLog({ level: "error", event: "webhooks.gmail.missing_config", message: "PUBSUB_GMAIL_WEBHOOK_SERVICE_ACCOUNT_EMAIL env var is not set." });
-    return apiError("Webhook not configured", 500);
+    return apiError("Webhook not configured", 503);
   }
 
   // Verify the Pub/Sub OIDC token first (Google JWKS are cached, so this is

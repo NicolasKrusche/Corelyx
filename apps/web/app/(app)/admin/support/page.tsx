@@ -4,7 +4,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { AdminSupportClient } from "./admin-support-client";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Support Tickets — Corelyx Admin" };
+export const metadata: Metadata = { title: "Support Tickets — Admin" };
 
 export default async function AdminSupportPage() {
   const supabase = await createServerClient();

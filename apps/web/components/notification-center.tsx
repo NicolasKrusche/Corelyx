@@ -238,6 +238,7 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
         ref={btnRef}
         type="button"
         title="Notifications"
+        aria-label={totalUnread > 0 ? `Notifications, ${totalUnread} unread` : "Notifications"}
         onClick={toggle}
         className={cn(
           "relative flex h-8 w-full items-center overflow-hidden rounded-lg text-sm transition-colors",
@@ -264,7 +265,7 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
         <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left opacity-0 transition-opacity duration-150 group-hover/side:opacity-100 group-data-[open]/side:opacity-100">
           Notifications
           {totalUnread > 0 && (
-            <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+            <span aria-hidden="true" className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary">
               {totalUnread}
             </span>
           )}

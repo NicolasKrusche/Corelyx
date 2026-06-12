@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { createServerClient } from "@/lib/supabase/server";
 import { DataRequestsClient } from "./data-requests-client";
 
-export const metadata: Metadata = { title: "Data Requests — Corelyx" };
+export const metadata: Metadata = { title: "Data Requests" };
 
 export default async function DataRequestsPage() {
   const supabase = await createServerClient();

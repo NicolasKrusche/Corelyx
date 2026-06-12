@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
   const clientSecret = process.env.HUBSPOT_CLIENT_SECRET;
   if (!clientSecret) {
-    return apiError("Missing HUBSPOT_CLIENT_SECRET", 500);
+    return apiError("Webhook not configured", 503);
   }
 
   const boundedBody = await readBoundedTextBody(request);

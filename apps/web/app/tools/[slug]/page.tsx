@@ -21,10 +21,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const tool = getPublicComplianceTool(slug);
-  if (!tool) return { title: "Compliance Tool | Corelyx" };
+  if (!tool) return { title: "Compliance Tool" };
   const url = `${SITE_URL}/tools/${tool.slug}`;
   return {
-    title: `${tool.title} | Corelyx`,
+    title: tool.title,
     description: tool.description,
     keywords: [
       tool.primaryQuery,

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { PricingTiers, PricingFAQ } from "@/components/pricing/pricing-tiers";
 
 export const metadata: Metadata = {
-  title: "Pricing — Corelyx",
+  title: "Pricing",
 };
 
 export default async function PricingPage() {

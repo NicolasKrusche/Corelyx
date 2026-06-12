@@ -27,10 +27,10 @@ function requireSigningKeyInProduction(): Response | null {
   const signingKey = process.env.INNGEST_SIGNING_KEY?.trim();
   if (!isProductionEnvironment || signingKey) return null;
 
-  return Response.json(
-    { error: "INNGEST_SIGNING_KEY is required in production for Inngest request verification" },
-    { status: 500 }
-  );
+  // Misconfiguration, not an internal failure — and don't leak which env var
+  // is missing to unauthenticated callers (the detail lives in server logs).
+  console.error("[inngest] INNGEST_SIGNING_KEY is required in production for request verification");
+  return Response.json({ error: "Service unavailable" }, { status: 503 });
 }
 
 type RouteContext = { params: Promise<Record<string, string>> };

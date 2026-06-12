@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { ConsentClient } from "./consent-client";
 
-export const metadata = { title: "Terms & Privacy — Corelyx" };
+export const metadata = { title: "Terms & Privacy" };
 
 type ConsentProfile = { legal_consented_at: string | null };
 

@@ -223,6 +223,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!session && !isPublic) {
+    // API consumers get a proper 401 instead of a 307 redirect to the login page.
+    if (pathname.startsWith("/api/")) {
+      const response = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      applySecurityHeaders(response.headers, nonce);
+      return response;
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return redirectWithSecurity(url);

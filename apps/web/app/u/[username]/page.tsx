@@ -93,7 +93,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { username } = await params;
   return {
-    title: `@${username} — Corelyx`,
+    title: `@${username}`,
     description: `View ${username}'s public profile and automation programs on Corelyx.`,
     alternates: { canonical: `https://www.corelyx.app/u/${username}` },
   };

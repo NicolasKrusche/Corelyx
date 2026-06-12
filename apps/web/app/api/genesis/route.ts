@@ -13,7 +13,7 @@ import {
   pickEuComplianceFilterKey,
   runEuComplianceFilter,
 } from "@/lib/genesis/eu-compliance";
-import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
+import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import {
   hasPiiRedactions,
   mergePiiRedactions,
@@ -709,6 +709,22 @@ export async function POST(request: Request) {
   // Drop edges/triggers that reference missing nodes (model renamed/forgot a
   // node) so one stray reference doesn't fail an otherwise-valid generated plan.
   pruneUnresolvedReferences(parsed_schema as ProgramSchema);
+
+  // Fill "__USER_ASSIGNED__" agent model/key sentinels with a usable workspace
+  // key so generated agent nodes don't fail pre-flight out of the box.
+  {
+    let assignableKeys: Array<{ id: string; provider: string }> =
+      keyCandidates.filter((k) => k.id !== "platform");
+    if (assignableKeys.length === 0) {
+      const { data: workspaceKeys } = await serviceClient
+        .from("api_keys")
+        .select("id, provider")
+        .eq("workspace_id", workspaceId)
+        .eq("is_valid", true);
+      assignableKeys = (workspaceKeys ?? []) as Array<{ id: string; provider: string }>;
+    }
+    assignAgentNodeDefaults(parsed_schema, assignableKeys);
+  }
 
   const draftResult = validateProgramDraft(parsed_schema);
   if (!draftResult.success) {

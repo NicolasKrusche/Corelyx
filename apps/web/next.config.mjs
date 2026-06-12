@@ -32,6 +32,17 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // Legal nav and external links use /data-residency; keep the short
+      // form working for bookmarks and older emails.
+      {
+        source: "/residency",
+        destination: "/data-residency",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
