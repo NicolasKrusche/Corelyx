@@ -295,6 +295,9 @@ export function SettingsClient({ email, isOAuthUser, createdAt }: Props) {
       setConfirmPassword("");
       // Send security notification email (best-effort)
       void fetch("/api/settings/password-changed", { method: "POST" });
+      // Revoke every other session — a password change should lock out
+      // whoever else may be holding a token. Current session stays alive.
+      void supabase.auth.signOut({ scope: "others" });
     }
     setPasswordLoading(false);
   }

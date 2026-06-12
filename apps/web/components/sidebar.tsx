@@ -1409,6 +1409,58 @@ function SettingsModal({
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Email 2FA toggle — null while the current state is loading.
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(null);
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const [twoFactorStatus, setTwoFactorStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [signOutAllBusy, setSignOutAllBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/settings/two-factor")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { enabled?: boolean } | null) => {
+        if (!cancelled && body) setTwoFactorEnabled(Boolean(body.enabled));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleTwoFactorToggle() {
+    if (twoFactorEnabled === null || twoFactorBusy) return;
+    setTwoFactorBusy(true);
+    setTwoFactorStatus(null);
+    const next = !twoFactorEnabled;
+    const res = await fetch("/api/settings/two-factor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: next }),
+    });
+    if (res.ok) {
+      setTwoFactorEnabled(next);
+      setTwoFactorStatus({
+        type: "success",
+        message: next
+          ? "Email sign-in codes are now required when you log in."
+          : "Email sign-in codes are turned off.",
+      });
+    } else {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setTwoFactorStatus({ type: "error", message: body.error ?? "Could not update two-factor settings." });
+    }
+    setTwoFactorBusy(false);
+  }
+
+  async function handleSignOutEverywhere() {
+    setSignOutAllBusy(true);
+    const supabase = createBrowserClient();
+    // Global scope revokes every session for this user, including this one.
+    await supabase.auth.signOut({ scope: "global" }).catch(() => undefined);
+    window.location.href = "/login";
+  }
+
   const [code, setCode] = useState("");
   const [codeLoading, setCodeLoading] = useState(false);
   const [codeStatus, setCodeStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -1704,6 +1756,10 @@ function SettingsModal({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      // Send security notification + revoke every other session (the current
+      // one stays alive) — same behavior as the settings page flow.
+      void fetch("/api/settings/password-changed", { method: "POST" });
+      void supabase.auth.signOut({ scope: "others" });
     }
     setPasswordLoading(false);
   }
@@ -2137,6 +2193,47 @@ function SettingsModal({
                     </p>
                   </section>
                 )}
+
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Two-factor authentication</p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Require a 6-digit code sent to your email each time you sign in on a new device.
+                    An authenticator app option is coming with the Corelyx mobile app.
+                  </p>
+                  {twoFactorStatus && (
+                    <p className={cn("mt-3 text-xs", twoFactorStatus.type === "success" ? "text-green-600" : "text-red-600")}>{twoFactorStatus.message}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void handleTwoFactorToggle()}
+                    disabled={twoFactorEnabled === null || twoFactorBusy}
+                    className={cn("mt-4", primaryBtnClass)}
+                  >
+                    {twoFactorEnabled === null
+                      ? "Loading..."
+                      : twoFactorBusy
+                        ? "Saving..."
+                        : twoFactorEnabled
+                          ? "Disable email codes"
+                          : "Enable email codes"}
+                  </button>
+                </section>
+
+                <section className={panelClass}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Sessions</p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Signs you out on every device, including this one. Use this if you suspect
+                    your account is being accessed from somewhere you don&apos;t recognize.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleSignOutEverywhere()}
+                    disabled={signOutAllBusy}
+                    className={cn("mt-4", primaryBtnClass)}
+                  >
+                    {signOutAllBusy ? "Signing out..." : "Sign out everywhere"}
+                  </button>
+                </section>
 
                 <section className={subPanelClass}>
                   <p className="text-sm font-medium text-foreground">Security note</p>

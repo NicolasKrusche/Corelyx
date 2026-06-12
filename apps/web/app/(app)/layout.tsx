@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
+import { TWO_FACTOR_COOKIE, verifyCookieValue } from "@/lib/auth/two-factor";
 
 // Entire authenticated app shell must be excluded from search index.
 // All pages inside this group require login and contain user-specific data.
@@ -32,6 +34,7 @@ type AppLayoutProfile = {
   is_admin: boolean;
   username: string | null;
   legal_consented_at: string | null;
+  email_2fa_enabled: boolean | null;
 };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -62,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profileRaw, error: profileError } = await supabase
     .from("profiles")
-    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username, legal_consented_at")
+    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username, legal_consented_at, email_2fa_enabled")
     .eq("id", appUser.id)
     .single();
   const profile = profileRaw as AppLayoutProfile | null;
@@ -79,6 +82,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Also skip for mock users in dev mode.
   if (!profileError && profile && !profile.legal_consented_at && !allowMockUser) {
     redirect("/consent");
+  }
+
+  // Email 2FA gate: an authenticated session is not enough when the user has
+  // opted in — this browser must hold a valid signed verification cookie.
+  // /verify-2fa lives outside this layout group (like /consent), so no loop.
+  if (!profileError && profile?.email_2fa_enabled && !allowMockUser) {
+    const cookieStore = await cookies();
+    if (!verifyCookieValue(cookieStore.get(TWO_FACTOR_COOKIE)?.value, appUser.id)) {
+      redirect("/verify-2fa");
+    }
   }
 
   // Fetch XP stats for skill level calculation (parallel, best-effort)

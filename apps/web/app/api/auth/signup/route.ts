@@ -4,13 +4,27 @@ import { sendDuplicateSignupEmail, sendWelcomeEmail } from "@/lib/email";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 import { serverLog } from "@/lib/server-log";
 import { isDisposableEmail } from "@/lib/disposable-emails";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 export async function POST(req: NextRequest) {
   const limited = await enforcePublicEndpointRateLimit(req, "signup", 10, 60_000);
   if (limited) return limited;
 
   try {
-    const { email, password } = (await req.json()) as { email?: string; password?: string };
+    const { email, password, captcha_token } = (await req.json()) as {
+      email?: string;
+      password?: string;
+      captcha_token?: string;
+    };
+
+    // No-op unless TURNSTILE_SECRET_KEY is configured.
+    const remoteIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    if (!(await verifyCaptchaToken(captcha_token, remoteIp))) {
+      return NextResponse.json(
+        { error: "CAPTCHA verification failed. Please try again." },
+        { status: 400 }
+      );
+    }
 
     if (!email || !password) {
       return NextResponse.json({ error: "Email and password are required." }, { status: 400 });

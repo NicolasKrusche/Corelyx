@@ -9,6 +9,7 @@ import { signInWithBrowserWallet, type Web3Chain } from "@/lib/auth/web3";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { Loader2 } from "lucide-react";
 import { AuthVisualPanel } from "@/components/ui/auth-visual-panel";
+import { TurnstileWidget, turnstileSiteKey } from "@/components/turnstile-widget";
 
 type OAuthProvider = "google" | "github";
 export default function SignupPage() {
@@ -20,16 +21,21 @@ export default function SignupPage() {
   const [done, setDone] = useState(false);
   const [tosChecked, setTosChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    if (turnstileSiteKey() && !captchaToken) {
+      setError("Please complete the CAPTCHA check first.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, captcha_token: captchaToken ?? undefined }),
     });
     const json = (await res.json()) as { ok?: boolean; error?: string };
 
@@ -263,9 +269,11 @@ export default function SignupPage() {
                 </label>
               </div>
 
+              <TurnstileWidget onToken={setCaptchaToken} />
+
               <button
                 type="submit"
-                disabled={loading || !tosChecked || !privacyChecked}
+                disabled={loading || !tosChecked || !privacyChecked || (Boolean(turnstileSiteKey()) && !captchaToken)}
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
