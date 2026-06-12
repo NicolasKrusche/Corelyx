@@ -154,7 +154,7 @@ export function AiEditPanel({
               disabled={loading}
               maxLength={2000}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !loading && prompt.trim() && canSubmit) {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !loading && prompt.trim() && canSubmit && prompt.length <= 2000) {
                   e.preventDefault();
                   onSubmit();
                 }
@@ -178,7 +178,7 @@ export function AiEditPanel({
       <div className="px-3 py-2.5 border-t border-border shrink-0 space-y-1.5">
         <Button
           onClick={onSubmit}
-          disabled={loading || !prompt.trim() || !canSubmit}
+          disabled={loading || !prompt.trim() || !canSubmit || prompt.length > 2000}
           className={cn(
             "w-full gap-1.5",
             mode === "platform"

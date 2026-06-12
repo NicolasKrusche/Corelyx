@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   const macSecret = process.env.AIRTABLE_WEBHOOK_MAC_SECRET;
   if (!macSecret) {
-    return apiError("Missing AIRTABLE_WEBHOOK_MAC_SECRET", 500);
+    return apiError("Webhook not configured", 503);
   }
 
   const boundedBody = await readBoundedTextBody(request);

@@ -685,6 +685,7 @@ ERRORS (last resort — only these two cases):
   {"error":"INSUFFICIENT_DESCRIPTION","message":"<what structural info is missing>"}
   {"error":"MISSING_CONNECTIONS","missing":["provider"],"message":"<explanation>"}
   Do NOT emit an error because an operation is missing — apply the CAPABILITY-GAP RULES instead.
+  The "message" must be specific and user-actionable: name the exact missing or conflicting detail (e.g. "The description says the workflow runs every second AND never runs — pick one trigger condition") — never a generic "could not generate".
 
 Do NOT output any other format. Do NOT wrap in markdown.`;
 }
@@ -842,7 +843,7 @@ export function buildRefinementUserMessage(
     "- Reuse the EXISTING `program_id` verbatim. Do NOT emit \"__GENERATED__\".",
     "- Keep `program_name`, `execution_mode`, `created_at`, and `metadata` exactly as-is unless the request explicitly changes them. Update `updated_at` to the current time.",
     "- For every node and edge that is NOT affected by the request, copy it through byte-for-byte: same `id`, `type`, `label`, `description`, `connection`, `config`, and `position`. Do NOT renumber, rename, reword, reorder, or re-lay-out unchanged nodes. Ignore the system prompt's \"n1, n2, …\" id convention and POSITIONS rule for nodes that already exist — preserve their current ids and positions.",
-    "- When MODIFYING a node, keep its existing `id` and `position`; change only the fields the request calls for.",
+    "- When MODIFYING a node, keep its existing `id` and `position`; change only the fields the request calls for. EXCEPTION: if the change alters what the node does, ALSO update its `label` and `description` so they accurately describe the new behavior — a node whose config no longer matches its label is a bug.",
     "- When ADDING a node, give it a new id that does not collide with any existing id (e.g. continue the existing numbering), wire it in with new edges, and reuse an existing node's nearby position as a starting point.",
     "- When REMOVING a node, also remove every edge that references it and reconnect the surrounding nodes so the graph stays connected.",
     "- Preserve any `__USER_ASSIGNED__` values (model, api_key_ref, etc.) already present — never overwrite a user's assigned model or key.",

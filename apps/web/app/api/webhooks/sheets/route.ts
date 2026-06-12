@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   const tokenSecret = process.env.GOOGLE_WEBHOOK_TOKEN_SECRET;
   if (!tokenSecret) {
-    return apiError("Missing GOOGLE_WEBHOOK_TOKEN_SECRET", 500);
+    return apiError("Webhook not configured", 503);
   }
 
   const tokenPayload = verifyWebhookToken<SheetsWebhookToken>(channelToken, tokenSecret);

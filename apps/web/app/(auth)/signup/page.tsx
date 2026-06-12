@@ -207,6 +207,7 @@ export default function SignupPage() {
                 id="email"
                 type="email"
                 required
+                maxLength={254}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
@@ -217,6 +218,7 @@ export default function SignupPage() {
                 type="password"
                 required
                 minLength={8}
+                maxLength={256}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/20"

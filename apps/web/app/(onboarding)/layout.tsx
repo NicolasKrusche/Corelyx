@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
-  title: "Welcome | Corelyx",
+  title: "Welcome",
 };
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {

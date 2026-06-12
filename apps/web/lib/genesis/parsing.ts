@@ -1,3 +1,5 @@
+import { getDefaultModelForProvider } from "@/lib/model-presets";
+
 // ─── JSON extraction ──────────────────────────────────────────────────────
 // Models sometimes wrap the JSON in markdown code fences, prepend explanation
 // text, or append trailing commentary. This function finds the first complete
@@ -333,4 +335,47 @@ export function normalizeSchema(raw: unknown): void {
       if (!("next_scheduled" in t)) t.next_scheduled = null;
     }
   }
+}
+
+// ─── Agent model auto-assignment ────────────────────────────────────────────
+// Genesis emits "__USER_ASSIGNED__" sentinels for agent model/api_key_ref,
+// which leaves a freshly generated program failing pre-flight until the user
+// assigns a model by hand. When the workspace has a valid API key with a known
+// default model, fill the sentinels so generated agent nodes run out of the box.
+
+export function assignAgentNodeDefaults(
+  schema: unknown,
+  apiKeys: Array<{ id: string; provider: string }>,
+): number {
+  if (!schema || typeof schema !== "object") return 0;
+  const nodes = (schema as { nodes?: unknown }).nodes;
+  if (!Array.isArray(nodes)) return 0;
+
+  // "platform" is the generation-only key — it can never execute agent nodes.
+  const key = apiKeys.find(
+    (candidate) => candidate.id !== "platform" && getDefaultModelForProvider(candidate.provider)
+  );
+  if (!key) return 0;
+  const defaultModel = getDefaultModelForProvider(key.provider)!;
+
+  let assigned = 0;
+  for (const node of nodes) {
+    if (!node || typeof node !== "object") continue;
+    const record = node as Record<string, unknown>;
+    if (record.type !== "agent" && record.type !== "agent_task") continue;
+    const config = record.config;
+    if (!config || typeof config !== "object") continue;
+    const cfg = config as Record<string, unknown>;
+
+    const modelUnset = cfg.model === "__USER_ASSIGNED__" || typeof cfg.model !== "string" || cfg.model.length === 0;
+    const keyUnset = cfg.api_key_ref === "__USER_ASSIGNED__" || typeof cfg.api_key_ref !== "string" || cfg.api_key_ref.length === 0;
+    // Only fill nodes that are entirely unassigned — a node where the user
+    // already chose a model must keep its model/key pairing untouched.
+    if (!modelUnset || !keyUnset) continue;
+
+    cfg.model = defaultModel;
+    cfg.api_key_ref = key.id;
+    assigned += 1;
+  }
+  return assigned;
 }

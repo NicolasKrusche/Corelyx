@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    return apiError("Missing GITHUB_WEBHOOK_SECRET", 500);
+    return apiError("Webhook not configured", 503);
   }
 
   const boundedBody = await readBoundedTextBody(request);

@@ -137,6 +137,25 @@ async function readJsonSafely(response: Response) {
   }));
 }
 
+const DESCRIPTION_MAX_LENGTH = 2000;
+
+// Emoji- or symbol-only prompts pass a raw length check but give the model
+// nothing actionable — require at least a few letters or digits.
+function hasMeaningfulText(text: string): boolean {
+  const wordChars = text.match(/[\p{L}\p{N}]/gu);
+  return (wordChars?.length ?? 0) >= 5;
+}
+
+function describeInputProblem(text: string): string | null {
+  if (text.length < 10 || !hasMeaningfulText(text)) {
+    return "Please describe your workflow in words — what should trigger it, and what should happen?";
+  }
+  if (text.length > DESCRIPTION_MAX_LENGTH) {
+    return `Your description is ${text.length.toLocaleString("en-US")} characters — the limit is ${DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")}. Please shorten it and try again.`;
+  }
+  return null;
+}
+
 function NewProgramPageInner() {
   const router = useRouter();
   const { start: startGenesisJob } = useGenesisJob();
@@ -573,7 +592,14 @@ function NewProgramPageInner() {
 
   const runInlineBuild = async (message: string) => {
     const trimmedMessage = message.trim();
-    if (trimmedMessage.length < 10) return;
+    const inputProblem = describeInputProblem(trimmedMessage);
+    if (inputProblem) {
+      setInlineMessages([
+        { role: "user", text: trimmedMessage },
+        { role: "assistant", text: inputProblem },
+      ]);
+      return;
+    }
 
     setDescription(trimmedMessage);
     setInlineMessages([{ role: "user", text: trimmedMessage }]);
@@ -585,7 +611,14 @@ function NewProgramPageInner() {
 
   const runInlinePlan = async (message: string) => {
     const trimmedMessage = message.trim();
-    if (trimmedMessage.length < 10) return;
+    const inputProblem = describeInputProblem(trimmedMessage);
+    if (inputProblem) {
+      setInlineMessages([
+        { role: "user", text: trimmedMessage },
+        { role: "assistant", text: inputProblem },
+      ]);
+      return;
+    }
 
     setDescription(trimmedMessage);
     setInlineMessages([{ role: "user", text: trimmedMessage }]);
@@ -606,9 +639,12 @@ function NewProgramPageInner() {
       lower.includes("github") ? "create or update GitHub work items" : null,
     ].filter(Boolean);
 
+    const goalSummary =
+      trimmedMessage.length > 120 ? `${trimmedMessage.slice(0, 117)}...` : trimmedMessage;
+
     appendInlineAssistantMessage(
       [
-        "Plan",
+        `Plan for: "${goalSummary}"`,
         `1. Start with a ${trigger.toLowerCase()} that captures the initial payload.`,
         "2. Add a transform step to normalize the incoming data into fields the rest of the workflow can trust.",
         actions.length > 0
@@ -627,10 +663,11 @@ function NewProgramPageInner() {
 
   const handleInlineGenerate = async (descriptionOverride?: string) => {
     const descriptionToUse = (descriptionOverride ?? description).trim();
-    if (descriptionToUse.length < 10) {
+    const inputProblem = describeInputProblem(descriptionToUse);
+    if (inputProblem) {
       setInlineMessages((prev) => [
         ...prev,
-        { role: "assistant", text: "Please describe your workflow in a bit more detail before generating." },
+        { role: "assistant", text: inputProblem },
       ]);
       return;
     }
@@ -807,7 +844,7 @@ function NewProgramPageInner() {
                                 : "border-border bg-muted/40 text-muted-foreground hover:border-border/80 hover:text-foreground"
                             }`}
                           >
-                            {conn.name}
+                            {conn.name || PROVIDER_LABELS[conn.provider] || conn.provider}
                           </button>
                         );
                       })}
@@ -938,9 +975,10 @@ function NewProgramPageInner() {
               placeholder={`Example: "Every morning at 8am, check my Gmail for emails with invoices, extract the amount and sender, save them to a Notion database called 'Invoices', and send me a Slack summary of what was added."`}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              maxLength={DESCRIPTION_MAX_LENGTH}
             />
             <p className="text-xs text-muted-foreground">
-              {description.length}/2000 characters
+              {description.length}/{DESCRIPTION_MAX_LENGTH} characters
             </p>
           </div>
 
@@ -989,7 +1027,7 @@ function NewProgramPageInner() {
                   }`}
                 >
                   <div>
-                    <p className="text-sm font-medium">{conn.name}</p>
+                    <p className="text-sm font-medium">{conn.name || PROVIDER_LABELS[conn.provider] || conn.provider}</p>
                     <p className="text-xs text-muted-foreground">
                       {PROVIDER_LABELS[conn.provider] ?? conn.provider}
                       {conn.metadata?.email && <> · {conn.metadata.email}</>}

@@ -24,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const metadata = {
-  title: "Admin Dashboard - Corelyx",
+  title: "Admin Dashboard",
 };
 
 async function getUser() {

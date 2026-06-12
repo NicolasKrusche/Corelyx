@@ -86,6 +86,27 @@ function toRfEdge(incoming: GenesisJobEdge): ReactFlowEdge {
   };
 }
 
+// Genesis failures can surface as a raw stringified Zod issue array — extract
+// the human-readable messages instead of showing JSON to the user.
+function humanizeError(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      const messages = parsed
+        .map((issue) =>
+          issue && typeof issue === "object" && typeof issue.message === "string"
+            ? issue.message
+            : null
+        )
+        .filter((m): m is string => Boolean(m));
+      if (messages.length > 0) return messages.join(" ");
+    }
+  } catch {
+    // not JSON — show as-is
+  }
+  return raw;
+}
+
 function BuildingCanvas() {
   const router = useRouter();
   const rf = useReactFlow();
@@ -141,7 +162,7 @@ function BuildingCanvas() {
   const thoughts = job?.thoughts ?? [];
 
   return (
-    <div className="fixed inset-y-0 left-16 right-0 z-10 bg-background">
+    <div className="fixed inset-y-0 left-0 right-0 z-10 bg-background lg:left-16">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -184,7 +205,7 @@ function BuildingCanvas() {
           </div>
           {error && (
             <div className="mt-3 space-y-2">
-              <p className="text-xs text-destructive">{error}</p>
+              <p className="text-xs text-destructive">{humanizeError(error)}</p>
               <div className="flex gap-2">
                 <Button
                   size="sm"

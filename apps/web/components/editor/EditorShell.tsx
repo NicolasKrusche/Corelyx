@@ -1479,7 +1479,8 @@ export function EditorShell({
 
   const [showWebhookTest, setShowWebhookTest] = React.useState(false);
   const [webhookPayload, setWebhookPayload] = React.useState('{\n  \n}');
-  const [webhookPayloadValid, setWebhookPayloadValid] = React.useState(false);
+  // The default payload above is already a valid (empty) JSON object.
+  const [webhookPayloadValid, setWebhookPayloadValid] = React.useState(true);
 
   // Validate JSON on every keystroke
   const handleWebhookPayloadChange = React.useCallback((value: string) => {

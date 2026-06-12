@@ -2,8 +2,9 @@
  * Schema diff utilities for version comparison in the advanced editor.
  *
  * Compares two sets of nodes/edges and produces a structured diff that the
- * VersionDiffOverlay can render. Uses the version_history snapshots embedded
- * in the program schema — no additional API call required.
+ * VersionDiffOverlay can render. Snapshots come from the program_versions
+ * table (fetched via the versions API) — the schema-embedded version_history
+ * uses a different numbering scheme and is often empty for generated programs.
  */
 
 import type { ProgramSchema } from "@flowos/schema";
@@ -108,17 +109,4 @@ function getChangedFields(
   if (JSON.stringify(a.config) !== JSON.stringify(b.config)) changed.push("config");
   if (a.connection !== b.connection) changed.push("connection");
   return changed;
-}
-
-// ─── Fetch snapshot from version_history ──────────────────────────────────────
-
-export function getVersionSnapshot(
-  schema: ProgramSchema,
-  versionNumber: number
-): { nodes: ProgramSchema["nodes"]; edges: ProgramSchema["edges"] } | null {
-  const snapshot = schema.version_history.find(
-    (v) => v.version_number === versionNumber
-  );
-  if (!snapshot) return null;
-  return { nodes: snapshot.snapshot.nodes, edges: snapshot.snapshot.edges };
 }
