@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ProgramSchema } from "@flowos/schema";
-import { diffSchemas, getVersionSnapshot } from "@/lib/editor/diff";
+import { diffSchemas } from "@/lib/editor/diff";
 import { VersionDiffOverlay } from "@/components/editor/VersionDiffOverlay";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
@@ -70,6 +70,46 @@ export function VersionHistoryPanel({
   const [error, setError] = useState<string | null>(null);
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
   const [diffVersion, setDiffVersion] = useState<number | null>(null);
+  // Snapshot of the version being compared, fetched from the API. The
+  // schema-embedded version_history is not used — its numbering diverges from
+  // the program_versions table and is often empty for generated programs.
+  const [diffSnapshot, setDiffSnapshot] = useState<{
+    version: number;
+    nodes: ProgramSchema["nodes"];
+    edges: ProgramSchema["edges"];
+  } | null>(null);
+  const [diffLoadingVersion, setDiffLoadingVersion] = useState<number | null>(null);
+
+  const handleCompare = useCallback(
+    async (version: number) => {
+      if (diffVersion === version) {
+        setDiffVersion(null);
+        setDiffSnapshot(null);
+        return;
+      }
+      setDiffLoadingVersion(version);
+      setError(null);
+      try {
+        const res = await fetch(`/api/programs/${programId}/versions?version=${version}`);
+        if (!res.ok) {
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(json.error ?? "");
+        }
+        const json = (await res.json()) as { version: number; schema: ProgramSchema };
+        setDiffSnapshot({
+          version,
+          nodes: json.schema.nodes ?? [],
+          edges: json.schema.edges ?? [],
+        });
+        setDiffVersion(version);
+      } catch (err) {
+        setError(friendlyErrorMessage(err instanceof Error ? err.message : null, "We could not load that version for comparison. Please try again."));
+      } finally {
+        setDiffLoadingVersion(null);
+      }
+    },
+    [diffVersion, programId]
+  );
 
   // ── Fetch version list on mount ───────────────────────────────────────────
 
@@ -272,10 +312,15 @@ export function VersionHistoryPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setDiffVersion(diffVersion === v.version ? null : v.version)}
+                        disabled={diffLoadingVersion !== null}
+                        onClick={() => void handleCompare(v.version)}
                         className="text-xs text-muted-foreground hover:text-foreground"
                       >
-                        {diffVersion === v.version ? "Hide diff" : "Compare"}
+                        {diffLoadingVersion === v.version
+                          ? "Loading…"
+                          : diffVersion === v.version
+                          ? "Hide diff"
+                          : "Compare"}
                       </Button>
                     )}
                   </div>
@@ -287,17 +332,19 @@ export function VersionHistoryPanel({
       </div>
 
       {/* Version diff overlay */}
-      {enableAdvancedEditor && currentSchema && diffVersion !== null && (() => {
-        const snapshot = getVersionSnapshot(currentSchema, diffVersion);
-        if (!snapshot) return null;
-        const diff = diffSchemas(snapshot, { nodes: currentSchema.nodes, edges: currentSchema.edges });
-        const vRow = versions.find((v) => v.version === diffVersion);
-        const label = vRow ? `v${diffVersion}` : `v${diffVersion}`;
+      {enableAdvancedEditor && currentSchema && diffVersion !== null && diffSnapshot?.version === diffVersion && (() => {
+        const diff = diffSchemas(
+          { nodes: diffSnapshot.nodes, edges: diffSnapshot.edges },
+          { nodes: currentSchema.nodes, edges: currentSchema.edges }
+        );
         return (
           <VersionDiffOverlay
             diff={diff}
-            baseVersionLabel={label}
-            onClose={() => setDiffVersion(null)}
+            baseVersionLabel={`v${diffVersion}`}
+            onClose={() => {
+              setDiffVersion(null);
+              setDiffSnapshot(null);
+            }}
           />
         );
       })()}

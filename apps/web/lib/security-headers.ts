@@ -15,14 +15,21 @@ export function buildContentSecurityPolicy(nonce: string) {
     supabaseOrigin,
     "https://*.supabase.co",
     "wss://*.supabase.co",
+    // Vercel Analytics beacons
+    "https://va.vercel-scripts.com",
+    "https://vitals.vercel-insights.com",
   ].filter(Boolean);
+
+  // Vercel Analytics loads its script from va.vercel-scripts.com (debug build
+  // in dev; production serves from /_vercel/insights on the same origin).
+  const analyticsScriptSrc = "https://va.vercel-scripts.com";
 
   // Next.js development mode uses eval-source-map which wraps modules in eval().
   // We allow unsafe-eval only in development so buttons and interactivity work.
   const isDev = process.env.NODE_ENV === "development";
   const scriptSrc = isDev
-    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`
-    : `script-src 'self' 'nonce-${nonce}'`;
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval' ${analyticsScriptSrc}`
+    : `script-src 'self' 'nonce-${nonce}' ${analyticsScriptSrc}`;
 
   return [
     "default-src 'self'",

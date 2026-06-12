@@ -10,9 +10,11 @@ import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 // ─── GET /api/programs/:id/versions ──────────────────────────────────────────
 // Returns all version snapshots for this program, newest first.
 // Only returns lightweight metadata — no full schema (too large for a list).
+// With ?version=N, returns that single version's full schema instead (used by
+// the editor's version-compare diff).
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
   const params = await routeParams;
@@ -24,6 +26,23 @@ export async function GET(
 
   const access = await getProgramAccess(params.id, user.id);
   if (!canView(access)) return apiError("Program not found", 404);
+
+  const versionParam = new URL(request.url).searchParams.get("version");
+  if (versionParam !== null) {
+    const versionNumber = Number(versionParam);
+    if (!Number.isInteger(versionNumber) || versionNumber < 0) {
+      return apiError("Invalid version", 400);
+    }
+    const { data: rawRow, error: rowError } = await supabase
+      .from("program_versions")
+      .select("version, schema")
+      .eq("program_id", params.id)
+      .eq("version", versionNumber)
+      .single();
+    if (rowError || !rawRow) return apiError(`Version ${versionNumber} not found`, 404);
+    const row = rawRow as unknown as { version: number; schema: unknown };
+    return NextResponse.json({ version: row.version, schema: row.schema });
+  }
 
   // Fetch version rows — newest first, omit full schema column
   const { data: versions, error: versionsError } = await supabase

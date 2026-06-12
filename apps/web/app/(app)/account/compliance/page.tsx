@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { EuComplianceCenter } from "@/components/eu-compliance-center";
 
 export const metadata: Metadata = {
-  title: "EU Compliance Center - Corelyx",
+  title: "EU Compliance Center",
   description:
     "Submit GDPR data subject requests, download policies, review audit evidence, and exercise privacy rights for your Corelyx workspace.",
 };

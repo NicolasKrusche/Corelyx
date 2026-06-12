@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   assessGovernanceMaturity,
   classifyAiActRisk,
@@ -35,6 +35,11 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
   return <section className={cn("rounded-lg border border-border bg-card p-5", className)}>{children}</section>;
 }
 
+// Generated reports embed these values verbatim — bound them so a pasted
+// novel can't produce megabyte-sized reports or hang the preview.
+const TEXT_FIELD_MAX_LENGTH = 200;
+const TEXT_AREA_MAX_LENGTH = 2000;
+
 function TextField({
   label,
   value,
@@ -53,6 +58,7 @@ function TextField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        maxLength={TEXT_FIELD_MAX_LENGTH}
         className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
       />
     </label>
@@ -80,6 +86,7 @@ function TextArea({
         onChange={(event) => onChange(event.target.value)}
         rows={rows}
         placeholder={placeholder}
+        maxLength={TEXT_AREA_MAX_LENGTH}
         className="mt-1.5 w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
       />
     </label>
@@ -276,7 +283,10 @@ ${result.disclaimer}
   );
 }
 
-function inventoryRecordFromState(state: {
+// creation_date must be identical between server render and client hydration —
+// a live `new Date()` here caused React hydration mismatches on the tool pages.
+// Callers pass a date that is only set after mount.
+function inventoryRecordFromState(creationDate: string | null, state: {
   name: string;
   description: string;
   department: string;
@@ -304,7 +314,7 @@ function inventoryRecordFromState(state: {
     personal_data_processed: state.personalData,
     special_category_data_processed: state.specialCategoryData,
     deployment_status: state.deploymentStatus || "Draft",
-    creation_date: new Date().toISOString(),
+    creation_date: creationDate ?? "Pending (set on export)",
     last_review_date: null,
     ai_act_risk_level: null,
     risk_classification: state.risk,
@@ -325,7 +335,18 @@ function inventoryRecordFromState(state: {
   return record;
 }
 
+// Returns null on the server and during hydration, then the real timestamp
+// after mount — keeps server and client markup identical.
+function useClientCreationDate(): string | null {
+  const [date, setDate] = useState<string | null>(null);
+  useEffect(() => {
+    setDate(new Date().toISOString());
+  }, []);
+  return date;
+}
+
 function InventoryGenerator() {
+  const creationDate = useClientCreationDate();
   const [state, setState] = useState({
     name: "AI customer support triage",
     description: "Classifies inbound support messages and drafts internal recommendations.",
@@ -341,7 +362,7 @@ function InventoryGenerator() {
     risk: "Limited Risk" as PublicRiskCategory | "Unknown",
     humanOversight: "Required before customer-facing response",
   });
-  const record = useMemo(() => inventoryRecordFromState(state), [state]);
+  const record = useMemo(() => inventoryRecordFromState(creationDate, state), [creationDate, state]);
   const report = `# AI Inventory Record: ${record.name}
 
 ${Object.entries(record)
@@ -519,6 +540,7 @@ ${result.nextActions.map((item) => `- ${item}`).join("\n") || "- Continue monito
 }
 
 function DocumentationGenerator() {
+  const creationDate = useClientCreationDate();
   const [state, setState] = useState({
     name: "AI sales email assistant",
     description: "Drafts outbound sales email suggestions for human review.",
@@ -534,7 +556,7 @@ function DocumentationGenerator() {
     risk: "Limited Risk" as PublicRiskCategory | "Unknown",
     humanOversight: "Human approval before sending",
   });
-  const record = useMemo(() => inventoryRecordFromState(state), [state]);
+  const record = useMemo(() => inventoryRecordFromState(creationDate, state), [creationDate, state]);
   const report = generateTechnicalDocumentation(record);
 
   return (

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   const signingSecret = process.env.SLACK_SIGNING_SECRET;
   if (!signingSecret) {
-    return apiError("Missing SLACK_SIGNING_SECRET", 500);
+    return apiError("Webhook not configured", 503);
   }
 
   const boundedBody = await readBoundedTextBody(request);

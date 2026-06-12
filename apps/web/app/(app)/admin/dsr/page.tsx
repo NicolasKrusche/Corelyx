@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { AdminDsrClient } from "./admin-dsr-client";
 
-export const metadata: Metadata = { title: "DSR Queue - Corelyx Admin" };
+export const metadata: Metadata = { title: "DSR Queue — Admin" };
 
 export default async function AdminDsrPage() {
   const supabase = await createServerClient();

@@ -31,7 +31,7 @@ import {
 import { checkAgentAccess, checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
 import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
-import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
+import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -490,6 +490,22 @@ export async function POST(request: Request) {
             },
           });
         }
+        // Fill "__USER_ASSIGNED__" agent model/key sentinels with a usable
+        // workspace key so generated agent nodes don't fail pre-flight.
+        {
+          let assignableKeys: Array<{ id: string; provider: string }> =
+            keyCandidates.filter((k) => k.id !== "platform");
+          if (assignableKeys.length === 0) {
+            const { data: workspaceKeys } = await serviceClient
+              .from("api_keys")
+              .select("id, provider")
+              .eq("workspace_id", workspaceId)
+              .eq("is_valid", true);
+            assignableKeys = (workspaceKeys ?? []) as Array<{ id: string; provider: string }>;
+          }
+          assignAgentNodeDefaults(parsedSchema, assignableKeys);
+        }
+
         const draftResult = validateProgramDraft(parsedSchema);
         if (!draftResult.success) {
           // Log the technical details server-side; send a user-friendly message downstream.

@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { SeoPage } from "@/lib/seo/content";
 import { SITE_URL } from "@/lib/seo/content";
+import { SeoAuthButton } from "@/components/seo/seo-auth-button";
 
 const RETRIEVAL_KEYWORDS = [
   "best EU AI automation platform",
@@ -107,7 +108,9 @@ export function createSeoMetadata(page: SeoPage): Metadata {
   const url = `${SITE_URL}${page.path}`;
 
   return {
-    title: page.title,
+    // SEO page titles already carry their own branding — bypass the root
+    // "%s | Corelyx" template to avoid "… | Corelyx | Corelyx".
+    title: { absolute: page.title },
     description: page.description,
     keywords: [page.primaryQuery, ...page.entityTerms, ...RETRIEVAL_KEYWORDS],
     robots: {
@@ -316,12 +319,7 @@ function PublicSeoHeader() {
           <Link href="/compare" className="transition-colors hover:text-foreground">Compare</Link>
           <Link href="/security" className="transition-colors hover:text-foreground">Security</Link>
         </nav>
-        <Link
-          href="/login"
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Sign in
-        </Link>
+        <SeoAuthButton />
       </div>
     </header>
   );
