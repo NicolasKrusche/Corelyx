@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/admin";
 import { ProfileForm } from "./profile-form";
 
 type ProfileRow = {
   display_name: string | null;
   avatar_url: string | null;
   tier: string | null;
+  is_admin: boolean | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -18,13 +20,17 @@ export default async function ProfilePage() {
 
   const { data: profileRaw } = await supabase
     .from("profiles")
-    .select("display_name, avatar_url, tier, created_at, updated_at")
+    .select("display_name, avatar_url, tier, is_admin, created_at, updated_at")
     .eq("id", user.id)
     .maybeSingle();
 
   const profile = profileRaw as unknown as ProfileRow | null;
   const createdAt = profile?.created_at ?? user.created_at;
-  const tier = profile?.tier ?? "free";
+  // Same rule as the credits page: admins are treated as unlimited regardless
+  // of the tier column, so the badge never shows "FREE" for them.
+  const isAdmin = isAdminEmail(user.email ?? undefined) || profile?.is_admin === true;
+  const isUnlimited = isAdmin || profile?.tier === "unlimited";
+  const tier = isUnlimited ? "unlimited" : profile?.tier ?? "free";
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -50,7 +56,7 @@ export default async function ProfilePage() {
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
           <span className="ml-auto inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-bold font-mono uppercase tracking-wider">
-            {tier}
+            {isUnlimited ? "Unlimited" : tier}
           </span>
         </div>
 
@@ -66,17 +72,23 @@ export default async function ProfilePage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Plan</p>
-            <h2 className="mt-2 text-sm font-semibold capitalize">{tier} plan</h2>
+            <h2 className="mt-2 text-sm font-semibold capitalize">
+              {isUnlimited ? "Unlimited plan" : `${tier} plan`}
+            </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Buy a new plan or compare limits for your automations.
+              {isUnlimited
+                ? "Full access to every feature — nothing to upgrade."
+                : "Buy a new plan or compare limits for your automations."}
             </p>
           </div>
-          <Link
-            href="/plan"
-            className="inline-flex shrink-0 items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            Upgrade Plan
-          </Link>
+          {!isUnlimited && (
+            <Link
+              href="/plan"
+              className="inline-flex shrink-0 items-center justify-center rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Upgrade Plan
+            </Link>
+          )}
         </div>
       </div>
 

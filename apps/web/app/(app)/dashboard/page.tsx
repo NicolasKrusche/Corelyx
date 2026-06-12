@@ -352,16 +352,22 @@ export default async function DashboardPage({
   const approvalsSeries = bucketValues(
     pendingApprovals.map((approval) => ({ created_at: approval.createdAt }))
   );
-  const failedRuns: DashboardFailedRun[] = recentRuns
-    .filter((run) => run.status === "failed")
-    .slice(0, 4)
-    .map((run) => ({
+  // One attention item per program with a recent failure (its most recent
+  // failed run) — the exact set the "Needs attention" program-list tab counts,
+  // so the badge number always matches what this panel renders.
+  const failedRuns: DashboardFailedRun[] = [];
+  const seenFailedPrograms = new Set<string>();
+  for (const run of recentRuns) {
+    if (run.status !== "failed" || seenFailedPrograms.has(run.program_id)) continue;
+    seenFailedPrograms.add(run.program_id);
+    failedRuns.push({
       id: run.id,
       createdAt: run.created_at,
       programId: run.program_id,
       programName: programs.find((program) => program.id === run.program_id)?.name ?? t("unknownWorkflow"),
       triggeredBy: run.triggered_by,
-    }));
+    });
+  }
   const profile = profileResult.data as { display_name?: string | null; tier?: string | null } | null;
   const displayName = profile?.display_name?.split(" ")[0];
   const isFreeTier = (profile?.tier ?? "free") === "free";

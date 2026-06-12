@@ -263,7 +263,7 @@
     "viewAll": "查看全部",
     "unknownWorkflow": "未知工作流",
     "reviewRequired": "需要审查",
-    "totalCount": "共 {count} 个"
+    "totalCount": "工作区共 {count} 个"
   },
   "runs": {
     "title": "运行",

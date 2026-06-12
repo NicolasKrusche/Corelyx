@@ -263,7 +263,7 @@
     "viewAll": "Показать все",
     "unknownWorkflow": "Неизвестный рабочий процесс",
     "reviewRequired": "Требуется проверка",
-    "totalCount": "Всего: {count}"
+    "totalCount": "Всего в рабочем пространстве: {count}"
   },
   "runs": {
     "title": "Запуски",

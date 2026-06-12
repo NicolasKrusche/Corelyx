@@ -139,6 +139,18 @@ export async function POST(
     }
   }
 
+  // ── 0. Stamp programs.last_run_at on every completion (success or failure).
+  // Belt-and-braces alongside the runs-table DB trigger (migration
+  // 20260604120000): this callback fires for every finished run, so the
+  // dashboard's "Last run" / "Recently run" data stays correct even in
+  // environments where that migration has not been applied yet.
+  if (program_id) {
+    await db
+      .from("programs")
+      .update({ last_run_at: new Date().toISOString() } as never)
+      .eq("id", program_id);
+  }
+
   // ── 1. Release resource locks ──────────────────────────────────────────────
   await db
     .from("resource_locks")

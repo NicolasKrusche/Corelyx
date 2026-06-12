@@ -263,7 +263,7 @@
     "viewAll": "Alle anzeigen",
     "unknownWorkflow": "Unbekannter Workflow",
     "reviewRequired": "Überprüfung erforderlich",
-    "totalCount": "{count} gesamt"
+    "totalCount": "{count} insgesamt im Workspace"
   },
   "runs": {
     "title": "Ausführungen",

@@ -289,6 +289,40 @@ class GmailConnector(IConnector):
         message_id = params.get("message_id")
         if not message_id:
             raise ConnectorError("MISSING_PARAM", "archive_email requires 'message_id'")
+
+        # Only archive messages that are still in the inbox: modifying an
+        # already-trashed message fails with 400 "Precondition check failed",
+        # and removing INBOX from an already-archived one is a pointless write.
+        meta = await _get_with_precondition_retry(
+            client,
+            f"{_BASE}/messages/{message_id}",
+            headers=headers,
+            params={"format": "minimal"},
+        )
+        if meta.status_code == 404:
+            return {
+                "message_id": message_id,
+                "archived": False,
+                "skipped": True,
+                "reason": "message no longer exists",
+            }
+        _raise_for_status(meta, "archive_email")
+        labels = meta.json().get("labelIds", []) or []
+        if "TRASH" in labels:
+            return {
+                "message_id": message_id,
+                "archived": False,
+                "skipped": True,
+                "reason": "message is in the trash",
+            }
+        if "INBOX" not in labels:
+            return {
+                "message_id": message_id,
+                "archived": True,
+                "skipped": True,
+                "reason": "already archived",
+            }
+
         r = await request_with_rate_limit(
             client,
             "POST",

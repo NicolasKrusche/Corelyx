@@ -263,7 +263,7 @@
     "viewAll": "전체 보기",
     "unknownWorkflow": "알 수 없는 워크플로우",
     "reviewRequired": "검토 필요",
-    "totalCount": "총 {count}개"
+    "totalCount": "워크스페이스 전체 {count}개"
   },
   "runs": {
     "title": "실행",

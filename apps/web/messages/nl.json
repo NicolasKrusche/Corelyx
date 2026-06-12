@@ -263,7 +263,7 @@
     "viewAll": "Alles bekijken",
     "unknownWorkflow": "Onbekende workflow",
     "reviewRequired": "Beoordeling vereist",
-    "totalCount": "{count} totaal"
+    "totalCount": "{count} totaal in werkruimte"
   },
   "runs": {
     "title": "Uitvoeringen",

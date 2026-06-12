@@ -263,7 +263,7 @@
     "viewAll": "Tümünü görüntüle",
     "unknownWorkflow": "Bilinmeyen iş akışı",
     "reviewRequired": "İnceleme gerekli",
-    "totalCount": "Toplam {count}"
+    "totalCount": "Çalışma alanında toplam {count}"
   },
   "runs": {
     "title": "Çalıştırmalar",

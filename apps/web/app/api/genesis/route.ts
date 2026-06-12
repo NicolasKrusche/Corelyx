@@ -33,6 +33,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, writeAppLog } from "@/lib/app-logs";
 import { serverLog } from "@/lib/server-log";
 import { ensureProcessingAllowed } from "@/lib/compliance";
+import { syncCronTriggers, syncEventTriggers } from "@/lib/triggers/event-trigger-sync";
 import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
 
 // Fixed credit charge per Genesis generation using the Corelyx platform key.
@@ -828,6 +829,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Reconcile schema trigger nodes into the `triggers` table - the cron
+    // runner only fires triggers that exist as rows there. Without this sync a
+    // refined cron trigger looks "Active" in the UI but never fires.
+    try {
+      await syncEventTriggers(serviceClient, existing_program_id!, schema);
+      await syncCronTriggers(serviceClient, existing_program_id!, schema);
+    } catch (syncError) {
+      serverLog({
+        level: "error",
+        event: "genesis.refinement.trigger_sync_failed",
+        message: "Failed to sync schema triggers after refinement.",
+        details: { error: syncError instanceof Error ? syncError.message : String(syncError) },
+      });
+    }
+
     await logGenesis(
       "info",
       "genesis.refinement.completed",
@@ -931,6 +947,22 @@ export async function POST(request: Request) {
       { error: versionErr.message },
       program.id
     );
+  }
+
+  // Reconcile schema trigger nodes into the `triggers` table - the cron runner
+  // only fires triggers that exist as rows there. Genesis used to save the
+  // program without this sync, so cron triggers looked "Active" (the editor
+  // reads the schema) but never fired in production.
+  try {
+    await syncEventTriggers(serviceClient, program.id, schema);
+    await syncCronTriggers(serviceClient, program.id, schema);
+  } catch (syncError) {
+    serverLog({
+      level: "error",
+      event: "genesis.create.trigger_sync_failed",
+      message: "Failed to sync schema triggers after generation.",
+      details: { error: syncError instanceof Error ? syncError.message : String(syncError) },
+    });
   }
 
   await logGenesis(

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Rocket, Shield, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Rocket, Shield, Sparkles, Users, type LucideIcon } from "lucide-react";
 import {
   PricingTable,
   PricingTableBody,
@@ -32,6 +32,17 @@ type Plan = {
 };
 
 const plans: Plan[] = [
+  {
+    name: "Free",
+    badge: "Get started",
+    icon: Sparkles,
+    col: 0,
+    price: 0,
+    yearlyPrice: 0,
+    yearlyMonthly: 0,
+    buttonText: "Start for free",
+    href: "/signup",
+  },
   {
     name: "Solo",
     badge: "For individuals",
@@ -180,14 +191,14 @@ export default function PricingSection4({ isLoggedIn }: { isLoggedIn: boolean })
                   badge={plan.badge}
                   icon={plan.icon}
                   price={isYearly ? eur(plan.yearlyMonthly) : eur(plan.price)}
-                  compareAt={isYearly ? eur(plan.price) : undefined}
+                  compareAt={isYearly && plan.price > 0 ? eur(plan.price) : undefined}
                   className={
                     plan.popular
                       ? "after:pointer-events-none after:absolute after:-inset-0.5 after:rounded-[inherit] after:bg-gradient-to-b after:from-primary/15 after:to-transparent after:blur-[2px]"
                       : undefined
                   }
                 >
-                  {isYearly && (
+                  {isYearly && plan.price > 0 && (
                     <p className="text-muted-foreground mb-3 text-center text-[11px]">
                       {eur(plan.yearlyPrice)} billed annually
                     </p>

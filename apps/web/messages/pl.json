@@ -263,7 +263,7 @@
     "viewAll": "Zobacz wszystkie",
     "unknownWorkflow": "Nieznany przepływ pracy",
     "reviewRequired": "Wymagana weryfikacja",
-    "totalCount": "{count} łącznie"
+    "totalCount": "{count} łącznie w przestrzeni"
   },
   "runs": {
     "title": "Uruchomienia",
