@@ -204,7 +204,8 @@ export const providerRegistry: Provider[] = [
     id: "openai",
     name: "OpenAI",
     category: "llm",
-    purpose: "Optional model inference for workflow agent nodes and model operations.",
+    purpose:
+      "Optional model inference for workflow agent nodes and model operations. Also provides text embeddings for agent knowledge retrieval via the platform key; knowledge content and queries are PII-redacted before embedding, and EU-only workspaces are excluded unless the platform project is verified EU-resident (OPENAI_EU_RESIDENCY).",
     default_region: "United States by default unless eligible European data residency is configured in the customer or platform account.",
     available_regions: ["United States", "Europe for eligible configured API projects"],
     eu_only_supported: true,

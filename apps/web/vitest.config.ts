@@ -8,6 +8,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "server-only": path.resolve(__dirname, "test/stubs/server-only.ts"),
       "@": path.resolve(__dirname, "."),
       "@flowos/schema": path.resolve(__dirname, "../../packages/schema/src/index.ts"),
       "@flowos/db": path.resolve(__dirname, "../../packages/db/src/index.ts"),

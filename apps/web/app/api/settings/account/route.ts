@@ -39,6 +39,8 @@ export async function DELETE() {
   let stripeCustomersSeen = 0;
   let stripeSubscriptionsCancelled = 0;
   let vaultSecretsDeleted = 0;
+  let storageObjectsSeen = 0;
+  let storageObjectsDeleted = 0;
   let resendContactDeleted = false;
   let authUserDeleted = false;
 
@@ -103,6 +105,30 @@ export async function DELETE() {
     }
   }
 
+  // Storage objects are NOT cascade-deleted with the auth user; purge the
+  // user's avatar folder explicitly (the bucket is public, so orphaned photos
+  // would otherwise stay reachable). Workspace logos belong to workspaces,
+  // which deliberately survive member deletion, and are left alone.
+  try {
+    const { data: avatarObjects, error: listError } = await service.storage
+      .from("avatars")
+      .list(user.id, { limit: 1000 });
+    if (listError) throw new Error(listError.message);
+
+    const paths = (avatarObjects ?? []).map((obj) => `${user.id}/${obj.name}`);
+    storageObjectsSeen = paths.length;
+    if (paths.length > 0) {
+      const { error: removeError } = await service.storage.from("avatars").remove(paths);
+      if (removeError) throw new Error(removeError.message);
+      storageObjectsDeleted = paths.length;
+    }
+  } catch (error) {
+    errors.push({
+      step: "storage_object_deletion",
+      message: error instanceof Error ? error.message : "Unknown storage cleanup failure",
+    });
+  }
+
   const resendAudienceId = process.env.RESEND_AUDIENCE_ID;
   if (resendAudienceId && user.email) {
     try {
@@ -137,6 +163,8 @@ export async function DELETE() {
     status: errors.length > 0 ? "failed" : "completed",
     vault_secrets_seen: vaultIds.length,
     vault_secrets_deleted: vaultSecretsDeleted,
+    storage_objects_seen: storageObjectsSeen,
+    storage_objects_deleted: storageObjectsDeleted,
     stripe_customers_seen: stripeCustomersSeen,
     stripe_subscriptions_cancelled: stripeSubscriptionsCancelled,
     resend_contact_deleted: resendContactDeleted,
@@ -152,6 +180,7 @@ export async function DELETE() {
     deleted: true,
     cleanup: {
       vault_secrets_deleted: vaultSecretsDeleted,
+      storage_objects_deleted: storageObjectsDeleted,
       stripe_subscriptions_cancelled: stripeSubscriptionsCancelled,
       resend_contact_deleted: resendContactDeleted,
       warnings: errors.length,
