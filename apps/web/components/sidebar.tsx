@@ -704,15 +704,32 @@ export function Sidebar({
   }, [workspaceMenuOpen]);
 
   useEffect(() => {
-    if (searchParams.get("settings") === "1") {
+    // /settings is the canonical deep-link for the settings modal;
+    // ?settings=1 is kept for backwards compatibility with old links.
+    if (pathname === "/settings" || searchParams.get("settings") === "1") {
       setMenuOpen(false);
       setSettingsOpen(true);
     }
-  }, [searchParams]);
+  }, [pathname, searchParams]);
+
+  // Open the settings modal and make the URL canonical (/settings) so the
+  // state is shareable and survives a reload.
+  function openSettings(tab: AccountSettingsSection = "account") {
+    setMenuOpen(false);
+    setSettingsInitialTab(tab);
+    setSettingsOpen(true);
+    if (window.location.pathname !== "/settings") {
+      router.push("/settings", { scroll: false });
+    }
+  }
 
   function handleCloseSettings() {
     setSettingsOpen(false);
     setSettingsInitialTab("account");
+    if (pathname === "/settings") {
+      router.replace("/dashboard", { scroll: false });
+      return;
+    }
     if (!searchParams.has("settings")) return;
 
     const params = new URLSearchParams(searchParams.toString());
@@ -809,14 +826,6 @@ export function Sidebar({
             <span className="hidden min-w-0 flex-1 items-center gap-1.5 truncate whitespace-nowrap text-left opacity-0 transition-opacity duration-150 group-hover/side:flex group-hover/side:opacity-100 group-data-[open]/side:flex group-data-[open]/side:opacity-100">
               <span className="min-w-0 truncate text-sm font-semibold">
                 {activeWorkspace?.name ?? tSidebar("workspace.fallback")}
-              </span>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none",
-                  isDark ? "bg-white/10 text-white/85" : "bg-black/10 text-gray-800"
-                )}
-              >
-                {activeWorkspaceTierLabel}
               </span>
             </span>
             <span
@@ -1027,7 +1036,7 @@ export function Sidebar({
           <NavButton
             label={tSidebar("nav.settings")}
             icon={<SettingsIcon />}
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => openSettings()}
             isDark={isDark}
           />
           {/* Sub-items — only rendered when sidebar is expanded */}
@@ -1169,10 +1178,7 @@ export function Sidebar({
             )}>
               <button
                 type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setSettingsOpen(true);
-                }}
+                onClick={() => openSettings()}
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent"
               >
                 <SettingsIcon />
@@ -1180,11 +1186,7 @@ export function Sidebar({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setSettingsInitialTab("language");
-                  setSettingsOpen(true);
-                }}
+                onClick={() => openSettings("language")}
                 className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent"
               >
                 <GlobeIcon />
