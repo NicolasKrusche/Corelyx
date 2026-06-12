@@ -65,7 +65,7 @@ For details on our technical and organizational measures, see [compliance_plan.m
 
 - TLS 1.3 for all data in transit; AES-256 at rest
 - Server-side-only secrets; OAuth tokens stored in Supabase Vault, never returned to the frontend
-- Pre-LLM structured-identifier redaction (emails, phone numbers, IBANs, IP addresses, payment card numbers, and secrets) before a prompt leaves our infrastructure. Free-text prose, including names, is not removed.
+- Pre-LLM structured-identifier pseudonymization: emails, phone numbers, IBANs, IP addresses, national IDs, and payment card numbers are replaced with stable numbered placeholders (e.g. `[EMAIL_1]`) before a prompt leaves our infrastructure. The re-identification mapping is held only in process memory for the duration of the run and never persisted or transmitted; model outputs and tool arguments are re-substituted on our side. Secrets and credentials are destructively redacted and are never re-substituted. Workspaces on the strict privacy tier (default for EU-only workspaces, when a local NER backend is installed) additionally pseudonymize person names detected by on-server NER — no text leaves our infrastructure for detection. Other free-text prose is not removed.
 - Tenant-scoped row-level security (Postgres RLS) on all customer data
 - Centralized audit logging with tamper-evident retention
 - EU-only production hosting (Vercel EU edges, Railway EU region, Supabase EU region)
