@@ -94,6 +94,8 @@ def _executor(node: SchemaNode, execution_mode: str = "autonomous", dry_run: boo
     ]:
         setattr(executor._limiter, method, Mock())
     executor.dry_run = dry_run
+    executor._write_ops_executed = 0
+    executor._bulk_write_approved = False
     executor._resolve_connection_id = Mock(return_value="conn-1")
     executor._provider_for_connection = Mock(return_value="gmail")
     executor._fetch_oauth_token = AsyncMock(return_value="token")
@@ -221,6 +223,62 @@ class TestApprovalRequiredMode(unittest.IsolatedAsyncioTestCase):
              patch.object(executor, "_request_step_approval", approval):
             await executor._execute_connection(node, {})
         approval.assert_not_awaited()
+
+
+class TestBulkWriteThreshold(unittest.IsolatedAsyncioTestCase):
+    async def test_plain_writes_pause_for_approval_past_threshold(self) -> None:
+        from engine.executor import BULK_WRITE_APPROVAL_THRESHOLD
+
+        node = _connection_node("send_email", "write", {"to": "a@b.com"})
+        executor = _executor(node)
+        connector = Mock()
+        connector.execute = AsyncMock(return_value={"sent": True})
+        approval = AsyncMock(return_value=True)
+        with patch("engine.executor.get_connector", return_value=connector), \
+             patch("engine.executor.update_node_execution", new=AsyncMock()), \
+             patch.object(executor, "_request_step_approval", approval):
+            # Writes up to and including the threshold run without approval.
+            for _ in range(BULK_WRITE_APPROVAL_THRESHOLD):
+                await executor._execute_connection(node, {})
+            approval.assert_not_awaited()
+            # The next write crosses the threshold and prompts exactly once.
+            await executor._execute_connection(node, {})
+            approval.assert_awaited_once()
+            self.assertIn("Bulk write approval required", approval.await_args.args[2])
+            # Subsequent writes do not prompt again (latched).
+            await executor._execute_connection(node, {})
+            approval.assert_awaited_once()
+
+    async def test_bulk_write_declined_skips_without_executing(self) -> None:
+        from engine.executor import BULK_WRITE_APPROVAL_THRESHOLD
+
+        node = _connection_node("send_email", "write", {"to": "a@b.com"})
+        executor = _executor(node)
+        executor._write_ops_executed = BULK_WRITE_APPROVAL_THRESHOLD
+        connector = Mock()
+        connector.execute = AsyncMock(return_value={"sent": True})
+        with patch("engine.executor.get_connector", return_value=connector), \
+             patch("engine.executor.update_node_execution", new=AsyncMock()), \
+             patch.object(executor, "_request_step_approval", AsyncMock(return_value=False)):
+            result = await executor._execute_connection(node, {})
+        self.assertEqual(result, {})
+        connector.execute.assert_not_awaited()
+
+    async def test_destructive_ops_count_but_use_their_own_gate(self) -> None:
+        # Destructive ops always gate per-op; the bulk net must not double-prompt.
+        node = _connection_node("delete_email", "write", {"message_id": "m1"})
+        executor = _executor(node)
+        executor._write_ops_executed = 100  # already past the bulk threshold
+        connector = Mock()
+        connector.execute = AsyncMock(return_value={"deleted": True})
+        approval = AsyncMock(return_value=True)
+        with patch("engine.executor.get_connector", return_value=connector), \
+             patch("engine.executor.update_node_execution", new=AsyncMock()), \
+             patch.object(executor, "_request_step_approval", approval):
+            result = await executor._execute_connection(node, {})
+        approval.assert_awaited_once()
+        self.assertIn("Destructive action approval required", approval.await_args.args[2])
+        self.assertEqual(result["deleted"], True)
 
 
 class TestDryRunWritePreview(unittest.IsolatedAsyncioTestCase):
