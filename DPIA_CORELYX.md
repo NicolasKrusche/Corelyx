@@ -39,7 +39,7 @@
 1. Trigger (e.g. Gmail Pub/Sub push → `/api/webhooks/gmail`, OIDC-verified) or schedule/manual.
 2. Web app (Vercel, EU) matches active triggers and dispatches to the runtime.
 3. Runtime (Railway, EU) executes nodes; connector nodes call the user's connected services; **agent nodes send prompt content to an LLM provider**.
-4. Before any prompt leaves Corelyx infrastructure, **structured-identifier redaction** runs (`engine/pii.py`): emails, phones, IBANs, IP addresses, payment cards, secrets. Free-text prose (incl. names) is **not** removed.
+4. Before any prompt leaves Corelyx infrastructure, **structured-identifier pseudonymization** runs (`engine/pii.py`): emails, phones, IBANs, IP addresses, national IDs, and payment cards are replaced with stable numbered placeholders; the re-identification mapping is held only in process memory for the run and is never persisted or transmitted (supplementary measure in the sense of EDPB Recommendations 01/2020, Use Case 2). Secrets are destructively redacted and never restored. Free-text prose (incl. names) is **not** removed.
 5. Results are returned; execution logs are written **metadata-only by default** (`db.py` log policy), content not retained.
 
 **Recipients / sub-processors:** Supabase (EU), Vercel (EU), Railway (EU), Inngest, Resend, Stripe, and **LLM providers** — by default the Corelyx platform key routes via **OpenRouter** (US, no countersigned DPA yet); optionally customer BYOK (Anthropic/OpenAI/Google/Mistral). Authoritative list: `/subprocessors`.
@@ -81,7 +81,7 @@
 2. **Default new EU workspaces to `eu_only`** so platform routing to unresolved-risk providers is blocked unless the user opts in. (Implemented.)
 3. Complete **Google OAuth verification / CASA** for restricted Gmail scopes before exceeding the 100-user cap.
 4. Keep `/subprocessors` registry, Privacy Policy, and this DPIA in sync on any provider change.
-5. Consider name/free-text redaction or a stricter approval gate for workflows flagged as handling special-category data.
+5. ~~Consider name/free-text redaction~~ **Implemented 2026-06-12:** strict privacy tier (`workspaces.pii_mode`) pseudonymizes person names via local NER (`engine/ner.py`, GLiNER or spaCy, on-server only); defaults on for eu_only workspaces. Remaining: install an NER backend in the production runtime image, and consider a stricter approval gate for workflows flagged as handling special-category data.
 
 ---
 
