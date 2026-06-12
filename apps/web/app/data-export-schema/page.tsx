@@ -14,6 +14,7 @@ const sections = [
   ["export_metadata", "Export timestamp, schema version, account ID, file format, and explicit exclusions."],
   ["auth_profile", "Supabase Auth profile fields exposed to the user, including email and sign-in timestamps."],
   ["account_profile", "Corelyx profile fields such as display name, avatar URL, plan tier, entitlement counters, and processing restriction state."],
+  ["onboarding_profile", "Signup onboarding answers: account type, team size bracket, industry, role, goal and tool selections, consent state, and — only with profile consent — free-text answers and the derived AI background summary."],
   ["usage", "Monthly usage counters associated with the account."],
   ["workspaces", "Workspace containers the account belongs to, including names and creation metadata."],
   ["workspace_memberships", "The account's workspace memberships and rank assignments."],
@@ -37,6 +38,7 @@ const topLevelShape = `{
   "export_metadata": {},
   "auth_profile": {},
   "account_profile": {},
+  "onboarding_profile": {},
   "usage": [],
   "workspaces": [],
   "workspace_memberships": [],
@@ -70,7 +72,7 @@ export default async function DataExportSchemaPage() {
             Data Export Schema
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            Version 4 JSON schema for the GDPR Articles 15 and 20 export returned by <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">GET /api/user/export</code>.
+            Version 5 JSON schema for the GDPR Articles 15 and 20 export returned by <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">GET /api/user/export</code>.
           </p>
         </div>
 

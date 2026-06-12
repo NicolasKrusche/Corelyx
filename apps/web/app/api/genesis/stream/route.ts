@@ -34,6 +34,7 @@ import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
+import { getUserAiContext } from "@/lib/onboarding/profile";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, canEdit, canRunAgentInWorkspace, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
@@ -189,11 +190,14 @@ export async function POST(request: Request) {
     : serviceClient.from("api_keys").select("id, vault_secret_id, provider")
         .eq("workspace_id", workspaceId).eq("is_valid", true);
 
-  const [genesisCheck, limitCheck, connResult, keysResult] = await Promise.all([
+  const [genesisCheck, limitCheck, connResult, keysResult, userProfileContext] = await Promise.all([
     checkGenesisAccess(userId, workspaceId),
     isRefinement ? Promise.resolve({ allowed: true, upgradeMessage: null }) : checkProgramLimit(userId, workspaceId),
     pendingConnections,
     pendingApiKeys,
+    // Consent-gated onboarding background (full summary with consent, anonymized
+    // categories otherwise) — personalizes generated workflows/agents.
+    getUserAiContext(serviceClient as unknown as { from(table: string): any }, userId).catch(() => null),
   ]);
 
   if (!genesisCheck.allowed) return sseErrorResponse(genesisCheck.upgradeMessage ?? "Genesis AI limit reached.", "GENESIS_LIMIT_REACHED");
@@ -293,8 +297,8 @@ export async function POST(request: Request) {
         const userMessage = isRefinement && refinementText && existingSchemaRaw
           ? buildRefinementUserMessage(refinementText, existingSchemaRaw as object, availableConnections)
           : isAgent
-            ? buildAgentUserMessage(sanitizedDescription.value, availableConnections, null)
-            : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null);
+            ? buildAgentUserMessage(sanitizedDescription.value, availableConnections, null, userProfileContext)
+            : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null, userProfileContext);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
