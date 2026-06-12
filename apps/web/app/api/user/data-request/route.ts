@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { rateLimit } from "@/lib/rate-limit";
 import { sendDsrConfirmationEmail, sendDsrLegalNotificationEmail, sendDsrFollowUpNotificationEmail } from "@/lib/email";
 
 const REQUEST_TYPES = [
@@ -129,6 +130,12 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  // Each submission notifies legal@ and the user by email — cap the volume a
+  // single account can generate. 10/day is far above any legitimate use.
+  if (!(await rateLimit(`dsr:${user.id}`, 10, 24 * 60 * 60 * 1000))) {
+    return apiError("Too many data requests. Please try again later or email legal@corelyx.app.", 429);
+  }
 
   const body = (await request.json().catch(() => null)) as { request_type?: unknown; type?: unknown; details?: unknown } | null;
   const requestType = body?.request_type ?? body?.type;

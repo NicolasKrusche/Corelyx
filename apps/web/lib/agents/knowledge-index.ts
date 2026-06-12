@@ -1,5 +1,7 @@
 import { chunkText } from "@/lib/agents/chunking";
-import { embedTexts, embeddingsAvailable } from "@/lib/agents/embeddings";
+import { embedTexts } from "@/lib/agents/embeddings";
+import { embeddingsAllowedForWorkspaces } from "@/lib/agents/embedding-policy";
+import { sanitizeTextForLlm } from "@/lib/privacy/pii";
 
 /**
  * Knowledge indexing pipeline (RAG v2): chunk a doc, embed the chunks, and
@@ -34,9 +36,15 @@ export async function indexKnowledgeDoc(
   const chunks = chunkText(doc.content);
   if (chunks.length === 0) return finish("ready", 0);
 
-  if (!embeddingsAvailable()) return finish("skipped", 0);
+  // Skipped (not failed) when there is no key OR the workspace is eu_only and
+  // the platform OpenAI project is not EU-resident — retrieval stays keyword.
+  if (!(await embeddingsAllowedForWorkspaces(service, [doc.workspaceId]))) {
+    return finish("skipped", 0);
+  }
 
-  const vectors = await embedTexts(chunks);
+  // Only the redacted text leaves our infrastructure; the chunk rows below
+  // keep the original content (EU-hosted Postgres) for excerpt display.
+  const vectors = await embedTexts(chunks.map((chunk) => sanitizeTextForLlm(chunk).value));
   if (!vectors) return finish("failed", 0);
 
   const rows = chunks.map((content, i) => ({

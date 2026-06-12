@@ -1,5 +1,7 @@
 import { rankKnowledge } from "@/lib/agents/knowledge";
-import { embedQuery, embeddingsAvailable } from "@/lib/agents/embeddings";
+import { embedQuery } from "@/lib/agents/embeddings";
+import { embeddingsAllowedForWorkspaces } from "@/lib/agents/embedding-policy";
+import { sanitizeTextForLlm } from "@/lib/privacy/pii";
 
 /**
  * Knowledge retrieval (RAG v2): semantic search over embedded chunks, falling
@@ -41,8 +43,11 @@ export async function searchKnowledgeBase(
   if (workspaceIds.length === 0) return { results: [], searched: 0, method: "keyword" };
 
   // ── Semantic path ──────────────────────────────────────────────────────────
-  if (embeddingsAvailable()) {
-    const vector = await embedQuery(query);
+  // Blocked (→ keyword fallback) when any target workspace is eu_only and the
+  // platform OpenAI project is not EU-resident. The query text is redacted
+  // before it leaves our infrastructure.
+  if (await embeddingsAllowedForWorkspaces(service, workspaceIds)) {
+    const vector = await embedQuery(sanitizeTextForLlm(query).value);
     if (vector) {
       const { data, error } = await service.rpc("match_agent_knowledge_chunks", {
         query_embedding: JSON.stringify(vector),
