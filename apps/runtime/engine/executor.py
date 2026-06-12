@@ -545,6 +545,13 @@ class HallucinationError(ExecutionError):
 # S13: hard cap on loop iteration count to prevent cost/DoS via attacker-shaped
 # upstream lists. Schemas that legitimately need more iterations should be split.
 MAX_LOOP_ITEMS = 100
+# Bulk-write safety net: once a single run has executed this many write
+# operations (typically a loop fanning out connector writes), the run pauses
+# once for explicit human approval before any further writes. Caps blast radius
+# of an unattended run mass-mutating provider data. Destructive ops and
+# approval_required mode already gate every write, so this is the backstop for
+# plain writes in autonomous/supervised runs.
+BULK_WRITE_APPROVAL_THRESHOLD = 25
 LLM_REQUEST_TIMEOUT_SECONDS = 120.0
 LLM_TEMPERATURE = 0
 
@@ -720,6 +727,10 @@ class ProgramExecutor:
     # __new__) still have these agent-run fields; __init__ overrides per instance.
     _agent_tool_calls_made: int = 0
     _agent_run_cost_usd: float = 0.0
+    # Bulk-write safety net counters (see BULK_WRITE_APPROVAL_THRESHOLD); class
+    # defaults keep __new__-built test instances working without __init__.
+    _write_ops_executed: int = 0
+    _bulk_write_approved: bool = False
     _prior_agent_reports: "list[dict[str, str]] | None" = None
     # User-set capability scope for this agent run (None = unrestricted).
     # {"allow_writes": bool, "allowed_providers": list[str] | None}
@@ -757,6 +768,11 @@ class ProgramExecutor:
         self._agent_credentials: list[dict[str, str]] | None = None
         # Guardrail: total agent tool calls allowed across the whole run.
         self._agent_tool_calls_made = 0
+        # Bulk-write safety net: cumulative connector write ops in this run and a
+        # latch that records the user already approved continuing past the
+        # BULK_WRITE_APPROVAL_THRESHOLD (so we prompt once, not per write).
+        self._write_ops_executed = 0
+        self._bulk_write_approved = False
         # Cross-run memory: prior agent reports (same lineage) supplied by the web
         # run dispatch, injected into agent_task context. [{title, body, created_at}]
         self._prior_agent_reports: list[dict[str, str]] | None = None
@@ -2930,9 +2946,10 @@ class ProgramExecutor:
                 # Mandatory approval gate: destructive operations ALWAYS pause for
                 # human approval (not configurable away); in approval_required mode
                 # every write does. Supervised/manual modes already gate upstream.
-                if op_is_destructive or (
+                per_op_gated = op_is_destructive or (
                     op_is_write and self.execution_mode == "approval_required"
-                ):
+                )
+                if per_op_gated:
                     reason = (
                         f"Destructive action approval required ({cfg.operation})"
                         if op_is_destructive
@@ -2951,6 +2968,38 @@ class ProgramExecutor:
                             **self._node_telemetry_payload(node.id),
                         )
                         return {}
+
+                # Bulk-write safety net: count every write this run performs and,
+                # once the run crosses the threshold, pause once for explicit
+                # approval before continuing. Ops already gated per-op above don't
+                # double-prompt, but they still count toward the running total.
+                if op_is_write:
+                    self._write_ops_executed += 1
+                    if (
+                        not per_op_gated
+                        and not self._bulk_write_approved
+                        and self._write_ops_executed > BULK_WRITE_APPROVAL_THRESHOLD
+                    ):
+                        approved = await self._request_step_approval(
+                            node,
+                            input_data,
+                            f"Bulk write approval required — this run has reached "
+                            f"{self._write_ops_executed} write operations "
+                            f"(threshold {BULK_WRITE_APPROVAL_THRESHOLD})",
+                        )
+                        if not approved:
+                            await update_node_execution(
+                                self.db,
+                                self.run_id,
+                                node.id,
+                                status="skipped",
+                                completed_at="now()",
+                                data_region=self.data_region,
+                                retention_expiry=self.retention_expiry,
+                                **self._node_telemetry_payload(node.id),
+                            )
+                            return {}
+                        self._bulk_write_approved = True
 
                 try:
                     self._record_telemetry(node.id, connector_api_calls=1)
