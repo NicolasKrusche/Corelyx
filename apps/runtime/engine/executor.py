@@ -433,6 +433,31 @@ def _resolve_nested(value: Any, inputs: dict) -> Any:
     return value
 
 
+_TEMPLATE_PATTERN = re.compile(r"\{\{[^}]+\}\}")
+
+# Per-item read operations that should SKIP (not fail the run) when their
+# required identifier is missing — the normal case when an upstream loop
+# produces items without attachments or without a message id.
+_SKIP_WHEN_INPUT_MISSING: dict[str, tuple[str, ...]] = {
+    "get_attachment": ("message_id", "attachment_id"),
+    "read_email": ("message_id",),
+}
+
+
+def _find_unresolved_templates(value: Any) -> list[str]:
+    """Collect any {{...}} template expressions left inside a params structure."""
+    found: list[str] = []
+    if isinstance(value, str):
+        found.extend(_TEMPLATE_PATTERN.findall(value))
+    elif isinstance(value, dict):
+        for nested in value.values():
+            found.extend(_find_unresolved_templates(nested))
+    elif isinstance(value, list):
+        for item in value:
+            found.extend(_find_unresolved_templates(item))
+    return found
+
+
 def _recover_event_operation_params(
     params: dict[str, Any],
     inputs: dict[str, Any],
@@ -1369,11 +1394,19 @@ class ProgramExecutor:
         # Write aggregated results back to the shared state
         for nid, results in iteration_results.items():
             state[nid] = {"iterations": results, "count": len(items)}
+            # A body node that never actually ran (empty loop, or skipped in
+            # every iteration) has no started_at on its row. Stamp one here so
+            # a completed node never renders "—" for its duration in the run
+            # detail view. Nodes that did run keep their real start time.
+            ran_at_least_once = any(
+                not (isinstance(r, dict) and r.get("__skipped__")) for r in results
+            )
             # Update the DB record to reflect the final aggregated output
             await update_node_execution(
                 self.db, self.run_id, nid,
                 status="completed",
                 completed_at="now()",
+                **({} if ran_at_least_once else {"started_at": "now()"}),
                 output_payload={"iterations": results, "count": len(items)},
                 data_region=self.data_region,
                 retention_expiry=self.retention_expiry,
@@ -2503,6 +2536,24 @@ class ProgramExecutor:
         elif not isinstance(params, dict):
             return {"ok": False, "error": "params must be an object."}
 
+        # Agent tool params must be literal values. The model sometimes copies
+        # workflow template syntax ({{loop_id.email.id}}) from the plan into a
+        # tool call; there is no template context inside the agent loop, so the
+        # literal braces would otherwise end up in the connector's request URL
+        # (e.g. the Gmail trash endpoint). Refuse before any HTTP fires so the
+        # model substitutes the real value from its context and retries.
+        unresolved_templates = _find_unresolved_templates(params)
+        if unresolved_templates:
+            return {
+                "ok": False,
+                "error": (
+                    "params contain unresolved template expressions "
+                    f"({', '.join(unresolved_templates[:5])}). Template syntax is not "
+                    "available in tool calls — pass the actual value (e.g. the real "
+                    "message id) from your context instead."
+                ),
+            }
+
         is_write = _connector_op_is_write(operation)
         tel_node = node_id or "agent_task"
 
@@ -2961,6 +3012,34 @@ class ProgramExecutor:
                     resolved_params,
                     input_data,
                 )
+
+                # Per-item read guard: when an upstream loop yields items without
+                # an attachment (or without a message id), skip this node with a
+                # warning instead of failing the entire run. __filtered_out__
+                # additionally prunes this iteration's descendants in loop bodies,
+                # which is the intended behavior for "no attachment on this item".
+                required_for_skip = _SKIP_WHEN_INPUT_MISSING.get(cfg.operation or "", ())
+                missing_required = [
+                    key for key in required_for_skip
+                    if resolved_params.get(key) in (None, "")
+                ]
+                if missing_required:
+                    print(
+                        f"[executor] WARNING: skipping node {node.id} — "
+                        f"{cfg.operation} is missing required input "
+                        f"{', '.join(missing_required)} (upstream item has no value).",
+                        flush=True,
+                    )
+                    return {
+                        "__skipped__": True,
+                        "__filtered_out__": True,
+                        "skipped": True,
+                        "operation": cfg.operation,
+                        "warning": (
+                            f"Skipped: could not resolve {', '.join(missing_required)} "
+                            f"for {cfg.operation} on this item."
+                        ),
+                    }
 
                 for key, raw_value in raw_params.items():
                     if (
@@ -3545,6 +3624,18 @@ class ProgramExecutor:
         by matching against the provider slug of any program-linked connection,
         falling back to any user-owned connection with that provider.
         """
+        # "corelyx" is not a connectable app: corelyx.* capabilities are internal
+        # agent_task tools, never OAuth connections. Old Genesis drafts sometimes
+        # miswired them as a connection ref — fail with a clear explanation
+        # instead of the generic "Connection not found".
+        if re.match(r"^corelyx(:|$)", connection_name.strip(), re.IGNORECASE):
+            raise ExecutionError(
+                "CONNECTION_NOT_FOUND",
+                "'corelyx' is not a connectable app — corelyx.* capabilities are "
+                "internal agent tools. Edit this node to use one of your real "
+                "connections, or replace it with an agent_task step.",
+            )
+
         if conn_id := self._connection_name_to_id.get(connection_name):
             return conn_id
 
@@ -3724,6 +3815,12 @@ class ProgramExecutor:
         if api_key_ref in ("platform", USER_ASSIGNED_SENTINEL):
             key = os.environ.get("PLATFORM_LLM_API_KEY", "")
             if not key:
+                if api_key_ref == USER_ASSIGNED_SENTINEL:
+                    raise ExecutionError(
+                        "API_KEY_REQUIRED",
+                        "This workflow requires a user-supplied API key. "
+                        "Add one at /api-keys.",
+                    )
                 raise ExecutionError(
                     "PLATFORM_KEY_MISSING",
                     "Platform AI key is not configured. Contact support.",

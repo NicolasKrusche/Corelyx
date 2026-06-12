@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/api";
-import { generateHTML } from "@tiptap/core";
+// @tiptap/html, NOT @tiptap/core: core's generateHTML needs a browser DOM and
+// throws in this server component, which silently rendered every post empty.
+import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { ArrowLeft } from "lucide-react";
+import { serverLog } from "@/lib/server-log";
 
 type Post = {
   id: string;
@@ -43,8 +46,17 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   let html = "";
   try {
-    html = generateHTML(post.content as Parameters<typeof generateHTML>[0], [StarterKit, Image]);
-  } catch {
+    const content = post.content;
+    if (content && typeof content === "object" && "type" in content) {
+      html = generateHTML(content as Parameters<typeof generateHTML>[0], [StarterKit, Image]);
+    }
+  } catch (error) {
+    serverLog({
+      level: "error",
+      event: "updates.post.render_failed",
+      message: "Failed to render post content to HTML.",
+      details: { slug, error: error instanceof Error ? error.message : String(error) },
+    });
     html = "";
   }
 
@@ -81,10 +93,16 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         </p>
       </div>
 
-      <article
-        className="prose prose-sm max-w-none"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      {html ? (
+        <article
+          className="prose prose-sm max-w-none"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <article className="text-sm text-muted-foreground">
+          This update has no content yet.
+        </article>
+      )}
     </div>
   );
 }

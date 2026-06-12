@@ -90,6 +90,7 @@ export const cronRunner = inngest.createFunction(
           );
           if (fireResult.ok) {
             fired++;
+            logger.info(`Cron trigger ${trigger.id} fired (agent program ${trigger.program_id}) → run ${fireResult.runId}`);
             recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: fireResult.runId, source: "cron", status: "dispatched" });
           } else {
             logger.error(`Cron agent fire failed for trigger ${trigger.id}: ${fireResult.error}`);
@@ -181,6 +182,7 @@ export const cronRunner = inngest.createFunction(
         }
 
         fired++;
+        logger.info(`Cron trigger ${trigger.id} fired (program ${trigger.program_id}) → run ${runId}`);
         recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "dispatched" });
 
         await advanceNextRun(db, trigger, logger);

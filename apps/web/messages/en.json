@@ -263,7 +263,7 @@
     "viewAll": "View all",
     "unknownWorkflow": "Unknown workflow",
     "reviewRequired": "Review required",
-    "totalCount": "{count} total"
+    "totalCount": "{count} total in workspace"
   },
   "runs": {
     "title": "Runs",

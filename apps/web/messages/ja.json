@@ -263,7 +263,7 @@
     "viewAll": "すべて見る",
     "unknownWorkflow": "不明なワークフロー",
     "reviewRequired": "確認が必要",
-    "totalCount": "合計{count}件"
+    "totalCount": "ワークスペース全体で{count}件"
   },
   "runs": {
     "title": "実行",

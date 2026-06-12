@@ -127,8 +127,10 @@ export function DashboardAttentionPanel({
   approvals: DashboardApproval[];
   failedRuns: DashboardFailedRun[];
 }) {
-  const visibleApprovals = approvals.slice(0, 4);
-  const visibleFailedRuns = failedRuns.slice(0, approvals.length > 0 ? 2 : 4);
+  // Render everything we are given: silently capping the list made the
+  // "Needs attention" counts elsewhere disagree with what users see here.
+  const visibleApprovals = approvals;
+  const visibleFailedRuns = failedRuns;
   const isEmpty = visibleApprovals.length === 0 && visibleFailedRuns.length === 0;
 
   return (

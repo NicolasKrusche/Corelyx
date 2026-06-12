@@ -263,7 +263,7 @@
     "viewAll": "Vedi tutto",
     "unknownWorkflow": "Flusso di lavoro sconosciuto",
     "reviewRequired": "Revisione richiesta",
-    "totalCount": "{count} in totale"
+    "totalCount": "{count} in totale nello spazio"
   },
   "runs": {
     "title": "Esecuzioni",

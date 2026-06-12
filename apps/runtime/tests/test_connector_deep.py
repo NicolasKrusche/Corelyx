@@ -206,6 +206,56 @@ class TestGmailConnectorDeep(unittest.IsolatedAsyncioTestCase):
                 await GmailConnector().execute("label_email", {"message_id": "m1", "add_label_ids": ["LABEL_1"]}, "tok")
         self.assertEqual(ctx.exception.code, "GMAIL_API_ERROR")
 
+    async def test_archive_email_archives_inbox_message(self):
+        meta = _fake_response({"id": "m1", "labelIds": ["INBOX", "UNREAD"]})
+        modify = _fake_response({"id": "m1", "labelIds": ["UNREAD"]})
+        request_mock = AsyncMock(side_effect=[meta, modify])
+        with patch("connectors.gmail.request_with_rate_limit", new=request_mock):
+            result = await GmailConnector().execute("archive_email", {"message_id": "m1"}, "tok")
+        self.assertTrue(result["archived"])
+        self.assertNotIn("skipped", result)
+        self.assertEqual(request_mock.await_count, 2)
+
+    async def test_archive_email_skips_already_archived(self):
+        # Removing INBOX from a message that isn't in the inbox is a pointless
+        # write — the connector must not issue the modify call.
+        meta = _fake_response({"id": "m1", "labelIds": ["UNREAD"]})
+        request_mock = AsyncMock(return_value=meta)
+        with patch("connectors.gmail.request_with_rate_limit", new=request_mock):
+            result = await GmailConnector().execute("archive_email", {"message_id": "m1"}, "tok")
+        self.assertTrue(result["skipped"])
+        self.assertTrue(result["archived"])
+        self.assertEqual(request_mock.await_count, 1)
+
+    async def test_archive_email_skips_trashed_message(self):
+        # Modifying a trashed message returns 400 "Precondition check failed";
+        # the connector must skip instead of failing the run.
+        meta = _fake_response({"id": "m1", "labelIds": ["TRASH"]})
+        request_mock = AsyncMock(return_value=meta)
+        with patch("connectors.gmail.request_with_rate_limit", new=request_mock):
+            result = await GmailConnector().execute("archive_email", {"message_id": "m1"}, "tok")
+        self.assertTrue(result["skipped"])
+        self.assertFalse(result["archived"])
+        self.assertEqual(request_mock.await_count, 1)
+
+    async def test_archive_email_skips_missing_message(self):
+        meta = _fake_response(status_code=404, text="Not Found")
+        with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=meta)):
+            result = await GmailConnector().execute("archive_email", {"message_id": "m1"}, "tok")
+        self.assertTrue(result["skipped"])
+        self.assertFalse(result["archived"])
+
+    async def test_delete_email_defaults_to_trash(self):
+        trash = _fake_response({"id": "m1"})
+        request_mock = AsyncMock(return_value=trash)
+        with patch("connectors.gmail.request_with_rate_limit", new=request_mock):
+            result = await GmailConnector().execute("delete_email", {"message_id": "m1"}, "tok")
+        self.assertTrue(result["deleted"])
+        self.assertFalse(result["permanent"])
+        args = request_mock.await_args_list[0].args
+        self.assertEqual(args[1], "POST")
+        self.assertTrue(args[2].endswith("/messages/m1/trash"))
+
 
 # ────────────────────────────────────────────────────────────────
 # Drive

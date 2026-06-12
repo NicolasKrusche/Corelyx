@@ -35,6 +35,7 @@ import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/gen
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
 import { getUserAiContext } from "@/lib/onboarding/profile";
+import { syncCronTriggers, syncEventTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, canEdit, canRunAgentInWorkspace, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
@@ -638,6 +639,26 @@ export async function POST(request: Request) {
 
           if (connections.length > 0 && postSaveResults[1].error) {
             throw new Error("The workflow was saved but we could not link your connections to it. You can add them manually in the editor.");
+          }
+
+          // Reconcile schema trigger nodes into the `triggers` table — the cron
+          // runner only fires triggers that exist as rows there. Genesis used to
+          // save the program without this sync, so cron triggers looked "Active"
+          // (the editor reads the schema) but never fired in production.
+          try {
+            await syncEventTriggers(serviceClient, program.id, savedSchema);
+            await syncCronTriggers(serviceClient, program.id, savedSchema);
+          } catch (syncError) {
+            await writeAppLog(supabase, {
+              userId,
+              level: "error",
+              source: "Genesis",
+              event: "genesis.stream.trigger_sync_failed",
+              status: "failed",
+              message: "Failed to sync schema triggers after streaming generation.",
+              programId: program.id,
+              details: { error: syncError instanceof Error ? syncError.message : String(syncError) },
+            });
           }
 
           send({

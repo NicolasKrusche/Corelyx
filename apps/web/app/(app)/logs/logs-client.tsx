@@ -86,7 +86,7 @@ function formatDuration(start: string | null, end: string | null): string {
 }
 
 function formatDurationMs(durationMs: number | null): string {
-  if (durationMs == null) return "â€”";
+  if (durationMs == null) return "—";
   if (durationMs < 1000) return `${durationMs}ms`;
   if (durationMs < 60000) return `${(durationMs / 1000).toFixed(1)}s`;
   return `${Math.floor(durationMs / 60000)}m ${Math.floor((durationMs % 60000) / 1000)}s`;

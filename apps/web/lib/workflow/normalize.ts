@@ -327,7 +327,15 @@ export function normalizeProgramDraft(raw: unknown, fallback?: Partial<ProgramSc
       description: typeof n.description === "string" ? n.description : "",
       position: normalizePosition(n.position, index),
       status: stringValue(n.status, "idle"),
-      connection: type === "step" || type === "trigger" || type === "note" || type === "group" ? null : typeof n.connection === "string" ? n.connection : null,
+      // "corelyx"/"corelyx:*" is never a real connection — the corelyx.* tools
+      // are internal agent_task capabilities the model occasionally miswires as
+      // a connection ref, which then fails at runtime with CONNECTION_NOT_FOUND.
+      connection:
+        type === "step" || type === "trigger" || type === "note" || type === "group"
+          ? null
+          : typeof n.connection === "string" && !/^corelyx(:|$)/i.test(n.connection.trim())
+            ? n.connection
+            : null,
       config: normalizeConfig(type, rawConfig),
     } as SchemaNode;
   });

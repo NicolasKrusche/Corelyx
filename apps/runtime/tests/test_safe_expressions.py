@@ -49,6 +49,22 @@ class SafeExpressionsTests(unittest.TestCase):
             evaluate_condition("data.get('flag', false)", {})
         )
 
+    def test_any_and_all_builtins_are_allowed(self) -> None:
+        # Genesis emits Python-style conditions using any()/all(); the sandbox
+        # must support them instead of failing with "Function 'any' is not allowed".
+        self.assertTrue(
+            evaluate_condition(
+                "any([x == 'spam' for x in data['n2'].get('labels', [])])",
+                {"n2": {"labels": ["inbox", "spam"]}},
+            )
+        )
+        self.assertFalse(
+            evaluate_condition(
+                "all([x == 'spam' for x in data['n2'].get('labels', [])])",
+                {"n2": {"labels": ["inbox", "spam"]}},
+            )
+        )
+
     def test_evaluate_expression_rejects_private_attribute_access(self) -> None:
         with self.assertRaisesRegex(SafeExpressionError, "not allowed"):
             evaluate_expression("data.__class__", {"value": 1})

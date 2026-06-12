@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createServerClient } from "@/lib/supabase/server";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { getFeatureFlags } from "@/lib/feature-flags";
@@ -82,8 +83,17 @@ export default async function FeatureFlagsPage() {
               Environment-Based Configuration
             </h3>
             <p className="mt-2 text-sm text-yellow-700">
-              Feature flags are controlled via environment variables. 
-              Changes require updating environment variables and redeploying.
+              The flags on this page are read-only environment variables — changing them
+              requires updating the deployment environment and redeploying.
+            </p>
+            <p className="mt-2 text-sm text-yellow-700">
+              The emergency controls (maintenance mode, disabling Genesis or workflow
+              execution) are also DB-backed and can be toggled <strong>live, without a
+              redeploy</strong>, on the{" "}
+              <Link href="/admin/emergency" className="font-semibold underline">
+                Emergency Controls page
+              </Link>
+              .
             </p>
           </div>
         </div>

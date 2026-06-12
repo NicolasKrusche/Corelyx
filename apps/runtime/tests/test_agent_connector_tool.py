@@ -58,6 +58,37 @@ class ConnectorToolValidationTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(res["ok"])
         self.assertIn("params", res["error"])
 
+    async def test_unresolved_template_params_are_refused(self):
+        # The model sometimes copies workflow template syntax into a tool call;
+        # the literal {{...}} must never reach a connector URL.
+        ex = _agent_executor()
+        res = await ex._execute_agent_connector_tool(
+            {
+                "connection": "gmail:primary",
+                "operation": "delete_email",
+                "params": {"message_id": "{{loop_id.email.id}}"},
+            },
+            "a1",
+            "write",
+        )
+        self.assertFalse(res["ok"])
+        self.assertIn("template", res["error"].lower())
+        self.assertIn("{{loop_id.email.id}}", res["error"])
+
+    async def test_nested_template_params_are_refused(self):
+        ex = _agent_executor()
+        res = await ex._execute_agent_connector_tool(
+            {
+                "connection": "slack:main",
+                "operation": "send_message",
+                "params": {"blocks": [{"text": "id={{n2.email.id}}"}]},
+            },
+            "a1",
+            "write",
+        )
+        self.assertFalse(res["ok"])
+        self.assertIn("template", res["error"].lower())
+
 
 class ConnectorToolScopeTests(unittest.IsolatedAsyncioTestCase):
     async def test_read_scope_blocks_write_op(self):

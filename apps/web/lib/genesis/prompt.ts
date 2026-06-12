@@ -25,6 +25,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
     tier: 1,
     full: `GMAIL:
   list_emails / search: params={query:string(REQUIRED),max_results:number} → output:{emails:[{id,threadId}]}
+    ⚠ ALWAYS set max_results explicitly (e.g. 25; never more than 100) on list_emails/search/list_threads. Unbounded inbox scans make the downstream loop exceed the run time limit.
     ⚠ emails are stubs — {id,threadId} ONLY. subject/from/body/labels are NOT present.
     ⚠ REQUIRED PATTERN when processing individual emails: list_emails(nX) → filter(len(data['nX'].get('emails',[]))>0) → loop(over:"data['nX']['emails']",item_var:"email") → read_email(message_id:"{{nX.email.id}}") → [branch/filter/agent using data['read_node']['subject'] etc.]
     ⚠ NEVER write a branch or filter condition that checks subject/from/body/labels on the loop item directly — those fields do not exist on stubs. Always read_email first.
@@ -171,6 +172,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   docs: {
     tier: 1,
     full: `GOOGLE DOCS:
+  ⚠ Docs has NO list_files operation. Listing documents is GOOGLE DRIVE list_files (mime_type:"application/vnd.google-apps.document") — never assign list_files to the docs connector.
   read_document: params={document_id(REQUIRED)} → output:{document_id,title,text,revision_id}
   create_document: params={title?,content?} → output:{document_id,title}
   append_text / append_to_document: params={document_id(REQUIRED),text(REQUIRED)} → output:{document_id,appended:true}
@@ -574,7 +576,8 @@ AGENT NODE (connection: null):
 Use AGENT for reasoning/summarization/decisions. Use CONNECTION for deterministic API calls.
 
 STEP NODE (connection: ALWAYS null):
-Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node output via its node ID: data['n1'].get('field',''), data['n2']['key'], etc. Never use data.get('field') directly — the flat merge is unreliable. Allowed: data['nX'].get(k,default), len(), str(), int(), float(), and/or/not, ==, !=, list comprehensions [x for x in ...], str.join/split/strip/upper/lower.
+Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node output via its node ID: data['n1'].get('field',''), data['n2']['key'], etc. Never use data.get('field') directly — the flat merge is unreliable. Allowed: data['nX'].get(k,default), len(), str(), int(), float(), any(), all(), and/or/not, ==, !=, list comprehensions [x for x in ...], str.join/split/strip/upper/lower.
+Literals are PYTHON: True/False/None — never lowercase true/false/null and never undefined.
   filter: {"logic_type":"filter","condition":"len(data['n2'].get('emails',[]))>0","pass_schema":null}  ← always data['nodeId'].get(...), never data.get(...)
   transform: {"logic_type":"transform","transformation":"{'key':data['n1']['key']}","input_schema":null,"output_schema":null}
   loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}  → if this is node n3 with item_var:"email", downstream uses data['n3']['email']['id'] or {{n3.email.id}}. item_var name becomes the key under the loop node ID.
@@ -587,6 +590,7 @@ Expressions use Python-like syntax on "data" dict. ALWAYS access upstream node o
 
 CONNECTION NODE:
   OAuth: connection field MUST match provided name exactly. Config: {"provider":"gmail|notion|slack|github|sheets|calendar|docs|drive|airtable|hubspot|typeform|asana|outlook","scope_access":"read|write|read_write","scope_required":["..."],"operation":"op_name","operation_params":{...}}
+  ⚠ "corelyx" is NEVER a valid connection or provider — corelyx.* capabilities exist only as internal tools inside agent_task nodes. Never emit a connection node whose connection or provider references corelyx.
   scope_access is DEFAULT-DENY at runtime: a write operation on a node with scope_access:"read" is refused. Set "read" for read-only operations and "write" exactly when the operation has side effects — never default to "read_write".
   Destructive operations (delete_*, remove_*, clear_*, or permanent:true) ALWAYS pause the run for human approval at runtime. Mention this in the relevant node's description so the user expects the pause.
   HTTP: connection:null for generic credentials, or the exact provided OAuth connection name when calling that provider's REST API. Config: {"connector_type":"http","method":"GET|POST|PUT|PATCH|DELETE","url":"https://...","auth_type":"none|bearer|basic|api_key_header|api_key_query","auth_value":null|"__OAUTH_CONNECTION__","query_params":[],"headers":[],"body":null,"parse_response":true,"timeout_seconds":30,"retry":null}

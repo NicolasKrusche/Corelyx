@@ -16,6 +16,8 @@ _ALLOWED_FUNCTIONS = {
     "list": list,
     "dict": dict,
     "bool": bool,
+    "any": any,
+    "all": all,
 }
 
 _ALLOWED_BINARY_OPERATORS = {
