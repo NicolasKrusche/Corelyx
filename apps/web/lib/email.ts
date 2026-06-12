@@ -835,3 +835,47 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+export async function sendTwoFactorCodeEmail({
+  to,
+  code,
+}: {
+  to: string;
+  code: string;
+}): Promise<void> {
+  await sendEmail({
+    to,
+    subject: `${code} is your Corelyx sign-in code`,
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;">
+      <tr><td style="padding:32px 40px 0;text-align:center;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#eff6ff;border-radius:12px;border:1px solid #bfdbfe;margin-bottom:16px;">
+          <span style="font-size:24px;">&#128274;</span>
+        </div>
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.3px;">Your sign-in code</h1>
+        <p style="margin:0;font-size:15px;color:#6b7280;line-height:1.5;">Enter this code to finish signing in. It expires in 10 minutes.</p>
+      </td></tr>
+      <tr><td style="padding:28px 40px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <span style="display:inline-block;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px;padding:14px 28px;font-size:28px;font-weight:700;letter-spacing:8px;color:#111827;font-family:ui-monospace,Menlo,monospace;">${code}</span>
+        </div>
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+          If you didn&apos;t try to sign in, change your password immediately &mdash; someone may know it.<br>
+          Corelyx will never ask you for this code by phone, chat, or email.
+        </p>
+      </td></tr>
+      <tr><td style="padding:20px 40px;background:#f9fafb;border-top:1px solid #f3f4f6;text-align:center;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;">Corelyx &middot; <a href="${APP_URL}" style="color:#9ca3af;">${APP_URL}</a></p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`,
+  });
+}
