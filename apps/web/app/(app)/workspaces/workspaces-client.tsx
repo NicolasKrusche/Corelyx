@@ -20,6 +20,7 @@ type Workspace = {
   allow_external_agents: boolean;
   agent_min_role: "admin" | "member" | "viewer";
   compliance_mode: "standard" | "eu_only";
+  pii_mode?: "auto" | "standard" | "strict";
   execution_log_retention_days: number;
   prompt_retention_days: number;
   output_retention_days: number;
@@ -106,6 +107,7 @@ export function WorkspacesClient() {
   const [settingsAllowExternalAgents, setSettingsAllowExternalAgents] = useState(false);
   const [settingsAgentMinRole, setSettingsAgentMinRole] = useState<"admin" | "member" | "viewer">("admin");
   const [settingsComplianceMode, setSettingsComplianceMode] = useState<"standard" | "eu_only">("standard");
+  const [settingsPiiMode, setSettingsPiiMode] = useState<"auto" | "standard" | "strict">("auto");
   const [executionLogRetentionDays, setExecutionLogRetentionDays] = useState(90);
   const [promptRetentionDays, setPromptRetentionDays] = useState(0);
   const [outputRetentionDays, setOutputRetentionDays] = useState(0);
@@ -189,6 +191,7 @@ export function WorkspacesClient() {
     setSettingsAllowExternalAgents(selectedWorkspace.allow_external_agents ?? false);
     setSettingsAgentMinRole(selectedWorkspace.agent_min_role ?? "admin");
     setSettingsComplianceMode(selectedWorkspace.compliance_mode ?? "standard");
+    setSettingsPiiMode(selectedWorkspace.pii_mode ?? "auto");
     setExecutionLogRetentionDays(selectedWorkspace.execution_log_retention_days ?? 90);
     setPromptRetentionDays(selectedWorkspace.prompt_retention_days ?? 0);
     setOutputRetentionDays(selectedWorkspace.output_retention_days ?? 0);
@@ -289,6 +292,7 @@ export function WorkspacesClient() {
         allow_external_agents: settingsAllowExternalAgents,
         agent_min_role: settingsAgentMinRole,
         compliance_mode: settingsComplianceMode,
+        pii_mode: settingsPiiMode,
         execution_log_retention_days: executionLogRetentionDays,
         prompt_retention_days: promptRetentionDays,
         output_retention_days: outputRetentionDays,
@@ -704,6 +708,22 @@ export function WorkspacesClient() {
                         </select>
                         <p className="mt-1 text-xs text-muted-foreground">
                           EU-only mode blocks providers without verified EU residency, DPA, SCC, and transfer-basis evidence.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">AI privacy tier</label>
+                        <select
+                          value={settingsPiiMode}
+                          onChange={(e) => setSettingsPiiMode(e.target.value as "auto" | "standard" | "strict")}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                        >
+                          <option value="auto">Auto (strict when EU-only)</option>
+                          <option value="standard">Standard</option>
+                          <option value="strict">Strict</option>
+                        </select>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Identifiers (emails, phones, IBANs, cards) are always pseudonymized before AI calls. Strict additionally pseudonymizes person names via on-server detection.
                         </p>
                       </div>
 

@@ -17,8 +17,7 @@ import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import {
   hasPiiRedactions,
   mergePiiRedactions,
-  sanitizeTextForLlm,
-  sanitizeValueForLlm,
+  PseudonymizationSession,
 } from "@/lib/privacy/pii";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
@@ -119,9 +118,12 @@ export async function POST(request: Request) {
   }
   const requestedConnectionIds = uniqueRequestedConnectionIds(connection_ids);
   const isRefinement = isGenesisRefinementRequest(parsed.data);
-  const sanitizedDescription = sanitizeTextForLlm(description);
-  const sanitizedRefinement = refinement ? sanitizeTextForLlm(refinement) : null;
-  const sanitizedExistingSchema = existing_schema === undefined ? null : sanitizeValueForLlm(existing_schema);
+  // One reversible session per request: the model sees stable [EMAIL_1]-style
+  // placeholders; the generated schema is rehydrated to real values below.
+  const piiSession = new PseudonymizationSession();
+  const sanitizedDescription = piiSession.sanitizeText(description);
+  const sanitizedRefinement = refinement ? piiSession.sanitizeText(refinement) : null;
+  const sanitizedExistingSchema = existing_schema === undefined ? null : piiSession.sanitizeValue(existing_schema);
   const piiRedactions = mergePiiRedactions(
     sanitizedDescription.redactions,
     sanitizedRefinement?.redactions,
@@ -653,6 +655,12 @@ export async function POST(request: Request) {
         serverLog({ level: "error", event: "genesis.parse.all_layers_failed", message: "All three parse layers failed." });
       }
     }
+  }
+
+  // Put the real values back into the generated schema (the model only ever
+  // saw placeholders), so saved workflows are configured with usable data.
+  if (parseOk) {
+    parsed_schema = piiSession.rehydrateValue(parsed_schema);
   }
 
   if (!parseOk) {

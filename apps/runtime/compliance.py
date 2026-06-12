@@ -129,6 +129,8 @@ DEFAULT_WORKSPACE_POLICY = {
     "compliance_mode": "standard",
     "data_region": "eu-central-1",
     "execution_log_retention_days": 90,
+    # "auto" → strict person-name pseudonymization for eu_only workspaces.
+    "pii_mode": "auto",
 }
 
 
@@ -218,11 +220,27 @@ def load_workspace_policy(db: Any, workspace_id: str | None) -> dict[str, Any]:
         if not rows:
             return dict(DEFAULT_WORKSPACE_POLICY)
         row = rows[0]
+
+        # Queried separately so a deployment where the pii_mode migration has
+        # not been applied yet degrades to the "auto" default WITHOUT also
+        # resetting compliance_mode/data_region to defaults.
+        pii_mode = "auto"
+        try:
+            pii_result = (
+                db.table("workspaces").select("pii_mode").eq("id", workspace_id).limit(1).execute()
+            )
+            pii_rows = pii_result.data or []
+            if pii_rows and pii_rows[0].get("pii_mode") in ("auto", "standard", "strict"):
+                pii_mode = pii_rows[0]["pii_mode"]
+        except Exception:
+            pass
+
         return {
             **DEFAULT_WORKSPACE_POLICY,
             "compliance_mode": row.get("compliance_mode") or "standard",
             "data_region": row.get("data_region") or DEFAULT_WORKSPACE_POLICY["data_region"],
             "execution_log_retention_days": row.get("execution_log_retention_days") or 90,
+            "pii_mode": pii_mode,
         }
     except Exception as exc:
         print(f"[runtime] WARNING: could not load workspace compliance policy: {exc}", flush=True)

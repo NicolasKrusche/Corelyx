@@ -31,6 +31,7 @@ const UpdateWorkspaceSchema = z.discriminatedUnion("action", [
     default_execution_mode: z.enum(["autonomous", "supervised", "manual"]).optional(),
     default_conflict_policy: z.enum(["queue", "skip", "fail"]).optional(),
     compliance_mode: z.enum(["standard", "eu_only"]).optional(),
+    pii_mode: z.enum(["auto", "standard", "strict"]).optional(),
     execution_log_retention_days: z.number().int().positive().optional(),
     prompt_retention_days: z.number().int().nonnegative().optional(),
     output_retention_days: z.number().int().nonnegative().optional(),
@@ -56,6 +57,7 @@ type WorkspaceRow = {
   allow_external_agents: boolean;
   agent_min_role: "admin" | "member" | "viewer";
   compliance_mode: "standard" | "eu_only";
+  pii_mode: "auto" | "standard" | "strict";
   execution_log_retention_days: number;
   prompt_retention_days: number;
   output_retention_days: number;
@@ -199,7 +201,7 @@ export async function GET() {
     const [workspacesRes, countsRes] = await Promise.all([
       service
         .from("workspaces")
-        .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
+        .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
         .in("id", workspaceIds)
         .order("created_at", { ascending: true }),
       service
@@ -253,7 +255,7 @@ export async function POST(request: Request) {
       name: parsed.data.name,
       created_by: user.id,
     } as never)
-    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
+    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
     .single();
 
   if (error || !workspace) return apiError(error?.message ?? "Workspace could not be created.", 500);
@@ -332,6 +334,7 @@ export async function PATCH(request: Request) {
     if (parsed.data.default_execution_mode !== undefined) patch.default_execution_mode = parsed.data.default_execution_mode;
     if (parsed.data.default_conflict_policy !== undefined) patch.default_conflict_policy = parsed.data.default_conflict_policy;
     if (parsed.data.compliance_mode !== undefined) patch.compliance_mode = parsed.data.compliance_mode;
+    if (parsed.data.pii_mode !== undefined) patch.pii_mode = parsed.data.pii_mode;
     if (parsed.data.execution_log_retention_days !== undefined) patch.execution_log_retention_days = parsed.data.execution_log_retention_days;
     if (parsed.data.prompt_retention_days !== undefined) patch.prompt_retention_days = parsed.data.prompt_retention_days;
     if (parsed.data.output_retention_days !== undefined) patch.output_retention_days = parsed.data.output_retention_days;
@@ -345,7 +348,7 @@ export async function PATCH(request: Request) {
       .from("workspaces")
       .update(patch as never)
       .eq("id", parsed.data.workspace_id)
-      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, default_execution_mode, default_conflict_policy, created_by, created_at, updated_at")
+      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, default_execution_mode, default_conflict_policy, created_by, created_at, updated_at")
       .single();
 
     if (error || !data) return apiError(error?.message ?? "Settings could not be updated.", 500);
