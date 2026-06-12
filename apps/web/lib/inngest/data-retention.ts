@@ -6,6 +6,7 @@ const DEFAULT_PAYLOAD_RETENTION_DAYS = 30;
 const DEFAULT_RUN_RETENTION_DAYS = 90;
 const DEFAULT_AUDIT_RETENTION_DAYS = 365;
 const DEFAULT_IP_ANONYMIZE_DAYS = 7;
+const DEFAULT_APP_LOG_RETENTION_DAYS = 365;
 
 type RetentionRpcResult = {
   data: unknown;
@@ -41,6 +42,10 @@ export const dataRetentionPurge = inngest.createFunction(
       "RETENTION_IP_ANONYMIZE_DAYS",
       DEFAULT_IP_ANONYMIZE_DAYS
     );
+    const appLogRetentionDays = positiveIntFromEnv(
+      "RETENTION_APP_LOG_RETENTION_DAYS",
+      DEFAULT_APP_LOG_RETENTION_DAYS
+    );
 
     const result = await step.run("purge-expired-operational-data", async () => {
       const db = createServiceClient();
@@ -52,6 +57,7 @@ export const dataRetentionPurge = inngest.createFunction(
         p_payload_retention: intervalDays(payloadRetentionDays),
         p_run_retention: intervalDays(runRetentionDays),
         p_audit_retention: intervalDays(auditRetentionDays),
+        p_app_log_retention: intervalDays(appLogRetentionDays),
       });
 
       if (error) {
