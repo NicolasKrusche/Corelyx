@@ -1,5 +1,6 @@
 import type { createServiceClient } from "@/lib/api";
 import { checkAgentAccess, checkRunLimit } from "@/lib/limits";
+import { getUserAiContext } from "@/lib/onboarding/profile";
 import { gatherPriorReports } from "@/lib/agents/lineage";
 import { buildClonedAgentSchema } from "@/lib/agents/lineage";
 import { AGENT_PLATFORM_DEFAULT_MODEL, KEY_DEFAULT_MODELS, KEY_PROVIDER_PRIORITY } from "@/lib/genesis/request";
@@ -155,7 +156,12 @@ export async function dispatchAgentRun(
     .update({ agent_state: "running", updated_at: new Date().toISOString() } as never)
     .eq("id", programId);
 
-  const priorReports = await gatherPriorReports(service, workspaceId, programId, program.schema, runId);
+  // Cross-run memory + consent-gated user background (full onboarding summary
+  // with consent, anonymized categories otherwise) for agent_task context.
+  const [priorReports, userContext] = await Promise.all([
+    gatherPriorReports(service, workspaceId, programId, program.schema, runId),
+    getUserAiContext(service, userId).catch(() => null),
+  ]);
 
   // User-set capability scope (read-only / allowed apps), enforced at runtime.
   const metadata = (program.schema?.metadata && typeof program.schema.metadata === "object"
@@ -171,6 +177,7 @@ export async function dispatchAgentRun(
       ...(dryRun ? { __dry_run__: true } : {}),
       ...(cred.candidates.length > 0 ? { __agent_credentials__: cred.candidates } : {}),
       ...(priorReports.length > 0 ? { __prior_reports__: priorReports } : {}),
+      ...(userContext ? { __user_context__: userContext } : {}),
       ...(capabilities ? { __agent_capabilities__: capabilities } : {}),
       ...(opts.triggerExtra ?? {}),
     },

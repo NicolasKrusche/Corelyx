@@ -1,4 +1,4 @@
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+﻿import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { serverLog } from "@/lib/server-log";
 
 type ProgramRow = {
@@ -235,7 +235,7 @@ export async function GET() {
     last_sign_in_at: user.last_sign_in_at,
   };
 
-  const [profileRes, programsRes, usageRes, dataRequestsRes, redemptionsRes] = await Promise.all([
+  const [profileRes, onboardingRes, programsRes, usageRes, dataRequestsRes, redemptionsRes] = await Promise.all([
     db
       .from("profiles")
       .select(
@@ -243,6 +243,13 @@ export async function GET() {
       )
       .eq("id", user.id)
       .single(),
+    db
+      .from("onboarding_profiles")
+      .select(
+        "account_type, team_size, industry, role, goals, tools, current_processes, automation_wishes, profile_consent, consent_at, ai_context, created_at, updated_at"
+      )
+      .eq("user_id", user.id)
+      .maybeSingle(),
     db
       .from("programs")
       .select(
@@ -389,7 +396,7 @@ export async function GET() {
   const bundle = {
     export_metadata: {
       exported_at: new Date().toISOString(),
-      schema_version: 4,
+      schema_version: 5,
       schema_document: "/data-export-schema",
       account_id: user.id,
       format: "application/json",
@@ -403,6 +410,7 @@ export async function GET() {
     },
     auth_profile,
     account_profile,
+    onboarding_profile: (onboardingRes.data ?? null) as unknown,
     usage: (usageRes.data ?? []) as unknown as UsageRow[],
     workspaces,
     workspace_memberships,
@@ -434,7 +442,7 @@ export async function GET() {
       status: "completed",
       message: "User downloaded GDPR account data export.",
       details: {
-        schema_version: 4,
+        schema_version: 5,
         schema_document: "/data-export-schema",
         exported_sections: Object.keys(bundle).filter((key) => key !== "export_metadata"),
       },
@@ -448,7 +456,7 @@ export async function GET() {
     headers: {
       "Content-Type": "application/json",
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "X-Corelyx-Export-Schema-Version": "4",
+      "X-Corelyx-Export-Schema-Version": "5",
     },
   });
 }
