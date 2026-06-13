@@ -74,6 +74,49 @@ async function resolveAgentCredentials(
 }
 
 /**
+ * Heal persisted agent schemas that contain a bogus "corelyx" / "corelyx:primary"
+ * connection node — the internal agent toolset (report_to_user, …) miswired as an
+ * OAuth connection, which fails every run at the runtime with "corelyx is not a
+ * connectable app". Rewrite each into the report_to_user agent_task it was meant
+ * to be. Mirrors the Genesis parsing repair (lib/genesis/parsing.ts) so agents
+ * created before that fix landed still run. Returns true if the schema changed.
+ */
+function repairCorelyxConnectionNodes(schema: Record<string, unknown> | null): boolean {
+  if (!schema || typeof schema !== "object") return false;
+  const nodes = Array.isArray((schema as { nodes?: unknown }).nodes)
+    ? (schema as { nodes: Array<Record<string, any>> }).nodes
+    : [];
+  let changed = false;
+  for (const n of nodes) {
+    if (n?.type !== "connection") continue;
+    const cfg = (n.config && typeof n.config === "object" ? n.config : {}) as Record<string, unknown>;
+    const ref = typeof n.connection === "string" ? n.connection : "";
+    const refProvider = ref.includes(":") ? ref.split(":")[0] : ref;
+    if (refProvider !== "corelyx" && cfg.provider !== "corelyx") continue;
+    n.type = "agent_task";
+    n.connection = null;
+    n.config = {
+      objective:
+        (typeof n.description === "string" && n.description) ||
+        (typeof n.label === "string" && n.label) ||
+        "Report the results back to the user.",
+      model: "__USER_ASSIGNED__",
+      api_key_ref: "__USER_ASSIGNED__",
+      max_iterations: 4,
+      tools: ["corelyx.report_to_user"],
+      scope_access: "read",
+      requires_approval: false,
+      approval_timeout_hours: 24,
+      input_schema: null,
+      output_schema: null,
+      retry: { max_attempts: 2, backoff: "exponential", backoff_base_seconds: 5, fail_program_on_exhaust: false },
+    };
+    changed = true;
+  }
+  return changed;
+}
+
+/**
  * Create a run for an agent program and dispatch it to the runtime. Shared by
  * the manual run route and the trigger-fire paths. Handles credentials, the
  * active-run guard, the run-limit check, cross-run memory, and runtime dispatch.
@@ -106,6 +149,16 @@ export async function dispatchAgentRun(
   } | null;
   if (!program) return { ok: false, error: "Agent not found.", status: 404 };
   if (program.program_type !== "agent") return { ok: false, error: "This program is not an agent.", status: 400 };
+
+  // Self-heal legacy agents that were persisted with a bogus "corelyx" connection
+  // node (would otherwise fail every run). Persist so the runtime — which loads
+  // the schema by run — sees the repaired version, then continue with it in hand.
+  if (repairCorelyxConnectionNodes(program.schema)) {
+    await service
+      .from("programs")
+      .update({ schema: program.schema as unknown as Record<string, unknown>, updated_at: new Date().toISOString() } as never)
+      .eq("id", programId);
+  }
 
   // Sentinel containment: every agent dispatch path (manual, cron, webhook,
   // event) funnels through here, so locked agents/owners are stopped centrally.

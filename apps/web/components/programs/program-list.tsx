@@ -26,7 +26,7 @@ export type FolderItem = {
   color: string | null;
 };
 
-export type ProgramStats = Record<string, { total: number; failed: number; runSeries?: number[]; providers?: string[] }>;
+export type ProgramStats = Record<string, { total: number; failed: number; runSeries?: number[]; providers?: string[]; lastRunAt?: string | null }>;
 
 const FOLDER_COLORS = [
   { hex: "#6366f1", label: "Indigo" },
@@ -290,7 +290,13 @@ export function ProgramList({
         </Link>
 
         <div className="hidden lg:block w-24 shrink-0 text-[11px] text-muted-foreground/70">
-          {p.last_run_at ? timeAgo(p.last_run_at) : <span className="italic text-muted-foreground/40">never</span>}
+          {(() => {
+            // Prefer the denormalized programs.last_run_at, but fall back to the
+            // most recent run timestamp derived from run history so the column
+            // is correct even if that column wasn't maintained.
+            const lastRun = p.last_run_at ?? s.lastRunAt ?? null;
+            return lastRun ? timeAgo(lastRun) : <span className="italic text-muted-foreground/40">never</span>;
+          })()}
         </div>
 
         <div className="hidden xl:flex w-20 shrink-0 items-center gap-2 text-[10px] text-muted-foreground/70">

@@ -461,6 +461,13 @@ export async function POST(request: Request) {
           (parsedSchema as Record<string, unknown>).program_id = crypto.randomUUID();
         }
 
+        // Stamp the agent discriminator BEFORE normalizeSchema: its corelyx
+        // connection-node repair (a bogus "corelyx:primary" connection rewritten
+        // into a report_to_user agent_task) only fires when program_type ===
+        // "agent". The model often omits program_type, so without setting it
+        // first the repair was skipped and the broken connection ref reached the
+        // runtime, failing every agent run with "corelyx is not a connectable app".
+        if (isAgent) (parsedSchema as { program_type?: string }).program_type = "agent";
         normalizeSchema(parsedSchema);
         parsedSchema = normalizeProgramDraft(
           parsedSchema,
@@ -468,10 +475,9 @@ export async function POST(request: Request) {
             ? (existingSchemaRaw as Partial<ProgramSchema>)
             : undefined
         );
-        // Stamp the agent discriminator before validation: agent programs use
-        // agent_task nodes, which ProgramDraftSchemaZ only permits when
-        // program_type === "agent". The model sometimes omits it, so set it from
-        // the request rather than trusting the model output.
+        // Re-assert after normalizeProgramDraft in case the draft merge dropped
+        // it: agent programs use agent_task nodes, which ProgramDraftSchemaZ only
+        // permits when program_type === "agent".
         if (isAgent) (parsedSchema as { program_type?: string }).program_type = "agent";
         // The model occasionally emits an edge to a node it renamed or never
         // produced. A single dangling reference would otherwise fail the whole

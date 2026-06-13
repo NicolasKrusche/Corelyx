@@ -41,11 +41,21 @@ const nextConfig = {
         destination: "/data-residency",
         permanent: true,
       },
-      // The feature-flag admin page lives at /admin/flags; redirect the
-      // intuitive /admin/feature-flags guess instead of returning a 404.
+      // Admin pages have terse canonical paths; redirect the intuitive guesses
+      // instead of returning a 404.
       {
         source: "/admin/feature-flags",
         destination: "/admin/flags",
+        permanent: true,
+      },
+      {
+        source: "/admin/tickets",
+        destination: "/admin/support",
+        permanent: true,
+      },
+      {
+        source: "/admin/circuit-breakers",
+        destination: "/admin/circuits",
         permanent: true,
       },
     ];

@@ -27,6 +27,33 @@ function asRows<T>(data: unknown): T[] {
   return Array.isArray(data) ? (data as T[]) : [];
 }
 
+const ERROR_CODE_LABELS: Record<string, string> = {
+  CONDITION_EVAL_ERROR: "A filter/branch condition failed to evaluate",
+  CONNECTION_NOT_FOUND: "A required connection was missing",
+  API_KEY_FETCH_FAILED: "An API key could not be resolved",
+  API_KEY_REQUIRED: "A user-supplied API key is required",
+  PLATFORM_KEY_MISSING: "Platform AI key not configured",
+  MAX_RETRIES_EXHAUSTED: "Model call failed after retries",
+  NODE_FAILED: "A workflow step failed",
+  HTTP_CONFIG_INVALID: "An HTTP step was misconfigured",
+  LOCK_TIMEOUT: "Timed out waiting for a resource lock",
+};
+
+// Summarize a raw runtime error for the cross-tenant admin overview WITHOUT
+// echoing the underlying workflow expression/data. Runtime errors like
+// "[CONDITION_EVAL_ERROR] Condition 'any(word in data['n5']...'" embed internal
+// node IDs and customer workflow content; the admin only needs the error class.
+// Full detail stays on the workspace owner's own run page.
+function summarizeRunError(message: string | null): string {
+  if (!message) return "Run failed (no error detail).";
+  const codeMatch = message.match(/^\s*\[([A-Z0-9_]+)\]/);
+  if (codeMatch) {
+    const code = codeMatch[1];
+    return ERROR_CODE_LABELS[code] ?? `${code.replace(/_/g, " ").toLowerCase()}`;
+  }
+  return "Run failed — open the run for details.";
+}
+
 async function getStats() {
   const db = createServiceClient();
   
@@ -258,7 +285,7 @@ export default async function AdminOverviewPage() {
                       Program: {run.program_id?.slice(0, 8)}...
                     </p>
                     <p className="text-sm text-red-600 mt-1">
-                      {run.error_message?.slice(0, 100)}...
+                      {summarizeRunError(run.error_message)}
                     </p>
                   </div>
                   <span className="text-xs text-gray-400">

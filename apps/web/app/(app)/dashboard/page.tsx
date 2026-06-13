@@ -308,23 +308,29 @@ export default async function DashboardPage({
     if (!providersByProgramId.has(link.program_id)) providersByProgramId.set(link.program_id, new Set());
     providersByProgramId.get(link.program_id)?.add(provider);
   }
-  const perProgramStats: Record<string, { total: number; failed: number; runSeries: number[]; providers: string[] }> = {};
+  const perProgramStats: Record<string, { total: number; failed: number; runSeries: number[]; providers: string[]; lastRunAt: string | null }> = {};
   for (const program of programs) {
     perProgramStats[program.id] = {
       total: 0,
       failed: 0,
       runSeries: dayKeys.map(() => 0),
       providers: [...(providersByProgramId.get(program.id) ?? [])],
+      lastRunAt: null,
     };
   }
   for (const run of recentRuns) {
     if (!perProgramStats[run.program_id]) {
-      perProgramStats[run.program_id] = { total: 0, failed: 0, runSeries: dayKeys.map(() => 0), providers: [] };
+      perProgramStats[run.program_id] = { total: 0, failed: 0, runSeries: dayKeys.map(() => 0), providers: [], lastRunAt: null };
     }
     perProgramStats[run.program_id].total++;
     if (run.status === "failed") perProgramStats[run.program_id].failed++;
     const dayIndex = dayKeys.indexOf(run.created_at.slice(0, 10));
     if (dayIndex >= 0) perProgramStats[run.program_id].runSeries[dayIndex]++;
+    // recentRuns is ordered created_at DESC, so the first run seen per program
+    // is the most recent — record it as a fallback for the "Last run" column.
+    if (!perProgramStats[run.program_id].lastRunAt) {
+      perProgramStats[run.program_id].lastRunAt = run.created_at;
+    }
   }
 
   const runsThisWeek = recentRuns.filter((run) => run.created_at >= weekAgo);
