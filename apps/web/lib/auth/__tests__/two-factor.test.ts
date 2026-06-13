@@ -4,6 +4,7 @@ import {
   generateCode,
   hashCode,
   issueCookieValue,
+  readTwoFactorAppMetadata,
   verifyCookieValue,
 } from "../two-factor";
 
@@ -65,5 +66,15 @@ describe("email two-factor primitives", () => {
     // old-but-correctly-formatted value (signature check happens after age).
     const old = `${uid}.${Date.now() - 32 * 24 * 60 * 60 * 1000}.${"0".repeat(64)}`;
     expect(verifyCookieValue(old, USER)).toBe(false);
+  });
+
+  it("reads the mirrored 2FA flag from app_metadata, undefined when absent", () => {
+    expect(readTwoFactorAppMetadata({ email_2fa_enabled: true })).toBe(true);
+    expect(readTwoFactorAppMetadata({ email_2fa_enabled: false })).toBe(false);
+    // Absent or non-boolean → undefined so the caller falls back to the DB.
+    expect(readTwoFactorAppMetadata({})).toBeUndefined();
+    expect(readTwoFactorAppMetadata(null)).toBeUndefined();
+    expect(readTwoFactorAppMetadata(undefined)).toBeUndefined();
+    expect(readTwoFactorAppMetadata({ email_2fa_enabled: "true" })).toBeUndefined();
   });
 });

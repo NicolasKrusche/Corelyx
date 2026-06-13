@@ -63,6 +63,25 @@ export function cookieMaxAgeSeconds(): number {
   return COOKIE_TTL_DAYS * 24 * 60 * 60;
 }
 
+/**
+ * Key under which profiles.email_2fa_enabled is mirrored into a user's
+ * app_metadata. app_metadata is writable only via the service role and is
+ * returned by supabase.auth.getUser(), so the API 2FA gate can read the flag
+ * straight off the authenticated user with no extra profiles round-trip.
+ */
+export const TWO_FACTOR_METADATA_KEY = "email_2fa_enabled";
+
+/**
+ * Reads the mirrored 2FA flag from a user's app_metadata. Returns undefined
+ * when it has not been mirrored yet (the caller then falls back to the DB).
+ */
+export function readTwoFactorAppMetadata(
+  appMetadata: Record<string, unknown> | null | undefined
+): boolean | undefined {
+  const value = appMetadata?.[TWO_FACTOR_METADATA_KEY];
+  return typeof value === "boolean" ? value : undefined;
+}
+
 export function verifyCookieValue(value: string | undefined, userId: string): boolean {
   if (!value) return false;
   const parts = value.split(".");
