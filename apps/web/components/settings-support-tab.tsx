@@ -78,11 +78,18 @@ export function SettingsSupportTab({
   const endRef = useRef<HTMLDivElement>(null);
 
   async function fetchTickets() {
-    const res = await fetch("/api/support/tickets");
-    if (!res.ok) return;
-    const data = (await res.json()) as { tickets: SupportTicket[] };
-    setTickets(data.tickets);
-    setLoading(false);
+    // Always clear the loading flag, even on error — otherwise a failed request
+    // (or a thrown JSON parse) leaves the "Loading…" spinner up indefinitely.
+    try {
+      const res = await fetch("/api/support/tickets");
+      if (!res.ok) return;
+      const data = (await res.json()) as { tickets: SupportTicket[] };
+      setTickets(data.tickets ?? []);
+    } catch {
+      // Leave tickets empty; the list below renders a clear empty state.
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function fetchMessages(ticketId: string) {

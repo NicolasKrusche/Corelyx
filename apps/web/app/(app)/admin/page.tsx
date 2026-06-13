@@ -288,11 +288,11 @@ export default async function AdminOverviewPage() {
           <span className="font-medium text-blue-800">Circuit Breakers</span>
         </Link>
         <Link
-          href="/security"
+          href="/admin/security"
           className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <AlertTriangle className="w-5 h-5 text-gray-600" />
-          <span className="font-medium text-gray-800">Security Policy</span>
+          <span className="font-medium text-gray-800">Security Sentinel</span>
         </Link>
       </div>
     </div>

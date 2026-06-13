@@ -71,14 +71,21 @@ export function AdminDsrClient() {
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     const url = includeClosed ? "/api/admin/dsr?include_closed=1" : "/api/admin/dsr";
-    const res = await fetch(url, { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json() as { requests?: DsrRow[] };
-      setRequests(data.requests ?? []);
-    } else {
-      setMessage({ type: "error", text: "Could not load data subject requests." });
+    // try/finally guarantees the loading flag clears — a network error or a
+    // thrown JSON parse would otherwise leave "Refreshing…/Loading requests…" up.
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json() as { requests?: DsrRow[] };
+        setRequests(data.requests ?? []);
+      } else {
+        setMessage({ type: "error", text: "Could not load data subject requests." });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Could not load data subject requests. Check your connection and try again." });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [includeClosed]);
 
   useEffect(() => {

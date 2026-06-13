@@ -163,6 +163,10 @@ export const cronRunner = inngest.createFunction(
               .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
               .eq("id", runId);
             recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "failed", message: formatRuntimeRejection(runtimeError) });
+            // The trigger fired (a run was created) — stamp last_fired_at and
+            // advance next_run_at even though dispatch failed, so the trigger
+            // doesn't re-fire every minute and the UI reflects the firing.
+            await advanceNextRun(db, trigger, logger);
             return;
           }
         } catch (error) {
@@ -178,6 +182,10 @@ export const cronRunner = inngest.createFunction(
             } as never)
             .eq("id", runId);
           recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "failed", message: errMsg });
+          // The trigger fired (a run was created) — stamp last_fired_at and
+          // advance next_run_at even though dispatch failed, so the trigger
+          // doesn't re-fire every minute and the UI reflects the firing.
+          await advanceNextRun(db, trigger, logger);
           return;
         }
 

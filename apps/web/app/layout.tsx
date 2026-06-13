@@ -1,7 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
@@ -98,7 +97,6 @@ export default async function RootLayout({
             <CookieNotice />
           </ThemeProvider>
         </NextIntlClientProvider>
-        <Analytics />
       </body>
     </html>
   );

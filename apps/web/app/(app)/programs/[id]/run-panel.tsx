@@ -31,15 +31,17 @@ function Spinner() {
   );
 }
 
-function summarizeChecks(checks: PreFlightCheck[] | null) {
-  if (!checks) {
-    return ["2 connections healthy", "4 API keys present", "1 / 1 nodes valid", "schema v1 compatible"];
-  }
+// Summarize real pre-flight results. Returns null when no check has run yet —
+// the panel shows a neutral prompt instead of fabricated "all healthy" labels,
+// which previously contradicted the editor's real pre-flight (e.g. unconnected
+// connections) and falsely reassured the user before any validation ran.
+function summarizeChecks(checks: PreFlightCheck[] | null): Array<{ label: string; ok: boolean }> | null {
+  if (!checks) return null;
 
-  return checks.slice(0, 4).map((check) => {
-    if (check.status === "fail") return check.label;
-    return CHECK_LABELS[check.code] ?? check.label;
-  });
+  return checks.slice(0, 4).map((check) => ({
+    label: check.status === "fail" ? check.label : (CHECK_LABELS[check.code] ?? check.label),
+    ok: check.status !== "fail",
+  }));
 }
 
 export function RunPanel({ programId }: { programId: string }) {
@@ -171,12 +173,26 @@ export function RunPanel({ programId }: { programId: string }) {
               <a href="triggers" className="font-medium text-primary hover:underline underline-offset-2">Triggers</a> page — cron triggers run indefinitely until you pause them.
             </p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              {summarizeChecks(preflight?.checks ?? null).map((label) => (
-                <span key={label} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Check className="h-3.5 w-3.5 text-emerald-600" />
-                  {label}
-                </span>
-              ))}
+              {(() => {
+                const summary = summarizeChecks(preflight?.checks ?? null);
+                if (!summary) {
+                  return (
+                    <span className="text-xs text-muted-foreground">
+                      Run a check to validate connections, API keys, permissions, and schema.
+                    </span>
+                  );
+                }
+                return summary.map(({ label, ok }) => (
+                  <span key={label} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    {ok ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    ) : (
+                      <TriangleAlert className="h-3.5 w-3.5 text-amber-600" />
+                    )}
+                    {label}
+                  </span>
+                ));
+              })()}
             </div>
           </div>
         </div>

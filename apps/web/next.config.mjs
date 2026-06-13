@@ -41,6 +41,13 @@ const nextConfig = {
         destination: "/data-residency",
         permanent: true,
       },
+      // The feature-flag admin page lives at /admin/flags; redirect the
+      // intuitive /admin/feature-flags guess instead of returning a 404.
+      {
+        source: "/admin/feature-flags",
+        destination: "/admin/flags",
+        permanent: true,
+      },
     ];
   },
 };
