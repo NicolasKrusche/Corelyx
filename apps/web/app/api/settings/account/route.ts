@@ -77,7 +77,7 @@ export async function DELETE() {
   const [connectionsRes, apiKeysRes] = await Promise.all([
     service
       .from("connections")
-      .select("vault_secret_id")
+      .select("id, vault_secret_id")
       .eq("user_id", user.id),
     service
       .from("api_keys")
@@ -85,23 +85,50 @@ export async function DELETE() {
       .eq("user_id", user.id),
   ]);
 
+  type ConnectionRow = { id: string; vault_secret_id: string | null };
   type VaultRow = { vault_secret_id: string | null };
+  const connectionRows = (connectionsRes.data ?? []) as ConnectionRow[];
+  const connectionIds = connectionRows.map((row) => row.id);
+
+  // Webhook secrets are keyed by connection, not user. Their connection_webhook_secrets
+  // rows cascade away with the connection, but the Vault entries they reference do NOT,
+  // so collect them explicitly or they orphan in Vault forever. (The data export already
+  // enumerates this table — deletion just wasn't covering it.)
+  let webhookSecretRows: VaultRow[] = [];
+  if (connectionIds.length > 0) {
+    const { data } = await service
+      .from("connection_webhook_secrets")
+      .select("vault_secret_id")
+      .in("connection_id", connectionIds);
+    webhookSecretRows = (data ?? []) as VaultRow[];
+  }
+
   const vaultIds = [
-    ...((connectionsRes.data ?? []) as VaultRow[]),
+    ...connectionRows,
     ...((apiKeysRes.data ?? []) as VaultRow[]),
+    ...webhookSecretRows,
   ]
     .map((row) => row.vault_secret_id)
     .filter((id): id is string => Boolean(id));
 
+  // Retry a failed deletion once before giving up: once the owning rows cascade away
+  // with the auth user the reference is unrecoverable, so a transient Vault error must
+  // not silently orphan a secret. Persistent failures are recorded in the audit row.
   for (const vaultId of vaultIds) {
-    try {
-      await vaultDelete(service, vaultId);
-      vaultSecretsDeleted += 1;
-    } catch (error) {
-      errors.push({
-        step: "vault_secret_deletion",
-        message: error instanceof Error ? error.message : `Failed to delete Vault secret ${vaultId}`,
-      });
+    let deleted = false;
+    for (let attempt = 0; attempt < 2 && !deleted; attempt += 1) {
+      try {
+        await vaultDelete(service, vaultId);
+        vaultSecretsDeleted += 1;
+        deleted = true;
+      } catch (error) {
+        if (attempt === 1) {
+          errors.push({
+            step: "vault_secret_deletion",
+            message: error instanceof Error ? error.message : `Failed to delete Vault secret ${vaultId}`,
+          });
+        }
+      }
     }
   }
 
