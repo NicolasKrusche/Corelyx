@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { sendSecurityAlertEmail } from "@/lib/email";
-import { cookieMaxAgeSeconds, issueCookieValue, TWO_FACTOR_COOKIE } from "@/lib/auth/two-factor";
+import {
+  cookieMaxAgeSeconds,
+  issueCookieValue,
+  TWO_FACTOR_COOKIE,
+  TWO_FACTOR_METADATA_KEY,
+} from "@/lib/auth/two-factor";
 
 // GET /api/settings/two-factor — current email-2FA state for the settings UI.
 export async function GET() {
@@ -41,6 +46,17 @@ export async function POST(request: Request) {
     .update({ email_2fa_enabled: enabled } as never)
     .eq("id", user.id);
   if (error) return apiError(error.message, 500);
+
+  // Mirror the flag into app_metadata so the API 2FA gate (getAuthUser) reads it
+  // straight off the session with no profiles round-trip. profiles stays the
+  // source of truth; if this fails the gate self-heals from the DB on next read.
+  try {
+    await service.auth.admin.updateUserById(user.id, {
+      app_metadata: { ...(user.app_metadata ?? {}), [TWO_FACTOR_METADATA_KEY]: enabled },
+    });
+  } catch {
+    // Best-effort mirror.
+  }
 
   // Security notification on every toggle — especially disabling, which is
   // the action a hijacked session would take.

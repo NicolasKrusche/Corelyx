@@ -6,7 +6,12 @@ import { createServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { genericErrorMessage, redactSecretText } from "@/lib/redaction";
-import { TWO_FACTOR_COOKIE, verifyCookieValue } from "@/lib/auth/two-factor";
+import {
+  readTwoFactorAppMetadata,
+  TWO_FACTOR_COOKIE,
+  TWO_FACTOR_METADATA_KEY,
+  verifyCookieValue,
+} from "@/lib/auth/two-factor";
 import { isTwoFactorExemptApiPath } from "@/lib/auth/two-factor-api-exempt";
 
 export async function writeNotification(
@@ -59,7 +64,7 @@ export async function getAuthUser(): Promise<User | null> {
   // a valid signed 2FA cookie. This mirrors the (app) layout gate so that direct
   // /api/* calls can't bypass 2FA the way page navigation cannot. Returning null
   // routes through the caller's existing `if (!user) -> 401` path.
-  if (await cookieSessionNeedsTwoFactor(headersList, user.id)) {
+  if (await cookieSessionNeedsTwoFactor(headersList, user)) {
     return null;
   }
 
@@ -73,7 +78,7 @@ export async function getAuthUser(): Promise<User | null> {
  */
 async function cookieSessionNeedsTwoFactor(
   headersList: Awaited<ReturnType<typeof headers>>,
-  userId: string
+  user: User
 ): Promise<boolean> {
   // Login / 2FA-enrollment routes must stay reachable before a 2FA cookie can
   // exist, otherwise the flow dead-locks. middleware sets x-pathname.
@@ -84,19 +89,39 @@ async function cookieSessionNeedsTwoFactor(
   // is present verifyCookieValue returns false without touching the signing
   // secret, so non-2FA users never trip a missing-secret error here.)
   const cookieStore = await cookies();
-  if (verifyCookieValue(cookieStore.get(TWO_FACTOR_COOKIE)?.value, userId)) {
+  if (verifyCookieValue(cookieStore.get(TWO_FACTOR_COOKIE)?.value, user.id)) {
     return false;
   }
 
-  // No valid 2FA cookie — block only if the user actually enabled email 2FA.
+  // Fast path: the flag is mirrored into app_metadata, which getUser() already
+  // returned — so the common case (every cookie-session API call) needs NO
+  // profiles round-trip. app_metadata is service-role-only, so it can't be
+  // forged by the client.
+  const mirrored = readTwoFactorAppMetadata(
+    user.app_metadata as Record<string, unknown> | undefined
+  );
+  if (mirrored !== undefined) return mirrored;
+
+  // Not mirrored yet (legacy user from before the mirror, or a user who has
+  // never toggled 2FA): read the source of truth once, then self-heal by
+  // writing it into app_metadata so subsequent requests take the fast path.
   const service = createServiceClient();
   const { data } = await service
     .from("profiles")
     .select("email_2fa_enabled")
-    .eq("id", userId)
+    .eq("id", user.id)
     .single<{ email_2fa_enabled: boolean | null }>();
+  const enabled = Boolean(data?.email_2fa_enabled);
 
-  return Boolean(data?.email_2fa_enabled);
+  try {
+    await service.auth.admin.updateUserById(user.id, {
+      app_metadata: { ...(user.app_metadata ?? {}), [TWO_FACTOR_METADATA_KEY]: enabled },
+    });
+  } catch {
+    // Best-effort mirror — correctness already holds via the profiles read above.
+  }
+
+  return enabled;
 }
 
 /**
