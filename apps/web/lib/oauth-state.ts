@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
+import { allowsDevSecretFallback } from "@/lib/secret-fallback";
 import { rateLimit } from "@/lib/rate-limit";
 
 const OAUTH_STATE_TTL_SECONDS = 10 * 60;
@@ -62,25 +63,20 @@ export type OAuthStateVerificationResult =
 
 function getOAuthStateSecret() {
   const dedicatedSecret = process.env.OAUTH_STATE_SECRET;
+  if (dedicatedSecret) return dedicatedSecret;
 
-  if (process.env.NODE_ENV === "production" && !dedicatedSecret) {
-    throw new Error(
-      "Missing OAuth state signing secret. Set OAUTH_STATE_SECRET in production."
-    );
-  }
+  // Never sign with SUPABASE_SERVICE_ROLE_KEY — it grants full DB bypass, and
+  // reusing it as an HMAC key needlessly widens blast radius if the signing key
+  // is ever exposed. Fall back only to the internal shared secret, and only in
+  // an explicit dev/test environment (fail-closed in production).
+  const fallback = allowsDevSecretFallback()
+    ? process.env.INTERNAL_SERVICE_AUTH_SECRET
+    : undefined;
+  if (fallback) return fallback;
 
-  const secret =
-    dedicatedSecret ??
-    process.env.INTERNAL_SERVICE_AUTH_SECRET ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!secret) {
-    throw new Error(
-      "Missing OAuth state signing secret. Set OAUTH_STATE_SECRET, INTERNAL_SERVICE_AUTH_SECRET, or SUPABASE_SERVICE_ROLE_KEY."
-    );
-  }
-
-  return secret;
+  throw new Error(
+    "Missing OAuth state signing secret. Set OAUTH_STATE_SECRET."
+  );
 }
 
 function signOAuthState(encodedPayload: string) {

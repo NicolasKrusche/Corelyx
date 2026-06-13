@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { allowsDevSecretFallback } from "@/lib/secret-fallback";
 
 /**
  * Email two-factor authentication primitives.
@@ -18,16 +19,20 @@ export const MAX_VERIFY_ATTEMPTS = 5;
 const COOKIE_TTL_DAYS = 30;
 
 function secret(): string {
-  const value =
-    process.env.TWO_FACTOR_COOKIE_SECRET ??
-    process.env.INTERNAL_SERVICE_AUTH_SECRET ??
-    "";
-  if (!value) {
-    throw new Error(
-      "TWO_FACTOR_COOKIE_SECRET (or INTERNAL_SERVICE_AUTH_SECRET) must be set for email 2FA."
-    );
-  }
-  return value;
+  const dedicated = process.env.TWO_FACTOR_COOKIE_SECRET;
+  if (dedicated) return dedicated;
+
+  // Fall back to the internal shared secret only in an explicit dev/test
+  // environment. In production a dedicated TWO_FACTOR_COOKIE_SECRET is required
+  // so the 2FA cookie key stays separated from the internal service-token key.
+  const fallback = allowsDevSecretFallback()
+    ? process.env.INTERNAL_SERVICE_AUTH_SECRET
+    : undefined;
+  if (fallback) return fallback;
+
+  throw new Error(
+    "TWO_FACTOR_COOKIE_SECRET must be set for email 2FA."
+  );
 }
 
 export function generateCode(): string {

@@ -3920,17 +3920,21 @@ class ProgramExecutor:
             return
         endpoint_path = "/api/internal/credits"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
+        # Serialize the body ourselves so the exact same bytes are both signed
+        # (body=) and sent (content=), binding the token to this amount.
+        body = json.dumps({"amount_credits": amount_credits}, separators=(",", ":"))
         async with httpx.AsyncClient(timeout=10) as client:
             for endpoint_url in endpoint_urls:
                 try:
                     await client.post(
                         endpoint_url,
-                        json={"amount_credits": amount_credits},
+                        content=body,
                         headers=build_internal_service_headers(
                             "next:credits",
                             subject=self.user_id,
                             method="POST",
                             path=endpoint_path,
+                            body=body,
                         ),
                     )
                     return

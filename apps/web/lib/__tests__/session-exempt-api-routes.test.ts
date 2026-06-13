@@ -3,7 +3,6 @@ import { isSessionExemptApiRoute } from "@/lib/session-exempt-api-routes";
 
 describe("session-exempt API routes", () => {
   it("allows route-authenticated server-to-server entrypoints through middleware", () => {
-    expect(isSessionExemptApiRoute("/api/triggers/event")).toBe(true);
     expect(isSessionExemptApiRoute("/api/triggers/webhook/opaque-token")).toBe(true);
     expect(isSessionExemptApiRoute("/api/webhooks/gmail")).toBe(true);
     expect(isSessionExemptApiRoute("/api/billing/webhook")).toBe(true);
@@ -12,6 +11,8 @@ describe("session-exempt API routes", () => {
 
   it("does not exempt browser-session API routes", () => {
     expect(isSessionExemptApiRoute("/api/runs")).toBe(false);
+    // Removed route: event triggers dispatch in-process via dispatchEventTriggers().
+    expect(isSessionExemptApiRoute("/api/triggers/event")).toBe(false);
     expect(isSessionExemptApiRoute("/api/billing/checkout")).toBe(false);
     expect(isSessionExemptApiRoute("/api/connections")).toBe(false);
   });

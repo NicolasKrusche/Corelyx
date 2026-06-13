@@ -1,4 +1,5 @@
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
+import { allowsDevSecretFallback } from "@/lib/secret-fallback";
 
 export const WEBHOOK_SIGNATURE_HEADER = "x-flowos-webhook-signature";
 export const WEBHOOK_TIMESTAMP_HEADER = "x-flowos-webhook-timestamp";
@@ -14,12 +15,9 @@ function getWebhookSigningSecretSeed(): string {
   const dedicatedSecret = process.env.WEBHOOK_SIGNING_SECRET;
   if (dedicatedSecret) return dedicatedSecret;
 
-  const isProduction = [process.env.NODE_ENV, process.env.VERCEL_ENV, process.env.APP_ENV].some(
-    (value) => value === "production"
-  );
   const devFallback =
     process.env.INTERNAL_SERVICE_AUTH_SECRET ?? process.env.RUNTIME_SECRET ?? "";
-  const secret = isProduction ? "" : devFallback;
+  const secret = allowsDevSecretFallback() ? devFallback : "";
 
   if (!secret) {
     throw new Error("Missing WEBHOOK_SIGNING_SECRET");

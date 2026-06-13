@@ -1,4 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { allowsDevSecretFallback } from "@/lib/secret-fallback";
 
 export const INTERNAL_SERVICE_TOKEN_HEADER = "x-internal-service-token";
 
@@ -33,22 +34,13 @@ function getScopedSecretEnvName(audience: string): string {
     .replace(/^_+|_+$/g, "")}`;
 }
 
-function allowsSharedSecretFallback(): boolean {
-  return ![
-    process.env.NODE_ENV,
-    process.env.VERCEL_ENV,
-    process.env.APP_ENV,
-    process.env.RUNTIME_ENV,
-  ].some((value) => value === "production");
-}
-
 function getInternalServiceSecret(audience: string): string {
   const scopedSecret = process.env[getScopedSecretEnvName(audience)] ?? "";
   if (scopedSecret) return scopedSecret;
 
   const sharedSecret =
     process.env.INTERNAL_SERVICE_AUTH_SECRET ?? process.env.RUNTIME_SECRET ?? "";
-  if (sharedSecret && allowsSharedSecretFallback()) return sharedSecret;
+  if (sharedSecret && allowsDevSecretFallback()) return sharedSecret;
 
   throw new Error(
     `Missing scoped internal auth secret ${getScopedSecretEnvName(audience)}`
@@ -239,7 +231,7 @@ export function getValidInternalServiceClaims(
 export function describeInternalSecretSource(audience: string): "scoped" | "shared" | "none" {
   if (process.env[getScopedSecretEnvName(audience)]) return "scoped";
   const shared = process.env.INTERNAL_SERVICE_AUTH_SECRET ?? process.env.RUNTIME_SECRET ?? "";
-  if (shared && allowsSharedSecretFallback()) return "shared";
+  if (shared && allowsDevSecretFallback()) return "shared";
   return "none";
 }
 
@@ -274,7 +266,7 @@ export function diagnoseInternalServiceToken(
     return {
       ok: false,
       reason: "secret_unavailable_on_web",
-      detail: { audience, scopedEnv, prodFallbackDisabled: !allowsSharedSecretFallback() },
+      detail: { audience, scopedEnv, prodFallbackDisabled: !allowsDevSecretFallback() },
     };
   }
 
