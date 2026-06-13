@@ -28,7 +28,17 @@ class AllowsSharedSecretFallbackTests(unittest.TestCase):
         self.assertFalse(ia._allows_shared_secret_fallback())
 
     @patch.dict(os.environ, {}, clear=True)
-    def test_returns_true_by_default(self) -> None:
+    def test_returns_false_when_env_unknown(self) -> None:
+        # Fail-closed: an unset/unrecognized environment is treated as
+        # production, so the shared-secret fallback is refused.
+        self.assertFalse(ia._allows_shared_secret_fallback())
+
+    @patch.dict(os.environ, {"RUNTIME_ENV": "local"}, clear=True)
+    def test_returns_true_in_local_dev(self) -> None:
+        self.assertTrue(ia._allows_shared_secret_fallback())
+
+    @patch.dict(os.environ, {"NODE_ENV": "development"}, clear=True)
+    def test_returns_true_in_development(self) -> None:
         self.assertTrue(ia._allows_shared_secret_fallback())
 
 
@@ -52,6 +62,7 @@ class GetInternalServiceSecretTests(unittest.TestCase):
         os.environ,
         {
             "INTERNAL_SERVICE_AUTH_SECRET": "shared-secret",
+            "RUNTIME_ENV": "local",
         },
         clear=True,
     )
@@ -63,12 +74,25 @@ class GetInternalServiceSecretTests(unittest.TestCase):
         os.environ,
         {
             "RUNTIME_SECRET": "runtime-secret",
+            "RUNTIME_ENV": "local",
         },
         clear=True,
     )
     def test_falls_back_to_runtime_secret(self) -> None:
         secret = ia._get_internal_service_secret("any_aud")
         self.assertEqual(secret, b"runtime-secret")
+
+    @patch.dict(
+        os.environ,
+        {
+            "INTERNAL_SERVICE_AUTH_SECRET": "shared-secret",
+        },
+        clear=True,
+    )
+    def test_no_fallback_when_env_unknown(self) -> None:
+        # Fail-closed: without an explicit dev marker the fallback is refused.
+        with self.assertRaises(RuntimeError):
+            ia._get_internal_service_secret("any_aud")
 
     @patch.dict(
         os.environ,

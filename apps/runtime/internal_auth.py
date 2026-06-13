@@ -22,10 +22,18 @@ def _scoped_secret_env_name(audience: str) -> str:
 
 
 def _allows_shared_secret_fallback() -> bool:
-    return not any(
-        os.environ.get(name) == "production"
-        for name in ("NODE_ENV", "VERCEL_ENV", "APP_ENV", "RUNTIME_ENV")
-    )
+    # FAIL-CLOSED: only allow the shared-secret fallback in an explicit
+    # development or test environment. A production marker — or an
+    # unrecognized/unset environment — disables it, so a misconfigured runtime
+    # deploy refuses to sign with the shared secret instead of silently
+    # downgrading. Production should set the scoped INTERNAL_SERVICE_AUTH_SECRET_*
+    # secrets (see .env.example).
+    markers = [os.environ.get(name) for name in ("NODE_ENV", "VERCEL_ENV", "APP_ENV", "RUNTIME_ENV")]
+    if any(marker == "production" for marker in markers):
+        return False
+    # RUNTIME_ENV=local is this codebase's local-dev marker; NODE_ENV uses
+    # development/test. Anything else (preview, staging, unset) → no fallback.
+    return any(marker in ("development", "dev", "local", "test") for marker in markers)
 
 
 def _get_internal_service_secret(audience: str) -> bytes:

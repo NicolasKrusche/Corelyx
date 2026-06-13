@@ -31,15 +31,20 @@ export async function GET(request: Request) {
 // Body: { amount_credits: number }
 // Deducts credits. Returns { ok: true } or 402 if insufficient balance.
 export async function POST(request: Request) {
+  // Read the raw body first so the internal token can be bound to it — this
+  // prevents a captured token from being replayed with a different/duplicated
+  // amount_credits within its lifetime (mirrors runs/[id]/complete).
+  const rawBody = await request.text();
   const claims = getValidInternalServiceClaims(request.headers, "next:credits", {
     method: "POST",
     path: new URL(request.url).pathname,
+    body: rawBody,
   });
   if (!claims?.sub) return apiError("Unauthorized", 401);
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = rawBody ? JSON.parse(rawBody) : {};
   } catch {
     return apiError("Invalid JSON body", 400);
   }
