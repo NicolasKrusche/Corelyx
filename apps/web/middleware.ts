@@ -128,6 +128,15 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
 
+  // Strip any client-supplied copies of headers the app trusts as
+  // middleware-injected. Without this a caller could forge x-token-user-id to
+  // impersonate any user (and thereby take the personal-token path that skips
+  // the email-2FA gate), or forge x-pathname to dodge the 2FA exemption check.
+  // x-token-user-id is (re)set only on a verified token below; x-pathname is set
+  // here from the real path, overwriting anything the client sent.
+  requestHeaders.delete("x-token-user-id");
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
   function nextWithSecurity() {
     const response = NextResponse.next({ request: { headers: requestHeaders } });
     applySecurityHeaders(response.headers, nonce);
