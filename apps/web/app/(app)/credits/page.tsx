@@ -415,7 +415,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
               </div>
               {includedTotal === 0 ? (
                 <Link href="/plan" className="mt-1 block text-[11px] text-primary hover:underline">
-                  Available on Pro plan and above →
+                  Available on Solo plan and above →
                 </Link>
               ) : includedTotal !== null ? (
                 <StatBarMuted value={includedUsed} max={includedTotal} />
