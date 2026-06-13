@@ -6,7 +6,11 @@ const DEFAULT_PAYLOAD_RETENTION_DAYS = 30;
 const DEFAULT_RUN_RETENTION_DAYS = 90;
 const DEFAULT_AUDIT_RETENTION_DAYS = 365;
 const DEFAULT_IP_ANONYMIZE_DAYS = 7;
-const DEFAULT_APP_LOG_RETENTION_DAYS = 365;
+// Application logs may contain incidental personal data and are only secret-
+// redacted (not PII-redacted) on write, so they expire on the same 90-day clock
+// the Privacy Policy commits to for operational/application logs — not the
+// 365-day audit clock.
+const DEFAULT_APP_LOG_RETENTION_DAYS = 90;
 
 type RetentionRpcResult = {
   data: unknown;
