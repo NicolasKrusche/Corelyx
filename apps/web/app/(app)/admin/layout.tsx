@@ -155,11 +155,11 @@ export default async function AdminLayout({
                   Emergency Stop
                 </Link>
                 <Link
-                  href="/security"
+                  href="/admin/security"
                   className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                 >
                   <Shield className="h-4 w-4" />
-                  Security Policy
+                  Security Sentinel
                 </Link>
               </div>
             )}

@@ -43,15 +43,23 @@ export function SharePanel({ programId }: { programId: string }) {
   const [state, setState] = useState<ShareResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Distinguish "still loading" from "load failed" so a failed/empty fetch
+  // surfaces an error + retry instead of an indefinite "Loading…" spinner.
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function loadShare() {
-    const res = await fetch(`/api/programs/${programId}/share`, { cache: "no-store" });
-    const body = await res.json().catch(() => null) as ShareResponse & { error?: string } | null;
-    if (!res.ok || !body) {
-      setMessage(body?.error ?? "Could not load sharing settings.");
-      return;
+    setLoadError(null);
+    try {
+      const res = await fetch(`/api/programs/${programId}/share`, { cache: "no-store" });
+      const body = await res.json().catch(() => null) as ShareResponse & { error?: string } | null;
+      if (!res.ok || !body) {
+        setLoadError(body?.error ?? "Could not load sharing settings.");
+        return;
+      }
+      setState(body);
+    } catch {
+      setLoadError("Could not load sharing settings. Check your connection and try again.");
     }
-    setState(body);
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- loadShare is stable within the programId scope
@@ -88,7 +96,21 @@ export function SharePanel({ programId }: { programId: string }) {
 
       <div className="space-y-4 p-4">
         {!state ? (
-          <p className="text-sm text-muted-foreground">Loading sharing settings...</p>
+          loadError ? (
+            <div className="space-y-2">
+              <p className="text-sm text-destructive">{loadError}</p>
+              <button
+                type="button"
+                onClick={() => void loadShare()}
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Try again
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Loading sharing settings...</p>
+          )
         ) : (
           <>
             <div className="rounded-lg border border-border p-3">

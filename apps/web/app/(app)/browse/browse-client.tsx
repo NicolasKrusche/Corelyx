@@ -601,10 +601,12 @@ function ProgramCard({
               <p>by {program.public_author_name}</p>
             )
           )}
-          <p className="flex items-center gap-1">
-            <UseIcon className="w-3 h-3" />
-            {formatUseCount(program.fork_count)} users
-          </p>
+          {program.fork_count > 0 && (
+            <p className="flex items-center gap-1">
+              <UseIcon className="w-3 h-3" />
+              {formatUseCount(program.fork_count)} {program.fork_count === 1 ? "fork" : "forks"}
+            </p>
+          )}
         </div>
 
         {forkedId ? (

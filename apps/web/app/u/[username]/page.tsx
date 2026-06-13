@@ -311,7 +311,9 @@ export default async function UserProfilePage({
                   <div className="flex items-center gap-3 text-[10px] text-muted-foreground border-t border-border pt-2 mt-1">
                     <span>{p.node_summary.total} node{p.node_summary.total !== 1 ? "s" : ""}</span>
                     {p.node_summary.has_ai && <span>· AI</span>}
-                    <span className="ml-auto">{p.fork_count} uses</span>
+                    {p.fork_count > 0 && (
+                      <span className="ml-auto">{p.fork_count} {p.fork_count === 1 ? "fork" : "forks"}</span>
+                    )}
                   </div>
                 </a>
               ))}

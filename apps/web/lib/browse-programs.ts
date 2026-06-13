@@ -48,29 +48,6 @@ const NOW = "2026-04-28T00:00:00.000Z";
 const AUTHOR = "Corelyx";
 const SENTINEL = "__USER_ASSIGNED__";
 
-const PREMADE_USE_COUNTS: Record<string, number> = {
-  "premade-daily-gmail-to-notion": 1842,
-  "premade-asana-standup-to-slack": 1327,
-  "premade-github-pr-digest-to-slack": 2104,
-  "premade-typeform-leads-to-hubspot": 975,
-  "premade-hubspot-contacts-to-sheets": 846,
-  "premade-airtable-overdue-to-asana": 612,
-  "premade-calendar-brief-to-slack": 1568,
-  "premade-notion-tasks-to-gmail": 1193,
-  "premade-outlook-vip-to-asana": 734,
-  "premade-sheets-rows-to-hubspot-deals": 689,
-  "premade-webhook-bug-to-github-notion": 531,
-  "premade-drive-contract-watch": 418,
-  "premade-weekly-docs-report-from-sheets": 902,
-  "premade-hubspot-stale-deals-reminder": 771,
-  "premade-typeform-nps-detractors": 654,
-  "premade-notion-content-to-calendar": 587,
-  "premade-gmail-support-to-github": 1436,
-  "premade-slack-channel-to-notion-digest": 1248,
-  "premade-airtable-low-stock-alert": 463,
-  "premade-calendar-followups-to-gmail": 829,
-};
-
 const PROVIDER_SCOPES: Record<Provider, Record<ScopeAccess, string[]>> = {
   airtable: {
     read: ["data.records:read"],
@@ -358,21 +335,10 @@ export function getBrowseUseCount(input: {
   name: string;
   fork_count?: number | null;
 }): number {
-  const recordedCount = input.fork_count ?? 0;
-  const premadeCount = PREMADE_USE_COUNTS[input.id];
-  const displayBaseline = premadeCount ?? 250 + (stableHash(`${input.id}:${input.name}`) % 1850);
-
-  return Math.max(recordedCount, displayBaseline);
-}
-
-function stableHash(value: string): number {
-  let hash = 0;
-
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-  }
-
-  return hash;
+  // Report the real recorded fork/use count only. This previously inflated the
+  // number with hardcoded per-template values and a hashed baseline (≥250),
+  // which misrepresented actual adoption to users. Removed.
+  return Math.max(0, input.fork_count ?? 0);
 }
 
 export function deriveNodeSummary(schema: unknown): NodeSummary {
