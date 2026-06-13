@@ -1,4 +1,4 @@
-export const LEGAL_LAST_UPDATED = "April 23, 2026";
+export const LEGAL_LAST_UPDATED = "June 13, 2026";
 
 function readEnv(name: string): string {
   return process.env[name]?.trim() ?? process.env[`NEXT_PUBLIC_${name}`]?.trim() ?? "";

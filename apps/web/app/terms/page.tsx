@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: { url: "https://www.corelyx.app/terms" },
 };
 
-const LAST_UPDATED = "June 11, 2026";
+const LAST_UPDATED = "June 13, 2026";
 
 const sections = [
   {
@@ -31,9 +31,9 @@ These Terms distinguish between consumers and business customers where required 
 - Execution of custom AI workflows
 - Purchase and use of API Credits for AI requests
 
-The Service includes the web application, the program execution runtime, and any APIs we make available. The scope of features depends on your subscription plan (Free, Pro, Max).
+The Service includes the web application, the program execution runtime, and any APIs we make available. The scope of features depends on your subscription plan (Free, Solo, Team, and Scale).
 
-The AI features are powered by models and APIs from third-party providers, in particular Anthropic Inc. (USA) and Google LLC (USA). Corelyx acts as a reseller of these capacities — we are not the manufacturer of the underlying AI models.
+The AI features are powered by models and APIs from third-party providers. By default, AI requests made with the Corelyx platform key are routed through OpenRouter, Inc. (USA), which directs each request to the appropriate underlying model provider (which may include Anthropic, OpenAI, or Google models). You may also connect your own Anthropic, OpenAI, OpenRouter, or Google API key. Corelyx acts as a reseller and orchestrator of these capacities — we are not the manufacturer of the underlying AI models. The current providers and the applicable international-transfer safeguards are set out in our Privacy Policy and Subprocessor Registry.
 
 The Service may change over time. We reserve the right to modify, suspend, or discontinue any part of the Service with reasonable notice where practical, subject to the notice requirements in Section 12.`,
   },
@@ -76,7 +76,7 @@ Because the Service uses the Anthropic API, you are also required to comply with
   {
     id: "plans-and-credits",
     title: "5. Plans, API Credits, and Payment",
-    content: `Subscription plans: Corelyx offers Free, Pro, and Max plans. The Free plan is provided at no cost with limited features and no SLA guarantee. Pro and Max are monthly subscriptions with extended features and priority processing. Current pricing and plan details are published on our pricing page.
+    content: `Subscription plans: Corelyx offers a Free plan and the paid Solo, Team, and Scale plans. The Free plan is provided at no cost with limited features and no SLA guarantee. Solo, Team, and Scale are monthly subscriptions with extended features and priority processing. Current pricing and plan details are published on our pricing page.
 
 API Credits: You may purchase additional API Credits to perform AI requests beyond the quota included in your plan.
 - Credits are charged on consumption and are non-refundable once used.
@@ -96,7 +96,7 @@ You may cancel at any time with effect from the end of the current billing month
 
 We may terminate your access immediately for material breach of these Terms, including violations of the acceptable use rules in Section 4, overdue payment beyond 14 days, or abusive use of API Credits. In less urgent cases, we will provide reasonable notice.
 
-Following termination, all your data will be permanently deleted within 60 days. Recovery is not possible after this period.
+Following termination, all your data will be permanently deleted within 30 days, consistent with the deletion and return terms of our Data Processing Agreement. Residual copies contained in encrypted backups are removed in the normal backup rotation cycle. Recovery is not possible after this period.
 
 Consumer right of withdrawal: If you are a consumer, you have a 14-day right of withdrawal from a new paid subscription starting from the date of purchase. To exercise this right, contact us at legal@corelyx.app before the period expires. If you have already actively used the paid features and expressly consented to the Service commencing before the withdrawal period ended, your right of withdrawal may be lost as permitted by § 18 FAGG and Article 16(m) of Directive 2011/83/EU.`,
   },
@@ -109,7 +109,7 @@ We assume no liability for damages arising from incorrect, incomplete, or misdir
 
 7.2 No professional advice: AI-generated outputs do not constitute and must not be relied upon as professional advice of any kind — in particular not legal, tax, accounting, financial, investment, medical, psychological, or other regulated professional advice. Outputs are provided for informational and automation purposes only. If you require professional advice, consult a qualified professional. You must not use the Service as the sole basis for decisions with legal, financial, or health-related consequences for yourself or third parties.
 
-7.3 No guarantee of availability: We do not guarantee uninterrupted or error-free availability of the Service. For the Free plan no uptime commitment is given. For Pro and Max plans we target 99% monthly availability; this is a service target, not a guaranteed SLA, and does not give rise to claims unless mandatory law provides otherwise. Maintenance windows will be announced with reasonable advance notice where practical. Outages or degradations caused by third-party providers (in particular AI model APIs such as the Anthropic API, Google APIs, hosting infrastructure, or Stripe) or by force majeure do not give rise to liability on our part.
+7.3 No guarantee of availability: We do not guarantee uninterrupted or error-free availability of the Service. For the Free plan no uptime commitment is given. For the Solo, Team, and Scale plans we target 99% monthly availability; this is a service target, not a guaranteed SLA, and does not give rise to claims unless mandatory law provides otherwise. Maintenance windows will be announced with reasonable advance notice where practical. Outages or degradations caused by third-party providers (in particular AI model APIs such as the Anthropic API, Google APIs, hosting infrastructure, or Stripe) or by force majeure do not give rise to liability on our part.
 
 The Service is provided "as is" and "as available". To the extent permitted by applicable law, we make no warranties, express or implied, regarding merchantability, fitness for a particular purpose, or non-infringement. Third-party services connected through Corelyx may become unavailable or change without notice — we are not responsible for this.
 
@@ -128,9 +128,13 @@ If you are a consumer, nothing in this section affects your statutory rights und
     title: "8. Third-Party Services and Credentials",
     content: `The Service integrates APIs and services from the following third-party providers:
 
+- OpenRouter, Inc. (USA) — LLM routing layer used by the Corelyx platform key to direct AI requests to model providers
 - Anthropic Inc., 548 Market St, PMB 90375, San Francisco, CA 94104, USA — AI models
+- OpenAI, L.L.C. (USA) — AI models and text embeddings
 - Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA — Google Workspace APIs
 - Stripe, Inc. — payment processing
+
+A complete and current list of providers, their roles, regions, and transfer safeguards is maintained in our Subprocessor Registry at /subprocessors.
 
 The Service allows you to connect additional third-party accounts (such as Gmail, Slack, GitHub, Notion, and others) and to provide API keys for AI model providers. By doing so:
 
