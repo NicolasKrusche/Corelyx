@@ -334,13 +334,13 @@ export default async function PrivacyPage() {
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    <strong className="text-foreground">Database and authentication</strong> (Supabase) — deployed in an EU region. Personal data stored at rest stays within the EEA.
+                    <strong className="text-foreground">Database and authentication</strong> (Supabase) — configured to run in an EU region (Frankfurt). Personal data stored at rest is intended to remain within the EEA.
                   </li>
                   <li>
                     <strong className="text-foreground">Web hosting</strong> (Vercel) — server compute is configured for EU regions (Frankfurt / Dublin). Static assets may be served via global CDN edge nodes, but no personal data is cached there.
                   </li>
                   <li>
-                    <strong className="text-foreground">Workflow runtime</strong> (Railway) — deployed in EU West. Execution payloads and connector traffic are processed in-region.
+                    <strong className="text-foreground">Workflow runtime</strong> (Railway) — configured for the EU West (Amsterdam) region. Execution payloads and connector traffic are processed in-region.
                   </li>
                 </ul>
                 <p>
@@ -349,13 +349,13 @@ export default async function PrivacyPage() {
                 </p>
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    <strong className="text-foreground">Payment processing</strong> (Stripe) — financial regulation and fraud prevention require global infrastructure. The data transferred is limited to billing contact data and payment signals. Stripe DPA and SCCs are in place.
+                    <strong className="text-foreground">Payment processing</strong> (Stripe) — financial regulation and fraud prevention require global infrastructure. The data transferred is limited to billing contact data and payment signals. We rely on the Stripe DPA and its Standard Contractual Clauses as the transfer safeguard.
                   </li>
                   <li>
-                    <strong className="text-foreground">Transactional email</strong> (Resend) — account metadata and email logs are stored in the United States. We limit what we send: no workflow content, only addresses and transactional subject lines. Resend DPA and SCCs are in place.
+                    <strong className="text-foreground">Transactional email</strong> (Resend) — account metadata and email logs are stored in the United States. We limit what we send: no workflow content, only addresses and transactional subject lines. We rely on the Resend DPA and its Standard Contractual Clauses as the transfer safeguard.
                   </li>
                   <li>
-                    <strong className="text-foreground">Workflow orchestration</strong> (Inngest) — event metadata and retry state. We do not route full payload content through orchestration events. Inngest DPA and SCCs are in place.
+                    <strong className="text-foreground">Workflow orchestration</strong> (Inngest) — event metadata and retry state. We do not route full payload content through orchestration events. We rely on the Inngest DPA and its Standard Contractual Clauses as the transfer safeguard.
                   </li>
                   <li>
                     <strong className="text-foreground">AI model providers</strong> — if you add your own Anthropic, OpenAI, or OpenRouter API key, prompts and outputs are sent to those providers under their own terms and DPAs. The Corelyx platform key uses OpenRouter; we are pursuing an enterprise DPA and EU routing. Until that is confirmed, avoid routing special-category personal data through the Corelyx platform key.
