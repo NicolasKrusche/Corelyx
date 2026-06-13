@@ -4,8 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@flowos/db";
 import { createServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { genericErrorMessage, redactSecretText } from "@/lib/redaction";
+import { TWO_FACTOR_COOKIE, verifyCookieValue } from "@/lib/auth/two-factor";
+import { isTwoFactorExemptApiPath } from "@/lib/auth/two-factor-api-exempt";
 
 export async function writeNotification(
   userId: string,
@@ -29,10 +31,15 @@ export function apiError(message: string, status: number, code?: string) {
 }
 
 export async function getAuthUser(): Promise<User | null> {
+  const headersList = await headers();
+
   // If a valid personal API token was presented, middleware injects x-token-user-id.
   // We resolve the full user from that rather than requiring a Supabase session cookie.
+  //
+  // Personal API tokens are a deliberate programmatic credential, so the
+  // interactive email-2FA gate below intentionally does NOT apply to this path —
+  // requiring a per-browser 2FA cookie would break all API automation.
   try {
-    const headersList = await headers();
     const tokenUserId = headersList.get("x-token-user-id");
     if (tokenUserId) {
       const service = createServiceClient();
@@ -45,7 +52,51 @@ export async function getAuthUser(): Promise<User | null> {
 
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // Cookie-session path: enforce email 2FA. A valid Supabase session alone is
+  // NOT enough when the user opted into email 2FA — this browser must also hold
+  // a valid signed 2FA cookie. This mirrors the (app) layout gate so that direct
+  // /api/* calls can't bypass 2FA the way page navigation cannot. Returning null
+  // routes through the caller's existing `if (!user) -> 401` path.
+  if (await cookieSessionNeedsTwoFactor(headersList, user.id)) {
+    return null;
+  }
+
   return user;
+}
+
+/**
+ * True when a cookie-authenticated user has email 2FA enabled but this request
+ * has not satisfied it (no valid 2FA cookie) and is not on an exempt login-flow
+ * route. Personal API token requests never reach this — they return earlier.
+ */
+async function cookieSessionNeedsTwoFactor(
+  headersList: Awaited<ReturnType<typeof headers>>,
+  userId: string
+): Promise<boolean> {
+  // Login / 2FA-enrollment routes must stay reachable before a 2FA cookie can
+  // exist, otherwise the flow dead-locks. middleware sets x-pathname.
+  const pathname = headersList.get("x-pathname");
+  if (pathname && isTwoFactorExemptApiPath(pathname)) return false;
+
+  // A valid 2FA cookie satisfies the gate with no DB round-trip. (When no cookie
+  // is present verifyCookieValue returns false without touching the signing
+  // secret, so non-2FA users never trip a missing-secret error here.)
+  const cookieStore = await cookies();
+  if (verifyCookieValue(cookieStore.get(TWO_FACTOR_COOKIE)?.value, userId)) {
+    return false;
+  }
+
+  // No valid 2FA cookie — block only if the user actually enabled email 2FA.
+  const service = createServiceClient();
+  const { data } = await service
+    .from("profiles")
+    .select("email_2fa_enabled")
+    .eq("id", userId)
+    .single<{ email_2fa_enabled: boolean | null }>();
+
+  return Boolean(data?.email_2fa_enabled);
 }
 
 /**
