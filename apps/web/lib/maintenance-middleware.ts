@@ -7,6 +7,13 @@ import {
   DEFAULT_MAINTENANCE_MESSAGE,
 } from "@/lib/system-flags";
 import { matchDisabledArea } from "@/lib/maintenance-areas";
+import {
+  MAINTENANCE_BYPASS_PARAM,
+  MAINTENANCE_BYPASS_COOKIE,
+  MAINTENANCE_BYPASS_COOKIE_OPTIONS,
+  previewBypassConfigured,
+  previewTokenMatches,
+} from "@/lib/maintenance-bypass";
 
 /**
  * Maintenance-mode + feature kill-switch gate, backed by the `system_settings`
@@ -76,6 +83,32 @@ export async function maintenanceGate(request: NextRequest): Promise<NextRespons
 
   // ── Full-app maintenance ──────────────────────────────────────────────────
   if (flags.maintenanceMode) {
+    // Tester preview bypass: an unguessable token lets one trusted tester
+    // browse the live app while maintenance stays ON for everyone else. The
+    // token is matched against a stored hash (DB primary, env fallback).
+    const previewHash = flags.previewBypassHash;
+    if (previewBypassConfigured(previewHash)) {
+      // Already granted via the httpOnly cookie from a prior valid hit.
+      if (await previewTokenMatches(request.cookies.get(MAINTENANCE_BYPASS_COOKIE)?.value, previewHash)) {
+        return null;
+      }
+      // First hit carries the token in the URL: grant a cookie, then redirect
+      // to the same URL without the token so it doesn't linger in the address
+      // bar, browser history, referer headers, or server logs.
+      const provided = request.nextUrl.searchParams.get(MAINTENANCE_BYPASS_PARAM);
+      if (provided && (await previewTokenMatches(provided, previewHash))) {
+        const url = request.nextUrl.clone();
+        url.searchParams.delete(MAINTENANCE_BYPASS_PARAM);
+        const response = NextResponse.redirect(url);
+        response.cookies.set(
+          MAINTENANCE_BYPASS_COOKIE,
+          provided,
+          MAINTENANCE_BYPASS_COOKIE_OPTIONS
+        );
+        return response;
+      }
+    }
+
     if (isExempt(pathname)) return null;
 
     const { userId, email } = await readSessionIdentity(request);

@@ -19,6 +19,13 @@ export interface SystemFlags {
   disableExecution: boolean;
   /** Scoped maintenance: keys of individually-disabled app areas (see maintenance-areas.ts). */
   disabledAreas: string[];
+  /**
+   * SHA-256 hash of the tester preview-bypass token (never the raw token).
+   * When set, a tester holding the matching token can browse the live app
+   * during full maintenance via /?preview=<token>. Null/absent = disabled.
+   * Rotated/revoked from the Emergency Controls page, no redeploy needed.
+   */
+  previewBypassHash: string | null;
 }
 
 export const DEFAULT_SYSTEM_FLAGS: SystemFlags = {
@@ -27,6 +34,7 @@ export const DEFAULT_SYSTEM_FLAGS: SystemFlags = {
   disableGenesis: false,
   disableExecution: false,
   disabledAreas: [],
+  previewBypassHash: null,
 };
 
 export const DEFAULT_MAINTENANCE_MESSAGE =
