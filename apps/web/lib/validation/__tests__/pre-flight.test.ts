@@ -234,6 +234,134 @@ describe("pre-flight remediations", () => {
     });
   });
 
+  it("flags a gmail label_email node that has no label to add or remove", async () => {
+    const schema = makeSchema({
+      nodes: [
+        {
+          id: "n1",
+          type: "trigger",
+          label: "Manual trigger",
+          description: "Start manually",
+          position: { x: 100, y: 100 },
+          status: "idle",
+          connection: null,
+          config: { trigger_type: "manual" },
+        },
+        {
+          id: "n2",
+          type: "connection",
+          label: "Label email",
+          description: "Labels each email.",
+          position: { x: 300, y: 100 },
+          status: "idle",
+          connection: "Gmail",
+          config: {
+            connector_type: "oauth",
+            provider: "gmail",
+            operation: "label_email",
+            operation_params: { message_id: "{{n1.message_id}}" },
+            scope_access: "write",
+            scope_required: ["https://www.googleapis.com/auth/gmail.modify"],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "e1",
+          from: "n1",
+          to: "n2",
+          type: "data_flow",
+          data_mapping: null,
+          condition: null,
+          label: null,
+        },
+      ],
+    });
+
+    const { result, checks } = await validatePreFlight(
+      schema,
+      [
+        {
+          id: "conn-1",
+          name: "Gmail",
+          provider: "gmail",
+          scopes: ["https://www.googleapis.com/auth/gmail.modify"],
+          is_valid: true,
+        },
+      ],
+      []
+    );
+
+    const unassignedCheck = checks.find((check) => check.code === "PRE_004");
+    expect(unassignedCheck?.status).toBe("fail");
+    expect(unassignedCheck?.failures.map((failure) => failure.message)).toContain(
+      "Label email needs a label to add or remove"
+    );
+    expect(result.node_states.n2).toBe("error");
+  });
+
+  it("accepts a gmail label_email node once a label is set", async () => {
+    const schema = makeSchema({
+      nodes: [
+        {
+          id: "n1",
+          type: "trigger",
+          label: "Manual trigger",
+          description: "Start manually",
+          position: { x: 100, y: 100 },
+          status: "idle",
+          connection: null,
+          config: { trigger_type: "manual" },
+        },
+        {
+          id: "n2",
+          type: "connection",
+          label: "Label email",
+          description: "Labels each email.",
+          position: { x: 300, y: 100 },
+          status: "idle",
+          connection: "Gmail",
+          config: {
+            connector_type: "oauth",
+            provider: "gmail",
+            operation: "label_email",
+            operation_params: { message_id: "{{n1.message_id}}", add_label_ids: ["Processed"] },
+            scope_access: "write",
+            scope_required: ["https://www.googleapis.com/auth/gmail.modify"],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "e1",
+          from: "n1",
+          to: "n2",
+          type: "data_flow",
+          data_mapping: null,
+          condition: null,
+          label: null,
+        },
+      ],
+    });
+
+    const { checks } = await validatePreFlight(
+      schema,
+      [
+        {
+          id: "conn-1",
+          name: "Gmail",
+          provider: "gmail",
+          scopes: ["https://www.googleapis.com/auth/gmail.modify"],
+          is_valid: true,
+        },
+      ],
+      []
+    );
+
+    const unassignedCheck = checks.find((check) => check.code === "PRE_004");
+    expect(unassignedCheck?.status).toBe("pass");
+  });
+
   it("uses provider defaults for auto-assignment", () => {
     expect(getDefaultModelForProvider("openai")).toBe("gpt-4o");
     expect(getDefaultModelForProvider("unknown-provider")).toBeNull();

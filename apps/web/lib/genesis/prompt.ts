@@ -34,7 +34,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   send_email: params={to,subject,body(all REQUIRED),cc?,bcc?,reply_to_id?,thread_id?}
   archive_email: params={message_id:string(REQUIRED)} → output:{message_id,archived:true}
   delete_email: params={message_id:string(REQUIRED),permanent?:boolean} → output:{message_id,deleted:true,permanent} — defaults to moving the message to Trash (reversible). Set permanent:true only when the user explicitly wants an irreversible delete (requires broad mail scope).
-  label_email: params={message_id(REQUIRED),add_label_ids?:["Human Name"],remove_label_ids?} — use plain label names, never IDs. The runtime resolves names automatically.
+  label_email: params={message_id(REQUIRED),add_label_ids?:["Human Name"],remove_label_ids?} — use plain label names, never IDs. The runtime resolves names automatically. MUST set at least one of add_label_ids/remove_label_ids; a label_email with neither fails at runtime (mark read→remove ["UNREAD"], add a label→add ["Name"]).
     ⚠ NEVER generate HTTP nodes to create labels before the loop. A POST to /gmail/v1/users/me/labels returns 409 if the label already exists and will halt the run. Instead: call label_email with the desired label name directly. If the label doesn't exist the user creates it manually — document this requirement in a note node (color:"yellow").
   list_threads: params={query,max_results} → output:{threads:[{id,historyId}]}
   get_attachment: params={message_id,attachment_id} → output:{data_base64,size_bytes,mime_type}`,

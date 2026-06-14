@@ -25,6 +25,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   OPERATION_PARAM_FIELDS,
   getMissingRequiredParams,
+  getUnsatisfiedParamGroups,
   isUnassignedParamValue,
   type ParamField,
 } from "@/lib/connectors/operation-params";
@@ -301,6 +302,7 @@ function OperationParamsEditor({
 }) {
   const fields = OPERATION_PARAM_FIELDS[provider]?.[operation];
   const missingRequired = getMissingRequiredParams(provider, operation, params);
+  const unsatisfiedGroups = getUnsatisfiedParamGroups(provider, operation, params);
 
   // JSON fallback state for JSON-type fields and for unknown operations
   const [jsonFallback, setJsonFallback] = useState(() => JSON.stringify(params, null, 2));
@@ -372,6 +374,16 @@ function OperationParamsEditor({
           </span>
           <span className="block text-[11px] text-destructive/80 mt-0.5">
             Fill these before running the program.
+          </span>
+        </div>
+      )}
+      {unsatisfiedGroups.length > 0 && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+          <span className="font-semibold">
+            {`Set ${unsatisfiedGroups.join(" and ")}`}
+          </span>
+          <span className="block text-[11px] text-destructive/80 mt-0.5">
+            This operation needs at least one of these before running.
           </span>
         </div>
       )}
