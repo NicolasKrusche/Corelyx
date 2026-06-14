@@ -413,10 +413,55 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
   },
 };
 
+// Some operations require at least one of a set of otherwise-optional params.
+// gmail.label_email is valid only when it adds and/or removes at least one
+// label; with neither, the Gmail modify call is rejected at runtime, so we
+// surface it during pre-flight instead. Each group pairs the keys that satisfy
+// it with a human-readable description used in validation copy.
+export interface ParamAnyOfGroup {
+  keys: string[];
+  description: string;
+}
+
+export const OPERATION_PARAM_ANY_OF: Record<string, Record<string, ParamAnyOfGroup[]>> = {
+  gmail: {
+    label_email: [
+      { keys: ["add_label_ids", "remove_label_ids"], description: "a label to add or remove" },
+    ],
+  },
+};
+
 // Return missing (empty or sentinel-valued) required param keys for a given
 // provider+operation combination. Consumers use this to drive UI warnings
 // and pre-flight checks.
 const SENTINEL = "__USER_ASSIGNED__";
+
+// True when a param holds a real value — not undefined/null, not an empty or
+// sentinel-only string, and (for array fields) not an empty array.
+function paramHasValue(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) return value.some(paramHasValue);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed !== "" && trimmed !== SENTINEL;
+  }
+  return true;
+}
+
+// Return the descriptions of any "at least one of" param groups that are not
+// satisfied for the given provider+operation. Empty array means all satisfied.
+export function getUnsatisfiedParamGroups(
+  provider: string,
+  operation: string,
+  params: Record<string, unknown> | undefined | null
+): string[] {
+  const groups = OPERATION_PARAM_ANY_OF[provider]?.[operation];
+  if (!groups) return [];
+  const p = params ?? {};
+  return groups
+    .filter((group) => !group.keys.some((key) => paramHasValue(p[key])))
+    .map((group) => group.description);
+}
 
 export function getMissingRequiredParams(
   provider: string,

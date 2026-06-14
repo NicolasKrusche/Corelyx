@@ -12,7 +12,7 @@ import {
   type ValidationWarning,
   type NodeValidationState,
 } from "./index";
-import { getMissingRequiredParams } from "@/lib/connectors/operation-params";
+import { getMissingRequiredParams, getUnsatisfiedParamGroups } from "@/lib/connectors/operation-params";
 import { getDefaultModelForProvider } from "@/lib/model-presets";
 import type { z } from "zod";
 
@@ -471,6 +471,22 @@ export async function validatePreFlight(
               fix_suggestion: fix,
             });
           }
+
+          const unsatisfiedGroups = getUnsatisfiedParamGroups(
+            provider,
+            cfg.operation,
+            cfg.operation_params
+          );
+          if (unsatisfiedGroups.length > 0) {
+            const msg = `${node.label} needs ${unsatisfiedGroups.join(" and ")}`;
+            const fix = "Open this node in the editor and fill the highlighted fields before running";
+            recordFailure(pre004, {
+              code: "PRE_004",
+              node_id: node.id,
+              message: msg,
+              fix_suggestion: fix,
+            });
+          }
         }
       }
     })(),
@@ -533,7 +549,10 @@ export async function validatePreFlight(
         if (!cfg.operation) return false;
         const provider = connections.find((c) => c.name === node.connection)?.provider ?? cfg.provider ?? "";
         if (!provider) return false;
-        return getMissingRequiredParams(provider, cfg.operation, cfg.operation_params).length > 0;
+        return (
+          getMissingRequiredParams(provider, cfg.operation, cfg.operation_params).length > 0 ||
+          getUnsatisfiedParamGroups(provider, cfg.operation, cfg.operation_params).length > 0
+        );
       })();
 
     if (hasError) node_states[node.id] = "error";
