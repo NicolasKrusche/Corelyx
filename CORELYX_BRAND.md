@@ -136,7 +136,7 @@ Add approval gates anywhere in a workflow. Before a customer record is changed, 
 Gmail, Slack, Notion, GitHub, Google Sheets, Airtable, HubSpot, Asana, Outlook, Typeform, Google Docs, Google Drive, and more. OAuth and API key credentials are managed server-side and never exposed to the browser.
 
 **Run history and audit trail**
-Every execution records node-level status, outputs, connector calls, approvals, and failures. Searchable, filterable, and structured enough to use as compliance evidence.
+Every execution records node-level status, outputs, connector calls, approvals, and failures. Searchable, filterable, and structured enough to use as compliance evidence. 
 
 **GDPR compliance infrastructure**
 Processing records per run, Data Processing Agreement (DPA) available on the product, DPIA template, subprocessor registry, data export schema — all accessible without a sales cycle. 
