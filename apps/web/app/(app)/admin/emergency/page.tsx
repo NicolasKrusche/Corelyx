@@ -4,8 +4,13 @@ import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { readSystemFlags, type SystemFlags } from "@/lib/system-flags";
 import { setSystemFlags } from "@/lib/system-flags-server";
 import { MAINTENANCE_AREAS, activeDisabledAreaKeys } from "@/lib/maintenance-areas";
+import {
+  generatePreviewToken,
+  MAINTENANCE_BYPASS_PARAM,
+} from "@/lib/maintenance-bypass";
+import { canonicalAppOrigin } from "@/lib/canonical-url";
 import { revalidatePath } from "next/cache";
-import { AlertTriangle, Power, Shield, AlertCircle } from "lucide-react";
+import { AlertTriangle, Power, Shield, AlertCircle, Eye } from "lucide-react";
 
 async function getCurrentStatus() {
   // Force a fresh read so the page reflects the toggle immediately after a write.
@@ -14,6 +19,7 @@ async function getCurrentStatus() {
     maintenanceMode: flags.maintenanceMode,
     maintenanceMessage: flags.maintenanceMessage ?? "",
     disabledAreas: new Set(activeDisabledAreaKeys(flags)),
+    previewBypassActive: Boolean(flags.previewBypassHash),
   };
 }
 
@@ -76,20 +82,49 @@ async function toggleArea(key: string, disabled: boolean) {
   );
 }
 
+// Generate a fresh tester preview token, store only its hash, and redirect with
+// the raw token so the page can show the full link exactly once. The token is
+// never persisted in plaintext and is stripped from the URL after copying.
+async function generatePreviewLink() {
+  "use server";
+  const user = await assertAdmin();
+  const { token, hash } = await generatePreviewToken();
+  let err: string | null = null;
+  try {
+    await setSystemFlags({ previewBypassHash: hash }, user.id);
+  } catch (e) {
+    err = e instanceof Error ? e.message : "Failed to store preview token.";
+  }
+  if (err) redirect(`/admin/emergency?error=${encodeURIComponent(err)}`);
+  revalidatePath("/admin/emergency");
+  redirect(`/admin/emergency?previewToken=${encodeURIComponent(token)}`);
+}
+
+// Revoke the preview bypass: clears the stored hash so any outstanding tester
+// link (and cookie) stops working within the flags cache TTL.
+async function revokePreviewLink() {
+  "use server";
+  const user = await assertAdmin();
+  await persist({ previewBypassHash: null }, user.id);
+}
+
 export default async function EmergencyControlsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; previewToken?: string }>;
 }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/dashboard");
   if (!(await hasTechnicalAccess(user.id, user.email))) redirect("/admin");
 
-  const { error: actionError } = await searchParams;
+  const { error: actionError, previewToken } = await searchParams;
   const status = await getCurrentStatus();
 
   const anyActive = status.maintenanceMode || status.disabledAreas.size > 0;
+  const previewLink = previewToken
+    ? `${canonicalAppOrigin()}/?${MAINTENANCE_BYPASS_PARAM}=${encodeURIComponent(previewToken)}`
+    : null;
 
   return (
     <div className="space-y-6">
@@ -210,6 +245,75 @@ export default async function EmergencyControlsPage({
             Save message
           </button>
         </form>
+      </div>
+
+      {/* Tester preview link — bypass full maintenance for one trusted tester */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Eye className="w-5 h-5 text-gray-600" />
+            Tester preview link
+          </h2>
+          <p className="text-sm text-gray-500">
+            Generate an unguessable link that lets a single tester browse the live app
+            while full maintenance stays on for everyone else. The token is stored only as
+            a hash and shown to you once. Works within ~10s of generating.
+          </p>
+        </div>
+        <div className="p-6 space-y-4">
+          {previewLink && (
+            <div className="rounded-lg border border-green-300 bg-green-50 p-4">
+              <p className="text-sm font-semibold text-green-900">
+                New tester link — copy it now, it won&apos;t be shown again:
+              </p>
+              <code className="mt-2 block w-full overflow-x-auto rounded bg-white border border-green-200 px-3 py-2 text-xs text-gray-900 select-all">
+                {previewLink}
+              </code>
+              <p className="mt-2 text-xs text-green-800">
+                Send it to the tester. Generating a new link or revoking invalidates this one.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  status.previewBypassActive
+                    ? "bg-green-100 text-green-800"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {status.previewBypassActive ? "ACTIVE" : "NONE"}
+              </span>
+              <span className="text-sm text-gray-600">
+                {status.previewBypassActive
+                  ? "A preview link is currently valid."
+                  : "No preview link is active."}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <form action={generatePreviewLink}>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+                >
+                  {status.previewBypassActive ? "Regenerate link" : "Generate link"}
+                </button>
+              </form>
+              {status.previewBypassActive && (
+                <form action={revokePreviewLink}>
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                  >
+                    Revoke
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Scoped maintenance — disable individual parts of the app */}
