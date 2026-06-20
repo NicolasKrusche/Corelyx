@@ -400,6 +400,8 @@ export async function validatePreFlight(
         if (node.type === "connection") {
           const connNode = node as ConnectionNode;
           if (isHttpConnectionConfig(connNode.config)) continue;
+          // File connectors authenticate by device token, not OAuth scopes.
+          if (connNode.config.connector_type === "file") continue;
 
           for (const scope of connNode.config.scope_required ?? []) {
             if (!(conn.scopes ?? []).includes(scope)) {

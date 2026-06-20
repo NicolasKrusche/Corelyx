@@ -9,7 +9,7 @@ type TransformStepConfig = Extract<StepConfig, { logic_type: "transform" }>;
 
 const VALID_NODE_TYPES = new Set(["trigger", "agent", "agent_task", "step", "connection", "note", "group"]);
 const VALID_EDGE_TYPES = new Set(["data_flow", "control_flow", "event_subscription"]);
-const VALID_TRIGGER_TYPES = new Set(["cron", "event", "webhook", "manual", "program_output"]);
+const VALID_TRIGGER_TYPES = new Set(["cron", "event", "webhook", "manual", "program_output", "file_watch"]);
 const STEP_TYPE_ALIASES = new Set(["transform", "filter", "branch", "delay", "loop", "format", "parse", "deduplicate", "sort"]);
 
 const NODE_TYPE_ALIASES: Record<string, SchemaNode["type"]> = {
@@ -150,6 +150,22 @@ function normalizeTriggerConfig(config: MutableRecord): TriggerConfig {
       trigger_type: "program_output",
       source_program_id: stringValue(config.source_program_id, "__USER_ASSIGNED__"),
       on_status: Array.isArray(config.on_status) ? config.on_status as RunStatus[] : ["success"],
+    };
+  }
+  if (triggerType === "file_watch") {
+    const validEvents = ["created", "modified", "deleted"] as const;
+    const events = Array.isArray(config.events)
+      ? config.events.filter((e): e is (typeof validEvents)[number] =>
+          typeof e === "string" && (validEvents as readonly string[]).includes(e))
+      : [];
+    return {
+      trigger_type: "file_watch",
+      device_id: stringValue(config.device_id, "").trim() ? stringValue(config.device_id, "") : null,
+      path: stringValue(config.path, ""),
+      events: events.length > 0 ? events : [...validEvents],
+      patterns: Array.isArray(config.patterns)
+        ? config.patterns.filter((p): p is string => typeof p === "string")
+        : [],
     };
   }
   return { trigger_type: "manual" };

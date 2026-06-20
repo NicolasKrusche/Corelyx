@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { NodeProps } from "@xyflow/react";
-import { Clock, MousePointerClick, Webhook, Workflow, Zap, type LucideIcon } from "lucide-react";
+import { Clock, MousePointerClick, Webhook, Workflow, Zap, FolderSearch, type LucideIcon } from "lucide-react";
 import { NodeShell, SourceAddHandle } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, TriggerConfig } from "@flowos/schema";
@@ -24,6 +24,7 @@ const TRIGGER_TYPE_LABEL: Record<TriggerConfig["trigger_type"], string> = {
   webhook: "Webhook",
   manual: "Manual",
   program_output: "Program Output",
+  file_watch: "File Watch",
 };
 
 const TRIGGER_TYPE_ICON: Record<TriggerConfig["trigger_type"], LucideIcon> = {
@@ -32,6 +33,7 @@ const TRIGGER_TYPE_ICON: Record<TriggerConfig["trigger_type"], LucideIcon> = {
   webhook: Webhook,
   manual: MousePointerClick,
   program_output: Workflow,
+  file_watch: FolderSearch,
 };
 
 export function TriggerNode({ id, data, selected }: NodeProps) {

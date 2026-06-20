@@ -78,6 +78,8 @@ const PUBLIC_ROUTES = [
   "/u/",
   "/api/health",
   "/api/status",
+  "/download",
+  "/api/desktop/",
   "/maintenance",
   "/privacy",
   "/terms",

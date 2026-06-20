@@ -11,6 +11,8 @@ export const metadata: Metadata = {
 };
 import { Sidebar } from "@/components/sidebar";
 import { CommandPalette } from "@/components/command-palette";
+import { DesktopBridgeHandshake } from "@/components/devices/desktop-bridge-handshake";
+import { DesktopSessionWatcher } from "@/components/devices/desktop-session-watcher";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
@@ -113,6 +115,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen">
       <CommandPalette />
+      <DesktopBridgeHandshake />
+      <DesktopSessionWatcher />
       <Sidebar
         isAdmin={isAdmin}
         email={appUser.email ?? ""}

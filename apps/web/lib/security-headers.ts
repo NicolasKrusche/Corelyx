@@ -18,6 +18,13 @@ export function buildContentSecurityPolicy(nonce: string) {
     supabaseOrigin,
     "https://*.supabase.co",
     "wss://*.supabase.co",
+    // Corelyx Desktop (Tauri): the webview reaches the native Bridge over the IPC
+    // protocol (`ipc://localhost` on macOS/Linux, `http://ipc.localhost` on the
+    // Windows WebView2). Without these in connect-src the CSP blocks `invoke`, so
+    // the login → auto-pair handshake (set_device_token / get_status) silently
+    // fails. Harmless in a normal browser — it never makes requests to these.
+    "ipc:",
+    "http://ipc.localhost",
     turnstileEnabled ? turnstileOrigin : null,
   ].filter(Boolean);
 

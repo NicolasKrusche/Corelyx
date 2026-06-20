@@ -35,7 +35,7 @@ import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/gen
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
 import { getUserAiContext } from "@/lib/onboarding/profile";
-import { syncCronTriggers, syncEventTriggers } from "@/lib/triggers/event-trigger-sync";
+import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, canEdit, canRunAgentInWorkspace, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
@@ -654,6 +654,7 @@ export async function POST(request: Request) {
           try {
             await syncEventTriggers(serviceClient, program.id, savedSchema);
             await syncCronTriggers(serviceClient, program.id, savedSchema);
+            await syncFileWatchTriggers(serviceClient, program.id, savedSchema);
           } catch (syncError) {
             await writeAppLog(supabase, {
               userId,

@@ -1,0 +1,47 @@
+[package]
+name = "corelyx-desktop"
+version = "0.1.0"
+description = "Corelyx Desktop Bridge — runs local file operations for Corelyx workflows."
+authors = ["Corelyx"]
+edition = "2021"
+rust-version = "1.77"
+
+# The Bridge logic is a library target so its unit tests (sandbox, ops) run with
+# a plain `cargo test` without pulling in the Tauri windowing stack.
+[lib]
+name = "corelyx_bridge"
+path = "src/lib.rs"
+
+[[bin]]
+name = "corelyx-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+# Built-in auto-update: checks the signed `latest.json` manifest, verifies the
+# download against the pubkey in tauri.conf.json, installs, and relaunches.
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["time", "rt", "macros"] }
+# Cross-platform filesystem watching for `file_watch` triggers (inotify / FSEvents
+# / ReadDirectoryChangesW under the hood). Runs on its own OS threads.
+notify = "6"
+
+# NOTE: Cargo.lock pins `alloc-stdlib = 0.2.2` on purpose. Its 0.2.3 release
+# bumped `alloc-no-stdlib` to 3.0, which conflicts with the 2.x that brotli 8.0.3
+# (pulled by tauri-codegen for asset compression) uses directly — the mismatch
+# fails to compile ("StandardAlloc: Allocator<…> is not satisfied"). Do not
+# `cargo update -p alloc-stdlib` past 0.2.2 until brotli/alloc-stdlib realign.
+
+[features]
+# Used by `tauri build` to enable the production asset protocol.
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+strip = true
+lto = true

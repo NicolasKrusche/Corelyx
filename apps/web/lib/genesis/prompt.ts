@@ -439,6 +439,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   ringcentral: { tier: 3, stub: `RINGCENTRAL: list_messages, send_message` },
   sentry: { tier: 3, stub: `SENTRY: list_events, get_event` },
   shopify: { tier: 3, stub: `SHOPIFY: list_orders, create_order` },
+  thunderbird: { tier: 2, stub: `THUNDERBIRD / EMAIL (IMAP — works with any IMAP/SMTP mailbox a person uses in Thunderbird): list_folders, list_messages(folder?="INBOX",limit?=25)→{messages:[{uid,from,subject,date,seen}]}, search_messages(folder?,from?,subject?,text?,since?="DD-Mon-YYYY",unseen_only?,limit?), get_message(uid REQUIRED from a list/search result,folder?)→adds {body_text,body_html,attachments:[{filename,content_type,size}]}, send_email(to REQUIRED,subject,body,cc?,bcc?,html?)` },
   todoist: { tier: 3, stub: `TODOIST: list_tasks, create_task, complete_task, update_task, list_projects` },
   xero: { tier: 3, stub: `XERO: list_invoices, create_invoice` },
   zendesk: { tier: 3, stub: `ZENDESK: list_tickets, create_ticket` },
@@ -682,6 +683,8 @@ CAPABILITY-GAP RULES — always generate, never refuse:
     2. An HTTP connection node (connector_type:"http") calling the provider's REST API directly.
     3. An agent node that explains what the user must do manually for any step that genuinely cannot be automated.
   Missing operations are NEVER a reason to emit an error object.
+
+LOCAL FILES (Corelyx Desktop): when — and ONLY when — the user explicitly wants to act on files on their own computer (e.g. "when a PDF lands in ~/Invoices", "rename the files in my Downloads folder"), use a connection node with connector_type:"file" (connection:null). Config: {connector_type:"file", device_id:null (the user's default paired device), operation:<one of read|write|append|list|stat|move|copy|delete|mkdir|search>, operation_params:{path:"<absolute path or {{expression}}>", ...op-specific params like content/dest/pattern}, scope_access:"read" for read/list/stat/search, "read_write" for write/append/move/copy/delete/mkdir}. Every file op requires a "path". The op runs on the user's machine via the desktop Bridge inside folders they have granted; it is NOT a cloud API. Do NOT use file nodes for cloud storage like Drive/Dropbox/S3 — those are their own connectors. If the description is about cloud files, never emit a file node.
 
 CONNECTIONS: "connection" field must exactly match the provided connection name. Never invent names.
 

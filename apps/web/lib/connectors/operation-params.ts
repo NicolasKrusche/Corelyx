@@ -411,6 +411,34 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
       { key: "destination_folder", label: "Destination folder", type: "string", placeholder: "archive", required: true, hint: 'Folder ID or well-known name: inbox, archive, deleteditems, sentitems' },
     ],
   },
+  thunderbird: {
+    list_folders: [],
+    list_messages: [
+      { key: "folder", label: "Folder", type: "string", placeholder: "INBOX", hint: "IMAP folder name (default INBOX)." },
+      { key: "limit", label: "Max messages", type: "number", placeholder: "25" },
+    ],
+    search_messages: [
+      { key: "folder", label: "Folder", type: "string", placeholder: "INBOX" },
+      { key: "from", label: "From contains", type: "string", placeholder: "boss@company.com" },
+      { key: "subject", label: "Subject contains", type: "string", placeholder: "invoice" },
+      { key: "text", label: "Body contains", type: "string" },
+      { key: "since", label: "Since (DD-Mon-YYYY)", type: "string", placeholder: "01-Jun-2026" },
+      { key: "unseen_only", label: "Unread only", type: "boolean" },
+      { key: "limit", label: "Max messages", type: "number", placeholder: "25" },
+    ],
+    get_message: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "folder", label: "Folder", type: "string", placeholder: "INBOX" },
+    ],
+    send_email: [
+      { key: "to", label: "To", type: "string", placeholder: "alice@example.com", required: true },
+      { key: "subject", label: "Subject", type: "string", required: true },
+      { key: "body", label: "Body", type: "text", required: true },
+      { key: "cc", label: "CC", type: "string" },
+      { key: "bcc", label: "BCC", type: "string" },
+      { key: "html", label: "HTML body (optional)", type: "text", hint: "Sent as an HTML alternative." },
+    ],
+  },
 };
 
 // Some operations require at least one of a set of otherwise-optional params.

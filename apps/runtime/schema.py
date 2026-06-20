@@ -87,7 +87,29 @@ class HttpConnectionConfig:
     retry: Optional[RetryConfig] = None
 
 
-ConnectionConfig = Union[OAuthConnectionConfig, HttpConnectionConfig]
+FILE_OPERATIONS = (
+    "read", "write", "append", "list", "stat",
+    "move", "copy", "delete", "mkdir", "search",
+)
+
+
+@dataclass
+class FileConnectionConfig:
+    """Local file operation executed by the desktop Bridge on a paired device.
+
+    The runtime never touches the filesystem itself: it enqueues a file_operations
+    row and suspends, the Bridge runs the op inside its granted folders, and the
+    run resumes with the result. Kept distinct from OAuth/HTTP so file access is
+    explicit in the schema and the sandbox/grant model is unambiguous.
+    """
+    operation: str
+    connector_type: Literal["file"] = "file"
+    device_id: Optional[str] = None
+    operation_params: dict = field(default_factory=dict)
+    scope_access: str = "read"
+
+
+ConnectionConfig = Union[OAuthConnectionConfig, HttpConnectionConfig, FileConnectionConfig]
 
 
 @dataclass
@@ -252,6 +274,23 @@ def _parse_node_config(
         return StepConfig(logic_type=logic_type, extra=extra)
     elif node_type == "connection":
         connector_type = raw.get("connector_type")
+        if connector_type == "file":
+            operation = raw.get("operation")
+            if operation not in FILE_OPERATIONS:
+                raise ValueError(
+                    f"file connector operation must be one of: {', '.join(FILE_OPERATIONS)}"
+                )
+            scope_access = raw.get("scope_access", "read")
+            if scope_access not in ("read", "write", "read_write"):
+                raise ValueError("scope_access must be one of: read, write, read_write")
+            device_id = raw.get("device_id")
+            return FileConnectionConfig(
+                connector_type="file",
+                operation=operation,
+                device_id=str(device_id) if device_id else None,
+                operation_params=dict(raw.get("operation_params") or {}),
+                scope_access=scope_access,
+            )
         if connector_type == "http":
             timeout_raw = raw.get("timeout_seconds")
             timeout_seconds = (

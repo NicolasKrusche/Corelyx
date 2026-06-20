@@ -105,6 +105,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     scope: "write",
   },
   {
+    id: "corelyx.file",
+    label: "Read/write local files",
+    description:
+      "Read, write, list, search, move, copy, or delete files on the user's paired desktop device, inside folders they have granted. Use to act on local files dynamically while reasoning — read one, decide, then write/rename/file it. Args: operation (read|write|append|list|stat|move|copy|delete|mkdir|search), path (absolute, inside a granted folder), and per-op extras (content for write/append, dest for move/copy, pattern for search). Reads run even in dry-run; writes are simulated in dry-run and refused for read-only agents. File contents are redacted before they reach the model, and every change is snapshotted so it can be rolled back. Executed by the runtime via the desktop Bridge.",
+    scope: "write",
+  },
+  {
     id: "corelyx.trigger_program",
     label: "Run a workflow",
     description:

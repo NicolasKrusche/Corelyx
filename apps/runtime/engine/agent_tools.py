@@ -181,6 +181,51 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
             "required": ["connection", "operation"],
         },
     },
+    "corelyx.file": {
+        "description": (
+            "Read, write, list, search, move, copy, or delete files on the user's "
+            "paired desktop device, inside folders they have granted. Use to act on "
+            "local files dynamically while reasoning — read one, decide, then "
+            "write/rename/file it. Read operations run even in dry-run; writes are "
+            "simulated in dry-run and refused if the user restricted this agent to "
+            "read-only. File contents you read are redacted before you see them, and "
+            "every change is snapshotted so the user can roll it back."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "read", "write", "append", "list", "stat",
+                        "move", "copy", "delete", "mkdir", "search",
+                    ],
+                    "description": "The file operation to perform.",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Absolute path inside a granted folder (the file or folder to act on).",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Text to write (for write/append).",
+                },
+                "dest": {
+                    "type": "string",
+                    "description": "Destination path inside a granted folder (for move/copy).",
+                },
+                "pattern": {
+                    "type": "string",
+                    "description": "Name substring to match under the folder (for search).",
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "For delete: remove a non-empty directory tree.",
+                },
+            },
+            "required": ["operation", "path"],
+        },
+    },
     "corelyx.ask_user": {
         "description": (
             "Pause and ask the user a question when you are blocked, need a "
