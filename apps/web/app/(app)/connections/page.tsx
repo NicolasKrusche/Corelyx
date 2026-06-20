@@ -68,6 +68,7 @@ type SettingsNavItem = {
 
 const PROVIDER_LABELS: Record<string, string> = {
   gmail: "Gmail",
+  thunderbird: "Thunderbird / Email (IMAP)",
   sheets: "Google Sheets",
   slack: "Slack",
   notion: "Notion",
@@ -292,6 +293,7 @@ const AVAILABLE_PROVIDERS: Provider[] = [
   { id: "asana", label: "Asana", description: "Manage tasks and projects", wave: 2, href: "/api/connections/oauth/asana?label=asana:primary" },
   { id: "drive", label: "Google Drive", description: "Read and manage Drive files", wave: 2, href: "/api/connections/oauth/google?service=drive&label=drive:primary" },
   { id: "outlook", label: "Outlook Mail", description: "Send and read Outlook email", wave: 2, href: "/api/connections/oauth/outlook?label=outlook:primary" },
+  { id: "thunderbird", label: "Thunderbird / Email (IMAP)", description: "Any IMAP/SMTP mailbox — read, search, and send", wave: 2, href: "/api/connections/oauth/thunderbird?label=thunderbird:primary" },
   { id: "linear", label: "Linear", description: "Create and manage issues and projects", wave: 3, href: "/api/connections/oauth/linear?label=linear:primary" },
   { id: "discord", label: "Discord", description: "Send messages and read channels", wave: 3, href: "/api/connections/oauth/discord?label=discord:primary" },
   { id: "teams", label: "Microsoft Teams", description: "Post messages and manage channels", wave: 3, href: "/api/connections/oauth/teams?label=teams:primary" },
@@ -664,6 +666,10 @@ export default function ConnectionsPage() {
   const [apiKeySubmitting, setApiKeySubmitting] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const apiKeyInputRef = useRef<HTMLInputElement>(null);
+  // Multi-field credentials for the IMAP/SMTP (Thunderbird) connection.
+  const emptyImap = { imap_host: "", imap_port: "", smtp_host: "", smtp_port: "", username: "", password: "", security: "ssl" };
+  const [imapFields, setImapFields] = useState(emptyImap);
+  const isImapProvider = apiKeyProvider === "thunderbird";
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -704,7 +710,28 @@ export default function ConnectionsPage() {
   }, [searchParams, router]);
 
   async function handleApiKeySubmit() {
-    if (!apiKeyProvider || !apiKeyValue.trim()) return;
+    if (!apiKeyProvider) return;
+    // IMAP/SMTP stores a JSON credential blob (via the same api_key vault path).
+    let credential: string;
+    if (isImapProvider) {
+      const f = imapFields;
+      if (!f.imap_host.trim() || !f.username.trim() || !f.password) {
+        setApiKeyError("IMAP host, username, and password are required.");
+        return;
+      }
+      credential = JSON.stringify({
+        imap_host: f.imap_host.trim(),
+        imap_port: f.imap_port ? Number(f.imap_port) : undefined,
+        smtp_host: (f.smtp_host.trim() || f.imap_host.trim()),
+        smtp_port: f.smtp_port ? Number(f.smtp_port) : undefined,
+        username: f.username.trim(),
+        password: f.password,
+        security: f.security,
+      });
+    } else {
+      if (!apiKeyValue.trim()) return;
+      credential = apiKeyValue.trim();
+    }
     setApiKeySubmitting(true);
     setApiKeyError(null);
     try {
@@ -714,16 +741,17 @@ export default function ConnectionsPage() {
         body: JSON.stringify({
           provider: apiKeyProvider,
           label: apiKeyLabel,
-          api_key: apiKeyValue.trim(),
+          api_key: credential,
         }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setApiKeyError(friendlyResponseMessage(data, "We could not save this API key. Please try again."));
+        setApiKeyError(friendlyResponseMessage(data, "We could not save this connection. Please try again."));
         return;
       }
       setApiKeyProvider(null);
       setApiKeyValue("");
+      setImapFields(emptyImap);
       await load();
     } catch {
       setApiKeyError("We could not connect. Check your internet connection and try again.");
@@ -1564,6 +1592,7 @@ export default function ConnectionsPage() {
             setApiKeyProvider(null);
             setApiKeyValue("");
             setApiKeyError(null);
+            setImapFields(emptyImap);
           }
         }}
       >
@@ -1574,32 +1603,80 @@ export default function ConnectionsPage() {
               Connect {apiKeyProvider ? (PROVIDER_LABELS[apiKeyProvider] ?? apiKeyProvider) : ""}
             </DialogTitle>
             <DialogDescription>
-              Enter your API key or access token. It will be encrypted and stored securely — never exposed to the frontend.
+              {isImapProvider
+                ? "Enter your mailbox's IMAP/SMTP server details — encrypted and stored securely, never exposed to the frontend. For Gmail/Outlook, use an app-password (their IMAP requires one)."
+                : "Enter your API key or access token. It will be encrypted and stored securely — never exposed to the frontend."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="api-key-input">API key / access token</Label>
-              <Input
-                id="api-key-input"
-                ref={apiKeyInputRef}
-                type="password"
-                placeholder="sk-... or paste your token here"
-                value={apiKeyValue}
-                onChange={(e) => setApiKeyValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !apiKeySubmitting) void handleApiKeySubmit();
-                }}
-                autoFocus
-              />
-            </div>
+          <div className="space-y-3 py-2">
+            {isImapProvider ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2 space-y-1.5">
+                  <Label htmlFor="imap-user">Email address</Label>
+                  <Input id="imap-user" autoFocus placeholder="you@example.com" value={imapFields.username}
+                    onChange={(e) => setImapFields((s) => ({ ...s, username: e.target.value }))} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label htmlFor="imap-pass">Password / app-password</Label>
+                  <Input id="imap-pass" type="password" placeholder="••••••••" value={imapFields.password}
+                    onChange={(e) => setImapFields((s) => ({ ...s, password: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="imap-host">IMAP host</Label>
+                  <Input id="imap-host" placeholder="imap.example.com" value={imapFields.imap_host}
+                    onChange={(e) => setImapFields((s) => ({ ...s, imap_host: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="imap-port">IMAP port</Label>
+                  <Input id="imap-port" type="number" placeholder="993" value={imapFields.imap_port}
+                    onChange={(e) => setImapFields((s) => ({ ...s, imap_port: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="smtp-host">SMTP host</Label>
+                  <Input id="smtp-host" placeholder="same as IMAP" value={imapFields.smtp_host}
+                    onChange={(e) => setImapFields((s) => ({ ...s, smtp_host: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="smtp-port">SMTP port</Label>
+                  <Input id="smtp-port" type="number" placeholder="465" value={imapFields.smtp_port}
+                    onChange={(e) => setImapFields((s) => ({ ...s, smtp_port: e.target.value }))} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label htmlFor="imap-sec">Security</Label>
+                  <select id="imap-sec" value={imapFields.security}
+                    onChange={(e) => setImapFields((s) => ({ ...s, security: e.target.value }))}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="ssl">SSL/TLS (ports 993 / 465)</option>
+                    <option value="starttls">STARTTLS (ports 143 / 587)</option>
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="api-key-input">API key / access token</Label>
+                <Input
+                  id="api-key-input"
+                  ref={apiKeyInputRef}
+                  type="password"
+                  placeholder="sk-... or paste your token here"
+                  value={apiKeyValue}
+                  onChange={(e) => setApiKeyValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !apiKeySubmitting) void handleApiKeySubmit();
+                  }}
+                  autoFocus
+                />
+              </div>
+            )}
             {apiKeyError && (
               <p className="text-sm text-destructive">{apiKeyError}</p>
             )}
-            <p className="text-[11px] text-muted-foreground/60">
-              You can find your API key in your {apiKeyProvider ? (PROVIDER_LABELS[apiKeyProvider] ?? apiKeyProvider) : "provider"} account settings or developer dashboard.
-            </p>
+            {!isImapProvider && (
+              <p className="text-[11px] text-muted-foreground/60">
+                You can find your API key in your {apiKeyProvider ? (PROVIDER_LABELS[apiKeyProvider] ?? apiKeyProvider) : "provider"} account settings or developer dashboard.
+              </p>
+            )}
           </div>
 
           <DialogFooter>
@@ -1614,7 +1691,12 @@ export default function ConnectionsPage() {
               Cancel
             </Button>
             <Button
-              disabled={!apiKeyValue.trim() || apiKeySubmitting}
+              disabled={
+                apiKeySubmitting ||
+                (isImapProvider
+                  ? !imapFields.imap_host.trim() || !imapFields.username.trim() || !imapFields.password
+                  : !apiKeyValue.trim())
+              }
               onClick={() => void handleApiKeySubmit()}
             >
               {apiKeySubmitting ? "Saving..." : "Save connection"}

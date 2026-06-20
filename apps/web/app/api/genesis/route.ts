@@ -33,7 +33,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, writeAppLog } from "@/lib/app-logs";
 import { serverLog } from "@/lib/server-log";
 import { ensureProcessingAllowed } from "@/lib/compliance";
-import { syncCronTriggers, syncEventTriggers } from "@/lib/triggers/event-trigger-sync";
+import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
 
 // Fixed credit charge per Genesis generation using the Corelyx platform key.
@@ -835,6 +835,7 @@ export async function POST(request: Request) {
     try {
       await syncEventTriggers(serviceClient, existing_program_id!, schema);
       await syncCronTriggers(serviceClient, existing_program_id!, schema);
+      await syncFileWatchTriggers(serviceClient, existing_program_id!, schema);
     } catch (syncError) {
       serverLog({
         level: "error",
@@ -956,6 +957,7 @@ export async function POST(request: Request) {
   try {
     await syncEventTriggers(serviceClient, program.id, schema);
     await syncCronTriggers(serviceClient, program.id, schema);
+    await syncFileWatchTriggers(serviceClient, program.id, schema);
   } catch (syncError) {
     serverLog({
       level: "error",

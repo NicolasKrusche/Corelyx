@@ -106,7 +106,21 @@ export type TriggerConfig =
   | { trigger_type: "event"; source: string; event: string; filter: object | null }
   | { trigger_type: "webhook"; endpoint_id: string; method: "POST" | "GET" }
   | { trigger_type: "manual" }
-  | { trigger_type: "program_output"; source_program_id: string; on_status: RunStatus[] };
+  | { trigger_type: "program_output"; source_program_id: string; on_status: RunStatus[] }
+  | {
+      // Fires when a file changes inside a granted folder on a paired desktop
+      // device. The Bridge watches `path` locally and pushes change events to the
+      // cloud, which fires the workflow/agent. `device_id` null = the workspace's
+      // default (most-recently-seen) device. `patterns` are glob filters on the
+      // file name (empty = any file). `events` selects which change kinds fire.
+      trigger_type: "file_watch";
+      device_id: string | null;
+      path: string;
+      events: FileWatchEvent[];
+      patterns: string[];
+    };
+
+export type FileWatchEvent = "created" | "modified" | "deleted";
 
 // AGENT NODE
 
@@ -232,7 +246,43 @@ export interface HttpConnectionConfig {
   retry: RetryConfig | null;
 }
 
-export type ConnectionConfig = OAuthConnectionConfig | HttpConnectionConfig;
+// FILE CONNECTOR — local file operations executed by the desktop Bridge.
+//
+// Unlike OAuth/HTTP connectors (which call a cloud API), a file node targets a
+// paired device on the user's machine. The runtime enqueues the operation and
+// suspends; the Bridge executes it inside its granted folders and returns a
+// result. Kept type-distinct from OAuth so file access is never mistaken for a
+// network call and so the security model (folder grants, sandbox) is explicit.
+export type FileOperation =
+  | "read"
+  | "write"
+  | "append"
+  | "list"
+  | "stat"
+  | "move"
+  | "copy"
+  | "delete"
+  | "mkdir"
+  | "search";
+
+export interface FileConnectionConfig {
+  connector_type: "file";
+  // Which paired device to run this on. null = the workspace's default active
+  // device (resolved at enqueue time when the user has exactly one).
+  device_id: string | null;
+  operation: FileOperation;
+  // Operation arguments (path, dest, content, pattern, ...). String values may
+  // contain {{expressions}} resolved against upstream node output.
+  operation_params: Record<string, unknown>;
+  // Highest side-effect level this node may perform. Drives the destructive-op
+  // confirmation gate, mirroring the connector scope model.
+  scope_access: "read" | "write" | "read_write";
+}
+
+export type ConnectionConfig =
+  | OAuthConnectionConfig
+  | HttpConnectionConfig
+  | FileConnectionConfig;
 
 export interface ConnectionNode extends NodeBase {
   type: "connection";

@@ -18,6 +18,7 @@ import type {
   BranchCondition,
   ConnectionConfig,
   HttpConnectionConfig,
+  FileConnectionConfig,
   RetryConfig,
 } from "@flowos/schema";
 import type { ValidationResult, ValidationError, ValidationWarning } from "@/lib/validation";
@@ -739,6 +740,69 @@ function ResourcePicker({
   );
 }
 
+// ─── Device picker (desktop Bridge) ───────────────────────────────────────────
+// Lists the workspace's paired devices so file nodes / file-watch triggers can
+// target one. "Default device" (null) lets the runtime resolve the most-recently
+// active device at run time — the right choice when the user has just one.
+
+type DeviceOption = {
+  id: string;
+  name: string;
+  grants?: Array<{ path: string; permission: string }>;
+};
+
+function DeviceSelect({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (deviceId: string | null) => void;
+}) {
+  const [devices, setDevices] = useState<DeviceOption[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/devices")
+      .then((r) => (r.ok ? (r.json() as Promise<{ devices?: DeviceOption[] }>) : null))
+      .then((data) => {
+        if (!cancelled) setDevices(data?.devices ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setDevices([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <FieldGroup
+      label="Device"
+      htmlFor="file-device"
+      hint="Which paired desktop runs this. Default = your most-recently-active device."
+    >
+      <Select
+        id="file-device"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value || null)}
+      >
+        <option value="">Default device</option>
+        {devices?.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+          </option>
+        ))}
+      </Select>
+      {devices !== null && devices.length === 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          No devices paired yet. Open Corelyx Desktop and sign in, then grant a folder in
+          Settings → Devices.
+        </p>
+      )}
+    </FieldGroup>
+  );
+}
+
 // ─── Corelyx platform key panel ──────────────────────────────────────────────
 
 type CreditData = {
@@ -1069,6 +1133,7 @@ function TriggerSidebar({
             else if (t === "webhook")   onUpdate({ trigger_type: "webhook", endpoint_id: "", method: "POST" } as TriggerConfig);
             else if (t === "event")     onUpdate({ trigger_type: "event", source: "", event: "", filter: null } as TriggerConfig);
             else if (t === "program_output") onUpdate({ trigger_type: "program_output", source_program_id: "", on_status: ["success"] } as TriggerConfig);
+            else if (t === "file_watch") onUpdate({ trigger_type: "file_watch", device_id: null, path: "", events: ["created"], patterns: [] } as TriggerConfig);
           }}
         >
           <option value="manual">Manual</option>
@@ -1076,6 +1141,7 @@ function TriggerSidebar({
           <option value="webhook">Webhook</option>
           <option value="event">Event</option>
           <option value="program_output">Program output</option>
+          <option value="file_watch">File watch (desktop)</option>
         </Select>
       </FieldGroup>
 
@@ -1205,6 +1271,70 @@ function TriggerSidebar({
               );
             })}
           </div>
+        </>
+      )}
+
+      {config.trigger_type === "file_watch" && (
+        <>
+          <div className="rounded-md bg-muted px-3 py-2 text-[11px] text-muted-foreground">
+            Watches a folder on your paired desktop device and fires when files change.
+            Watching happens locally — file contents never leave your machine.
+          </div>
+          <DeviceSelect
+            value={config.device_id}
+            onChange={(deviceId) => onUpdate({ ...config, device_id: deviceId })}
+          />
+          <FieldGroup
+            label="Folder to watch"
+            htmlFor="fw-path"
+            hint="Absolute path of a granted folder, e.g. C:\Users\you\Invoices"
+          >
+            <Input
+              id="fw-path"
+              placeholder="C:\Users\you\Invoices"
+              value={config.path}
+              onChange={(e) => onUpdate({ ...config, path: e.target.value })}
+            />
+          </FieldGroup>
+          <div className="space-y-1">
+            <Label className="text-xs">Fire on</Label>
+            {(["created", "modified", "deleted"] as const).map((ev) => {
+              const active = config.events.includes(ev);
+              return (
+                <Toggle
+                  key={ev}
+                  id={`fw-ev-${ev}`}
+                  checked={active}
+                  onChange={(v) => {
+                    const next = v
+                      ? [...config.events, ev]
+                      : config.events.filter((x) => x !== ev);
+                    // Always keep at least one event kind selected.
+                    onUpdate({ ...config, events: next.length > 0 ? next : config.events });
+                  }}
+                  label={ev.charAt(0).toUpperCase() + ev.slice(1)}
+                />
+              );
+            })}
+          </div>
+          <FieldGroup
+            label="Name patterns"
+            htmlFor="fw-patterns"
+            hint="Comma-separated globs, e.g. *.pdf, invoice-*.csv. Empty = any file."
+          >
+            <Input
+              id="fw-patterns"
+              placeholder="*.pdf, *.csv"
+              value={config.patterns.join(", ")}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                onUpdate({
+                  ...config,
+                  patterns: v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [],
+                });
+              }}
+            />
+          </FieldGroup>
         </>
       )}
     </div>
@@ -1569,6 +1699,146 @@ function isHttpConnectionConfig(config: ConnectionConfig): config is HttpConnect
   return config.connector_type === "http";
 }
 
+// ─── Local-files (desktop Bridge) connection sidebar ──────────────────────────
+
+const FILE_OPERATIONS: FileConnectionConfig["operation"][] = [
+  "read", "write", "append", "list", "stat", "move", "copy", "delete", "mkdir", "search",
+];
+
+// Operations that change the filesystem — selecting one nudges scope to "write".
+const FILE_WRITE_OPERATIONS = new Set(["write", "append", "move", "copy", "delete", "mkdir"]);
+
+function FileConnectionSidebar({
+  config,
+  onUpdate,
+}: {
+  config: FileConnectionConfig;
+  onUpdate: (patch: Record<string, unknown>) => void;
+}) {
+  const params = config.operation_params ?? {};
+  const op = config.operation;
+
+  function setParam(key: string, value: unknown) {
+    const next = { ...params };
+    if (value === "" || value === undefined || value === null) delete next[key];
+    else next[key] = value;
+    onUpdate({ operation_params: next });
+  }
+
+  const needsContent = op === "write" || op === "append";
+  const needsDest = op === "move" || op === "copy";
+  const isSearch = op === "search";
+  const pathLabel = op === "list" || op === "search" || op === "mkdir" ? "Folder path" : "File path";
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md bg-muted px-3 py-2 text-[11px] text-muted-foreground">
+        Runs on your paired desktop device, inside folders you&apos;ve granted in Settings →
+        Devices. Files never leave your machine.
+      </div>
+
+      <DeviceSelect value={config.device_id} onChange={(deviceId) => onUpdate({ device_id: deviceId })} />
+
+      <FieldGroup label="Operation" htmlFor="file-op">
+        <Select
+          id="file-op"
+          value={op}
+          onChange={(e) => {
+            const next = e.target.value as FileConnectionConfig["operation"];
+            const patch: Record<string, unknown> = { operation: next };
+            // Auto-raise scope when switching to a write operation from read-only.
+            if (FILE_WRITE_OPERATIONS.has(next) && config.scope_access === "read") {
+              patch.scope_access = "write";
+            }
+            onUpdate(patch);
+          }}
+        >
+          {FILE_OPERATIONS.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </Select>
+      </FieldGroup>
+
+      <FieldGroup
+        label={pathLabel}
+        htmlFor="file-path"
+        hint="Absolute path inside a granted folder. Use {{node_id.field}} for upstream values."
+      >
+        <Input
+          id="file-path"
+          placeholder={"C:\\Users\\you\\Invoices\\report.pdf"}
+          value={String(params.path ?? "")}
+          onChange={(e) => setParam("path", e.target.value)}
+        />
+      </FieldGroup>
+
+      {needsContent && (
+        <FieldGroup
+          label="Content"
+          htmlFor="file-content"
+          hint="Text to write. Use {{node_id.field}} to insert upstream output."
+        >
+          <Textarea
+            id="file-content"
+            rows={4}
+            className="text-xs resize-y font-mono"
+            value={String(params.content ?? "")}
+            onChange={(e) => setParam("content", e.target.value)}
+          />
+        </FieldGroup>
+      )}
+
+      {needsDest && (
+        <FieldGroup
+          label="Destination path"
+          htmlFor="file-dest"
+          hint="Where to move/copy to — also inside a granted folder."
+        >
+          <Input
+            id="file-dest"
+            placeholder={"C:\\Users\\you\\Archive\\report.pdf"}
+            value={String(params.dest ?? "")}
+            onChange={(e) => setParam("dest", e.target.value)}
+          />
+        </FieldGroup>
+      )}
+
+      {isSearch && (
+        <FieldGroup
+          label="Search for"
+          htmlFor="file-pattern"
+          hint="File-name substring to match under the folder above, e.g. invoice."
+        >
+          <Input
+            id="file-pattern"
+            placeholder="invoice"
+            value={String(params.pattern ?? "")}
+            onChange={(e) => setParam("pattern", e.target.value)}
+          />
+        </FieldGroup>
+      )}
+
+      <FieldGroup
+        label="Scope access"
+        htmlFor="file-scope"
+        hint="Read = list/read/stat/search. Write covers create/modify. Read + Write also allows delete & move."
+      >
+        <Select
+          id="file-scope"
+          value={config.scope_access}
+          onChange={(e) =>
+            onUpdate({ scope_access: e.target.value as FileConnectionConfig["scope_access"] })
+          }
+        >
+          <option value="read">Read</option>
+          <option value="write">Write</option>
+          <option value="read_write">Read + Write</option>
+        </Select>
+      </FieldGroup>
+    </div>
+  );
+}
+
 function ConnectionSidebar({
   config,
   nodeConnection,
@@ -1582,6 +1852,12 @@ function ConnectionSidebar({
 }) {
   const [newScope, setNewScope] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Local files run on the desktop Bridge — a different model from OAuth/HTTP
+  // (folder grants + a fixed operation set, no provider tokens or scopes).
+  if (config.connector_type === "file") {
+    return <FileConnectionSidebar config={config} onUpdate={onUpdate} />;
+  }
 
   if (!isHttpConnectionConfig(config)) {
     const oauthConfig = config as {

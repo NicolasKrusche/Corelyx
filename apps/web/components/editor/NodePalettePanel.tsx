@@ -7,10 +7,11 @@ import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 
 // ─── Variant type — exported so EditorShell + Toolbar can share it ────────────
 
-export type TriggerSubtype = "manual" | "cron" | "webhook" | "event" | "program_output";
+export type TriggerSubtype = "manual" | "cron" | "webhook" | "event" | "program_output" | "file_watch";
 export type StepSubtype = "transform" | "filter" | "branch" | "delay" | "loop" | "format" | "parse" | "deduplicate" | "sort";
 export type ConnectionSubtype =
   | "http"
+  | "file"
   | "gmail" | "notion" | "slack" | "github" | "sheets"
   | "calendar" | "docs" | "drive" | "airtable" | "hubspot"
   | "typeform" | "asana" | "outlook"
@@ -75,6 +76,26 @@ function HttpIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5">
       <path d="M2 8h12M8 2l4 6-4 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5">
+      <path d="M9 1.5H4a1 1 0 00-1 1v11a1 1 0 001 1h8a1 1 0 001-1V5.5L9 1.5z" strokeLinejoin="round" />
+      <path d="M9 1.5v4h4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FolderWatchIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5">
+      <path d="M2 4a1 1 0 011-1h3l1.5 1.5H13a1 1 0 011 1V8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 4v8a1 1 0 001 1h4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="11.5" cy="11.5" r="2.5" />
+      <path d="M13.4 13.4L15 15" strokeLinecap="round" />
     </svg>
   );
 }
@@ -147,6 +168,12 @@ const CATEGORIES: Category[] = [
             <path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         ),
+      },
+      {
+        variant: { type: "trigger", subtype: "file_watch" },
+        label: "File watch",
+        description: "Run when a file changes in a folder on your desktop device",
+        icon: <FolderWatchIcon />,
       },
     ],
   },
@@ -273,6 +300,12 @@ const CATEGORIES: Category[] = [
         label: "HTTP Request",
         description: "Call any REST API endpoint",
         icon: <HttpIcon />,
+      },
+      {
+        variant: { type: "connection", subtype: "file" },
+        label: "Local Files",
+        description: "Read/write files on your desktop device, inside granted folders",
+        icon: <FileIcon />,
       },
       {
         variant: { type: "connection", subtype: "gmail" },

@@ -23,6 +23,7 @@ from langchain_openai import ChatOpenAI
 from schema import (
     AgentConfig,
     AgentTaskConfig,
+    FileConnectionConfig,
     HttpConnectionConfig,
     OAuthConnectionConfig,
     ProgramSchema,
@@ -43,10 +44,12 @@ from db import (
     cleanup_stale_locks,
     create_approval,
     create_node_execution,
+    enqueue_file_operation,
     get_credential,
     get_db,
     get_existing_lock,
     get_run_status,
+    resolve_default_device,
     update_node_execution,
 )
 from engine.safe_expressions import (
@@ -580,6 +583,11 @@ MAX_LOOP_ITEMS = 100
 BULK_WRITE_APPROVAL_THRESHOLD = 25
 LLM_REQUEST_TIMEOUT_SECONDS = 120.0
 LLM_TEMPERATURE = 0
+
+# How long a `file` node waits for the desktop Bridge to run a local file
+# operation before failing with "waiting for your device". Matches the row TTL
+# set by enqueue_file_operation so the runtime and the DB agree on the deadline.
+FILE_OPERATION_TIMEOUT_SECONDS = 30 * 60
 
 # ── Hallucination (groundedness) check ────────────────────────────────────────
 # After every agent node call, a second LLM pass audits whether the answer is
@@ -2449,6 +2457,9 @@ class ProgramExecutor:
         if tool_id == "corelyx.web_fetch":
             return await self._execute_agent_web_fetch(args)
 
+        if tool_id == "corelyx.file":
+            return await self._execute_agent_file_tool(args, node_id, scope_access)
+
         endpoint_path = "/api/internal/agent-tools"
         payload = {
             "tool": tool_id,
@@ -2510,6 +2521,119 @@ class ProgramExecutor:
                 node_id,
             )
         return {"ok": False, "error": "Tool endpoint unreachable."}
+
+    async def _execute_agent_file_tool(
+        self, args: dict, node_id: str | None, scope_access: str
+    ) -> dict:
+        """Execute one local file operation chosen dynamically by an agent.
+
+        Reuses the workflow file-node machinery: enqueue a file_operations row
+        for a paired device and suspend until the desktop Bridge runs it locally
+        inside its granted folders (which snapshots the prior state, so the change
+        is reversible). The result returned here flows back through the loop's PII
+        sanitization before the model sees it — file contents are redacted exactly
+        like email.
+        """
+        operation = args.get("operation")
+        if not isinstance(operation, str) or operation not in self._FILE_ALL_OPS:
+            return {
+                "ok": False,
+                "error": "operation must be one of: " + ", ".join(sorted(self._FILE_ALL_OPS)),
+            }
+
+        path = args.get("path")
+        if not isinstance(path, str) or not path.strip():
+            return {"ok": False, "error": "path (an absolute path) is required."}
+        path = path.strip()
+
+        is_write = operation in self._FILE_WRITE_OPS
+
+        # User capability scope + per-step scope gate writes (reads always allowed).
+        if is_write and not self._agent_allows_writes():
+            return {
+                "ok": False,
+                "error": f"'{operation}' is a write, but the user restricted this agent to read-only.",
+            }
+        if is_write and scope_access == "read":
+            return {
+                "ok": False,
+                "error": f"'{operation}' is a write action, but this agent step has read-only access.",
+            }
+
+        # Reject template syntax the model may have copied from a plan — there is
+        # no template context inside the agent loop.
+        unresolved = _find_unresolved_templates(args)
+        if unresolved:
+            return {
+                "ok": False,
+                "error": (
+                    "args contain unresolved template expressions "
+                    f"({', '.join(unresolved[:5])}). Pass the real values instead."
+                ),
+            }
+
+        # Dry-run: simulate writes, let reads run for real previews.
+        if is_write and self.dry_run:
+            return {
+                "ok": True,
+                "dry_run": True,
+                "result": {"simulated": True, "operation": operation, "path": path},
+            }
+
+        workspace_id = await self._resolve_workspace_id()
+        if not workspace_id:
+            return {"ok": False, "error": "File operations require a workspace context."}
+
+        device_id = args.get("device_id") or resolve_default_device(self.db, workspace_id)
+        if not device_id:
+            return {
+                "ok": False,
+                "error": (
+                    "No paired device is available. Install the Corelyx desktop app, "
+                    "pair it, and grant it a folder."
+                ),
+            }
+
+        # The Bridge args are the literal tool args (path + per-op extras).
+        op_args = {
+            k: v for k, v in args.items() if k not in ("operation", "device_id") and v is not None
+        }
+        op_args["path"] = path
+
+        try:
+            operation_row = await enqueue_file_operation(
+                self.db,
+                run_id=self.run_id,
+                node_execution_id=None,
+                device_id=device_id,
+                workspace_id=workspace_id,
+                user_id=self.user_id,
+                op_type=operation,
+                args=op_args,
+            )
+        except Exception as exc:
+            return {"ok": False, "error": f"Could not enqueue the file operation: {exc}"}
+
+        operation_id = operation_row.get("id") if isinstance(operation_row, dict) else None
+        if not operation_id:
+            return {"ok": False, "error": "Could not enqueue the file operation for the device."}
+
+        outcome = await self._wait_for_file_operation(
+            operation_id, FILE_OPERATION_TIMEOUT_SECONDS, node_id
+        )
+        status = outcome.get("status")
+        if status == "done":
+            payload = outcome.get("result")
+            return {
+                "ok": True,
+                "result": payload if isinstance(payload, dict) else {"result": payload},
+            }
+        if status == "cancelled":
+            return {"ok": False, "error": f"The {operation} on {path} was cancelled."}
+        return {
+            "ok": False,
+            "error": str(outcome.get("error") or f"The {operation} on {path} failed on the device."),
+        }
 
     async def _execute_agent_connector_tool(
         self,
@@ -2938,8 +3062,10 @@ class ProgramExecutor:
     async def _execute_connection(self, node: SchemaNode, input_data: dict) -> dict:
         # Check connector call limits
         self._limiter.check_connector_call()
-        
+
         cfg = node.config
+        if isinstance(cfg, FileConnectionConfig):
+            return await self._execute_file(node, cfg, input_data)
         if isinstance(cfg, HttpConnectionConfig):
             await self._enforce_provider_policy("generic_http", node.id)
             retry_cfg = cfg.retry or RetryConfig(
@@ -3415,6 +3541,279 @@ class ProgramExecutor:
                 "OAuth token service temporarily unavailable. Please try again later.",
                 node.id,
             ) from e
+
+    # File ops that mutate the filesystem (vs. pure reads). Drives the write-scope
+    # check and the destructive-confirmation gate, mirroring the connector
+    # write/destructive heuristics used elsewhere in this file.
+    _FILE_WRITE_OPS = frozenset({"write", "append", "move", "copy", "delete", "mkdir"})
+    _FILE_DESTRUCTIVE_OPS = frozenset({"delete"})
+    _FILE_ALL_OPS = frozenset(
+        {"read", "write", "append", "list", "stat", "move", "copy", "delete", "mkdir", "search"}
+    )
+
+    async def _resolve_workspace_id(self) -> str | None:
+        """The run's workspace id, looked up from the program if not supplied."""
+        if self.workspace_id:
+            return self.workspace_id
+        try:
+            res = (
+                self.db.table("programs")
+                .select("workspace_id")
+                .eq("id", self.program_id)
+                .limit(1)
+                .execute()
+            )
+            rows = res.data or []
+            if rows and rows[0].get("workspace_id"):
+                self.workspace_id = rows[0]["workspace_id"]
+                return self.workspace_id
+        except Exception:
+            return None
+        return None
+
+    def _current_node_execution_id(self, node_id: str) -> str | None:
+        """Most recent node_execution row id for a node in this run (or None)."""
+        try:
+            row = (
+                self.db.table("node_executions")
+                .select("id")
+                .eq("run_id", self.run_id)
+                .eq("node_id", node_id)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            return row.data[0]["id"] if row.data else None
+        except Exception:
+            return None
+
+    async def _execute_file(
+        self, node: SchemaNode, cfg: FileConnectionConfig, input_data: dict
+    ) -> dict:
+        """Run a local file operation on a paired device via the desktop Bridge.
+
+        The runtime never touches a filesystem. It enqueues a file_operations row
+        addressed to a device and suspends until the Bridge claims it, runs it
+        inside its granted folders, and writes back a result/error — the same
+        suspend/resume mechanism as approvals and corelyx.ask_user.
+        """
+        op_type = cfg.operation
+
+        # Resolve {{expressions}} in the params against upstream output, mirroring
+        # the OAuth connector path (raw resolver preserves dict/list types).
+        raw_params = cfg.operation_params or {}
+        resolved_args: dict[str, Any] = {}
+        for key, value in raw_params.items():
+            if isinstance(value, str):
+                resolved_args[key] = _resolve_expression_raw(value, input_data)
+            elif isinstance(value, (dict, list)):
+                resolved_args[key] = _resolve_nested(value, input_data)
+            else:
+                resolved_args[key] = value
+
+        # Every file operation acts on a path.
+        path = resolved_args.get("path")
+        if not isinstance(path, str) or not path.strip():
+            raise ExecutionError(
+                "FILE_OP_MISSING_PATH",
+                f"The {op_type} file operation requires a 'path'.",
+                node.id,
+            )
+        path = path.strip()
+
+        is_write = op_type in self._FILE_WRITE_OPS
+        is_destructive = op_type in self._FILE_DESTRUCTIVE_OPS
+
+        # A read-scoped node may never perform a write/destructive op, regardless
+        # of what a generated or hand-edited schema asks for.
+        if is_write and cfg.scope_access == "read":
+            raise ExecutionError(
+                "FILE_OP_SCOPE_DENIED",
+                f"This file node is read-only but requested a {op_type} on {path}.",
+                node.id,
+            )
+
+        # Destructive ops always need human sign-off; plain writes need it in the
+        # approval-gated execution modes. Same gating as connector writes.
+        needs_approval = (
+            is_destructive
+            or self.execution_mode == "supervised"
+            or (self.execution_mode == "approval_required" and is_write)
+        )
+        if needs_approval:
+            reason = (
+                "Destructive file operation"
+                if is_destructive
+                else "File write approval required"
+            )
+            approved = await self._request_step_approval(
+                node, {"operation": op_type, "path": path}, reason
+            )
+            if not approved:
+                raise ExecutionError(
+                    "FILE_OP_REJECTED",
+                    f"The {op_type} on {path} was not approved.",
+                    node.id,
+                )
+
+        workspace_id = await self._resolve_workspace_id()
+        if not workspace_id:
+            raise ExecutionError(
+                "FILE_OP_NO_WORKSPACE",
+                "File operations require a workspace context.",
+                node.id,
+            )
+
+        device_id = cfg.device_id or resolve_default_device(self.db, workspace_id)
+        if not device_id:
+            raise ExecutionError(
+                "FILE_OP_NO_DEVICE",
+                "No paired device is available to run this file operation. Install the "
+                "Corelyx desktop app, pair it, and grant it a folder.",
+                node.id,
+            )
+
+        node_exec_id = self._current_node_execution_id(node.id)
+
+        operation = await enqueue_file_operation(
+            self.db,
+            run_id=self.run_id,
+            node_execution_id=node_exec_id,
+            device_id=device_id,
+            workspace_id=workspace_id,
+            user_id=self.user_id,
+            op_type=op_type,
+            args=resolved_args,
+        )
+        operation_id = operation.get("id")
+        if not operation_id:
+            raise ExecutionError(
+                "FILE_OP_ENQUEUE_FAILED",
+                "Could not enqueue the file operation for the device.",
+                node.id,
+            )
+
+        # The node is now waiting on the device executing the op locally.
+        await update_node_execution(self.db, self.run_id, node.id, status="running")
+
+        outcome = await self._wait_for_file_operation(
+            operation_id, FILE_OPERATION_TIMEOUT_SECONDS, node.id
+        )
+        status = outcome.get("status")
+        if status == "done":
+            payload = outcome.get("result")
+            return payload if isinstance(payload, dict) else {"result": payload}
+        if status == "cancelled":
+            raise ExecutionError(
+                "FILE_OP_CANCELLED", f"The {op_type} on {path} was cancelled.", node.id
+            )
+        raise ExecutionError(
+            "FILE_OP_FAILED",
+            str(outcome.get("error") or f"The {op_type} on {path} failed on the device."),
+            node.id,
+        )
+
+    async def _wait_for_file_operation(
+        self, operation_id: str, timeout_seconds: float, node_id: str | None
+    ) -> dict:
+        """Block until the Bridge finishes a file operation (done/error/cancelled).
+
+        Subscribes to Realtime updates on the file_operations row with a bounded
+        poll fallback, exactly like the approval/question waits. On timeout it
+        marks the row cancelled (so the Bridge drops it) and raises.
+        """
+        resolved = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        channel = None
+        terminal = ("done", "error", "cancelled")
+
+        def _on_change(payload: Any) -> None:
+            record = None
+            if isinstance(payload, dict):
+                record = payload.get("record") or payload.get("new")
+            if isinstance(record, dict) and record.get("id") == operation_id:
+                if record.get("status") in terminal:
+                    loop.call_soon_threadsafe(resolved.set)
+
+        try:
+            channel = self.db.channel(f"file_operation:{operation_id}")
+            channel.on_postgres_changes(
+                "UPDATE",
+                schema="public",
+                table="file_operations",
+                filter=f"id=eq.{operation_id}",
+                callback=_on_change,
+            ).subscribe()
+        except Exception as exc:
+            print(
+                f"[executor] file-op realtime unavailable for {operation_id}; polling: {exc}",
+                flush=True,
+            )
+            channel = None
+
+        deadline = time.time() + timeout_seconds
+        fallback_interval = 10.0
+        try:
+            while time.time() < deadline:
+                if await get_run_status(self.db, self.run_id) == "cancelled":
+                    raise CancellationError()
+
+                res = (
+                    self.db.table("file_operations")
+                    .select("status, result, error")
+                    .eq("id", operation_id)
+                    .limit(1)
+                    .execute()
+                )
+                rows = res.data or []
+                if rows and rows[0].get("status") in terminal:
+                    return {
+                        "status": rows[0].get("status"),
+                        "result": rows[0].get("result"),
+                        "error": rows[0].get("error"),
+                    }
+
+                remaining = max(0.0, deadline - time.time())
+                try:
+                    await asyncio.wait_for(
+                        resolved.wait(), timeout=min(fallback_interval, remaining)
+                    )
+                except asyncio.TimeoutError:
+                    continue
+                finally:
+                    resolved.clear()
+        finally:
+            if channel is not None:
+                try:
+                    channel.unsubscribe()
+                except Exception:
+                    pass
+
+        # Deadline passed: cancel the still-open row so the Bridge won't run a
+        # stale op, then fail the node.
+        try:
+            (
+                self.db.table("file_operations")
+                .update(
+                    {
+                        "status": "cancelled",
+                        "error": "Timed out waiting for the device.",
+                        "completed_at": "now()",
+                    }
+                )
+                .eq("id", operation_id)
+                .in_("status", ["pending", "claimed", "running"])
+                .execute()
+            )
+        except Exception:
+            pass
+
+        raise ExecutionError(
+            "FILE_OP_TIMEOUT",
+            "Timed out waiting for your device to run this file operation. Make sure the "
+            "Corelyx desktop app is running and connected.",
+            node_id,
+        )
 
     async def _request_step_approval(
         self, node: SchemaNode, input_data: dict, reason: str

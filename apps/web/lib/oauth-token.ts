@@ -62,7 +62,9 @@ const PROVIDER_REFRESH: Record<string, {
 };
 
 // Providers with non-expiring tokens — never refresh
-const NON_EXPIRING = new Set(["slack", "notion", "github"]);
+// Never refresh: real non-expiring OAuth tokens, plus static-credential
+// connections (api-key / IMAP) whose stored secret is returned as-is.
+const NON_EXPIRING = new Set(["slack", "notion", "github", "thunderbird"]);
 
 export function summarizeRefreshFailure(
   provider: string,

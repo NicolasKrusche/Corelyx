@@ -263,6 +263,20 @@ export async function checkAgentAccess(userId: string, workspaceId?: string | nu
   };
 }
 
+export async function checkLocalFilesAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
+  const ent = getEntitlements(profile.tier);
+
+  if (ent.localFiles) return { allowed: true };
+
+  return {
+    allowed: false,
+    reason: "Corelyx Desktop requires Solo plan or higher",
+    upgradeMessage:
+      "Pairing a device to act on local files is not available on the Free plan. Upgrade to Solo to use the Corelyx desktop app.",
+  };
+}
+
 export async function checkBYOKAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
   const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);

@@ -7,14 +7,15 @@ import { indexKnowledgeDoc } from "@/lib/agents/knowledge-index";
 type Service = ReturnType<typeof createServiceClient> & { from(t: string): any };
 
 const KNOWLEDGE_DOC_FIELDS =
-  "id, title, content, source_type, source_name, embedding_status, created_at, updated_at";
+  "id, title, content, source_type, source_name, embedding_status, canvas_x, canvas_y, created_at, updated_at";
 
-// GET /api/agents/knowledge — list the active workspace's knowledge entries.
+// GET /api/agents/knowledge — list the active workspace's knowledge entries +
+// the reference links between them (for the knowledge canvas).
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
   const ws = await getActiveWorkspace(user.id);
-  if (!ws) return NextResponse.json({ knowledge: [] });
+  if (!ws) return NextResponse.json({ knowledge: [], links: [] });
 
   const service = createServiceClient() as Service;
   const { data, error } = await service
@@ -23,7 +24,13 @@ export async function GET() {
     .eq("workspace_id", ws.workspaceId)
     .order("created_at", { ascending: false });
   if (error) return apiError(error.message, 500);
-  return NextResponse.json({ knowledge: data ?? [] });
+
+  const { data: links } = await service
+    .from("agent_knowledge_links")
+    .select("id, from_id, to_id, label")
+    .eq("workspace_id", ws.workspaceId);
+
+  return NextResponse.json({ knowledge: data ?? [], links: links ?? [] });
 }
 
 // POST /api/agents/knowledge — add a knowledge entry. Body: { title, content }

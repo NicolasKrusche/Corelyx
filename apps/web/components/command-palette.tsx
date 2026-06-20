@@ -54,6 +54,13 @@ function ConnectionsIcon() {
     </svg>
   );
 }
+function DevicesIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="3" width="12" height="8" rx="1"/><path d="M1 14h14"/>
+    </svg>
+  );
+}
 function RunsIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -146,6 +153,7 @@ const NAV_ITEMS = [
   { id: "import",      label: "Import",         href: "/programs/import",icon: ImportIcon },
   { id: "browse",      label: "Browse",         href: "/browse",         icon: BrowseIcon },
   { id: "connections", label: "Connections",    href: "/connections",    icon: ConnectionsIcon },
+  { id: "devices",     label: "Devices",        href: "/settings/devices", icon: DevicesIcon },
   { id: "runs",        label: "Runs",           href: "/runs",           icon: RunsIcon },
   { id: "approvals",   label: "Approvals",      href: "/approvals",      icon: ApprovalsIcon },
   { id: "logs",        label: "Logs",           href: "/logs",           icon: LogsIcon },

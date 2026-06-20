@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   BookOpen,
-  FileText,
   FileUp,
   Loader2,
   Pencil,
@@ -21,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
+import { KnowledgeCanvas, type CanvasLink } from "./knowledge-canvas";
 
 type Doc = {
   id: string;
@@ -29,11 +29,13 @@ type Doc = {
   source_type: string | null;
   source_name: string | null;
   embedding_status: string | null;
+  canvas_x: number | null;
+  canvas_y: number | null;
   created_at: string;
   updated_at: string | null;
 };
 
-type SearchHit = { title: string; excerpt: string; similarity?: number };
+type SearchHit = { title: string; excerpt: string; similarity?: number; linked?: boolean };
 type SearchResult = { results: SearchHit[]; searched: number; method: "semantic" | "keyword" };
 
 const ACCEPTED_FILES = ".pdf,.md,.markdown,.txt,.csv,.json,.html,.htm";
@@ -165,10 +167,16 @@ function RetrievalPreview() {
                 <div key={i} className="rounded-xl border border-border/50 bg-background/40 px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-xs font-semibold">{hit.title}</p>
-                    {typeof hit.similarity === "number" && (
-                      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                        {Math.round(hit.similarity * 100)}% match
+                    {hit.linked ? (
+                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        ↳ via reference
                       </span>
+                    ) : (
+                      typeof hit.similarity === "number" && (
+                        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                          {Math.round(hit.similarity * 100)}% match
+                        </span>
+                      )
                     )}
                   </div>
                   <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
@@ -536,6 +544,7 @@ function DocDialog({
  */
 export function KnowledgeManager() {
   const [docs, setDocs] = useState<Doc[]>([]);
+  const [links, setLinks] = useState<CanvasLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [composing, setComposing] = useState(false);
   const [openDoc, setOpenDoc] = useState<Doc | null>(null);
@@ -545,8 +554,9 @@ export function KnowledgeManager() {
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/agents/knowledge");
-      const data = res.ok ? await res.json() : { knowledge: [] };
+      const data = res.ok ? await res.json() : { knowledge: [], links: [] };
       setDocs((data.knowledge ?? []) as Doc[]);
+      setLinks((data.links ?? []) as CanvasLink[]);
     } finally {
       setLoading(false);
     }
@@ -575,7 +585,7 @@ export function KnowledgeManager() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <Link
         href="/agents"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -634,42 +644,17 @@ export function KnowledgeManager() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {docs.map((d) => (
-            <button
-              key={d.id}
-              type="button"
-              onClick={() => setOpenDoc(d)}
-              className="group flex flex-col rounded-2xl border glass-card p-5 text-left transition-all hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  {d.source_type === "file" ? (
-                    <FileUp className="h-4 w-4 text-primary" />
-                  ) : (
-                    <FileText className="h-4 w-4 text-primary" />
-                  )}
-                </span>
-                <IndexChip status={d.embedding_status} />
-              </div>
-              <p className="mt-3 truncate text-sm font-semibold group-hover:text-primary">
-                {d.title}
-              </p>
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                {d.content}
-              </p>
-              <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-2.5 text-[11px] text-muted-foreground">
-                <span className="truncate">
-                  {d.source_type === "file" ? (d.source_name ?? "File") : "Written here"}
-                </span>
-                <span>·</span>
-                <span className="shrink-0">{wordCount(d.content)}</span>
-                <span className="ml-auto shrink-0">
-                  <RelativeDate iso={d.created_at} />
-                </span>
-              </div>
-            </button>
-          ))}
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Drag orbs to arrange them. Drag from an orb&apos;s edge to another to draw a reference.
+            Click an orb to open it; select a link and press Delete to remove it.
+          </p>
+          <KnowledgeCanvas
+            docs={docs}
+            links={links}
+            onOpenDoc={(id) => setOpenDoc(docs.find((d) => d.id === id) ?? null)}
+            canEdit
+          />
         </div>
       )}
 

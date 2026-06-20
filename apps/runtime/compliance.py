@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from schema import AgentConfig, HttpConnectionConfig, OAuthConnectionConfig, ProgramSchema
+from schema import (
+    AgentConfig,
+    FileConnectionConfig,
+    HttpConnectionConfig,
+    OAuthConnectionConfig,
+    ProgramSchema,
+)
 
 
 @dataclass(frozen=True)
@@ -291,6 +297,10 @@ def validate_schema_policy(
                 provider_id = "openrouter"
             else:
                 provider_id = provider_for_model(node.config.model)
+        elif isinstance(node.config, FileConnectionConfig):
+            # Local file ops run on the user's own device — no external provider
+            # and no cross-border transfer, so never a provider-policy block.
+            continue
         elif isinstance(node.config, HttpConnectionConfig):
             provider_id = "generic_http"
         elif isinstance(node.config, OAuthConnectionConfig):

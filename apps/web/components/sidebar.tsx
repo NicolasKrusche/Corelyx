@@ -1043,6 +1043,7 @@ export function Sidebar({
           <div className="max-h-0 overflow-hidden transition-all duration-200 group-hover/side:max-h-60 group-data-[open]/side:max-h-60">
             <div className="space-y-0.5 pb-0.5">
               <NavSubItem href="/api-keys" label={tNav("apiKeys")} active={pathname.startsWith("/api-keys")} isDark={isDark} />
+              <NavSubItem href="/settings/devices" label="Devices" active={pathname.startsWith("/settings/devices")} isDark={isDark} />
               <NavSubItem href="/env-vars" label={tNav("envVars")} active={pathname.startsWith("/env-vars")} isDark={isDark} />
               <NavSubItem href="/governance" label={tSidebar("nav.governance")} active={pathname.startsWith("/governance")} isDark={isDark} />
               <NavSubItem href="/credits" label={tSidebar("nav.usageBilling")} active={pathname.startsWith("/credits")} isDark={isDark} />

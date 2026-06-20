@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { validatePostGenesis } from "@/lib/validation";
-import { syncEventTriggers, syncCronTriggers } from "@/lib/triggers/event-trigger-sync";
+import { syncEventTriggers, syncCronTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureGmailWatchesForProgram } from "@/lib/triggers/gmail-watch";
 import { serverLog } from "@/lib/server-log";
 import {
@@ -148,6 +148,7 @@ export async function PATCH(
       const serviceClient = createServiceClient();
       await syncEventTriggers(serviceClient, params.id, schema);
       await syncCronTriggers(serviceClient, params.id, schema);
+      await syncFileWatchTriggers(serviceClient, params.id, schema);
       await ensureGmailWatchesForProgram(serviceClient, params.id);
     } catch (err) {
       serverLog({

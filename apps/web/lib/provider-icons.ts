@@ -1,5 +1,6 @@
 export const PROVIDER_ICON_URL: Record<string, string> = {
   gmail: "https://commons.wikimedia.org/wiki/Special:FilePath/Gmail_icon_(2020).svg",
+  thunderbird: "https://commons.wikimedia.org/wiki/Special:FilePath/Thunderbird_2023_icon.svg",
   sheets: "https://upload.wikimedia.org/wikipedia/commons/a/ae/Google_Sheets_2020_Logo.svg",
   calendar: "https://commons.wikimedia.org/wiki/Special:FilePath/Google_Calendar_icon_(2020).svg",
   docs: "https://upload.wikimedia.org/wikipedia/commons/6/66/Google_Docs_2020_Logo.svg",
