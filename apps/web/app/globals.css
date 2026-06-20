@@ -210,6 +210,55 @@
   66%        { transform: translate(-3%,  2%)   scale(0.95); }
 }
 
+/* ── Agent identity swatch ──
+   A per-agent animated gradient "fingerprint". Hues come from inline
+   --sw-h1/--sw-h2 (hashed from the agent id), so every agent looks unique.
+   The conic gradient slowly rotates; a soft highlight drifts over it. Agents
+   are low-frequency surfaces, so a little motion here is delight, not noise. */
+.agent-swatch {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: hsl(var(--sw-h1, 220) 45% 18%);
+  isolation: isolate;
+}
+.agent-swatch::before {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  background: conic-gradient(
+    from 0deg,
+    hsl(var(--sw-h1, 220) 82% 60%),
+    hsl(var(--sw-h2, 280) 80% 55%),
+    hsl(var(--sw-h1, 220) 68% 38%),
+    hsl(var(--sw-h2, 280) 85% 62%),
+    hsl(var(--sw-h1, 220) 82% 60%)
+  );
+  animation: swatch-spin var(--sw-speed, 12s) linear infinite;
+}
+.agent-swatch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 32% 26%, hsl(0 0% 100% / 0.45), transparent 55%);
+  mix-blend-mode: soft-light;
+  animation: swatch-glow calc(var(--sw-speed, 12s) * 1.5) ease-in-out infinite;
+}
+.agent-swatch--fast::before { animation-duration: 4.5s; }
+.agent-swatch--fast::after { animation-duration: 6.75s; }
+
+@keyframes swatch-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes swatch-glow {
+  0%, 100% { transform: translate(0, 0) scale(1);     opacity: 0.75; }
+  50%      { transform: translate(14%, 11%) scale(1.18); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-swatch::before,
+  .agent-swatch::after { animation: none; }
+}
+
 /* â”€â”€ Auth page background glow â”€â”€ */
 .auth-page-bg {
   background:

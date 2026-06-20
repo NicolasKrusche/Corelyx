@@ -289,3 +289,117 @@ function computeNextRunAt(expression: string, timezone: string): string | null {
     return null;
   }
 }
+
+// ─── File-watch trigger sync ──────────────────────────────────────────────────
+
+const FILE_WATCH_EVENTS = new Set(["created", "modified", "deleted"]);
+
+/**
+ * Reconcile the `triggers` table so `file_watch` trigger nodes in the schema each
+ * have a corresponding row. Mirrors the event/cron sync pattern, keyed by node_id
+ * stored inside the config. A file_watch row's config carries the device + folder
+ * + event kinds + name patterns the desktop Bridge needs to watch; the dispatch
+ * side reads the same rows to fire matching programs. Safe to call on every save.
+ *
+ * A watch with no folder configured yet is skipped (and any stale row for that
+ * node is removed) — an empty path can't be sandboxed to a grant, so it must not
+ * reach the Bridge.
+ */
+export async function syncFileWatchTriggers(
+  db: Db,
+  programId: string,
+  schema: unknown
+): Promise<{ inserted: number; updated: number; deleted: number }> {
+  if (!isRecord(schema)) return { inserted: 0, updated: 0, deleted: 0 };
+
+  const nodes = Array.isArray(schema.nodes) ? schema.nodes : [];
+  const triggerStates = Array.isArray(schema.triggers) ? schema.triggers : [];
+
+  const activeByNode = new Map<string, boolean>();
+  for (const state of triggerStates) {
+    if (isRecord(state) && typeof state.node_id === "string") {
+      activeByNode.set(state.node_id, state.is_active !== false);
+    }
+  }
+
+  const desired: Array<{ node_id: string; config: JsonObject; is_active: boolean }> = [];
+  for (const node of nodes) {
+    if (!isRecord(node) || node.type !== "trigger" || typeof node.id !== "string") continue;
+    const cfg = isRecord(node.config) ? node.config : {};
+    if (cfg.trigger_type !== "file_watch") continue;
+
+    const path = typeof cfg.path === "string" ? cfg.path.trim() : "";
+    if (!path) continue; // no folder yet → nothing safe to watch; leave it unsynced
+
+    const deviceId =
+      typeof cfg.device_id === "string" && cfg.device_id.trim() ? cfg.device_id.trim() : null;
+    const events = Array.isArray(cfg.events)
+      ? cfg.events.filter((e): e is string => typeof e === "string" && FILE_WATCH_EVENTS.has(e))
+      : [];
+    const patterns = Array.isArray(cfg.patterns)
+      ? cfg.patterns.filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+      : [];
+
+    desired.push({
+      node_id: node.id,
+      config: {
+        trigger_type: "file_watch",
+        device_id: deviceId,
+        path,
+        events: events.length > 0 ? events : ["created", "modified", "deleted"],
+        patterns,
+        node_id: node.id,
+      },
+      is_active: activeByNode.get(node.id) ?? true,
+    });
+  }
+
+  const { data: existingRaw, error } = await db
+    .from("triggers")
+    .select("id, config, is_active")
+    .eq("program_id", programId)
+    .eq("type", "file_watch");
+  if (error) {
+    throw new Error(`Failed to load file_watch triggers for sync: ${error.message}`);
+  }
+  const existing = (existingRaw ?? []) as unknown as ExistingEventTriggerRow[];
+
+  const owned = new Map<string, ExistingEventTriggerRow>();
+  for (const row of existing) {
+    const nodeId = row.config && typeof row.config.node_id === "string" ? row.config.node_id : null;
+    if (nodeId) owned.set(nodeId, row);
+  }
+
+  let inserted = 0,
+    updated = 0,
+    deleted = 0;
+
+  for (const d of desired) {
+    const ex = owned.get(d.node_id);
+    if (!ex) {
+      const { error: insErr } = await db.from("triggers").insert({
+        program_id: programId,
+        type: "file_watch",
+        config: d.config,
+        is_active: d.is_active,
+      } as never);
+      if (!insErr) inserted++;
+    } else if (!configsEqual(d.config, ex.config) || ex.is_active !== d.is_active) {
+      await db
+        .from("triggers")
+        .update({ config: d.config, is_active: d.is_active } as never)
+        .eq("id", ex.id);
+      updated++;
+    }
+  }
+
+  const desiredNodeIds = new Set(desired.map((d) => d.node_id));
+  for (const [nodeId, row] of owned) {
+    if (!desiredNodeIds.has(nodeId)) {
+      await db.from("triggers").delete().eq("id", row.id);
+      deleted++;
+    }
+  }
+
+  return { inserted, updated, deleted };
+}

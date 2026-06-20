@@ -1,4 +1,8 @@
 packages:
   - "apps/*"
   - "!apps/runtime"
+  # apps/desktop is a Tauri (Rust) app with its own toolchain and release cadence.
+  # It stays in the monorepo for atomic schema/runtime/web/desktop PRs, but is kept
+  # out of the JS workspace install/CI — same precedent as apps/runtime (Python).
+  - "!apps/desktop"
   - "packages/*"

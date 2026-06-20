@@ -33,6 +33,11 @@ export interface PlanEntitlements {
   // One-time AI agents (plan a task, approve, run once). Solo and above.
   agents: boolean;
 
+  // Corelyx Desktop: pair a device and let workflows/agents act on local files
+  // (the `file` connector + device management). Paid feature, Solo and above —
+  // the privacy/governance moat ("files never leave the machine, fully audited").
+  localFiles: boolean;
+
   // Collaboration
   maxTeamSeats: number | null;
   maxWorkspaces: number | null;
@@ -63,6 +68,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: false,
     priorityExecution: false,
     agents: false,
+    localFiles: false,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
     includedAiCredits: 0,
@@ -80,6 +86,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: false,
     priorityExecution: false,
     agents: true,
+    localFiles: true,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
     includedAiCredits: 2_500,
@@ -97,6 +104,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: true,
     priorityExecution: false,
     agents: true,
+    localFiles: true,
     maxTeamSeats: 3,
     maxWorkspaces: 3,
     includedAiCredits: 10_000,
@@ -114,6 +122,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: true,
     priorityExecution: true,
     agents: true,
+    localFiles: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCredits: 15_000,
@@ -131,6 +140,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     conflictDetection: true,
     priorityExecution: true,
     agents: true,
+    localFiles: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
     includedAiCredits: null,

@@ -1,0 +1,17 @@
+{
+  "name": "corelyx-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Corelyx Desktop — Tauri shell + local file Bridge.",
+  "comment": "Standalone (excluded from the pnpm workspace): run npm/pnpm install here directly. Requires the Rust toolchain + Tauri prerequisites.",
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:local": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "build": "tauri build",
+    "test:bridge": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
