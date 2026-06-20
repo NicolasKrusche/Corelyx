@@ -12,6 +12,7 @@ export const CONNECTOR_OPERATIONS: Record<string, string[]> = {
   typeform: ["list_forms", "get_form", "get_responses"],
   asana: ["list_projects", "list_tasks", "get_task", "create_task", "update_task", "complete_task"],
   outlook: ["list_emails", "read_email", "send_email", "reply_email", "delete_email", "list_folders", "move_email"],
+  thunderbird: ["list_folders", "list_messages", "get_message", "search_messages", "send_email"],
 };
 
 export const OPERATION_SCOPES: Record<string, Record<string, string[]>> = {

@@ -6,7 +6,7 @@ import { indexKnowledgeDoc } from "@/lib/agents/knowledge-index";
 type Service = ReturnType<typeof createServiceClient> & { from(t: string): any };
 
 const KNOWLEDGE_DOC_FIELDS =
-  "id, title, content, source_type, source_name, embedding_status, created_at, updated_at";
+  "id, title, content, source_type, source_name, embedding_status, canvas_x, canvas_y, created_at, updated_at";
 
 // PATCH /api/agents/knowledge/[id] — edit a knowledge entry. Body: { title?, content? }
 // Content edits re-chunk and re-embed the doc.
@@ -18,8 +18,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!ws) return apiError("No active workspace", 400);
   if (!canContributeToWorkspace(ws.role)) return apiError("Viewers cannot edit knowledge.", 403);
 
-  const body = (await request.json().catch(() => ({}))) as { title?: unknown; content?: unknown };
-  const patch: Record<string, string> = {};
+  const body = (await request.json().catch(() => ({}))) as {
+    title?: unknown;
+    content?: unknown;
+    canvas_x?: unknown;
+    canvas_y?: unknown;
+  };
+  const patch: Record<string, string | number> = {};
   if (typeof body.title === "string" && body.title.trim()) {
     patch.title = body.title.trim().slice(0, 200);
   }
@@ -28,6 +33,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const content = (body.content as string).trim().slice(0, 100_000);
     if (!content) return apiError("content cannot be empty.", 400);
     patch.content = content;
+  }
+  // Canvas position (drag-to-move). A position-only update skips re-indexing.
+  if (typeof body.canvas_x === "number" && typeof body.canvas_y === "number") {
+    patch.canvas_x = body.canvas_x;
+    patch.canvas_y = body.canvas_y;
   }
   if (Object.keys(patch).length === 0) return apiError("Nothing to update.", 400);
   patch.updated_at = new Date().toISOString();
@@ -44,7 +54,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!data) return apiError("Not found", 404);
 
   let doc = data as Record<string, unknown> & { id: string; content: string };
-  if (patch.content !== undefined) {
+  if (typeof patch.content === "string") {
     const indexed = await indexKnowledgeDoc(service, {
       id: doc.id,
       workspaceId: ws.workspaceId,

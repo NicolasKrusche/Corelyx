@@ -63,6 +63,49 @@ class SchemaValidationTests(unittest.TestCase):
 
         self.assertEqual(schema.nodes[0].id, "n1")
 
+    def test_parses_file_connection(self) -> None:
+        from schema import FileConnectionConfig
+
+        schema = parse_schema(
+            _schema_with_config(
+                "connection",
+                {
+                    "connector_type": "file",
+                    "operation": "read",
+                    "scope_access": "read",
+                    "operation_params": {"path": "{{trigger.dir}}/invoice.pdf"},
+                },
+            )
+        )
+        cfg = schema.nodes[0].config
+        self.assertIsInstance(cfg, FileConnectionConfig)
+        self.assertEqual(cfg.operation, "read")
+        self.assertEqual(cfg.scope_access, "read")
+        self.assertIsNone(cfg.device_id)
+        self.assertEqual(cfg.operation_params["path"], "{{trigger.dir}}/invoice.pdf")
+
+    def test_rejects_unknown_file_operation(self) -> None:
+        with self.assertRaisesRegex(ValueError, "file connector operation"):
+            parse_schema(
+                _schema_with_config(
+                    "connection",
+                    {"connector_type": "file", "operation": "rmrf"},
+                )
+            )
+
+    def test_rejects_invalid_file_scope(self) -> None:
+        with self.assertRaisesRegex(ValueError, "scope_access"):
+            parse_schema(
+                _schema_with_config(
+                    "connection",
+                    {
+                        "connector_type": "file",
+                        "operation": "write",
+                        "scope_access": "sudo",
+                    },
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -342,6 +342,9 @@ function connectionProviderForNode(
   context: WorkflowProviderContext
 ) {
   if (node.config.connector_type === "http") return "generic_http";
+  // Local file ops run on the user's device — a distinct processing context with
+  // no external provider (data never leaves the machine).
+  if (node.config.connector_type === "file") return "local_file";
   if (node.config.provider) return node.config.provider;
   const byName = context.connections?.find((connection) => connection.name === node.connection);
   return byName?.provider ?? node.connection ?? "unknown";

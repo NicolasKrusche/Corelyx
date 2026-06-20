@@ -69,6 +69,13 @@ export const TriggerConfigZ = z.discriminatedUnion("trigger_type", [
     source_program_id: z.string().min(1),
     on_status: z.array(RunStatusZ).min(1),
   }),
+  z.object({
+    trigger_type: z.literal("file_watch"),
+    device_id: z.string().min(1).nullable(),
+    path: z.string().min(1),
+    events: z.array(z.enum(["created", "modified", "deleted"])).min(1),
+    patterns: z.array(z.string()),
+  }),
 ]);
 
 // ─── NODE BASE ────────────────────────────────────────────────────────────
@@ -218,6 +225,17 @@ export const ConnectionNodeZ = NodeBaseZ.extend({
       timeout_seconds: z.number().positive().nullable(),
       retry: RetryConfigZ.nullable(),
     }),
+    z.object({
+      // Local file operation executed by the desktop Bridge (see FileConnectionConfig).
+      connector_type: z.literal("file"),
+      device_id: z.string().nullable(),
+      operation: z.enum([
+        "read", "write", "append", "list", "stat",
+        "move", "copy", "delete", "mkdir", "search",
+      ]),
+      operation_params: z.record(z.unknown()),
+      scope_access: z.enum(["read", "write", "read_write"]),
+    }),
   ]),
 });
 
@@ -275,7 +293,7 @@ export const EdgeZ = z.object({
 
 export const TriggerZ = z.object({
   node_id: z.string().min(1),
-  type: z.enum(["cron", "event", "webhook", "manual", "program_output"]),
+  type: z.enum(["cron", "event", "webhook", "manual", "program_output", "file_watch"]),
   is_active: z.boolean(),
   last_fired: z.string().nullable(),
   next_scheduled: z.string().nullable(),

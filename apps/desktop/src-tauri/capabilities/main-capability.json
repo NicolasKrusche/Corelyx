@@ -1,0 +1,18 @@
+{
+  "identifier": "main-capability",
+  "description": "Lets the Corelyx web app (loaded in the main window) call the Bridge pairing/status commands so it can auto-register this device after login.",
+  "windows": ["main"],
+  "remote": {
+    "urls": [
+      "https://corelyx.app",
+      "https://app.corelyx.app",
+      "https://*.corelyx.app",
+      "http://localhost:3000"
+    ]
+  },
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:event:default"
+  ]
+}

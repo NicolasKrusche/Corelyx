@@ -124,7 +124,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
     const labels: Record<string, string> = {
       manual: "Manual Trigger", cron: "Cron Schedule",
       webhook: "Webhook Trigger", event: "Event Trigger",
-      program_output: "Program Output Trigger",
+      program_output: "Program Output Trigger", file_watch: "File Watch Trigger",
     };
     const configs: Record<TriggerSubtype, TriggerConfig> = {
       manual:         { trigger_type: "manual" },
@@ -132,6 +132,7 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
       webhook:        { trigger_type: "webhook", endpoint_id: crypto.randomUUID(), method: "POST" },
       event:          { trigger_type: "event", source: "", event: "", filter: null },
       program_output: { trigger_type: "program_output", source_program_id: "__USER_ASSIGNED__", on_status: ["success"] },
+      file_watch:     { trigger_type: "file_watch", device_id: null, path: "", events: ["created"], patterns: [] },
     };
     return {
       id, type: "trigger", status: "idle", connection: null,
@@ -224,6 +225,20 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
       },
     };
   }
+  // Local files (desktop Bridge) connection
+  if (variant.subtype === "file") {
+    return {
+      id, type: "connection", label: "Local Files", description: "", connection: null,
+      position, status: "idle",
+      config: {
+        connector_type: "file",
+        device_id: null,
+        operation: "read",
+        operation_params: {},
+        scope_access: "read",
+      },
+    };
+  }
   // OAuth connection
   return {
     id, type: "connection",
@@ -239,10 +254,10 @@ function makeDefaultNode(variant: NodeVariant, id: string, position: { x: number
   };
 }
 
-const TRIGGER_SUBTYPES = ["manual", "cron", "webhook", "event", "program_output"] as const;
+const TRIGGER_SUBTYPES = ["manual", "cron", "webhook", "event", "program_output", "file_watch"] as const;
 const STEP_SUBTYPES = ["transform", "filter", "branch", "delay", "loop", "format", "parse", "deduplicate", "sort"] as const;
 const CONNECTION_SUBTYPES = [
-  "http", "gmail", "notion", "slack", "github", "sheets",
+  "http", "file", "gmail", "notion", "slack", "github", "sheets",
   "calendar", "docs", "drive", "airtable", "hubspot",
   "typeform", "asana", "outlook",
   "shopify", "zoom", "sentry", "gitlab", "confluence",

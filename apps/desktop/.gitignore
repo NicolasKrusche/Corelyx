@@ -1,0 +1,17 @@
+# Rust / Tauri build output
+src-tauri/target/
+src-tauri/gen/
+
+# JS tooling
+node_modules/
+
+# Throwaway source image for `tauri icon` (regenerate with gen-icon.py)
+icon-source.png
+
+# Generated icons under src-tauri/icons/ ARE committed — the Windows build script
+# requires icon.ico. Replace them with real branding via `pnpm tauri icon`.
+
+# Tauri updater PRIVATE signing key — NEVER commit. It signs auto-updates; add it
+# to CI as the secret TAURI_SIGNING_PRIVATE_KEY. The matching public key is
+# committed (in tauri.conf.json + .tauri-updater.key.pub).
+src-tauri/.tauri-updater.key

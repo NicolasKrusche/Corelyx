@@ -19,7 +19,7 @@ type TriggerRow = {
   is_active: boolean;
 };
 
-type ProgramRow = {
+export type ProgramRow = {
   id: string;
   schema: unknown;
   user_id: string;
@@ -168,7 +168,6 @@ export async function dispatchEventTriggers(
     );
   }
 
-  const runtimeUrl = getRuntimeUrl();
   const runIds: string[] = [];
 
   await Promise.all(
@@ -204,105 +203,15 @@ export async function dispatchEventTriggers(
         connectionId: input.connection_id,
       });
 
-      // Standing agent: each matching event spawns a fresh one-time agent
-      // (clone + reason from scratch + prior-run memory). No conflict slot — the
-      // clone is brand new — so concurrent events each get their own agent.
-      if (program.program_type === "agent") {
-        const fired = await fireAgentTrigger(
-          db as Parameters<typeof fireAgentTrigger>[0],
-          program,
-          "agent_event",
-          triggerPayload
-        );
-        await db
-          .from("triggers")
-          .update({ last_fired_at: new Date().toISOString() } as never)
-          .eq("id", trigger.id);
-        if (fired.ok) runIds.push(fired.runId);
-        return;
-      }
-
-      const conflict = await _checkAndAcquireSlot(db, program.id, program.conflict_policy);
-      if (!conflict.allowed) return;
-
-      const { data: runRaw } = await db
-        .from("runs")
-        .insert({
-          program_id: trigger.program_id,
-          triggered_by: triggeredBy,
-          trigger_payload: triggerPayload,
-          status: "running",
-          started_at: new Date().toISOString(),
-          execution_mode: program.execution_mode,
-        } as never)
-        .select("id")
-        .single();
-
-      if (!runRaw) return;
-      const run = runRaw as unknown as { id: string };
-      runIds.push(run.id);
-
-      await db
-        .from("triggers")
-        .update({ last_fired_at: new Date().toISOString() } as never)
-        .eq("id", trigger.id);
-
-      // Fetch the program's linked connections to give the runtime a name→id map,
-      // so connection nodes can resolve their name references to UUIDs at execution time.
-      const { data: linkedConnsRaw } = await db
-        .from("program_connections")
-        .select("connection_id, connections(id, name, provider)")
-        .eq("program_id", trigger.program_id);
-
-      const connectionNameToId: Record<string, string> = {};
-      for (const row of (linkedConnsRaw ?? []) as Array<{
-        connection_id: string;
-        connections: { id: string; name: string; provider: string } | null;
-      }>) {
-        if (row.connections) {
-          connectionNameToId[row.connections.name] = row.connections.id;
-          connectionNameToId[`${row.connections.provider}:primary`] = row.connections.id;
-        }
-      }
-
-      try {
-        const runtimeBody = JSON.stringify({
-          run_id: run.id,
-          program_id: trigger.program_id,
-          user_id: program.user_id,
-          schema: program.schema,
-          triggered_by: triggeredBy,
-          trigger_payload: triggerPayload,
-          connections: connectionNameToId,
-        });
-        const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
-        const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
-          method: "POST",
-          headers: runtimeHeaders,
-          body: runtimeBody,
-          cache: "no-store",
-        });
-        if (!runtimeRes.ok) {
-          const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
-          await db
-            .from("runs")
-            .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
-            .eq("id", run.id);
-          return;
-        }
-      } catch (error) {
-        await db
-          .from("runs")
-          .update({
-            status: "failed",
-            error_message: isRuntimeDispatchConfigError(error)
-              ? "Runtime auth is not configured."
-              : "Runtime is unreachable",
-            completed_at: new Date().toISOString(),
-          } as never)
-          .eq("id", run.id);
-        return;
-      }
+      const runId = await fireTriggeredProgram({
+        db,
+        program,
+        triggerId: trigger.id,
+        triggeredBy,
+        triggerPayload,
+        agentTriggerKind: "agent_event",
+      });
+      if (runId) runIds.push(runId);
     })
   );
 
@@ -329,6 +238,125 @@ function _matchesFilter(filter: unknown, candidate: unknown): boolean {
   return Object.entries(filterObj).every(([key, value]) =>
     _matchesFilter(value, candidateObj[key])
   );
+}
+
+/**
+ * Fire one program in response to a matched trigger: spawn a fresh agent (agent
+ * programs) or create a run and dispatch it to the runtime (workflows). Stamps
+ * the trigger's last_fired_at. Returns the run id once a run/agent row exists, or
+ * null when nothing started (conflict slot taken, run-insert failed).
+ *
+ * Shared by the event dispatcher and the file_watch dispatcher so both firing
+ * paths stay byte-for-byte identical. Callers own their access/limit gates and
+ * build the trigger payload before calling.
+ */
+export async function fireTriggeredProgram(opts: {
+  db: ReturnType<typeof createServiceClient>;
+  program: ProgramRow;
+  triggerId: string;
+  triggeredBy: string;
+  triggerPayload: JsonObject;
+  agentTriggerKind: string;
+}): Promise<string | null> {
+  const { db, program, triggerId, triggeredBy, triggerPayload, agentTriggerKind } = opts;
+
+  // Standing agent: each match spawns a fresh one-time agent (clone + reason from
+  // scratch + prior-run memory). No conflict slot — the clone is brand new.
+  if (program.program_type === "agent") {
+    const fired = await fireAgentTrigger(
+      db as Parameters<typeof fireAgentTrigger>[0],
+      program,
+      agentTriggerKind,
+      triggerPayload
+    );
+    await db
+      .from("triggers")
+      .update({ last_fired_at: new Date().toISOString() } as never)
+      .eq("id", triggerId);
+    return fired.ok ? fired.runId : null;
+  }
+
+  const conflict = await _checkAndAcquireSlot(db, program.id, program.conflict_policy);
+  if (!conflict.allowed) return null;
+
+  const { data: runRaw } = await db
+    .from("runs")
+    .insert({
+      program_id: program.id,
+      triggered_by: triggeredBy,
+      trigger_payload: triggerPayload,
+      status: "running",
+      started_at: new Date().toISOString(),
+      execution_mode: program.execution_mode,
+    } as never)
+    .select("id")
+    .single();
+
+  if (!runRaw) return null;
+  const run = runRaw as unknown as { id: string };
+
+  await db
+    .from("triggers")
+    .update({ last_fired_at: new Date().toISOString() } as never)
+    .eq("id", triggerId);
+
+  // Fetch the program's linked connections to give the runtime a name→id map,
+  // so connection nodes can resolve their name references to UUIDs at execution time.
+  const { data: linkedConnsRaw } = await db
+    .from("program_connections")
+    .select("connection_id, connections(id, name, provider)")
+    .eq("program_id", program.id);
+
+  const connectionNameToId: Record<string, string> = {};
+  for (const row of (linkedConnsRaw ?? []) as Array<{
+    connection_id: string;
+    connections: { id: string; name: string; provider: string } | null;
+  }>) {
+    if (row.connections) {
+      connectionNameToId[row.connections.name] = row.connections.id;
+      connectionNameToId[`${row.connections.provider}:primary`] = row.connections.id;
+    }
+  }
+
+  const runtimeUrl = getRuntimeUrl();
+  try {
+    const runtimeBody = JSON.stringify({
+      run_id: run.id,
+      program_id: program.id,
+      user_id: program.user_id,
+      schema: program.schema,
+      triggered_by: triggeredBy,
+      trigger_payload: triggerPayload,
+      connections: connectionNameToId,
+    });
+    const runtimeHeaders = buildRuntimeExecuteHeaders(runtimeBody);
+    const runtimeRes = await fetch(`${runtimeUrl}/execute`, {
+      method: "POST",
+      headers: runtimeHeaders,
+      body: runtimeBody,
+      cache: "no-store",
+    });
+    if (!runtimeRes.ok) {
+      const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
+      await db
+        .from("runs")
+        .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
+        .eq("id", run.id);
+    }
+  } catch (error) {
+    await db
+      .from("runs")
+      .update({
+        status: "failed",
+        error_message: isRuntimeDispatchConfigError(error)
+          ? "Runtime auth is not configured."
+          : "Runtime is unreachable",
+        completed_at: new Date().toISOString(),
+      } as never)
+      .eq("id", run.id);
+  }
+
+  return run.id;
 }
 
 async function _checkAndAcquireSlot(

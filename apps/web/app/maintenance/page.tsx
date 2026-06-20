@@ -34,7 +34,19 @@ export default async function MaintenancePage({
         <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
         <p className="mt-3 text-gray-600">{message}</p>
         <MaintenanceAutoRecover area={area} />
-        <p className="mt-8 text-sm text-gray-400">Corelyx</p>
+        {/* Discreet escape hatch for admins/testers: /login is maintenance-exempt,
+            and an admin who signs in bypasses the gate (isMaintenanceBypassAdmin).
+            This is the only way in from the desktop app, which has no address bar.
+            The desktop window loads a fixed URL with no way to type /login. */}
+        <p className="mt-8 text-sm">
+          <a
+            href="/login"
+            className="text-gray-400 underline-offset-4 transition hover:text-gray-600 hover:underline"
+          >
+            Team sign-in
+          </a>
+        </p>
+        <p className="mt-2 text-sm text-gray-400">Corelyx</p>
       </div>
     </main>
   );

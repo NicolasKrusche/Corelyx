@@ -5,5 +5,10 @@ export function isSessionExemptApiRoute(pathname: string): boolean {
   return pathname === "/api/billing/webhook"
     || pathname === "/api/inngest"
     || pathname.startsWith("/api/webhooks/")
-    || pathname.startsWith("/api/triggers/webhook/");
+    || pathname.startsWith("/api/triggers/webhook/")
+    // The desktop Bridge authenticates with a device token (Bearer crlxdev_…)
+    // inside each handler — it has no browser session. crlxdev_ tokens don't match
+    // the personal-token (crlx_) shape, so without this they'd hit the session
+    // check and 401 before the handler's device-token auth could run.
+    || pathname.startsWith("/api/bridge/");
 }

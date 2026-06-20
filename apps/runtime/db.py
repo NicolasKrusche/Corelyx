@@ -643,6 +643,88 @@ async def get_credential(ref: str, user_id: str) -> dict:
     return result.data
 
 
+# ─── Desktop file operations ──────────────────────────────────────────────────
+#
+# The runtime never touches a user's filesystem. A `file` connection node enqueues
+# a file_operations row addressed to a paired device, then suspends until the
+# desktop Bridge claims it, runs it locally inside its granted folders, and writes
+# back a result/error. Same suspend/resume mechanism as approvals / ask_user.
+
+# A file operation the Bridge does not pick up within this window fails the node
+# with a "waiting for your device" error rather than hanging the run.
+FILE_OPERATION_TTL_MINUTES = 30
+
+
+def resolve_default_device(db: Client, workspace_id: str) -> Optional[str]:
+    """Pick the device a file node should target when none is pinned.
+
+    Returns the id of the workspace's most-recently-seen active (non-revoked)
+    device, or None when the workspace has no usable device paired.
+    """
+    if not workspace_id:
+        return None
+    try:
+        result = (
+            db.table("devices")
+            .select("id, last_seen_at, paired_at")
+            .eq("workspace_id", workspace_id)
+            .is_("revoked_at", "null")
+            .execute()
+        )
+    except Exception:
+        return None
+    rows = result.data or []
+    if not rows:
+        return None
+
+    def _seen_key(row: dict) -> str:
+        # Prefer last_seen_at, fall back to paired_at; "" sorts last.
+        return str(row.get("last_seen_at") or row.get("paired_at") or "")
+
+    rows.sort(key=_seen_key, reverse=True)
+    return rows[0]["id"]
+
+
+async def enqueue_file_operation(
+    db: Client,
+    *,
+    run_id: str,
+    node_execution_id: Optional[str],
+    device_id: Optional[str],
+    workspace_id: str,
+    user_id: str,
+    op_type: str,
+    args: dict,
+    ttl_minutes: int = FILE_OPERATION_TTL_MINUTES,
+) -> dict:
+    """Insert a pending file_operations row for the Bridge to execute.
+
+    `args` may transiently carry write content so it reaches the device; the row
+    is part of the queue, not the durable audit record. Secrets are redacted as a
+    defence-in-depth measure even though file args are not expected to hold any.
+    """
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(minutes=max(1, ttl_minutes))
+    ).isoformat()
+    payload = {
+        "run_id": run_id,
+        "node_execution_id": node_execution_id,
+        "device_id": device_id,
+        "workspace_id": workspace_id,
+        "user_id": user_id,
+        "op_type": op_type,
+        "args": redact_secrets(args) if isinstance(args, dict) else {},
+        "status": "pending",
+        "expires_at": expires_at,
+    }
+    result = db.table("file_operations").insert(payload).execute()
+    if not result.data:
+        raise RuntimeError(
+            f"DB insert for file_operation (run={run_id}, op={op_type}) returned no data"
+        )
+    return result.data[0]
+
+
 async def get_active_cron_workflows() -> list:
     """Return programs whose trigger node type is trigger.cron."""
     db = get_db()

@@ -28,8 +28,9 @@ import {
  */
 
 // Always reachable, even during full maintenance: framework assets, the
-// maintenance page itself, health/status, internal runtime callbacks, and the
-// auth routes (so an admin can still log in to lift maintenance).
+// maintenance page itself, health/status, internal runtime callbacks, the
+// desktop Bridge's device-token endpoints, and the auth routes (so an admin can
+// still log in to lift maintenance).
 const EXEMPT_PREFIXES = [
   "/_next",
   "/static",
@@ -39,6 +40,15 @@ const EXEMPT_PREFIXES = [
   "/api/health",
   "/api/status",
   "/api/internal/",
+  // The desktop Bridge authenticates with a per-device token (not a user
+  // session), so it can never be the maintenance-bypass admin. Blocking it would
+  // stall file operations + folder watches for the whole maintenance window — and
+  // it's a trusted background worker, like the internal runtime callbacks above.
+  "/api/bridge/",
+  // Desktop download + auto-update must keep working during maintenance (the
+  // updater has no session; users may still want to install).
+  "/api/desktop/",
+  "/download",
   "/login",
   "/signup",
   "/forgot-password",
