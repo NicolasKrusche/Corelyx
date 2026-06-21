@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Wrench } from "lucide-react";
 import { readSystemFlags, DEFAULT_MAINTENANCE_MESSAGE } from "@/lib/system-flags";
 import { getMaintenanceArea } from "@/lib/maintenance-areas";
@@ -39,12 +40,12 @@ export default async function MaintenancePage({
             This is the only way in from the desktop app, which has no address bar.
             The desktop window loads a fixed URL with no way to type /login. */}
         <p className="mt-8 text-sm">
-          <a
+          <Link
             href="/login"
             className="text-gray-400 underline-offset-4 transition hover:text-gray-600 hover:underline"
           >
             Team sign-in
-          </a>
+          </Link>
         </p>
         <p className="mt-2 text-sm text-gray-400">Corelyx</p>
       </div>
