@@ -130,7 +130,7 @@ Describe your workflow in plain language. Genesis turns it into a validated grap
 Every workflow is a graph you can inspect, rearrange, and understand before it runs. The visual layout is tied to the executable schema — not a diagram that diverges from what actually happens.
 
 **Human-in-the-loop approvals**
-Add approval gates anywhere in a workflow. Before a customer record is changed, a message is sent, or an external system is updated — a human can review and approve or reject the action.
+Add approval gates anywhere in a workflow. Before a customer record is changed, a message is sent, or an external system is updated — a human can review and approve or reject the action. 
 
 **200+ connectors**
 Gmail, Slack, Notion, GitHub, Google Sheets, Airtable, HubSpot, Asana, Outlook, Typeform, Google Docs, Google Drive, and more. OAuth and API key credentials are managed server-side and never exposed to the browser.
