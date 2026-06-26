@@ -4,6 +4,8 @@ import { getAgentTool } from "@/lib/genesis/agent-tools";
 import { searchKnowledgeBase } from "@/lib/agents/knowledge-search";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import { buildRuntimeExecuteHeaders } from "@/lib/runtime-dispatch";
+import { isNotificationEnabled } from "@/lib/notification-prefs";
+import { sendSecurityAlertEmail } from "@/lib/email";
 import { ProgramSchemaZ } from "@flowos/schema";
 
 // Executes account-orchestration tools on behalf of an agent_task node. The
@@ -126,9 +128,19 @@ export async function executeAgentTool(input: {
       case "corelyx.get_account_stats":
         return await getAccountStats(service, userId, memberWorkspaceIds);
       case "corelyx.search_knowledge":
-        return await searchKnowledge(service, memberWorkspaceIds, args);
+        return await searchKnowledge(service, userId, memberWorkspaceIds, context, args);
       case "corelyx.report_to_user":
         return await reportToUser(service, userId, context, args);
+      case "corelyx.reference_agent":
+        return await referenceAgent(service, userId, memberWorkspaceIds, context, args);
+      case "corelyx.flag_critical":
+        return await flagCritical(service, userId, context, args);
+      case "corelyx.read_agent_report":
+        return await readAgentReport(service, userId, memberWorkspaceIds, context, args);
+      case "corelyx.record_source":
+        return await recordSourceTool(service, userId, context, args);
+      case "corelyx.spawn_agent":
+        return await spawnAgent(service, userId, context, args);
       case "corelyx.trigger_program":
         return await triggerProgram(service, userId, memberWorkspaceIds, args);
       case "corelyx.set_program_active":
@@ -163,8 +175,9 @@ async function resolveTargetWorkspace(
   context: AgentToolContext,
   memberWorkspaceIds: string[]
 ): Promise<string | null> {
-  // create_workflow acts in the agent's home workspace (or an explicit one).
-  if (tool === "corelyx.create_workflow") {
+  // create_workflow / spawn_agent act in the agent's home workspace (the child
+  // agent is created alongside its parent).
+  if (tool === "corelyx.create_workflow" || tool === "corelyx.spawn_agent") {
     const requested = typeof args.workspace_id === "string" ? args.workspace_id : context.homeWorkspaceId;
     return memberWorkspaceIds.includes(requested) ? requested : null;
   }
@@ -186,6 +199,11 @@ function asInt(value: unknown, fallback: number, max: number): number {
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.min(Math.floor(n), max);
 }
+
+/** Default children an agent may spawn per run when the user hasn't set a cap. */
+const DEFAULT_MAX_SPAWNS_PER_RUN = 5;
+/** Hard ceiling: a user-set cap can't exceed this, to bound fan-out. */
+const MAX_SPAWNS_HARD_CEILING = 20;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -325,7 +343,13 @@ async function listConnections(service: LooseClient, workspaceIds: string[]): Pr
   return { ok: true, result: { connections: data ?? [] } };
 }
 
-async function searchKnowledge(service: LooseClient, workspaceIds: string[], args: Record<string, unknown>): Promise<AgentToolResult> {
+async function searchKnowledge(
+  service: LooseClient,
+  userId: string,
+  workspaceIds: string[],
+  context: AgentToolContext,
+  args: Record<string, unknown>
+): Promise<AgentToolResult> {
   const query = typeof args.query === "string" ? args.query.trim() : "";
   if (!query) return { ok: false, error: "query (string) is required." };
   const limit = asInt(args.limit, 3, 10);
@@ -334,7 +358,26 @@ async function searchKnowledge(service: LooseClient, workspaceIds: string[], arg
   // unavailable. Shared with the knowledge page's retrieval preview.
   const result = await searchKnowledgeBase(service, workspaceIds, query, limit);
   if ("error" in result) return { ok: false, error: result.error };
-  return { ok: true, result };
+
+  // Record reads_source edges (agent → each knowledge doc it pulled) so the Flow
+  // view shows what the agent actually read. Best-effort; ids aren't returned to
+  // the model.
+  const acting = await resolveActingProgram(service, userId, context.runId);
+  if (acting) {
+    for (const knowledgeId of result.sourceIds.slice(0, 8)) {
+      await recordRelation(service, {
+        workspace_id: acting.workspaceId,
+        from_program_id: acting.programId,
+        rel_type: "reads_source",
+        target_kind: "knowledge",
+        target_knowledge_id: knowledgeId,
+        run_id: context.runId ?? null,
+      });
+    }
+  }
+
+  const { sourceIds: _omit, ...visible } = result;
+  return { ok: true, result: visible };
 }
 
 async function getAccountStats(service: LooseClient, userId: string, workspaceIds: string[]): Promise<AgentToolResult> {
@@ -566,4 +609,427 @@ async function updateProgram(service: LooseClient, workspaceIds: string[], args:
     change_summary: "Agent edit",
   } as never);
   return { ok: true, result: { program: data, updated: true } };
+}
+
+// ─── Agent-relation tools (spawn / cross-check / read report / sources) ───────
+
+/** Insert a relation edge. Best-effort: a dup-key (already-recorded edge) or a
+ * transient failure just means the edge isn't (re)drawn — never block the tool. */
+async function recordRelation(service: LooseClient, row: Record<string, unknown>): Promise<void> {
+  try {
+    await service.from("agent_relations").insert(row as never);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** The agent that is acting (the parent/owner of this run), derived from the run
+ * — never trust a client-supplied program id. Returns its workspace + lineage. */
+async function resolveActingProgram(
+  service: LooseClient,
+  userId: string,
+  runId?: string
+): Promise<{
+  programId: string;
+  workspaceId: string;
+  lineageId: string;
+  capabilities: Record<string, unknown>;
+} | null> {
+  if (!runId) return null;
+  const { data: runRow } = await service
+    .from("runs")
+    .select("program_id, user_id")
+    .eq("id", runId)
+    .maybeSingle();
+  const run = runRow as { program_id: string; user_id: string | null } | null;
+  if (!run || run.user_id !== userId) return null;
+  const { data: progRow } = await service
+    .from("programs")
+    .select("id, workspace_id, metadata:schema->metadata")
+    .eq("id", run.program_id)
+    .maybeSingle();
+  const prog = progRow as { id: string; workspace_id: string; metadata: Record<string, unknown> | null } | null;
+  if (!prog) return null;
+  const meta = prog.metadata ?? {};
+  const lineageId = typeof meta.agent_lineage_id === "string" ? meta.agent_lineage_id : prog.id;
+  const capabilities =
+    meta.capabilities && typeof meta.capabilities === "object"
+      ? (meta.capabilities as Record<string, unknown>)
+      : {};
+  return { programId: prog.id, workspaceId: prog.workspace_id, lineageId, capabilities };
+}
+
+/** Resolve a target AGENT by program_id / agent / name, scoped to the user's
+ * workspaces. Mirrors getProgram's UUID-then-name resolution. */
+async function resolveAgentByIdOrName(
+  service: LooseClient,
+  workspaceIds: string[],
+  args: Record<string, unknown>
+): Promise<{ id: string; name: string; workspaceId: string; lineageId: string } | { error: string }> {
+  const raw =
+    typeof args.program_id === "string" && args.program_id.trim()
+      ? args.program_id.trim()
+      : typeof args.agent === "string" && args.agent.trim()
+        ? args.agent.trim()
+        : typeof args.name === "string"
+          ? args.name.trim()
+          : "";
+  if (!raw) return { error: "Provide the agent's program_id or name." };
+  const sel = "id, name, workspace_id, program_type, metadata:schema->metadata";
+
+  let rows: Array<Record<string, any>> = [];
+  if (isUuid(raw)) {
+    const { data } = await service
+      .from("programs")
+      .select(sel)
+      .eq("id", raw)
+      .eq("program_type", "agent")
+      .in("workspace_id", workspaceIds)
+      .limit(1);
+    rows = (data ?? []) as Array<Record<string, any>>;
+  }
+  if (rows.length === 0) {
+    const escaped = raw.replace(/[%_]/g, (m) => `\\${m}`);
+    let { data } = await service
+      .from("programs")
+      .select(sel)
+      .eq("program_type", "agent")
+      .in("workspace_id", workspaceIds)
+      .ilike("name", escaped)
+      .limit(5);
+    rows = (data ?? []) as Array<Record<string, any>>;
+    if (rows.length === 0) {
+      ({ data } = await service
+        .from("programs")
+        .select(sel)
+        .eq("program_type", "agent")
+        .in("workspace_id", workspaceIds)
+        .ilike("name", `%${escaped}%`)
+        .limit(5));
+      rows = (data ?? []) as Array<Record<string, any>>;
+    }
+  }
+  if (rows.length === 0) return { error: `No agent found matching "${raw}".` };
+  if (rows.length > 1) {
+    const candidates = rows.map((r) => `${String(r.name)} (${String(r.id)})`).join(", ");
+    return { error: `Multiple agents match "${raw}": ${candidates}. Use the exact program_id.` };
+  }
+  const r = rows[0];
+  const meta = (r.metadata ?? {}) as Record<string, unknown>;
+  const lineageId = typeof meta.agent_lineage_id === "string" ? meta.agent_lineage_id : (r.id as string);
+  return { id: r.id as string, name: r.name as string, workspaceId: r.workspace_id as string, lineageId };
+}
+
+/** True when two agents are directly related: a spawn edge either direction, or
+ * the same lineage (re-runs of one another). Bounds what read_agent_report sees. */
+async function areAgentsRelated(
+  service: LooseClient,
+  acting: { programId: string; lineageId: string },
+  target: { id: string; lineageId: string }
+): Promise<boolean> {
+  if (acting.lineageId && acting.lineageId === target.lineageId) return true;
+  const { data: spawnedByMe } = await service
+    .from("agent_relations")
+    .select("id")
+    .eq("rel_type", "spawns")
+    .eq("from_program_id", acting.programId)
+    .eq("target_program_id", target.id)
+    .limit(1);
+  if (((spawnedByMe ?? []) as unknown[]).length > 0) return true;
+  const { data: spawnedMe } = await service
+    .from("agent_relations")
+    .select("id")
+    .eq("rel_type", "spawns")
+    .eq("from_program_id", target.id)
+    .eq("target_program_id", acting.programId)
+    .limit(1);
+  return ((spawnedMe ?? []) as unknown[]).length > 0;
+}
+
+/** Record a peer cross-check link and return the peer's latest report excerpt. */
+async function referenceAgent(
+  service: LooseClient,
+  userId: string,
+  workspaceIds: string[],
+  context: AgentToolContext,
+  args: Record<string, unknown>
+): Promise<AgentToolResult> {
+  const acting = await resolveActingProgram(service, userId, context.runId);
+  if (!acting) return { ok: false, error: "No run context to attribute the reference to." };
+  const target = await resolveAgentByIdOrName(service, workspaceIds, args);
+  if ("error" in target) return { ok: false, error: target.error };
+  if (target.id === acting.programId) return { ok: false, error: "An agent cannot cross-check itself." };
+
+  const note = typeof args.note === "string" ? args.note.slice(0, 500) : null;
+  await recordRelation(service, {
+    workspace_id: acting.workspaceId,
+    from_program_id: acting.programId,
+    rel_type: "cross_check",
+    target_kind: "agent",
+    target_program_id: target.id,
+    label: note,
+    run_id: context.runId ?? null,
+  });
+
+  const { data: rep } = await service
+    .from("agent_reports")
+    .select("title, body, created_at")
+    .eq("program_id", target.id)
+    .eq("dry_run", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const report = rep as { title: string | null; body: string | null; created_at: string } | null;
+  return {
+    ok: true,
+    result: {
+      agent: { id: target.id, name: target.name },
+      latest_report: report
+        ? { title: report.title ?? "Report", excerpt: (report.body ?? "").slice(0, 2000), created_at: report.created_at }
+        : null,
+      cross_checked: true,
+    },
+  };
+}
+
+/** Read the report(s) of a related agent (one you spawned / that spawned you /
+ * a re-run), recording the feeds edge (their output feeds you). */
+async function readAgentReport(
+  service: LooseClient,
+  userId: string,
+  workspaceIds: string[],
+  context: AgentToolContext,
+  args: Record<string, unknown>
+): Promise<AgentToolResult> {
+  const acting = await resolveActingProgram(service, userId, context.runId);
+  if (!acting) return { ok: false, error: "No run context available." };
+  const target = await resolveAgentByIdOrName(service, workspaceIds, args);
+  if ("error" in target) return { ok: false, error: target.error };
+  if (target.id === acting.programId) return { ok: false, error: "Use report_to_user for your own report." };
+
+  const related = await areAgentsRelated(service, acting, target);
+  if (!related) {
+    return {
+      ok: false,
+      error: `You can only read reports of agents you spawned, that spawned you, or re-runs of the same agent. "${target.name}" is not related to you.`,
+    };
+  }
+
+  const { data: reps } = await service
+    .from("agent_reports")
+    .select("title, body, created_at")
+    .eq("program_id", target.id)
+    .eq("dry_run", false)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  const reports = ((reps ?? []) as Array<{ title: string | null; body: string | null; created_at: string }>)
+    .map((r) => ({ title: r.title ?? "Report", body: (r.body ?? "").slice(0, 4000), created_at: r.created_at }))
+    .filter((r) => r.body.trim().length > 0);
+  if (reports.length === 0) {
+    return { ok: true, result: { agent: { id: target.id, name: target.name }, reports: [], note: "That agent has no completed report yet." } };
+  }
+
+  await recordRelation(service, {
+    workspace_id: acting.workspaceId,
+    from_program_id: target.id,
+    rel_type: "feeds",
+    target_kind: "agent",
+    target_program_id: acting.programId,
+    run_id: context.runId ?? null,
+  });
+  return { ok: true, result: { agent: { id: target.id, name: target.name }, reports } };
+}
+
+/** Escalate a critical message into the user's "Flagged for review" inbox. */
+async function flagCritical(
+  service: LooseClient,
+  userId: string,
+  context: AgentToolContext,
+  args: Record<string, unknown>
+): Promise<AgentToolResult> {
+  const acting = await resolveActingProgram(service, userId, context.runId);
+  if (!acting) return { ok: false, error: "No run context to attach the flag to." };
+  const reason = typeof args.reason === "string" ? args.reason.trim().slice(0, 1000) : "";
+  if (!reason) return { ok: false, error: "reason (why this is critical) is required." };
+  const subject =
+    typeof args.subject === "string" && args.subject.trim() ? args.subject.trim().slice(0, 200) : "Flagged message";
+  const snippet = typeof args.snippet === "string" ? args.snippet.slice(0, 1000) : null;
+  const categories = Array.isArray(args.categories)
+    ? args.categories.filter((c): c is string => typeof c === "string").slice(0, 8)
+    : [];
+  const sourceRef = typeof args.source_ref === "string" ? args.source_ref.slice(0, 200) : null;
+  const sourceProvider = typeof args.source_provider === "string" ? args.source_provider.slice(0, 60) : null;
+  // origin distinguishes the deterministic auto-screen from an agent escalation.
+  const origin = args.origin === "auto" ? "auto" : "agent";
+
+  const { data, error } = await service
+    .from("agent_flags")
+    .insert({
+      workspace_id: acting.workspaceId,
+      program_id: acting.programId,
+      run_id: context.runId ?? null,
+      user_id: userId,
+      source_provider: sourceProvider,
+      source_ref: sourceRef,
+      subject,
+      snippet,
+      reason,
+      categories,
+      origin,
+      status: "pending",
+    } as never)
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  // Alert the user by email (gated by their security_alerts preference). Best-
+  // effort — a mail failure must not fail the flag itself.
+  try {
+    if (await isNotificationEnabled(userId, "security_alerts")) {
+      const { data: authData } = await (service as unknown as {
+        auth: { admin: { getUserById(id: string): Promise<{ data: { user: { email?: string | null } | null } }> } };
+      }).auth.admin.getUserById(userId);
+      const email = authData?.user?.email ?? null;
+      if (email) {
+        await sendSecurityAlertEmail({
+          to: email,
+          subject: `URGENT: a message was flagged for review`,
+          summary:
+            "An agent flagged a potentially safety-critical message instead of triaging it away. Review it in Corelyx before it's lost.",
+          items: [{ title: subject, body: [reason, snippet ? `“${snippet}”` : ""].filter(Boolean).join("\n\n") }],
+        });
+      }
+    }
+  } catch {
+    /* notification is best-effort */
+  }
+
+  return {
+    ok: true,
+    result: { flag_id: (data as { id: string }).id, flagged: true, note: "Flagged for the user's review and alerted." },
+  };
+}
+
+/** Internal: record a connector reads_source edge (called by the runtime after a
+ * native connector read). Never errors the originating connector call. */
+async function recordSourceTool(
+  service: LooseClient,
+  userId: string,
+  context: AgentToolContext,
+  args: Record<string, unknown>
+): Promise<AgentToolResult> {
+  const acting = await resolveActingProgram(service, userId, context.runId);
+  const kind = typeof args.kind === "string" ? args.kind : "connector";
+  const name = typeof args.name === "string" ? args.name.trim().slice(0, 120) : "";
+  if (!acting || kind !== "connector" || !name) return { ok: true, result: { recorded: false } };
+  await recordRelation(service, {
+    workspace_id: acting.workspaceId,
+    from_program_id: acting.programId,
+    rel_type: "reads_source",
+    target_kind: "connector",
+    target_label: name,
+    run_id: context.runId ?? null,
+  });
+  return { ok: true, result: { recorded: true } };
+}
+
+/** Spawn a child agent as a DRAFT in the parent's workspace (the user reviews +
+ * approves it before it runs) and record the spawns edge. */
+async function spawnAgent(
+  service: LooseClient,
+  userId: string,
+  context: AgentToolContext,
+  args: Record<string, unknown>
+): Promise<AgentToolResult> {
+  const acting = await resolveActingProgram(service, userId, context.runId);
+  if (!acting) return { ok: false, error: "No run context: cannot attribute the spawned agent to a parent." };
+
+  // Per-agent spawn policy (set by the user in Permissions): allowed at all, and
+  // how many children per run. Defaults preserve prior behaviour.
+  const caps = acting.capabilities;
+  if (caps.allow_spawning === false) {
+    return { ok: false, error: "Spawning sub-agents is disabled for this agent by the user." };
+  }
+  const cap =
+    typeof caps.max_spawns === "number" && Number.isFinite(caps.max_spawns)
+      ? Math.max(0, Math.min(Math.floor(caps.max_spawns), MAX_SPAWNS_HARD_CEILING))
+      : DEFAULT_MAX_SPAWNS_PER_RUN;
+  if (cap <= 0) {
+    return { ok: false, error: "Spawning sub-agents is disabled for this agent (max set to 0)." };
+  }
+
+  const objective =
+    typeof args.objective === "string" && args.objective.trim()
+      ? args.objective.trim()
+      : typeof args.task === "string"
+        ? args.task.trim()
+        : "";
+  if (!objective) return { ok: false, error: "objective (string) is required — describe the child agent's goal." };
+  const name = (typeof args.name === "string" && args.name.trim() ? args.name.trim() : objective.slice(0, 60)).slice(0, 120);
+  const reason = typeof args.reason === "string" ? args.reason.slice(0, 500) : null;
+
+  const { count } = await service
+    .from("agent_relations")
+    .select("id", { count: "exact", head: true })
+    .eq("from_program_id", acting.programId)
+    .eq("rel_type", "spawns")
+    .eq("run_id", context.runId ?? "");
+  if ((count ?? 0) >= cap) {
+    return { ok: false, error: `Spawn limit reached (${cap} per run). Handle the rest yourself or report what you have.` };
+  }
+
+  const seedSchema = {
+    program_name: name,
+    program_type: "agent",
+    metadata: {
+      description: objective,
+      agent_lineage_id: acting.lineageId,
+      spawned_from: acting.programId,
+      spawn_objective: objective,
+      ...(reason ? { spawn_reason: reason } : {}),
+    },
+    nodes: [],
+    edges: [],
+  };
+  const { data, error } = await service
+    .from("programs")
+    .insert({
+      user_id: userId,
+      workspace_id: acting.workspaceId,
+      name,
+      description: objective.slice(0, 500),
+      schema: seedSchema as unknown as Record<string, unknown>,
+      program_type: "agent",
+      agent_state: "draft",
+      is_active: false,
+    } as never)
+    .select("id, name")
+    .single();
+  if (error || !data) return { ok: false, error: error?.message ?? "Could not create the child agent." };
+  const child = data as { id: string; name: string };
+
+  // Editor membership so it surfaces for the user (mirrors cloneAgentProgram).
+  await recordRelation(service, {
+    workspace_id: acting.workspaceId,
+    from_program_id: acting.programId,
+    rel_type: "spawns",
+    target_kind: "agent",
+    target_program_id: child.id,
+    label: reason,
+    run_id: context.runId ?? null,
+  });
+  try {
+    await service.from("program_memberships").insert({ program_id: child.id, user_id: userId, role: "editor" } as never);
+  } catch {
+    /* membership is best-effort; the program is still visible via workspace scope */
+  }
+
+  return {
+    ok: true,
+    result: {
+      child: { id: child.id, name: child.name },
+      status: "draft",
+      note: "Created as a draft in the user's Agents list. The user reviews and approves it before it runs — it does not run automatically.",
+    },
+  };
 }

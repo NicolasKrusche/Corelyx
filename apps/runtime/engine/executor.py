@@ -57,6 +57,7 @@ from engine.safe_expressions import (
     evaluate_condition,
     evaluate_expression,
 )
+from engine.critical_signals import screen_text
 from engine.ner import get_person_name_detector
 from engine.pii import PseudonymizationSession
 from engine.circuit_breaker import (
@@ -169,6 +170,7 @@ WRITE_AGENT_TOOL_IDS = frozenset({
     "corelyx.set_program_active",
     "corelyx.create_workflow",
     "corelyx.update_program",
+    "corelyx.spawn_agent",
 })
 
 
@@ -206,6 +208,46 @@ def _connector_op_is_destructive(operation: str, params: dict | None = None) -> 
     if (operation or "").lower().startswith(_CONNECTOR_DESTRUCTIVE_PREFIXES):
         return True
     return bool((params or {}).get("permanent"))
+
+
+# Operations that remove a message from the user's view (delete/trash/archive/
+# spam/junk). The safety net blocks these on a message it flagged as critical.
+_CONNECTOR_DISMISSIVE_MARKERS = ("trash", "delete", "remove", "archive", "spam", "junk", "discard")
+
+
+def _connector_op_is_dismissive(operation: str) -> bool:
+    op = (operation or "").lower()
+    return any(marker in op for marker in _CONNECTOR_DISMISSIVE_MARKERS)
+
+
+_ID_KEYS = {"id", "message_id", "messageid", "thread_id", "threadid", "uid", "mail_id"}
+
+
+def _walk_string_values(obj: object):
+    """Yield every string scalar inside a nested dict/list structure."""
+    if isinstance(obj, str):
+        yield obj
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            yield from _walk_string_values(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            yield from _walk_string_values(v)
+
+
+def _extract_message_ids(obj: object) -> set[str]:
+    """Best-effort: collect values of id-like keys from a connector read result."""
+    found: set[str] = set()
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if isinstance(value, (str, int)) and str(key).lower() in _ID_KEYS:
+                found.add(str(value))
+            else:
+                found |= _extract_message_ids(value)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            found |= _extract_message_ids(v)
+    return found
 
 
 def _strip_html_to_text(raw: str) -> str:
@@ -2139,6 +2181,16 @@ class ProgramExecutor:
             return {"ok": False, "error": "url (string) is required."}
         current = url.strip()
 
+        # Compliance: fetching an arbitrary external URL is an outbound transfer to
+        # an unknown destination (same risk class as a generic HTTP connection),
+        # so block it in EU-only mode.
+        block = policy_block_reason("generic_http", self.compliance_mode)
+        if block:
+            return {
+                "ok": False,
+                "error": f"Fetching external web pages is unavailable for this EU-only workspace — {block}",
+            }
+
         client = _get_llm_client()
         headers = {"User-Agent": "CorelyxAgent/1.0 (+https://corelyx.app)", "Accept": "text/html,application/json,text/plain,*/*"}
         max_hops = 4
@@ -2179,6 +2231,166 @@ class ProgramExecutor:
                 "content": body[:20000],
             },
         }
+
+    def _remember_flagged_ids(self, result: object) -> None:
+        """Cache message ids from a critical read so a later dismissive op is
+        refused. Skips bulk results where the critical message can't be pinpointed
+        (the flag/alert still fired regardless)."""
+        ids = _extract_message_ids(result)
+        if not ids or len(ids) > 3:
+            return
+        cache = getattr(self, "_flagged_message_ids", None)
+        if cache is None:
+            cache = set()
+            self._flagged_message_ids = cache
+        cache |= ids
+
+    def _dismissive_targets_flagged(self, params: dict | None) -> bool:
+        flagged = getattr(self, "_flagged_message_ids", None)
+        if not flagged:
+            return False
+        return any(val in flagged for val in _walk_string_values(params or {}))
+
+    async def _screen_read_for_critical(self, provider_id: str, operation: str, result: object) -> None:
+        """Deterministic safety net: screen content the agent just read. On a
+        critical-harm signal, raise a flag for the user — independent of what the
+        agent decides next — and remember the message id so a later archive/delete
+        is refused. Best-effort; never raises (a screen failure must not break the
+        agent's own work)."""
+        try:
+            text = json.dumps(result, default=str)
+            screen = screen_text(text)
+            if not screen.critical:
+                return
+
+            self._remember_flagged_ids(result)
+
+            # De-dupe identical alerts within a run (a bulk read can re-surface the
+            # same message across pages).
+            seen_snippets = getattr(self, "_flagged_snippets", None)
+            if seen_snippets is None:
+                seen_snippets = set()
+                self._flagged_snippets = seen_snippets
+            if screen.snippet in seen_snippets:
+                return
+            seen_snippets.add(screen.snippet)
+
+            subject_val = result.get("subject") or result.get("title") if isinstance(result, dict) else None
+            subject = str(subject_val)[:200] if subject_val else (screen.snippet[:80] or "Flagged message")
+            ids = _extract_message_ids(result)
+            # Route through the web app so it owns the flag insert, prefs, and the
+            # security-alert email — same path as the agent's explicit escalation.
+            await self._fire_internal_agent_tool(
+                "corelyx.flag_critical",
+                {
+                    "subject": subject,
+                    "reason": "Auto-screened critical signal: " + ", ".join(screen.categories),
+                    "snippet": screen.snippet[:1000],
+                    "categories": screen.categories,
+                    "source_ref": (next(iter(ids)) if ids and len(ids) <= 3 else None),
+                    "source_provider": provider_id,
+                    "origin": "auto",
+                },
+            )
+        except Exception:
+            return
+
+    async def _execute_agent_web_search(self, args: dict) -> dict:
+        """Search the web and return ranked results (title/url/snippet) so an agent
+        can DISCOVER pages, then read them with corelyx.web_fetch.
+
+        Read-only. Calls a configured search provider (Tavily preferred, Brave as a
+        fallback) over a fixed trusted endpoint — no SSRF surface here; the URLs it
+        returns are still re-validated when web_fetch reads them. Degrades with a
+        clear, actionable error when no provider key is set.
+        """
+        query = args.get("query")
+        if not isinstance(query, str) or not query.strip():
+            return {"ok": False, "error": "query (string) is required."}
+        query = query.strip()
+        try:
+            n = int(args.get("max_results", 5))
+        except (TypeError, ValueError):
+            n = 5
+        n = max(1, min(n, 10))
+
+        client = _get_llm_client()
+        tavily_key = os.environ.get("TAVILY_API_KEY", "").strip()
+        brave_key = os.environ.get("BRAVE_API_KEY", "").strip()
+
+        # Compliance: the query leaves to a US search provider, so block it in
+        # EU-only mode (Tavily/Brave have no EU-resident option), mirroring how
+        # connectors and model providers are gated.
+        search_provider = "tavily" if tavily_key else ("brave" if brave_key else None)
+        if search_provider:
+            block = policy_block_reason(search_provider, self.compliance_mode)
+            if block:
+                return {
+                    "ok": False,
+                    "error": (
+                        f"Web search is unavailable for this EU-only workspace — {block} "
+                        "Use corelyx.web_fetch with a specific public URL instead."
+                    ),
+                }
+
+        try:
+            if tavily_key:
+                resp = await client.post(
+                    "https://api.tavily.com/search",
+                    json={
+                        "api_key": tavily_key,
+                        "query": query,
+                        "max_results": n,
+                        "search_depth": "basic",
+                        "include_answer": False,
+                    },
+                    timeout=20.0,
+                )
+                if not resp.is_success:
+                    return {"ok": False, "error": f"Web search failed (HTTP {resp.status_code})."}
+                rows = (resp.json() or {}).get("results") or []
+                results = [
+                    {
+                        "title": (r.get("title") or "").strip()[:200],
+                        "url": r.get("url") or "",
+                        "snippet": (r.get("content") or "").strip()[:600],
+                    }
+                    for r in rows[:n]
+                    if r.get("url")
+                ]
+                return {"ok": True, "result": {"provider": "tavily", "query": query, "results": results}}
+
+            if brave_key:
+                resp = await client.get(
+                    "https://api.search.brave.com/res/v1/web/search",
+                    params={"q": query, "count": n},
+                    headers={"X-Subscription-Token": brave_key, "Accept": "application/json"},
+                    timeout=20.0,
+                )
+                if not resp.is_success:
+                    return {"ok": False, "error": f"Web search failed (HTTP {resp.status_code})."}
+                rows = ((resp.json() or {}).get("web") or {}).get("results") or []
+                results = [
+                    {
+                        "title": _strip_html_to_text(r.get("title") or "")[:200],
+                        "url": r.get("url") or "",
+                        "snippet": _strip_html_to_text(r.get("description") or "")[:600],
+                    }
+                    for r in rows[:n]
+                    if r.get("url")
+                ]
+                return {"ok": True, "result": {"provider": "brave", "query": query, "results": results}}
+
+            return {
+                "ok": False,
+                "error": (
+                    "Web search isn't configured for this workspace. Set TAVILY_API_KEY "
+                    "(or BRAVE_API_KEY) to enable it, or use corelyx.web_fetch with a "
+                    "known URL instead."
+                ),
+            }
+        except Exception as exc:
+            return {"ok": False, "error": f"Web search failed: {exc}"}
 
     async def _execute_agent_ask_user(self, args: dict, node_id: str | None) -> dict:
         """Pause the agent and ask the user a question, then resume with the answer.
@@ -2457,6 +2669,9 @@ class ProgramExecutor:
         if tool_id == "corelyx.web_fetch":
             return await self._execute_agent_web_fetch(args)
 
+        if tool_id == "corelyx.web_search":
+            return await self._execute_agent_web_search(args)
+
         if tool_id == "corelyx.file":
             return await self._execute_agent_file_tool(args, node_id, scope_access)
 
@@ -2681,6 +2896,19 @@ class ProgramExecutor:
         is_write = _connector_op_is_write(operation)
         tel_node = node_id or "agent_task"
 
+        # Safety net: never let a message the screen flagged as critical be
+        # dismissed (archived/deleted/spam'd). It stays in the user's review queue.
+        if _connector_op_is_dismissive(operation) and self._dismissive_targets_flagged(params):
+            return {
+                "ok": False,
+                "error": (
+                    "Refused: this message was flagged as potentially critical by the "
+                    "safety screen and is held in the user's 'Flagged for review' inbox. "
+                    "Do not archive/delete/spam it — alert the user about it instead "
+                    "(corelyx.flag_critical or an URGENT corelyx.report_to_user)."
+                ),
+            }
+
         # User capability scope (set before approval) overrides the plan.
         if is_write and not self._agent_allows_writes():
             return {
@@ -2750,6 +2978,9 @@ class ProgramExecutor:
         try:
             self._record_telemetry(tel_node, connector_api_calls=1)
             result = await connector.execute(operation, params, access_token)
+            if not is_write:
+                await self._record_connector_source(connection_ref)
+                await self._screen_read_for_critical(provider_id, operation, result)
             return {"ok": True, "result": result}
         except ConnectorError as exc:
             if exc.code == "TOKEN_EXPIRED":
@@ -2758,12 +2989,64 @@ class ProgramExecutor:
                     access_token = await self._fetch_oauth_token(connection_id, force_refresh=True)
                     self._record_telemetry(tel_node, connector_api_calls=1)
                     result = await connector.execute(operation, params, access_token)
+                    if not is_write:
+                        await self._record_connector_source(connection_ref)
                     return {"ok": True, "result": result}
                 except ConnectorError as retry_exc:
                     return {"ok": False, "error": f"{retry_exc.code}: {retry_exc.message}"}
             return {"ok": False, "error": f"{exc.code}: {exc.message}"}
         except Exception as exc:
             return {"ok": False, "error": f"Connector call failed: {exc}"}
+
+    async def _fire_internal_agent_tool(self, tool: str, args: dict) -> None:
+        """Fire-and-forget an internal agent-tool call (best-effort; never raises).
+        Used to record graph edges / safety flags as a side effect of native work,
+        routing through the web app so it owns auth, prefs, and notifications."""
+        try:
+            endpoint_path = "/api/internal/agent-tools"
+            payload = {
+                "tool": tool,
+                "args": args,
+                "context": {
+                    "home_workspace_id": self.workspace_id,
+                    "dry_run": self.dry_run,
+                    "run_id": self.run_id,
+                },
+            }
+            body = json.dumps(payload, separators=(",", ":"))
+            for endpoint_url in self._nextjs_endpoint_candidates(endpoint_path):
+                try:
+                    client = _get_llm_client()
+                    resp = await client.post(
+                        endpoint_url,
+                        content=body,
+                        headers={
+                            **build_internal_service_headers(
+                                "next:agent-tools",
+                                subject=self.user_id,
+                                method="POST",
+                                path=endpoint_path,
+                            ),
+                            "Content-Type": "application/json",
+                        },
+                    )
+                    if resp.is_success or resp.status_code not in (301, 302, 307, 308, 404):
+                        return
+                except Exception:
+                    return
+        except Exception:
+            return
+
+    async def _record_connector_source(self, connection_ref: str) -> None:
+        """Best-effort reads_source edge (agent → connector) after a native read."""
+        seen = getattr(self, "_recorded_connector_sources", None)
+        if seen is None:
+            seen = set()
+            self._recorded_connector_sources = seen
+        if not connection_ref or connection_ref in seen:
+            return
+        seen.add(connection_ref)
+        await self._fire_internal_agent_tool("corelyx.record_source", {"kind": "connector", "name": connection_ref})
 
     async def _call_llm(
         self,

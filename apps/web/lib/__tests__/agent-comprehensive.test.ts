@@ -729,19 +729,28 @@ describe("agent tool runtime parity", () => {
       "corelyx.ask_user",
       "corelyx.search_knowledge",
       "corelyx.web_fetch",
+      "corelyx.web_search",
       "corelyx.call_connector",
+      "corelyx.file",
       "corelyx.trigger_program",
       "corelyx.set_program_active",
       "corelyx.create_workflow",
       "corelyx.update_program",
+      "corelyx.read_agent_report",
+      "corelyx.reference_agent",
+      "corelyx.flag_critical",
+      "corelyx.spawn_agent",
     ];
     for (const id of pythonSpecs) {
       expect(isAgentToolId(id)).toBe(true);
     }
   });
 
-  it("TS tool count equals Python tool count", () => {
-    expect(AGENT_TOOLS.length).toBe(15);
+  it("TS model-facing tool count matches the Python runtime spec count", () => {
+    // Internal-only tools (e.g. corelyx.record_source) are runtime-invoked and
+    // intentionally absent from the Python model specs, so exclude them here.
+    const modelFacing = AGENT_TOOLS.filter((t) => !t.internal);
+    expect(modelFacing.length).toBe(21);
   });
 
   it.each(AGENT_TOOLS)("%s has scope defined", (tool) => {
@@ -770,7 +779,8 @@ describe("agent prompt edge cases", () => {
 
   it("buildAgentToolReference includes all read tools", () => {
     const ref = buildAgentToolReference();
-    const read = AGENT_TOOLS.filter((t) => t.scope === "read");
+    // Internal tools are deliberately omitted from the prompt reference.
+    const read = AGENT_TOOLS.filter((t) => t.scope === "read" && !t.internal);
     for (const tool of read) {
       expect(ref).toContain(tool.id);
     }

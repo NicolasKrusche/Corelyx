@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -16,25 +17,36 @@ import {
   GitFork,
   LayoutGrid,
   Loader2,
+  Plug,
   Plus,
   ShieldCheck,
   Sparkles,
   Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  buildFlowClusters,
+  type Rel,
+  type FlowNode,
+  type FlowEdge,
+  type AgentVM,
+  type AgentRelationVM,
+  type KnowledgeSourceVM,
+} from "./flow-graph";
 
-// ── Serializable view-model handed down from the server page ──
-export type AgentVM = {
+// Re-export the serializable view-models so server callers can import them here.
+export type { AgentVM, AgentRelationVM, KnowledgeSourceVM } from "./flow-graph";
+
+/** A pending critical-signal flag shown in the "Flagged for review" inbox. */
+export type FlagVM = {
   id: string;
-  name: string;
-  description: string | null;
-  state: string;
+  subject: string | null;
+  snippet: string | null;
+  reason: string | null;
+  categories: string[];
+  origin: "auto" | "agent";
+  sourceProvider: string | null;
   createdAt: string;
-  scheduled: boolean;
-  hasQuestion: boolean;
-  savedTemplate: boolean;
-  lineageId: string;
-  clonedFrom: string | null;
 };
 
 const STATE_META: Record<string, { label: string; icon: React.ReactNode }> = {
@@ -149,6 +161,11 @@ function CompactAgentCard({ agent }: { agent: AgentVM }) {
           {agent.hasQuestion && (
             <span className="shrink-0 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 ring-1 ring-amber-500/25 dark:text-amber-400">
               Needs answer
+            </span>
+          )}
+          {agent.state === "draft" && agent.spawnedFrom && (
+            <span className="shrink-0 rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-violet-600 ring-1 ring-violet-500/25 dark:text-violet-400">
+              Spawned
             </span>
           )}
         </div>
@@ -286,25 +303,12 @@ function SummaryStrip({
 // ════════════════════════════════════════════════════════════════════
 
 // Relationship encoding: color + distinct dash, so it never relies on color alone.
-type Rel = "spawns" | "reads" | "feeds" | "cross";
 const REL: Record<Rel, { color: string; dash?: string; label: string; bi?: boolean }> = {
   spawns: { color: "#a78bfa", label: "spawns" },
   reads: { color: "#2dd4bf", dash: "5 5", label: "reads source" },
   feeds: { color: "#94a3b8", label: "feeds into" },
   cross: { color: "#fb7185", dash: "2 4", label: "cross-check", bi: true },
 };
-
-type FlowNode = {
-  id: string;
-  label: string;
-  sub?: string;
-  state: string;
-  kind: "agent" | "orchestrator" | "source";
-  col: number;
-  row: number;
-  href?: string;
-};
-type FlowEdge = { from: string; to: string; rel: Rel };
 
 const NODE_W = 168;
 const NODE_H = 58;
@@ -398,6 +402,10 @@ function FlowNodeCard({
       ) : n.kind === "source" ? (
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-teal-500/15 text-teal-400 ring-2 ring-teal-500/40">
           <FileText className="h-4 w-4" />
+        </span>
+      ) : n.kind === "connector" ? (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sky-500/15 text-sky-400 ring-2 ring-sky-500/40">
+          <Plug className="h-4 w-4" />
         </span>
       ) : (
         <AgentSwatch id={n.id} state={n.state} size="sm" />
@@ -605,59 +613,6 @@ function FlowLegend() {
   );
 }
 
-// Build a layered DAG for one lineage group (real data: cloned_from chains).
-function buildLineageCluster(group: AgentVM[]): { nodes: FlowNode[]; edges: FlowEdge[] } {
-  const ids = new Set(group.map((a) => a.id));
-  const byCreated = [...group].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
-
-  // Parent pointer from cloned_from; fall back to a chronological chain when the
-  // group shares a lineage id but has no explicit cloned_from links.
-  const parent = new Map<string, string | null>();
-  const hasExplicit = group.some((a) => a.clonedFrom && ids.has(a.clonedFrom));
-  byCreated.forEach((a, i) => {
-    if (hasExplicit) {
-      parent.set(a.id, a.clonedFrom && ids.has(a.clonedFrom) ? a.clonedFrom : null);
-    } else {
-      parent.set(a.id, i === 0 ? null : byCreated[i - 1].id);
-    }
-  });
-
-  const depthMemo = new Map<string, number>();
-  const depth = (id: string): number => {
-    if (depthMemo.has(id)) return depthMemo.get(id)!;
-    const p = parent.get(id);
-    const d = p ? depth(p) + 1 : 0;
-    depthMemo.set(id, d);
-    return d;
-  };
-
-  const rowCounter = new Map<number, number>();
-  const nodes: FlowNode[] = byCreated.map((a) => {
-    const col = depth(a.id);
-    const row = rowCounter.get(col) ?? 0;
-    rowCounter.set(col, row + 1);
-    return {
-      id: a.id,
-      label: a.name,
-      sub: STATE_META[a.state]?.label ?? a.state,
-      state: a.state,
-      kind: "agent",
-      col,
-      row,
-      href: `/agents/${a.id}`,
-    };
-  });
-
-  const edges: FlowEdge[] = [];
-  for (const a of group) {
-    const p = parent.get(a.id);
-    if (p) edges.push({ from: p, to: a.id, rel: "feeds" });
-  }
-  return { nodes, edges };
-}
-
 // The representative example: one workflow that contains all four structures
 // at once, with a failed node visibly stalling its downstream chain.
 function exampleCluster(): { nodes: FlowNode[]; edges: FlowEdge[] } {
@@ -692,30 +647,26 @@ function exampleCluster(): { nodes: FlowNode[]; edges: FlowEdge[] } {
   return { nodes, edges };
 }
 
-function FlowView({ agents }: { agents: AgentVM[] }) {
-  // Real lineage chains: groups sharing a lineage id with 2+ members.
-  const realClusters = useMemo(() => {
-    const groups = new Map<string, AgentVM[]>();
-    for (const a of agents) {
-      const arr = groups.get(a.lineageId) ?? [];
-      arr.push(a);
-      groups.set(a.lineageId, arr);
-    }
-    return [...groups.values()]
-      .filter((g) => g.length >= 2)
-      .sort((a, b) => b.length - a.length)
-      .map((g) => ({
-        title: `${g[0].name} · ${g.length} linked`,
-        ...buildLineageCluster(g),
-      }));
-  }, [agents]);
+function FlowView({
+  agents,
+  relations,
+  knowledgeSources,
+}: {
+  agents: AgentVM[];
+  relations: AgentRelationVM[];
+  knowledgeSources: KnowledgeSourceVM[];
+}) {
+  const clusters = useMemo(
+    () => buildFlowClusters(agents, relations, knowledgeSources),
+    [agents, relations, knowledgeSources]
+  );
 
-  const linkedIds = useMemo(() => {
+  const linkedAgentIds = useMemo(() => {
     const s = new Set<string>();
-    for (const c of realClusters) for (const n of c.nodes) s.add(n.id);
+    for (const c of clusters) for (const n of c.nodes) if (n.kind === "agent") s.add(n.id);
     return s;
-  }, [realClusters]);
-  const unlinkedCount = agents.filter((a) => !linkedIds.has(a.id)).length;
+  }, [clusters]);
+  const unlinkedCount = agents.filter((a) => !linkedAgentIds.has(a.id)).length;
 
   const example = useMemo(() => exampleCluster(), []);
 
@@ -723,13 +674,13 @@ function FlowView({ agents }: { agents: AgentVM[] }) {
     <div className="space-y-4">
       <FlowLegend />
 
-      {realClusters.length > 0 ? (
+      {clusters.length > 0 ? (
         <div className="space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
             Your linked agents
           </p>
-          {realClusters.map((c) => (
-            <FlowCluster key={c.title} title={c.title} nodes={c.nodes} edges={c.edges} />
+          {clusters.map((c, i) => (
+            <FlowCluster key={`${c.title}-${i}`} title={c.title} nodes={c.nodes} edges={c.edges} />
           ))}
           {unlinkedCount > 0 && (
             <p className="text-xs text-muted-foreground/70">
@@ -739,9 +690,9 @@ function FlowView({ agents }: { agents: AgentVM[] }) {
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-          None of your agents reference each other yet. When agents spawn, feed, or
-          re-run from one another, those chains show up here. The example below shows
-          how every reference type reads at a glance.
+          None of your agents reference each other yet. When an agent spawns another,
+          reads a source, cross-checks a peer, or re-runs from one, those links show
+          up here. The example below shows how every reference type reads at a glance.
         </div>
       )}
 
@@ -756,10 +707,123 @@ function FlowView({ agents }: { agents: AgentVM[] }) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+//  Flagged-for-review inbox (critical-signal safety net)
+// ════════════════════════════════════════════════════════════════════
+
+function CategoryLabel(cat: string) {
+  return cat.replace(/_/g, " ");
+}
+
+function FlaggedInbox({ flags }: { flags: FlagVM[] }) {
+  const router = useRouter();
+  const [items, setItems] = useState(flags);
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => setItems(flags), [flags]);
+
+  async function resolve(id: string, status: "kept" | "dismissed") {
+    if (busy) return;
+    setBusy(id);
+    try {
+      const res = await fetch(`/api/agents/flags/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setItems((prev) => prev.filter((f) => f.id !== id));
+        router.refresh();
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-destructive/30 bg-destructive/[0.04] ring-1 ring-destructive/15">
+      <div className="flex items-center gap-2 border-b border-destructive/20 px-5 py-3">
+        <AlertTriangle className="h-4 w-4 text-destructive" />
+        <p className="text-sm font-semibold text-destructive">Flagged for review</p>
+        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive ring-1 ring-destructive/25">
+          {items.length}
+        </span>
+        <p className="ml-2 hidden text-xs text-muted-foreground sm:block">
+          Possible safety-critical messages an agent was about to triage away. Review before they&apos;re lost.
+        </p>
+      </div>
+      <ul className="divide-y divide-destructive/10">
+        {items.map((f) => (
+          <li key={f.id} className="px-5 py-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="truncate text-sm font-semibold">{f.subject || "Flagged message"}</p>
+                  <span className="rounded-full bg-muted/60 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground ring-1 ring-border/50">
+                    {f.origin === "agent" ? "Agent" : "Auto-screen"}
+                  </span>
+                  {f.sourceProvider && (
+                    <span className="rounded-full bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                      {f.sourceProvider}
+                    </span>
+                  )}
+                  {f.categories.map((c) => (
+                    <span
+                      key={c}
+                      className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold capitalize text-destructive ring-1 ring-destructive/20"
+                    >
+                      {CategoryLabel(c)}
+                    </span>
+                  ))}
+                </div>
+                {f.reason && <p className="mt-1 text-xs text-muted-foreground">{f.reason}</p>}
+                {f.snippet && (
+                  <p className="mt-1.5 line-clamp-3 rounded-lg border border-border/40 bg-background/40 px-2.5 py-1.5 text-xs italic text-muted-foreground">
+                    “{f.snippet}”
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 flex-col gap-1.5">
+                <button
+                  type="button"
+                  disabled={busy === f.id}
+                  onClick={() => void resolve(f.id, "kept")}
+                  className="inline-flex items-center justify-center gap-1 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  Keep &amp; review
+                </button>
+                <button
+                  type="button"
+                  disabled={busy === f.id}
+                  onClick={() => void resolve(f.id, "dismissed")}
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
 //  ROOT — header, view toggle, board/flow switch
 // ════════════════════════════════════════════════════════════════════
 
-export function AgentsView({ agents }: { agents: AgentVM[] }) {
+export function AgentsView({
+  agents,
+  relations,
+  knowledgeSources,
+  flags,
+}: {
+  agents: AgentVM[];
+  relations: AgentRelationVM[];
+  knowledgeSources: KnowledgeSourceVM[];
+  flags: FlagVM[];
+}) {
   const [view, setView] = useState<"board" | "flow">("board");
 
   // Remember the last chosen view across visits.
@@ -771,7 +835,12 @@ export function AgentsView({ agents }: { agents: AgentVM[] }) {
     localStorage.setItem("agents-view", view);
   }, [view]);
 
-  const isNeeds = (a: AgentVM) => a.state === "awaiting_approval" || a.hasQuestion;
+  // "Needs you" = awaiting plan approval, a paused question, or a freshly
+  // spawned child (a draft the user must review/approve before it can run).
+  const isNeeds = (a: AgentVM) =>
+    a.state === "awaiting_approval" ||
+    a.hasQuestion ||
+    (a.state === "draft" && !!a.spawnedFrom);
   const needs = agents.filter(isNeeds);
   const rest = agents.filter((a) => !isNeeds(a));
   const failed = rest.filter((a) => a.state === "failed");
@@ -794,6 +863,12 @@ export function AgentsView({ agents }: { agents: AgentVM[] }) {
             {needsAttention > 0 && (
               <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 ring-1 ring-amber-500/25 dark:text-amber-400">
                 {needsAttention} need{needsAttention === 1 ? "s" : ""} you
+              </span>
+            )}
+            {flags.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive ring-1 ring-destructive/25">
+                <AlertTriangle className="h-3 w-3" />
+                {flags.length} flagged
               </span>
             )}
           </div>
@@ -820,6 +895,9 @@ export function AgentsView({ agents }: { agents: AgentVM[] }) {
           </Link>
         </div>
       </header>
+
+      {/* Safety net surfaces above everything — it's the most urgent thing here. */}
+      <FlaggedInbox flags={flags} />
 
       {agents.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
@@ -925,7 +1003,7 @@ export function AgentsView({ agents }: { agents: AgentVM[] }) {
               )}
             </div>
           ) : (
-            <FlowView agents={agents} />
+            <FlowView agents={agents} relations={relations} knowledgeSources={knowledgeSources} />
           )}
         </>
       )}
