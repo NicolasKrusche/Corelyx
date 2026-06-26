@@ -41,11 +41,21 @@ class ThunderbirdConnector(IConnector):
 
     provider = "thunderbird"
     supported_operations = [
+        # read
         "list_folders",
         "list_messages",
         "get_message",
         "search_messages",
+        # send
         "send_email",
+        # triage (write)
+        "move_message",
+        "archive_message",
+        "mark_spam",
+        "trash_message",
+        "mark_read",
+        "mark_unread",
+        "flag_message",
     ]
 
     async def execute(
@@ -63,6 +73,21 @@ class ThunderbirdConnector(IConnector):
             return await asyncio.to_thread(_get_message, creds, p)
         if operation == "send_email":
             return await asyncio.to_thread(_send_email, creds, p)
+        # ── Triage (write) — move/flag a message by UID ──
+        if operation == "move_message":
+            return await asyncio.to_thread(_move_message, creds, p)
+        if operation == "archive_message":
+            return await asyncio.to_thread(_archive, creds, p)
+        if operation == "mark_spam":
+            return await asyncio.to_thread(_spam, creds, p)
+        if operation == "trash_message":
+            return await asyncio.to_thread(_trash, creds, p)
+        if operation == "mark_read":
+            return await asyncio.to_thread(_set_flag, creds, p, r"\Seen", True)
+        if operation == "mark_unread":
+            return await asyncio.to_thread(_set_flag, creds, p, r"\Seen", False)
+        if operation == "flag_message":
+            return await asyncio.to_thread(_set_flag, creds, p, r"\Flagged", not _truthy(p.get("unflag")))
         raise ConnectorError(
             "UNSUPPORTED_OPERATION", f"Thunderbird does not support '{operation}'"
         )
@@ -217,6 +242,99 @@ def _build_search(p: dict[str, Any]) -> list[str]:
     return out or ["ALL"]
 
 
+# ── IMAP write (triage) ────────────────────────────────────────────────────────
+#
+# All operate on one message by UID in a source folder (default INBOX). Moves use
+# COPY + \Deleted + EXPUNGE (works on every IMAP server, no MOVE extension needed).
+# Destination folder names vary per server (Archive/Junk/Trash, "[Gmail]/Trash",
+# "Deleted Items", …) — callers can pass `dest`; otherwise we use a sensible
+# default and surface a clear error pointing at list_folders if it doesn't exist.
+
+
+def _require_uid(p: dict[str, Any]) -> str:
+    uid = str(p.get("uid") or "").strip()
+    if not uid:
+        raise ConnectorError("MISSING_PARAM", "this operation requires 'uid' (from a list/search result).")
+    return uid
+
+
+def _source_folder(p: dict[str, Any]) -> str:
+    return str(p.get("folder") or "INBOX").strip() or "INBOX"
+
+
+def _select_rw(client: imaplib.IMAP4, folder: str) -> None:
+    typ, _ = client.select(f'"{folder}"', readonly=False)
+    if typ != "OK":
+        raise ConnectorError("IMAP_ERROR", f"Folder '{folder}' not found.")
+
+
+def _move(creds: _Creds, p: dict[str, Any], dest: str) -> dict[str, Any]:
+    uid = _require_uid(p)
+    folder = _source_folder(p)
+    dest = (dest or "").strip()
+    if not dest:
+        raise ConnectorError("MISSING_PARAM", "no destination folder given.")
+    client = _imap_connect(creds)
+    try:
+        _select_rw(client, folder)
+        typ, _ = client.uid("COPY", uid, f'"{dest}"')
+        if typ != "OK":
+            raise ConnectorError(
+                "IMAP_ERROR",
+                f"Could not copy to '{dest}'. Use list_folders to get the exact folder name.",
+            )
+        client.uid("STORE", uid, "+FLAGS", r"(\Deleted)")
+        client.expunge()
+        return {"moved": True, "uid": uid, "from": folder, "to": dest}
+    finally:
+        _logout(client)
+
+
+def _move_message(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
+    dest = _clean(p.get("dest") or p.get("to_folder"))
+    if not dest:
+        raise ConnectorError("MISSING_PARAM", "move_message requires 'dest' (the target folder).")
+    return _move(creds, p, dest)
+
+
+def _archive(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
+    return _move(creds, p, _clean(p.get("dest")) or "Archive")
+
+
+def _spam(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
+    return _move(creds, p, _clean(p.get("dest")) or "Junk")
+
+
+def _trash(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
+    # Default: move to Trash (reversible). permanent=true: \Deleted + EXPUNGE in place.
+    if _truthy(p.get("permanent")):
+        uid = _require_uid(p)
+        folder = _source_folder(p)
+        client = _imap_connect(creds)
+        try:
+            _select_rw(client, folder)
+            client.uid("STORE", uid, "+FLAGS", r"(\Deleted)")
+            client.expunge()
+            return {"deleted": True, "permanent": True, "uid": uid, "from": folder}
+        finally:
+            _logout(client)
+    return _move(creds, p, _clean(p.get("dest")) or "Trash")
+
+
+def _set_flag(creds: _Creds, p: dict[str, Any], flag: str, add: bool) -> dict[str, Any]:
+    uid = _require_uid(p)
+    folder = _source_folder(p)
+    client = _imap_connect(creds)
+    try:
+        _select_rw(client, folder)
+        typ, _ = client.uid("STORE", uid, "+FLAGS" if add else "-FLAGS", f"({flag})")
+        if typ != "OK":
+            raise ConnectorError("IMAP_ERROR", "Could not update message flags.")
+        return {"uid": uid, "updated": True, "flag": flag, "added": bool(add)}
+    finally:
+        _logout(client)
+
+
 # ── SMTP ──────────────────────────────────────────────────────────────────────
 
 
@@ -334,6 +452,10 @@ def _parse_folder_name(raw: bytes | tuple) -> str | None:
 
 def _clean(value: Any) -> str:
     return str(value).strip() if value not in (None, "") else ""
+
+
+def _truthy(value: Any) -> bool:
+    return str(value).strip().lower() in ("1", "true", "yes", "y")
 
 
 def _quote(value: str) -> str:
