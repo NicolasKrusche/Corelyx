@@ -150,6 +150,22 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
             "required": ["url"],
         },
     },
+    "corelyx.web_search": {
+        "description": (
+            "Search the web and get back ranked results (title, url, snippet) so "
+            "you can DISCOVER pages when you don't already have a URL (e.g. \"top "
+            "competitors for X\", \"official pricing page of Y\"). Then read the "
+            "best results with corelyx.web_fetch. Read-only, safe in dry runs."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "What to search for."},
+                "max_results": {"type": "integer", "description": "Max results (default 5, max 10)."},
+            },
+            "required": ["query"],
+        },
+    },
     "corelyx.call_connector": {
         "description": (
             "Call one operation on one of the user's connected apps directly "
@@ -281,6 +297,75 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
                 "schema": {"type": "object"},
             },
             "required": ["program_id", "schema"],
+        },
+    },
+    "corelyx.read_agent_report": {
+        "description": (
+            "Read the latest report(s) of an agent you are directly related to — "
+            "one you SPAWNED, or the parent that spawned you (or a re-run of the "
+            "same agent). Use it to pick up a sub-agent's findings and build on "
+            "them. Identify the agent by program_id or name. Read-only."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "program_id": {"type": "string", "description": "The agent's UUID."},
+                "name": {"type": "string", "description": "The agent's name (exact or partial)."},
+            },
+        },
+    },
+    "corelyx.reference_agent": {
+        "description": (
+            "Record a peer cross-check link to another agent and pull back its "
+            "latest report excerpt — e.g. have a fact-check agent verify your "
+            "draft. Identify the agent by program_id or name; optional note. "
+            "Read-only."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "program_id": {"type": "string", "description": "The peer agent's UUID."},
+                "name": {"type": "string", "description": "The peer agent's name."},
+                "note": {"type": "string", "description": "Why you're cross-checking (optional)."},
+            },
+        },
+    },
+    "corelyx.flag_critical": {
+        "description": (
+            "Escalate a message that shows a credible signal of harm (threat to "
+            "life, violence, self-harm, abuse, poisoning/contamination/tampering, "
+            "crime in progress, urgent legal/time-critical emergency) INSTEAD of "
+            "triaging it away. It lands in the user's 'Flagged for review' inbox "
+            "and alerts them. Use it the moment you spot such content — a false "
+            "alarm is fine. Read-only, safe in dry runs."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "subject": {"type": "string", "description": "Short title of the flagged message."},
+                "reason": {"type": "string", "description": "Why it's critical."},
+                "snippet": {"type": "string", "description": "The relevant excerpt (optional)."},
+                "categories": {"type": "array", "items": {"type": "string"}, "description": "Harm categories (optional)."},
+                "source_ref": {"type": "string", "description": "Provider message id, if known (optional)."},
+            },
+            "required": ["reason"],
+        },
+    },
+    "corelyx.spawn_agent": {
+        "description": (
+            "Spawn a child agent to own a distinct sub-task. It is created as a "
+            "DRAFT in the user's Agents list and does NOT run automatically — the "
+            "user reviews and approves each spawned agent first. Use sparingly "
+            "(at most a few per run)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Short name for the child agent."},
+                "objective": {"type": "string", "description": "The child agent's goal."},
+                "reason": {"type": "string", "description": "Why you're delegating this (optional)."},
+            },
+            "required": ["objective"],
         },
     },
 }

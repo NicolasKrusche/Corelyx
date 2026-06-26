@@ -18,6 +18,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     agent_discard_after_run?: unknown;
     allow_writes?: unknown;
     max_cost_usd?: unknown;
+    allow_spawning?: unknown;
+    max_spawns?: unknown;
   };
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof body.agent_saved_template === "boolean") update.agent_saved_template = body.agent_saved_template;
@@ -29,7 +31,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // enforce it. Read-modify-write the schema when any capability changes.
   const setsAllowWrites = typeof body.allow_writes === "boolean";
   const setsMaxCost = typeof body.max_cost_usd === "number" || body.max_cost_usd === null;
-  if (setsAllowWrites || setsMaxCost) {
+  const setsAllowSpawning = typeof body.allow_spawning === "boolean";
+  const setsMaxSpawns = typeof body.max_spawns === "number" || body.max_spawns === null;
+  if (setsAllowWrites || setsMaxCost || setsAllowSpawning || setsMaxSpawns) {
     const { data: progRow } = await service
       .from("programs")
       .select("schema")
@@ -47,6 +51,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       nextCaps.max_cost_usd = body.max_cost_usd === null
         ? null
         : Math.max(0, Math.min(Number(body.max_cost_usd), 1000));
+    }
+    if (setsAllowSpawning) nextCaps.allow_spawning = body.allow_spawning;
+    if (setsMaxSpawns) {
+      // null restores the default cap; a number (0–20) sets a per-run limit
+      // (0 effectively disables spawning).
+      nextCaps.max_spawns = body.max_spawns === null
+        ? null
+        : Math.max(0, Math.min(Math.floor(Number(body.max_spawns)), 20));
     }
     schema.metadata = { ...metadata, capabilities: nextCaps };
     update.schema = schema;
