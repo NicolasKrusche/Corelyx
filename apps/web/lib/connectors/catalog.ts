@@ -120,4 +120,14 @@ export const OPERATION_SCOPES: Record<string, Record<string, string[]>> = {
     list_folders: ["Mail.Read"],
     move_email: ["Mail.ReadWrite"],
   },
+  // Thunderbird is a generic IMAP/SMTP connector with no OAuth, so it has no
+  // provider scopes. We classify each operation as read/write to mirror the
+  // other email connectors and drive the same permission UI.
+  thunderbird: {
+    list_folders: ["read"],
+    list_messages: ["read"],
+    get_message: ["read"],
+    search_messages: ["read"],
+    send_email: ["write"],
+  },
 };
