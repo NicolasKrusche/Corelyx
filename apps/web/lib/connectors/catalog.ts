@@ -12,7 +12,7 @@ export const CONNECTOR_OPERATIONS: Record<string, string[]> = {
   typeform: ["list_forms", "get_form", "get_responses"],
   asana: ["list_projects", "list_tasks", "get_task", "create_task", "update_task", "complete_task"],
   outlook: ["list_emails", "read_email", "send_email", "reply_email", "delete_email", "list_folders", "move_email"],
-  thunderbird: ["list_folders", "list_messages", "get_message", "search_messages", "send_email"],
+  thunderbird: ["list_folders", "list_messages", "get_message", "search_messages", "send_email", "move_message", "archive_message", "mark_spam", "trash_message", "mark_read", "mark_unread", "flag_message"],
 };
 
 export const OPERATION_SCOPES: Record<string, Record<string, string[]>> = {
@@ -129,5 +129,12 @@ export const OPERATION_SCOPES: Record<string, Record<string, string[]>> = {
     get_message: ["read"],
     search_messages: ["read"],
     send_email: ["write"],
+    move_message: ["write"],
+    archive_message: ["write"],
+    mark_spam: ["write"],
+    trash_message: ["write"],
+    mark_read: ["write"],
+    mark_unread: ["write"],
+    flag_message: ["write"],
   },
 };
