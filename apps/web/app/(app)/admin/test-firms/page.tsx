@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
@@ -218,7 +219,9 @@ export default async function TestFirmsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-5 w-5 text-gray-400" />
-                  <h2 className="text-lg font-semibold text-gray-900">{f.name}</h2>
+                  <Link href={`/admin/test-firms/${f.workspaceId}`} className="text-lg font-semibold text-gray-900 hover:text-blue-600 hover:underline">
+                    {f.name}
+                  </Link>
                   <span
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                       f.complianceMode === "eu_only" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
