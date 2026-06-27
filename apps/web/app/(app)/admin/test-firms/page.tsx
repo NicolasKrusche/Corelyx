@@ -3,17 +3,20 @@ import { createServerClient } from "@/lib/supabase/server";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/api";
 import { Building2, Inbox, AlertTriangle, XCircle, ShieldCheck, Bot } from "lucide-react";
+import { AddTestFirm, RemoveFirmButton } from "./test-firms-admin";
 
 export const metadata = { title: "Test Firms" };
 
-// A "test firm" = a workspace where a firm has connected an inbox for testing via
-// the Thunderbird (IMAP/SMTP) connector. This panel aggregates everything we want
-// to watch during those engagements: inbox health, agent activity, run outcomes,
-// and — most importantly — the critical-signal flags the safety net raised.
+// A "test firm" = a workspace an admin has explicitly registered in `test_firms`
+// because the firm granted us access for testing. It is NEVER inferred from a
+// connector — any regular user can connect Thunderbird/IMAP. This panel
+// aggregates everything we want to watch during those engagements: inbox health,
+// agent activity, run outcomes, and the critical-signal flags the safety net raised.
 
 type Conn = {
   id: string;
   name: string | null;
+  provider: string | null;
   workspace_id: string;
   is_valid: boolean | null;
   last_validated_at: string | null;
@@ -47,16 +50,23 @@ async function loadTestFirms(): Promise<{
 }> {
   const db = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
 
-  const { data: connRaw } = await db
-    .from("connections")
-    .select("id, name, workspace_id, is_valid, last_validated_at, created_at")
-    .eq("provider", "thunderbird")
-    .order("created_at", { ascending: false });
-  const conns = (connRaw ?? []) as Conn[];
-  const wsIds = [...new Set(conns.map((c) => c.workspace_id))];
+  // Source of truth: the explicit admin-curated registry — NOT connector presence
+  // (any regular user can connect Thunderbird/IMAP).
+  const { data: firmRaw } = await db.from("test_firms").select("workspace_id, label, notes");
+  const registry = (firmRaw ?? []) as Array<{ workspace_id: string; label: string | null; notes: string | null }>;
+  const wsIds = registry.map((r) => r.workspace_id);
+  const labelMap = new Map(registry.map((r) => [r.workspace_id, r.label]));
 
   const empty = { firms: [], totals: { firms: 0, inboxes: 0, invalidInboxes: 0, pendingFlags: 0, failedRuns: 0 } };
   if (wsIds.length === 0) return empty;
+
+  // Connections for the registered workspaces (any provider) — inbox/app health.
+  const { data: connRaw } = await db
+    .from("connections")
+    .select("id, name, provider, workspace_id, is_valid, last_validated_at")
+    .in("workspace_id", wsIds)
+    .order("created_at", { ascending: false });
+  const conns = (connRaw ?? []) as Conn[];
 
   const [wsRes, progRes, flagRes] = await Promise.all([
     db.from("workspaces").select("id, name, compliance_mode").in("id", wsIds),
@@ -107,7 +117,7 @@ async function loadTestFirms(): Promise<{
 
     return {
       workspaceId: wsId,
-      name: ws?.name ?? "Untitled workspace",
+      name: labelMap.get(wsId) || ws?.name || "Untitled workspace",
       complianceMode: ws?.compliance_mode ?? "standard",
       connections: wsConns,
       invalidConnections: wsConns.filter((c) => c.is_valid === false).length,
@@ -162,8 +172,10 @@ export default async function TestFirmsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Test Firms</h1>
-        <p className="text-gray-600">Partner inboxes connected for testing (Thunderbird) — health, agent activity, and safety flags.</p>
+        <p className="text-gray-600">Firms you&apos;ve designated for testing — inbox health, agent activity, run outcomes, and safety flags.</p>
       </div>
+
+      <AddTestFirm />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((s) => (
@@ -197,7 +209,7 @@ export default async function TestFirmsPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-10 text-center text-gray-500">
           <Inbox className="mx-auto mb-3 h-12 w-12 text-gray-400" />
           <p className="font-medium text-gray-700">No test firms yet</p>
-          <p className="text-sm">Once a firm connects an inbox via the Thunderbird connector, it appears here.</p>
+          <p className="text-sm">Add one above by workspace ID or the firm&apos;s account email. Connecting an inbox does not designate a firm.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -216,13 +228,16 @@ export default async function TestFirmsPage() {
                     {f.complianceMode === "eu_only" ? "EU-only" : "Standard"}
                   </span>
                 </div>
-                {f.flagsPending > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    {f.flagsPending} flag{f.flagsPending === 1 ? "" : "s"} pending
-                    <span className="font-normal text-red-500"> ({f.flagsAuto} auto · {f.flagsAgent} agent)</span>
-                  </span>
-                )}
+                <div className="flex items-center gap-3">
+                  {f.flagsPending > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      {f.flagsPending} flag{f.flagsPending === 1 ? "" : "s"} pending
+                      <span className="font-normal text-red-500"> ({f.flagsAuto} auto · {f.flagsAgent} agent)</span>
+                    </span>
+                  )}
+                  <RemoveFirmButton workspaceId={f.workspaceId} name={f.name} />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-px bg-gray-100 sm:grid-cols-2 lg:grid-cols-4">
