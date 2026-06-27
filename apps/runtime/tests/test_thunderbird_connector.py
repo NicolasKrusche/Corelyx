@@ -10,6 +10,7 @@ import pytest
 
 from connectors import get_connector, REGISTRY
 from connectors.base import ConnectorError
+import connectors.thunderbird as tb
 from connectors.thunderbird import (
     ThunderbirdConnector,
     _addr_list,
@@ -93,3 +94,78 @@ def test_build_search_quotes_safely():
 def test_parse_folder_name_from_list_line():
     assert _parse_folder_name(b'(\\HasNoChildren) "/" "INBOX"') == "INBOX"
     assert _parse_folder_name(b'(\\HasChildren) "/" "[Gmail]/Sent Mail"') == "[Gmail]/Sent Mail"
+
+
+# ── Triage (write) ops — IMAP mocked via a fake client ───────────────────────────
+
+
+class _FakeIMAP:
+    def __init__(self) -> None:
+        self.calls: list[tuple] = []
+
+    def select(self, folder, readonly=False):
+        self.calls.append(("select", folder, readonly))
+        return ("OK", [b""])
+
+    def uid(self, command, *args):
+        self.calls.append(("uid", command, args))
+        return ("OK", [b"1"])
+
+    def expunge(self):
+        self.calls.append(("expunge",))
+        return ("OK", [b""])
+
+    def logout(self):
+        pass
+
+
+def _creds():
+    return _parse_credentials(json.dumps({
+        "imap_host": "h", "smtp_host": "s", "username": "u", "password": "p",
+    }))
+
+
+def test_triage_ops_are_supported():
+    for op in ["move_message", "archive_message", "mark_spam", "trash_message",
+               "mark_read", "mark_unread", "flag_message"]:
+        assert op in ThunderbirdConnector.supported_operations
+
+
+def test_mark_read_sets_seen_via_writable_select(monkeypatch):
+    fake = _FakeIMAP()
+    monkeypatch.setattr(tb, "_imap_connect", lambda creds: fake)
+    out = tb._set_flag(_creds(), {"uid": "7"}, r"\Seen", True)
+    assert out["updated"] is True and out["added"] is True
+    select = next(c for c in fake.calls if c[0] == "select")
+    assert select[2] is False  # read-write, not readonly
+    store = next(c for c in fake.calls if c[0] == "uid" and c[1] == "STORE")
+    assert store[2][1] == "+FLAGS" and store[2][2] == r"(\Seen)"
+
+
+def test_archive_copies_then_deletes_and_expunges(monkeypatch):
+    fake = _FakeIMAP()
+    monkeypatch.setattr(tb, "_imap_connect", lambda creds: fake)
+    out = tb._archive(_creds(), {"uid": "7"})
+    assert out["moved"] is True and out["to"] == "Archive"
+    uid_cmds = [c[1] for c in fake.calls if c[0] == "uid"]
+    assert "COPY" in uid_cmds and "STORE" in uid_cmds
+    assert any(c[0] == "expunge" for c in fake.calls)
+
+
+def test_trash_permanent_deletes_without_copy(monkeypatch):
+    fake = _FakeIMAP()
+    monkeypatch.setattr(tb, "_imap_connect", lambda creds: fake)
+    out = tb._trash(_creds(), {"uid": "7", "permanent": "true"})
+    assert out["deleted"] is True and out["permanent"] is True
+    uid_cmds = [c[1] for c in fake.calls if c[0] == "uid"]
+    assert "COPY" not in uid_cmds and "STORE" in uid_cmds
+
+
+def test_move_message_requires_dest():
+    with pytest.raises(ConnectorError):
+        tb._move_message(_creds(), {"uid": "7"})
+
+
+def test_triage_ops_require_uid():
+    with pytest.raises(ConnectorError):
+        tb._set_flag(_creds(), {}, r"\Seen", True)

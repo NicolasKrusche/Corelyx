@@ -36,6 +36,9 @@ export type KnowledgeSearchResult = {
   /** docs (keyword) or embedded chunks (semantic) considered. */
   searched: number;
   method: "semantic" | "keyword";
+  /** knowledge doc ids that contributed (direct matches + link-expanded), for
+   * recording reads_source edges. Not surfaced to the agent. */
+  sourceIds: string[];
 };
 
 /** Below this cosine similarity a chunk is noise, not a match. */
@@ -49,7 +52,7 @@ export async function searchKnowledgeBase(
   query: string,
   limit: number
 ): Promise<KnowledgeSearchResult | { error: string }> {
-  if (workspaceIds.length === 0) return { results: [], searched: 0, method: "keyword" };
+  if (workspaceIds.length === 0) return { results: [], searched: 0, method: "keyword", sourceIds: [] };
 
   let direct:
     | { hits: KnowledgeSearchHit[]; matchedIds: string[]; searched: number; method: "semantic" | "keyword" }
@@ -112,9 +115,14 @@ export async function searchKnowledgeBase(
   }
 
   // ── Reference expansion (one hop along canvas links) ─────────────────────────
-  const linkedHits = await expandViaLinks(service, workspaceIds, direct.matchedIds);
+  const linked = await expandViaLinks(service, workspaceIds, direct.matchedIds);
 
-  return { results: [...direct.hits, ...linkedHits], searched: direct.searched, method: direct.method };
+  return {
+    results: [...direct.hits, ...linked.hits],
+    searched: direct.searched,
+    method: direct.method,
+    sourceIds: [...direct.matchedIds, ...linked.ids],
+  };
 }
 
 /**
@@ -144,8 +152,8 @@ async function expandViaLinks(
   service: LooseClient,
   workspaceIds: string[],
   matchedIds: string[]
-): Promise<KnowledgeSearchHit[]> {
-  if (matchedIds.length === 0) return [];
+): Promise<{ hits: KnowledgeSearchHit[]; ids: string[] }> {
+  if (matchedIds.length === 0) return { hits: [], ids: [] };
 
   // Links touching a matched doc in either direction (two queries — cleaner than
   // an `.or()` with comma-bearing in-lists).
@@ -158,16 +166,20 @@ async function expandViaLinks(
     ...((incoming?.data ?? []) as Array<{ from_id: string; to_id: string }>),
   ];
   const neighborIds = neighborIdsFromLinks(matchedIds, links);
-  if (neighborIds.length === 0) return [];
+  if (neighborIds.length === 0) return { hits: [], ids: [] };
 
   const { data } = await service
     .from("agent_knowledge")
     .select("id, title, content")
     .in("id", neighborIds)
     .in("workspace_id", workspaceIds);
-  return ((data ?? []) as Array<{ title: string | null; content: string | null }>).map((d) => ({
-    title: d.title ?? "Untitled",
-    excerpt: (d.content ?? "").slice(0, 1000),
-    linked: true,
-  }));
+  const rows = (data ?? []) as Array<{ id: string; title: string | null; content: string | null }>;
+  return {
+    hits: rows.map((d) => ({
+      title: d.title ?? "Untitled",
+      excerpt: (d.content ?? "").slice(0, 1000),
+      linked: true,
+    })),
+    ids: rows.map((d) => d.id),
+  };
 }
