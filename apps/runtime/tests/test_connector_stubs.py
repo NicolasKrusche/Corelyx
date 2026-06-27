@@ -32,6 +32,9 @@ _TARGETED = {
     "whatsapp",
     "stripe",
     "openai",
+    # IMAP/SMTP — not an HTTP connector, so the request_with_rate_limit stub
+    # harness doesn't apply. Covered by tests/test_thunderbird_connector.py.
+    "thunderbird",
 }
 
 

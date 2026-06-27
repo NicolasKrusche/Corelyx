@@ -14,19 +14,79 @@ export function AgentPermissions({
   agentId,
   allowWrites,
   maxCostUsd,
+  allowSpawning,
+  maxSpawns,
   canEdit,
 }: {
   agentId: string;
   allowWrites: boolean;
   maxCostUsd: number | null;
+  allowSpawning: boolean;
+  maxSpawns: number | null;
   canEdit: boolean;
 }) {
   const router = useRouter();
   const [writes, setWrites] = useState(allowWrites);
   const [cap, setCap] = useState<string>(maxCostUsd != null ? String(maxCostUsd) : "");
   const [savingCap, setSavingCap] = useState(false);
+  const [spawning, setSpawning] = useState(allowSpawning);
+  const [maxSub, setMaxSub] = useState<string>(maxSpawns != null ? String(maxSpawns) : "");
+  const [savingSpawn, setSavingSpawn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function setSpawnAllowed(next: boolean) {
+    if (savingSpawn || next === spawning) return;
+    setSavingSpawn(true);
+    setError(null);
+    setSpawning(next);
+    try {
+      const res = await fetch(`/api/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allow_spawning: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(friendlyResponseMessage(data, "Could not update spawn permission."));
+        setSpawning(!next); // revert
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("We couldn't reach the server. Please try again.");
+      setSpawning(!next);
+    } finally {
+      setSavingSpawn(false);
+    }
+  }
+
+  async function saveMaxSpawns() {
+    if (savingSpawn) return;
+    setSavingSpawn(true);
+    setError(null);
+    try {
+      const trimmed = maxSub.trim();
+      const value = trimmed === "" ? null : Math.floor(Number(trimmed));
+      if (value !== null && (!Number.isFinite(value) || value < 0 || value > 20)) {
+        setError("Enter a whole number from 0 to 20, or leave blank for the default (5).");
+        return;
+      }
+      const res = await fetch(`/api/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ max_spawns: value }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(friendlyResponseMessage(data, "Could not save the sub-agent limit."));
+        return;
+      }
+      router.refresh();
+    } finally {
+      setSavingSpawn(false);
+    }
+  }
 
   async function saveCap() {
     if (savingCap) return;
@@ -146,6 +206,62 @@ export function AgentPermissions({
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => void saveCap()} disabled={savingCap}>
                 {savingCap ? "Saving…" : "Save cap"}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Sub-agents */}
+        <div className="border-t border-border/50 pt-3">
+          <p className="text-sm font-medium">Sub-agents</p>
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            Whether this agent may spawn other agents, and how many per run. Spawned
+            agents arrive as drafts you approve before they run.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border border-border/60 p-0.5">
+              {[
+                { value: true, label: "Allowed" },
+                { value: false, label: "Off" },
+              ].map((o) => {
+                const active = spawning === o.value;
+                return (
+                  <button
+                    key={String(o.value)}
+                    type="button"
+                    disabled={!canEdit || savingSpawn}
+                    onClick={() => void setSpawnAllowed(o.value)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    } ${!canEdit ? "cursor-default" : ""}`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div
+              className={`inline-flex items-center rounded-lg border border-border/60 bg-background px-2.5 ${
+                !spawning ? "opacity-50" : ""
+              }`}
+            >
+              <input
+                type="number"
+                min="0"
+                max="20"
+                step="1"
+                inputMode="numeric"
+                disabled={!canEdit || !spawning || savingSpawn}
+                value={maxSub}
+                onChange={(e) => setMaxSub(e.target.value)}
+                placeholder="5"
+                className="w-14 bg-transparent px-1.5 py-1.5 text-sm outline-none"
+              />
+              <span className="pr-1 text-[11px] text-muted-foreground">/ run</span>
+            </div>
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => void saveMaxSpawns()} disabled={savingSpawn || !spawning}>
+                {savingSpawn ? "Saving…" : "Save limit"}
               </Button>
             )}
           </div>

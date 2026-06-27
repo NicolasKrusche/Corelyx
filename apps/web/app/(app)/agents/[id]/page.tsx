@@ -140,6 +140,8 @@ export default async function AgentDetailPage({
     : {});
   const allowWrites = caps.allow_writes !== false; // default: may make changes
   const maxCostUsd = typeof caps.max_cost_usd === "number" ? caps.max_cost_usd : null;
+  const allowSpawning = caps.allow_spawning !== false; // default: allowed
+  const maxSpawns = typeof caps.max_spawns === "number" ? caps.max_spawns : null;
   const rawNodes = (
     Array.isArray(program.schema?.nodes) ? program.schema!.nodes : []
   ) as RawNode[];
@@ -577,6 +579,8 @@ export default async function AgentDetailPage({
             agentId={program.id}
             allowWrites={allowWrites}
             maxCostUsd={maxCostUsd}
+            allowSpawning={allowSpawning}
+            maxSpawns={maxSpawns}
             canEdit={userCanEdit}
           />
           <AgentSchedule agentId={program.id} canEdit={userCanEdit} />

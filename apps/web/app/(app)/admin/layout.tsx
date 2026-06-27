@@ -19,6 +19,7 @@ import {
   Users,
   Newspaper,
   Ticket,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -83,6 +84,7 @@ export default async function AdminLayout({
       { href: "/admin/health", label: "System Health", icon: Shield },
       { href: "/admin/circuits", label: "Circuit Breakers", icon: Zap },
       { href: "/admin/runs", label: "Active Runs", icon: PlayCircle },
+      { href: "/admin/test-firms", label: "Test Firms", icon: Building2 },
       { href: "/admin/emergency", label: "Emergency", icon: AlertTriangle },
       { href: "/admin/security", label: "Security Sentinel", icon: ShieldAlert },
       { href: "/admin/locks", label: "Credential Locks", icon: Lock },

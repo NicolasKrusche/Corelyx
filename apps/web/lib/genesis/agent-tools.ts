@@ -24,6 +24,12 @@ export type AgentToolDef = {
    * UI flags them in the plan the user approves.
    */
   destructive?: boolean;
+  /**
+   * Internal-only tools the runtime calls itself (never offered to the model and
+   * omitted from the Genesis tool reference). Used to record graph edges as a
+   * side effect of native runtime work (e.g. a connector read).
+   */
+  internal?: boolean;
 };
 
 export const AGENT_TOOLS: AgentToolDef[] = [
@@ -96,6 +102,34 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       "Fetch the contents of a public web page or API URL (HTTP GET) and return its text. Use to read pages, docs, or APIs that aren't a connected app. HTML is reduced to text and output is truncated. Only public http/https URLs are allowed (internal/private addresses are blocked). Read-only, safe in dry runs.",
     scope: "read",
   },
+  {
+    id: "corelyx.web_search",
+    label: "Search the web",
+    description:
+      "Search the web and get back ranked results (title, url, snippet) so you can DISCOVER relevant pages when you don't already have a URL (e.g. \"top competitors for X\", \"official pricing page of Y\"). Args: query (string), optional max_results (default 5). Then read the most relevant results with corelyx.web_fetch. Read-only, safe in dry runs.",
+    scope: "read",
+  },
+  {
+    id: "corelyx.read_agent_report",
+    label: "Read a related agent's report",
+    description:
+      "Read the latest report(s) of an agent you are directly related to — one you SPAWNED, or the parent that spawned you. Use this to pick up a sub-agent's findings (or your parent's brief) and build on them. Identify the agent by program_id or name. Returns its most recent non-draft report(s). Read-only; the link is recorded so the data flow shows on the Flow view.",
+    scope: "read",
+  },
+  {
+    id: "corelyx.reference_agent",
+    label: "Cross-check a peer agent",
+    description:
+      "Record a peer cross-check link to another agent and pull back its latest report excerpt — e.g. have a fact-check agent verify your draft, or compare notes with a sibling. Identify the agent by program_id or name. Draws a two-way cross-check edge on the Flow view. Read-only.",
+    scope: "read",
+  },
+  {
+    id: "corelyx.flag_critical",
+    label: "Flag a critical message",
+    description:
+      "Escalate a message/content that shows a credible signal of harm (threat to life, violence, self-harm, abuse, poisoning/contamination/tampering, crime in progress, urgent legal/time-critical emergency) instead of triaging it away. It lands in the user's 'Flagged for review' inbox and alerts them. Args: subject (short), reason (why it's critical, required), optional snippet (the relevant excerpt), optional categories (string[]), optional source_ref. Use this the moment you spot such content — a false alarm is fine. Read-only, safe in dry runs.",
+    scope: "read",
+  },
   // ── Write / orchestration ─────────────────────────────────────────────────
   {
     id: "corelyx.call_connector",
@@ -140,9 +174,27 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     scope: "write",
     destructive: true,
   },
+  {
+    id: "corelyx.spawn_agent",
+    label: "Spawn a sub-agent",
+    description:
+      "Spawn a child agent to own a distinct sub-task you want handled separately. Args: name (string), objective (string — the child's goal), optional reason. The child is created as a DRAFT in the user's Agents list (it does NOT run automatically): the user reviews and approves each spawned agent before it runs. Draws a spawns edge from you to the child on the Flow view. Use sparingly — at most a few per run.",
+    scope: "write",
+    destructive: true,
+  },
+  {
+    id: "corelyx.record_source",
+    label: "Record a source read (internal)",
+    description:
+      "Internal: record that this agent read a source (a connector). Called by the runtime after a native connector read; never emitted by the model.",
+    scope: "read",
+    internal: true,
+  },
 ];
 
-export const AGENT_TOOL_IDS = AGENT_TOOLS.map((t) => t.id);
+// Grantable, model-facing tool ids (internal-only tools are excluded — they're
+// never offered to an agent, named in the prompt, or part of an agent's `tools`).
+export const AGENT_TOOL_IDS = AGENT_TOOLS.filter((t) => !t.internal).map((t) => t.id);
 
 /**
  * Tools every agent_task gets regardless of its configured `tools` array.
@@ -171,8 +223,9 @@ export function isDestructiveAgentTool(id: string): boolean {
 
 /** Compact, prompt-ready listing of every tool grouped by scope. */
 export function buildAgentToolReference(): string {
-  const read = AGENT_TOOLS.filter((t) => t.scope === "read");
-  const write = AGENT_TOOLS.filter((t) => t.scope === "write");
+  const visible = AGENT_TOOLS.filter((t) => !t.internal);
+  const read = visible.filter((t) => t.scope === "read");
+  const write = visible.filter((t) => t.scope === "write");
   const fmt = (t: AgentToolDef) =>
     `  ${t.id}${t.destructive ? " [destructive]" : ""}: ${t.description}`;
   return [

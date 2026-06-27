@@ -438,6 +438,39 @@ export const OPERATION_PARAM_FIELDS: Record<string, Record<string, ParamField[]>
       { key: "bcc", label: "BCC", type: "string" },
       { key: "html", label: "HTML body (optional)", type: "text", hint: "Sent as an HTML alternative." },
     ],
+    move_message: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "dest", label: "Destination folder", type: "string", required: true, placeholder: "Projects/Acme", hint: "Exact folder name (use list_folders)." },
+      { key: "folder", label: "Source folder", type: "string", placeholder: "INBOX" },
+    ],
+    archive_message: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "folder", label: "Source folder", type: "string", placeholder: "INBOX" },
+      { key: "dest", label: "Archive folder", type: "string", placeholder: "Archive", hint: "Defaults to 'Archive'." },
+    ],
+    mark_spam: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "folder", label: "Source folder", type: "string", placeholder: "INBOX" },
+      { key: "dest", label: "Junk folder", type: "string", placeholder: "Junk", hint: "Defaults to 'Junk'." },
+    ],
+    trash_message: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "folder", label: "Source folder", type: "string", placeholder: "INBOX" },
+      { key: "permanent", label: "Delete permanently", type: "boolean", hint: "Off = move to Trash (reversible)." },
+    ],
+    mark_read: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "folder", label: "Source folder", type: "string", placeholder: "INBOX" },
+    ],
+    mark_unread: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "folder", label: "Source folder", type: "string", placeholder: "INBOX" },
+    ],
+    flag_message: [
+      { key: "uid", label: "Message UID", type: "string", required: true, hint: "From a list/search result." },
+      { key: "folder", label: "Source folder", type: "string", placeholder: "INBOX" },
+      { key: "unflag", label: "Remove flag", type: "boolean", hint: "Off = add the star/flag." },
+    ],
   },
 };
 
