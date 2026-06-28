@@ -1,0 +1,139 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e15]:
+      - button "Back" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+        - text: Back
+      - generic [ref=e20]:
+        - button "Weekday HackerNews to Slack" [ref=e21] [cursor=pointer]
+        - generic [ref=e22]: Saved
+      - button "Add node" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+        - text: Add node
+      - generic [ref=e28]:
+        - button "Undo" [disabled]:
+          - img
+        - button "Redo" [disabled]:
+          - img
+      - button "History" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+        - text: History
+      - button "Auto-layout" [ref=e34] [cursor=pointer]:
+        - img [ref=e35]
+        - text: Auto-layout
+        - img [ref=e40]
+      - button "Edit with AI" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+        - text: Edit with AI
+      - button "Validate ✓" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+        - text: Validate
+        - generic [ref=e50]: ✓
+      - button "Save" [disabled]:
+        - img
+        - text: Save
+      - button "Run with payload" [ref=e51] [cursor=pointer]:
+        - img [ref=e52]
+        - text: Run with payload
+      - button "Run" [ref=e56] [cursor=pointer]:
+        - img [ref=e57]
+        - text: Run
+    - complementary [ref=e229]:
+      - separator "Resize panel" [ref=e230]
+      - generic [ref=e231]:
+        - generic [ref=e232]:
+          - img [ref=e233]
+          - generic [ref=e236]: Edit with AI
+        - button "Close AI edit panel" [ref=e237] [cursor=pointer]:
+          - img [ref=e238]
+      - generic [ref=e241]:
+        - img [ref=e252]
+        - generic [ref=e255]:
+          - paragraph [ref=e256]: Editing your workflow…
+          - paragraph [ref=e257]: AI is reworking the graph. This may take a moment.
+      - generic [ref=e248]:
+        - button "Editing…" [disabled]:
+          - img
+          - text: Editing…
+        - paragraph [ref=e249]: ⌘↵ to apply
+    - generic [ref=e59]:
+      - generic [ref=e258]:
+        - img [ref=e259]
+        - text: AI is editing your workflow…
+      - application [ref=e60]:
+        - generic [ref=e62]:
+          - generic:
+            - generic:
+              - group [ref=e81]:
+                - generic [ref=e82]:
+                  - generic [ref=e83]:
+                    - img [ref=e85]
+                    - generic [ref=e88]:
+                      - paragraph [ref=e89]: Trigger · Schedule
+                      - paragraph [ref=e90]: Weekday 8am
+                  - paragraph [ref=e91]: Fires Monday‑Friday at 8 am UTC.
+                - generic [ref=e92]:
+                  - img
+              - group [ref=e262]:
+                - generic [ref=e264]:
+                  - generic [ref=e265]:
+                    - img [ref=e267]
+                    - generic [ref=e270]:
+                      - paragraph [ref=e271]: HTTP · GET
+                      - paragraph [ref=e272]: Get top story IDs
+                  - paragraph [ref=e273]: Fetches list of top HackerNews story IDs.
+                  - paragraph [ref=e274]: https://hacker-news.firebaseio.com/v0/topstories.json
+                - generic [ref=e275]:
+                  - img
+              - group [ref=e276]:
+                - generic [ref=e278]:
+                  - generic [ref=e279]:
+                    - img [ref=e281]
+                    - generic [ref=e287]:
+                      - paragraph [ref=e288]: Step · Transform
+                      - paragraph [ref=e289]: Take first 5
+                  - paragraph [ref=e290]: Keeps only the first five IDs.
+                - generic [ref=e291]:
+                  - img
+              - group [ref=e292]:
+                - generic [ref=e294]:
+                  - generic [ref=e295]:
+                    - img [ref=e297]
+                    - generic [ref=e299]:
+                      - paragraph [ref=e300]: Step · Filter
+                      - paragraph [ref=e301]: Filter low scores
+                  - paragraph [ref=e302]: Removes stories with scores below 100.
+                - generic [ref=e303]:
+                  - img
+              - group [ref=e308]:
+                - generic [ref=e310]:
+                  - generic [ref=e311]:
+                    - img [ref=e313]
+                    - generic [ref=e318]:
+                      - paragraph [ref=e319]: Step · Loop
+                      - paragraph [ref=e320]: Loop stories
+                  - paragraph [ref=e321]: Iterates over the five story IDs.
+                - generic [ref=e322]:
+                  - img
+              - group [ref=e323]:
+                - generic [ref=e325]:
+                  - generic [ref=e326]:
+                    - img [ref=e328]
+                    - generic [ref=e331]:
+                      - paragraph [ref=e332]: HTTP · GET
+                      - paragraph [ref=e333]: Fetch story details
+                  - paragraph [ref=e334]: Gets title and URL for each story ID.
+                  - paragraph [ref=e335]: "https://hacker-news.firebaseio.com/v0/item/{{n4.story_id}}.json"
+                - generic [ref=e336]:
+                  - img
+        - generic "Control Panel" [ref=e202]:
+          - button "Zoom In" [ref=e203] [cursor=pointer]:
+            - img [ref=e204]
+          - button "Zoom Out" [ref=e206] [cursor=pointer]:
+            - img [ref=e207]
+          - button "Fit View" [ref=e209] [cursor=pointer]:
+            - img [ref=e210]
+          - button "Toggle Interactivity" [ref=e212] [cursor=pointer]:
+            - img [ref=e213]
+        - img "Mini Map" [ref=e216]
+  - alert [ref=e228]

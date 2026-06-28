@@ -1,0 +1,12 @@
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Parsing of C:\NexFlow\node_modules\.pnpm\next-intl@4.12.0_next@15.5.18_@opentelemetry+api@1.9.1_react-dom@18.3.1_react@18.3.1__react@1_lbexbw766f5noaiauhu4ng6kla\node_modules\next-intl\dist\esm\production\extractor\format\index.js for build dependencies failed at 'import(t)'.
+<w> Build dependencies behind this expression are ignored and might cause incorrect cache invalidation.
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (215kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Parsing of C:\NexFlow\node_modules\.pnpm\next-intl@4.12.0_next@15.5.18_@opentelemetry+api@1.9.1_react-dom@18.3.1_react@18.3.1__react@1_lbexbw766f5noaiauhu4ng6kla\node_modules\next-intl\dist\esm\production\extractor\format\index.js for build dependencies failed at 'import(t)'.
+<w> Build dependencies behind this expression are ignored and might cause incorrect cache invalidation.
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Parsing of C:\NexFlow\node_modules\.pnpm\next-intl@4.12.0_next@15.5.18_@opentelemetry+api@1.9.1_react-dom@18.3.1_react@18.3.1__react@1_lbexbw766f5noaiauhu4ng6kla\node_modules\next-intl\dist\esm\production\extractor\format\index.js for build dependencies failed at 'import(t)'.
+<w> Build dependencies behind this expression are ignored and might cause incorrect cache invalidation.
+{"ts":"2026-06-11T16:35:51.390Z","level":"error","event":"agent.tools.auth_rejected","message":"Internal agent-tools token rejected.","details":{"reason":"no_token","audience":"next:agent-tools","secretSource":"shared"}}
+In cloud mode but no signing key found. For local dev, set the INNGEST_DEV=1 env var. For production, set the INNGEST_SIGNING_KEY env var
+In cloud mode but no signing key found. For local dev, set the INNGEST_DEV=1 env var. For production, set the INNGEST_SIGNING_KEY env var
+{"ts":"2026-06-11T16:35:52.129Z","level":"error","event":"webhooks.gmail.missing_config","message":"PUBSUB_GMAIL_WEBHOOK_AUDIENCE env var is not set."}
+{"ts":"2026-06-11T16:35:54.038Z","level":"error","event":"auth.reset_password.generate_link_failed","message":"generateLink returned an error; returning ok to prevent email enumeration."}

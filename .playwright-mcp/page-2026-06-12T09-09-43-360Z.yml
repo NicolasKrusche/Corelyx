@@ -1,0 +1,99 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - img "Corelyx" [ref=e6]
+        - generic [ref=e7]: Corelyx
+      - generic [ref=e8]:
+        - button "Active workspace" [ref=e10] [cursor=pointer]:
+          - img [ref=e14]
+        - link "Create new" [ref=e16] [cursor=pointer]:
+          - /url: /programs/new
+          - img [ref=e18]
+          - generic: Create new
+        - button "Search ⌘ K" [ref=e20] [cursor=pointer]:
+          - img [ref=e22]
+          - generic:
+            - generic: Search
+            - generic [ref=e25]:
+              - generic [ref=e26]: ⌘
+              - generic [ref=e27]: K
+      - navigation [ref=e28]:
+        - generic [ref=e29]:
+          - paragraph: Main
+        - generic [ref=e31]:
+          - link "Home" [ref=e32] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e35]
+            - generic: Home
+          - link "Agents" [ref=e40] [cursor=pointer]:
+            - /url: /agents
+            - img [ref=e42]
+            - generic: Agents
+          - link "Runs" [ref=e47] [cursor=pointer]:
+            - /url: /runs
+            - img [ref=e49]
+            - generic: Runs
+          - link "Approvals" [ref=e51] [cursor=pointer]:
+            - /url: /approvals
+            - img [ref=e53]
+            - generic: Approvals
+        - generic [ref=e55]:
+          - paragraph: Data
+        - generic [ref=e57]:
+          - link "Browse" [ref=e58] [cursor=pointer]:
+            - /url: /browse
+            - img [ref=e60]
+            - generic: Browse
+          - link "Connections" [ref=e63] [cursor=pointer]:
+            - /url: /connections
+            - img [ref=e65]
+            - generic: Connections
+        - generic [ref=e67]:
+          - paragraph: Settings
+        - generic [ref=e69]:
+          - button "Settings" [ref=e70] [cursor=pointer]:
+            - img [ref=e72]
+            - generic: Settings
+          - generic [ref=e75]:
+            - link "– API Keys" [ref=e76] [cursor=pointer]:
+              - /url: /api-keys
+              - generic [ref=e78]: –
+              - generic: API Keys
+            - link "– Env Variables" [ref=e79] [cursor=pointer]:
+              - /url: /env-vars
+              - generic [ref=e81]: –
+              - generic: Env Variables
+            - link "– Governance" [ref=e82] [cursor=pointer]:
+              - /url: /governance
+              - generic [ref=e84]: –
+              - generic: Governance
+            - link "– Usage & Billing" [ref=e85] [cursor=pointer]:
+              - /url: /credits
+              - generic [ref=e87]: –
+              - generic: Usage & Billing
+        - generic [ref=e88]:
+          - paragraph: Help
+        - generic [ref=e90]:
+          - button "Notifications, 1 unread" [ref=e92] [cursor=pointer]:
+            - img [ref=e94]
+            - generic: Notifications1
+          - link "Support" [ref=e98] [cursor=pointer]:
+            - /url: /support
+            - img [ref=e100]
+            - generic: Support
+      - generic [ref=e102]:
+        - button "Workspace usage" [ref=e104] [cursor=pointer]:
+          - img [ref=e106]
+          - generic: Workspace usage
+          - generic:
+            - img
+        - button "Q QA Tester Display Free" [ref=e110] [cursor=pointer]:
+          - generic [ref=e113]: Q
+          - generic:
+            - generic:
+              - paragraph: QA Tester Display
+            - paragraph: Free
+          - img [ref=e114]
+    - main [ref=e116]
+  - alert [ref=e128]

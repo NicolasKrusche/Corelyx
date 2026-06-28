@@ -1,0 +1,109 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - img "Corelyx" [ref=e6]
+        - generic [ref=e7]: Corelyx
+      - generic [ref=e8]:
+        - button "Active workspace" [ref=e10] [cursor=pointer]:
+          - img [ref=e14]
+        - link "Create new" [ref=e16] [cursor=pointer]:
+          - /url: /programs/new
+          - img [ref=e18]
+          - generic: Create new
+        - button "Search ⌘ K" [ref=e20] [cursor=pointer]:
+          - img [ref=e22]
+          - generic:
+            - generic: Search
+            - generic [ref=e25]:
+              - generic [ref=e26]: ⌘
+              - generic [ref=e27]: K
+      - navigation [ref=e28]:
+        - generic [ref=e29]:
+          - paragraph: Main
+        - generic [ref=e31]:
+          - link "Home" [ref=e32] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e34]
+            - generic: Home
+          - link "Agents" [ref=e39] [cursor=pointer]:
+            - /url: /agents
+            - img [ref=e41]
+            - generic: Agents
+          - link "Runs" [ref=e46] [cursor=pointer]:
+            - /url: /runs
+            - img [ref=e48]
+            - generic: Runs
+          - link "Approvals" [ref=e50] [cursor=pointer]:
+            - /url: /approvals
+            - img [ref=e52]
+            - generic: Approvals
+        - generic [ref=e54]:
+          - paragraph: Data
+        - generic [ref=e56]:
+          - link "Browse" [ref=e57] [cursor=pointer]:
+            - /url: /browse
+            - img [ref=e59]
+            - generic: Browse
+          - link "Connections" [ref=e62] [cursor=pointer]:
+            - /url: /connections
+            - img [ref=e64]
+            - generic: Connections
+        - generic [ref=e66]:
+          - paragraph: Settings
+        - generic [ref=e68]:
+          - button "Settings" [ref=e69] [cursor=pointer]:
+            - img [ref=e71]
+            - generic: Settings
+          - generic [ref=e74]:
+            - link "– API Keys" [ref=e75] [cursor=pointer]:
+              - /url: /api-keys
+              - generic [ref=e77]: –
+              - generic: API Keys
+            - link "– Env Variables" [ref=e78] [cursor=pointer]:
+              - /url: /env-vars
+              - generic [ref=e80]: –
+              - generic: Env Variables
+            - link "– Governance" [ref=e81] [cursor=pointer]:
+              - /url: /governance
+              - generic [ref=e83]: –
+              - generic: Governance
+            - link "– Usage & Billing" [ref=e84] [cursor=pointer]:
+              - /url: /credits
+              - generic [ref=e86]: –
+              - generic: Usage & Billing
+        - generic [ref=e87]:
+          - paragraph: Help
+        - generic [ref=e89]:
+          - button "Notifications1" [ref=e91] [cursor=pointer]:
+            - img [ref=e93]
+            - generic: Notifications1
+          - link "Support" [ref=e98] [cursor=pointer]:
+            - /url: /support
+            - img [ref=e100]
+            - generic: Support
+      - generic [ref=e102]:
+        - button "Workspace usage" [ref=e104] [cursor=pointer]:
+          - img [ref=e106]
+          - generic: Workspace usage
+          - generic:
+            - img
+        - button "Q QA Tester Display Free" [ref=e110] [cursor=pointer]:
+          - generic [ref=e113]: Q
+          - generic:
+            - generic:
+              - paragraph: QA Tester Display
+            - paragraph: Free
+          - img [ref=e114]
+    - main [ref=e116]:
+      - generic [ref=e118]:
+        - button "Dismiss offer" [ref=e120] [cursor=pointer]:
+          - img [ref=e121]
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - paragraph [ref=e125]: Welcome gift — one time, never again.
+            - paragraph [ref=e126]: Start your first month on Solo for €3.90 instead of €9.90. This offer disappears in 7 days and will never come back.
+          - generic [ref=e127]:
+            - button "Claim 61% off — Start Solo" [ref=e128] [cursor=pointer]
+            - paragraph [ref=e129]: Cancel anytime · Expires June 18
+  - alert [ref=e140]

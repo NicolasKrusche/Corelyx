@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser",
+        "chromium",
+        "--executable-path",
+        "C:\\Users\\nicol\\AppData\\Local\\Perplexity\\Comet\\Application\\comet.exe",
+        "--output-dir",
+        ".playwright-mcp"
+      ]
+    }
+  }
+}

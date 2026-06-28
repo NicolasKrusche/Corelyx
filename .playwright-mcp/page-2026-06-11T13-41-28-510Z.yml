@@ -1,0 +1,156 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Corelyx Corelyx" [ref=e5] [cursor=pointer]:
+          - /url: /dashboard
+          - img "Corelyx" [ref=e6]
+          - generic [ref=e7]: Corelyx
+        - generic [ref=e8]:
+          - navigation [ref=e9]:
+            - link "Trust" [ref=e10] [cursor=pointer]:
+              - /url: /trust
+            - link "Privacy" [ref=e11] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e12] [cursor=pointer]:
+              - /url: /terms
+            - link "DPA" [ref=e13] [cursor=pointer]:
+              - /url: /dpa
+            - link "Subprocessors" [ref=e14] [cursor=pointer]:
+              - /url: /subprocessors
+            - link "Residency" [ref=e15] [cursor=pointer]:
+              - /url: /data-residency
+            - link "AI Act" [ref=e16] [cursor=pointer]:
+              - /url: /ai-act
+            - link "Security" [ref=e17] [cursor=pointer]:
+              - /url: /security
+          - link "Back to dashboard" [ref=e18] [cursor=pointer]:
+            - /url: /dashboard
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Legal
+        - heading "Terms of Service" [level=1] [ref=e22]
+        - paragraph [ref=e23]: "Last updated: April 24, 2026"
+      - generic [ref=e24]:
+        - complementary [ref=e25]:
+          - generic [ref=e26]:
+            - paragraph [ref=e27]: Contents
+            - link "1. Acceptance of Terms" [ref=e28] [cursor=pointer]:
+              - /url: "#acceptance"
+            - link "2. Description of Service" [ref=e29] [cursor=pointer]:
+              - /url: "#description"
+            - link "3. Account Registration" [ref=e30] [cursor=pointer]:
+              - /url: "#accounts"
+            - link "4. Acceptable Use" [ref=e31] [cursor=pointer]:
+              - /url: "#acceptable-use"
+            - link "5. Plans, API Credits, and Payment" [ref=e32] [cursor=pointer]:
+              - /url: "#plans-and-credits"
+            - link "6. Duration and Termination" [ref=e33] [cursor=pointer]:
+              - /url: "#duration-termination"
+            - link "7. Liability and Disclaimers" [ref=e34] [cursor=pointer]:
+              - /url: "#liability"
+            - link "8. Third-Party Services and Credentials" [ref=e35] [cursor=pointer]:
+              - /url: "#third-party"
+            - link "9. Your Content and Outputs" [ref=e36] [cursor=pointer]:
+              - /url: "#content"
+            - link "10. Intellectual Property" [ref=e37] [cursor=pointer]:
+              - /url: "#ip"
+            - link "11. Changes to These Terms" [ref=e38] [cursor=pointer]:
+              - /url: "#changes"
+            - link "12. Consumer Rights and Dispute Resolution" [ref=e39] [cursor=pointer]:
+              - /url: "#consumer-rights"
+            - link "13. Governing Law and Jurisdiction" [ref=e40] [cursor=pointer]:
+              - /url: "#governing-law"
+            - link "14. Severability" [ref=e41] [cursor=pointer]:
+              - /url: "#severability"
+            - link "15. Contact" [ref=e42] [cursor=pointer]:
+              - /url: "#contact"
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - heading "1. Acceptance of Terms" [level=2] [ref=e45]
+            - paragraph [ref=e46]: By creating a Corelyx account or using any part of the Corelyx platform ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not access or use the Service. If you are using the Service on behalf of a company or other legal entity, you represent that you have the authority to bind that entity to these Terms. These Terms distinguish between consumers and business customers where required by mandatory law. A "consumer" means a natural person acting for purposes outside their trade, business, or profession within the meaning of the Austrian Konsumentenschutzgesetz (KSchG) and applicable EU consumer law.
+          - generic [ref=e48]:
+            - heading "2. Description of Service" [level=2] [ref=e49]
+            - paragraph [ref=e50]: "Corelyx is a visual AI automation platform that allows users to design, configure, and run agent-based automation programs (\"Programs\") that connect to third-party services. The platform enables, among other things: - Automated processing, categorisation, and sorting of emails - Transfer of structured data to external services (e.g. Google Sheets, Notion) - Execution of custom AI workflows - Purchase and use of API Credits for AI requests The Service includes the web application, the program execution runtime, and any APIs we make available. The scope of features depends on your subscription plan (Free, Pro, Max). The AI features are powered by models and APIs from third-party providers, in particular Anthropic Inc. (USA) and Google LLC (USA). Corelyx acts as a reseller of these capacities — we are not the manufacturer of the underlying AI models. The Service may change over time. We reserve the right to modify, suspend, or discontinue any part of the Service with reasonable notice where practical, subject to the notice requirements in Section 12."
+          - generic [ref=e52]:
+            - heading "3. Account Registration" [level=2] [ref=e53]
+            - paragraph [ref=e54]: You must provide accurate and complete information when creating your account. You are responsible for maintaining the security of your account credentials and for all activity that occurs under your account. Registration is permitted only for natural persons who have reached the age of 18, or for legally capable companies. By registering, you confirm you meet this requirement. One account per person or company is permitted. Multiple accounts require our prior written consent. You must notify us immediately at legal@corelyx.app if you suspect unauthorized access to your account. We are not liable for any loss or damage arising from your failure to protect your account.
+          - generic [ref=e56]:
+            - heading "4. Acceptable Use" [level=2] [ref=e57]
+            - paragraph [ref=e58]: "You agree not to use the Service to: - Violate any applicable law or regulation - Infringe the intellectual property rights of any third party - Transmit malware, viruses, or any other malicious code - Attempt to gain unauthorized access to any system, network, or account - Scrape, crawl, or harvest data from third-party services in violation of their terms - Send unsolicited bulk communications (spam) via the automation features - Process personal data of third parties without their consent or a lawful basis - Use AI features for prohibited practices under the EU AI Act, including social scoring, unlawful biometric identification, subliminal manipulation, predictive policing, or workplace emotion recognition - Use AI features for high-risk decisions in employment, education, credit, insurance, healthcare, law enforcement, migration, critical infrastructure, or public services unless you have completed the required legal assessment and configured appropriate human oversight - Impersonate any person or entity - Engage in any activity that places unreasonable load on our infrastructure - Circumvent or attempt to circumvent any usage limits, rate limits, or access controls - Reverse-engineer, decompile, or extract API credentials or AI model weights - Resell or transfer API Credits or account credentials to third parties - Resell or sublicense access to the Service without our written permission We reserve the right to suspend or terminate accounts that violate these rules, with or without prior notice depending on the severity of the violation. Because the Service uses the Anthropic API, you are also required to comply with Anthropic's Usage Policy (https://www.anthropic.com/legal/usage-policy)."
+          - generic [ref=e60]:
+            - heading "5. Plans, API Credits, and Payment" [level=2] [ref=e61]
+            - paragraph [ref=e62]: "Subscription plans: Corelyx offers Free, Pro, and Max plans. The Free plan is provided at no cost with limited features and no SLA guarantee. Pro and Max are monthly subscriptions with extended features and priority processing. Current pricing and plan details are published on our pricing page. API Credits: You may purchase additional API Credits to perform AI requests beyond the quota included in your plan. - Credits are charged on consumption and are non-refundable once used. - Unused credits expire 12 months after purchase, unless your subscription is cancelled before then. - If you cancel your subscription, remaining credits may be used for 30 days after the cancellation takes effect. Payment and invoicing: Subscription fees are charged monthly in advance via Stripe, our payment service provider. Invoices are provided electronically. If payment is overdue, we may suspend access to the Service until the outstanding balance is settled. Price changes: We may adjust prices with at least 30 days' notice by email. If you do not object within 14 days of receiving notice, the new price is deemed accepted. If you object to a price increase, you may cancel your subscription at the end of the current billing period without penalty."
+          - generic [ref=e64]:
+            - heading "6. Duration and Termination" [level=2] [ref=e65]
+            - paragraph [ref=e66]: "Subscriptions run on a monthly basis and renew automatically unless cancelled. You may cancel at any time with effect from the end of the current billing month, via your account settings or by email to legal@corelyx.app. We may terminate your access immediately for material breach of these Terms, including violations of the acceptable use rules in Section 4, overdue payment beyond 14 days, or abusive use of API Credits. In less urgent cases, we will provide reasonable notice. Following termination, all your data will be permanently deleted within 60 days. Recovery is not possible after this period. Consumer right of withdrawal: If you are a consumer, you have a 14-day right of withdrawal from a new paid subscription starting from the date of purchase. To exercise this right, contact us at legal@corelyx.app before the period expires. If you have already actively used the paid features and expressly consented to the Service commencing before the withdrawal period ended, your right of withdrawal may be lost as permitted by § 18 FAGG and Article 16(m) of Directive 2011/83/EU."
+          - generic [ref=e68]:
+            - heading "7. Liability and Disclaimers" [level=2] [ref=e69]
+            - paragraph [ref=e70]: "AI-generated outputs: The platform produces results using AI models (machine learning). These results — including categorisations, summaries, data transfers, and automated actions — may be incorrect, incomplete, or unsuitable. We assume no liability for damages arising from incorrect, incomplete, or misdirected automated actions, including wrong email categorisations, unintended data deletions, incorrect database entries, or actions that fail to execute. You are expressly responsible for reviewing all actions performed or proposed by the platform before and after execution. By enabling automated workflows, you confirm you have understood how each automation works and accept responsibility for all actions it triggers on your systems and data. Availability: For the Free plan no uptime guarantee is given. For Pro and Max plans we target 99% monthly availability. Maintenance windows will be announced with reasonable advance notice. Outages caused by third-party service providers (in particular the Anthropic API, Google APIs, or Stripe) do not give rise to liability on our part. The Service is provided \"as is\" and \"as available\". To the extent permitted by applicable law, we make no warranties, express or implied, regarding merchantability, fitness for a particular purpose, or non-infringement. Third-party services connected through Corelyx may become unavailable or change without notice — we are not responsible for this. Liability cap: To the extent permitted by applicable law, our total liability to you for all claims arising from or related to the Service shall not exceed the greater of (a) three times your monthly subscription amount in the month the damage occurs, or (b) EUR 500. This cap does not apply to damages caused by intent, gross negligence, personal injury, or where mandatory statutory rules preclude limitation. Liability for damages caused intentionally or by gross negligence cannot be limited under Austrian law (§ 6 KSchG for consumers; § 879 ABGB generally). Liability for personal injury or death caused by our fault cannot be limited. Statutory consumer rights under applicable EU directives are not affected. For business customers (non-consumers), liability for slight negligence is excluded to the fullest extent permitted by Austrian commercial law. If you are a consumer, nothing in this section affects your statutory rights under Austrian or applicable EU law, including rights to a conforming digital service under the EU Digital Content Directive (Directive 2019/770 as implemented in Austria)."
+          - generic [ref=e72]:
+            - heading "8. Third-Party Services and Credentials" [level=2] [ref=e73]
+            - paragraph [ref=e74]: "The Service integrates APIs and services from the following third-party providers: - Anthropic Inc., 548 Market St, PMB 90375, San Francisco, CA 94104, USA — AI models - Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA — Google Workspace APIs - Stripe, Inc. — payment processing The Service allows you to connect additional third-party accounts (such as Gmail, Slack, GitHub, Notion, and others) and to provide API keys for AI model providers. By doing so: - You confirm you have the right to grant Corelyx the access you are configuring - You are solely responsible for ensuring your use of third-party services through Corelyx complies with those services' terms and policies - You acknowledge that Corelyx acts as your agent when accessing third-party services on your behalf; any actions taken by your Programs are your responsibility - You are responsible for any costs incurred with third-party providers as a result of your Programs running Their own privacy policies apply to data processed by these providers. By using the Service, you consent to data being transferred to these providers to the extent necessary to perform the automation you have configured. Corelyx stores your credentials encrypted in Supabase Vault and accesses them only to execute your Programs. See our Privacy Policy for more detail."
+          - generic [ref=e76]:
+            - heading "9. Your Content and Outputs" [level=2] [ref=e77]
+            - paragraph [ref=e78]: You retain ownership of the Programs, prompts, and configurations you create in Corelyx ("Your Content"). By using the Service, you grant Corelyx a limited, non-exclusive license to store and execute Your Content solely for the purpose of providing the Service to you. All outputs generated by the platform (categorisations, database entries, summaries, etc.) belong to you. We make no claim over this content. We may use fully anonymised, non-attributable usage statistics (never content) to improve the platform. You may opt out of this at any time in your account settings. You are solely responsible for ensuring Your Content and the automations you build do not violate any law, third-party rights, or these Terms. We do not claim any ownership over data that flows through your Programs from third-party services.
+          - generic [ref=e80]:
+            - heading "10. Intellectual Property" [level=2] [ref=e81]
+            - paragraph [ref=e82]: The Corelyx platform, including its software, design, trademarks, and documentation, is owned by Corelyx and protected by applicable intellectual property laws. These Terms do not grant you any rights in our intellectual property beyond the limited right to use the Service as described herein. You may not copy, modify, reverse engineer, or create derivative works of any part of the Service.
+          - generic [ref=e84]:
+            - heading "11. Changes to These Terms" [level=2] [ref=e85]
+            - paragraph [ref=e86]: We may update these Terms from time to time. For material changes, we will provide at least 30 days' notice by email or by displaying a prominent notice in the dashboard before the changes take effect. If you do not object within 14 days of receiving notice of a material change, the updated Terms are deemed accepted. If you object, you may close your account before the effective date without penalty. For business customers, a notice period of at least 14 days applies for material changes. Non-material clarifications or corrections may take effect immediately.
+          - generic [ref=e88]:
+            - heading "12. Consumer Rights and Dispute Resolution" [level=2] [ref=e89]
+            - paragraph [ref=e90]: "If you are a consumer within the meaning of Austrian or EU consumer law, the following additional provisions apply. Statutory conformity rights: You are entitled to a digital service that conforms to what was agreed and is free from defects. If the Service is non-conforming, you may request remedy, a price reduction, or — where remedy is impossible or refused — termination of the contract, in accordance with the Austrian UGB and the EU Digital Content Directive (2019/770). Mandatory consumer protections: Regardless of the governing law clause in Section 13, mandatory consumer protection rules of your country of residence within the EU or EEA apply where they afford greater protection. Online Dispute Resolution: The European Commission provides an Online Dispute Resolution platform at https://ec.europa.eu/consumers/odr for resolving disputes relating to online purchases. Our contact address for ODR purposes is legal@corelyx.app. We are not obliged to participate in an alternative dispute resolution procedure, but we are willing to seek an amicable solution in the first instance. Austrian consumer arbitration: Consumers may also contact the Austrian Internet Ombudsman (www.ombudsmann.at) or the Alternative Dispute Resolution body (AStG) relevant to their situation."
+          - generic [ref=e92]:
+            - heading "13. Governing Law and Jurisdiction" [level=2] [ref=e93]
+            - paragraph [ref=e94]: These Terms are governed by the laws of the Republic of Austria, excluding its conflict-of-law rules. The UN Convention on Contracts for the International Sale of Goods (CISG) does not apply. For disputes arising from these Terms or your use of the Service, the competent courts of Vienna, Austria have jurisdiction. If you are a consumer resident in the European Union or the European Economic Area, you may also bring proceedings before the courts of your country of habitual residence. The mandatory consumer protection laws of your country of residence apply to the extent they afford greater protection than Austrian law and cannot be derogated from by agreement.
+          - generic [ref=e96]:
+            - heading "14. Severability" [level=2] [ref=e97]
+            - paragraph [ref=e98]: If any provision of these Terms is or becomes wholly or partially invalid or unenforceable, the validity of the remaining provisions is not affected. The invalid provision shall be replaced by a valid provision that most closely achieves the economic purpose of the invalid one.
+          - generic [ref=e100]:
+            - heading "15. Contact" [level=2] [ref=e101]
+            - paragraph [ref=e102]: "For questions about these Terms, contact us at: legal@corelyx.app For privacy-related matters, see our Privacy Policy or email privacy@corelyx.app."
+          - generic [ref=e104]:
+            - paragraph [ref=e105]: Related policies
+            - paragraph [ref=e106]:
+              - text: These Terms should be read alongside our
+              - link "Privacy Policy" [ref=e107] [cursor=pointer]:
+                - /url: /privacy
+              - text: ", which explains how we collect and handle your data. Questions? Email"
+              - link "legal@corelyx.app" [ref=e108] [cursor=pointer]:
+                - /url: mailto:legal@corelyx.app
+              - text: .
+    - contentinfo [ref=e109]:
+      - generic [ref=e110]:
+        - generic [ref=e111]: (c) 2026 Corelyx. All rights reserved.
+        - generic [ref=e112]:
+          - link "Privacy" [ref=e113] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e114] [cursor=pointer]:
+            - /url: /terms
+          - link "DPA" [ref=e115] [cursor=pointer]:
+            - /url: /dpa
+          - link "Security" [ref=e116] [cursor=pointer]:
+            - /url: /security
+          - link "Impressum" [ref=e117] [cursor=pointer]:
+            - /url: /impressum
+          - link "Sign in" [ref=e118] [cursor=pointer]:
+            - /url: /login
+  - generic [ref=e119]:
+    - paragraph [ref=e120]: Translate this site to Deutsch?
+    - paragraph [ref=e121]: The interface will reload in Deutsch. You can change this anytime in Settings → Language.
+    - generic [ref=e122]:
+      - button "Translate" [ref=e123] [cursor=pointer]
+      - button "Keep English" [ref=e124] [cursor=pointer]
+  - generic [ref=e126]:
+    - paragraph [ref=e127]:
+      - text: We only use essential authentication cookies and saved interface preferences. We do not load analytics, advertising, or other optional trackers. See our
+      - link "Privacy Policy" [ref=e128] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Terms" [ref=e129] [cursor=pointer]:
+        - /url: /terms
+      - text: .
+    - button "Dismiss" [ref=e130] [cursor=pointer]
+  - alert [ref=e131]

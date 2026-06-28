@@ -1,0 +1,783 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - img "Corelyx" [ref=e6]
+        - generic [ref=e7]: Corelyx
+      - generic [ref=e8]:
+        - button "Active workspace" [ref=e10] [cursor=pointer]:
+          - img [ref=e14]
+        - link "Create new" [ref=e16] [cursor=pointer]:
+          - /url: /programs/new
+          - img [ref=e18]
+          - generic: Create new
+        - button "Search ⌘ K" [ref=e20] [cursor=pointer]:
+          - img [ref=e22]
+          - generic:
+            - generic: Search
+            - generic [ref=e25]:
+              - generic [ref=e26]: ⌘
+              - generic [ref=e27]: K
+      - navigation [ref=e28]:
+        - generic [ref=e29]:
+          - paragraph: Main
+        - generic [ref=e31]:
+          - link "Home" [ref=e32] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e34]
+            - generic: Home
+          - link "Agents" [ref=e39] [cursor=pointer]:
+            - /url: /agents
+            - img [ref=e41]
+            - generic: Agents
+          - link "Runs" [ref=e46] [cursor=pointer]:
+            - /url: /runs
+            - img [ref=e48]
+            - generic: Runs
+          - link "Approvals" [ref=e50] [cursor=pointer]:
+            - /url: /approvals
+            - img [ref=e52]
+            - generic: Approvals
+        - generic [ref=e54]:
+          - paragraph: Data
+        - generic [ref=e56]:
+          - link "Browse" [ref=e57] [cursor=pointer]:
+            - /url: /browse
+            - img [ref=e59]
+            - generic: Browse
+          - link "Connections" [ref=e62] [cursor=pointer]:
+            - /url: /connections
+            - img [ref=e64]
+            - generic: Connections
+        - generic [ref=e66]:
+          - paragraph: Settings
+        - generic [ref=e68]:
+          - button "Settings" [ref=e69] [cursor=pointer]:
+            - img [ref=e71]
+            - generic: Settings
+          - generic [ref=e74]:
+            - link "– API Keys" [ref=e75] [cursor=pointer]:
+              - /url: /api-keys
+              - generic [ref=e77]: –
+              - generic: API Keys
+            - link "– Env Variables" [ref=e78] [cursor=pointer]:
+              - /url: /env-vars
+              - generic [ref=e80]: –
+              - generic: Env Variables
+            - link "– Governance" [ref=e81] [cursor=pointer]:
+              - /url: /governance
+              - generic [ref=e83]: –
+              - generic: Governance
+            - link "– Usage & Billing" [ref=e84] [cursor=pointer]:
+              - /url: /credits
+              - generic [ref=e86]: –
+              - generic: Usage & Billing
+        - generic [ref=e87]:
+          - paragraph: Help
+        - generic [ref=e89]:
+          - button "Notifications2" [ref=e141] [cursor=pointer]:
+            - img [ref=e93]
+            - generic: Notifications2
+          - link "Support" [ref=e98] [cursor=pointer]:
+            - /url: /support
+            - img [ref=e100]
+            - generic: Support
+      - generic [ref=e102]:
+        - button "Workspace usage" [ref=e104] [cursor=pointer]:
+          - img [ref=e106]
+          - generic: Workspace usage
+          - generic:
+            - img
+        - button "Q QA Tester Display Free" [ref=e110] [cursor=pointer]:
+          - generic [ref=e113]: Q
+          - generic:
+            - generic:
+              - paragraph: QA Tester Display
+            - paragraph: Free
+          - img [ref=e114]
+    - main [ref=e116]:
+      - generic [ref=e117]:
+        - generic [ref=e118]:
+          - button "Dismiss offer" [ref=e120] [cursor=pointer]:
+            - img [ref=e121]
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - paragraph [ref=e125]: Welcome gift — one time, never again.
+              - paragraph [ref=e126]: Start your first month on Solo for €3.90 instead of €9.90. This offer disappears in 7 days and will never come back.
+            - generic [ref=e127]:
+              - button "Claim 61% off — Start Solo" [ref=e128] [cursor=pointer]
+              - paragraph [ref=e129]: Cancel anytime · Expires June 18
+        - generic [ref=e142]:
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - link "Programs" [ref=e145] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e146]
+                - text: Programs
+              - generic [ref=e148]: /
+              - generic [ref=e149]: Weekday HackerNews to Slack
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - generic [ref=e152]:
+                  - heading "Weekday HackerNews to Slack" [level=1] [ref=e154]
+                  - generic [ref=e155]: Inactive
+                  - generic [ref=e156]:
+                    - img [ref=e157]
+                    - text: AI-generated
+                - generic [ref=e159]:
+                  - generic [ref=e160]: "Every weekday morning at 8am, fetch the top 5 HackerNews stories and send them as a Slack message to #general"
+                  - generic [ref=e161]: ·
+                  - generic [ref=e162]: workflow
+                  - generic [ref=e163]: ·
+                  - generic [ref=e164]: v1 schema
+                  - generic [ref=e165]: ·
+                  - generic [ref=e166]: created Jun 10, 11:27 PM
+                  - generic [ref=e167]: ·
+                  - generic [ref=e168]: prg_d05e.3cdb
+              - generic [ref=e169]:
+                - link "Runs" [ref=e170] [cursor=pointer]:
+                  - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/runs
+                  - img [ref=e171]
+                  - text: Runs
+                - link "Triggers" [ref=e176] [cursor=pointer]:
+                  - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/triggers
+                  - img [ref=e177]
+                  - text: Triggers
+                - link "Settings" [ref=e179] [cursor=pointer]:
+                  - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/settings
+                  - img [ref=e180]
+                  - text: Settings
+                - button "Delete program" [ref=e183] [cursor=pointer]:
+                  - img [ref=e184]
+                - link "Open editor" [ref=e186] [cursor=pointer]:
+                  - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/editor
+                  - img [ref=e187]
+                  - text: Open editor
+          - generic [ref=e191]:
+            - img [ref=e192]
+            - paragraph [ref=e194]:
+              - text: Review this AI-generated workflow before activation. Output can be incorrect or incomplete.
+              - generic [ref=e195]: Model llama-3.1-8b-instant
+            - link "Review ->" [ref=e196] [cursor=pointer]:
+              - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/editor
+          - generic [ref=e197]:
+            - main [ref=e198]:
+              - generic [ref=e199]:
+                - generic [ref=e200]:
+                  - generic [ref=e201]:
+                    - generic [ref=e202]:
+                      - heading "Workflow topology" [level=2] [ref=e203]
+                      - generic [ref=e204]: 10 node
+                    - paragraph [ref=e205]: Nodes in execution order with their current role in the graph.
+                  - generic [ref=e206]:
+                    - link "Open editor" [ref=e207] [cursor=pointer]:
+                      - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/editor
+                      - img [ref=e208]
+                      - text: Open editor
+                    - button [ref=e212] [cursor=pointer]:
+                      - img [ref=e213]
+                - application [ref=e218]:
+                  - generic [ref=e220]:
+                    - generic:
+                      - generic:
+                        - img
+                        - img:
+                          - group "Edge from n1 to n2"
+                        - img:
+                          - group "Edge from n2 to n3"
+                        - img:
+                          - group "Edge from n3 to n4"
+                        - img:
+                          - group "Edge from n4 to n5"
+                        - img:
+                          - group "Edge from n5 to n6"
+                        - img:
+                          - group "Edge from n6 to n7"
+                      - generic:
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                              - generic:
+                                - paragraph: Trigger · Schedule
+                                - paragraph: Weekday 8am
+                            - paragraph: Fires Monday‑Friday at 8 am UTC.
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                              - generic:
+                                - paragraph: HTTP · GET
+                                - paragraph: Get top story IDs
+                            - paragraph: Fetches list of top HackerNews story IDs.
+                            - paragraph: https://hacker-news.firebaseio.com/v0/topstories.json
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                              - generic:
+                                - paragraph: Step · Transform
+                                - paragraph: Take first 5
+                            - paragraph: Keeps only the first five IDs.
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                              - generic:
+                                - paragraph: Step · Loop
+                                - paragraph: Loop stories
+                            - paragraph: Iterates over the five story IDs.
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                              - generic:
+                                - paragraph: HTTP · GET
+                                - paragraph: Fetch story details
+                            - paragraph: Gets title and URL for each story ID.
+                            - paragraph: "https://hacker-news.firebaseio.com/v0/item/{{n4.story_id}}.json"
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                              - generic:
+                                - paragraph: Step · Format
+                                - paragraph: Format message
+                            - paragraph: Creates a Slack text block with the five titles.
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - img
+                              - generic:
+                                - paragraph: HTTP · POST
+                                - paragraph: Post to Slack
+                            - paragraph: Sends the formatted list to Slack via webhook.
+                            - paragraph: "{{SLACK_WEBHOOK_URL}}"
+                        - group:
+                          - generic:
+                            - generic:
+                              - generic: Drag note
+                              - img
+                            - textbox "Add a note…": "Provide a Slack Incoming Webhook URL and replace {{SLACK_WEBHOOK_URL}} in the HTTP node above."
+                        - group:
+                          - generic [ref=e235]:
+                            - img [ref=e236]
+                            - generic [ref=e239]: Fetch Stories
+                        - group:
+                          - generic [ref=e241]:
+                            - img [ref=e242]
+                            - generic [ref=e245]: Send to Slack
+                  - generic "Control Panel" [ref=e246]:
+                    - button "Zoom In" [ref=e247] [cursor=pointer]:
+                      - img [ref=e248]
+                    - button "Zoom Out" [disabled]:
+                      - img
+                    - button "Fit View" [ref=e250] [cursor=pointer]:
+                      - img [ref=e251]
+                    - button "Toggle Interactivity" [ref=e253] [cursor=pointer]:
+                      - img [ref=e254]
+                  - img
+                - generic [ref=e257]:
+                  - generic [ref=e258]:
+                    - generic [ref=e259]: "#1"
+                    - img [ref=e261]
+                    - generic [ref=e263]:
+                      - paragraph [ref=e264]: Weekday 8am
+                      - paragraph [ref=e265]: Fires Monday‑Friday at 8 am UTC.
+                    - generic [ref=e266]: trigger.manual
+                    - generic [ref=e267]: trigger
+                  - generic [ref=e268]:
+                    - generic [ref=e269]: "#2"
+                    - img [ref=e271]
+                    - generic [ref=e276]:
+                      - paragraph [ref=e277]: Get top story IDs
+                      - paragraph [ref=e278]: Fetches list of top HackerNews story IDs.
+                    - generic [ref=e279]: connection
+                    - generic [ref=e280]: connection
+                  - generic [ref=e281]:
+                    - generic [ref=e282]: "#3"
+                    - img [ref=e284]
+                    - generic [ref=e286]:
+                      - paragraph [ref=e287]: Take first 5
+                      - paragraph [ref=e288]: Keeps only the first five IDs.
+                    - generic [ref=e289]: step
+                    - generic [ref=e290]: step
+                  - generic [ref=e291]:
+                    - generic [ref=e292]: "#4"
+                    - img [ref=e294]
+                    - generic [ref=e296]:
+                      - paragraph [ref=e297]: Loop stories
+                      - paragraph [ref=e298]: Iterates over the five story IDs.
+                    - generic [ref=e299]: step
+                    - generic [ref=e300]: step
+                  - generic [ref=e301]:
+                    - generic [ref=e302]: "#5"
+                    - img [ref=e304]
+                    - generic [ref=e309]:
+                      - paragraph [ref=e310]: Fetch story details
+                      - paragraph [ref=e311]: Gets title and URL for each story ID.
+                    - generic [ref=e312]: connection
+                    - generic [ref=e313]: connection
+                  - generic [ref=e314]:
+                    - generic [ref=e315]: "#6"
+                    - img [ref=e317]
+                    - generic [ref=e319]:
+                      - paragraph [ref=e320]: Format message
+                      - paragraph [ref=e321]: Creates a Slack text block with the five titles.
+                    - generic [ref=e322]: step
+                    - generic [ref=e323]: step
+                  - generic [ref=e324]:
+                    - generic [ref=e325]: "#7"
+                    - img [ref=e327]
+                    - generic [ref=e332]:
+                      - paragraph [ref=e333]: Post to Slack
+                      - paragraph [ref=e334]: Sends the formatted list to Slack via webhook.
+                    - generic [ref=e335]: connection
+                    - generic [ref=e336]: connection
+                  - generic [ref=e337]:
+                    - generic [ref=e338]: "#8"
+                    - img [ref=e340]
+                    - generic [ref=e342]:
+                      - paragraph [ref=e343]: ⚠ Slack Webhook
+                      - paragraph [ref=e344]: No description.
+                    - generic [ref=e345]: note
+                    - generic [ref=e346]: note
+                  - generic [ref=e347]:
+                    - generic [ref=e348]: "#9"
+                    - img [ref=e350]
+                    - generic [ref=e352]:
+                      - paragraph [ref=e353]: Fetch Stories
+                      - paragraph [ref=e354]: No description.
+                    - generic [ref=e355]: group
+                    - generic [ref=e356]: group
+                  - generic [ref=e357]:
+                    - generic [ref=e358]: "#10"
+                    - img [ref=e360]
+                    - generic [ref=e362]:
+                      - paragraph [ref=e363]: Send to Slack
+                      - paragraph [ref=e364]: No description.
+                    - generic [ref=e365]: group
+                    - generic [ref=e366]: group
+              - generic [ref=e368]:
+                - generic [ref=e369]:
+                  - generic [ref=e370]:
+                    - heading "Execution" [level=2] [ref=e371]
+                    - paragraph [ref=e372]: How the program runs and handles concurrent triggers.
+                  - button "Reset" [ref=e373] [cursor=pointer]:
+                    - img [ref=e374]
+                    - text: Reset
+                - generic [ref=e379]:
+                  - generic [ref=e380]:
+                    - paragraph [ref=e381]: Execution mode - how steps advance
+                    - generic [ref=e382]:
+                      - button "autonomous" [ref=e383] [cursor=pointer]:
+                        - img [ref=e384]
+                        - generic [ref=e386]: autonomous
+                      - button "supervised" [ref=e387] [cursor=pointer]:
+                        - img [ref=e388]
+                        - generic [ref=e391]: supervised
+                      - button "manual" [ref=e392] [cursor=pointer]:
+                        - img [ref=e393]
+                        - generic [ref=e398]: manual
+                    - paragraph [ref=e399]: Autonomous. Runs fully automatically - no approvals required (except nodes explicitly marked).
+                  - generic [ref=e400]:
+                    - paragraph [ref=e401]: Concurrent run policy - when a run is already in progress
+                    - generic [ref=e402]:
+                      - button "queue" [ref=e403] [cursor=pointer]:
+                        - generic [ref=e404]: queue
+                      - button "skip" [ref=e405] [cursor=pointer]:
+                        - generic [ref=e406]: skip
+                      - button "fail" [ref=e407] [cursor=pointer]:
+                        - generic [ref=e408]: fail
+                    - paragraph [ref=e409]: Queue. New runs wait in line if another is already running.
+              - generic [ref=e412]:
+                - generic [ref=e413]:
+                  - img [ref=e415]
+                  - generic [ref=e417]:
+                    - heading "Run program" [level=2] [ref=e418]
+                    - paragraph [ref=e419]:
+                      - text: Starts a single manual run now. To run automatically on a schedule, set up a trigger on the
+                      - link "Triggers" [ref=e420] [cursor=pointer]:
+                        - /url: triggers
+                      - text: page — cron triggers run indefinitely until you pause them.
+                    - generic [ref=e421]:
+                      - generic [ref=e422]:
+                        - img [ref=e423]
+                        - text: 2 connections healthy
+                      - generic [ref=e425]:
+                        - img [ref=e426]
+                        - text: 4 API keys present
+                      - generic [ref=e428]:
+                        - img [ref=e429]
+                        - text: 1 / 1 nodes valid
+                      - generic [ref=e431]:
+                        - img [ref=e432]
+                        - text: schema v1 compatible
+                - generic [ref=e434]:
+                  - button "Dry run" [ref=e435] [cursor=pointer]
+                  - button "Check & run" [ref=e436] [cursor=pointer]:
+                    - img [ref=e437]
+                    - text: Check & run
+              - generic [ref=e439]:
+                - generic [ref=e440]:
+                  - generic [ref=e441]:
+                    - generic [ref=e442]:
+                      - heading "Publish checklist" [level=2] [ref=e443]
+                      - generic [ref=e444]: Standard mode
+                    - paragraph [ref=e445]: GDPR transfer, DPA, AI Act, approval, logging, secrets, and model-provider checks.
+                  - generic [ref=e446]:
+                    - link "JSON export" [ref=e447] [cursor=pointer]:
+                      - /url: /api/programs/d05edb40-3b66-4640-9f34-a23a14413cdb/compliance/export?format=json
+                      - img [ref=e448]
+                      - text: JSON export
+                    - link "HTML report" [ref=e453] [cursor=pointer]:
+                      - /url: /api/programs/d05edb40-3b66-4640-9f34-a23a14413cdb/compliance/export?format=html
+                      - img [ref=e454]
+                      - text: HTML report
+                    - link "Technical DOCX" [ref=e457] [cursor=pointer]:
+                      - /url: /api/programs/d05edb40-3b66-4640-9f34-a23a14413cdb/compliance/export?format=technical-docx
+                      - img [ref=e458]
+                      - text: Technical DOCX
+                    - link "DPIA DOCX" [ref=e461] [cursor=pointer]:
+                      - /url: /api/programs/d05edb40-3b66-4640-9f34-a23a14413cdb/compliance/export?format=dpia-docx
+                      - img [ref=e462]
+                      - text: DPIA DOCX
+                - generic [ref=e465]:
+                  - generic [ref=e466]:
+                    - img [ref=e468]
+                    - generic [ref=e470]:
+                      - generic [ref=e471]:
+                        - paragraph [ref=e472]: GDPR transfer-risk check
+                        - generic [ref=e473]: Warning
+                      - paragraph [ref=e474]: One or more providers may process data outside the EEA.
+                  - generic [ref=e475]:
+                    - img [ref=e477]
+                    - generic [ref=e480]:
+                      - generic [ref=e481]:
+                        - paragraph [ref=e482]: DPA/subprocessor completeness check
+                        - generic [ref=e483]: Passed
+                      - paragraph [ref=e484]: Reviewed providers have documented DPA and transfer-basis entries.
+                  - generic [ref=e485]:
+                    - img [ref=e487]
+                    - generic [ref=e490]:
+                      - generic [ref=e491]:
+                        - paragraph [ref=e492]: EU-only mode check
+                        - generic [ref=e493]: Passed
+                      - paragraph [ref=e494]: Workspace is in standard mode.
+                  - generic [ref=e495]:
+                    - img [ref=e497]
+                    - generic [ref=e499]:
+                      - generic [ref=e500]:
+                        - paragraph [ref=e501]: AI Act risk check
+                        - generic [ref=e502]: Warning
+                      - paragraph [ref=e503]: AI Act risk level is unknown; classify this workflow before production use.
+                  - generic [ref=e504]:
+                    - img [ref=e506]
+                    - generic [ref=e508]:
+                      - generic [ref=e509]:
+                        - paragraph [ref=e510]: Human-approval requirement check
+                        - generic [ref=e511]: Blocked
+                      - paragraph [ref=e512]: High-impact or high-risk workflow has no human approval gate.
+                  - generic [ref=e513]:
+                    - img [ref=e515]
+                    - generic [ref=e518]:
+                      - generic [ref=e519]:
+                        - paragraph [ref=e520]: Logging/retention check
+                        - generic [ref=e521]: Passed
+                      - paragraph [ref=e522]: Workspace defaults to metadata, hashes, and minimal execution logging.
+                  - generic [ref=e523]:
+                    - img [ref=e525]
+                    - generic [ref=e528]:
+                      - generic [ref=e529]:
+                        - paragraph [ref=e530]: Secret exposure check
+                        - generic [ref=e531]: Passed
+                      - paragraph [ref=e532]: No inline HTTP auth material was detected in reviewed nodes.
+                  - generic [ref=e533]:
+                    - img [ref=e535]
+                    - generic [ref=e538]:
+                      - generic [ref=e539]:
+                        - paragraph [ref=e540]: Model-provider policy check
+                        - generic [ref=e541]: Passed
+                      - paragraph [ref=e542]: Model provider registry entries include DPA, transfer, and training-policy evidence.
+              - generic [ref=e543]:
+                - generic [ref=e545]:
+                  - heading "Data-flow preview" [level=2] [ref=e546]
+                  - paragraph [ref=e547]: Trigger, node, provider, region, data categories, transfer basis, retention, and approval visibility.
+                - table [ref=e549]:
+                  - rowgroup [ref=e550]:
+                    - row "Node/action Provider Region Data Transfer Controls" [ref=e551]:
+                      - columnheader "Node/action" [ref=e552]
+                      - columnheader "Provider" [ref=e553]
+                      - columnheader "Region" [ref=e554]
+                      - columnheader "Data" [ref=e555]
+                      - columnheader "Transfer" [ref=e556]
+                      - columnheader "Controls" [ref=e557]
+                  - rowgroup [ref=e558]:
+                    - 'row "Weekday 8am Trigger: cron Corelyx internal runtime orchestration eu-central-1 Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA. EU-approved Model training: no Approval: no · Model: no" [ref=e559]':
+                      - 'cell "Weekday 8am Trigger: cron" [ref=e560]':
+                        - paragraph [ref=e561]: Weekday 8am
+                        - paragraph [ref=e562]: "Trigger: cron"
+                      - cell "Corelyx internal runtime orchestration" [ref=e563]:
+                        - paragraph [ref=e564]: Corelyx internal runtime
+                        - paragraph [ref=e565]: orchestration
+                      - cell "eu-central-1" [ref=e566]
+                      - 'cell "Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected" [ref=e567]':
+                        - paragraph [ref=e568]: Workflow metadata, Execution metadata, Policy-check metadata
+                        - paragraph [ref=e569]: "Personal data: not expected"
+                      - cell "No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA." [ref=e570]:
+                        - paragraph [ref=e571]: No EEA exit indicated
+                        - paragraph [ref=e572]: Internal processing under the Corelyx customer agreement and DPA.
+                      - 'cell "EU-approved Model training: no Approval: no · Model: no" [ref=e573]':
+                        - generic [ref=e574]:
+                          - generic [ref=e575]: EU-approved
+                          - generic [ref=e576]: "Model training: no"
+                        - paragraph [ref=e577]: "Approval: no · Model: no"
+                    - 'row "Get top story IDs GET https://hacker-news.firebaseio.com/v0/topstories.json Customer-configured HTTP endpoint connector Customer-configured destination. Workflow payloads selected by the customer Personal data: not expected Possible third-country transfer Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use. Possible third-country transfer DPA missing SCC required Model training: unknown Approval: no · Model: no" [ref=e578]':
+                      - cell "Get top story IDs GET https://hacker-news.firebaseio.com/v0/topstories.json" [ref=e579]:
+                        - paragraph [ref=e580]: Get top story IDs
+                        - paragraph [ref=e581]: GET https://hacker-news.firebaseio.com/v0/topstories.json
+                      - cell "Customer-configured HTTP endpoint connector" [ref=e582]:
+                        - paragraph [ref=e583]: Customer-configured HTTP endpoint
+                        - paragraph [ref=e584]: connector
+                      - cell "Customer-configured destination." [ref=e585]
+                      - 'cell "Workflow payloads selected by the customer Personal data: not expected" [ref=e586]':
+                        - paragraph [ref=e587]: Workflow payloads selected by the customer
+                        - paragraph [ref=e588]: "Personal data: not expected"
+                      - cell "Possible third-country transfer Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use." [ref=e589]:
+                        - paragraph [ref=e590]: Possible third-country transfer
+                        - paragraph [ref=e591]: Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use.
+                      - 'cell "Possible third-country transfer DPA missing SCC required Model training: unknown Approval: no · Model: no" [ref=e592]':
+                        - generic [ref=e593]:
+                          - generic [ref=e594]: Possible third-country transfer
+                          - generic [ref=e595]: DPA missing
+                          - generic [ref=e596]: SCC required
+                          - generic [ref=e597]: "Model training: unknown"
+                        - paragraph [ref=e598]: "Approval: no · Model: no"
+                    - 'row "Take first 5 Step: transform Corelyx internal runtime orchestration eu-central-1 Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA. EU-approved Model training: no Approval: no · Model: no" [ref=e599]':
+                      - 'cell "Take first 5 Step: transform" [ref=e600]':
+                        - paragraph [ref=e601]: Take first 5
+                        - paragraph [ref=e602]: "Step: transform"
+                      - cell "Corelyx internal runtime orchestration" [ref=e603]:
+                        - paragraph [ref=e604]: Corelyx internal runtime
+                        - paragraph [ref=e605]: orchestration
+                      - cell "eu-central-1" [ref=e606]
+                      - 'cell "Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected" [ref=e607]':
+                        - paragraph [ref=e608]: Workflow metadata, Execution metadata, Policy-check metadata
+                        - paragraph [ref=e609]: "Personal data: not expected"
+                      - cell "No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA." [ref=e610]:
+                        - paragraph [ref=e611]: No EEA exit indicated
+                        - paragraph [ref=e612]: Internal processing under the Corelyx customer agreement and DPA.
+                      - 'cell "EU-approved Model training: no Approval: no · Model: no" [ref=e613]':
+                        - generic [ref=e614]:
+                          - generic [ref=e615]: EU-approved
+                          - generic [ref=e616]: "Model training: no"
+                        - paragraph [ref=e617]: "Approval: no · Model: no"
+                    - 'row "Loop stories Step: loop Corelyx internal runtime orchestration eu-central-1 Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA. EU-approved Model training: no Approval: no · Model: no" [ref=e618]':
+                      - 'cell "Loop stories Step: loop" [ref=e619]':
+                        - paragraph [ref=e620]: Loop stories
+                        - paragraph [ref=e621]: "Step: loop"
+                      - cell "Corelyx internal runtime orchestration" [ref=e622]:
+                        - paragraph [ref=e623]: Corelyx internal runtime
+                        - paragraph [ref=e624]: orchestration
+                      - cell "eu-central-1" [ref=e625]
+                      - 'cell "Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected" [ref=e626]':
+                        - paragraph [ref=e627]: Workflow metadata, Execution metadata, Policy-check metadata
+                        - paragraph [ref=e628]: "Personal data: not expected"
+                      - cell "No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA." [ref=e629]:
+                        - paragraph [ref=e630]: No EEA exit indicated
+                        - paragraph [ref=e631]: Internal processing under the Corelyx customer agreement and DPA.
+                      - 'cell "EU-approved Model training: no Approval: no · Model: no" [ref=e632]':
+                        - generic [ref=e633]:
+                          - generic [ref=e634]: EU-approved
+                          - generic [ref=e635]: "Model training: no"
+                        - paragraph [ref=e636]: "Approval: no · Model: no"
+                    - 'row "Fetch story details GET https://hacker-news.firebaseio.com/v0/item/{{n4.story_id}}.json Customer-configured HTTP endpoint connector Customer-configured destination. Workflow payloads selected by the customer Personal data: not expected Possible third-country transfer Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use. Possible third-country transfer DPA missing SCC required Model training: unknown Approval: no · Model: no" [ref=e637]':
+                      - 'cell "Fetch story details GET https://hacker-news.firebaseio.com/v0/item/{{n4.story_id}}.json" [ref=e638]':
+                        - paragraph [ref=e639]: Fetch story details
+                        - paragraph [ref=e640]: "GET https://hacker-news.firebaseio.com/v0/item/{{n4.story_id}}.json"
+                      - cell "Customer-configured HTTP endpoint connector" [ref=e641]:
+                        - paragraph [ref=e642]: Customer-configured HTTP endpoint
+                        - paragraph [ref=e643]: connector
+                      - cell "Customer-configured destination." [ref=e644]
+                      - 'cell "Workflow payloads selected by the customer Personal data: not expected" [ref=e645]':
+                        - paragraph [ref=e646]: Workflow payloads selected by the customer
+                        - paragraph [ref=e647]: "Personal data: not expected"
+                      - cell "Possible third-country transfer Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use." [ref=e648]:
+                        - paragraph [ref=e649]: Possible third-country transfer
+                        - paragraph [ref=e650]: Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use.
+                      - 'cell "Possible third-country transfer DPA missing SCC required Model training: unknown Approval: no · Model: no" [ref=e651]':
+                        - generic [ref=e652]:
+                          - generic [ref=e653]: Possible third-country transfer
+                          - generic [ref=e654]: DPA missing
+                          - generic [ref=e655]: SCC required
+                          - generic [ref=e656]: "Model training: unknown"
+                        - paragraph [ref=e657]: "Approval: no · Model: no"
+                    - 'row "Format message Step: format Corelyx internal runtime orchestration eu-central-1 Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA. EU-approved Model training: no Approval: no · Model: no" [ref=e658]':
+                      - 'cell "Format message Step: format" [ref=e659]':
+                        - paragraph [ref=e660]: Format message
+                        - paragraph [ref=e661]: "Step: format"
+                      - cell "Corelyx internal runtime orchestration" [ref=e662]:
+                        - paragraph [ref=e663]: Corelyx internal runtime
+                        - paragraph [ref=e664]: orchestration
+                      - cell "eu-central-1" [ref=e665]
+                      - 'cell "Workflow metadata, Execution metadata, Policy-check metadata Personal data: not expected" [ref=e666]':
+                        - paragraph [ref=e667]: Workflow metadata, Execution metadata, Policy-check metadata
+                        - paragraph [ref=e668]: "Personal data: not expected"
+                      - cell "No EEA exit indicated Internal processing under the Corelyx customer agreement and DPA." [ref=e669]:
+                        - paragraph [ref=e670]: No EEA exit indicated
+                        - paragraph [ref=e671]: Internal processing under the Corelyx customer agreement and DPA.
+                      - 'cell "EU-approved Model training: no Approval: no · Model: no" [ref=e672]':
+                        - generic [ref=e673]:
+                          - generic [ref=e674]: EU-approved
+                          - generic [ref=e675]: "Model training: no"
+                        - paragraph [ref=e676]: "Approval: no · Model: no"
+                    - 'row "Post to Slack POST {{SLACK_WEBHOOK_URL}} Customer-configured HTTP endpoint connector Customer-configured destination. Workflow payloads selected by the customer Personal data: not expected Possible third-country transfer Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use. Possible third-country transfer DPA missing SCC required Model training: unknown Approval: no · Model: no" [ref=e677]':
+                      - 'cell "Post to Slack POST {{SLACK_WEBHOOK_URL}}" [ref=e678]':
+                        - paragraph [ref=e679]: Post to Slack
+                        - paragraph [ref=e680]: "POST {{SLACK_WEBHOOK_URL}}"
+                      - cell "Customer-configured HTTP endpoint connector" [ref=e681]:
+                        - paragraph [ref=e682]: Customer-configured HTTP endpoint
+                        - paragraph [ref=e683]: connector
+                      - cell "Customer-configured destination." [ref=e684]
+                      - 'cell "Workflow payloads selected by the customer Personal data: not expected" [ref=e685]':
+                        - paragraph [ref=e686]: Workflow payloads selected by the customer
+                        - paragraph [ref=e687]: "Personal data: not expected"
+                      - cell "Possible third-country transfer Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use." [ref=e688]:
+                        - paragraph [ref=e689]: Possible third-country transfer
+                        - paragraph [ref=e690]: Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use.
+                      - 'cell "Possible third-country transfer DPA missing SCC required Model training: unknown Approval: no · Model: no" [ref=e691]':
+                        - generic [ref=e692]:
+                          - generic [ref=e693]: Possible third-country transfer
+                          - generic [ref=e694]: DPA missing
+                          - generic [ref=e695]: SCC required
+                          - generic [ref=e696]: "Model training: unknown"
+                        - paragraph [ref=e697]: "Approval: no · Model: no"
+              - generic [ref=e698]:
+                - generic [ref=e700]:
+                  - generic [ref=e701]:
+                    - heading "Publish to Browse" [level=2] [ref=e702]
+                    - generic [ref=e703]:
+                      - img [ref=e704]
+                      - text: Private
+                  - paragraph [ref=e707]: Share this program with the community. Your API keys are never included.
+                - generic [ref=e708]:
+                  - generic [ref=e709]:
+                    - img [ref=e710]
+                    - text: This program needs at least one successful run before it can be published.
+                  - generic [ref=e712]:
+                    - generic [ref=e713]:
+                      - generic [ref=e714]: Tags comma-separated · max 5 · 32 chars each
+                      - textbox "Add tag..." [ref=e716]
+                      - paragraph [ref=e717]: Help others discover this workflow.
+                    - generic [ref=e718]:
+                      - generic [ref=e719]: Display name optional
+                      - textbox "Your name or handle" [ref=e720]
+                      - paragraph [ref=e721]: Shown as the program author on Browse.
+                - generic [ref=e722]:
+                  - paragraph [ref=e723]:
+                    - img [ref=e724]
+                    - text: Credentials and connection secrets stay in your workspace.
+                  - button "Publish program" [disabled]:
+                    - img
+                    - text: Publish program
+            - complementary [ref=e726]:
+              - generic [ref=e727]:
+                - generic [ref=e728]:
+                  - heading "Operations" [level=2] [ref=e729]
+                  - generic [ref=e730]: last 7d
+                - generic [ref=e731]:
+                  - generic [ref=e732]:
+                    - generic [ref=e733]:
+                      - img [ref=e734]
+                      - text: Last run
+                    - generic [ref=e737]: Never
+                  - generic [ref=e738]:
+                    - generic [ref=e739]:
+                      - img [ref=e740]
+                      - text: Updated
+                    - generic [ref=e742]: Jun 10, 11:27 PM
+                  - generic [ref=e743]:
+                    - generic [ref=e744]:
+                      - img [ref=e745]
+                      - text: Completed runs
+                    - generic [ref=e748]: "0"
+                  - generic [ref=e749]:
+                    - generic [ref=e750]:
+                      - img [ref=e751]
+                      - text: Failed runs
+                    - generic [ref=e753]: "0"
+                  - generic [ref=e754]:
+                    - generic [ref=e755]:
+                      - img [ref=e756]
+                      - text: Created by
+                    - generic [ref=e759]: QA Tester Display
+                  - generic [ref=e760]:
+                    - generic [ref=e761]:
+                      - img [ref=e762]
+                      - text: Program ID
+                    - generic [ref=e765]: prg_d05e.3cdb
+                - generic [ref=e766]:
+                  - link "View run history" [ref=e767] [cursor=pointer]:
+                    - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/runs
+                    - generic [ref=e768]:
+                      - img [ref=e769]
+                      - text: View run history
+                    - img [ref=e773]
+                  - link "Manage triggers" [ref=e775] [cursor=pointer]:
+                    - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/triggers
+                    - generic [ref=e776]:
+                      - img [ref=e777]
+                      - text: Manage triggers
+                    - img [ref=e779]
+                  - link "Conflict settings" [ref=e781] [cursor=pointer]:
+                    - /url: /programs/d05edb40-3b66-4640-9f34-a23a14413cdb/conflicts
+                    - generic [ref=e782]:
+                      - img [ref=e783]
+                      - text: Conflict settings
+                    - img [ref=e785]
+              - generic [ref=e787]:
+                - generic [ref=e788]:
+                  - heading "Access" [level=2] [ref=e789]
+                  - link "Invite" [ref=e790] [cursor=pointer]:
+                    - /url: /workspaces
+                    - img [ref=e791]
+                    - text: Invite
+                - generic [ref=e792]:
+                  - generic [ref=e793]:
+                    - paragraph [ref=e794]: Workspace visibility
+                    - paragraph [ref=e795]: Workspace default lets members inherit access. Restricted only allows owners, admins, and explicit program roles.
+                    - combobox [ref=e796]:
+                      - option "Workspace default" [selected]
+                      - option "Restricted"
+                  - generic [ref=e797]:
+                    - paragraph [ref=e798]: Members · 1
+                    - generic [ref=e800]:
+                      - generic [ref=e801]: Q
+                      - generic [ref=e802]:
+                        - link "QA Tester Display" [ref=e803] [cursor=pointer]:
+                          - /url: /u/playwright_e708ca3f80
+                        - paragraph [ref=e804]: Workspace owner · Editor
+                      - combobox [disabled] [ref=e805]:
+                        - option "Owner" [selected]
+                  - button "Refresh access" [ref=e806] [cursor=pointer]:
+                    - img [ref=e807]
+                    - text: Refresh access
+              - group [ref=e812]:
+                - generic "Raw schema View JSON · download · copy" [ref=e813] [cursor=pointer]:
+                  - img [ref=e815]
+                  - generic [ref=e819]:
+                    - generic [ref=e820]: Raw schema
+                    - generic [ref=e821]: View JSON · download · copy
+                  - img [ref=e822]
+              - link "Back to dashboard" [ref=e826] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e827]
+                - text: Back to dashboard
+  - alert [ref=e140]
