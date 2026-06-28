@@ -1,0 +1,60 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - link "Corelyx" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img [ref=e7]
+        - generic [ref=e8]: Corelyx
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - heading "Welcome back" [level=1] [ref=e11]
+          - paragraph [ref=e12]: Sign in to your Corelyx account
+        - generic [ref=e13]:
+          - button "Google" [ref=e14] [cursor=pointer]:
+            - img [ref=e15]
+            - text: Google
+          - button "GitHub" [ref=e20] [cursor=pointer]:
+            - img [ref=e21]
+            - text: GitHub
+        - generic [ref=e25]: or continue with email
+        - generic [ref=e27]:
+          - textbox "Email" [ref=e28]
+          - generic [ref=e29]:
+            - textbox "Password" [ref=e30]
+            - link "Forgot password?" [ref=e32] [cursor=pointer]:
+              - /url: /forgot-password
+          - button "Sign in" [ref=e33] [cursor=pointer]
+        - paragraph [ref=e34]:
+          - text: No account?
+          - link "Sign up" [ref=e35] [cursor=pointer]:
+            - /url: /signup
+        - group [ref=e36]:
+          - generic "More sign-in options" [ref=e37] [cursor=pointer]
+    - complementary [ref=e38]:
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - paragraph [ref=e42]: Build AI workflows
+          - paragraph [ref=e43]: without writing code.
+        - generic [ref=e44]:
+          - article [ref=e45]:
+            - img [ref=e47]
+            - heading "Competitive Research" [level=3] [ref=e53]
+            - paragraph [ref=e54]: Generate regular competitor analysis reports
+            - generic [ref=e55]:
+              - generic [ref=e56]: 2 skills
+              - img [ref=e57]
+          - article [ref=e62]:
+            - img [ref=e64]
+            - heading "Lead Qualifier" [level=3] [ref=e73]
+            - paragraph [ref=e74]: Enrich and qualify incoming leads
+            - generic [ref=e75]:
+              - generic [ref=e76]: 2 skills
+              - img [ref=e77]
+          - article [ref=e82]:
+            - img [ref=e84]
+            - heading "User Researcher" [level=3] [ref=e87]
+            - paragraph [ref=e88]: Synthesize feedback into product insights
+            - generic [ref=e89]:
+              - generic [ref=e90]: 2 skills
+              - img [ref=e91]
+  - alert [ref=e96]

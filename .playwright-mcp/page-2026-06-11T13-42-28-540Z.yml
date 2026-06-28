@@ -1,0 +1,109 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Corelyx Corelyx" [ref=e5] [cursor=pointer]:
+          - /url: /dashboard
+          - img "Corelyx" [ref=e6]
+          - generic [ref=e7]: Corelyx
+        - generic [ref=e8]:
+          - navigation [ref=e9]:
+            - link "Trust" [ref=e10] [cursor=pointer]:
+              - /url: /trust
+            - link "Privacy" [ref=e11] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e12] [cursor=pointer]:
+              - /url: /terms
+            - link "DPA" [ref=e13] [cursor=pointer]:
+              - /url: /dpa
+            - link "Subprocessors" [ref=e14] [cursor=pointer]:
+              - /url: /subprocessors
+            - link "Residency" [ref=e15] [cursor=pointer]:
+              - /url: /data-residency
+            - link "AI Act" [ref=e16] [cursor=pointer]:
+              - /url: /ai-act
+            - link "Security" [ref=e17] [cursor=pointer]:
+              - /url: /security
+          - link "Back to dashboard" [ref=e18] [cursor=pointer]:
+            - /url: /dashboard
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Legal
+        - heading "Impressum" [level=1] [ref=e22]
+        - paragraph [ref=e23]: "Last updated: April 23, 2026"
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - paragraph [ref=e26]: Provider information according to DDG Section 5
+          - generic [ref=e27]:
+            - generic [ref=e28]:
+              - paragraph [ref=e29]: Corelyx - sole-proprietor operation, incorporation pending
+              - paragraph [ref=e30]: "Trading name / product: Corelyx"
+              - paragraph [ref=e31]: "Responsible person / managing director: Responsible person not configured in public environment"
+              - paragraph [ref=e32]: "Contracting entity for Terms, DPA, and invoices: The sole proprietor/responsible person identified in this Impressum"
+            - generic [ref=e33]:
+              - paragraph [ref=e34]: Registered address
+              - paragraph [ref=e35]: Not configured in the public deployment environment. The contracting address must be shown here before production commercial launch and must match Terms, DPA, and invoice records.
+        - generic [ref=e36]:
+          - paragraph [ref=e37]: Contact
+          - generic [ref=e38]:
+            - paragraph [ref=e39]:
+              - text: "Email:"
+              - link "legal@corelyx.app" [ref=e40] [cursor=pointer]:
+                - /url: mailto:legal@corelyx.app
+            - paragraph [ref=e41]:
+              - text: "Security:"
+              - link "security@corelyx.app" [ref=e42] [cursor=pointer]:
+                - /url: mailto:security@corelyx.app
+            - paragraph [ref=e43]:
+              - text: "Data protection contact:"
+              - link "privacy@corelyx.app" [ref=e44] [cursor=pointer]:
+                - /url: mailto:privacy@corelyx.app
+        - generic [ref=e45]:
+          - paragraph [ref=e46]: Company register
+          - generic [ref=e47]:
+            - paragraph [ref=e48]: "Company register number: Not applicable / not configured"
+            - paragraph [ref=e49]: "Commercial court: Not applicable / not configured"
+        - generic [ref=e50]:
+          - paragraph [ref=e51]: VAT identification number
+          - paragraph [ref=e53]: "VAT ID: Not applicable / not configured"
+        - generic [ref=e54]:
+          - paragraph [ref=e55]: Regulatory authority
+          - generic [ref=e56]:
+            - paragraph [ref=e57]:
+              - text: "Austrian Data Protection Authority for privacy matters; WKO reference where applicable. WKO reference:"
+              - link "www.wko.at" [ref=e58] [cursor=pointer]:
+                - /url: https://www.wko.at
+            - paragraph [ref=e59]: "Applicable law: Austrian law"
+        - generic [ref=e60]:
+          - paragraph [ref=e61]: Related legal documents
+          - paragraph [ref=e62]:
+            - text: See our
+            - link "Privacy Policy" [ref=e63] [cursor=pointer]:
+              - /url: /privacy
+            - text: for data-protection information and our
+            - link "Terms of Service" [ref=e64] [cursor=pointer]:
+              - /url: /terms
+            - text: for product terms.
+    - contentinfo [ref=e65]:
+      - generic [ref=e66]:
+        - generic [ref=e67]: © 2026 Corelyx. All rights reserved.
+        - generic [ref=e68]:
+          - link "Privacy" [ref=e69] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e70] [cursor=pointer]:
+            - /url: /terms
+          - link "Impressum" [ref=e71] [cursor=pointer]:
+            - /url: /impressum
+          - link "Sign in" [ref=e72] [cursor=pointer]:
+            - /url: /login
+  - generic [ref=e74]:
+    - paragraph [ref=e75]:
+      - text: We only use essential authentication cookies and saved interface preferences. We do not load analytics, advertising, or other optional trackers. See our
+      - link "Privacy Policy" [ref=e76] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Terms" [ref=e77] [cursor=pointer]:
+        - /url: /terms
+      - text: .
+    - button "Dismiss" [ref=e78] [cursor=pointer]
+  - alert [ref=e79]

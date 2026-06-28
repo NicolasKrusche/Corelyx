@@ -1,0 +1,205 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e15]:
+      - button "Back" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+        - text: Back
+      - generic [ref=e20]:
+        - button "Weekday HackerNews to Slack" [ref=e21] [cursor=pointer]
+        - generic [ref=e22]: Saved
+      - button "Add node" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+        - text: Add node
+      - generic [ref=e28]:
+        - button "Undo" [ref=e362] [cursor=pointer]:
+          - img [ref=e363]
+        - button "Redo" [disabled]:
+          - img
+      - button "History" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+        - text: History
+      - button "Auto-layout" [ref=e34] [cursor=pointer]:
+        - img [ref=e35]
+        - text: Auto-layout
+        - img [ref=e40]
+      - button "Edit with AI" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+        - text: Edit with AI
+      - button "Validate ✓" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+        - text: Validate
+        - generic [ref=e50]: ✓
+      - button "Save" [disabled]:
+        - img
+        - text: Save
+      - button "Run with payload" [active] [ref=e51] [cursor=pointer]:
+        - img [ref=e52]
+        - text: Run with payload
+      - button "Run" [ref=e56] [cursor=pointer]:
+        - img [ref=e57]
+        - text: Run
+    - complementary [ref=e503]:
+      - separator "Resize panel" [ref=e504]
+      - generic [ref=e505]:
+        - generic [ref=e506]: Add node
+        - button "Close palette" [ref=e507] [cursor=pointer]:
+          - img [ref=e508]
+      - generic [ref=e511]:
+        - generic [ref=e512]: Search nodes
+        - img
+        - textbox "Search nodes" [ref=e513]:
+          - /placeholder: Search nodes...
+          - text: slack
+      - generic [ref=e533]:
+        - button "Connections 1" [expanded] [ref=e547] [cursor=pointer]:
+          - img [ref=e535]
+          - generic [ref=e537]: Connections
+          - generic [ref=e538]: "1"
+        - button "Slack Post messages and manage channels" [ref=e549]:
+          - generic [ref=e551]:
+            - paragraph [ref=e552]: Slack
+            - paragraph [ref=e553]: Post messages and manage channels
+      - paragraph [ref=e546]: Drag a node onto the canvas, or click to add it.
+    - application [ref=e60]:
+      - generic [ref=e62]:
+        - generic:
+          - generic:
+            - img
+            - img:
+              - group "Edge from n1 to n2" [ref=e366] [cursor=pointer]
+            - img:
+              - group "Edge from n2 to n3" [ref=e369] [cursor=pointer]
+            - img:
+              - group "Edge from n3 to n8" [ref=e372] [cursor=pointer]
+            - img:
+              - group "Edge from n8 to n4"
+            - img:
+              - group "Edge from n4 to n5" [ref=e375] [cursor=pointer]
+            - img:
+              - group "Edge from n5 to n6" [ref=e378] [cursor=pointer]
+            - img:
+              - group "Edge from n6 to n7" [ref=e381] [cursor=pointer]
+          - generic:
+            - group [ref=e81]:
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - img [ref=e85]
+                  - generic [ref=e88]:
+                    - paragraph [ref=e89]: Trigger · Schedule
+                    - paragraph [ref=e90]: Weekday 8am
+                - paragraph [ref=e91]: Fires Monday‑Friday at 8 am UTC.
+              - generic [ref=e92]:
+                - img
+            - group [ref=e262]:
+              - generic [ref=e264]:
+                - generic [ref=e265]:
+                  - img [ref=e267]
+                  - generic [ref=e270]:
+                    - paragraph [ref=e271]: HTTP · GET
+                    - paragraph [ref=e272]: Get top story IDs
+                - paragraph [ref=e273]: Fetches list of top HackerNews story IDs.
+                - paragraph [ref=e274]: https://hacker-news.firebaseio.com/v0/topstories.json
+              - generic [ref=e275]:
+                - img
+            - group [ref=e276]:
+              - generic [ref=e278]:
+                - generic [ref=e279]:
+                  - img [ref=e281]
+                  - generic [ref=e287]:
+                    - paragraph [ref=e288]: Step · Transform
+                    - paragraph [ref=e289]: Take first 5
+                - paragraph [ref=e290]: Keeps only the first five IDs.
+              - generic [ref=e291]:
+                - img
+            - group [ref=e292]:
+              - generic [ref=e294]:
+                - generic [ref=e295]:
+                  - img [ref=e297]
+                  - generic [ref=e299]:
+                    - paragraph [ref=e300]: Step · Filter
+                    - paragraph [ref=e301]: Filter low scores
+                - paragraph [ref=e302]: Removes stories with scores below 100.
+              - generic [ref=e303]:
+                - img
+            - group [ref=e308]:
+              - generic [ref=e310]:
+                - generic [ref=e311]:
+                  - img [ref=e313]
+                  - generic [ref=e318]:
+                    - paragraph [ref=e319]: Step · Loop
+                    - paragraph [ref=e320]: Loop stories
+                - paragraph [ref=e321]: Iterates over the five story IDs.
+              - generic [ref=e322]:
+                - img
+            - group [ref=e323]:
+              - generic [ref=e325]:
+                - generic [ref=e326]:
+                  - img [ref=e328]
+                  - generic [ref=e331]:
+                    - paragraph [ref=e332]: HTTP · GET
+                    - paragraph [ref=e333]: Fetch story details
+                - paragraph [ref=e334]: Gets title and URL for each story ID.
+                - paragraph [ref=e335]: "https://hacker-news.firebaseio.com/v0/item/{{n4.story_id}}.json"
+              - generic [ref=e336]:
+                - img
+            - group [ref=e343]:
+              - generic [ref=e345]:
+                - generic [ref=e346]:
+                  - img [ref=e348]
+                  - generic [ref=e350]:
+                    - paragraph [ref=e351]: Step · Format
+                    - paragraph [ref=e352]: Format message
+                - paragraph [ref=e353]: Creates a Slack text block with the five titles.
+              - generic [ref=e354]:
+                - img
+            - group [ref=e384]:
+              - generic [ref=e386]:
+                - generic [ref=e387]:
+                  - img [ref=e389]
+                  - generic [ref=e392]:
+                    - paragraph [ref=e393]: HTTP · POST
+                    - paragraph [ref=e394]: Post to Slack
+                - paragraph [ref=e395]: Sends the formatted list to Slack via webhook.
+                - paragraph [ref=e396]: "{{SLACK_WEBHOOK_URL}}"
+              - generic [ref=e397]:
+                - img
+            - group [ref=e398]:
+              - generic [ref=e399]:
+                - generic [ref=e400]:
+                  - generic [ref=e401]: Drag note
+                  - img [ref=e402]
+                - textbox "Add a note…" [ref=e407]: "Provide a Slack Incoming Webhook URL and replace {{SLACK_WEBHOOK_URL}} in the HTTP node above."
+            - group [ref=e408]:
+              - generic [ref=e410]:
+                - img [ref=e411]
+                - generic [ref=e414]: Fetch Stories
+            - group [ref=e415]:
+              - generic [ref=e417]:
+                - img [ref=e418]
+                - generic [ref=e421]: Send to Slack
+      - generic "Control Panel" [ref=e202]:
+        - button "Zoom In" [ref=e203] [cursor=pointer]:
+          - img [ref=e204]
+        - button "Zoom Out" [ref=e206] [cursor=pointer]:
+          - img [ref=e207]
+        - button "Fit View" [ref=e209] [cursor=pointer]:
+          - img [ref=e210]
+        - button "Toggle Interactivity" [ref=e212] [cursor=pointer]:
+          - img [ref=e213]
+      - img "Mini Map" [ref=e216]
+    - generic [ref=e557]:
+      - generic [ref=e558]:
+        - heading "Run with payload" [level=2] [ref=e559]
+        - paragraph [ref=e560]:
+          - text: Paste a JSON payload to inject as the trigger data. Useful for debugging — e.g. provide a real
+          - code [ref=e561]: message_id
+          - text: to test an email node without waiting for a live email.
+      - generic [ref=e562]:
+        - 'textbox "{ \"key\": \"value\" }" [ref=e563]':
+          - /placeholder: "{\n  \"key\": \"value\"\n}"
+          - text: "{ }"
+        - paragraph [ref=e564]: Enter a valid JSON object
+      - generic [ref=e565]:
+        - button "Cancel" [ref=e566] [cursor=pointer]
+        - button "Send test" [disabled]
+  - alert [ref=e228]

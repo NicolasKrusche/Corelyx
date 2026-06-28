@@ -1,0 +1,177 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "Corelyx Corelyx" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Corelyx" [ref=e6]
+        - generic [ref=e7]: Corelyx
+      - navigation [ref=e8]:
+        - link "Compliance" [ref=e9] [cursor=pointer]:
+          - /url: "#compliance"
+        - link "Integrations" [ref=e10] [cursor=pointer]:
+          - /url: /integrations
+        - link "Security" [ref=e11] [cursor=pointer]:
+          - /url: /security
+        - link "Docs" [ref=e12] [cursor=pointer]:
+          - /url: /docs
+        - link "Pricing" [ref=e13] [cursor=pointer]:
+          - /url: /pricing
+      - generic [ref=e14]:
+        - link "Sign in" [ref=e15] [cursor=pointer]:
+          - /url: /login
+        - link "Start free" [ref=e16] [cursor=pointer]:
+          - /url: /signup
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - paragraph [ref=e22]:
+        - img [ref=e23]
+        - text: EU-native · Compliance-first
+      - heading "GDPR and the EU AI Act, handled by default." [level=2] [ref=e26]
+      - paragraph [ref=e27]: Compliance isn't a checkbox you bolt on later. Corelyx inventories, classifies, documents, and audits every AI workflow as you build — on EU-hosted infrastructure, with credentials that never leave the server.
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - img [ref=e30]
+        - generic [ref=e33]:
+          - heading "Automatic AI inventory" [level=3] [ref=e34]
+          - paragraph [ref=e35]: Every workflow becomes an AI system record — purpose, owners, models, data sources, and risk — kept current as you build.
+      - generic [ref=e36]:
+        - img [ref=e37]
+        - generic [ref=e41]:
+          - heading "EU AI Act risk classification" [level=3] [ref=e42]
+          - paragraph [ref=e43]: Each workflow is risk-classified with recommended controls and approval gates on high-impact steps, before anything runs.
+      - generic [ref=e44]:
+        - img [ref=e45]
+        - generic [ref=e49]:
+          - heading "Generated evidence & DPIA" [level=3] [ref=e50]
+          - paragraph [ref=e51]: Technical documentation, DPIA drafts, and governance exports are generated from the product — not scattered across spreadsheets.
+      - generic [ref=e52]:
+        - img [ref=e53]
+        - generic [ref=e56]:
+          - heading "Audit-ready trail" [level=3] [ref=e57]
+          - paragraph [ref=e58]: Runs, approvals, overrides, and outcomes produce a searchable record for audits and incident review.
+    - generic [ref=e59]:
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - paragraph [ref=e62]: Compliance documentation
+          - paragraph [ref=e63]: Everything procurement, privacy, and security teams ask for.
+        - link "Visit the Trust Center" [ref=e64] [cursor=pointer]:
+          - /url: /trust
+          - text: Visit the Trust Center
+          - img [ref=e65]
+      - generic [ref=e67]:
+        - link "GDPR" [ref=e68] [cursor=pointer]:
+          - /url: /gdpr
+        - link "EU AI Act" [ref=e69] [cursor=pointer]:
+          - /url: /ai-act
+        - link "Compliance overview" [ref=e70] [cursor=pointer]:
+          - /url: /compliance
+        - link "DPA" [ref=e71] [cursor=pointer]:
+          - /url: /dpa
+        - link "Subprocessors" [ref=e72] [cursor=pointer]:
+          - /url: /subprocessors
+        - link "DPIA template" [ref=e73] [cursor=pointer]:
+          - /url: /dpia-template
+        - link "Data export schema" [ref=e74] [cursor=pointer]:
+          - /url: /data-export-schema
+        - link "Data residency" [ref=e75] [cursor=pointer]:
+          - /url: /data-residency
+        - link "Security" [ref=e76] [cursor=pointer]:
+          - /url: /security
+        - link "Trust center" [ref=e77] [cursor=pointer]:
+          - /url: /trust
+    - generic [ref=e78]:
+      - link "Start for free" [ref=e79] [cursor=pointer]:
+        - /url: /signup
+        - text: Start for free
+        - img [ref=e80]
+      - link "View pricing" [ref=e82] [cursor=pointer]:
+        - /url: /pricing
+  - contentinfo [ref=e83]:
+    - generic [ref=e84]:
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - img [ref=e88]
+            - generic [ref=e89]: Corelyx
+          - paragraph [ref=e90]: AI workflow automation built for GDPR and the EU AI Act.
+          - paragraph [ref=e91]:
+            - img "Austria" [ref=e92]
+            - text: Built in Austria · EU-first infrastructure
+          - link "Corelyx on Instagram" [ref=e93] [cursor=pointer]:
+            - /url: https://instagram.com/corelyx
+            - img [ref=e94]
+        - navigation "Product links" [ref=e97]:
+          - paragraph [ref=e98]: Product
+          - list [ref=e99]:
+            - listitem [ref=e100]:
+              - link "Integrations" [ref=e101] [cursor=pointer]:
+                - /url: /integrations
+            - listitem [ref=e102]:
+              - link "Use cases" [ref=e103] [cursor=pointer]:
+                - /url: /use-cases
+            - listitem [ref=e104]:
+              - link "Templates" [ref=e105] [cursor=pointer]:
+                - /url: /templates
+            - listitem [ref=e106]:
+              - link "Compare" [ref=e107] [cursor=pointer]:
+                - /url: /compare
+            - listitem [ref=e108]:
+              - link "Pricing" [ref=e109] [cursor=pointer]:
+                - /url: /pricing
+            - listitem [ref=e110]:
+              - link "Docs" [ref=e111] [cursor=pointer]:
+                - /url: /docs
+            - listitem [ref=e112]:
+              - link "Blog" [ref=e113] [cursor=pointer]:
+                - /url: /blog
+        - navigation "Compliance links" [ref=e114]:
+          - paragraph [ref=e115]: Compliance
+          - list [ref=e116]:
+            - listitem [ref=e117]:
+              - link "GDPR" [ref=e118] [cursor=pointer]:
+                - /url: /gdpr
+            - listitem [ref=e119]:
+              - link "EU AI Act" [ref=e120] [cursor=pointer]:
+                - /url: /ai-act
+            - listitem [ref=e121]:
+              - link "Compliance" [ref=e122] [cursor=pointer]:
+                - /url: /compliance
+            - listitem [ref=e123]:
+              - link "Security" [ref=e124] [cursor=pointer]:
+                - /url: /security
+            - listitem [ref=e125]:
+              - link "Trust Center" [ref=e126] [cursor=pointer]:
+                - /url: /trust
+            - listitem [ref=e127]:
+              - link "Data residency" [ref=e128] [cursor=pointer]:
+                - /url: /data-residency
+        - navigation "Legal links" [ref=e129]:
+          - paragraph [ref=e130]: Legal
+          - list [ref=e131]:
+            - listitem [ref=e132]:
+              - link "DPA" [ref=e133] [cursor=pointer]:
+                - /url: /dpa
+            - listitem [ref=e134]:
+              - link "Subprocessors" [ref=e135] [cursor=pointer]:
+                - /url: /subprocessors
+            - listitem [ref=e136]:
+              - link "DPIA template" [ref=e137] [cursor=pointer]:
+                - /url: /dpia-template
+            - listitem [ref=e138]:
+              - link "Data export schema" [ref=e139] [cursor=pointer]:
+                - /url: /data-export-schema
+            - listitem [ref=e140]:
+              - link "Privacy" [ref=e141] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e142]:
+              - link "Terms" [ref=e143] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=e144]:
+              - link "Impressum" [ref=e145] [cursor=pointer]:
+                - /url: /impressum
+      - generic [ref=e146]:
+        - paragraph [ref=e147]: © 2026 Corelyx - sole-proprietor operation, incorporation pending. All rights reserved.
+        - paragraph [ref=e148]:
+          - text: "Contracting entity: The sole proprietor/responsible person identified in this Impressum. Responsible person: Responsible person not configured in public environment. Registered address: see Impressum. Governing law: Austrian law."
+          - link "support@corelyx.app" [ref=e149] [cursor=pointer]:
+            - /url: mailto:support@corelyx.app

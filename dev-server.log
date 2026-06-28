@@ -1,0 +1,431 @@
+
+> @flowos/web@0.0.1 dev C:\NexFlow\apps\web
+> next dev
+
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3000
+   - Network:      http://169.254.73.112:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 3.3s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 788ms (216 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 7.9s (817 modules)
+ GET / 200 in 9554ms
+ GET / 200 in 669ms
+ GET / 200 in 636ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 3.3s (987 modules)
+ GET /login 200 in 4914ms
+ ○ Compiling /signup ...
+ ✓ Compiled /signup in 1069ms (984 modules)
+ GET /signup 200 in 2035ms
+ ○ Compiling /pricing ...
+ ✓ Compiled /pricing in 1455ms (1069 modules)
+ GET /pricing 200 in 2364ms
+ ○ Compiling /compliance ...
+ ✓ Compiled /compliance in 1247ms (1096 modules)
+ GET /compliance 200 in 2635ms
+ ○ Compiling /gdpr ...
+ ✓ Compiled /gdpr in 932ms (1098 modules)
+ GET /gdpr 200 in 1941ms
+ ○ Compiling /security ...
+ ✓ Compiled /security in 965ms (1100 modules)
+ GET /security 200 in 1671ms
+ ○ Compiling /privacy ...
+ ✓ Compiled /privacy in 1128ms (1106 modules)
+ GET /privacy 200 in 2343ms
+ ○ Compiling /terms ...
+ ✓ Compiled /terms in 1172ms (1108 modules)
+ GET /terms 200 in 1757ms
+ ○ Compiling /trust ...
+ ✓ Compiled /trust in 918ms (1110 modules)
+ GET /trust 200 in 1586ms
+ ○ Compiling /dpa ...
+ ✓ Compiled /dpa in 1208ms (1112 modules)
+ GET /dpa 200 in 1796ms
+ ○ Compiling /impressum ...
+ ✓ Compiled /impressum in 1466ms (1114 modules)
+ GET /impressum 200 in 2301ms
+ ○ Compiling /subprocessors ...
+ ✓ Compiled /subprocessors in 2.3s (1123 modules)
+ GET /subprocessors 200 in 2960ms
+ ○ Compiling /data-residency ...
+ ✓ Compiled /data-residency in 1685ms (1125 modules)
+ GET /data-residency 200 in 2612ms
+ ○ Compiling /dpia-template ...
+ ✓ Compiled /dpia-template in 1624ms (1127 modules)
+ GET /dpia-template 200 in 2198ms
+ ○ Compiling /ai-act ...
+ ✓ Compiled /ai-act in 1458ms (1129 modules)
+ GET /ai-act 200 in 2229ms
+ GET /login 200 in 652ms
+ GET /login 200 in 616ms
+ GET /login 200 in 380ms
+ ○ Compiling /forgot-password ...
+ ✓ Compiled /forgot-password in 1631ms (1136 modules)
+ GET /forgot-password 200 in 2162ms
+ GET /login 200 in 595ms
+ GET /login 200 in 621ms
+ GET /login 200 in 464ms
+ GET /login 200 in 482ms
+ GET /login 200 in 580ms
+ GET /login 200 in 442ms
+ GET /login 200 in 411ms
+ GET /login 200 in 468ms
+ GET /login 200 in 482ms
+ GET /login 200 in 280ms
+ GET /login 200 in 460ms
+ ○ Compiling /templates/[[...slug]] ...
+ ✓ Compiled /templates/[[...slug]] in 3.4s (1141 modules)
+ GET /templates 200 in 4635ms
+ ○ Compiling /blog/[[...slug]] ...
+ ✓ Compiled /blog/[[...slug]] in 1665ms (1143 modules)
+ GET /blog 200 in 3072ms
+ ○ Compiling /docs/[[...slug]] ...
+ ✓ Compiled /docs/[[...slug]] in 1779ms (1145 modules)
+ GET /docs 200 in 3013ms
+ ○ Compiling /compare/[[...slug]] ...
+ ✓ Compiled /compare/[[...slug]] in 3.1s (1118 modules)
+ GET /login 200 in 3882ms
+ ○ Compiling /signup ...
+ ✓ Compiled /signup in 1550ms (750 modules)
+ GET /compare 200 in 6372ms
+ GET /signup 200 in 2607ms
+ ○ Compiling /use-cases/[[...slug]] ...
+ ✓ Compiled /use-cases/[[...slug]] in 1623ms (768 modules)
+ ✓ Compiled in 1339ms (375 modules)
+ GET /pricing 200 in 4287ms
+ ○ Compiling /compliance ...
+ ✓ Compiled /compliance in 1792ms (772 modules)
+ GET /use-cases 200 in 6393ms
+ GET /compliance 200 in 2452ms
+ ○ Compiling /industry/[[...slug]] ...
+ ✓ Compiled /industry/[[...slug]] in 1675ms (774 modules)
+ ✓ Compiled in 1504ms (375 modules)
+ GET /gdpr 200 in 4668ms
+ GET /security 200 in 1611ms
+ GET /privacy 200 in 950ms
+ GET /industry 200 in 7690ms
+ GET /terms 200 in 324ms
+ GET /trust 200 in 377ms
+ ○ Compiling /dpa ...
+ ✓ Compiled /dpa in 5.8s (1113 modules)
+ GET /dpa 200 in 6720ms
+ ○ Compiling /impressum ...
+ ✓ Compiled /impressum in 2.1s (740 modules)
+ GET /impressum 200 in 2733ms
+ GET /integrations 200 in 9656ms
+ ○ Compiling /subprocessors ...
+ ✓ Compiled /academy/[[...slug]] in 1782ms (747 modules)
+ ✓ Compiled in 1653ms (376 modules)
+ GET /subprocessors 200 in 5057ms
+ ○ Compiling /data-residency ...
+ GET /academy 307 in 5866ms
+ ✓ Compiled /data-residency in 2.3s (753 modules)
+ GET /data-residency 200 in 4743ms
+ GET /docs 200 in 2732ms
+ ○ Compiling /dpia-template ...
+ ✓ Compiled /dpia-template in 1780ms (755 modules)
+ GET /dpia-template 200 in 2547ms
+ GET /ai-act 200 in 679ms
+ GET /login 200 in 1768ms
+ GET /login 200 in 399ms
+ GET /login 200 in 506ms
+ GET /login 200 in 628ms
+ GET /login 200 in 368ms
+ GET /forgot-password 200 in 320ms
+ GET /login 200 in 250ms
+ GET /login 200 in 349ms
+ GET /login 200 in 375ms
+ GET /login 200 in 467ms
+ GET /login 200 in 408ms
+ GET /login 200 in 339ms
+ GET /login 200 in 305ms
+ GET /login 200 in 364ms
+ GET /login 200 in 296ms
+ GET /login 200 in 263ms
+ GET /login 200 in 378ms
+ GET /login 200 in 252ms
+ GET /login 200 in 397ms
+ GET /login 200 in 236ms
+ GET /login 200 in 263ms
+ GET /tools 200 in 369ms
+ GET /templates 200 in 369ms
+ GET /blog 200 in 354ms
+ GET /docs 200 in 329ms
+ GET /compare 200 in 351ms
+ GET /use-cases 200 in 377ms
+ GET /industry 200 in 345ms
+ GET /integrations 200 in 446ms
+ GET /academy 307 in 224ms
+ GET /docs 200 in 354ms
+ GET /login 200 in 233ms
+ GET /login 200 in 280ms
+ ○ Compiling /maintenance ...
+ ✓ Compiled /maintenance in 3.2s (1147 modules)
+ GET /maintenance 200 in 3990ms
+ ○ Compiling /tools/[slug] ...
+ ✓ Compiled /tools/[slug] in 2.9s (1157 modules)
+ GET /tools/ai-act-risk-classifier 200 in 6119ms
+ GET /tools/ai-inventory-generator 200 in 394ms
+ GET /tools/dpia-generator 200 in 361ms
+ GET /login 200 in 514ms
+ GET /data-residency 200 in 815ms
+ GET /blog 200 in 5944ms
+ GET /forgot-password 200 in 6235ms
+ GET /terms 200 in 8235ms
+ GET /dpia-template 200 in 8260ms
+ GET /dpa 200 in 8296ms
+ GET /trust 200 in 8324ms
+ GET /subprocessors 200 in 8358ms
+ GET /pricing 200 in 8349ms
+ GET /tools 200 in 8370ms
+ GET /impressum 200 in 8393ms
+ GET /privacy 200 in 8524ms
+ GET /gdpr 200 in 9835ms
+ GET /security 200 in 9909ms
+ GET /maintenance 200 in 9934ms
+ GET /ai-act 200 in 10000ms
+ GET /compliance 200 in 9920ms
+ GET /tools/ai-inventory-generator 200 in 12704ms
+ GET /tools/dpia-generator 200 in 12724ms
+ GET /tools/ai-act-risk-classifier 200 in 12741ms
+ GET /docs 200 in 13011ms
+ GET /templates 200 in 13088ms
+ GET /compare 200 in 13137ms
+ GET /industry 200 in 13196ms
+ GET /use-cases 200 in 13232ms
+ GET /integrations 200 in 13293ms
+ GET /academy 307 in 13316ms
+ GET /login 200 in 13642ms
+ GET /signup 200 in 13567ms
+ ○ Compiling / ...
+ ✓ Compiled / in 6.1s (799 modules)
+ GET / 200 in 7262ms
+ GET / 200 in 728ms
+ GET /login 200 in 747ms
+ GET /signup 200 in 519ms
+ GET / 200 in 614ms
+ GET /login 200 in 578ms
+ GET /signup 200 in 508ms
+ GET /compliance 200 in 683ms
+ GET /gdpr 200 in 705ms
+ GET /security 200 in 744ms
+ GET /privacy 200 in 1185ms
+ GET /terms 200 in 612ms
+ GET /trust 200 in 518ms
+ GET /dpa 200 in 481ms
+ GET /impressum 200 in 455ms
+ GET /subprocessors 200 in 524ms
+ GET /data-residency 200 in 557ms
+ GET /dpia-template 200 in 510ms
+ GET /ai-act 200 in 710ms
+ GET /compliance 200 in 704ms
+ GET /privacy 200 in 1085ms
+ GET /terms 200 in 314ms
+ GET /gdpr 200 in 670ms
+ GET /privacy 200 in 938ms
+ GET /terms 200 in 235ms
+ GET /gdpr 200 in 647ms
+ GET /dpa 200 in 219ms
+ GET /tools/ai-act-risk-classifier 200 in 460ms
+ GET /tools/ai-inventory-generator 200 in 395ms
+ GET /tools/dpia-generator 200 in 321ms
+ GET /tools 200 in 315ms
+ GET /login 200 in 181ms
+ GET /templates 200 in 581ms
+ GET /compare 200 in 514ms
+ ○ Compiling /api/internal/credits ...
+ ✓ Compiled /api/webhooks/github in 3.8s (1381 modules)
+ GET /api/internal/credits 401 in 3993ms
+ POST /api/triggers/event 401 in 2468ms
+ GET /api/internal/agent-tools 405 in 4085ms
+ GET /api/browse 200 in 2642ms
+ POST /api/webhooks/slack 500 in 2606ms
+ POST /api/webhooks/github 500 in 2556ms
+ GET /api/status 200 in 2624ms
+ GET /api/health 200 in 3155ms
+ GET /login 200 in 427ms
+ GET /login 200 in 159ms
+ GET /login 200 in 231ms
+ ○ Compiling /maintenance ...
+ ✓ Compiled /maintenance in 544ms (989 modules)
+ GET /maintenance 200 in 1065ms
+ ○ Compiling /data-export-schema ...
+ ✓ Compiled /data-export-schema in 1261ms (1373 modules)
+ GET /data-export-schema 200 in 1552ms
+ ○ Compiling /robots.txt ...
+ ✓ Compiled /robots.txt in 641ms (1377 modules)
+ GET /robots.txt 200 in 777ms
+ ○ Compiling /[slug] ...
+ ✓ Compiled /sitemap.xml in 1748ms (1383 modules)
+ GET /sitemap.xml 200 in 1181ms
+ GET /favicon.ico 200 in 1903ms
+ GET /favicon.ico 200 in 859ms
+ GET /login 200 in 408ms
+ GET /login 200 in 239ms
+ GET /login 200 in 229ms
+ GET /login 200 in 229ms
+ GET /signup 200 in 220ms
+ ○ Compiling /tools/[slug] ...
+ ✓ Compiled /tools/[slug] in 584ms (985 modules)
+ GET /tools/ai-act-risk-classifier 200 in 1028ms
+ GET /tools/dpia-generator 200 in 210ms
+ GET /tools/ai-inventory-generator 200 in 167ms
+ ○ Compiling /pricing ...
+ ✓ Compiled /pricing in 889ms (1003 modules)
+ GET /pricing 200 in 1188ms
+ ○ Compiling /forgot-password ...
+ ✓ Compiled /forgot-password in 703ms (758 modules)
+ GET /forgot-password 200 in 983ms
+ GET /login 200 in 237ms
+ GET /tools/dpia-generator 200 in 235ms
+ GET /tools/ai-inventory-generator 200 in 264ms
+ GET /login 200 in 183ms
+ GET /login 200 in 166ms
+ GET /login 200 in 320ms
+ GET /login 200 in 206ms
+ GET /login 200 in 152ms
+ GET /login 200 in 174ms
+ GET /login 200 in 175ms
+ GET /login 200 in 207ms
+ GET /login 200 in 172ms
+ GET /login 200 in 170ms
+ GET /login 200 in 166ms
+ GET /login 200 in 158ms
+ GET /login 200 in 229ms
+ GET /login 200 in 181ms
+ GET /login 200 in 126ms
+ ✓ Compiled /blog/[[...slug]] in 386ms (704 modules)
+ GET /blog 200 in 1109ms
+ ✓ Compiled /docs/[[...slug]] in 392ms (706 modules)
+ GET /docs 200 in 903ms
+ GET /compare 200 in 337ms
+ ✓ Compiled /use-cases/[[...slug]] in 358ms (703 modules)
+ GET /use-cases 200 in 755ms
+ ✓ Compiled /industry/[[...slug]] in 368ms (705 modules)
+ GET /industry 200 in 677ms
+ ✓ Compiled /integrations/[[...slug]] in 365ms (707 modules)
+ GET /integrations 200 in 754ms
+ ○ Compiling /academy/[[...slug]] ...
+ ✓ Compiled /academy/[[...slug]] in 557ms (711 modules)
+ GET /academy 307 in 1028ms
+ GET /docs 200 in 493ms
+ ○ Compiling /templates/[[...slug]] ...
+ ✓ Compiled /templates/[[...slug]] in 514ms (713 modules)
+ GET /templates 200 in 863ms
+ GET /blog/gdpr-compliant-ai-workflows 200 in 289ms
+ GET /blog/human-oversight-eu-ai-act 200 in 268ms
+ GET /blog/building-ai-workflow-audit-trail 200 in 366ms
+ GET /docs/workflow-schema-contract 200 in 327ms
+ GET /docs/audit-logging-model 200 in 314ms
+ GET /docs/eu-ai-act-workflow-automation 200 in 278ms
+ GET /templates/gdpr-ai-customer-support 200 in 296ms
+ GET /templates/dora-incident-reporting 200 in 317ms
+ GET /templates/human-approval-ai-workflow 200 in 300ms
+ GET /compare/corelyx-vs-n8n 200 in 329ms
+ GET /compare/corelyx-vs-make 200 in 296ms
+ GET /compare/best-eu-ai-automation-platform 200 in 401ms
+ GET /tools/ai-governance-maturity-assessment 200 in 273ms
+ GET /tools/compliance-documentation-generator 200 in 286ms
+ ○ Compiling /u/[username] ...
+ ✓ Compiled /u/[username] in 975ms (1111 modules)
+ GET /u/testuser 404 in 3387ms
+ GET /login 200 in 275ms
+ GET /login 200 in 208ms
+ GET /login 200 in 159ms
+ GET /login 200 in 134ms
+ GET /blog 200 in 278ms
+ GET /login 200 in 224ms
+ GET /blog 200 in 336ms
+ GET /docs 200 in 353ms
+ GET /compare 200 in 239ms
+ GET /use-cases 200 in 251ms
+ GET /industry 200 in 261ms
+ GET /integrations 200 in 309ms
+ GET /templates 200 in 260ms
+ GET /blog/gdpr-compliant-ai-workflows 200 in 816ms
+ GET /docs/workflow-schema-contract 200 in 748ms
+ GET /compare/corelyx-vs-n8n 200 in 655ms
+ GET /templates/gdpr-ai-customer-support 200 in 1308ms
+ GET /tools/ai-governance-maturity-assessment 200 in 487ms
+ GET /u/testuser 404 in 440ms
+ GET /login 200 in 470ms
+ GET /login 200 in 460ms
+ GET /login 200 in 422ms
+ GET /login 200 in 456ms
+ GET /login 200 in 432ms
+ GET /u/testuser 404 in 693ms
+ GET /login 200 in 490ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 6.7s (1108 modules)
+ GET /u/%3Cscript%3Ealert(1)%3C/script%3E 404 in 7595ms
+ GET /login 200 in 762ms
+ GET /login 200 in 448ms
+ GET /login 200 in 455ms
+ GET /tools/non-existent-tool 404 in 634ms
+ ○ Compiling /academy/[[...slug]] ...
+ ✓ Compiled /academy/[[...slug]] in 1093ms (719 modules)
+ GET /academy/non-existent 307 in 1941ms
+ ○ Compiling /docs/[[...slug]] ...
+ ✓ Compiled /docs/[[...slug]] in 1169ms (721 modules)
+ GET /docs/non-existent 404 in 2014ms
+ GET /login 200 in 493ms
+ ○ Compiling /prices ...
+ ✓ Compiled /prices in 1561ms (1104 modules)
+ GET /prices 307 in 2108ms
+ ○ Compiling /pricing ...
+ ✓ Compiled /pricing in 5.4s (741 modules)
+ GET /pricing 200 in 6466ms
+ ○ Compiling /auth/callback ...
+ ✓ Compiled /auth/callback in 4s (1128 modules)
+ GET /auth/callback 307 in 4526ms
+ GET /login?error=auth_callback_failed 200 in 912ms
+ GET /u/testuser 404 in 702ms
+ GET /login 200 in 513ms
+ GET /u/%3Cscript%3Ealert(1)%3C/script%3E 404 in 209ms
+ GET /login 200 in 501ms
+ GET /login 200 in 477ms
+ GET /login 200 in 521ms
+ GET /tools/non-existent-tool 404 in 585ms
+ GET /academy/non-existent 307 in 644ms
+ GET /docs/non-existent 404 in 602ms
+ GET /login 200 in 518ms
+ GET /prices 307 in 430ms
+ GET /pricing 200 in 684ms
+ GET /auth/callback 307 in 175ms
+ GET /login?error=auth_callback_failed 200 in 395ms
+ ○ Compiling /api/webhooks/github ...
+ ✓ Compiled /api/triggers/webhook/[token] in 2.1s (772 modules)
+ ✓ Compiled in 10.3s (381 modules)
+ GET /api/internal/agent-tools 405 in 17901ms
+ POST /api/internal/agent-tools 401 in 17895ms
+ GET /api/internal/credits 401 in 18104ms
+ POST /api/internal/credits 401 in 18097ms
+ POST /api/status 405 in 16793ms
+ GET /api/inngest 500 in 17104ms
+ POST /api/inngest 500 in 17140ms
+ POST /api/browse 405 in 17196ms
+ POST /api/webhooks/gmail 500 in 17233ms
+ POST /api/health 405 in 17284ms
+ POST /api/webhooks/stripe 200 in 17306ms
+ POST /api/triggers/event 401 in 17319ms
+ POST /api/billing/webhook 400 in 17362ms
+ POST /api/auth/post-login 401 in 17558ms
+ POST /api/webhooks/slack 500 in 18717ms
+ POST /api/auth/signup 400 in 18698ms
+ GET /api/browse 200 in 18745ms
+ POST /api/webhooks/github 500 in 18741ms
+ GET /api/status 200 in 18753ms
+ POST /api/internal/runs/fake-id/complete 401 in 20066ms
+ GET /api/health 200 in 18806ms
+ GET /api/internal/vault/test-ref 401 in 20136ms
+ POST /api/auth/reset-password 200 in 19138ms
+ POST /api/u/testuser 405 in 19470ms
+ POST /api/triggers/webhook/test-token 404 in 19563ms
+ GET /api/u/testuser 404 in 19636ms

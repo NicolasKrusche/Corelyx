@@ -1,0 +1,280 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Corelyx Corelyx" [ref=e5] [cursor=pointer]:
+          - /url: /dashboard
+          - img "Corelyx" [ref=e6]
+          - generic [ref=e7]: Corelyx
+        - generic [ref=e8]:
+          - navigation [ref=e9]:
+            - link "Trust" [ref=e10] [cursor=pointer]:
+              - /url: /trust
+            - link "Privacy" [ref=e11] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e12] [cursor=pointer]:
+              - /url: /terms
+            - link "DPA" [ref=e13] [cursor=pointer]:
+              - /url: /dpa
+            - link "Subprocessors" [ref=e14] [cursor=pointer]:
+              - /url: /subprocessors
+            - link "Residency" [ref=e15] [cursor=pointer]:
+              - /url: /data-residency
+            - link "AI Act" [ref=e16] [cursor=pointer]:
+              - /url: /ai-act
+            - link "Security" [ref=e17] [cursor=pointer]:
+              - /url: /security
+          - link "Back to dashboard" [ref=e18] [cursor=pointer]:
+            - /url: /dashboard
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Legal
+        - heading "Subprocessor Registry" [level=1] [ref=e22]
+        - paragraph [ref=e23]: "Last updated: April 23, 2026. This registry lists providers that may process personal data to operate Corelyx or execute workflows you explicitly configure. Customer-configured providers may require separate customer account settings, DPAs, SCCs, or transfer assessments."
+      - generic [ref=e24]:
+        - paragraph [ref=e25]: Our commitment
+        - paragraph [ref=e26]:
+          - text: Corelyx is built for European users and runs under Austrian law and GDPR. Core infrastructure — database, web hosting, and workflow runtime — is deployed in EU regions. Where a provider cannot currently be configured EU-only (payments, transactional email, some AI model routing), we rely on signed DPAs and Standard Contractual Clauses as the transfer safeguard under
+          - link "Art. 46 GDPR" [ref=e27] [cursor=pointer]:
+            - /url: https://gdpr-info.eu/art-46-gdpr/
+          - text: . We are actively working to reduce and eliminate non-EU processing over time.
+        - paragraph [ref=e28]:
+          - text: See
+          - link "Section 8 of our Privacy Policy" [ref=e29] [cursor=pointer]:
+            - /url: /privacy#transfers
+          - text: for the full breakdown.
+      - generic [ref=e30]:
+        - paragraph [ref=e31]: Showing 11 of 11 providers
+        - button "EU-only supported" [ref=e32] [cursor=pointer]: EU-only supported
+      - table [ref=e36]:
+        - rowgroup [ref=e37]:
+          - row "Provider Purpose Data categories Region EU-only Transfer basis DPA SCC Retention Optional Default use Last reviewed" [ref=e38]:
+            - columnheader "Provider" [ref=e39]
+            - columnheader "Purpose" [ref=e40]
+            - columnheader "Data categories" [ref=e41]
+            - columnheader "Region" [ref=e42]
+            - columnheader "EU-only" [ref=e43]
+            - columnheader "Transfer basis" [ref=e44]
+            - columnheader "DPA" [ref=e45]
+            - columnheader "SCC" [ref=e46]
+            - columnheader "Retention" [ref=e47]
+            - columnheader "Optional" [ref=e48]
+            - columnheader "Default use" [ref=e49]
+            - columnheader "Last reviewed" [ref=e50]
+        - rowgroup [ref=e51]:
+          - row "Supabase database Always Database, authentication, realtime APIs, and Vault-backed secret references. Account data, Workflow schemas, Runs, Approvals, Connection metadata, Secret references Configured Supabase project region, expected EU for Corelyx production. Yes DPA and SCCs where the configured project or subprocessors involve third-country processing. Available Available where needed Controlled by Corelyx database retention settings and Supabase backup rotation. Required Default 2026-05-27" [ref=e52]:
+            - cell "Supabase database Always" [ref=e53]:
+              - paragraph [ref=e54]: Supabase
+              - paragraph [ref=e55]: database
+              - paragraph [ref=e56]: Always
+            - cell "Database, authentication, realtime APIs, and Vault-backed secret references." [ref=e57]
+            - cell "Account data, Workflow schemas, Runs, Approvals, Connection metadata, Secret references" [ref=e58]
+            - cell "Configured Supabase project region, expected EU for Corelyx production." [ref=e59]
+            - cell "Yes" [ref=e60]:
+              - generic [ref=e61]: "Yes"
+            - cell "DPA and SCCs where the configured project or subprocessors involve third-country processing." [ref=e62]
+            - cell "Available" [ref=e63]
+            - cell "Available where needed" [ref=e64]
+            - cell "Controlled by Corelyx database retention settings and Supabase backup rotation." [ref=e65]
+            - cell "Required" [ref=e66]
+            - cell "Default" [ref=e67]
+            - cell "2026-05-27" [ref=e68]
+          - row "Vercel hosting Always Hosts the Next.js web app, API routes, static assets, and deployment logs. Request metadata, IP addresses, Application logs, Rendered application data Global CDN; server compute depends on project region configuration. Yes DPA and transfer addendum; EU-only support depends on project routing and log configuration. Available Available where needed Deployment and request logs follow Vercel account retention and Corelyx log minimisation settings. Required Default 2026-05-27" [ref=e69]:
+            - cell "Vercel hosting Always" [ref=e70]:
+              - paragraph [ref=e71]: Vercel
+              - paragraph [ref=e72]: hosting
+              - paragraph [ref=e73]: Always
+            - cell "Hosts the Next.js web app, API routes, static assets, and deployment logs." [ref=e74]
+            - cell "Request metadata, IP addresses, Application logs, Rendered application data" [ref=e75]
+            - cell "Global CDN; server compute depends on project region configuration." [ref=e76]
+            - cell "Yes" [ref=e77]:
+              - generic [ref=e78]: "Yes"
+            - cell "DPA and transfer addendum; EU-only support depends on project routing and log configuration." [ref=e79]
+            - cell "Available" [ref=e80]
+            - cell "Available where needed" [ref=e81]
+            - cell "Deployment and request logs follow Vercel account retention and Corelyx log minimisation settings." [ref=e82]
+            - cell "Required" [ref=e83]
+            - cell "Default" [ref=e84]
+            - cell "2026-05-27" [ref=e85]
+          - row "Railway hosting Always Hosts the Python workflow runtime used for execution steps. Workflow execution payloads, Runtime logs, Connector requests and responses Configured Railway service region. Yes DPA and SCCs where the runtime or subprocessors involve third-country processing. Available Available where needed Runtime logs are minimised and governed by workspace retention settings where technically available. Required Default 2026-05-27" [ref=e86]:
+            - cell "Railway hosting Always" [ref=e87]:
+              - paragraph [ref=e88]: Railway
+              - paragraph [ref=e89]: hosting
+              - paragraph [ref=e90]: Always
+            - cell "Hosts the Python workflow runtime used for execution steps." [ref=e91]
+            - cell "Workflow execution payloads, Runtime logs, Connector requests and responses" [ref=e92]
+            - cell "Configured Railway service region." [ref=e93]
+            - cell "Yes" [ref=e94]:
+              - generic [ref=e95]: "Yes"
+            - cell "DPA and SCCs where the runtime or subprocessors involve third-country processing." [ref=e96]
+            - cell "Available" [ref=e97]
+            - cell "Available where needed" [ref=e98]
+            - cell "Runtime logs are minimised and governed by workspace retention settings where technically available." [ref=e99]
+            - cell "Required" [ref=e100]
+            - cell "Default" [ref=e101]
+            - cell "2026-05-27" [ref=e102]
+          - row "Inngest orchestration Always Schedules, retries, event dispatch, and asynchronous workflow orchestration. Event metadata, Function payloads, Retry state, Timing data Provider-managed cloud location based on the configured Inngest account. No DPA and SCCs required if personal data is sent through orchestration events. Available Available where needed Event retention depends on the Inngest account and should not include secrets or full payloads in EU-only mode. Required Default 2026-05-27" [ref=e103]:
+            - cell "Inngest orchestration Always" [ref=e104]:
+              - paragraph [ref=e105]: Inngest
+              - paragraph [ref=e106]: orchestration
+              - paragraph [ref=e107]: Always
+            - cell "Schedules, retries, event dispatch, and asynchronous workflow orchestration." [ref=e108]
+            - cell "Event metadata, Function payloads, Retry state, Timing data" [ref=e109]
+            - cell "Provider-managed cloud location based on the configured Inngest account." [ref=e110]
+            - cell "No" [ref=e111]:
+              - generic [ref=e112]: "No"
+            - cell "DPA and SCCs required if personal data is sent through orchestration events." [ref=e113]
+            - cell "Available" [ref=e114]
+            - cell "Available where needed" [ref=e115]
+            - cell "Event retention depends on the Inngest account and should not include secrets or full payloads in EU-only mode." [ref=e116]
+            - cell "Required" [ref=e117]
+            - cell "Default" [ref=e118]
+            - cell "2026-05-27" [ref=e119]
+          - row "Resend email Only when transactional email is sent Transactional email for approvals, failures, account, and billing notices. Recipient email, Sender details, Subject lines, Notification content United States for account data, email metadata, logs, and API records. No DPA and SCCs required for EEA personal data. Available Available where needed Provider email logs follow Resend retention; Corelyx avoids sending secrets in notifications. Required Customer enabled 2026-05-27" [ref=e120]:
+            - cell "Resend email Only when transactional email is sent" [ref=e121]:
+              - paragraph [ref=e122]: Resend
+              - paragraph [ref=e123]: email
+              - paragraph [ref=e124]: Only when transactional email is sent
+            - cell "Transactional email for approvals, failures, account, and billing notices." [ref=e125]
+            - cell "Recipient email, Sender details, Subject lines, Notification content" [ref=e126]
+            - cell "United States for account data, email metadata, logs, and API records." [ref=e127]
+            - cell "No" [ref=e128]:
+              - generic [ref=e129]: "No"
+            - cell "DPA and SCCs required for EEA personal data." [ref=e130]
+            - cell "Available" [ref=e131]
+            - cell "Available where needed" [ref=e132]
+            - cell "Provider email logs follow Resend retention; Corelyx avoids sending secrets in notifications." [ref=e133]
+            - cell "Required" [ref=e134]
+            - cell "Customer enabled" [ref=e135]
+            - cell "2026-05-27" [ref=e136]
+          - row "Stripe payments Only when billing features are used Checkout, subscriptions, invoices, payment processing, and fraud prevention. Billing contact data, Subscription metadata, Invoice records, Payment and fraud signals Provider-managed financial infrastructure. No DPA, SCCs, adequacy mechanisms, and payment-law processing roles depending on account setup. Available Available where needed Billing and tax data is retained as required by law. Required Customer enabled 2026-05-27" [ref=e137]:
+            - cell "Stripe payments Only when billing features are used" [ref=e138]:
+              - paragraph [ref=e139]: Stripe
+              - paragraph [ref=e140]: payments
+              - paragraph [ref=e141]: Only when billing features are used
+            - cell "Checkout, subscriptions, invoices, payment processing, and fraud prevention." [ref=e142]
+            - cell "Billing contact data, Subscription metadata, Invoice records, Payment and fraud signals" [ref=e143]
+            - cell "Provider-managed financial infrastructure." [ref=e144]
+            - cell "No" [ref=e145]:
+              - generic [ref=e146]: "No"
+            - cell "DPA, SCCs, adequacy mechanisms, and payment-law processing roles depending on account setup." [ref=e147]
+            - cell "Available" [ref=e148]
+            - cell "Available where needed" [ref=e149]
+            - cell "Billing and tax data is retained as required by law." [ref=e150]
+            - cell "Required" [ref=e151]
+            - cell "Customer enabled" [ref=e152]
+            - cell "2026-05-27" [ref=e153]
+          - row "OpenAI llm Only when selected or configured Optional model inference for workflow agent nodes and model operations. Prompts, System instructions, Selected workflow inputs, Model outputs, Usage metadata United States by default unless eligible European data residency is configured in the customer or platform account. Yes DPA and SCCs unless an eligible EU-resident project is verified for the workspace. Available Available where needed Retention depends on account, API project, abuse monitoring, and zero-data-retention settings. Optional Customer enabled 2026-05-27" [ref=e154]:
+            - cell "OpenAI llm Only when selected or configured" [ref=e155]:
+              - paragraph [ref=e156]: OpenAI
+              - paragraph [ref=e157]: llm
+              - paragraph [ref=e158]: Only when selected or configured
+            - cell "Optional model inference for workflow agent nodes and model operations." [ref=e159]
+            - cell "Prompts, System instructions, Selected workflow inputs, Model outputs, Usage metadata" [ref=e160]
+            - cell "United States by default unless eligible European data residency is configured in the customer or platform account." [ref=e161]
+            - cell "Yes" [ref=e162]:
+              - generic [ref=e163]: "Yes"
+            - cell "DPA and SCCs unless an eligible EU-resident project is verified for the workspace." [ref=e164]
+            - cell "Available" [ref=e165]
+            - cell "Available where needed" [ref=e166]
+            - cell "Retention depends on account, API project, abuse monitoring, and zero-data-retention settings." [ref=e167]
+            - cell "Optional" [ref=e168]
+            - cell "Customer enabled" [ref=e169]
+            - cell "2026-05-27" [ref=e170]
+          - row "Anthropic llm Only when selected or configured Optional model inference for workflow agent nodes. Prompts, System instructions, Selected workflow inputs, Model outputs, Usage metadata United States for customer data unless otherwise agreed. No DPA and SCCs required for EEA personal data. Available Available where needed Commercial API retention is provider-controlled and subject to policy and abuse-monitoring exceptions. Optional Customer enabled 2026-05-27" [ref=e171]:
+            - cell "Anthropic llm Only when selected or configured" [ref=e172]:
+              - paragraph [ref=e173]: Anthropic
+              - paragraph [ref=e174]: llm
+              - paragraph [ref=e175]: Only when selected or configured
+            - cell "Optional model inference for workflow agent nodes." [ref=e176]
+            - cell "Prompts, System instructions, Selected workflow inputs, Model outputs, Usage metadata" [ref=e177]
+            - cell "United States for customer data unless otherwise agreed." [ref=e178]
+            - cell "No" [ref=e179]:
+              - generic [ref=e180]: "No"
+            - cell "DPA and SCCs required for EEA personal data." [ref=e181]
+            - cell "Available" [ref=e182]
+            - cell "Available where needed" [ref=e183]
+            - cell "Commercial API retention is provider-controlled and subject to policy and abuse-monitoring exceptions." [ref=e184]
+            - cell "Optional" [ref=e185]
+            - cell "Customer enabled" [ref=e186]
+            - cell "2026-05-27" [ref=e187]
+          - row [ref=e188]:
+            - cell "OpenRouter llm Always active when using the Corelyx platform key. Also active when customer configures their own OpenRouter API key." [ref=e189]:
+              - paragraph [ref=e190]: OpenRouter
+              - paragraph [ref=e191]: llm
+              - paragraph [ref=e192]: Always active when using the Corelyx platform key. Also active when customer configures their own OpenRouter API key.
+            - cell "LLM routing layer used by the Corelyx platform key to execute agent nodes. Also optionally used when a customer configures their own OpenRouter API key." [ref=e193]
+            - cell "Prompts, System instructions, Selected workflow inputs, Model outputs, Provider routing metadata" [ref=e194]
+            - cell "Provider-managed global infrastructure. EU routing available on enterprise OpenRouter accounts." [ref=e195]
+            - cell "No" [ref=e196]:
+              - generic [ref=e197]: "No"
+            - cell "No signed DPA or SCCs currently in place. Corelyx is pursuing an enterprise DPA with OpenRouter. Until completed, customers should treat OpenRouter as a third-country transfer risk and avoid routing special-category or high-risk personal data through the Corelyx platform key." [ref=e198]
+            - cell "Missing / customer review required" [ref=e199]
+            - cell "Missing / required before use" [ref=e200]
+            - cell "OpenRouter states prompts are not used for training and are not retained beyond request processing by default. Verify current policy at openrouter.ai/privacy." [ref=e201]
+            - cell "Required" [ref=e202]
+            - cell "Default" [ref=e203]
+            - cell "2026-05-27" [ref=e204]
+          - row "Google connector Sign-In available to all users. Workflow connectors only if explicitly connected by the customer. Google Sign-In (OAuth authentication available to all users). Optionally also used for Gmail, Calendar, Docs, Drive, and Sheets workflow actions when explicitly connected. Profile data and email address (Sign-In), Mailbox and file metadata (if connected), Message and document content (if connected), Calendar data (if connected), Workflow payloads (if connected) Provider-managed; depends on Google account, Workspace region, and service. Yes Google terms, DPA, SCCs, and customer tenant controls. Available Available where needed Sign-In profile data retained for the life of the account. Connector data retention is controlled by the connected Google account or tenant. Required Default 2026-05-27" [ref=e205]:
+            - cell "Google connector Sign-In available to all users. Workflow connectors only if explicitly connected by the customer." [ref=e206]:
+              - paragraph [ref=e207]: Google
+              - paragraph [ref=e208]: connector
+              - paragraph [ref=e209]: Sign-In available to all users. Workflow connectors only if explicitly connected by the customer.
+            - cell "Google Sign-In (OAuth authentication available to all users). Optionally also used for Gmail, Calendar, Docs, Drive, and Sheets workflow actions when explicitly connected." [ref=e210]
+            - cell "Profile data and email address (Sign-In), Mailbox and file metadata (if connected), Message and document content (if connected), Calendar data (if connected), Workflow payloads (if connected)" [ref=e211]
+            - cell "Provider-managed; depends on Google account, Workspace region, and service." [ref=e212]
+            - cell "Yes" [ref=e213]:
+              - generic [ref=e214]: "Yes"
+            - cell "Google terms, DPA, SCCs, and customer tenant controls." [ref=e215]
+            - cell "Available" [ref=e216]
+            - cell "Available where needed" [ref=e217]
+            - cell "Sign-In profile data retained for the life of the account. Connector data retention is controlled by the connected Google account or tenant." [ref=e218]
+            - cell "Required" [ref=e219]
+            - cell "Default" [ref=e220]
+            - cell "2026-05-27" [ref=e221]
+          - row "Customer-configured HTTP endpoint connector Only if enabled by the customer Customer-configured webhook or HTTP connector calls to arbitrary public endpoints. Workflow payloads selected by the customer Customer-configured destination. No Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use. Missing / customer review required Missing / required before use Retention is controlled by the customer-configured endpoint. Optional Customer enabled 2026-05-27" [ref=e222]:
+            - cell "Customer-configured HTTP endpoint connector Only if enabled by the customer" [ref=e223]:
+              - paragraph [ref=e224]: Customer-configured HTTP endpoint
+              - paragraph [ref=e225]: connector
+              - paragraph [ref=e226]: Only if enabled by the customer
+            - cell "Customer-configured webhook or HTTP connector calls to arbitrary public endpoints." [ref=e227]
+            - cell "Workflow payloads selected by the customer" [ref=e228]
+            - cell "Customer-configured destination." [ref=e229]
+            - cell "No" [ref=e230]:
+              - generic [ref=e231]: "No"
+            - cell "Customer must document recipient, DPA, SCCs, and transfer basis before personal-data use." [ref=e232]
+            - cell "Missing / customer review required" [ref=e233]
+            - cell "Missing / required before use" [ref=e234]
+            - cell "Retention is controlled by the customer-configured endpoint." [ref=e235]
+            - cell "Optional" [ref=e236]
+            - cell "Customer enabled" [ref=e237]
+            - cell "2026-05-27" [ref=e238]
+      - generic [ref=e239]:
+        - heading "Change notice" [level=2] [ref=e240]
+        - paragraph [ref=e241]: Corelyx will provide at least 30 days advance notice before adding or replacing a subprocessor that processes customer personal data, unless urgent security, availability, or legal requirements make advance notice impracticable.
+        - paragraph [ref=e242]:
+          - text: See the
+          - link "DPA" [ref=e243] [cursor=pointer]:
+            - /url: /dpa
+          - text: and
+          - link "Data Residency" [ref=e244] [cursor=pointer]:
+            - /url: /data-residency
+          - text: pages for processor terms and regional controls.
+        - paragraph [ref=e245]: "Last registry review: 2026-05-27."
+  - generic [ref=e246]:
+    - paragraph [ref=e247]: Translate this site to Deutsch?
+    - paragraph [ref=e248]: The interface will reload in Deutsch. You can change this anytime in Settings → Language.
+    - generic [ref=e249]:
+      - button "Translate" [ref=e250] [cursor=pointer]
+      - button "Keep English" [ref=e251] [cursor=pointer]
+  - generic [ref=e253]:
+    - paragraph [ref=e254]:
+      - text: We only use essential authentication cookies and saved interface preferences. We do not load analytics, advertising, or other optional trackers. See our
+      - link "Privacy Policy" [ref=e255] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Terms" [ref=e256] [cursor=pointer]:
+        - /url: /terms
+      - text: .
+    - button "Dismiss" [ref=e257] [cursor=pointer]
+  - alert [ref=e258]

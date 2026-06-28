@@ -1,0 +1,670 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Corelyx Corelyx" [ref=e5] [cursor=pointer]:
+          - /url: /dashboard
+          - img "Corelyx" [ref=e6]
+          - generic [ref=e7]: Corelyx
+        - generic [ref=e8]:
+          - navigation [ref=e9]:
+            - link "Trust" [ref=e10] [cursor=pointer]:
+              - /url: /trust
+            - link "Privacy" [ref=e11] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e12] [cursor=pointer]:
+              - /url: /terms
+            - link "DPA" [ref=e13] [cursor=pointer]:
+              - /url: /dpa
+            - link "Subprocessors" [ref=e14] [cursor=pointer]:
+              - /url: /subprocessors
+            - link "Residency" [ref=e15] [cursor=pointer]:
+              - /url: /data-residency
+            - link "AI Act" [ref=e16] [cursor=pointer]:
+              - /url: /ai-act
+            - link "Security" [ref=e17] [cursor=pointer]:
+              - /url: /security
+          - link "Back to dashboard" [ref=e18] [cursor=pointer]:
+            - /url: /dashboard
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Legal
+        - heading "Privacy Policy" [level=1] [ref=e22]
+        - paragraph [ref=e23]: "Last updated: April 23, 2026"
+      - generic [ref=e24]:
+        - complementary [ref=e25]:
+          - generic [ref=e26]:
+            - paragraph [ref=e27]: Contents
+            - link "1. Overview" [ref=e28] [cursor=pointer]:
+              - /url: "#overview"
+            - link "2. Controller" [ref=e29] [cursor=pointer]:
+              - /url: "#controller"
+            - link "3. Data Categories" [ref=e30] [cursor=pointer]:
+              - /url: "#categories"
+            - link "4. Legal Bases" [ref=e31] [cursor=pointer]:
+              - /url: "#legal-bases"
+            - link "5. Core Processors" [ref=e32] [cursor=pointer]:
+              - /url: "#core-processors"
+            - link "6. Connected Services" [ref=e33] [cursor=pointer]:
+              - /url: "#connected-services"
+            - link "7. Model Providers" [ref=e34] [cursor=pointer]:
+              - /url: "#model-providers"
+            - link "8. International Transfers" [ref=e35] [cursor=pointer]:
+              - /url: "#transfers"
+            - link "9. Retention" [ref=e36] [cursor=pointer]:
+              - /url: "#retention"
+            - link "10. Security" [ref=e37] [cursor=pointer]:
+              - /url: "#security"
+            - link "11. Your Rights" [ref=e38] [cursor=pointer]:
+              - /url: "#rights"
+            - link "12. Cookies and Local Storage" [ref=e39] [cursor=pointer]:
+              - /url: "#cookies"
+            - link "13. Contact" [ref=e40] [cursor=pointer]:
+              - /url: "#contact"
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - heading "1. Overview" [level=2] [ref=e43]
+            - generic [ref=e44]:
+              - paragraph [ref=e45]: Corelyx is a visual AI automation platform. This policy explains how we process personal data when you create an account, configure workflows, connect third-party services, add model or API credentials, purchase a paid plan, or contact us about the product.
+              - paragraph [ref=e46]: We do not sell personal data. We also do not load advertising trackers or non-essential analytics on the current site experience.
+              - paragraph [ref=e47]: "This page separates:"
+              - list [ref=e48]:
+                - listitem [ref=e49]: core processors we engage to operate Corelyx itself, and
+                - listitem [ref=e50]: optional connected services and model providers that only receive data when you explicitly enable them in a workflow.
+          - generic [ref=e52]:
+            - heading "2. Controller" [level=2] [ref=e53]
+            - generic [ref=e54]:
+              - paragraph [ref=e55]: The controller for the Corelyx service is Corelyx - sole-proprietor operation, incorporation pending.
+              - paragraph [ref=e56]:
+                - text: Full provider-identification details, including the current legal address and VAT information used for the public site, are published in the
+                - link "Impressum" [ref=e57] [cursor=pointer]:
+                  - /url: /impressum
+                - text: .
+          - generic [ref=e59]:
+            - heading "3. Data Categories" [level=2] [ref=e60]
+            - generic [ref=e61]:
+              - generic [ref=e62]:
+                - heading "Account and identity data" [level=3] [ref=e63]
+                - paragraph [ref=e64]: Email address, password hash if you use password login, and if you use Google Sign-In, the profile data Google returns to us such as name, email, and avatar.
+              - generic [ref=e65]:
+                - heading "Program and workflow data" [level=3] [ref=e66]
+                - paragraph [ref=e67]: Program schemas, prompts, node settings, execution modes, approvals, schedules, and version history you create inside Corelyx.
+              - generic [ref=e68]:
+                - heading "Run, approval, and operational data" [level=3] [ref=e69]
+                - paragraph [ref=e70]: Run status, node execution state, timestamps, token and cost metadata, approval records, and application logs needed to operate and troubleshoot the service.
+              - generic [ref=e71]:
+                - heading "Connection and secret data" [level=3] [ref=e72]
+                - paragraph [ref=e73]: Connection metadata plus encrypted OAuth tokens and API keys stored through Supabase Vault references so Corelyx can execute the integrations and model calls you configure.
+              - generic [ref=e74]:
+                - heading "Billing and plan data" [level=3] [ref=e75]
+                - paragraph [ref=e76]: Plan tier, Stripe customer or subscription references, checkout events, and legally required billing records.
+              - generic [ref=e77]:
+                - heading "Workflow content (and possible special-category data)" [level=3] [ref=e78]
+                - paragraph [ref=e79]: When you run a workflow, Corelyx processes the content it acts on — for example email bodies, documents, or form responses. That content can incidentally contain special categories of personal data under Art. 9 GDPR (e.g. health, religion, political opinions, or trade-union membership), because Corelyx cannot control what an incoming email or document says. Corelyx does not intentionally collect special-category data, does not use it to train any model, processes it only to perform the automation you configured, and stores execution logs in metadata-only form by default so content is not retained. Before the content of a workflow step is sent to an AI model, structured identifiers (email addresses, phone numbers, IBANs, IP addresses, payment card numbers) are redacted; free-text prose, including any special-category content within it, is not removed and is processed by the selected model provider. You remain responsible for having a lawful basis and, where required, an Art. 9(2) condition for the data you route through Corelyx, and should not route special-category data through the Corelyx platform key (which uses OpenRouter without a countersigned DPA — use your own EU-eligible model key instead).
+          - generic [ref=e81]:
+            - heading "4. Legal Bases" [level=2] [ref=e82]
+            - generic [ref=e83]:
+              - generic [ref=e84]:
+                - heading "Art. 6(1)(b) GDPR - contract performance" [level=3] [ref=e85]
+                - paragraph [ref=e86]: Used where processing is necessary to create your account, authenticate you, host the product, run your automations, send transactional notices, and provide billing or support you requested.
+              - generic [ref=e87]:
+                - heading "Art. 6(1)(c) GDPR - legal obligation" [level=3] [ref=e88]
+                - paragraph [ref=e89]: Used where we must retain invoice, tax, accounting, or compliance records, or respond to valid legal requests.
+              - generic [ref=e90]:
+                - heading "Art. 6(1)(f) GDPR - legitimate interests" [level=3] [ref=e91]
+                - paragraph [ref=e92]: Used for security monitoring, abuse prevention, incident response, backups, fraud prevention, and service reliability where those interests are not overridden by your rights.
+          - generic [ref=e94]:
+            - heading "5. Core Processors" [level=2] [ref=e95]
+            - paragraph [ref=e96]: These providers operate the Corelyx product itself. They process personal data on our behalf so we can host the application, run workflows, send transactional notifications, and handle billing.
+            - generic [ref=e97]:
+              - generic [ref=e98]:
+                - generic [ref=e99]:
+                  - generic [ref=e100]:
+                    - heading "Supabase" [level=3] [ref=e101]
+                    - paragraph [ref=e102]: Processor / infrastructure provider
+                  - generic [ref=e103]: Always
+                - generic [ref=e104]:
+                  - generic [ref=e105]:
+                    - paragraph [ref=e106]: Purpose
+                    - paragraph [ref=e107]: Database, authentication, encrypted secret storage, realtime features, and application data APIs.
+                  - generic [ref=e108]:
+                    - paragraph [ref=e109]: Legal Basis
+                    - paragraph [ref=e110]: Art. 6(1)(b) GDPR for product operation; Art. 6(1)(f) GDPR for security, backups, and reliability.
+                  - generic [ref=e111]:
+                    - paragraph [ref=e112]: Data Categories
+                    - paragraph [ref=e113]: Account data, auth identifiers, program definitions, connection metadata, encrypted secret references, approvals, runs, and logs.
+                  - generic [ref=e114]:
+                    - paragraph [ref=e115]: Data Location
+                    - paragraph [ref=e116]: Project region chosen in Supabase. Supabase offers EU regions including Frankfurt (eu-central-1) and multiple non-EU AWS regions.
+                - generic [ref=e117]:
+                  - paragraph [ref=e118]: Transfer Notes
+                  - paragraph [ref=e119]: If the project or any subprocessors are outside the EEA, UK, or Switzerland, third-country transfer safeguards such as the Supabase DPA and SCCs should be in place.
+              - generic [ref=e120]:
+                - generic [ref=e121]:
+                  - generic [ref=e122]:
+                    - heading "Vercel" [level=3] [ref=e123]
+                    - paragraph [ref=e124]: Processor / web hosting provider
+                  - generic [ref=e125]: Always
+                - generic [ref=e126]:
+                  - generic [ref=e127]:
+                    - paragraph [ref=e128]: Purpose
+                    - paragraph [ref=e129]: Hosts the Next.js frontend and server routes, serves static assets, and records deployment/runtime logs.
+                  - generic [ref=e130]:
+                    - paragraph [ref=e131]: Legal Basis
+                    - paragraph [ref=e132]: Art. 6(1)(b) GDPR for hosting and delivery; Art. 6(1)(f) GDPR for security and uptime.
+                  - generic [ref=e133]:
+                    - paragraph [ref=e134]: Data Categories
+                    - paragraph [ref=e135]: Request metadata, IP addresses, session-related requests, response logs, and application content rendered through the web app.
+                  - generic [ref=e136]:
+                    - paragraph [ref=e137]: Data Location
+                    - paragraph [ref=e138]: Server compute is configured to run in EU regions (Frankfurt / Dublin). Static assets may be served from global CDN edge nodes, but personal data is not cached at the edge.
+                - generic [ref=e139]:
+                  - paragraph [ref=e140]: Transfer Notes
+                  - paragraph [ref=e141]: Personal data processed by the web layer stays within the EEA. The Vercel DPA and transfer addenda apply to any incidental provider-side processing.
+              - generic [ref=e142]:
+                - generic [ref=e143]:
+                  - generic [ref=e144]:
+                    - heading "Railway" [level=3] [ref=e145]
+                    - paragraph [ref=e146]: Processor / runtime hosting provider
+                  - generic [ref=e147]: Always
+                - generic [ref=e148]:
+                  - generic [ref=e149]:
+                    - paragraph [ref=e150]: Purpose
+                    - paragraph [ref=e151]: Hosts the Python execution runtime that performs workflow steps against connected services and model providers.
+                  - generic [ref=e152]:
+                    - paragraph [ref=e153]: Legal Basis
+                    - paragraph [ref=e154]: Art. 6(1)(b) GDPR for workflow execution; Art. 6(1)(f) GDPR for reliability and debugging.
+                  - generic [ref=e155]:
+                    - paragraph [ref=e156]: Data Categories
+                    - paragraph [ref=e157]: Execution payloads, connector requests and responses, runtime logs, and temporary in-memory processing data.
+                  - generic [ref=e158]:
+                    - paragraph [ref=e159]: Data Location
+                    - paragraph [ref=e160]: Selected Railway service region. Railway currently documents US West, US East, EU West (Amsterdam), and Singapore regions.
+                - generic [ref=e161]:
+                  - paragraph [ref=e162]: Transfer Notes
+                  - paragraph [ref=e163]: If the runtime is deployed outside the EEA, UK, or Switzerland, appropriate transfer safeguards must cover that deployment.
+              - generic [ref=e164]:
+                - generic [ref=e165]:
+                  - generic [ref=e166]:
+                    - heading "Inngest" [level=3] [ref=e167]
+                    - paragraph [ref=e168]: Processor / orchestration provider
+                  - generic [ref=e169]: Always
+                - generic [ref=e170]:
+                  - generic [ref=e171]:
+                    - paragraph [ref=e172]: Purpose
+                    - paragraph [ref=e173]: Event delivery, retries, scheduling, approval timeout handling, and function-run orchestration.
+                  - generic [ref=e174]:
+                    - paragraph [ref=e175]: Legal Basis
+                    - paragraph [ref=e176]: Art. 6(1)(b) GDPR for workflow orchestration; Art. 6(1)(f) GDPR for resilience and monitoring.
+                  - generic [ref=e177]:
+                    - paragraph [ref=e178]: Data Categories
+                    - paragraph [ref=e179]: Event payloads, function metadata, retry state, timing data, and observability data sent through the Inngest integration.
+                  - generic [ref=e180]:
+                    - paragraph [ref=e181]: Data Location
+                    - paragraph [ref=e182]: Provider-managed cloud location based on the configured Inngest project.
+                - generic [ref=e183]:
+                  - paragraph [ref=e184]: Transfer Notes
+                  - paragraph [ref=e185]: Treat Inngest as a third-country transfer risk until the configured region and contractual safeguards are confirmed in the Inngest account.
+              - generic [ref=e186]:
+                - generic [ref=e187]:
+                  - generic [ref=e188]:
+                    - heading "Resend" [level=3] [ref=e189]
+                    - paragraph [ref=e190]: Processor / transactional email provider
+                  - generic [ref=e191]: Only when transactional email is sent
+                - generic [ref=e192]:
+                  - generic [ref=e193]:
+                    - paragraph [ref=e194]: Purpose
+                    - paragraph [ref=e195]: Sends approval, failure, and plan-related transactional emails from the web app.
+                  - generic [ref=e196]:
+                    - paragraph [ref=e197]: Legal Basis
+                    - paragraph [ref=e198]: Art. 6(1)(b) GDPR for requested service notices; Art. 6(1)(f) GDPR for operational alerts.
+                  - generic [ref=e199]:
+                    - paragraph [ref=e200]: Data Categories
+                    - paragraph [ref=e201]: Recipient email address, sender details, subject lines, and notification content.
+                  - generic [ref=e202]:
+                    - paragraph [ref=e203]: Data Location
+                    - paragraph [ref=e204]: Resend allows email sending from multiple regions, but states that all account data, email metadata, logs, and API records are stored in the United States.
+                - generic [ref=e205]:
+                  - paragraph [ref=e206]: Transfer Notes
+                  - paragraph [ref=e207]: Use the Resend DPA and account-level safeguards for EU, UK, or Swiss personal data sent through transactional email.
+              - generic [ref=e208]:
+                - generic [ref=e209]:
+                  - generic [ref=e210]:
+                    - heading "Stripe" [level=3] [ref=e211]
+                    - paragraph [ref=e212]: Processor and, in some contexts, independent controller
+                  - generic [ref=e213]: Only when you start or manage a paid subscription
+                - generic [ref=e214]:
+                  - generic [ref=e215]:
+                    - paragraph [ref=e216]: Purpose
+                    - paragraph [ref=e217]: Checkout, subscription billing, invoice generation, payment processing, fraud prevention, and billing event handling.
+                  - generic [ref=e218]:
+                    - paragraph [ref=e219]: Legal Basis
+                    - paragraph [ref=e220]: Art. 6(1)(b) GDPR for paid plans and invoicing; Art. 6(1)(c) GDPR for legal retention; Art. 6(1)(f) GDPR for fraud prevention.
+                  - generic [ref=e221]:
+                    - paragraph [ref=e222]: Data Categories
+                    - paragraph [ref=e223]: Billing contact data, plan and subscription identifiers, payment-related metadata, invoice records, and fraud-prevention signals.
+                  - generic [ref=e224]:
+                    - paragraph [ref=e225]: Data Location
+                    - paragraph [ref=e226]: Provider-managed financial infrastructure. The exact storage or processing region depends on the Stripe account and legal entity setup and cannot be verified from this repository alone.
+                - generic [ref=e227]:
+                  - paragraph [ref=e228]: Transfer Notes
+                  - paragraph [ref=e229]: Stripe provides a DPA plus transfer mechanisms such as SCCs and DPF-related disclosures. Review the exact Stripe account region and transfer setup separately.
+          - generic [ref=e231]:
+            - heading "6. Connected Services" [level=2] [ref=e232]
+            - paragraph [ref=e233]: These services are only contacted if you connect them and build workflows that use them. Depending on the service and your own agreement with that service, the connected provider may act as an independent controller, a processor for your organization, or both.
+            - generic [ref=e234]:
+              - paragraph [ref=e235]: Google API Services notice
+              - paragraph [ref=e236]: If you connect Google services, Corelyx uses Google user data only to provide the Google-backed features you configure. We do not use Google user data for advertising or to train general AI models. You can revoke Google access in your Google account permissions or by disconnecting the integration in Corelyx.
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - generic [ref=e239]:
+                  - generic [ref=e240]:
+                    - heading "Google (Google Sign-In, Gmail, Calendar, Docs, Drive, Sheets)" [level=3] [ref=e241]
+                    - paragraph [ref=e242]: User-selected connected service / recipient
+                  - generic [ref=e243]: Only if you sign in with Google or connect a Google service in a workflow
+                - generic [ref=e244]:
+                  - generic [ref=e245]:
+                    - paragraph [ref=e246]: Purpose
+                    - paragraph [ref=e247]: Authenticate your account and execute the Google actions you explicitly configure in Corelyx.
+                  - generic [ref=e248]:
+                    - paragraph [ref=e249]: Legal Basis
+                    - paragraph [ref=e250]: Art. 6(1)(b) GDPR because the processing is required to provide the login or automation flow you requested.
+                  - generic [ref=e251]:
+                    - paragraph [ref=e252]: Data Categories
+                    - paragraph [ref=e253]: Google profile data for sign-in, plus the content and metadata from the Google services and scopes you authorize.
+                  - generic [ref=e254]:
+                    - paragraph [ref=e255]: Data Location
+                    - paragraph [ref=e256]: Provider-managed. Processing location depends on your Google account, workspace settings, and Google's infrastructure.
+                - generic [ref=e257]:
+                  - paragraph [ref=e258]: Transfer Notes
+                  - paragraph [ref=e259]: Google may process data globally. Check your Google Workspace or Google Cloud terms if you require regional controls.
+              - generic [ref=e260]:
+                - generic [ref=e261]:
+                  - generic [ref=e262]:
+                    - heading "Slack" [level=3] [ref=e263]
+                    - paragraph [ref=e264]: User-selected connected service / recipient
+                  - generic [ref=e265]: Only if you connect Slack or send workflow data to Slack
+                - generic [ref=e266]:
+                  - generic [ref=e267]:
+                    - paragraph [ref=e268]: Purpose
+                    - paragraph [ref=e269]: Read Slack data or post messages, channels, and webhook events at your direction.
+                  - generic [ref=e270]:
+                    - paragraph [ref=e271]: Legal Basis
+                    - paragraph [ref=e272]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e273]:
+                    - paragraph [ref=e274]: Data Categories
+                    - paragraph [ref=e275]: Workspace identifiers, channel metadata, message content, and any payload you instruct Corelyx to send or read.
+                  - generic [ref=e276]:
+                    - paragraph [ref=e277]: Data Location
+                    - paragraph [ref=e278]: Provider-managed. Storage and processing depend on the connected Slack workspace and Slack's infrastructure.
+                - generic [ref=e279]:
+                  - paragraph [ref=e280]: Transfer Notes
+                  - paragraph [ref=e281]: Treat Slack as a separate recipient or service provider selected by you; review the Slack workspace's own data residency settings if required.
+              - generic [ref=e282]:
+                - generic [ref=e283]:
+                  - generic [ref=e284]:
+                    - heading "Notion" [level=3] [ref=e285]
+                    - paragraph [ref=e286]: User-selected connected service / recipient
+                  - generic [ref=e287]: Only if you connect Notion or send workflow data to Notion
+                - generic [ref=e288]:
+                  - generic [ref=e289]:
+                    - paragraph [ref=e290]: Purpose
+                    - paragraph [ref=e291]: Read, search, create, or update Notion pages and databases that you choose to expose to Corelyx.
+                  - generic [ref=e292]:
+                    - paragraph [ref=e293]: Legal Basis
+                    - paragraph [ref=e294]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e295]:
+                    - paragraph [ref=e296]: Data Categories
+                    - paragraph [ref=e297]: Workspace metadata, page content, database rows, titles, rich text, and other objects in the shared Notion workspace.
+                  - generic [ref=e298]:
+                    - paragraph [ref=e299]: Data Location
+                    - paragraph [ref=e300]: Provider-managed. Processing location depends on the connected Notion workspace and Notion's infrastructure.
+                - generic [ref=e301]:
+                  - paragraph [ref=e302]: Transfer Notes
+                  - paragraph [ref=e303]: If Notion data contains third-party personal data, you remain responsible for having an appropriate legal basis to send it.
+              - generic [ref=e304]:
+                - generic [ref=e305]:
+                  - generic [ref=e306]:
+                    - heading "GitHub" [level=3] [ref=e307]
+                    - paragraph [ref=e308]: User-selected connected service / recipient
+                  - generic [ref=e309]: Only if you connect GitHub or run GitHub automation steps
+                - generic [ref=e310]:
+                  - generic [ref=e311]:
+                    - paragraph [ref=e312]: Purpose
+                    - paragraph [ref=e313]: Read repositories or create issues, pull requests, comments, and webhooks at your direction.
+                  - generic [ref=e314]:
+                    - paragraph [ref=e315]: Legal Basis
+                    - paragraph [ref=e316]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e317]:
+                    - paragraph [ref=e318]: Data Categories
+                    - paragraph [ref=e319]: Repository metadata, issue or PR content, comments, code-adjacent metadata, and webhook payloads.
+                  - generic [ref=e320]:
+                    - paragraph [ref=e321]: Data Location
+                    - paragraph [ref=e322]: Provider-managed. Processing location depends on the connected GitHub account or organization and GitHub's infrastructure.
+                - generic [ref=e323]:
+                  - paragraph [ref=e324]: Transfer Notes
+                  - paragraph [ref=e325]: GitHub is a separate service chosen by you. Review your GitHub organization settings and agreements if regional restrictions apply.
+              - generic [ref=e326]:
+                - generic [ref=e327]:
+                  - generic [ref=e328]:
+                    - heading "Airtable" [level=3] [ref=e329]
+                    - paragraph [ref=e330]: User-selected connected service / recipient
+                  - generic [ref=e331]: Only if you connect Airtable or use Airtable workflow steps
+                - generic [ref=e332]:
+                  - generic [ref=e333]:
+                    - paragraph [ref=e334]: Purpose
+                    - paragraph [ref=e335]: Read bases, records, and schemas or write new data into Airtable tables you authorize.
+                  - generic [ref=e336]:
+                    - paragraph [ref=e337]: Legal Basis
+                    - paragraph [ref=e338]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e339]:
+                    - paragraph [ref=e340]: Data Categories
+                    - paragraph [ref=e341]: Base metadata, table schemas, records, fields, and webhook-related events.
+                  - generic [ref=e342]:
+                    - paragraph [ref=e343]: Data Location
+                    - paragraph [ref=e344]: Provider-managed. Processing location depends on Airtable's infrastructure and any account-level residency features you have.
+                - generic [ref=e345]:
+                  - paragraph [ref=e346]: Transfer Notes
+                  - paragraph [ref=e347]: Consider Airtable a separate recipient of the data you instruct Corelyx to send there.
+              - generic [ref=e348]:
+                - generic [ref=e349]:
+                  - generic [ref=e350]:
+                    - heading "Asana" [level=3] [ref=e351]
+                    - paragraph [ref=e352]: User-selected connected service / recipient
+                  - generic [ref=e353]: Only if you connect Asana or use Asana workflow steps
+                - generic [ref=e354]:
+                  - generic [ref=e355]:
+                    - paragraph [ref=e356]: Purpose
+                    - paragraph [ref=e357]: Read or create projects, tasks, and related events in Asana at your direction.
+                  - generic [ref=e358]:
+                    - paragraph [ref=e359]: Legal Basis
+                    - paragraph [ref=e360]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e361]:
+                    - paragraph [ref=e362]: Data Categories
+                    - paragraph [ref=e363]: Workspace identifiers, task content, assignee data, due dates, comments, and webhook events.
+                  - generic [ref=e364]:
+                    - paragraph [ref=e365]: Data Location
+                    - paragraph [ref=e366]: Provider-managed. Processing location depends on Asana's infrastructure and the connected workspace.
+                - generic [ref=e367]:
+                  - paragraph [ref=e368]: Transfer Notes
+                  - paragraph [ref=e369]: If you automate HR, project, or customer data through Asana, you remain responsible for ensuring the connected workspace is lawfully configured.
+              - generic [ref=e370]:
+                - generic [ref=e371]:
+                  - generic [ref=e372]:
+                    - heading "HubSpot" [level=3] [ref=e373]
+                    - paragraph [ref=e374]: User-selected connected service / recipient
+                  - generic [ref=e375]: Only if you connect HubSpot or use HubSpot workflow steps
+                - generic [ref=e376]:
+                  - generic [ref=e377]:
+                    - paragraph [ref=e378]: Purpose
+                    - paragraph [ref=e379]: Read or update contacts and related CRM information you explicitly choose to process.
+                  - generic [ref=e380]:
+                    - paragraph [ref=e381]: Legal Basis
+                    - paragraph [ref=e382]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e383]:
+                    - paragraph [ref=e384]: Data Categories
+                    - paragraph [ref=e385]: Contact records, emails, names, phone numbers, companies, CRM metadata, and webhook events.
+                  - generic [ref=e386]:
+                    - paragraph [ref=e387]: Data Location
+                    - paragraph [ref=e388]: Provider-managed. Processing location depends on the connected HubSpot account and HubSpot's infrastructure.
+                - generic [ref=e389]:
+                  - paragraph [ref=e390]: Transfer Notes
+                  - paragraph [ref=e391]: CRM data often contains third-party personal data; ensure you have an appropriate basis before syncing or enriching it through Corelyx.
+              - generic [ref=e392]:
+                - generic [ref=e393]:
+                  - generic [ref=e394]:
+                    - heading "Microsoft / Outlook (Microsoft Graph)" [level=3] [ref=e395]
+                    - paragraph [ref=e396]: User-selected connected service / recipient
+                  - generic [ref=e397]: Only if you connect Outlook or Microsoft 365 data
+                - generic [ref=e398]:
+                  - generic [ref=e399]:
+                    - paragraph [ref=e400]: Purpose
+                    - paragraph [ref=e401]: Read and send Outlook email or related Microsoft Graph data at your direction.
+                  - generic [ref=e402]:
+                    - paragraph [ref=e403]: Legal Basis
+                    - paragraph [ref=e404]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e405]:
+                    - paragraph [ref=e406]: Data Categories
+                    - paragraph [ref=e407]: Mailbox metadata, message bodies, recipients, subject lines, attachments metadata, and related Microsoft account information.
+                  - generic [ref=e408]:
+                    - paragraph [ref=e409]: Data Location
+                    - paragraph [ref=e410]: Provider-managed. Processing location depends on the connected Microsoft tenant and Microsoft's infrastructure.
+                - generic [ref=e411]:
+                  - paragraph [ref=e412]: Transfer Notes
+                  - paragraph [ref=e413]: Regional controls, if any, are determined by your Microsoft tenant rather than Corelyx.
+              - generic [ref=e414]:
+                - generic [ref=e415]:
+                  - generic [ref=e416]:
+                    - heading "Typeform" [level=3] [ref=e417]
+                    - paragraph [ref=e418]: User-selected connected service / recipient
+                  - generic [ref=e419]: Only if you connect Typeform or process form responses
+                - generic [ref=e420]:
+                  - generic [ref=e421]:
+                    - paragraph [ref=e422]: Purpose
+                    - paragraph [ref=e423]: Read form definitions, submissions, and webhook-triggered response data.
+                  - generic [ref=e424]:
+                    - paragraph [ref=e425]: Legal Basis
+                    - paragraph [ref=e426]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e427]:
+                    - paragraph [ref=e428]: Data Categories
+                    - paragraph [ref=e429]: Form metadata, answer payloads, response identifiers, and any personal data collected in the connected form.
+                  - generic [ref=e430]:
+                    - paragraph [ref=e431]: Data Location
+                    - paragraph [ref=e432]: Provider-managed. Processing location depends on Typeform's infrastructure and your account settings.
+                - generic [ref=e433]:
+                  - paragraph [ref=e434]: Transfer Notes
+                  - paragraph [ref=e435]: Form responses can be sensitive; only connect forms and fields you are authorized to process.
+          - generic [ref=e437]:
+            - heading "7. Model Providers" [level=2] [ref=e438]
+            - paragraph [ref=e439]: These providers are optional. Corelyx only sends prompts, workflow context, and selected inputs to them if you add the relevant API key or choose that provider inside a workflow.
+            - generic [ref=e440]:
+              - generic [ref=e441]:
+                - generic [ref=e442]:
+                  - generic [ref=e443]:
+                    - heading "Anthropic" [level=3] [ref=e444]
+                    - paragraph [ref=e445]: User-selected model provider
+                  - generic [ref=e446]: Only if you add an Anthropic API key or route a node to Anthropic
+                - generic [ref=e447]:
+                  - generic [ref=e448]:
+                    - paragraph [ref=e449]: Purpose
+                    - paragraph [ref=e450]: Inference for prompts, completions, structured outputs, and repair or planning steps that you configure.
+                  - generic [ref=e451]:
+                    - paragraph [ref=e452]: Legal Basis
+                    - paragraph [ref=e453]: Art. 6(1)(b) GDPR because model calls happen only to provide the workflow behavior you request.
+                  - generic [ref=e454]:
+                    - paragraph [ref=e455]: Data Categories
+                    - paragraph [ref=e456]: Prompts, system instructions, tool context, selected workflow data, model outputs, and usage metadata.
+                  - generic [ref=e457]:
+                    - paragraph [ref=e458]: Data Location
+                    - paragraph [ref=e459]: Anthropic states that customer data is stored in the United States, while customer traffic may be routed through selected countries in the US, Europe, Asia, and Australia unless otherwise agreed.
+                - generic [ref=e460]:
+                  - paragraph [ref=e461]: Transfer Notes
+                  - paragraph [ref=e462]: This is a third-country transfer by default for EEA, UK, or Swiss users. Anthropic states its commercial terms include a DPA with SCCs.
+                  - paragraph [ref=e463]: Anthropic states it does not use commercial API data to train models by default and normally deletes API inputs and outputs within 30 days, subject to exceptions such as legal requirements or abuse enforcement.
+              - generic [ref=e464]:
+                - generic [ref=e465]:
+                  - generic [ref=e466]:
+                    - heading "OpenAI" [level=3] [ref=e467]
+                    - paragraph [ref=e468]: User-selected model provider
+                  - generic [ref=e469]: Only if you add an OpenAI API key or route a node to OpenAI
+                - generic [ref=e470]:
+                  - generic [ref=e471]:
+                    - paragraph [ref=e472]: Purpose
+                    - paragraph [ref=e473]: Inference for prompts, completions, structured outputs, and other model operations you configure.
+                  - generic [ref=e474]:
+                    - paragraph [ref=e475]: Legal Basis
+                    - paragraph [ref=e476]: Art. 6(1)(b) GDPR.
+                  - generic [ref=e477]:
+                    - paragraph [ref=e478]: Data Categories
+                    - paragraph [ref=e479]: Prompts, system instructions, selected workflow data, outputs, and usage metadata.
+                  - generic [ref=e480]:
+                    - paragraph [ref=e481]: Data Location
+                    - paragraph [ref=e482]: Provider-managed. OpenAI documents US data residency by default and offers regional data residency options, including Europe, only for eligible API projects. No regional OpenAI project configuration is verifiable from this repository.
+                - generic [ref=e483]:
+                  - paragraph [ref=e484]: Transfer Notes
+                  - paragraph [ref=e485]: If EU data residency is not separately enabled in your OpenAI account, treat OpenAI processing as a third-country transfer risk that requires the relevant DPA and transfer safeguards.
+              - generic [ref=e486]:
+                - generic [ref=e487]:
+                  - generic [ref=e488]:
+                    - heading "OpenRouter" [level=3] [ref=e489]
+                    - paragraph [ref=e490]: Platform LLM routing provider and optional user-selected provider
+                  - generic [ref=e491]: Always active when using the Corelyx platform key. Also active if you add your own OpenRouter API key.
+                - generic [ref=e492]:
+                  - generic [ref=e493]:
+                    - paragraph [ref=e494]: Purpose
+                    - paragraph [ref=e495]: Routes LLM calls made through the Corelyx platform key to the appropriate model endpoint. Also used directly if you configure your own OpenRouter key in a workflow.
+                  - generic [ref=e496]:
+                    - paragraph [ref=e497]: Legal Basis
+                    - paragraph [ref=e498]: Art. 6(1)(b) GDPR — necessary for the AI execution service you have contracted.
+                  - generic [ref=e499]:
+                    - paragraph [ref=e500]: Data Categories
+                    - paragraph [ref=e501]: Prompts, system instructions, selected workflow inputs, model outputs, provider routing metadata.
+                  - generic [ref=e502]:
+                    - paragraph [ref=e503]: Data Location
+                    - paragraph [ref=e504]: Provider-managed global infrastructure. EU in-region routing is available only on OpenRouter enterprise accounts. Corelyx does not currently hold a signed enterprise agreement with OpenRouter.
+                - generic [ref=e505]:
+                  - paragraph [ref=e506]: Transfer Notes
+                  - paragraph [ref=e507]: Corelyx uses a platform-managed OpenRouter key for all platform key calls. No countersigned DPA is currently in place. Until a DPA is signed, do not route special-category personal data through the Corelyx platform key. Use your own Anthropic, OpenAI, or Google key instead.
+                  - paragraph [ref=e508]: Corelyx is pursuing an enterprise DPA with OpenRouter. This notice will be updated when one is in place.
+          - generic [ref=e510]:
+            - heading "8. International Transfers" [level=2] [ref=e511]
+            - generic [ref=e512]:
+              - paragraph [ref=e513]: Our commitment is EU-first data processing. Corelyx is built for European users and operates under Austrian law and GDPR. We configure core infrastructure — database, compute, and runtime — in EU regions wherever those options are available and technically viable.
+              - paragraph [ref=e514]: "Specifically:"
+              - list [ref=e515]:
+                - listitem [ref=e516]:
+                  - strong [ref=e517]: Database and authentication
+                  - text: (Supabase) — deployed in an EU region. Personal data stored at rest stays within the EEA.
+                - listitem [ref=e518]:
+                  - strong [ref=e519]: Web hosting
+                  - text: (Vercel) — server compute is configured for EU regions (Frankfurt / Dublin). Static assets may be served via global CDN edge nodes, but no personal data is cached there.
+                - listitem [ref=e520]:
+                  - strong [ref=e521]: Workflow runtime
+                  - text: (Railway) — deployed in EU West. Execution payloads and connector traffic are processed in-region.
+              - paragraph [ref=e522]: "A small number of providers involve processing outside the EEA and cannot currently be replaced with EU-only alternatives without losing essential functionality:"
+              - list [ref=e523]:
+                - listitem [ref=e524]:
+                  - strong [ref=e525]: Payment processing
+                  - text: (Stripe) — financial regulation and fraud prevention require global infrastructure. The data transferred is limited to billing contact data and payment signals. Stripe DPA and SCCs are in place.
+                - listitem [ref=e526]:
+                  - strong [ref=e527]: Transactional email
+                  - text: "(Resend) — account metadata and email logs are stored in the United States. We limit what we send: no workflow content, only addresses and transactional subject lines. Resend DPA and SCCs are in place."
+                - listitem [ref=e528]:
+                  - strong [ref=e529]: Workflow orchestration
+                  - text: (Inngest) — event metadata and retry state. We do not route full payload content through orchestration events. Inngest DPA and SCCs are in place.
+                - listitem [ref=e530]:
+                  - strong [ref=e531]: AI model providers
+                  - text: — if you add your own Anthropic, OpenAI, or OpenRouter API key, prompts and outputs are sent to those providers under their own terms and DPAs. The Corelyx platform key uses OpenRouter; we are pursuing an enterprise DPA and EU routing. Until that is confirmed, avoid routing special-category personal data through the Corelyx platform key.
+              - paragraph [ref=e532]:
+                - text: For each provider where a third-country transfer occurs, we rely on the provider's DPA and Standard Contractual Clauses (SCCs) as the transfer safeguard under
+                - link "Article 46 GDPR" [ref=e533] [cursor=pointer]:
+                  - /url: https://gdpr-info.eu/art-46-gdpr/
+                - text: . You can find the full subprocessor list, transfer basis, and DPA status at
+                - link "/subprocessors" [ref=e534] [cursor=pointer]:
+                  - /url: /subprocessors
+                - text: .
+          - generic [ref=e536]:
+            - heading "9. Retention" [level=2] [ref=e537]
+            - generic [ref=e538]:
+              - generic [ref=e539]:
+                - heading "Account and program data" [level=3] [ref=e540]
+                - paragraph [ref=e541]: Kept for the duration of your contract and deleted when you delete your account. You may delete programs, connections, and your account at any time via account settings. We do not retain account or workflow content for tax purposes — only the billing records described below are kept long-term.
+              - generic [ref=e542]:
+                - heading "Email and workflow content" [level=3] [ref=e543]
+                - paragraph [ref=e544]: Content processed during workflow execution (e.g. email bodies) is used only to perform the automation you configured and is not stored beyond what is necessary for that processing.
+              - generic [ref=e545]:
+                - heading "Encrypted OAuth tokens and API keys" [level=3] [ref=e546]
+                - paragraph [ref=e547]: Deleted when you remove the corresponding connection or API key, or when your account is deleted. Account deletion automatically purges all associated Vault secrets before removing your user record.
+              - generic [ref=e548]:
+                - heading "Run history and application logs" [level=3] [ref=e549]
+                - paragraph [ref=e550]: Operational log data is retained for 90 days, after which it is deleted. Corelyx does not persist IP addresses in its application database; where an IP address incidentally appears in a diagnostic log entry, it is anonymised within 7 days by an automated retention job. Provider-side logs (e.g. hosting) follow their own retention schedules.
+              - generic [ref=e551]:
+                - heading "Billing and tax records" [level=3] [ref=e552]
+                - paragraph [ref=e553]: Retained for the periods required by applicable accounting, tax, and anti-fraud obligations.
+              - generic [ref=e554]:
+                - heading "Anonymised usage statistics" [level=3] [ref=e555]
+                - paragraph [ref=e556]: Aggregated, non-attributable usage data (no content) may be retained indefinitely for product improvement purposes. You may opt out in your account settings.
+              - generic [ref=e557]:
+                - heading "Provider-side logs" [level=3] [ref=e558]
+                - paragraph [ref=e559]: Third-party services and model providers may keep their own logs under their own retention schedules and contracts, which are outside Corelyx's direct control.
+          - generic [ref=e561]:
+            - heading "10. Security" [level=2] [ref=e562]
+            - list [ref=e564]:
+              - listitem [ref=e565]: Traffic to the product is encrypted in transit with TLS.
+              - listitem [ref=e566]: OAuth tokens and API keys are stored through Supabase Vault references and are not returned to the browser in normal API responses.
+              - listitem [ref=e567]: Workflow ownership checks and row-level access controls are used to keep users scoped to their own resources.
+              - listitem [ref=e568]: We minimize sensitive logging in the web layer and continue tightening deletion and retention flows where the audit found gaps.
+          - generic [ref=e570]:
+            - heading "11. Your Rights" [level=2] [ref=e571]
+            - generic [ref=e572]:
+              - generic [ref=e573]:
+                - heading "Access (Art. 15 GDPR)" [level=3] [ref=e574]
+                - paragraph [ref=e575]: You can request confirmation of whether we process your personal data and ask for a copy of the data we control. We will respond within 30 days.
+              - generic [ref=e576]:
+                - heading "Rectification (Art. 16 GDPR)" [level=3] [ref=e577]
+                - paragraph [ref=e578]: You can correct inaccurate account data and ask us to fix or complete information that is wrong or incomplete.
+              - generic [ref=e579]:
+                - heading "Erasure (Art. 17 GDPR)" [level=3] [ref=e580]
+                - paragraph [ref=e581]: You can delete programs, connections, API keys, and your account directly in the product under Settings > Delete Account, or ask us to help complete deletion where external providers are involved.
+              - generic [ref=e582]:
+                - heading "Restriction and objection (Art. 18 & 21 GDPR)" [level=3] [ref=e583]
+                - paragraph [ref=e584]: You can object to processing based on legitimate interests or ask us to restrict processing where the GDPR permits it.
+              - generic [ref=e585]:
+                - heading "Portability (Art. 20 GDPR)" [level=3] [ref=e586]
+                - paragraph [ref=e587]: You can ask for a machine-readable export of the personal data we process for contract performance where the GDPR gives you that right.
+              - generic [ref=e588]:
+                - heading "Complaint" [level=3] [ref=e589]
+                - paragraph [ref=e590]: "You can contact us first at privacy@corelyx.app. You also have the right to complain to the Austrian Data Protection Authority (Datenschutzbehörde): https://www.dsb.gv.at"
+              - generic [ref=e591]:
+                - heading "Data Processing Agreement (B2B)" [level=3] [ref=e592]
+                - paragraph [ref=e593]: If you process personal data of your own customers or employees through the platform as part of your business, Corelyx acts as your processor (Art. 28 GDPR). A Data Processing Agreement (DPA) is available at /dpa and can be requested for signature at legal@corelyx.app.
+          - generic [ref=e595]:
+            - heading "12. Cookies and Local Storage" [level=2] [ref=e596]
+            - generic [ref=e597]:
+              - paragraph [ref=e598]: Corelyx currently uses cookies and local storage only for essential session handling and interface preferences such as theme selection. We do not currently load advertising trackers or non-essential analytics on the site.
+              - paragraph [ref=e599]: Because the current site experience only uses essential authentication cookies and saved preferences, the site shows an informational notice rather than an opt-in marketing or analytics banner.
+          - generic [ref=e601]:
+            - heading "13. Contact" [level=2] [ref=e602]
+            - generic [ref=e603]:
+              - paragraph [ref=e604]: Privacy requests and security issues
+              - paragraph [ref=e605]:
+                - text: Email us at
+                - link "privacy@corelyx.app" [ref=e606] [cursor=pointer]:
+                  - /url: mailto:privacy@corelyx.app
+                - text: . For general legal contact details, see the
+                - link "Impressum" [ref=e607] [cursor=pointer]:
+                  - /url: /impressum
+                - text: .
+    - contentinfo [ref=e608]:
+      - generic [ref=e609]:
+        - generic [ref=e610]: © 2026 Corelyx. All rights reserved.
+        - generic [ref=e611]:
+          - link "Privacy" [ref=e612] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e613] [cursor=pointer]:
+            - /url: /terms
+          - link "DPA" [ref=e614] [cursor=pointer]:
+            - /url: /dpa
+          - link "Security" [ref=e615] [cursor=pointer]:
+            - /url: /security
+          - link "Impressum" [ref=e616] [cursor=pointer]:
+            - /url: /impressum
+          - link "Sign in" [ref=e617] [cursor=pointer]:
+            - /url: /login
+  - generic [ref=e618]:
+    - paragraph [ref=e619]: Translate this site to Deutsch?
+    - paragraph [ref=e620]: The interface will reload in Deutsch. You can change this anytime in Settings → Language.
+    - generic [ref=e621]:
+      - button "Translate" [ref=e622] [cursor=pointer]
+      - button "Keep English" [ref=e623] [cursor=pointer]
+  - generic [ref=e625]:
+    - paragraph [ref=e626]:
+      - text: We only use essential authentication cookies and saved interface preferences. We do not load analytics, advertising, or other optional trackers. See our
+      - link "Privacy Policy" [ref=e627] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Terms" [ref=e628] [cursor=pointer]:
+        - /url: /terms
+      - text: .
+    - button "Dismiss" [ref=e629] [cursor=pointer]
+  - alert [ref=e630]

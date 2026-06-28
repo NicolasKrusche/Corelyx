@@ -1,0 +1,114 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Corelyx Corelyx" [ref=e5] [cursor=pointer]:
+          - /url: /dashboard
+          - img "Corelyx" [ref=e6]
+          - generic [ref=e7]: Corelyx
+        - generic [ref=e8]:
+          - navigation [ref=e9]:
+            - link "Trust" [ref=e10] [cursor=pointer]:
+              - /url: /trust
+            - link "Privacy" [ref=e11] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e12] [cursor=pointer]:
+              - /url: /terms
+            - link "DPA" [ref=e13] [cursor=pointer]:
+              - /url: /dpa
+            - link "Subprocessors" [ref=e14] [cursor=pointer]:
+              - /url: /subprocessors
+            - link "Residency" [ref=e15] [cursor=pointer]:
+              - /url: /data-residency
+            - link "AI Act" [ref=e16] [cursor=pointer]:
+              - /url: /ai-act
+            - link "Security" [ref=e17] [cursor=pointer]:
+              - /url: /security
+          - link "Back to dashboard" [ref=e18] [cursor=pointer]:
+            - /url: /dashboard
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Trust Center
+        - heading "Compliance evidence for EU-facing AI workflows." [level=1] [ref=e22]
+        - paragraph [ref=e23]: "Corelyx is built around EU-first automation controls: data-flow visibility, human approval gates, run-level audit trails, DPA and subprocessor transparency, EU-only mode for eligible workflows, and AI Act-ready controls. Final compliance depends on use case, configuration, customer role, and the providers a workspace enables."
+      - generic [ref=e24]:
+        - link "Security overview Technical and organisational measures, vulnerability disclosure, incident handling, and audit status." [ref=e25] [cursor=pointer]:
+          - /url: /security
+          - heading "Security overview" [level=2] [ref=e26]
+          - paragraph [ref=e27]: Technical and organisational measures, vulnerability disclosure, incident handling, and audit status.
+        - link "GDPR DPA Article 28 processor terms for business customers." [ref=e28] [cursor=pointer]:
+          - /url: /dpa
+          - heading "GDPR DPA" [level=2] [ref=e29]
+          - paragraph [ref=e30]: Article 28 processor terms for business customers.
+        - link "Subprocessor registry Structured provider, purpose, region, DPA, SCC, retention, and transfer-basis information." [ref=e31] [cursor=pointer]:
+          - /url: /subprocessors
+          - heading "Subprocessor registry" [level=2] [ref=e32]
+          - paragraph [ref=e33]: Structured provider, purpose, region, DPA, SCC, retention, and transfer-basis information.
+        - link "Data residency matrix EU-first infrastructure, EU-only mode boundaries, and known third-country transfer risks." [ref=e34] [cursor=pointer]:
+          - /url: /data-residency
+          - heading "Data residency matrix" [level=2] [ref=e35]
+          - paragraph [ref=e36]: EU-first infrastructure, EU-only mode boundaries, and known third-country transfer risks.
+        - link "AI Act readiness Risk classification support, human oversight, transparency notices, audit logs, and exports." [ref=e37] [cursor=pointer]:
+          - /url: /ai-act
+          - heading "AI Act readiness" [level=2] [ref=e38]
+          - paragraph [ref=e39]: Risk classification support, human oversight, transparency notices, audit logs, and exports.
+        - link "Privacy policy Controller notice, data categories, legal bases, transfers, retention, and rights." [ref=e40] [cursor=pointer]:
+          - /url: /privacy
+          - heading "Privacy policy" [level=2] [ref=e41]
+          - paragraph [ref=e42]: Controller notice, data categories, legal bases, transfers, retention, and rights.
+        - link "Impressum Legal identity, responsible contact, security contact, data-protection contact, and contracting entity." [ref=e43] [cursor=pointer]:
+          - /url: /impressum
+          - heading "Impressum" [level=2] [ref=e44]
+          - paragraph [ref=e45]: Legal identity, responsible contact, security contact, data-protection contact, and contracting entity.
+        - link "DPIA template A customer-facing template for higher-risk workflow assessments." [ref=e46] [cursor=pointer]:
+          - /url: /dpia-template
+          - heading "DPIA template" [level=2] [ref=e47]
+          - paragraph [ref=e48]: A customer-facing template for higher-risk workflow assessments.
+      - generic [ref=e49]:
+        - heading "Technical and organisational measures" [level=2] [ref=e50]
+        - generic [ref=e51]:
+          - paragraph [ref=e52]: TLS in transit and provider-managed encryption at rest.
+          - paragraph [ref=e53]: Server-side credential access through established token and Vault helpers.
+          - paragraph [ref=e54]: Workspace and program access checks with role-based permissions.
+          - paragraph [ref=e55]: Human approval gates for sensitive AI and external-system actions.
+          - paragraph [ref=e56]: Execution metadata, payload minimisation, retention jobs, and secret redaction.
+          - paragraph [ref=e57]: Internal web-to-runtime calls use shared internal authentication helpers.
+      - generic [ref=e58]:
+        - heading "Assurance status" [level=2] [ref=e59]
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - paragraph [ref=e62]: ISO 27001 / SOC 2
+            - paragraph [ref=e63]: Corelyx is not currently ISO 27001 or SOC 2 certified. We are evaluating external certification as part of our enterprise readiness roadmap.
+          - generic [ref=e64]:
+            - paragraph [ref=e65]: ISO 42001
+            - paragraph [ref=e66]: Not currently certified. AI management-system certification is being tracked as part of the external assurance roadmap.
+          - generic [ref=e67]:
+            - paragraph [ref=e68]: Pen test / external audit
+            - paragraph [ref=e69]: No completed third-party penetration test is currently published. External testing is planned before enterprise commitments that require it.
+          - generic [ref=e70]:
+            - paragraph [ref=e71]: CSA STAR / NIS2 / CISPE / Green Web
+            - paragraph [ref=e72]: Self-assessment documents are maintained in the repository and should be published only when evidence is complete and current.
+          - generic [ref=e73]:
+            - paragraph [ref=e74]: Status page
+            - paragraph [ref=e75]: Public status page is planned. Until it is live, operational incidents are communicated through customer support channels.
+      - generic [ref=e76]:
+        - heading "Vulnerability disclosure" [level=2] [ref=e77]
+        - paragraph [ref=e78]:
+          - text: Please report security issues privately to
+          - link "security@corelyx.app" [ref=e79] [cursor=pointer]:
+            - /url: mailto:security@corelyx.app
+          - text: . The detailed policy, scope, severity targets, and coordinated disclosure expectations are published on the
+          - link "Security" [ref=e80] [cursor=pointer]:
+            - /url: /security
+          - text: page.
+  - generic [ref=e82]:
+    - paragraph [ref=e83]:
+      - text: We only use essential authentication cookies and saved interface preferences. We do not load analytics, advertising, or other optional trackers. See our
+      - link "Privacy Policy" [ref=e84] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Terms" [ref=e85] [cursor=pointer]:
+        - /url: /terms
+      - text: .
+    - button "Dismiss" [ref=e86] [cursor=pointer]
+  - alert [ref=e87]

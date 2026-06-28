@@ -1,0 +1,177 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e15]:
+      - button "Back" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+        - text: Back
+      - generic [ref=e20]:
+        - button "Weekday HackerNews to Slack" [ref=e21] [cursor=pointer]
+        - generic [ref=e22]: Saved
+      - button "Add node" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+        - text: Add node
+      - generic [ref=e28]:
+        - button "Undo" [disabled]:
+          - img
+        - button "Redo" [disabled]:
+          - img
+      - button "History" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+        - text: History
+      - button "Auto-layout" [ref=e34] [cursor=pointer]:
+        - img [ref=e35]
+        - text: Auto-layout
+        - img [ref=e40]
+      - button "Edit with AI" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+        - text: Edit with AI
+      - button "Validate ✓" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+        - text: Validate
+        - generic [ref=e50]: ✓
+      - button "Save" [disabled]:
+        - img
+        - text: Save
+      - button "Run with payload" [ref=e51] [cursor=pointer]:
+        - img [ref=e52]
+        - text: Run with payload
+      - button "Run" [ref=e56] [cursor=pointer]:
+        - img [ref=e57]
+        - text: Run
+    - complementary [ref=e229]:
+      - separator "Resize panel" [ref=e230]
+      - generic [ref=e231]:
+        - generic [ref=e232]:
+          - img [ref=e233]
+          - generic [ref=e236]: Edit with AI
+        - button "Close AI edit panel" [ref=e237] [cursor=pointer]:
+          - img [ref=e238]
+      - generic [ref=e240]:
+        - generic [ref=e241]:
+          - button "My API key" [disabled] [ref=e242]
+          - button "Corelyx AI" [ref=e243] [cursor=pointer]
+        - paragraph [ref=e244]:
+          - text: Genesis AI usage is applied first. If none is available,
+          - generic [ref=e245]: 1,000 credits
+          - text: will be deducted from your balance.
+        - textbox "e.g. \"Add a Slack notification after the Gmail node\" or \"Replace the cron trigger with a webhook\"" [active] [ref=e246]
+        - paragraph [ref=e247]: 0 / 2000
+      - generic [ref=e248]:
+        - button "Apply edit" [disabled]
+        - paragraph [ref=e249]: ⌘↵ to apply
+    - application [ref=e60]:
+      - generic [ref=e62]:
+        - generic:
+          - generic:
+            - img
+            - img:
+              - group "Edge from n1 to n2" [ref=e63] [cursor=pointer]
+            - img:
+              - group "Edge from n2 to n3" [ref=e66] [cursor=pointer]
+            - img:
+              - group "Edge from n3 to n4" [ref=e69] [cursor=pointer]
+            - img:
+              - group "Edge from n4 to n5" [ref=e72] [cursor=pointer]
+            - img:
+              - group "Edge from n5 to n6" [ref=e75] [cursor=pointer]
+            - img:
+              - group "Edge from n6 to n7" [ref=e78] [cursor=pointer]
+          - generic:
+            - group [ref=e81]:
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - img [ref=e85]
+                  - generic [ref=e88]:
+                    - paragraph [ref=e89]: Trigger · Schedule
+                    - paragraph [ref=e90]: Weekday 8am
+                - paragraph [ref=e91]: Fires Monday‑Friday at 8 am UTC.
+              - generic [ref=e92]:
+                - img
+            - group [ref=e93]:
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - img [ref=e98]
+                  - generic [ref=e101]:
+                    - paragraph [ref=e102]: HTTP · GET
+                    - paragraph [ref=e103]: Get top story IDs
+                - paragraph [ref=e104]: Fetches list of top HackerNews story IDs.
+                - paragraph [ref=e105]: https://hacker-news.firebaseio.com/v0/topstories.json
+              - generic [ref=e106]:
+                - img
+            - group [ref=e107]:
+              - generic [ref=e109]:
+                - generic [ref=e110]:
+                  - img [ref=e112]
+                  - generic [ref=e118]:
+                    - paragraph [ref=e119]: Step · Transform
+                    - paragraph [ref=e120]: Take first 5
+                - paragraph [ref=e121]: Keeps only the first five IDs.
+              - generic [ref=e122]:
+                - img
+            - group [ref=e123]:
+              - generic [ref=e125]:
+                - generic [ref=e126]:
+                  - img [ref=e128]
+                  - generic [ref=e133]:
+                    - paragraph [ref=e134]: Step · Loop
+                    - paragraph [ref=e135]: Loop stories
+                - paragraph [ref=e136]: Iterates over the five story IDs.
+              - generic [ref=e137]:
+                - img
+            - group [ref=e138]:
+              - generic [ref=e140]:
+                - generic [ref=e141]:
+                  - img [ref=e143]
+                  - generic [ref=e146]:
+                    - paragraph [ref=e147]: HTTP · GET
+                    - paragraph [ref=e148]: Fetch story details
+                - paragraph [ref=e149]: Gets title and URL for each story ID.
+                - paragraph [ref=e150]: "https://hacker-news.firebaseio.com/v0/item/{{n4.story_id}}.json"
+              - generic [ref=e151]:
+                - img
+            - group [ref=e152]:
+              - generic [ref=e154]:
+                - generic [ref=e155]:
+                  - img [ref=e157]
+                  - generic [ref=e159]:
+                    - paragraph [ref=e160]: Step · Format
+                    - paragraph [ref=e161]: Format message
+                - paragraph [ref=e162]: Creates a Slack text block with the five titles.
+              - generic [ref=e163]:
+                - img
+            - group [ref=e164]:
+              - generic [ref=e166]:
+                - generic [ref=e167]:
+                  - img [ref=e169]
+                  - generic [ref=e172]:
+                    - paragraph [ref=e173]: HTTP · POST
+                    - paragraph [ref=e174]: Post to Slack
+                - paragraph [ref=e175]: Sends the formatted list to Slack via webhook.
+                - paragraph [ref=e176]: "{{SLACK_WEBHOOK_URL}}"
+              - generic [ref=e177]:
+                - img
+            - group [ref=e178]:
+              - generic [ref=e179]:
+                - generic [ref=e180]:
+                  - generic [ref=e181]: Drag note
+                  - img [ref=e182]
+                - textbox "Add a note…" [ref=e187]: "Provide a Slack Incoming Webhook URL and replace {{SLACK_WEBHOOK_URL}} in the HTTP node above."
+            - group [ref=e188]:
+              - generic [ref=e190]:
+                - img [ref=e191]
+                - generic [ref=e194]: Fetch Stories
+            - group [ref=e195]:
+              - generic [ref=e197]:
+                - img [ref=e198]
+                - generic [ref=e201]: Send to Slack
+      - generic "Control Panel" [ref=e202]:
+        - button "Zoom In" [ref=e203] [cursor=pointer]:
+          - img [ref=e204]
+        - button "Zoom Out" [ref=e206] [cursor=pointer]:
+          - img [ref=e207]
+        - button "Fit View" [ref=e209] [cursor=pointer]:
+          - img [ref=e210]
+        - button "Toggle Interactivity" [ref=e212] [cursor=pointer]:
+          - img [ref=e213]
+      - img "Mini Map" [ref=e216]
+  - alert [ref=e228]
