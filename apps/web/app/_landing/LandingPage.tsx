@@ -1,27 +1,26 @@
 import Link from "next/link";
 import { legalIdentity } from "@/lib/legal";
-import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
+import { SmoothScroll } from "./sections/SmoothScroll";
+import { CinematicBackdrop } from "./sections/CinematicBackdrop";
 import { ScrollProgress } from "./sections/ScrollProgress";
-import { ProblemSection } from "./sections/ProblemSection";
-import { OperatingModelSection } from "./sections/OperatingModelSection";
-import { WorkflowBuilderSection } from "./sections/WorkflowBuilderSection";
-import { GovernanceSection } from "./sections/GovernanceSection";
-import { CredentialBoundarySection } from "./sections/CredentialBoundarySection";
-import { ApprovalSection } from "./sections/ApprovalSection";
-import { AuditEvidenceSection } from "./sections/AuditEvidenceSection";
-import { IntegrationsSection } from "./sections/IntegrationsSection";
-import { UseCasesSection } from "./sections/UseCasesSection";
-import { TrustCenterSection } from "./sections/TrustCenterSection";
-import { ComparisonSection } from "./sections/ComparisonSection";
-import { FinalCtaSection } from "./sections/FinalCtaSection";
+import { HeroSignalScene } from "./sections/HeroSignalScene";
+import { SignalToNodesScene } from "./sections/SignalToNodesScene";
+import { WorkflowGraphScene } from "./sections/WorkflowGraphScene";
+import { WorkflowBuilderScene } from "./sections/WorkflowBuilderScene";
+import { GovernanceLayerScene } from "./sections/GovernanceLayerScene";
+import { CredentialVaultScene } from "./sections/CredentialVaultScene";
+import { ApprovalGateScene } from "./sections/ApprovalGateScene";
+import { AuditEvidenceScene } from "./sections/AuditEvidenceScene";
+import { IntegrationsOrbitScene } from "./sections/IntegrationsOrbitScene";
+import { UseCaseTemplatesScene } from "./sections/UseCaseTemplatesScene";
+import { TrustLayerScene } from "./sections/TrustLayerScene";
+import { FinalSystemRevealScene } from "./sections/FinalSystemRevealScene";
 
-// Minimal in-page nav that walks the scroll story (brief structure).
 const NAV_LINKS = [
   { label: "Platform", href: "#platform" },
   { label: "Workflows", href: "#workflows" },
   { label: "Security", href: "#security" },
   { label: "Compliance", href: "#compliance" },
-  { label: "Compare", href: "#compare" },
   { label: "Trust", href: "#trust" },
 ];
 
@@ -84,9 +83,9 @@ function InstagramIcon({ className }: { className?: string }) {
 
 function SiteHeader() {
   return (
-    <header className="fixed inset-x-0 top-0 z-[60] border-b border-white/[0.06] bg-[#07080a]/80 backdrop-blur-md">
+    <header className="fixed inset-x-0 top-0 z-[60] border-b border-white/[0.06] bg-[#05060a]/70 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="#top" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-6 w-6 object-contain" />
           <span className="text-sm font-semibold text-white">Corelyx</span>
@@ -104,12 +103,12 @@ function SiteHeader() {
           <Link href="/login" className="hidden text-sm text-white/50 transition-colors hover:text-white sm:block">
             Sign in
           </Link>
-          <Link
-            href="/signup"
+          <a
+            href="mailto:support@corelyx.app?subject=Book%20a%20Corelyx%20demo"
             className="inline-flex h-8 items-center rounded-full bg-[#f05a28] px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90"
           >
-            Start free
-          </Link>
+            Book a demo
+          </a>
         </div>
       </div>
     </header>
@@ -118,10 +117,9 @@ function SiteHeader() {
 
 function SiteFooter() {
   return (
-    <footer className="border-t border-white/10 bg-[#050608] px-5 py-14 text-white sm:px-8">
+    <footer className="relative z-10 border-t border-white/10 bg-[#05060a] px-5 py-14 text-white sm:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          {/* Brand */}
           <div>
             <div className="flex items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -147,19 +145,13 @@ function SiteFooter() {
             </a>
           </div>
 
-          {/* Link columns */}
           {FOOTER_COLUMNS.map((col) => (
             <nav key={col.title} aria-label={`${col.title} links`}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                {col.title}
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/40">{col.title}</p>
               <ul className="mt-4 space-y-3">
                 {col.links.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-white/55 transition-colors hover:text-white"
-                    >
+                    <Link href={link.href} className="text-sm text-white/55 transition-colors hover:text-white">
                       {link.label}
                     </Link>
                   </li>
@@ -169,7 +161,6 @@ function SiteFooter() {
           ))}
         </div>
 
-        {/* Legal identity */}
         <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-6">
           <p className="text-xs text-white/35">
             &copy; {new Date().getFullYear()} {legalIdentity.entityName}. All rights reserved.
@@ -193,24 +184,27 @@ function SiteFooter() {
 
 export default function LandingPage() {
   return (
-    // `dark` scopes the whole story to dark theme tokens while keeping the
-    // forced orange accent — one continuous cinematic dark canvas.
-    <div className="dark overflow-x-hidden bg-[#07080a] text-white">
+    // `dark` scopes the cinematic dark theme; the brand orange accent is inherited.
+    <div className="dark relative overflow-x-hidden bg-[#05060a] text-white">
+      <CinematicBackdrop />
       <ScrollProgress />
       <SiteHeader />
-      <CinematicHero />
-      <ProblemSection />
-      <OperatingModelSection />
-      <WorkflowBuilderSection />
-      <GovernanceSection />
-      <CredentialBoundarySection />
-      <ApprovalSection />
-      <AuditEvidenceSection />
-      <IntegrationsSection />
-      <UseCasesSection />
-      <TrustCenterSection />
-      <ComparisonSection />
-      <FinalCtaSection />
+      <SmoothScroll>
+        <main className="relative z-10">
+          <HeroSignalScene />
+          <SignalToNodesScene />
+          <WorkflowGraphScene />
+          <WorkflowBuilderScene />
+          <GovernanceLayerScene />
+          <CredentialVaultScene />
+          <ApprovalGateScene />
+          <AuditEvidenceScene />
+          <IntegrationsOrbitScene />
+          <UseCaseTemplatesScene />
+          <TrustLayerScene />
+          <FinalSystemRevealScene />
+        </main>
+      </SmoothScroll>
       <SiteFooter />
     </div>
   );
