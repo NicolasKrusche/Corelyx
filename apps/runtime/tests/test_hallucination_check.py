@@ -16,6 +16,7 @@ from engine.executor import (
     ExecutionError,
     HallucinationError,
     ProgramExecutor,
+    _HALLUCINATION_JUDGE_PROMPT,
     _parse_hallucination_verdict,
 )
 
@@ -238,6 +239,15 @@ class TestHallucinationCheck(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(input_arg["source_data"], INPUT_DATA)
         self.assertEqual(input_arg["ai_answer"], AGENT_OUTPUT)
         self.assertEqual(input_arg["task"], "Summarize the emails.")
+
+
+class TestJudgePrompt(unittest.TestCase):
+    def test_prompt_excludes_decorative_differences(self) -> None:
+        # Summarization steps legitimately re-decorate output (e.g. a different
+        # subject emoji); the judge must not treat that as a fabricated claim.
+        prompt = _HALLUCINATION_JUDGE_PROMPT.lower()
+        self.assertIn("emoji", prompt)
+        self.assertIn("decorative", prompt)
 
 
 class TestRunAbortPropagation(unittest.IsolatedAsyncioTestCase):
