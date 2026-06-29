@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { CONNECTOR_OPERATIONS } from "@/lib/connectors/catalog";
 import { OPERATION_PARAM_FIELDS } from "@/lib/connectors/operation-params";
 import { getFieldHelp, getOperationFieldHelp } from "@/lib/field-help";
+import {
+  nodeDocFieldUrl,
+  nodeDocPathForConnectorOperation,
+} from "@/lib/node-doc-paths";
 import { getSeoPage } from "@/lib/seo/content";
 
 describe("field help", () => {
@@ -63,7 +68,7 @@ describe("field help", () => {
     for (const key of keys) {
       const help = getFieldHelp(key);
       expect(help, key).toBeTruthy();
-      expect(help?.learnMoreUrl, key).toMatch(/^\/docs\/fields\//);
+      expect(help?.learnMoreUrl, key).toMatch(/^\/docs\/nodes/);
     }
   });
 
@@ -74,7 +79,9 @@ describe("field help", () => {
           const help = getOperationFieldHelp(provider, operation, field);
           expect(help.title, `${provider}.${operation}.${field.key}`).toBeTruthy();
           expect(help.description, `${provider}.${operation}.${field.key}`).toBeTruthy();
-          expect(help.learnMoreUrl, `${provider}.${operation}.${field.key}`).toMatch(/^\/docs\/fields\//);
+          expect(help.learnMoreUrl, `${provider}.${operation}.${field.key}`).toBe(
+            nodeDocFieldUrl(nodeDocPathForConnectorOperation(provider, operation), field.key),
+          );
         }
       }
     }
@@ -82,19 +89,47 @@ describe("field help", () => {
 
   it("registers docs pages used by field help links", () => {
     const pages = [
-      "/docs/fields/identity",
-      "/docs/fields/agent",
-      "/docs/fields/trigger",
-      "/docs/fields/step",
-      "/docs/fields/connection-file",
-      "/docs/fields/connection-oauth",
-      "/docs/fields/connection-http",
-      "/docs/fields/resource-ids",
-      "/docs/fields/operation-params",
+      "/docs/nodes",
+      "/docs/nodes/common",
+      "/docs/nodes/agent",
+      "/docs/nodes/agent-task",
+      "/docs/nodes/trigger",
+      "/docs/nodes/steps",
+      "/docs/nodes/steps/transform",
+      "/docs/nodes/steps/filter",
+      "/docs/nodes/steps/branch",
+      "/docs/nodes/steps/delay",
+      "/docs/nodes/steps/loop",
+      "/docs/nodes/steps/format",
+      "/docs/nodes/steps/parse",
+      "/docs/nodes/steps/deduplicate",
+      "/docs/nodes/steps/sort",
+      "/docs/nodes/oauth-connector",
+      "/docs/nodes/local-file",
+      "/docs/nodes/http-request",
     ];
 
     for (const page of pages) {
       expect(getSeoPage(page), page).toBeTruthy();
+    }
+  });
+
+  it("registers a node docs page for every connector operation", () => {
+    const providers = new Set([
+      ...Object.keys(CONNECTOR_OPERATIONS),
+      ...Object.keys(OPERATION_PARAM_FIELDS),
+    ]);
+
+    for (const provider of providers) {
+      const operations = new Set([
+        ...(CONNECTOR_OPERATIONS[provider] ?? []),
+        ...Object.keys(OPERATION_PARAM_FIELDS[provider] ?? {}),
+      ]);
+
+      for (const operation of operations) {
+        const path = nodeDocPathForConnectorOperation(provider, operation);
+        expect(getSeoPage(path), path).toBeTruthy();
+      }
     }
   });
 });
