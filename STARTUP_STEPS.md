@@ -32,7 +32,7 @@ Invoke-WebRequest http://localhost:3000 -UseBasicParsing | Select-Object StatusC
 Expected status: `200`.   
 
 ## 3. Start The Runtime API
-
+  
 Run in terminal 2: 
 
 ```powershell
