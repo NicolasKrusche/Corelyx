@@ -1,3 +1,8 @@
+import {
+  nodeDocFieldUrl,
+  nodeDocPathForConnectorOperation,
+} from "@/lib/node-doc-paths";
+
 export type FieldHelpEntry = {
   title: string;
   description: string;
@@ -14,7 +19,74 @@ export type OperationFieldHelpContext = {
   placeholder?: string;
 };
 
-const url = (page: string, anchor: string) => `/docs/fields/${page}#${anchor}`;
+const NODE_DOC_PATHS: Record<string, string> = {
+  identity: "/docs/nodes/common",
+  agent: "/docs/nodes/agent",
+  trigger: "/docs/nodes/trigger",
+  step: "/docs/nodes/steps",
+  "connection-file": "/docs/nodes/local-file",
+  "connection-oauth": "/docs/nodes/oauth-connector",
+  "connection-http": "/docs/nodes/http-request",
+  "resource-ids": "/docs/nodes",
+  "operation-params": "/docs/nodes/oauth-connector",
+};
+
+const NODE_DOC_FIELD_KEYS: Record<string, string> = {
+  "agent:api-key": "api_key_ref",
+  "agent:scope-access": "scope_access",
+  "agent:system-prompt": "system_prompt",
+  "agent:requires-approval": "requires_approval",
+  "agent:approval-timeout": "approval_timeout_hours",
+  "agent:max-attempts": "retry.max_attempts",
+  "agent:backoff-strategy": "retry.backoff",
+  "agent:backoff-base-seconds": "retry.backoff_base_seconds",
+  "agent:fail-on-exhaust": "retry.fail_program_on_exhaust",
+  "trigger:trigger-type": "trigger_type",
+  "trigger:cron-expression": "expression",
+  "trigger:http-method": "method",
+  "trigger:event-source": "source",
+  "trigger:event-name": "event",
+  "trigger:source-program-id": "source_program_id",
+  "trigger:fire-on-status": "on_status",
+  "trigger:device": "device_id",
+  "trigger:folder-to-watch": "path",
+  "trigger:fire-on": "events",
+  "trigger:name-patterns": "patterns",
+  "step:operation": "logic_type",
+  "step:expression": "transformation",
+  "step:condition-expression": "conditions[].condition",
+  "step:target-node-id": "conditions[].target_node_id",
+  "step:default-branch": "default_branch",
+  "step:delay-seconds": "seconds",
+  "step:iterate-over": "over",
+  "step:item-variable-name": "item_var",
+  "step:output-key": "output_key",
+  "step:input-key": "input_key",
+  "step:key-field": "dedup.key",
+  "step:sort-by-field": "sort.key",
+  "connection-file:path": "operation_params.path",
+  "connection-file:content": "operation_params.content",
+  "connection-file:destination-path": "operation_params.dest",
+  "connection-file:search-for": "operation_params.pattern",
+  "connection-file:scope-access": "conn_scope_access",
+  "connection-oauth:operation": "conn_operation",
+  "connection-oauth:scope-access": "conn_scope_access",
+  "connection-oauth:required-scopes": "scope_required",
+  "connection-oauth:operation-params-json": "operation_params_json",
+  "connection-http:method": "http_method",
+  "connection-http:auth-type": "auth_type",
+  "connection-http:auth-value": "auth_value",
+  "connection-http:query-params": "query_params",
+  "connection-http:parse-response-as-json": "parse_response",
+  "connection-http:timeout-seconds": "timeout_seconds",
+  "connection-http:enable-retries": "http_retry",
+};
+
+function url(page: string, anchor: string) {
+  const path = NODE_DOC_PATHS[page] ?? "/docs/nodes";
+  const fieldKey = NODE_DOC_FIELD_KEYS[`${page}:${anchor}`] ?? anchor;
+  return nodeDocFieldUrl(path, fieldKey);
+}
 
 const IDENTITY: Record<string, FieldHelpEntry> = {
   label: {
@@ -930,11 +1002,15 @@ export function getOperationFieldHelp(
   operation: string,
   field: OperationFieldHelpContext,
 ): FieldHelpEntry {
-  return (
+  const help =
     OPERATION_SPECIFIC[`${provider}.${operation}.${field.key}`] ??
     OPERATION_SPECIFIC[`${provider}.${field.key}`] ??
     RESOURCE_FIELDS[`${provider}.${field.key}`] ??
     GENERIC_OP_PARAMS[field.key] ??
-    fallbackOperationHelp(provider, operation, field)
-  );
+    fallbackOperationHelp(provider, operation, field);
+
+  return {
+    ...help,
+    learnMoreUrl: nodeDocFieldUrl(nodeDocPathForConnectorOperation(provider, operation), field.key),
+  };
 }

@@ -504,6 +504,50 @@ export function SeoContentPage({ page }: { page: SeoPage }) {
                 </ol>
               </section>
 
+              {page.linkGroups && (
+                <section aria-labelledby="node-chooser">
+                  <h2 id="node-chooser" className="text-2xl font-bold tracking-tight">
+                    Choose A Specific Node
+                  </h2>
+                  <div className="mt-6 space-y-8">
+                    {page.linkGroups.map((group) => (
+                      <section key={group.title} aria-labelledby={anchorId(group.title)} className="scroll-mt-24">
+                        <h3 id={anchorId(group.title)} className="text-lg font-semibold">
+                          {group.title}
+                        </h3>
+                        <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                          {group.description}
+                        </p>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {group.links.map((link) => {
+                            const isExternal = link.href.startsWith("http://") || link.href.startsWith("https://");
+                            const className = "block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-secondary";
+                            const content = (
+                              <>
+                                <span className="text-sm font-semibold text-foreground">{link.label}</span>
+                                <span className="mt-1 block text-xs leading-6 text-muted-foreground">
+                                  {link.description}
+                                </span>
+                              </>
+                            );
+
+                            return isExternal ? (
+                              <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className={className}>
+                                {content}
+                              </a>
+                            ) : (
+                              <Link key={link.href} href={link.href} className={className}>
+                                {content}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {page.table && (
               <section aria-labelledby="table">
                 <h2 id="table" className="text-2xl font-bold tracking-tight">{page.table.caption}</h2>
