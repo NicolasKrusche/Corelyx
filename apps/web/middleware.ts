@@ -206,6 +206,16 @@ export async function middleware(request: NextRequest) {
     return nextWithSecurity();
   }
 
+  // Public routes don't depend on the session: the only session-gated behavior on
+  // a public path is bouncing an already-logged-in visitor off the auth pages.
+  // For every other public route (homepage, marketing/SEO/docs pages, robots,
+  // sitemap) skip the Supabase client + getSession() JWT decode — that decode is
+  // the bulk of middleware CPU and this is the bulk of unauthenticated traffic.
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
+  if (isPublic && !isAuthPage) {
+    return nextWithSecurity();
+  }
+
   let supabaseResponse = nextWithSecurity();
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseKey, {
@@ -255,5 +265,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Skip middleware on framework assets and static bot/asset paths that need
+  // neither auth nor a CSP nonce (robots/sitemap, favicons, fonts, manifest,
+  // images). Narrowing the matcher keeps middleware CPU off high-frequency,
+  // non-app traffic. Deliberately not excluding .js/.css/.json/.txt/.xml so no
+  // dynamic route handler is accidentally dropped.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf|webmanifest)$).*)",
+  ],
 };
