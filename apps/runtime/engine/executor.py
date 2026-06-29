@@ -641,6 +641,16 @@ FILE_OPERATION_TIMEOUT_SECONDS = 30 * 60
 # HALLUCINATION_CHECK_ENABLED=false (e.g. to halve LLM cost per agent node).
 HALLUCINATION_CHECK_ENV = "HALLUCINATION_CHECK_ENABLED"
 HALLUCINATION_CONFIDENCE_THRESHOLD = 0.7
+# On a confident hallucination the agent is regenerated with the judge's specific
+# issues fed back as a correction (which makes the output differ even at
+# temperature 0) up to this many times. If every attempt still hallucinates the
+# run does NOT abort — the last answer is kept and a non-fatal groundedness
+# warning is surfaced on the node so the rest of the run can complete.
+HALLUCINATION_MAX_RETRIES = 3
+# Reserved key that carries a non-fatal groundedness warning from an agent node up
+# to _execute_node, which strips it from the data payload and records it as a node
+# warning. It never reaches downstream nodes or the stored output.
+GROUNDEDNESS_WARNING_KEY = "__groundedness_warning__"
 
 _HALLUCINATION_JUDGE_PROMPT = (
     "You are a strict groundedness auditor for an automation platform. You receive JSON with: "
@@ -1214,8 +1224,11 @@ class ProgramExecutor:
                         block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
                         **self._node_telemetry_payload(edge.to),
                     )
-                    # A confirmed hallucination aborts the ENTIRE run immediately —
-                    # independent branches must not keep acting on fabricated content.
+                    # Defensive backstop: agent nodes now self-correct on
+                    # hallucination and downgrade to a non-fatal warning rather than
+                    # raising (see _execute_agent), so this rarely fires — but if a
+                    # HALLUCINATION_DETECTED ever propagates, abort the whole run so
+                    # independent branches never act on fabricated content.
                     if e.code == "HALLUCINATION_DETECTED":
                         raise
                     if target_node.type == "agent":
@@ -1585,6 +1598,16 @@ class ProgramExecutor:
             else:
                 output = input_data  # trigger: pass through
 
+            # A persistently-hallucinating agent attaches a non-fatal groundedness
+            # warning. Lift it onto the node record (so the UI flags it) and strip
+            # it from the data payload so it never leaks to downstream nodes.
+            groundedness_warnings: list[str] = []
+            if isinstance(output, dict) and GROUNDEDNESS_WARNING_KEY in output:
+                warning = output[GROUNDEDNESS_WARNING_KEY]
+                if isinstance(warning, str):
+                    groundedness_warnings = [warning]
+                output = {k: v for k, v in output.items() if k != GROUNDEDNESS_WARNING_KEY}
+
             await update_node_execution(
                 self.db,
                 self.run_id,
@@ -1595,6 +1618,7 @@ class ProgramExecutor:
                 # Clear any error recorded by an earlier retry attempt so a node
                 # that ultimately succeeded does not display a stale failure.
                 error_message=None,
+                block_warning_reasons=groundedness_warnings,
                 data_region=self.data_region,
                 retention_expiry=self.retention_expiry,
                 **self._node_telemetry_payload(node.id),
@@ -1654,27 +1678,67 @@ class ProgramExecutor:
 
         # Execute with retry and circuit breaker protection
         circuit = get_llm_circuit()
-        try:
-            output = await circuit.call(
-                self._call_llm_with_platform_fallback,
-                cfg,
-                api_key,
-                provider_id,
-                input_data,
-                node.id,
-                use_platform_key,
-            )
-        except CircuitOpenError as e:
-            raise ExecutionError(
-                "LLM_CIRCUIT_OPEN",
-                f"LLM service temporarily unavailable due to repeated failures. Please try again later.",
-                node.id,
-            ) from e
 
-        # Groundedness audit: abort the whole run if the answer is hallucinated.
-        await self._verify_agent_output(
+        async def _generate(active_cfg: AgentConfig) -> dict:
+            try:
+                return await circuit.call(
+                    self._call_llm_with_platform_fallback,
+                    active_cfg,
+                    api_key,
+                    provider_id,
+                    input_data,
+                    node.id,
+                    use_platform_key,
+                )
+            except CircuitOpenError as e:
+                raise ExecutionError(
+                    "LLM_CIRCUIT_OPEN",
+                    "LLM service temporarily unavailable due to repeated failures. Please try again later.",
+                    node.id,
+                ) from e
+
+        # Groundedness audit with self-correction. A confident hallucination no
+        # longer aborts the run: regenerate with the judge's specific issues fed
+        # back as a correction (so the output differs even at temperature 0) up to
+        # HALLUCINATION_MAX_RETRIES times. If it still can't ground the answer, keep
+        # the last one and attach a non-fatal warning so the rest of the run runs.
+        output = await _generate(cfg)
+        issues = await self._verify_agent_output(
             cfg, api_key, provider_id, input_data, output, node.id, use_platform_key
         )
+        attempt = 0
+        while issues and attempt < HALLUCINATION_MAX_RETRIES:
+            attempt += 1
+            correction = (
+                "\n\n[GROUNDEDNESS CORRECTION] A previous attempt was rejected for "
+                "including detail not supported by the input data: "
+                f"{'; '.join(issues[:3])}. Redo your response using ONLY information "
+                "explicitly present in the input. Do not add outside knowledge, "
+                "titles, roles, affiliations, dates, numbers, or any fact that does "
+                "not appear in the input."
+            )
+            corrected_cfg = replace(cfg, system_prompt=f"{cfg.system_prompt or ''}{correction}")
+            print(
+                f"[hallucination-check] node {node.id}: regenerating "
+                f"(retry {attempt}/{HALLUCINATION_MAX_RETRIES}) after issues: {issues[:3]}",
+                flush=True,
+            )
+            output = await _generate(corrected_cfg)
+            issues = await self._verify_agent_output(
+                cfg, api_key, provider_id, input_data, output, node.id, use_platform_key
+            )
+
+        if issues:
+            warning = (
+                "Groundedness: output may include detail not supported by the step's "
+                f"input after {HALLUCINATION_MAX_RETRIES} retries — {'; '.join(issues[:3])}"
+            )
+            print(
+                f"[hallucination-check] node {node.id}: {warning} (continuing, non-fatal)",
+                flush=True,
+            )
+            if isinstance(output, dict):
+                output = {**output, GROUNDEDNESS_WARNING_KEY: warning}
         return output
 
     async def _verify_agent_output(
@@ -1686,19 +1750,21 @@ class ProgramExecutor:
         output: dict,
         node_id: str,
         deduct_credits: bool,
-    ) -> None:
+    ) -> list[str]:
         """Second-pass LLM judge that checks an agent answer for hallucinations.
 
-        Raises HallucinationError (aborts the entire run) on a confident
-        "hallucinated" verdict. Fails open on judge errors or unparseable
-        verdicts — the checker must never break an otherwise healthy run.
+        Returns the list of unsupported-claim issues when the answer is confidently
+        hallucinated (the caller regenerates or downgrades to a warning), or an
+        empty list when it is grounded. Fails open (returns []) on judge errors or
+        unparseable verdicts — the checker must never break an otherwise healthy
+        run. Run-limit errors from the judge call still propagate.
         """
         if not _hallucination_check_enabled():
-            return
+            return []
         if not output or not isinstance(output, dict):
-            return  # nothing produced (e.g. retries exhausted in continue mode)
+            return []  # nothing produced (e.g. retries exhausted in continue mode)
         if not input_data:
-            return  # no source data to ground against (purely generative step)
+            return []  # no source data to ground against (purely generative step)
 
         judge_cfg = replace(
             cfg,
@@ -1721,7 +1787,7 @@ class ProgramExecutor:
             raise
         except Exception as exc:
             print(f"[hallucination-check] judge call failed for node {node_id}; continuing: {exc}", flush=True)
-            return
+            return []
 
         verdict, confidence, issues = _parse_hallucination_verdict(verdict_raw)
         if verdict not in ("grounded", "hallucinated", "not_applicable"):
@@ -1732,14 +1798,12 @@ class ProgramExecutor:
                 f"failing open (raw type: {type(verdict_raw).__name__})",
                 flush=True,
             )
-            return
+            return []
         if verdict == "hallucinated" and confidence >= HALLUCINATION_CONFIDENCE_THRESHOLD:
-            details = (
-                "; ".join(issues[:3])
-                if issues
-                else "the answer contains claims not supported by the step's input data"
-            )
-            raise HallucinationError(node_id, details)
+            return issues or [
+                "the answer contains claims not supported by the step's input data"
+            ]
+        return []
 
     async def _call_llm_with_platform_fallback(
         self,
