@@ -15,6 +15,7 @@ const SCOPES_BY_SERVICE: Record<string, string[]> = {
   ],
   docs: [
     "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
     "https://www.googleapis.com/auth/userinfo.email",
   ],
   drive: [

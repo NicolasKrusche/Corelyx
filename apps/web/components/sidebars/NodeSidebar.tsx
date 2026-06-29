@@ -34,6 +34,8 @@ import { CONNECTOR_OPERATIONS, OPERATION_SCOPES } from "@/lib/connectors/catalog
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { MODEL_PRESETS } from "@/lib/model-presets";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
+import { FieldHelp } from "@/components/ui/field-help";
+import { getOperationFieldHelp, type FieldHelpEntry } from "@/lib/field-help";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,18 +101,23 @@ function FieldGroup({
   label,
   htmlFor,
   hint,
+  helpKey,
+  helpEntry,
   children,
 }: {
   label?: React.ReactNode;
   htmlFor?: string;
   hint?: string;
+  helpKey?: string;
+  helpEntry?: FieldHelpEntry;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1">
       {label && (
-        <Label htmlFor={htmlFor} className="text-xs">
+        <Label htmlFor={htmlFor} className="text-xs flex items-center gap-1">
           {label}
+          {(helpKey || helpEntry) && <FieldHelp fieldKey={helpKey} entry={helpEntry} />}
         </Label>
       )}
       {children}
@@ -124,16 +131,21 @@ function Toggle({
   checked,
   onChange,
   label,
+  helpKey,
+  helpEntry,
 }: {
   id: string;
   checked: boolean;
   onChange: (v: boolean) => void;
-  label: string;
+  label: React.ReactNode;
+  helpKey?: string;
+  helpEntry?: FieldHelpEntry;
 }) {
   return (
     <div className="flex items-center justify-between">
-      <Label htmlFor={id} className="text-xs cursor-pointer">
+      <Label htmlFor={id} className="text-xs cursor-pointer flex items-center gap-1">
         {label}
+        {(helpKey || helpEntry) && <FieldHelp fieldKey={helpKey} entry={helpEntry} />}
       </Label>
       <button
         id={id}
@@ -319,7 +331,7 @@ function OperationParamsEditor({
   if (!fields) {
     // Unknown operation — raw JSON editor
     return (
-      <FieldGroup label="Operation params (JSON)" htmlFor="op-params-raw">
+      <FieldGroup label="Operation params (JSON)" htmlFor="op-params-raw" helpKey="operation_params_json">
         <Textarea
           id="op-params-raw"
           rows={5}
@@ -391,6 +403,7 @@ function OperationParamsEditor({
       {fields.map((field) => {
         const rawVal = params[field.key];
         const isMissing = missingRequired.includes(field.key);
+        const helpEntry = getOperationFieldHelp(provider, operation, field);
         // Hide the sentinel in the input so the user sees an empty, flagged field
         // instead of the literal placeholder string.
         const displayVal = isUnassignedParamValue(rawVal) ? "" : rawVal;
@@ -414,15 +427,21 @@ function OperationParamsEditor({
               id={`op-${field.key}`}
               checked={Boolean(rawVal)}
               onChange={(v) => update(field.key, v)}
-              label={field.label}
+              label={labelEl}
+              helpEntry={helpEntry}
             />
           );
         }
 
         if (field.type === "text") {
           return (
-            <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint}>
-              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+            <FieldGroup
+              key={field.key}
+              label={labelEl}
+              htmlFor={`op-${field.key}`}
+              hint={field.hint}
+              helpEntry={helpEntry}
+            >
               <Textarea
                 id={`op-${field.key}`}
                 rows={3}
@@ -437,8 +456,13 @@ function OperationParamsEditor({
 
         if (field.type === "number") {
           return (
-            <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint}>
-              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+            <FieldGroup
+              key={field.key}
+              label={labelEl}
+              htmlFor={`op-${field.key}`}
+              hint={field.hint}
+              helpEntry={helpEntry}
+            >
               <Input
                 id={`op-${field.key}`}
                 type="number"
@@ -458,8 +482,13 @@ function OperationParamsEditor({
             ? ""
             : String(rawVal ?? "");
           return (
-            <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint ?? "Comma-separated"}>
-              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+            <FieldGroup
+              key={field.key}
+              label={labelEl}
+              htmlFor={`op-${field.key}`}
+              hint={field.hint ?? "Comma-separated"}
+              helpEntry={helpEntry}
+            >
               <Input
                 id={`op-${field.key}`}
                 className={inputClass}
@@ -484,6 +513,7 @@ function OperationParamsEditor({
               fieldKey={field.key}
               label={labelEl}
               hint={field.hint}
+              helpEntry={helpEntry}
               value={jsonVal}
               invalid={isMissing}
               onCommit={(v) => {
@@ -506,9 +536,15 @@ function OperationParamsEditor({
         if (resourceConfig && connectionId && !isWaitingForParent) {
           const pickerValue = getResourcePickerValue(provider, field.key, displayVal, params);
           return (
-            <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint}>
-              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+            <FieldGroup
+              key={field.key}
+              label={labelEl}
+              htmlFor={`op-${field.key}`}
+              hint={field.hint}
+              helpEntry={helpEntry}
+            >
               <ResourcePicker
+                id={`op-${field.key}`}
                 connectionId={connectionId}
                 resourceType={resourceConfig.resourceType}
                 query={buildResourceQuery(resourceConfig, params)}
@@ -525,10 +561,11 @@ function OperationParamsEditor({
           return (
             <FieldGroup
               key={field.key}
+              label={labelEl}
               htmlFor={`op-${field.key}`}
               hint="Choose a connection above to load saved options, or paste a value manually."
+              helpEntry={helpEntry}
             >
-              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
               <Input
                 id={`op-${field.key}`}
                 className={inputClass}
@@ -544,10 +581,11 @@ function OperationParamsEditor({
           return (
             <FieldGroup
               key={field.key}
+              label={labelEl}
               htmlFor={`op-${field.key}`}
               hint={`Choose a ${resourceConfig.waitForLabel ?? resourceConfig.waitForKey} first, or paste a value manually.`}
+              helpEntry={helpEntry}
             >
-              <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
               <Input
                 id={`op-${field.key}`}
                 className={inputClass}
@@ -561,8 +599,13 @@ function OperationParamsEditor({
 
         // Default: string input
         return (
-          <FieldGroup key={field.key} htmlFor={`op-${field.key}`} hint={field.hint}>
-            <Label htmlFor={`op-${field.key}`} className="text-xs">{labelEl}</Label>
+          <FieldGroup
+            key={field.key}
+            label={labelEl}
+            htmlFor={`op-${field.key}`}
+            hint={field.hint}
+            helpEntry={helpEntry}
+          >
             <Input
               id={`op-${field.key}`}
               className={inputClass}
@@ -585,6 +628,7 @@ function JsonField({
   fieldKey,
   label,
   hint,
+  helpEntry,
   value,
   onCommit,
   invalid = false,
@@ -592,6 +636,7 @@ function JsonField({
   fieldKey: string;
   label: React.ReactNode;
   hint?: string;
+  helpEntry?: FieldHelpEntry;
   value: string;
   onCommit: (v: string) => void;
   invalid?: boolean;
@@ -602,8 +647,7 @@ function JsonField({
   useEffect(() => { setLocal(value); setErr(false); }, [value]);
 
   return (
-    <FieldGroup htmlFor={`op-${fieldKey}`} hint={hint}>
-      <Label htmlFor={`op-${fieldKey}`} className="text-xs">{label}</Label>
+    <FieldGroup label={label} htmlFor={`op-${fieldKey}`} hint={hint} helpEntry={helpEntry}>
       <Textarea
         id={`op-${fieldKey}`}
         rows={3}
@@ -628,6 +672,7 @@ function JsonField({
 type PickerResource = { id: string; name: string };
 
 function ResourcePicker({
+  id,
   connectionId,
   resourceType,
   query = {},
@@ -636,6 +681,7 @@ function ResourcePicker({
   invalid = false,
   onChange,
 }: {
+  id?: string;
   connectionId: string;
   resourceType: string;
   query?: Record<string, string>;
@@ -685,6 +731,7 @@ function ResourcePicker({
     return (
       <div className="space-y-1.5">
         <Input
+          id={id}
           className={borderClass}
           placeholder={placeholder ?? "Paste ID"}
           value={value}
@@ -710,6 +757,7 @@ function ResourcePicker({
   return (
     <div className="space-y-1.5">
       <Select
+        id={id}
         className={borderClass}
         value={selectedKnown ? value : ""}
         onChange={(e) => onChange(e.target.value)}
@@ -780,6 +828,7 @@ function DeviceSelect({
       label="Device"
       htmlFor="file-device"
       hint="Which paired desktop runs this. Default = your most-recently-active device."
+      helpKey="device_id"
     >
       <Select
         id="file-device"
@@ -930,7 +979,7 @@ function AgentSidebar({
       {/* Model tab */}
       {tab === "model" && (
         <div className="space-y-3">
-          <FieldGroup label="API Key" htmlFor="agent-apikey">
+          <FieldGroup label="API Key" htmlFor="agent-apikey" helpKey="api_key_ref">
             <Select
               id="agent-apikey"
               value={config.api_key_ref === "__USER_ASSIGNED__" ? "" : config.api_key_ref}
@@ -958,7 +1007,7 @@ function AgentSidebar({
 
           {isPlatformKey && <CorelyxKeyPanel />}
 
-          <FieldGroup label="Model" htmlFor="agent-model">
+          <FieldGroup label="Model" htmlFor="agent-model" helpKey="model">
             {providerPresets.length > 0 && (
               <datalist id={datalistId}>
                 {providerPresets.map((m) => <option key={m} value={m} />)}
@@ -992,7 +1041,7 @@ function AgentSidebar({
             )}
           </FieldGroup>
 
-          <FieldGroup label="Scope access" htmlFor="agent-scope">
+          <FieldGroup label="Scope access" htmlFor="agent-scope" helpKey="scope_access">
             <Select
               id="agent-scope"
               value={config.scope_access}
@@ -1011,7 +1060,7 @@ function AgentSidebar({
       {/* Prompt tab */}
       {tab === "prompt" && (
         <div className="space-y-3">
-          <FieldGroup label="System prompt" htmlFor="agent-prompt">
+          <FieldGroup label="System prompt" htmlFor="agent-prompt" helpKey="system_prompt">
             <Textarea
               id="agent-prompt"
               rows={8}
@@ -1027,10 +1076,11 @@ function AgentSidebar({
             checked={config.requires_approval}
             onChange={(v) => onUpdate({ requires_approval: v })}
             label="Requires human approval"
+            helpKey="requires_approval"
           />
 
           {config.requires_approval && (
-            <FieldGroup label="Approval timeout (hours)" htmlFor="agent-approval-timeout">
+            <FieldGroup label="Approval timeout (hours)" htmlFor="agent-approval-timeout" helpKey="approval_timeout_hours">
               <Input
                 id="agent-approval-timeout"
                 type="number"
@@ -1048,7 +1098,7 @@ function AgentSidebar({
       {/* Retry tab */}
       {tab === "retry" && (
         <div className="space-y-3">
-          <FieldGroup label="Max attempts (1–5)" htmlFor="retry-attempts">
+          <FieldGroup label="Max attempts (1–5)" htmlFor="retry-attempts" helpKey="retry.max_attempts">
             <Input
               id="retry-attempts"
               type="number"
@@ -1063,7 +1113,7 @@ function AgentSidebar({
             />
           </FieldGroup>
 
-          <FieldGroup label="Backoff strategy" htmlFor="retry-backoff">
+          <FieldGroup label="Backoff strategy" htmlFor="retry-backoff" helpKey="retry.backoff">
             <Select
               id="retry-backoff"
               value={config.retry.backoff}
@@ -1080,7 +1130,7 @@ function AgentSidebar({
           </FieldGroup>
 
           {config.retry.backoff !== "none" && (
-            <FieldGroup label="Base seconds" htmlFor="retry-base">
+            <FieldGroup label="Base seconds" htmlFor="retry-base" helpKey="retry.backoff_base_seconds">
               <Input
                 id="retry-base"
                 type="number"
@@ -1102,6 +1152,7 @@ function AgentSidebar({
               onUpdate({ retry: { ...config.retry, fail_program_on_exhaust: v } })
             }
             label="Fail program when retries exhausted"
+            helpKey="retry.fail_program_on_exhaust"
           />
         </div>
       )}
@@ -1122,7 +1173,7 @@ function TriggerSidebar({
 
   return (
     <div className="space-y-3">
-      <FieldGroup label="Trigger type" htmlFor="trigger-type">
+      <FieldGroup label="Trigger type" htmlFor="trigger-type" helpKey="trigger_type">
         <Select
           id="trigger-type"
           value={config.trigger_type}
@@ -1147,7 +1198,7 @@ function TriggerSidebar({
 
       {config.trigger_type === "cron" && (
         <>
-          <FieldGroup label="Cron expression" htmlFor="cron-expr">
+          <FieldGroup label="Cron expression" htmlFor="cron-expr" helpKey="expression">
             <Input
               id="cron-expr"
               placeholder="0 9 * * 1-5"
@@ -1186,7 +1237,7 @@ function TriggerSidebar({
             )}
           </div>
 
-          <FieldGroup label="Timezone" htmlFor="cron-tz">
+          <FieldGroup label="Timezone" htmlFor="cron-tz" helpKey="timezone">
             <Input
               id="cron-tz"
               placeholder="UTC"
@@ -1199,7 +1250,7 @@ function TriggerSidebar({
 
       {config.trigger_type === "webhook" && (
         <>
-          <FieldGroup label="HTTP method" htmlFor="webhook-method">
+          <FieldGroup label="HTTP method" htmlFor="webhook-method" helpKey="method">
             <Select
               id="webhook-method"
               value={config.method}
@@ -1222,7 +1273,7 @@ function TriggerSidebar({
 
       {config.trigger_type === "event" && (
         <>
-          <FieldGroup label="Source" htmlFor="event-source">
+          <FieldGroup label="Source" htmlFor="event-source" helpKey="source">
             <Input
               id="event-source"
               placeholder="e.g. gmail"
@@ -1230,7 +1281,7 @@ function TriggerSidebar({
               onChange={(e) => onUpdate({ ...config, source: e.target.value })}
             />
           </FieldGroup>
-          <FieldGroup label="Event name" htmlFor="event-name">
+          <FieldGroup label="Event name" htmlFor="event-name" helpKey="event">
             <Input
               id="event-name"
               placeholder="e.g. message.received"
@@ -1243,7 +1294,7 @@ function TriggerSidebar({
 
       {config.trigger_type === "program_output" && (
         <>
-          <FieldGroup label="Source program ID" htmlFor="prog-source">
+          <FieldGroup label="Source program ID" htmlFor="prog-source" helpKey="source_program_id">
             <Input
               id="prog-source"
               placeholder="Program UUID"
@@ -1252,7 +1303,10 @@ function TriggerSidebar({
             />
           </FieldGroup>
           <div className="space-y-1">
-            <Label className="text-xs">Fire on status</Label>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs">Fire on status</Label>
+              <FieldHelp fieldKey="on_status" />
+            </div>
             {(["success", "failed", "partial"] as const).map((s) => {
               const active = config.on_status.includes(s);
               return (
@@ -1288,6 +1342,7 @@ function TriggerSidebar({
             label="Folder to watch"
             htmlFor="fw-path"
             hint="Absolute path of a granted folder, e.g. C:\Users\you\Invoices"
+            helpKey="path"
           >
             <Input
               id="fw-path"
@@ -1297,7 +1352,10 @@ function TriggerSidebar({
             />
           </FieldGroup>
           <div className="space-y-1">
-            <Label className="text-xs">Fire on</Label>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs">Fire on</Label>
+              <FieldHelp fieldKey="events" />
+            </div>
             {(["created", "modified", "deleted"] as const).map((ev) => {
               const active = config.events.includes(ev);
               return (
@@ -1321,6 +1379,7 @@ function TriggerSidebar({
             label="Name patterns"
             htmlFor="fw-patterns"
             hint="Comma-separated globs, e.g. *.pdf, invoice-*.csv. Empty = any file."
+            helpKey="patterns"
           >
             <Input
               id="fw-patterns"
@@ -1387,7 +1446,7 @@ function StepSidebar({
 
   return (
     <div className="space-y-3">
-      <FieldGroup label="Operation" htmlFor="step-logic">
+      <FieldGroup label="Operation" htmlFor="step-logic" helpKey="logic_type">
         <Select
           id="step-logic"
           value={config.logic_type}
@@ -1406,7 +1465,7 @@ function StepSidebar({
       {/* ── Transform ── */}
       {config.logic_type === "transform" && (
         <FieldGroup
-          label="Expression"
+          label="Expression" helpKey="transformation"
           htmlFor="step-transform"
           hint="JavaScript. input = upstream data. Return the new value."
         >
@@ -1424,7 +1483,7 @@ function StepSidebar({
       {/* ── Filter ── */}
       {config.logic_type === "filter" && (
         <FieldGroup
-          label="Condition"
+          label="Condition" helpKey="condition"
           htmlFor="step-filter"
           hint="True = pass data forward. False = stop execution."
         >
@@ -1441,30 +1500,47 @@ function StepSidebar({
       {config.logic_type === "branch" && (
         <>
           <div className="space-y-2">
-            <Label className="text-xs">Conditions</Label>
+            <div className="flex items-center gap-1">
+              <Label className="text-xs">Conditions</Label>
+              <FieldHelp fieldKey="conditions" />
+            </div>
             {config.conditions.map((cond: BranchCondition, i: number) => (
               <div key={i} className="flex gap-1.5 items-start">
-                <div className="flex-1 space-y-1">
-                  <Input
-                    placeholder="Condition expression"
-                    value={cond.condition}
-                    onChange={(e) => {
-                      const next = [...config.conditions];
-                      next[i] = { ...next[i], condition: e.target.value };
-                      onUpdate({ ...config, conditions: next });
-                    }}
-                    className="text-xs"
-                  />
-                  <Input
-                    placeholder="Target node ID"
-                    value={cond.target_node_id}
-                    onChange={(e) => {
-                      const next = [...config.conditions];
-                      next[i] = { ...next[i], target_node_id: e.target.value };
-                      onUpdate({ ...config, conditions: next });
-                    }}
-                    className="text-xs"
-                  />
+                <div className="flex-1 grid gap-2 sm:grid-cols-2">
+                  <FieldGroup
+                    label="Condition"
+                    htmlFor={`step-branch-condition-${i}`}
+                    helpKey="conditions[].condition"
+                  >
+                    <Input
+                      id={`step-branch-condition-${i}`}
+                      placeholder="input.priority === 'high'"
+                      value={cond.condition}
+                      onChange={(e) => {
+                        const next = [...config.conditions];
+                        next[i] = { ...next[i], condition: e.target.value };
+                        onUpdate({ ...config, conditions: next });
+                      }}
+                      className="text-xs"
+                    />
+                  </FieldGroup>
+                  <FieldGroup
+                    label="Target node ID"
+                    htmlFor={`step-branch-target-${i}`}
+                    helpKey="conditions[].target_node_id"
+                  >
+                    <Input
+                      id={`step-branch-target-${i}`}
+                      placeholder="node-id"
+                      value={cond.target_node_id}
+                      onChange={(e) => {
+                        const next = [...config.conditions];
+                        next[i] = { ...next[i], target_node_id: e.target.value };
+                        onUpdate({ ...config, conditions: next });
+                      }}
+                      className="text-xs"
+                    />
+                  </FieldGroup>
                 </div>
                 <Button
                   type="button"
@@ -1479,9 +1555,35 @@ function StepSidebar({
                 </Button>
               </div>
             ))}
-            <div className="space-y-1.5 pt-1">
-              <Input placeholder="Condition" value={newCondition} onChange={(e) => setNewCondition(e.target.value)} className="text-xs" />
-              <Input placeholder="Target node ID" value={newCondTarget} onChange={(e) => setNewCondTarget(e.target.value)} className="text-xs" />
+            <div className="grid gap-2 pt-1 sm:grid-cols-2">
+              <FieldGroup
+                label="New condition"
+                htmlFor="step-branch-new-condition"
+                helpKey="conditions[].condition"
+              >
+                <Input
+                  id="step-branch-new-condition"
+                  placeholder="Condition"
+                  value={newCondition}
+                  onChange={(e) => setNewCondition(e.target.value)}
+                  className="text-xs"
+                />
+              </FieldGroup>
+              <FieldGroup
+                label="New target node ID"
+                htmlFor="step-branch-new-target"
+                helpKey="conditions[].target_node_id"
+              >
+                <Input
+                  id="step-branch-new-target"
+                  placeholder="Target node ID"
+                  value={newCondTarget}
+                  onChange={(e) => setNewCondTarget(e.target.value)}
+                  className="text-xs"
+                />
+              </FieldGroup>
+            </div>
+            <div className="pt-1">
               <Button
                 type="button" variant="outline" size="sm" className="w-full"
                 disabled={!newCondition.trim() || !newCondTarget.trim()}
@@ -1492,7 +1594,7 @@ function StepSidebar({
               >+ Add condition</Button>
             </div>
           </div>
-          <FieldGroup label="Default branch (node ID)" htmlFor="step-default">
+          <FieldGroup label="Default branch (node ID)" htmlFor="step-default" helpKey="default_branch">
             <Input id="step-default" placeholder="node-id" value={config.default_branch}
               onChange={(e) => onUpdate({ ...config, default_branch: e.target.value })} />
           </FieldGroup>
@@ -1501,7 +1603,7 @@ function StepSidebar({
 
       {/* ── Delay ── */}
       {config.logic_type === "delay" && (
-        <FieldGroup label="Delay (seconds)" htmlFor="step-delay" hint="Max 300s (5 min). Pauses execution before the next node.">
+        <FieldGroup label="Delay (seconds)" htmlFor="step-delay" hint="Max 300s (5 min). Pauses execution before the next node." helpKey="seconds">
           <Input
             id="step-delay"
             type="number"
@@ -1516,7 +1618,7 @@ function StepSidebar({
       {/* ── Loop ── */}
       {config.logic_type === "loop" && (
         <>
-          <FieldGroup label="Iterate over" htmlFor="step-loop-over" hint="Expression that resolves to an array. e.g. input.emails">
+          <FieldGroup label="Iterate over" htmlFor="step-loop-over" hint="Expression that resolves to an array. e.g. input.emails" helpKey="over">
             <Input
               id="step-loop-over"
               placeholder="input.items"
@@ -1524,7 +1626,7 @@ function StepSidebar({
               onChange={(e) => onUpdate({ ...config, over: e.target.value })}
             />
           </FieldGroup>
-          <FieldGroup label="Item variable name" htmlFor="step-loop-var" hint="Name used to reference the current item in downstream nodes.">
+          <FieldGroup label="Item variable name" htmlFor="step-loop-var" hint="Name used to reference the current item in downstream nodes." helpKey="item_var">
             <Input
               id="step-loop-var"
               placeholder="item"
@@ -1538,7 +1640,7 @@ function StepSidebar({
       {/* ── Format ── */}
       {config.logic_type === "format" && (
         <>
-          <FieldGroup label="Template" htmlFor="step-format-tpl" hint="Python-style str.format_map. Use {field_name} to insert values.">
+          <FieldGroup label="Template" htmlFor="step-format-tpl" hint="Python-style str.format_map. Use {field_name} to insert values." helpKey="template">
             <Textarea
               id="step-format-tpl"
               rows={4}
@@ -1548,7 +1650,7 @@ function StepSidebar({
               className="text-xs resize-y font-mono"
             />
           </FieldGroup>
-          <FieldGroup label="Output key" htmlFor="step-format-key" hint="Key under which the formatted string is stored in output.">
+          <FieldGroup label="Output key" htmlFor="step-format-key" hint="Key under which the formatted string is stored in output." helpKey="output_key">
             <Input
               id="step-format-key"
               placeholder="text"
@@ -1562,7 +1664,7 @@ function StepSidebar({
       {/* ── Parse ── */}
       {config.logic_type === "parse" && (
         <>
-          <FieldGroup label="Input key" htmlFor="step-parse-key" hint="Key in upstream output that contains the raw string to parse.">
+          <FieldGroup label="Input key" htmlFor="step-parse-key" hint="Key in upstream output that contains the raw string to parse." helpKey="input_key">
             <Input
               id="step-parse-key"
               placeholder="text"
@@ -1570,7 +1672,7 @@ function StepSidebar({
               onChange={(e) => onUpdate({ ...config, input_key: e.target.value })}
             />
           </FieldGroup>
-          <FieldGroup label="Format" htmlFor="step-parse-fmt">
+          <FieldGroup label="Format" htmlFor="step-parse-fmt" helpKey="format">
             <Select
               id="step-parse-fmt"
               value={config.format}
@@ -1587,7 +1689,7 @@ function StepSidebar({
 
       {/* ── Deduplicate ── */}
       {config.logic_type === "deduplicate" && (
-        <FieldGroup label="Key field" htmlFor="step-dedup-key" hint="Field used to identify duplicates in input.items array.">
+        <FieldGroup label="Key field" htmlFor="step-dedup-key" hint="Field used to identify duplicates in input.items array." helpKey="dedup.key">
           <Input
             id="step-dedup-key"
             placeholder="id"
@@ -1600,7 +1702,7 @@ function StepSidebar({
       {/* ── Sort ── */}
       {config.logic_type === "sort" && (
         <>
-          <FieldGroup label="Sort by field" htmlFor="step-sort-key" hint="Field to sort by in the input.items array.">
+          <FieldGroup label="Sort by field" htmlFor="step-sort-key" hint="Field to sort by in the input.items array." helpKey="sort.key">
             <Input
               id="step-sort-key"
               placeholder="created_at"
@@ -1608,7 +1710,7 @@ function StepSidebar({
               onChange={(e) => onUpdate({ ...config, key: e.target.value })}
             />
           </FieldGroup>
-          <FieldGroup label="Order" htmlFor="step-sort-order">
+          <FieldGroup label="Order" htmlFor="step-sort-order" helpKey="order">
             <Select
               id="step-sort-order"
               value={config.order}
@@ -1628,12 +1730,14 @@ function StepSidebar({
 
 function KeyValueListEditor({
   label,
+  helpKey,
   items,
   onChange,
   emptyKeyPlaceholder,
   emptyValuePlaceholder,
 }: {
   label: string;
+  helpKey?: string;
   items: Array<{ key: string; value: string }>;
   onChange: (next: Array<{ key: string; value: string }>) => void;
   emptyKeyPlaceholder: string;
@@ -1641,7 +1745,10 @@ function KeyValueListEditor({
 }) {
   return (
     <div className="space-y-2">
-      <Label className="text-xs">{label}</Label>
+      <div className="flex items-center gap-1">
+        <Label className="text-xs">{label}</Label>
+        {helpKey && <FieldHelp fieldKey={helpKey} />}
+      </div>
       {items.length === 0 && (
         <p className="text-[11px] text-muted-foreground">No entries yet.</p>
       )}
@@ -1739,7 +1846,7 @@ function FileConnectionSidebar({
 
       <DeviceSelect value={config.device_id} onChange={(deviceId) => onUpdate({ device_id: deviceId })} />
 
-      <FieldGroup label="Operation" htmlFor="file-op">
+      <FieldGroup label="Operation" htmlFor="file-op" helpKey="operation">
         <Select
           id="file-op"
           value={op}
@@ -1763,6 +1870,7 @@ function FileConnectionSidebar({
         label={pathLabel}
         htmlFor="file-path"
         hint="Absolute path inside a granted folder. Use {{node_id.field}} for upstream values."
+        helpKey="operation_params.path"
       >
         <Input
           id="file-path"
@@ -1774,7 +1882,7 @@ function FileConnectionSidebar({
 
       {needsContent && (
         <FieldGroup
-          label="Content"
+          label="Content" helpKey="operation_params.content"
           htmlFor="file-content"
           hint="Text to write. Use {{node_id.field}} to insert upstream output."
         >
@@ -1790,7 +1898,7 @@ function FileConnectionSidebar({
 
       {needsDest && (
         <FieldGroup
-          label="Destination path"
+          label="Destination path" helpKey="operation_params.dest"
           htmlFor="file-dest"
           hint="Where to move/copy to — also inside a granted folder."
         >
@@ -1805,7 +1913,7 @@ function FileConnectionSidebar({
 
       {isSearch && (
         <FieldGroup
-          label="Search for"
+          label="Search for" helpKey="operation_params.pattern"
           htmlFor="file-pattern"
           hint="File-name substring to match under the folder above, e.g. invoice."
         >
@@ -1822,6 +1930,7 @@ function FileConnectionSidebar({
         label="Scope access"
         htmlFor="file-scope"
         hint="Read = list/read/stat/search. Write covers create/modify. Read + Write also allows delete & move."
+        helpKey="conn_scope_access"
       >
         <Select
           id="file-scope"
@@ -1895,7 +2004,7 @@ function ConnectionSidebar({
       <div className="space-y-3">
         {/* Connection selector */}
         {filteredConnections.length > 0 ? (
-          <FieldGroup label="Connection" htmlFor="conn-select">
+          <FieldGroup label="Connection" htmlFor="conn-select" helpKey="connection">
             <Select
               id="conn-select"
               value={nodeConnection ?? ""}
@@ -1919,7 +2028,7 @@ function ConnectionSidebar({
 
         {/* Operation picker */}
         {supportedOps.length > 0 && (
-          <FieldGroup label="Operation" htmlFor="conn-op">
+          <FieldGroup label="Operation" htmlFor="conn-op" helpKey="conn_operation">
             <Select
               id="conn-op"
               value={oauthConfig.operation ?? ""}
@@ -1961,7 +2070,7 @@ function ConnectionSidebar({
           </div>
         )}
 
-        <FieldGroup label="Scope access" htmlFor="conn-scope">
+        <FieldGroup label="Scope access" htmlFor="conn-scope" helpKey="conn_scope_access">
           <Select
             id="conn-scope"
             value={oauthConfig.scope_access}
@@ -1976,7 +2085,10 @@ function ConnectionSidebar({
         </FieldGroup>
 
         <div className="space-y-2">
-          <Label className="text-xs">Required scopes</Label>
+          <div className="flex items-center gap-1">
+            <Label className="text-xs">Required scopes</Label>
+            <FieldHelp fieldKey="scope_required" />
+          </div>
           {oauthConfig.scope_required.map((scope, i) => (
             <div key={i} className="flex items-center gap-1.5">
               <span className="flex-1 rounded-md border border-border bg-muted px-2 py-1 text-xs">
@@ -2039,7 +2151,7 @@ function ConnectionSidebar({
 
   return (
     <div className="space-y-3">
-      <FieldGroup label="Method" htmlFor="http-method">
+      <FieldGroup label="Method" htmlFor="http-method" helpKey="http_method">
         <Select
           id="http-method"
           value={config.method}
@@ -2051,7 +2163,7 @@ function ConnectionSidebar({
         </Select>
       </FieldGroup>
 
-      <FieldGroup label="URL" htmlFor="http-url">
+      <FieldGroup label="URL" htmlFor="http-url" helpKey="url">
         <Input
           id="http-url"
           placeholder="https://api.example.com/v1/resource"
@@ -2060,7 +2172,7 @@ function ConnectionSidebar({
         />
       </FieldGroup>
 
-      <FieldGroup label="Auth type" htmlFor="http-auth-type">
+      <FieldGroup label="Auth type" htmlFor="http-auth-type" helpKey="auth_type">
         <Select
           id="http-auth-type"
           value={config.auth_type}
@@ -2080,7 +2192,7 @@ function ConnectionSidebar({
       </FieldGroup>
 
       {config.auth_type !== "none" && (
-        <FieldGroup label="Auth value" htmlFor="http-auth-value">
+        <FieldGroup label="Auth value" htmlFor="http-auth-value" helpKey="auth_value">
           <Input
             id="http-auth-value"
             placeholder={config.auth_type === "basic" ? "username:password" : "token-or-api-key"}
@@ -2104,6 +2216,7 @@ function ConnectionSidebar({
         <div className="space-y-3 rounded-md border border-border p-3">
           <KeyValueListEditor
             label="Query params"
+            helpKey="query_params"
             items={config.query_params}
             onChange={(next) => onUpdate({ query_params: next })}
             emptyKeyPlaceholder="key"
@@ -2111,12 +2224,13 @@ function ConnectionSidebar({
           />
           <KeyValueListEditor
             label="Headers"
+            helpKey="headers"
             items={config.headers}
             onChange={(next) => onUpdate({ headers: next })}
             emptyKeyPlaceholder="Header-Name"
             emptyValuePlaceholder="Header value"
           />
-          <FieldGroup label="Body" htmlFor="http-body">
+          <FieldGroup label="Body" htmlFor="http-body" helpKey="body">
             <Textarea
               id="http-body"
               rows={5}
@@ -2131,8 +2245,9 @@ function ConnectionSidebar({
             checked={config.parse_response}
             onChange={(v) => onUpdate({ parse_response: v })}
             label="Parse response as JSON"
+            helpKey="parse_response"
           />
-          <FieldGroup label="Timeout (seconds)" htmlFor="http-timeout">
+          <FieldGroup label="Timeout (seconds)" htmlFor="http-timeout" helpKey="timeout_seconds">
             <Input
               id="http-timeout"
               type="number"
@@ -2149,10 +2264,11 @@ function ConnectionSidebar({
             checked={config.retry !== null}
             onChange={(enabled) => onUpdate({ retry: enabled ? retryConfig : null })}
             label="Enable retries"
+            helpKey="http_retry"
           />
           {config.retry !== null && (
             <div className="space-y-3 rounded-md border border-border p-2.5">
-              <FieldGroup label="Max attempts (1-5)" htmlFor="http-retry-attempts">
+              <FieldGroup label="Max attempts (1-5)" htmlFor="http-retry-attempts" helpKey="retry.max_attempts">
                 <Input
                   id="http-retry-attempts"
                   type="number"
@@ -2164,7 +2280,7 @@ function ConnectionSidebar({
                   }
                 />
               </FieldGroup>
-              <FieldGroup label="Backoff strategy" htmlFor="http-retry-backoff">
+              <FieldGroup label="Backoff strategy" htmlFor="http-retry-backoff" helpKey="retry.backoff">
                 <Select
                   id="http-retry-backoff"
                   value={retryConfig.backoff}
@@ -2178,7 +2294,7 @@ function ConnectionSidebar({
                 </Select>
               </FieldGroup>
               {retryConfig.backoff !== "none" && (
-                <FieldGroup label="Backoff base seconds" htmlFor="http-retry-base">
+                <FieldGroup label="Backoff base seconds" htmlFor="http-retry-base" helpKey="retry.backoff_base_seconds">
                   <Input
                     id="http-retry-base"
                     type="number"
@@ -2195,6 +2311,7 @@ function ConnectionSidebar({
                 checked={retryConfig.fail_program_on_exhaust}
                 onChange={(v) => onUpdate({ retry: { ...retryConfig, fail_program_on_exhaust: v } })}
                 label="Fail program when retries exhausted"
+                helpKey="retry.fail_program_on_exhaust"
               />
             </div>
           )}
@@ -2480,7 +2597,7 @@ export function NodeSidebar({
 
         {/* Label & Description */}
         <SidebarSection title="Identity">
-          <FieldGroup label="Label" htmlFor="node-label">
+          <FieldGroup label="Label" htmlFor="node-label" helpKey="label">
             <Input
               id="node-label"
               value={label}
@@ -2489,7 +2606,7 @@ export function NodeSidebar({
               onKeyDown={(e) => e.key === "Enter" && commitLabel()}
             />
           </FieldGroup>
-          <FieldGroup label="Description" htmlFor="node-desc">
+          <FieldGroup label="Description" htmlFor="node-desc" helpKey="description">
             <Textarea
               id="node-desc"
               rows={2}

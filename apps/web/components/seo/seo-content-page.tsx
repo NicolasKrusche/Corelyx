@@ -165,6 +165,13 @@ function isIndexPage(page: SeoPage) {
   return page.path.split("/").filter(Boolean).length === 1;
 }
 
+function anchorId(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 function buildJsonLd(page: SeoPage) {
   const url = `${SITE_URL}${page.path}`;
   const breadcrumbs = buildBreadcrumbs(page);
@@ -511,7 +518,11 @@ export function SeoContentPage({ page }: { page: SeoPage }) {
                     </thead>
                     <tbody className="divide-y divide-border bg-card">
                       {page.table.rows.map((row) => (
-                        <tr key={row.join("|")} className="align-top">
+                        <tr
+                          id={anchorId(row[0])}
+                          key={row.join("|")}
+                          className="scroll-mt-24 align-top"
+                        >
                           {row.map((cell, index) => (
                             <td key={`${cell}-${index}`} className="px-4 py-4 leading-7 text-muted-foreground">
                               {cell}
@@ -588,14 +599,28 @@ export function SeoContentPage({ page }: { page: SeoPage }) {
 
             <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
               <section className="rounded-lg border border-border bg-card p-5">
-                <h2 className="text-sm font-semibold">Related Corelyx Pages</h2>
+                <h2 className="text-sm font-semibold">Related Links</h2>
                 <div className="mt-4 space-y-4">
-                  {page.internalLinks.map((link) => (
-                    <Link key={link.href} href={link.href} className="block rounded-md border border-border/70 p-4 transition-colors hover:bg-secondary">
-                      <span className="text-sm font-semibold text-foreground">{link.label}</span>
-                      <span className="mt-1 block text-xs leading-6 text-muted-foreground">{link.description}</span>
-                    </Link>
-                  ))}
+                  {page.internalLinks.map((link) => {
+                    const isExternal = link.href.startsWith("http://") || link.href.startsWith("https://");
+                    const className = "block rounded-md border border-border/70 p-4 transition-colors hover:bg-secondary";
+                    const content = (
+                      <>
+                        <span className="text-sm font-semibold text-foreground">{link.label}</span>
+                        <span className="mt-1 block text-xs leading-6 text-muted-foreground">{link.description}</span>
+                      </>
+                    );
+
+                    return isExternal ? (
+                      <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className={className}>
+                        {content}
+                      </a>
+                    ) : (
+                      <Link key={link.href} href={link.href} className={className}>
+                        {content}
+                      </Link>
+                    );
+                  })}
                 </div>
               </section>
               <section className="rounded-lg border border-border bg-card p-5">
