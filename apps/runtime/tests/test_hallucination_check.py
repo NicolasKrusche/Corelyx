@@ -144,12 +144,13 @@ class TestHallucinationCheck(unittest.IsolatedAsyncioTestCase):
 
     def _common_patches(self, executor: ProgramExecutor, judge_result: Any):
         """Patch key fetch, policy, circuit (returns the agent answer) and the
-        judge LLM call (returns judge_result, or raises if it's an Exception)."""
+        judge LLM call. A dict is returned on every judge call; an Exception is
+        raised; a list is replayed in sequence (one entry per regeneration)."""
         circuit = Mock()
         circuit.call = AsyncMock(return_value=AGENT_OUTPUT)
         judge = (
             AsyncMock(side_effect=judge_result)
-            if isinstance(judge_result, Exception)
+            if isinstance(judge_result, (Exception, list))
             else AsyncMock(return_value=judge_result)
         )
         return [
@@ -168,15 +169,33 @@ class TestHallucinationCheck(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(output, AGENT_OUTPUT)
         judge.assert_awaited_once()
 
-    async def test_hallucinated_verdict_aborts(self) -> None:
+    async def test_persistent_hallucination_warns_not_aborts(self) -> None:
+        # Judge flags every attempt: the agent is regenerated up to the retry cap,
+        # then the run continues with a non-fatal groundedness warning attached
+        # (no HallucinationError, so the rest of the run can complete).
+        from engine.executor import GROUNDEDNESS_WARNING_KEY, HALLUCINATION_MAX_RETRIES
+
         executor = self._patched_executor()
-        patches, _ = self._common_patches(executor, HALLUCINATED)
+        patches, judge = self._common_patches(executor, HALLUCINATED)
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
-            with self.assertRaises(HallucinationError) as ctx:
-                await executor._execute_agent(executor.node_map["a"], INPUT_DATA)
-        self.assertEqual(ctx.exception.code, "HALLUCINATION_DETECTED")
-        self.assertIn("refund of EUR 990", ctx.exception.message)
-        self.assertEqual(ctx.exception.node_id, "a")
+            output = await executor._execute_agent(executor.node_map["a"], INPUT_DATA)
+        self.assertIn(GROUNDEDNESS_WARNING_KEY, output)
+        self.assertIn("refund of EUR 990", output[GROUNDEDNESS_WARNING_KEY])
+        # One initial generation + one judge call per attempt (initial + retries).
+        self.assertEqual(judge.await_count, HALLUCINATION_MAX_RETRIES + 1)
+
+    async def test_hallucination_then_recovers_on_retry(self) -> None:
+        # First attempt hallucinates, the corrected regeneration is grounded:
+        # the run continues with NO warning attached.
+        from engine.executor import GROUNDEDNESS_WARNING_KEY
+
+        executor = self._patched_executor()
+        patches, judge = self._common_patches(executor, [HALLUCINATED, GROUNDED])
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            output = await executor._execute_agent(executor.node_map["a"], INPUT_DATA)
+        self.assertNotIn(GROUNDEDNESS_WARNING_KEY, output)
+        self.assertEqual(output, AGENT_OUTPUT)
+        self.assertEqual(judge.await_count, 2)  # flagged once, then grounded
 
     async def test_low_confidence_does_not_abort(self) -> None:
         executor = self._patched_executor()
