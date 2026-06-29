@@ -651,9 +651,13 @@ _HALLUCINATION_JUDGE_PROMPT = (
     "IDs, dates, quotes, or statements that contradict source_data.\n\n"
     "NOT hallucination: content the task explicitly asked to generate or compose (drafts, "
     "summaries in new words, translations, creative text); reformatting or restructuring of "
-    "supported facts; reasonable classifications or judgments the task asked for; omissions. "
-    "If the task is generative and ai_answer makes no factual claims about source_data, the "
-    "verdict is 'not_applicable'.\n\n"
+    "supported facts; reasonable classifications or judgments the task asked for; omissions; "
+    "and purely decorative or stylistic choices — emoji, icons, punctuation, capitalization, "
+    "tone, or formatting — even when they differ from or are absent in source_data, because "
+    "they assert no fact. Only flag fabricated FACTUAL claims (invented entities, names, "
+    "numbers, IDs, dates, quotes, or statements that contradict source_data); never flag an "
+    "emoji, symbol, or formatting difference on its own. If the task is generative and "
+    "ai_answer makes no factual claims about source_data, the verdict is 'not_applicable'.\n\n"
     "Respond with ONLY a JSON object, no prose:\n"
     '{"verdict": "grounded" | "hallucinated" | "not_applicable", '
     '"confidence": <number 0.0-1.0>, '
