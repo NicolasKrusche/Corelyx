@@ -845,6 +845,7 @@ class ProgramExecutor:
         execution_log_retention_days: int = 90,
         dry_run: bool = False,
         pii_mode: str = "auto",
+        bulk_write_approval_threshold: int = BULK_WRITE_APPROVAL_THRESHOLD,
     ) -> None:
         self.schema = schema
         self.run_id = run_id
@@ -856,6 +857,9 @@ class ProgramExecutor:
         # Dry-run: agent_task write/destructive tools are simulated, not executed.
         # Can also be turned on per-run via a trigger_payload {"__dry_run__": true}.
         self.dry_run = bool(dry_run)
+        # Per-workspace bulk-write approval threshold. A run pauses once for
+        # explicit approval after crossing this many connector write operations.
+        self.bulk_write_approval_threshold = bulk_write_approval_threshold
         # Ordered [{ref, model}] credential candidates for agent nodes, supplied by
         # the web run dispatch so the runtime can fall through keys (and finally the
         # platform key) when one is out of credits / invalid.
@@ -3590,17 +3594,19 @@ class ProgramExecutor:
                 # double-prompt, but they still count toward the running total.
                 if op_is_write:
                     self._write_ops_executed += 1
+                    # getattr fallback: test executors built via __new__ skip __init__.
+                    bwt = getattr(self, "bulk_write_approval_threshold", BULK_WRITE_APPROVAL_THRESHOLD)
                     if (
                         not per_op_gated
                         and not self._bulk_write_approved
-                        and self._write_ops_executed > BULK_WRITE_APPROVAL_THRESHOLD
+                        and self._write_ops_executed > bwt
                     ):
                         approved = await self._request_step_approval(
                             node,
                             input_data,
                             f"Bulk write approval required — this run has reached "
                             f"{self._write_ops_executed} write operations "
-                            f"(threshold {BULK_WRITE_APPROVAL_THRESHOLD})",
+                            f"(threshold {bwt})",
                         )
                         if not approved:
                             await update_node_execution(

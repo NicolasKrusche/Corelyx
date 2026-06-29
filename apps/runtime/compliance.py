@@ -159,6 +159,10 @@ DEFAULT_WORKSPACE_POLICY = {
     "execution_log_retention_days": 90,
     # "auto" → strict person-name pseudonymization for eu_only workspaces.
     "pii_mode": "auto",
+    # Per-workspace bulk-write approval threshold (see BULK_WRITE_APPROVAL_THRESHOLD
+    # in engine.executor). A run pauses once for approval after crossing this many
+    # connector write operations.
+    "bulk_write_approval_threshold": 25,
 }
 
 
@@ -263,12 +267,29 @@ def load_workspace_policy(db: Any, workspace_id: str | None) -> dict[str, Any]:
         except Exception:
             pass
 
+        # Queried separately so a deployment where the bulk_write_approval_threshold
+        # migration has not been applied yet degrades to the default (25) WITHOUT
+        # also resetting the other policy fields to defaults.
+        bulk_write_threshold = 25
+        try:
+            bwt_result = (
+                db.table("workspaces").select("bulk_write_approval_threshold").eq("id", workspace_id).limit(1).execute()
+            )
+            bwt_rows = bwt_result.data or []
+            if bwt_rows and isinstance(bwt_rows[0].get("bulk_write_approval_threshold"), int):
+                val = bwt_rows[0]["bulk_write_approval_threshold"]
+                if val > 0:
+                    bulk_write_threshold = val
+        except Exception:
+            pass
+
         return {
             **DEFAULT_WORKSPACE_POLICY,
             "compliance_mode": row.get("compliance_mode") or "standard",
             "data_region": row.get("data_region") or DEFAULT_WORKSPACE_POLICY["data_region"],
             "execution_log_retention_days": row.get("execution_log_retention_days") or 90,
             "pii_mode": pii_mode,
+            "bulk_write_approval_threshold": bulk_write_threshold,
         }
     except Exception as exc:
         print(f"[runtime] WARNING: could not load workspace compliance policy: {exc}", flush=True)

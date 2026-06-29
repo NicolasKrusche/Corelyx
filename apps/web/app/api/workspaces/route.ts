@@ -40,6 +40,7 @@ const UpdateWorkspaceSchema = z.discriminatedUnion("action", [
     store_full_prompts: z.boolean().optional(),
     store_full_outputs: z.boolean().optional(),
     data_region: z.string().trim().min(1).max(80).optional(),
+    bulk_write_approval_threshold: z.number().int().positive().optional(),
   }),
 ]);
 
@@ -66,6 +67,7 @@ type WorkspaceRow = {
   store_full_prompts: boolean;
   store_full_outputs: boolean;
   data_region: string;
+  bulk_write_approval_threshold: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -201,7 +203,7 @@ export async function GET() {
     const [workspacesRes, countsRes] = await Promise.all([
       service
         .from("workspaces")
-        .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
+        .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, bulk_write_approval_threshold, created_by, created_at, updated_at")
         .in("id", workspaceIds)
         .order("created_at", { ascending: true }),
       service
@@ -255,7 +257,7 @@ export async function POST(request: Request) {
       name: parsed.data.name,
       created_by: user.id,
     } as never)
-    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, created_by, created_at, updated_at")
+    .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, bulk_write_approval_threshold, created_by, created_at, updated_at")
     .single();
 
   if (error || !workspace) return apiError(error?.message ?? "Workspace could not be created.", 500);
@@ -343,12 +345,13 @@ export async function PATCH(request: Request) {
     if (parsed.data.store_full_prompts !== undefined) patch.store_full_prompts = parsed.data.store_full_prompts;
     if (parsed.data.store_full_outputs !== undefined) patch.store_full_outputs = parsed.data.store_full_outputs;
     if (parsed.data.data_region !== undefined) patch.data_region = parsed.data.data_region;
+    if (parsed.data.bulk_write_approval_threshold !== undefined) patch.bulk_write_approval_threshold = parsed.data.bulk_write_approval_threshold;
 
     const { data, error } = await service
       .from("workspaces")
       .update(patch as never)
       .eq("id", parsed.data.workspace_id)
-      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, default_execution_mode, default_conflict_policy, created_by, created_at, updated_at")
+      .select("id, name, logo_url, description, default_program_visibility, members_can_create_programs, allow_external_agents, agent_min_role, compliance_mode, pii_mode, execution_log_retention_days, prompt_retention_days, output_retention_days, approval_record_retention_days, secret_rotation_reminder_days, store_full_prompts, store_full_outputs, data_region, bulk_write_approval_threshold, default_execution_mode, default_conflict_policy, created_by, created_at, updated_at")
       .single();
 
     if (error || !data) return apiError(error?.message ?? "Settings could not be updated.", 500);

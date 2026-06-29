@@ -29,6 +29,7 @@ type Workspace = {
   store_full_prompts: boolean;
   store_full_outputs: boolean;
   data_region: string;
+  bulk_write_approval_threshold: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -116,6 +117,7 @@ export function WorkspacesClient() {
   const [storeFullPrompts, setStoreFullPrompts] = useState(false);
   const [storeFullOutputs, setStoreFullOutputs] = useState(false);
   const [dataRegion, setDataRegion] = useState("eu-central-1");
+  const [bulkWriteThreshold, setBulkWriteThreshold] = useState(25);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +202,7 @@ export function WorkspacesClient() {
     setStoreFullPrompts(selectedWorkspace.store_full_prompts ?? false);
     setStoreFullOutputs(selectedWorkspace.store_full_outputs ?? false);
     setDataRegion(selectedWorkspace.data_region ?? "eu-central-1");
+    setBulkWriteThreshold(selectedWorkspace.bulk_write_approval_threshold ?? 25);
     void loadMembers(selectedWorkspace.id);
   }, [selectedWorkspace, loadMembers]);
 
@@ -301,6 +304,7 @@ export function WorkspacesClient() {
         store_full_prompts: storeFullPrompts,
         store_full_outputs: storeFullOutputs,
         data_region: dataRegion.trim() || "eu-central-1",
+        bulk_write_approval_threshold: bulkWriteThreshold,
       }),
     });
     const body = await res.json().catch(() => null) as { workspace?: Workspace; error?: string } | null;
@@ -736,6 +740,22 @@ export function WorkspacesClient() {
                           placeholder="eu-central-1"
                         />
                         <p className="mt-1 text-xs text-muted-foreground">Shown in workflow exports and audit records.</p>
+                      </div>
+                    </div>
+
+                    <div id="bulk-write-threshold" className="grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Bulk-write approval threshold</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={bulkWriteThreshold}
+                          onChange={(e) => setBulkWriteThreshold(Math.max(1, Number.parseInt(e.target.value || "25", 10)))}
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          A run pauses for approval after this many connector write operations. Lower for tighter control, higher for fewer interruptions.
+                        </p>
                       </div>
                     </div>
 
