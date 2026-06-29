@@ -505,7 +505,13 @@ export function Sidebar({
       if (!res.ok) return;
       const data = (await res.json()) as SidebarData;
       if (controller.signal.aborted) return;
-      setPendingApprovals(data.pendingApprovalsCount);
+      setPendingApprovals((prev) => {
+        if (prev !== data.pendingApprovalsCount) {
+          // Notify other components (notification center) that the count changed.
+          window.dispatchEvent(new CustomEvent("approval-changed"));
+        }
+        return data.pendingApprovalsCount;
+      });
       setFailedRuns(data.failedRunsCount);
       setWorkspaces(data.workspaces);
       setActiveWorkspaceId(data.activeWorkspaceId);
@@ -543,10 +549,16 @@ export function Sidebar({
     const onApprovalChanged = () => { void fetchSidebarData(); };
     window.addEventListener("approval-changed", onApprovalChanged);
 
+    // Polling fallback: Supabase Realtime can miss INSERTs done via the
+    // service-role client (the runtime creates approvals server-side). A
+    // 30s poll ensures the badge updates even when realtime doesn't deliver.
+    const pollInterval = setInterval(() => { void fetchSidebarData(); }, 30_000);
+
     return () => {
       sidebarRequestRef.current?.abort();
       supabase.removeChannel(channel);
       window.removeEventListener("approval-changed", onApprovalChanged);
+      clearInterval(pollInterval);
     };
   }, [fetchSidebarData, userId]);
 

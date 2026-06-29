@@ -15,7 +15,12 @@ export function ApprovalsRealtimeRefresh({ userId }: { userId: string }) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "approvals", filter: `user_id=eq.${userId}` },
-        () => { router.refresh(); },
+        () => {
+          router.refresh();
+          // Notify the sidebar + notification center so their badges update
+          // even if their own realtime subscription missed this event.
+          window.dispatchEvent(new CustomEvent("approval-changed"));
+        },
       )
       .subscribe();
 
