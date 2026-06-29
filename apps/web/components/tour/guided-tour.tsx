@@ -196,8 +196,13 @@ export function GuidedTour({
     };
   }
 
+  // Anchored steps: the overlay should not block interaction with the page
+  // underneath — only the popup card captures clicks. Non-anchored (welcome)
+  // steps use a full backdrop that blocks interaction (modal behaviour).
+  const overlayPointerEvents = anchored ? "pointer-events-none" : "";
+
   return (
-    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Product tour">
+    <div className={`fixed inset-0 z-[70] ${overlayPointerEvents}`} role="dialog" aria-modal="true" aria-label="Product tour">
       {/* Backdrop. For anchored steps the spotlight element below carries the
           dimming via a giant box-shadow so the target stays bright. */}
       {anchored && rect ? (
@@ -219,7 +224,7 @@ export function GuidedTour({
       {isFirst ? (
         <div
           style={cardStyle}
-          className="rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-300"
+          className="pointer-events-auto rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-300"
         >
           <div className="px-7 pb-6 pt-7">
             <div className="flex items-center gap-3">
@@ -250,7 +255,7 @@ export function GuidedTour({
       ) : (
         <div
           style={cardStyle}
-          className="rounded-2xl border border-border bg-popover p-5 text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+          className="pointer-events-auto rounded-2xl border border-border bg-popover p-5 text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200"
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-bold leading-snug">{step.title}</p>
