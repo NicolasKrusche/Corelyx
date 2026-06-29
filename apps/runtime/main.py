@@ -421,6 +421,7 @@ async def _run_program(
         data_region=policy.get("data_region"),
         execution_log_retention_days=policy.get("execution_log_retention_days", 90),
         pii_mode=policy.get("pii_mode", "auto"),
+        bulk_write_approval_threshold=policy.get("bulk_write_approval_threshold", 25),
     )
     try:
         await asyncio.wait_for(executor.execute(trigger_payload), timeout=RUN_TIMEOUT_SECONDS)

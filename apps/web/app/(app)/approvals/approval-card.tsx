@@ -139,7 +139,22 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
       {/* Reason */}
       {reason && (
         <div className="mx-5 mb-4 rounded-xl bg-white/[0.03] border border-white/[0.06] px-3.5 py-2.5">
-          <p className="text-xs text-muted-foreground leading-relaxed">{reason}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {reason}
+            {reason.startsWith("Bulk write approval required") && (
+              <>
+                {" "}
+                You can change this in{" "}
+                <Link
+                  href="/workspaces#bulk-write-threshold"
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  settings
+                </Link>
+                .
+              </>
+            )}
+          </p>
         </div>
       )}
 
