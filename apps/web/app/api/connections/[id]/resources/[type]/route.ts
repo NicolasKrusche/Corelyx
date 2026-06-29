@@ -131,6 +131,9 @@ async function getJson<T>(url: string, accessToken: string, headers?: Record<str
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (res.status === 403) {
+      throw new Error("Resource listing is not allowed for this connection. Reconnect the account to approve picker access, or paste the ID manually.");
+    }
     throw new Error(`Resource API ${res.status}: ${body.slice(0, 200)}`);
   }
 

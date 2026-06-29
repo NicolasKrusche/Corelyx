@@ -18,6 +18,7 @@ const SCOPES_STORED: Record<string, string[]> = {
   docs: [
     "https://www.googleapis.com/auth/documents.readonly",
     "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
   ],
   drive: [
     "https://www.googleapis.com/auth/drive.readonly",
