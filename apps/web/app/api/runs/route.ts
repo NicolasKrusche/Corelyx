@@ -164,7 +164,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const { checks } = await validatePreFlight(runnableSchema, connections, apiKeys);
+  const { result: preflightResult, checks } = await validatePreFlight(
+    runnableSchema,
+    connections,
+    apiKeys
+  );
+  // Block invalid workflows before dispatch instead of letting them fail mid-run
+  // in the runtime (e.g. a gmail label_email step with no labels to add/remove).
+  // Mirrors the replay route; triggered runs rely on the runtime as a backstop.
+  if (!preflightResult.valid) {
+    return NextResponse.json(
+      { error: "Pre-flight checks failed", checks },
+      { status: 422 }
+    );
+  }
 
   const workspaceCompliance = await loadWorkspaceComplianceSettings(programWorkspaceId, serviceClient);
   const complianceChecks = validateWorkflowCompliance(
