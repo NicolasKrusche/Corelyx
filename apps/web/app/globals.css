@@ -259,6 +259,16 @@
   .agent-swatch::after { animation: none; }
 }
 
+/* â”€â”€ Cinematic landing: subtle risk-marker blink â”€â”€ */
+@keyframes cx-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.cx-blink { animation: cx-blink 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cx-blink { animation: none; }
+}
+
 /* â”€â”€ Auth page background glow â”€â”€ */
 .auth-page-bg {
   background:
