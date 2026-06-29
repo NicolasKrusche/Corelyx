@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import type { ProgramSchema } from "@flowos/schema";
-import { validatePostGenesis } from "@/lib/validation";
 import { EditorShell } from "@/components/editor/EditorShell";
 import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { normalizeProgramDraft, validateProgramDraft } from "@/lib/workflow/normalize";
@@ -112,9 +111,11 @@ export default async function EditorPage({
   const allConnections = ((rawAllConns as unknown as ConnectionRow[]) ?? [])
     .map((c) => ({ id: c.id, name: c.name, provider: c.provider, scopes: c.scopes ?? [] }));
 
-  // ── Run post-genesis validation ───────────────────────────────────────────
-
-  const initialValidation = validatePostGenesis(parsedSchema, allConnections);
+  // ── Validation ────────────────────────────────────────────────────────────
+  // Validation does NOT run on editor open — it previously stamped false-positive
+  // errors on nodes (e.g. "gmail:primary is not connected") before the user had a
+  // chance to interact. The user validates explicitly via the Validate button.
+  const initialValidation = null;
 
   // ── Feature flags ─────────────────────────────────────────────────────────
 

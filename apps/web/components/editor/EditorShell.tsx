@@ -755,12 +755,10 @@ export function EditorShell({
     }
   }, [allConnections, performSave, programId, state.isDirty, state.schema]);
 
-  // Re-validate whenever linkedConnections grows (e.g. after auto-linking)
-  useEffect(() => {
-    const result = validatePostGenesis(state.schema, linkedConnections);
-    dispatch({ type: "SET_VALIDATION", result });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedConnections]);
+  // Validation no longer runs automatically on linkedConnections change.
+  // The user validates explicitly via the Validate button (handleValidate),
+  // which uses the current linkedConnections state. This avoids false-positive
+  // errors stamped on nodes before the user has interacted with the editor.
 
   const duplicateNode = useCallback(
     (nodeId: string, position?: { x: number; y: number }) => {
