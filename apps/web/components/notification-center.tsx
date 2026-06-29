@@ -187,6 +187,22 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
     void fetchInboxItems();
   }, [fetchAlerts, fetchInboxItems]);
 
+  // React to approval/run changes detected by the sidebar's realtime or poll.
+  const onApprovalChanged = useCallback(() => {
+    void fetchAlerts();
+  }, [fetchAlerts]);
+
+  // Polling fallback: ensures the notification badge stays current even when
+  // no browser event fires (e.g. approvals created server-side by the runtime).
+  useEffect(() => {
+    window.addEventListener("approval-changed", onApprovalChanged);
+    const pollInterval = setInterval(() => { void fetchAlerts(); }, 30_000);
+    return () => {
+      window.removeEventListener("approval-changed", onApprovalChanged);
+      clearInterval(pollInterval);
+    };
+  }, [fetchAlerts, onApprovalChanged]);
+
   // Determine if there's anything new since last read
   useEffect(() => {
     const lastRead = getLastRead();
