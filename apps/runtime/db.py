@@ -703,6 +703,26 @@ async def enqueue_file_operation(
     is part of the queue, not the durable audit record. Secrets are redacted as a
     defence-in-depth measure even though file args are not expected to hold any.
     """
+    # Authorization backstop (cross-tenant): the target device MUST belong to this
+    # run's workspace and be active. The agent file tool reads device_id from
+    # model-generated tool args (prompt-injectable), and a forked/shared workflow
+    # can carry a device_id pinned to another workspace. bridge/poll only filters
+    # by device_id, so without this check a run could address another tenant's
+    # device and read/write files inside its granted folders.
+    if not device_id:
+        raise ValueError("A target device is required for a file operation.")
+    owned = (
+        db.table("devices")
+        .select("id")
+        .eq("id", device_id)
+        .eq("workspace_id", workspace_id)
+        .is_("revoked_at", "null")
+        .limit(1)
+        .execute()
+    )
+    if not owned.data:
+        raise ValueError("Target device is not a usable device in this workspace.")
+
     expires_at = (
         datetime.now(timezone.utc) + timedelta(minutes=max(1, ttl_minutes))
     ).isoformat()
