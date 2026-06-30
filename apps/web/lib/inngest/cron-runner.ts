@@ -48,7 +48,11 @@ export const cronRunner = inngest.createFunction(
     let fired = 0;
 
     for (const trigger of due) {
-      await step.run(`dispatch-${trigger.id}`, async () => {
+      // Accumulate the durable per-trigger result OUTSIDE the step. Mutating an
+      // outer counter inside step.run is lost on Inngest replay (the callback is
+      // skipped and its memoized value returned), so the count must come back as
+      // the step's return value.
+      const didFire = await step.run(`dispatch-${trigger.id}`, async (): Promise<boolean> => {
         // Fetch program schema + user_id
         const { data: program, error: progErr } = await db
           .from("programs")
@@ -59,7 +63,10 @@ export const cronRunner = inngest.createFunction(
 
         if (progErr || !program) {
           logger.warn(`Skipping trigger ${trigger.id}: program not found or inactive`);
-          return;
+          // Advance so a trigger pointing at a missing/inactive program isn't
+          // re-checked every minute; it resumes on schedule if reactivated.
+          await advanceNextRun(db, trigger, logger);
+          return false;
         }
 
         // Check monthly run limit before firing
@@ -69,14 +76,20 @@ export const cronRunner = inngest.createFunction(
         if (restriction.restricted) {
           logger.warn(`Skipping cron trigger ${trigger.id}: processing restricted for user ${userId}`);
           recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "cron", status: "skipped", message: "Processing restricted" });
-          return;
+          // Advance to the next scheduled time so the trigger resumes on
+          // schedule once the hold lifts, instead of re-checking every minute.
+          await advanceNextRun(db, trigger, logger);
+          return false;
         }
 
         const limitCheck = await checkRunLimit(userId, workspaceId ?? null);
         if (!limitCheck.allowed) {
           logger.warn(`Skipping cron trigger ${trigger.id}: run limit reached for user ${userId}`);
           recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "cron", status: "skipped", message: "Monthly run limit reached" });
-          return;
+          // Advance to the next scheduled time so the trigger resumes on
+          // schedule once the limit resets, instead of re-checking every minute.
+          await advanceNextRun(db, trigger, logger);
+          return false;
         }
 
         // Standing agent: each scheduled fire spawns a fresh one-time agent
@@ -89,7 +102,6 @@ export const cronRunner = inngest.createFunction(
             { trigger_id: trigger.id }
           );
           if (fireResult.ok) {
-            fired++;
             logger.info(`Cron trigger ${trigger.id} fired (agent program ${trigger.program_id}) → run ${fireResult.runId}`);
             recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: fireResult.runId, source: "cron", status: "dispatched" });
           } else {
@@ -97,7 +109,7 @@ export const cronRunner = inngest.createFunction(
             recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "cron", status: "failed", message: fireResult.error });
           }
           await advanceNextRun(db, trigger, logger);
-          return;
+          return fireResult.ok;
         }
 
         // Insert run row
@@ -116,7 +128,8 @@ export const cronRunner = inngest.createFunction(
 
         if (runErr || !run) {
           logger.error(`Failed to create run for trigger ${trigger.id}`);
-          return;
+          // Transient insert failure: don't advance, so it retries next tick.
+          return false;
         }
 
         // Fetch program's connection name→id map so runtime can resolve connector nodes
@@ -167,7 +180,7 @@ export const cronRunner = inngest.createFunction(
             // advance next_run_at even though dispatch failed, so the trigger
             // doesn't re-fire every minute and the UI reflects the firing.
             await advanceNextRun(db, trigger, logger);
-            return;
+            return false;
           }
         } catch (error) {
           const authMisconfigured = isRuntimeDispatchConfigError(error);
@@ -186,15 +199,16 @@ export const cronRunner = inngest.createFunction(
           // advance next_run_at even though dispatch failed, so the trigger
           // doesn't re-fire every minute and the UI reflects the firing.
           await advanceNextRun(db, trigger, logger);
-          return;
+          return false;
         }
 
-        fired++;
         logger.info(`Cron trigger ${trigger.id} fired (program ${trigger.program_id}) → run ${runId}`);
         recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "cron", status: "dispatched" });
 
         await advanceNextRun(db, trigger, logger);
+        return true;
       });
+      if (didFire) fired++;
     }
 
     return { fired };
