@@ -60,6 +60,33 @@ const COMMON_TIMEZONES = [
   "Africa/Johannesburg",
 ];
 
+// ─── Timezone helpers ─────────────────────────────────────────────────────────
+
+/** The viewer's local IANA timezone (e.g. "Europe/Berlin"), or "UTC" if undetectable. */
+function getLocalTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+/** Wall-clock parts of a UTC instant as observed in `timeZone`. */
+function zonedParts(fmt: Intl.DateTimeFormat, date: Date) {
+  const parts = fmt.formatToParts(date);
+  const get = (t: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === t)?.value ?? "";
+  let hour = parseInt(get("hour"), 10);
+  if (hour === 24) hour = 0; // some engines emit "24" for midnight under hour12:false
+  return {
+    year: parseInt(get("year"), 10),
+    month: parseInt(get("month"), 10),
+    day: parseInt(get("day"), 10),
+    hour,
+    minute: parseInt(get("minute"), 10),
+  };
+}
+
 // ─── Cron parser / next-runs ──────────────────────────────────────────────────
 
 function parseCronField(field: string, min: number, max: number): Set<number> {
@@ -89,10 +116,27 @@ function parseCronField(field: string, min: number, max: number): Set<number> {
   return result;
 }
 
-function nextNRuns(expr: string, n: number): Date[] {
+function nextNRuns(expr: string, n: number, timeZone: string): Date[] {
   const parts = expr.trim().split(/\s+/);
   if (parts.length !== 5) return [];
   const [minField, hourField, domField, monField, dowField] = parts;
+
+  // Evaluate cron fields against the schedule's own timezone — the runtime
+  // schedules in `timeZone`, so the preview must too, or it lies about firing.
+  let fmt: Intl.DateTimeFormat;
+  try {
+    fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return []; // unknown timezone
+  }
 
   try {
     const minutes = parseCronField(minField, 0, 59);
@@ -114,13 +158,11 @@ function nextNRuns(expr: string, n: number): Date[] {
     let iters = 0;
     while (results.length < n && iters < 20000) {
       iters++;
-      const m = candidate.getUTCMinutes();
-      const h = candidate.getUTCHours();
-      const dom = candidate.getUTCDate();
-      const mon = candidate.getUTCMonth() + 1;
-      const dow = candidate.getUTCDay();
+      const z = zonedParts(fmt, candidate);
+      // Weekday of the timezone-local calendar date (tz-independent for a y/m/d).
+      const dow = new Date(Date.UTC(z.year, z.month - 1, z.day)).getUTCDay();
 
-      const domMatch = doms.has(dom);
+      const domMatch = doms.has(z.day);
       const dowMatch = dows.has(dow);
       const dayMatch =
         domRestricted && dowRestricted
@@ -131,7 +173,7 @@ function nextNRuns(expr: string, n: number): Date[] {
           ? dowMatch
           : true;
 
-      if (months.has(mon) && dayMatch && hours.has(h) && minutes.has(m)) {
+      if (months.has(z.month) && dayMatch && hours.has(z.hour) && minutes.has(z.minute)) {
         results.push(new Date(candidate));
       }
       candidate.setUTCMinutes(candidate.getUTCMinutes() + 1);
@@ -287,7 +329,7 @@ function TimePicker({
 // ─── NextRunsPreview ──────────────────────────────────────────────────────────
 
 function NextRunsPreview({ expression, timezone }: { expression: string; timezone: string }) {
-  const runs = useMemo(() => nextNRuns(expression, 5), [expression]);
+  const runs = useMemo(() => nextNRuns(expression, 5, timezone), [expression, timezone]);
 
   if (runs.length === 0) {
     return (
@@ -298,6 +340,7 @@ function NextRunsPreview({ expression, timezone }: { expression: string; timezon
   }
 
   const fmtOptions: Intl.DateTimeFormatOptions = {
+    timeZone: timezone,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -309,7 +352,7 @@ function NextRunsPreview({ expression, timezone }: { expression: string; timezon
   return (
     <div className="space-y-1">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">
-        Next 5 runs (approx. UTC · displayed in your browser timezone)
+        Next 5 runs (in {timezone})
       </p>
       {runs.map((d, i) => (
         <div key={i} className="flex items-center gap-2 text-xs font-mono">
@@ -317,11 +360,6 @@ function NextRunsPreview({ expression, timezone }: { expression: string; timezon
           <span>{d.toLocaleString(undefined, fmtOptions)}</span>
         </div>
       ))}
-      {timezone !== "UTC" && (
-        <p className="text-[11px] text-muted-foreground/50 mt-1">
-          ⓘ The backend schedules in <strong>{timezone}</strong>. Times above are approximate UTC projections.
-        </p>
-      )}
     </div>
   );
 }
@@ -352,6 +390,18 @@ export function CronBuilder({ expression, timezone, onChange }: CronBuilderProps
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, tz, mode]);
+
+  // Default to the viewer's local timezone on first mount so "8am" means 8am
+  // where they are — not 8am UTC. Runs client-only (hydration-safe) and only
+  // replaces the hardcoded "UTC" default, leaving an explicit choice intact.
+  useEffect(() => {
+    if (tz !== "UTC") return;
+    const local = getLocalTimeZone();
+    if (!local || local === "UTC") return;
+    setTz(local);
+    onChange(mode === "simple" ? buildExpression(settings) : advancedExpr, local);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleModeSwitch(next: CronMode) {
     if (next === "advanced") {
@@ -523,7 +573,7 @@ export function CronBuilder({ expression, timezone, onChange }: CronBuilderProps
       <div className="flex items-center gap-3 flex-wrap">
         <label className="text-xs text-muted-foreground w-16 shrink-0">Timezone</label>
         <Select value={tz} onChange={(v) => { setTz(v); onChange(currentExpression, v); }}>
-          {COMMON_TIMEZONES.map((t) => (
+          {(COMMON_TIMEZONES.includes(tz) ? COMMON_TIMEZONES : [tz, ...COMMON_TIMEZONES]).map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </Select>
