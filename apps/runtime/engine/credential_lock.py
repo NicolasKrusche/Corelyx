@@ -28,9 +28,12 @@ class CredentialLock:
     def __init__(
         self,
         resource_id: str,
-        lock_timeout: float = 30.0,
+        lock_timeout: float = 20.0,
         retry_interval: float = 0.5,
-        max_wait: float = 10.0,
+        # max_wait MUST exceed lock_timeout: a waiter has to outlast a crashed
+        # holder's lock (which only frees at expires_at) so it can reclaim the
+        # expired row instead of giving up while the dead lock still sits there.
+        max_wait: float = 25.0,
     ):
         self.resource_id = resource_id
         self.lock_key = f"cred_lock:{resource_id}"
@@ -41,7 +44,15 @@ class CredentialLock:
         self._lock_id = f"{time.time()}_{id(self)}"
     
     async def __aenter__(self) -> "CredentialLock":
-        await self.acquire()
+        # Fail CLOSED: if the lock could not be acquired within max_wait, raise
+        # instead of silently entering the critical section unlocked. Entering
+        # without the lock defeats the whole purpose — concurrent refreshes would
+        # consume the same (rotating) refresh_token and invalidate the credential.
+        if not await self.acquire():
+            raise TimeoutError(
+                f"Could not acquire credential lock for {self.resource_id} "
+                f"within {self.max_wait}s"
+            )
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:

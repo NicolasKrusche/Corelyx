@@ -744,11 +744,17 @@ def _should_request_json_object(cfg: AgentConfig) -> bool:
     return bool(cfg.output_schema) or "json" in (cfg.system_prompt or "").lower()
 
 
-def _validate_outbound_url(url: str) -> None:
+def _validate_outbound_url(url: str) -> str:
     """Reject URLs that point at private/loopback/link-local/metadata addresses (S12).
 
     Resolves the hostname and checks every returned A/AAAA record. Raises
     ExecutionError("HTTP_FORBIDDEN_URL") on any rejection. http/https only.
+
+    Returns one validated, globally-routable IP (as a string) that the caller
+    should pin the connection to. Pinning to this exact address closes the
+    DNS-rebinding TOCTOU window: without it, httpx would re-resolve the hostname
+    when it actually connects, and an attacker-controlled domain could answer
+    with a public IP here and a private one (e.g. 169.254.169.254) a moment later.
     """
     parsed = urlsplit(url.strip())
     scheme = (parsed.scheme or "").lower()
@@ -769,11 +775,13 @@ def _validate_outbound_url(url: str) -> None:
         literal = ipaddress.ip_address(host)
     except ValueError:
         literal = None
-    if literal is not None and not _ip_is_public(literal):
-        raise ExecutionError(
-            "HTTP_FORBIDDEN_URL",
-            f"HTTP connector blocked from connecting to non-public address {host}",
-        )
+    if literal is not None:
+        if not _ip_is_public(literal):
+            raise ExecutionError(
+                "HTTP_FORBIDDEN_URL",
+                f"HTTP connector blocked from connecting to non-public address {host}",
+            )
+        return str(literal)
 
     # Resolve hostname; reject if any record lands in a disallowed range.
     try:
@@ -783,6 +791,7 @@ def _validate_outbound_url(url: str) -> None:
             "HTTP_FORBIDDEN_URL", f"HTTP connector could not resolve host '{host}': {exc}"
         ) from exc
 
+    pinned_ip: str | None = None
     for info in infos:
         sockaddr = info[4]
         try:
@@ -794,6 +803,14 @@ def _validate_outbound_url(url: str) -> None:
                 "HTTP_FORBIDDEN_URL",
                 f"HTTP connector blocked: '{host}' resolves to non-public address {ip}",
             )
+        if pinned_ip is None:
+            pinned_ip = str(ip)
+
+    if pinned_ip is None:
+        raise ExecutionError(
+            "HTTP_FORBIDDEN_URL", f"HTTP connector could not resolve host '{host}' to any address"
+        )
+    return pinned_ip
 
 
 def _ip_is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
@@ -809,6 +826,54 @@ def _ip_is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
         or ip.is_multicast
         or ip.is_reserved
         or ip.is_unspecified
+    )
+
+
+async def _ssrf_safe_request(
+    client: "httpx.AsyncClient",
+    method: str,
+    url: str,
+    **kwargs: Any,
+) -> "httpx.Response":
+    """Validate `url` against the SSRF allowlist and send the request pinned to
+    the exact IP that was validated (S12).
+
+    Rewriting the URL host to the validated IP — while preserving the original
+    Host header and TLS SNI/cert hostname — guarantees the socket connects to the
+    address we checked, not a re-resolved one. This closes the DNS-rebinding gap
+    between validation and connection.
+    """
+    pinned_ip = _validate_outbound_url(url)
+
+    # _validate_outbound_url is stubbed out in unit tests; only pin when it
+    # returned a concrete IP. In production it always returns a validated IP, so
+    # the rebinding guard is always active there.
+    try:
+        pin = ipaddress.ip_address(pinned_ip) if isinstance(pinned_ip, str) else None
+    except (ValueError, TypeError):
+        pin = None
+    if pin is None:
+        return await client.request(method=method, url=url, **kwargs)
+
+    parsed = urlsplit(url.strip())
+    host = parsed.hostname or ""
+    explicit_port = parsed.port
+    ip_host = f"[{pin}]" if pin.version == 6 else str(pin)
+    netloc = f"{ip_host}:{explicit_port}" if explicit_port is not None else ip_host
+    pinned_url = parsed._replace(netloc=netloc).geturl()
+
+    host_header = f"{host}:{explicit_port}" if explicit_port is not None else host
+    headers = dict(kwargs.pop("headers", None) or {})
+    headers.setdefault("Host", host_header)
+
+    extensions = dict(kwargs.pop("extensions", None) or {})
+    if (parsed.scheme or "").lower() == "https":
+        # Drive TLS SNI + certificate verification against the real hostname even
+        # though the connection targets the pinned IP.
+        extensions.setdefault("sni_hostname", host)
+
+    return await client.request(
+        method=method, url=pinned_url, headers=headers, extensions=extensions, **kwargs
     )
 
 
@@ -2269,8 +2334,11 @@ class ProgramExecutor:
         try:
             resp = None
             for _hop in range(max_hops + 1):
-                _validate_outbound_url(current)  # raises ExecutionError on private/blocked
-                resp = await client.get(current, headers=headers, follow_redirects=False, timeout=20.0)
+                # Validates each hop AND pins the connection to the resolved IP
+                # (raises ExecutionError on private/blocked).
+                resp = await _ssrf_safe_request(
+                    client, "GET", current, headers=headers, follow_redirects=False, timeout=20.0
+                )
                 if resp.status_code in (301, 302, 303, 307, 308):
                     location = resp.headers.get("location")
                     if not location:
@@ -3738,9 +3806,6 @@ class ProgramExecutor:
         if not resolved_url.strip():
             raise ExecutionError("HTTP_CONFIG_INVALID", "HTTP connector URL is required")
 
-        # S12: enforce SSRF allowlist before making the request.
-        _validate_outbound_url(resolved_url)
-
         method = cfg.method.upper().strip() or "GET"
         params = {
             item.get("key", ""): _resolve_expressions(item.get("value", ""), input_data)
@@ -3813,12 +3878,15 @@ class ProgramExecutor:
             request_body = {"json": input_data}
 
         # follow_redirects=False (S12): a 30x to a private host would otherwise
-        # bypass the pre-flight allowlist check.
+        # bypass the pre-flight allowlist check. The request is validated and
+        # pinned to the resolved IP inside _ssrf_safe_request (closes the
+        # DNS-rebinding window between validation and connect).
         async with httpx.AsyncClient(timeout=timeout_seconds, follow_redirects=False) as client:
             self._record_telemetry(node.id, connector_api_calls=1)
-            response = await client.request(
-                method=method,
-                url=resolved_url,
+            response = await _ssrf_safe_request(
+                client,
+                method,
+                resolved_url,
                 params=params if params else None,
                 headers=headers if headers else None,
                 auth=auth,
@@ -3841,7 +3909,8 @@ class ProgramExecutor:
 
         return {
             "status_code": response.status_code,
-            "url": str(response.request.url),
+            # Report the original URL, not the IP we pinned the connection to.
+            "url": resolved_url,
             "headers": dict(response.headers),
             "body": body_output,
         }
@@ -4032,16 +4101,20 @@ class ProgramExecutor:
 
         node_exec_id = self._current_node_execution_id(node.id)
 
-        operation = await enqueue_file_operation(
-            self.db,
-            run_id=self.run_id,
-            node_execution_id=node_exec_id,
-            device_id=device_id,
-            workspace_id=workspace_id,
-            user_id=self.user_id,
-            op_type=op_type,
-            args=resolved_args,
-        )
+        try:
+            operation = await enqueue_file_operation(
+                self.db,
+                run_id=self.run_id,
+                node_execution_id=node_exec_id,
+                device_id=device_id,
+                workspace_id=workspace_id,
+                user_id=self.user_id,
+                op_type=op_type,
+                args=resolved_args,
+            )
+        except ValueError as exc:
+            # e.g. the pinned device_id does not belong to this run's workspace.
+            raise ExecutionError("FILE_OP_DEVICE_FORBIDDEN", str(exc), node.id) from exc
         operation_id = operation.get("id")
         if not operation_id:
             raise ExecutionError(
@@ -4476,23 +4549,26 @@ class ProgramExecutor:
         return str(result.data["provider"])
 
     async def _fetch_oauth_token(self, connection_id: str, force_refresh: bool = False) -> str:
-        """Fetch a valid (auto-refreshed) OAuth access token from Next.js."""
-        # Use token refresh manager to prevent race conditions
+        """Fetch a valid (auto-refreshed) OAuth access token from Next.js.
+
+        Concurrency note: the actual refresh + vault rotation happens in the web
+        app's getValidOAuthToken, which now serializes all refreshers (web *and*
+        runtime) via the shared `credential_locks` table. We must NOT take that
+        same lock here too — the web endpoint we call below would then block on a
+        lock this process already holds and deadlock. So the runtime only keeps a
+        local cache to avoid redundant round-trips; correctness is owned web-side.
+        """
         manager = get_token_refresh_manager()
-        
+
         # Check cache first (unless force_refresh)
         if not force_refresh:
             cached = manager.get_cached_token(connection_id)
             if cached:
                 return cached
-        
-        # Use distributed lock to prevent concurrent refreshes
-        return await manager.refresh_with_lock(
-            connection_id,
-            self._do_fetch_oauth_token,
-            connection_id,
-            force_refresh,
-        )
+
+        token = await self._do_fetch_oauth_token(connection_id, force_refresh)
+        manager.cache_token(connection_id, token)
+        return token
     
     async def _do_fetch_oauth_token(self, connection_id: str, force_refresh: bool = False) -> str:
         """Internal method to actually fetch the token from Next.js."""

@@ -583,5 +583,46 @@ class AsyncMockUsageTests(unittest.TestCase):
         self.assertEqual(result, {"async": "value"})
 
 
+class EnqueueFileOperationDeviceAuthTests(unittest.IsolatedAsyncioTestCase):
+    """The cross-tenant backstop: a file op may only target a device that belongs
+    to the run's own workspace."""
+
+    async def _enqueue(self, db, device_id, workspace_id="ws-1"):
+        return await db_module.enqueue_file_operation(
+            db,
+            run_id="run-1",
+            node_execution_id=None,
+            device_id=device_id,
+            workspace_id=workspace_id,
+            user_id="user-1",
+            op_type="read",
+            args={"path": "/x"},
+        )
+
+    async def test_rejects_device_in_another_workspace(self):
+        db = _make_db()
+        # devices ownership lookup returns no row → device not in this workspace.
+        db.table.return_value.execute.return_value = MagicMock(data=[])
+        with self.assertRaises(ValueError):
+            await self._enqueue(db, "device-other")
+        db.table.return_value.insert.assert_not_called()
+
+    async def test_rejects_missing_device(self):
+        db = _make_db()
+        with self.assertRaises(ValueError):
+            await self._enqueue(db, None)
+        db.table.return_value.insert.assert_not_called()
+
+    async def test_allows_device_in_workspace(self):
+        db = _make_db()
+        db.table.return_value.execute.side_effect = [
+            MagicMock(data=[{"id": "device-1"}]),  # ownership check passes
+            MagicMock(data=[{"id": "op-1"}]),      # file_operations insert
+        ]
+        row = await self._enqueue(db, "device-1")
+        self.assertEqual(row["id"], "op-1")
+        db.table.return_value.insert.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

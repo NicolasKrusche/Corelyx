@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-from engine.executor import ExecutionError, ProgramExecutor
+from engine.executor import ExecutionError, ProgramExecutor, _ssrf_safe_request
 from schema import HttpConnectionConfig, OAuthConnectionConfig, SchemaEdge, SchemaNode
 
 
@@ -255,6 +255,50 @@ class HttpConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
 
         body_input = executor._execute_node.await_args.args[1]
         self.assertEqual(body_input["loop_id"]["email"]["id"], "message-1")
+
+
+class SsrfSafeRequestTests(unittest.IsolatedAsyncioTestCase):
+    """S12: requests must connect to the exact IP that was validated, closing the
+    DNS-rebinding window between validation and connect."""
+
+    async def test_pins_https_to_validated_ip_with_host_and_sni(self) -> None:
+        client = _Client()
+        with patch("engine.executor._validate_outbound_url", return_value="93.184.216.34"):
+            await _ssrf_safe_request(client, "GET", "https://example.com/path?q=1")
+        kw = client.request_kwargs
+        assert kw is not None
+        self.assertEqual(kw["url"], "https://93.184.216.34/path?q=1")
+        self.assertEqual(kw["headers"]["Host"], "example.com")
+        self.assertEqual(kw["extensions"]["sni_hostname"], "example.com")
+
+    async def test_preserves_explicit_port(self) -> None:
+        client = _Client()
+        with patch("engine.executor._validate_outbound_url", return_value="93.184.216.34"):
+            await _ssrf_safe_request(client, "GET", "https://example.com:8443/x")
+        kw = client.request_kwargs
+        assert kw is not None
+        self.assertEqual(kw["url"], "https://93.184.216.34:8443/x")
+        self.assertEqual(kw["headers"]["Host"], "example.com:8443")
+
+    async def test_http_scheme_pins_without_sni(self) -> None:
+        client = _Client()
+        with patch("engine.executor._validate_outbound_url", return_value="93.184.216.34"):
+            await _ssrf_safe_request(client, "GET", "http://example.com/x")
+        kw = client.request_kwargs
+        assert kw is not None
+        self.assertEqual(kw["url"], "http://93.184.216.34/x")
+        self.assertNotIn("sni_hostname", kw.get("extensions", {}))
+
+    async def test_no_pin_when_validation_returns_non_ip(self) -> None:
+        # When the guard is stubbed (returns a non-IP), fall back to the plain
+        # request so unit tests that mock validation keep working unchanged.
+        client = _Client()
+        with patch("engine.executor._validate_outbound_url", return_value=None):
+            await _ssrf_safe_request(client, "GET", "https://example.com/x", headers={"A": "b"})
+        kw = client.request_kwargs
+        assert kw is not None
+        self.assertEqual(kw["url"], "https://example.com/x")
+        self.assertNotIn("Host", kw["headers"])
 
 
 if __name__ == "__main__":

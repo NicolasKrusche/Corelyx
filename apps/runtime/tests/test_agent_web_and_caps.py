@@ -49,7 +49,7 @@ class WebFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_fetches_and_strips_html(self):
         ex = _agent_executor()
         client = Mock()
-        client.get = AsyncMock(return_value=_resp(
+        client.request = AsyncMock(return_value=_resp(
             text="<html><head><style>x{}</style></head><body><h1>Hi</h1><p>There</p></body></html>",
             headers={"content-type": "text/html; charset=utf-8"},
         ))
@@ -64,7 +64,7 @@ class WebFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_follows_redirect_and_revalidates(self):
         ex = _agent_executor()
         client = Mock()
-        client.get = AsyncMock(side_effect=[
+        client.request = AsyncMock(side_effect=[
             _resp(status=302, headers={"location": "https://example.com/final"}),
             _resp(status=200, text="done", headers={"content-type": "text/plain"}),
         ])
@@ -79,7 +79,7 @@ class WebFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_truncates_long_content(self):
         ex = _agent_executor()
         client = Mock()
-        client.get = AsyncMock(return_value=_resp(text="A" * 50000))
+        client.request = AsyncMock(return_value=_resp(text="A" * 50000))
         with patch("engine.executor._validate_outbound_url", return_value=None), \
              patch("engine.executor._get_llm_client", return_value=client):
             res = await ex._execute_agent_web_fetch({"url": "https://example.com"})

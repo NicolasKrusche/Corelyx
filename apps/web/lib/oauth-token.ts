@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@flowos/db";
 import { vaultStore, vaultRetrieve, vaultDelete } from "@/lib/vault";
 import { getActiveWorkspace } from "@/lib/workspaces";
+import { withConnectionRefreshLock } from "@/lib/oauth-refresh-lock";
 
 type Client = SupabaseClient<Database>;
 
@@ -251,52 +252,43 @@ async function rotateVaultTokens(
   return newVaultId;
 }
 
-/**
- * Retrieve a valid access token for a connection, refreshing if near expiry.
- * This is the only function the rest of the app should call for OAuth tokens.
- */
-export async function getValidOAuthToken(
-  supabase: Client,
-  connectionId: string,
-  forceRefresh = false,
-): Promise<string> {
-  // Fetch connection row
+type ConnRow = { id: string; provider: string; vault_secret_id: string; metadata: Record<string, unknown> | null };
+
+async function loadConnection(supabase: Client, connectionId: string): Promise<ConnRow> {
   const { data: conn, error: connErr } = await supabase
     .from("connections")
     .select("id, provider, vault_secret_id, metadata")
     .eq("id", connectionId)
     .single();
-
-  if (connErr || !conn) throw new Error(`Connection ${connectionId} not found${connErr ? `: ${connErr.message}` : ""}`);
-
-  type ConnRow = { id: string; provider: string; vault_secret_id: string; metadata: Record<string, unknown> | null };
-  const connection = conn as unknown as ConnRow;
-
-  // Non-expiring providers — just return the token directly
-  if (NON_EXPIRING.has(connection.provider)) {
-    const raw = await vaultRetrieve(supabase, connection.vault_secret_id);
-    const tokens: StoredTokens = JSON.parse(raw);
-    return tokens.access_token;
+  if (connErr || !conn) {
+    throw new Error(`Connection ${connectionId} not found${connErr ? `: ${connErr.message}` : ""}`);
   }
+  return conn as unknown as ConnRow;
+}
 
+async function loadTokens(supabase: Client, connection: ConnRow): Promise<StoredTokens> {
   const raw = await vaultRetrieve(supabase, connection.vault_secret_id);
-  let tokens: StoredTokens;
   try {
-    tokens = JSON.parse(raw);
+    return JSON.parse(raw) as StoredTokens;
   } catch {
-    throw new Error(`Vault secret for connection ${connectionId} (provider: ${connection.provider}) contains invalid JSON — the token may be corrupted. Please reconnect.`);
+    throw new Error(`Vault secret for connection ${connection.id} (provider: ${connection.provider}) contains invalid JSON — the token may be corrupted. Please reconnect.`);
   }
+}
 
-  // Check if token is still valid (with threshold)
-  const nowMs = Date.now();
+function tokenIsFresh(tokens: StoredTokens): boolean {
   const expiresAt = tokens.expires_at;
-  const isValid = !forceRefresh && (expiresAt
-    ? expiresAt > nowMs + REFRESH_THRESHOLD_SECONDS * 1000
-    : false); // no expiry stored → assume stale, attempt refresh
+  // No expiry stored → assume stale and refresh.
+  return expiresAt ? expiresAt > Date.now() + REFRESH_THRESHOLD_SECONDS * 1000 : false;
+}
 
-  if (isValid) return tokens.access_token;
+/**
+ * Perform the actual provider refresh + vault rotation. MUST run while holding
+ * the connection's refresh lock (see getValidOAuthToken) so two refreshers can't
+ * consume the same rotating refresh_token.
+ */
+async function performRefresh(supabase: Client, connection: ConnRow, tokens: StoredTokens): Promise<string> {
+  const connectionId = connection.id;
 
-  // Attempt refresh
   if (!tokens.refresh_token) {
     // Can't refresh — mark connection invalid
     await supabase
@@ -371,4 +363,57 @@ export async function getValidOAuthToken(
   await rotateVaultTokens(supabase, connectionId, connection.vault_secret_id, newTokens, vaultName);
 
   return newTokens.access_token;
+}
+
+/**
+ * Retrieve a valid access token for a connection, refreshing if near expiry.
+ * This is the only function the rest of the app should call for OAuth tokens.
+ *
+ * Concurrency: the fast path (token still valid) takes no lock. When a refresh
+ * is actually needed, ALL refreshers — web routes and the Python runtime (via the
+ * internal /token endpoint) — serialize on the shared credential_locks table, so
+ * a (possibly rotating) refresh_token is never consumed by two callers at once.
+ */
+export async function getValidOAuthToken(
+  supabase: Client,
+  connectionId: string,
+  forceRefresh = false,
+): Promise<string> {
+  const connection = await loadConnection(supabase, connectionId);
+
+  // Non-expiring providers — just return the token directly (no refresh, no lock)
+  if (NON_EXPIRING.has(connection.provider)) {
+    const tokens = await loadTokens(supabase, connection);
+    return tokens.access_token;
+  }
+
+  const tokens = await loadTokens(supabase, connection);
+
+  // Fast path — token still valid; no lock or refresh needed.
+  if (!forceRefresh && tokenIsFresh(tokens)) {
+    return tokens.access_token;
+  }
+
+  // A refresh is required. Serialize it so concurrent callers don't each consume
+  // the refresh_token. The token we believe is stale/rejected is captured here so
+  // that, once we hold the lock, we can detect whether another holder already
+  // refreshed on our behalf and simply reuse their result.
+  const staleAccessToken = tokens.access_token;
+
+  return withConnectionRefreshLock(supabase, connectionId, async () => {
+    // Re-read under the lock — another holder may have rotated the vault secret
+    // (the connection row now points at a new secret) while we waited.
+    const current = await loadConnection(supabase, connectionId);
+    const currentTokens = await loadTokens(supabase, current);
+
+    if (!forceRefresh) {
+      if (tokenIsFresh(currentTokens)) return currentTokens.access_token;
+    } else if (currentTokens.access_token !== staleAccessToken) {
+      // Someone refreshed while we waited — the rejected token is already
+      // replaced, so return the fresh one instead of forcing another refresh.
+      return currentTokens.access_token;
+    }
+
+    return performRefresh(supabase, current, currentTokens);
+  });
 }
