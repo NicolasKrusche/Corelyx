@@ -6,11 +6,14 @@ import { gsap } from "gsap";
 import { ArrowRight, CalendarCheck, ShieldCheck, Workflow } from "lucide-react";
 import { PinnedScene, SignalCanvas, useScene, usePrefersReducedMotion } from "./scene-kit";
 import { SystemGraph } from "./SystemGraph";
+import { useWebglStage } from "../three/CinematicStage";
+import { reportSceneProgress } from "../three/scroll-state";
 
 const FLOW = ["Signal", "Graph", "Policy", "Approval", "Runtime", "Evidence"];
 
 export function FinalSystemRevealScene() {
   const reduced = usePrefersReducedMotion();
+  const webgl = useWebglStage();
 
   const ref = useScene((scope) => {
     const q = gsap.utils.selector(scope);
@@ -30,6 +33,7 @@ export function FinalSystemRevealScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("final"),
       },
     });
 
@@ -42,9 +46,13 @@ export function FinalSystemRevealScene() {
 
   return (
     <PinnedScene sceneRef={ref} id="get-started" className="text-white">
-      {/* calmed signal */}
+      {/* calmed signal (2D fallback only — the WebGL stage settles into the
+          calm system formation on its own) */}
       <div className="fr-signal absolute inset-0 z-0">
-        <div className="absolute left-1/2 top-1/2 h-[50vh] w-[120vw] -translate-x-1/2 -translate-y-1/2">
+        <div
+          className="absolute left-1/2 top-1/2 h-[50vh] w-[120vw] -translate-x-1/2 -translate-y-1/2"
+          style={{ opacity: webgl ? 0 : 1 }}
+        >
           <SignalCanvas intensity={0.8} hue="#34d399" />
         </div>
       </div>
@@ -55,6 +63,12 @@ export function FinalSystemRevealScene() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-3xl text-center">
+        {/* soft dark pocket so the CTA copy stays readable over the calm system */}
+        <div
+          aria-hidden="true"
+          className="absolute -inset-x-28 -inset-y-16 -z-10"
+          style={{ background: "radial-gradient(ellipse at center, rgba(5,6,10,0.72) 0%, rgba(5,6,10,0.38) 55%, transparent 78%)" }}
+        />
         <div className="fr-content">
           {/* resolved flow */}
           <div className="mb-10 flex flex-wrap items-center justify-center gap-x-2 gap-y-3">

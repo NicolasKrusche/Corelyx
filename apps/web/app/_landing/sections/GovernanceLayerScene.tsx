@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { ShieldCheck } from "lucide-react";
 import { PinnedScene, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
 import { SystemGraph } from "./SystemGraph";
+import { reportSceneProgress } from "../three/scroll-state";
 
 const CHECKPOINTS = [
   "Data minimisation",
@@ -26,6 +27,7 @@ export function GovernanceLayerScene() {
     gsap.set(q(".sg-marker"), { opacity: 0, scale: 0.6, yPercent: 10 });
     gsap.set(q(".gov-chip"), { opacity: 0, x: -16 });
     gsap.set(q(".gov-copy"), { opacity: 0, y: 24 });
+    gsap.set(q(".gov-scan"), { opacity: 0, yPercent: -140 });
 
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -36,12 +38,17 @@ export function GovernanceLayerScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("governance"),
       },
     });
 
     tl.to(q(".gov-copy"), { opacity: 1, y: 0, ease: "power3.out", duration: 1 }, 0)
       .to(q(".sg-shield"), { opacity: 1, ease: "power2.out", duration: 1.2 }, 0.2)
       .fromTo(q(".gov-stage"), { rotateY: -12, rotateX: 6 }, { rotateY: 10, rotateX: -2, ease: "sine.inOut", duration: 2.6 }, 0)
+      // compliance scan sweeps the graph as the shield engages
+      .to(q(".gov-scan"), { opacity: 1, duration: 0.3 }, 0.5)
+      .to(q(".gov-scan"), { yPercent: 240, ease: "power1.inOut", duration: 1.6 }, 0.6)
+      .to(q(".gov-scan"), { opacity: 0, duration: 0.3 }, 2.1)
       .to(q(".sg-marker"), { opacity: 1, scale: 1, yPercent: 0, ease: "back.out(1.6)", duration: 0.8, stagger: 0.18 }, 0.6)
       .to(q(".gov-chip"), { opacity: 1, x: 0, ease: "power2.out", duration: 0.5, stagger: 0.06 }, 0.8);
   }, { enabled: !reduced });
@@ -79,8 +86,19 @@ export function GovernanceLayerScene() {
 
         {/* governed graph with shield + markers */}
         <div style={{ perspective: "1300px" }}>
-          <div className="gov-stage [transform-style:preserve-3d]">
+          <div className="gov-stage relative [transform-style:preserve-3d]">
             <SystemGraph variant="governed" showShield showMarkers className="scale-[0.8] sm:scale-90 lg:scale-100" />
+            {/* compliance scan beam */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
+              <div
+                className="gov-scan absolute inset-x-0 top-1/4 h-24"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, transparent, rgba(56,189,248,0.14) 45%, rgba(56,189,248,0.28) 50%, rgba(56,189,248,0.14) 55%, transparent)",
+                  boxShadow: "0 0 40px rgba(56,189,248,0.2)",
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>

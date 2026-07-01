@@ -10,10 +10,12 @@ import {
   Mail,
   Play,
   ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { PinnedScene, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
+import { reportSceneProgress } from "../three/scroll-state";
 
-type BNode = { id: string; icon: React.ElementType; label: string; cx: number; cy: number; tone: string };
+type BNode = { id: string; icon: LucideIcon; label: string; cx: number; cy: number; tone: string };
 
 const BNODES: BNode[] = [
   { id: "trigger", icon: Mail, label: "Email trigger", cx: 7, cy: 34, tone: "#38bdf8" },
@@ -21,7 +23,7 @@ const BNODES: BNode[] = [
   { id: "policy", icon: GitFork, label: "Policy check", cx: 42, cy: 34, tone: "#5b8cff" },
   { id: "approval", icon: ShieldCheck, label: "Approval", cx: 60, cy: 66, tone: "#f5b14c" },
   { id: "crm", icon: Database, label: "CRM update", cx: 78, cy: 34, tone: "#38bdf8" },
-  { id: "evidence", icon: FileCheck2, label: "Audit record", cx: 93, cy: 66, tone: "#34d399" },
+  { id: "evidence", icon: FileCheck2, label: "Audit record", cx: 88, cy: 66, tone: "#34d399" },
 ];
 const BEDGES: [number, number][] = [
   [0, 1],
@@ -59,6 +61,7 @@ export function WorkflowBuilderScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("builder"),
       },
     });
 
@@ -74,6 +77,16 @@ export function WorkflowBuilderScene() {
       .to(q(".bld-status-ready"), { opacity: 0, y: -8, duration: 0.4 }, 2.4)
       .to(q(".bld-status-review"), { opacity: 1, y: 0, duration: 0.4 }, 2.4)
       .to(q("[data-bld='approval']"), { boxShadow: "0 0 30px -4px rgba(245,177,76,0.7)", borderColor: "rgba(245,177,76,0.7)", duration: 0.6 }, 2.4);
+
+    // the builder floats gently in space (not scroll-bound)
+    gsap.to(q(".bld-float"), {
+      y: "+=10",
+      rotateX: "-=0.6",
+      duration: 3.4,
+      ease: "sine.inOut",
+      repeat: -1,
+      yoyo: true,
+    });
   }, { enabled: !reduced });
 
   return (
@@ -86,7 +99,7 @@ export function WorkflowBuilderScene() {
           </h2>
         </div>
 
-        <div style={{ perspective: "1400px" }}>
+        <div className="bld-float" style={{ perspective: "1400px" }}>
           <div className="bld-card overflow-hidden rounded-2xl border border-white/12 bg-[#070a10]/95 shadow-[0_50px_140px_-40px_rgba(0,0,0,0.95)] [transform-style:preserve-3d]">
             {/* chrome */}
             <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] px-4 py-2.5">
