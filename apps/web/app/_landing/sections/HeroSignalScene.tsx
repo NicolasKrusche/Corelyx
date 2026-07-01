@@ -5,12 +5,23 @@ import Link from "next/link";
 import { gsap } from "gsap";
 import { ArrowRight, CalendarCheck } from "lucide-react";
 import { PinnedScene, SignalCanvas, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
+import { useWebglStage } from "../three/CinematicStage";
+import { reportSceneProgress } from "../three/scroll-state";
 
 const TITLE_1 = ["AI", "workflows", "need", "more", "than", "automation."];
 const TITLE_2 = ["They", "need", "control."];
+// Per-word gradient stops that read as one continuous white→cyan sweep.
+// (background-clip:text must live on the span that owns the text — WebKit
+// won't paint a parent's clipped gradient through inline-block word masks.)
+const TITLE_2_GRADIENTS = [
+  "from-white to-[#d9e9ff]",
+  "from-[#d9e9ff] to-[#8fd0fb]",
+  "from-[#8fd0fb] to-[#38bdf8]",
+];
 
 export function HeroSignalScene() {
   const reduced = usePrefersReducedMotion();
+  const webgl = useWebglStage();
 
   const ref = useScene((scope) => {
     const q = gsap.utils.selector(scope);
@@ -36,6 +47,7 @@ export function HeroSignalScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("hero"),
       },
     });
     tl.to(q(".hero-content"), { y: -80, opacity: 0, filter: "blur(10px)", ease: "power2.in", duration: 1.2 }, 0)
@@ -47,9 +59,13 @@ export function HeroSignalScene() {
 
   return (
     <PinnedScene sceneRef={ref} id="top" className="text-white">
-      {/* signal */}
+      {/* signal — the WebGL stage renders the real ribbon; this 2D canvas is
+          the fallback for reduced motion / no WebGL and fades away otherwise */}
       <div className="hero-signal absolute inset-0 z-0">
-        <div className="absolute left-1/2 top-1/2 h-[60vh] w-[120vw] -translate-x-1/2 -translate-y-1/2">
+        <div
+          className="absolute left-1/2 top-1/2 h-[60vh] w-[120vw] -translate-x-1/2 -translate-y-1/2 transition-opacity duration-700"
+          style={{ opacity: webgl ? 0 : 1 }}
+        >
           <SignalCanvas intensity={1.1} />
         </div>
         <div
@@ -76,6 +92,12 @@ export function HeroSignalScene() {
 
       {/* content */}
       <div className="hero-content relative z-10 mx-auto max-w-3xl text-center">
+        {/* soft dark pocket so the copy stays readable over the signal */}
+        <div
+          aria-hidden="true"
+          className="absolute -inset-x-28 -inset-y-16 -z-10"
+          style={{ background: "radial-gradient(ellipse at center, rgba(5,6,10,0.75) 0%, rgba(5,6,10,0.4) 55%, transparent 78%)" }}
+        />
         <div className="hero-fade mb-6 flex justify-center">
           <SceneLabel tone="cyan">EU-native · Compliance-first AI automation</SceneLabel>
         </div>
@@ -88,10 +110,14 @@ export function HeroSignalScene() {
               </span>
             ))}
           </span>
-          <span className="mt-1 block bg-gradient-to-r from-white via-[#bcd9ff] to-[#38bdf8] bg-clip-text text-transparent">
+          <span className="mt-1 block">
             {TITLE_2.map((w, i) => (
               <span key={i} className="inline-block overflow-hidden align-bottom">
-                <span className="hero-word inline-block">{w}</span>
+                <span
+                  className={`hero-word inline-block bg-gradient-to-r bg-clip-text text-transparent ${TITLE_2_GRADIENTS[i] ?? "from-white to-[#38bdf8]"}`}
+                >
+                  {w}
+                </span>
                 {i < TITLE_2.length - 1 ? <span className="inline-block">&nbsp;</span> : null}
               </span>
             ))}

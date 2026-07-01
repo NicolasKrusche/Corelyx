@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { legalIdentity } from "@/lib/legal";
 import { SmoothScroll } from "./sections/SmoothScroll";
-import { CinematicBackdrop } from "./sections/CinematicBackdrop";
+import { CinematicStage } from "./three/CinematicStage";
+import { CinematicBackdrop, FilmGrain } from "./sections/CinematicBackdrop";
 import { ScrollProgress } from "./sections/ScrollProgress";
 import { HeroSignalScene } from "./sections/HeroSignalScene";
 import { SignalToNodesScene } from "./sections/SignalToNodesScene";
@@ -189,22 +190,25 @@ export default function LandingPage() {
       <CinematicBackdrop />
       <ScrollProgress />
       <SiteHeader />
-      <SmoothScroll>
-        <main className="relative z-10">
-          <HeroSignalScene />
-          <SignalToNodesScene />
-          <WorkflowGraphScene />
-          <WorkflowBuilderScene />
-          <GovernanceLayerScene />
-          <CredentialVaultScene />
-          <ApprovalGateScene />
-          <AuditEvidenceScene />
-          <IntegrationsOrbitScene />
-          <UseCaseTemplatesScene />
-          <TrustLayerScene />
-          <FinalSystemRevealScene />
-        </main>
-      </SmoothScroll>
+      <CinematicStage>
+        <SmoothScroll>
+          <main className="relative z-10">
+            <HeroSignalScene />
+            <SignalToNodesScene />
+            <WorkflowGraphScene />
+            <WorkflowBuilderScene />
+            <GovernanceLayerScene />
+            <CredentialVaultScene />
+            <ApprovalGateScene />
+            <AuditEvidenceScene />
+            <IntegrationsOrbitScene />
+            <UseCaseTemplatesScene />
+            <TrustLayerScene />
+            <FinalSystemRevealScene />
+          </main>
+        </SmoothScroll>
+      </CinematicStage>
+      <FilmGrain />
       <SiteFooter />
     </div>
   );

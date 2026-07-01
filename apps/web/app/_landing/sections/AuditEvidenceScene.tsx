@@ -2,8 +2,29 @@
 
 import React from "react";
 import { gsap } from "gsap";
-import { CheckCircle2, Download, FileText, Lock } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Database,
+  Download,
+  FileCheck2,
+  FileText,
+  GitFork,
+  Lock,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
 import { PinnedScene, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
+import { reportSceneProgress } from "../three/scroll-state";
+
+const FLOW_NODES = [
+  { icon: Mail, label: "Trigger" },
+  { icon: Bot, label: "AI step" },
+  { icon: GitFork, label: "Policy" },
+  { icon: ShieldCheck, label: "Approval" },
+  { icon: Database, label: "Action" },
+  { icon: FileCheck2, label: "Evidence" },
+] as const;
 
 const TIMELINE = [
   { t: "09:41:02", label: "Trigger received", detail: "Gmail · #4821" },
@@ -31,44 +52,96 @@ export function AuditEvidenceScene() {
   const ref = useScene((scope) => {
     const q = gsap.utils.selector(scope);
     gsap.set(q(".ae-copy"), { opacity: 0, y: 24 });
+    gsap.set(q(".ae-flow-node"), { opacity: 0, scale: 0.6 });
+    gsap.set(q(".ae-flow-line"), { scaleX: 0 });
+    gsap.set(q(".ae-collapse-tag"), { opacity: 0 });
     gsap.set(q(".ae-tl-item"), { opacity: 0, x: -16 });
     gsap.set(q(".ae-card"), { opacity: 0, y: 60, rotateX: 18 });
     gsap.set(q(".ae-field"), { opacity: 0, y: 10 });
     gsap.set(q(".ae-redact"), { backgroundColor: "rgba(255,255,255,0.04)" });
     gsap.set(q(".ae-export"), { opacity: 0, scale: 0.85 });
 
+    // converge each flow node onto the center of its row
+    const collapseX = (_i: number, el: Element) => {
+      const node = el as HTMLElement;
+      const parent = node.parentElement as HTMLElement;
+      return parent.clientWidth / 2 - (node.offsetLeft + node.offsetWidth / 2);
+    };
+
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: scope,
         start: "top top",
-        end: "+=1600",
+        end: "+=1800",
         pin: true,
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("audit"),
       },
     });
 
     tl.to(q(".ae-copy"), { opacity: 1, y: 0, ease: "power3.out", duration: 1 }, 0)
-      .to(q(".ae-tl-item"), { opacity: 1, x: 0, ease: "power2.out", duration: 0.5, stagger: 0.12 }, 0.2)
-      .to(q(".ae-card"), { opacity: 1, y: 0, rotateX: 0, ease: "power3.out", duration: 1, stagger: 0.12 }, 0.6)
-      .to(q(".ae-field"), { opacity: 1, y: 0, ease: "power2.out", duration: 0.4, stagger: 0.05 }, 1.1)
-      .to(q(".ae-redact"), { backgroundColor: "rgba(56,189,248,0.12)", duration: 0.5, stagger: 0.1 }, 1.6)
-      .to(q(".ae-export"), { opacity: 1, scale: 1, ease: "back.out(1.6)", duration: 0.6 }, 1.9);
+      // the completed run appears…
+      .to(q(".ae-flow-line"), { scaleX: 1, ease: "power1.inOut", duration: 0.7 }, 0.15)
+      .to(q(".ae-flow-node"), { opacity: 1, scale: 1, ease: "back.out(1.6)", duration: 0.5, stagger: 0.08 }, 0.2)
+      .to(q(".ae-tl-item"), { opacity: 1, x: 0, ease: "power2.out", duration: 0.5, stagger: 0.12 }, 0.4)
+      // …then compresses into a single record
+      .to(q(".ae-collapse-tag"), { opacity: 1, duration: 0.3 }, 1.0)
+      .to(q(".ae-flow-node"), {
+        x: collapseX,
+        y: 42,
+        scale: 0.25,
+        opacity: 0,
+        ease: "power2.in",
+        duration: 0.8,
+        stagger: 0.05,
+      }, 1.1)
+      .to(q(".ae-flow-line"), { scaleX: 0.12, opacity: 0, transformOrigin: "center", ease: "power2.in", duration: 0.8 }, 1.1)
+      .to(q(".ae-collapse-tag"), { opacity: 0, duration: 0.3 }, 1.8)
+      .to(q(".ae-card"), { opacity: 1, y: 0, rotateX: 0, ease: "power3.out", duration: 1, stagger: 0.12 }, 1.6)
+      .to(q(".ae-field"), { opacity: 1, y: 0, ease: "power2.out", duration: 0.4, stagger: 0.05 }, 2.1)
+      .to(q(".ae-redact"), { backgroundColor: "rgba(56,189,248,0.12)", duration: 0.5, stagger: 0.1 }, 2.6)
+      .to(q(".ae-export"), { opacity: 1, scale: 1, ease: "back.out(1.6)", duration: 0.6 }, 2.9);
   }, { enabled: !reduced });
 
   return (
     <PinnedScene sceneRef={ref} id="audit" className="text-white">
       <div className="mx-auto w-full max-w-5xl">
-        <div className="ae-copy mb-10 max-w-2xl">
+        <div className="ae-copy mb-6 max-w-2xl">
           <SceneLabel tone="cyan" className="mb-5">Audit evidence</SceneLabel>
           <h2 className="text-balance text-3xl font-semibold leading-[1.1] tracking-tight sm:text-4xl">
             Every important run should leave evidence.
           </h2>
-          <p className="mt-5 text-pretty text-base leading-7 text-white/55">
+          <p className="mt-3 text-pretty text-base leading-7 text-white/55">
             Corelyx turns workflow execution into reviewable records: schema
             versions, approval decisions, timestamps, policy checks, redacted logs,
             and exportable evidence packages.
+          </p>
+        </div>
+
+        {/* the completed run, before it collapses into the record below */}
+        <div className="relative mb-6 hidden sm:block">
+          <div className="relative flex items-center justify-between">
+            <span
+              className="ae-flow-line absolute inset-x-6 top-1/2 h-px origin-left bg-gradient-to-r from-[#38bdf8]/50 via-[#f5b14c]/40 to-[#34d399]/60"
+              aria-hidden="true"
+            />
+            {FLOW_NODES.map((n) => {
+              const Icon = n.icon;
+              return (
+                <span
+                  key={n.label}
+                  className="ae-flow-node relative z-10 flex items-center gap-2 rounded-lg border border-white/12 bg-[#0b0e15]/95 px-3 py-2"
+                >
+                  <Icon className="h-3.5 w-3.5 text-[#38bdf8]" strokeWidth={2} />
+                  <span className="text-[11px] font-semibold text-white/80">{n.label}</span>
+                </span>
+              );
+            })}
+          </div>
+          <p className="ae-collapse-tag pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/40 opacity-0">
+            Run collapses into record
           </p>
         </div>
 

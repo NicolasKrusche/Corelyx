@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { Check, Pencil, ShieldQuestion, X } from "lucide-react";
 import { PinnedScene, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
 import { SystemGraph } from "./SystemGraph";
+import { reportSceneProgress } from "../three/scroll-state";
 
 const META = [
   ["Workflow", "support-triage.flow"],
@@ -33,6 +34,7 @@ export function ApprovalGateScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("approval"),
       },
     });
 

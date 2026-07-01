@@ -24,6 +24,8 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
     });
+    // Debug/e2e hook so tests can drive the smooth scroller directly.
+    (window as unknown as { __corelyxLenis?: Lenis }).__corelyxLenis = lenis;
 
     lenis.on("scroll", ScrollTrigger.update);
 
@@ -39,6 +41,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       window.clearTimeout(t);
       gsap.ticker.remove(onTick);
       lenis.destroy();
+      delete (window as unknown as { __corelyxLenis?: Lenis }).__corelyxLenis;
     };
   }, [reduced]);
 

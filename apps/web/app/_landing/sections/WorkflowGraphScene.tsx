@@ -4,6 +4,7 @@ import React from "react";
 import { gsap } from "gsap";
 import { PinnedScene, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
 import { SystemGraph } from "./SystemGraph";
+import { reportSceneProgress } from "../three/scroll-state";
 
 export function WorkflowGraphScene() {
   const reduced = usePrefersReducedMotion();
@@ -26,6 +27,7 @@ export function WorkflowGraphScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("graph"),
       },
     });
 
@@ -47,7 +49,12 @@ export function WorkflowGraphScene() {
     <PinnedScene sceneRef={ref} id="platform" className="text-white">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[0.85fr_1.15fr]">
         {/* copy */}
-        <div className="s3-copy order-2 lg:order-1">
+        <div className="s3-copy relative order-2 lg:order-1">
+          <div
+            aria-hidden="true"
+            className="absolute -inset-x-16 -inset-y-10 -z-10"
+            style={{ background: "radial-gradient(ellipse at center, rgba(5,6,10,0.7) 0%, rgba(5,6,10,0.35) 60%, transparent 80%)" }}
+          />
           <SceneLabel tone="cyan" className="mb-5">From chaos to control</SceneLabel>
           <h2 className="text-balance text-3xl font-semibold leading-[1.1] tracking-tight sm:text-4xl lg:text-[2.6rem]">
             Corelyx turns automation into a governed workflow system.

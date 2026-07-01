@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { motion, type Variants } from "framer-motion";
+import { gsap } from "gsap";
 import {
   ArrowRight,
   Building2,
@@ -15,7 +15,13 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { SceneLabel } from "./scene-kit";
+import { SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
+import { reportSceneProgress } from "../three/scroll-state";
+
+/* Scene 11 — trust layer. Calmer than the film before it, but still spatial:
+   the review documents drift in scattered (like loose paperwork) and organize
+   themselves into clean rows as the section scrolls, with a verification line
+   drawing under the heading. Scrubbed, not pinned. */
 
 const TRUST = [
   { icon: Lock, label: "Privacy policy", href: "/privacy", hint: "What we collect, why, and for how long." },
@@ -29,16 +35,59 @@ const TRUST = [
   { icon: Users, label: "Vulnerability contact", href: "/security", hint: "Report a security issue responsibly." },
 ] as const;
 
-const parent: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
-const item: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
-};
+/** Deterministic "loose paperwork" scatter per card. */
+function scatter(i: number) {
+  return {
+    y: 70 + (i % 3) * 26,
+    z: -140 - (i % 4) * 70,
+    rotate: ((i * 37) % 7) - 3,
+    rotateX: 8,
+  };
+}
 
 export function TrustLayerScene() {
+  const reduced = usePrefersReducedMotion();
+
+  const ref = useScene((scope) => {
+    const q = gsap.utils.selector(scope);
+    gsap.set(q(".tr-head"), { opacity: 0, y: 24 });
+    gsap.set(q(".tr-cta"), { opacity: 0, y: 16 });
+    gsap.set(q(".tr-verify"), { scaleX: 0 });
+    (q(".tr-card") as HTMLElement[]).forEach((el, i) => {
+      gsap.set(el, { opacity: 0, filter: "blur(4px)", ...scatter(i) });
+    });
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: scope,
+        start: "top 78%",
+        end: "bottom 75%",
+        scrub: 0.7,
+        invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("trust"),
+      },
+    });
+
+    tl.to(q(".tr-head"), { opacity: 1, y: 0, ease: "power3.out", duration: 0.8 }, 0)
+      .to(q(".tr-verify"), { scaleX: 1, ease: "power1.inOut", duration: 0.8 }, 0.3)
+      .to(q(".tr-card"), {
+        opacity: 1,
+        y: 0,
+        z: 0,
+        rotate: 0,
+        rotateX: 0,
+        filter: "blur(0px)",
+        ease: "power3.out",
+        duration: 1,
+        stagger: 0.07,
+      }, 0.35)
+      .to(q(".tr-cta"), { opacity: 1, y: 0, ease: "power2.out", duration: 0.6 }, 1.3);
+  }, { enabled: !reduced });
+
   return (
     <section
       id="trust"
+      ref={ref}
       className="scene relative w-full overflow-hidden px-5 py-28 text-white sm:px-8"
       style={{ perspective: "1400px" }}
     >
@@ -47,13 +96,7 @@ export function TrustLayerScene() {
 
       <div className="relative mx-auto max-w-6xl">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.7 }}
-            className="max-w-2xl"
-          >
+          <div className="tr-head max-w-2xl">
             <SceneLabel tone="cyan" className="mb-5">Trust &amp; compliance</SceneLabel>
             <h2 className="text-balance text-3xl font-semibold leading-[1.1] tracking-tight sm:text-4xl">
               Built for review, not just demos.
@@ -62,13 +105,12 @@ export function TrustLayerScene() {
               Corelyx makes security, privacy, data processing, subprocessors,
               residency context, and workflow governance easy to inspect.
             </p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
+            <span
+              className="tr-verify mt-6 block h-px w-full max-w-md origin-left bg-gradient-to-r from-[#38bdf8]/60 via-[#34d399]/40 to-transparent"
+              aria-hidden="true"
+            />
+          </div>
+          <div className="tr-cta">
             <Link
               href="/trust"
               className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#38bdf8]/30 bg-[#38bdf8]/[0.06] px-4 py-2 text-sm font-semibold text-[#a5e3ff] transition-colors hover:bg-[#38bdf8]/[0.12]"
@@ -76,20 +118,14 @@ export function TrustLayerScene() {
               Visit Trust Center
               <ArrowRight className="h-4 w-4" />
             </Link>
-          </motion.div>
+          </div>
         </div>
 
-        <motion.div
-          variants={parent}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-60px" }}
-          className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-        >
+        <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" style={{ transformStyle: "preserve-3d" }}>
           {TRUST.map((t) => {
             const Icon = t.icon;
             return (
-              <motion.div key={t.label} variants={item} style={{ transformStyle: "preserve-3d" }}>
+              <div key={t.label} className="tr-card" style={{ transformStyle: "preserve-3d" }}>
                 <Link
                   href={t.href}
                   className="group flex h-full items-start gap-3 rounded-2xl border border-white/10 bg-[#0a0d13]/70 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#38bdf8]/35 hover:shadow-[0_24px_60px_-30px_rgba(56,189,248,0.4)]"
@@ -105,10 +141,10 @@ export function TrustLayerScene() {
                     <span className="mt-1 block text-[12px] leading-5 text-white/40">{t.hint}</span>
                   </span>
                 </Link>
-              </motion.div>
+              </div>
             );
           })}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

@@ -10,11 +10,13 @@ import {
   Timer,
   Unplug,
   UserX,
+  type LucideIcon,
 } from "lucide-react";
 import { PinnedScene, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
+import { reportSceneProgress } from "../three/scroll-state";
 
 type RiskNode = {
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   x: number;
   y: number;
@@ -29,7 +31,7 @@ const RISKS: RiskNode[] = [
   { icon: FileWarning, label: "No audit trail", x: 22, y: 70, z: 10, tone: "red" },
   { icon: Timer, label: "Unknown data retention", x: 50, y: 40, z: -260, tone: "amber" },
   { icon: Unplug, label: "Unverified webhook", x: 60, y: 78, z: -120, tone: "red" },
-  { icon: AlertTriangle, label: "Fragmented evidence", x: 36, y: 30, z: 80, tone: "amber" },
+  { icon: AlertTriangle, label: "Fragmented evidence", x: 8, y: 44, z: 80, tone: "amber" },
 ];
 
 export function SignalToNodesScene() {
@@ -49,6 +51,7 @@ export function SignalToNodesScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("chaos"),
       },
     });
 
@@ -119,6 +122,11 @@ export function SignalToNodesScene() {
 
       {/* copy */}
       <div className="s2-copy relative z-10 mx-auto max-w-2xl text-center">
+        <div
+          aria-hidden="true"
+          className="absolute -inset-x-28 -inset-y-16 -z-10"
+          style={{ background: "radial-gradient(ellipse at center, rgba(5,6,10,0.78) 0%, rgba(5,6,10,0.45) 55%, transparent 78%)" }}
+        />
         <SceneLabel tone="amber" className="mb-5">The risk of speed</SceneLabel>
         <h2 className="text-balance text-3xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
           Automation without governance

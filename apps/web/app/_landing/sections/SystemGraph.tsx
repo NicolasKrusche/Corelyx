@@ -9,6 +9,7 @@ import {
   GitFork,
   Mail,
   ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ type NodeId = "trigger" | "ai" | "policy" | "approval" | "action" | "log" | "exp
 
 const NODES: {
   id: NodeId;
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   sub: string;
   cx: number;

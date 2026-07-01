@@ -1,8 +1,43 @@
 import type { AiSystemInventoryRecord } from "@/lib/compliance/governance";
 
+// Cells whose first character is one of these are evaluated as formulas by
+// Excel / Google Sheets / LibreOffice on open (CSV / formula injection, CWE-1236).
+// Compliance exports carry user-entered names, owners, and descriptions, so a
+// value like `=HYPERLINK(...)` or `=cmd|'/c calc'!A1` would execute on the
+// auditor's machine. Quoting does NOT help — the spreadsheet strips the
+// surrounding quotes before evaluating the cell — so neutralize by prefixing a
+// single quote, which forces the cell to be treated as text.
+const CSV_FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
 function csvCell(value: unknown) {
-  const text = Array.isArray(value) ? value.join("; ") : String(value ?? "");
+  let text = Array.isArray(value) ? value.join("; ") : String(value ?? "");
+  if (CSV_FORMULA_TRIGGER.test(text)) text = `'${text}`;
   return `"${text.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Build an injection-safe CSV from a header row and value rows. Every cell is
+ * quoted and formula-injection-neutralized via {@link csvCell}, so this is the
+ * only CSV path callers should use.
+ */
+export function toCsv(headers: string[], rows: Array<Array<unknown>>): string {
+  return [
+    headers.map(csvCell).join(","),
+    ...rows.map((row) => row.map(csvCell).join(",")),
+  ].join("\n");
+}
+
+/**
+ * Strip characters that are illegal in XML 1.0 (all control chars except tab,
+ * LF, CR). A single stray 0x00 in a user-entered name/description otherwise
+ * produces an unparseable document.xml / worksheet and Word/Excel refuse to
+ * open the file. Applied before escaping in every XML-based exporter.
+ */
+// eslint-disable-next-line no-control-regex
+const XML_ILLEGAL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F]/g;
+
+function stripXmlIllegalChars(value: string) {
+  return value.replace(XML_ILLEGAL_CHARS, "");
 }
 
 export function recordsToCsv(records: AiSystemInventoryRecord[]) {
@@ -28,14 +63,14 @@ export function recordsToCsv(records: AiSystemInventoryRecord[]) {
     "review_due",
   ];
 
-  return [
-    headers.map(csvCell).join(","),
-    ...records.map((record) => headers.map((header) => csvCell(record[header])).join(",")),
-  ].join("\n");
+  return toCsv(
+    headers as string[],
+    records.map((record) => headers.map((header) => record[header]))
+  );
 }
 
 function xmlEscape(value: unknown) {
-  return String(value ?? "")
+  return stripXmlIllegalChars(String(value ?? ""))
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -212,7 +247,13 @@ function dosDateTime(date = new Date()) {
   return { time, date: dosDate };
 }
 
-function zipStore(entries: Array<{ name: string; content: string }>) {
+export type ZipEntry = { name: string; content: string | Buffer };
+
+/**
+ * Build a stored (uncompressed) ZIP archive from text or binary entries.
+ * Dependency-free — used for the DOCX package and the auditor evidence pack.
+ */
+export function zipArchive(entries: ZipEntry[]) {
   const localParts: Buffer[] = [];
   const centralParts: Buffer[] = [];
   let offset = 0;
@@ -220,7 +261,9 @@ function zipStore(entries: Array<{ name: string; content: string }>) {
 
   for (const entry of entries) {
     const name = Buffer.from(entry.name, "utf8");
-    const content = Buffer.from(entry.content, "utf8");
+    const content = Buffer.isBuffer(entry.content)
+      ? entry.content
+      : Buffer.from(entry.content, "utf8");
     const crc = crc32(content);
     const local = Buffer.concat([
       u32(0x04034b50),
@@ -277,7 +320,7 @@ function zipStore(entries: Array<{ name: string; content: string }>) {
 }
 
 function docxXmlEscape(value: string) {
-  return value
+  return stripXmlIllegalChars(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
@@ -305,7 +348,7 @@ function markdownToDocumentXml(markdown: string) {
 
 export function textToDocxBuffer(title: string, markdown: string) {
   const now = new Date().toISOString();
-  return zipStore([
+  return zipArchive([
     {
       name: "[Content_Types].xml",
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

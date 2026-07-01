@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { PinnedScene, SceneLabel, useScene, usePrefersReducedMotion } from "./scene-kit";
+import { reportSceneProgress } from "../three/scroll-state";
 
 const PRINCIPLES = [
   { icon: ServerCog, text: "Server-side token resolution" },
@@ -47,6 +48,7 @@ export function CredentialVaultScene() {
         scrub: 0.8,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: reportSceneProgress("vault"),
       },
     });
 
@@ -66,8 +68,10 @@ export function CredentialVaultScene() {
       .to(q(".ok-tag"), { opacity: 1, scale: 1, ease: "back.out(2)", duration: 0.4 }, 3.0)
       .to(q(".vault-core"), { boxShadow: "0 0 60px -6px rgba(52,211,153,0.7)", duration: 0.6 }, 3.0);
 
-    // soft pulse on the core
+    // soft pulse on the core + revolving dashed boundary
     gsap.to(q(".vault-core"), { scale: 1.04, duration: 1.6, ease: "sine.inOut", repeat: -1, yoyo: true, delay: 1.4 });
+    gsap.to(q(".vault-dashes"), { rotation: 360, duration: 40, ease: "none", repeat: -1 });
+    gsap.to(q(".vault-tunnel"), { strokeDashoffset: -24, duration: 1.2, ease: "none", repeat: -1 });
   }, { enabled: !reduced });
 
   return (
@@ -84,13 +88,13 @@ export function CredentialVaultScene() {
             workflow outputs, or AI prompts. Corelyx treats credential access as a
             protected runtime boundary.
           </p>
-          <ul className="mt-7 grid gap-2 sm:grid-cols-2">
+          <ul className="mt-5 grid grid-cols-2 gap-2 sm:mt-7">
             {PRINCIPLES.map((p) => {
               const Icon = p.icon;
               return (
-                <li key={p.text} className="flex items-center gap-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2">
+                <li key={p.text} className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0b0e15]/85 px-2.5 py-1.5 sm:gap-2.5 sm:px-3 sm:py-2">
                   <Icon className="h-4 w-4 shrink-0 text-[#f05a28]" strokeWidth={1.75} />
-                  <span className="text-[12px] text-white/70">{p.text}</span>
+                  <span className="text-[11px] text-white/70 sm:text-[12px]">{p.text}</span>
                 </li>
               );
             })}
@@ -98,10 +102,25 @@ export function CredentialVaultScene() {
         </div>
 
         {/* vault stage */}
-        <div className="relative mx-auto h-[380px] w-full max-w-[460px]">
+        <div className="relative mx-auto h-[280px] w-full max-w-[460px] sm:h-[380px]">
           {/* boundary ring */}
           <div className="vault-ring absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#f05a28]/30 shadow-[inset_0_0_60px_-10px_rgba(240,90,40,0.4)]" />
+          <div className="vault-ring vault-dashes absolute left-1/2 top-1/2 h-[266px] w-[266px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#f05a28]/35" />
           <div className="vault-ring absolute left-1/2 top-1/2 h-[220px] w-[220px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#f05a28]/15" />
+
+          {/* server-side tunnel to the runtime */}
+          <svg className="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
+            <line
+              className="vault-tunnel"
+              x1="58%"
+              y1="50%"
+              x2="92%"
+              y2="50%"
+              stroke="rgba(52,211,153,0.4)"
+              strokeWidth="1.5"
+              strokeDasharray="6 6"
+            />
+          </svg>
 
           {/* browser (outside, left) */}
           <div className="vault-side absolute left-0 top-1/2 -translate-y-1/2 rounded-xl border border-white/12 bg-[#0b0e15]/90 px-3 py-2.5 text-center">
