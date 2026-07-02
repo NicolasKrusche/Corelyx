@@ -132,6 +132,16 @@ const AGENT: Record<string, FieldHelpEntry> = {
     description: "How long the run waits for approval before the step fails. Shorter timeouts are useful for urgent workflows.",
     learnMoreUrl: url("agent", "approval-timeout"),
   },
+  approval_approver: {
+    title: "Approver",
+    description: "The person or role who should make this decision (e.g. 'Compliance Lead'). Recorded on the approval so audit exports show who was responsible.",
+    learnMoreUrl: url("agent", "requires-approval"),
+  },
+  approval_reason: {
+    title: "Reason for approval",
+    description: "A plain-language explanation shown to the approver when the run pauses, so they understand what they are approving and why.",
+    learnMoreUrl: url("agent", "requires-approval"),
+  },
   "retry.max_attempts": {
     title: "Max attempts",
     description: "Total attempts for this node, including the first try. Use retries for temporary provider or network failures.",

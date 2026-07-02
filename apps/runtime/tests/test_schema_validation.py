@@ -63,6 +63,33 @@ class SchemaValidationTests(unittest.TestCase):
 
         self.assertEqual(schema.nodes[0].id, "n1")
 
+    def test_parses_approval_gate_metadata(self) -> None:
+        schema = parse_schema(
+            _schema_with_config(
+                "agent",
+                {
+                    "model": "gpt-4o-mini",
+                    "requires_approval": True,
+                    "approval_approver": "Jane Doe, Compliance Lead",
+                    "approval_reason": "Sends email to external recipients.",
+                },
+            )
+        )
+
+        config = schema.nodes[0].config
+        self.assertTrue(config.requires_approval)
+        self.assertEqual(config.approval_approver, "Jane Doe, Compliance Lead")
+        self.assertEqual(config.approval_reason, "Sends email to external recipients.")
+
+    def test_approval_gate_metadata_defaults_empty(self) -> None:
+        schema = parse_schema(
+            _schema_with_config("agent", {"model": "gpt-4o-mini"})
+        )
+
+        config = schema.nodes[0].config
+        self.assertEqual(config.approval_approver, "")
+        self.assertEqual(config.approval_reason, "")
+
     def test_parses_file_connection(self) -> None:
         from schema import FileConnectionConfig
 

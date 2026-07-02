@@ -325,7 +325,8 @@
     "goBack": "Geri Dön"
   },
   "sidebar": {
-    "sections": { "main": "Ana", "data": "Veri", "settings": "Ayarlar", "help": "Yardım" },
+    "sections": { "main": "Ana", "data": "Veri", "settings": "Ayarlar", "help": "Yardım", "governance": "Yönetişim ve Uyumluluk" },
+    "governanceNav": { "reviews": "İncelemeler", "auditLogs": "Denetim Kayıtları", "dataControls": "Veri Kontrolleri", "access": "Erişim ve Kimlik Bilgileri", "aiAct": "AI Act Kontrol Noktaları", "exports": "Dışa Aktarımlar" },
     "nav": {
       "settings": "Ayarlar",
       "governance": "Yönetişim",

@@ -4271,6 +4271,12 @@ class ProgramExecutor:
             if hasattr(cfg, "approval_timeout_hours"):
                 timeout_hours = float(cfg.approval_timeout_hours)
 
+        # Node-configured governance metadata: a plain-language reason for the
+        # gate and a named approver/role, both recorded on the approval.
+        configured_reason = str(getattr(node.config, "approval_reason", "") or "").strip()
+        configured_approver = str(getattr(node.config, "approval_approver", "") or "").strip()
+        display_reason = configured_reason or reason
+
         await create_approval(
             self.db,
             node_exec_id,
@@ -4279,10 +4285,11 @@ class ProgramExecutor:
                 "node_label": node.label,
                 "input": input_data,
                 "program_id": self.program_id,
-                "reason": reason,
+                "reason": display_reason,
+                "approver": configured_approver or None,
                 "execution_mode": self.execution_mode,
                 "timeout_hours": timeout_hours,
-                "requested_action": f"{reason}: {node.label}",
+                "requested_action": f"{display_reason}: {node.label}",
                 "ai_generated_recommendation": input_data.get("text") if isinstance(input_data.get("text"), str) else None,
                 "data_summary": self._approval_data_summary(input_data),
                 "risk_flags": self._approval_risk_flags(node),

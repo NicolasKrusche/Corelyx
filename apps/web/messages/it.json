@@ -325,7 +325,8 @@
     "goBack": "Torna indietro"
   },
   "sidebar": {
-    "sections": { "main": "Principale", "data": "Dati", "settings": "Impostazioni", "help": "Aiuto" },
+    "sections": { "main": "Principale", "data": "Dati", "settings": "Impostazioni", "help": "Aiuto", "governance": "Governance e conformità" },
+    "governanceNav": { "reviews": "Revisioni", "auditLogs": "Log di audit", "dataControls": "Controlli dei dati", "access": "Accessi e credenziali", "aiAct": "Checkpoint AI Act", "exports": "Esportazioni" },
     "nav": {
       "settings": "Impostazioni",
       "governance": "Governance",

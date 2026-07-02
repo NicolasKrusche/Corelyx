@@ -325,7 +325,8 @@
     "goBack": "戻る"
   },
   "sidebar": {
-    "sections": { "main": "メイン", "data": "データ", "settings": "設定", "help": "ヘルプ" },
+    "sections": { "main": "メイン", "data": "データ", "settings": "設定", "help": "ヘルプ", "governance": "ガバナンスとコンプライアンス" },
+    "governanceNav": { "reviews": "レビュー", "auditLogs": "監査ログ", "dataControls": "データ管理", "access": "アクセスと認証情報", "aiAct": "AI法チェックポイント", "exports": "エクスポート" },
     "nav": {
       "settings": "設定",
       "governance": "ガバナンス",

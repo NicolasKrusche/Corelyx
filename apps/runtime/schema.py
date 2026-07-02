@@ -31,6 +31,9 @@ class AgentConfig:
     scope_access: Literal["read", "write", "read_write"]
     retry: RetryConfig
     tools: list[str]
+    # Governance metadata recorded on the approval request (optional).
+    approval_approver: str = ""
+    approval_reason: str = ""
 
 
 @dataclass
@@ -46,6 +49,9 @@ class AgentTaskConfig:
     input_schema: Optional[dict]
     output_schema: Optional[dict]
     retry: RetryConfig
+    # Governance metadata recorded on the approval request (optional).
+    approval_approver: str = ""
+    approval_reason: str = ""
 
 
 @dataclass
@@ -233,6 +239,8 @@ def _parse_node_config(
             scope_access=raw.get("scope_access", "read"),
             retry=_parse_retry(retry_raw),
             tools=list(raw.get("tools") or []),
+            approval_approver=str(raw.get("approval_approver") or "")[:200],
+            approval_reason=str(raw.get("approval_reason") or "")[:500],
         )
     elif node_type == "agent_task":
         retry_raw = raw.get("retry") or {}
@@ -263,6 +271,8 @@ def _parse_node_config(
             input_schema=raw.get("input_schema"),
             output_schema=raw.get("output_schema"),
             retry=_parse_retry(retry_raw),
+            approval_approver=str(raw.get("approval_approver") or "")[:200],
+            approval_reason=str(raw.get("approval_reason") or "")[:500],
         )
     elif node_type == "trigger":
         trigger_type = raw.get("trigger_type", "manual")

@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { MarkReviewedButton } from "./_components/mark-reviewed-button";
 import { GovernanceRemediationButton } from "./_components/governance-remediation-button";
 import { ExportButtons } from "./_components/export-buttons";
+import { Pill, statusClass } from "./_components/ui";
 
 // ─── Small display components ────────────────────────────────────────────────
 
@@ -37,41 +38,32 @@ function Metric({
   value,
   caption,
   icon,
+  href,
 }: {
   label: string;
   value: string | number;
   caption: string;
   icon: React.ReactNode;
+  href?: string;
 }) {
-  return (
-    <section className="rounded-xl border glass-card px-5 py-4">
+  const body = (
+    <>
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">{label}</p>
         <span className="text-muted-foreground">{icon}</span>
       </div>
       <p className="text-2xl font-black tabular-nums">{value}</p>
       <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/70">{caption}</p>
-    </section>
+    </>
   );
-}
-
-function statusClass(status: string) {
-  const s = status.toLowerCase();
-  if (/(prohibited|high[ -]?risk|\bmissing\b)/.test(s))
-    return "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300";
-  if (/(completed?|active|minimal risk|limited risk|not required|^required$)/.test(s))
-    return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
-  if (/(partial|draft|recommended|unknown|review|not marked)/.test(s))
-    return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
-  return "border-border bg-secondary text-muted-foreground";
-}
-
-function Pill({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span className={cn("inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium", className)}>
-      {children}
-    </span>
-  );
+  if (href) {
+    return (
+      <Link href={href} className="block rounded-xl border glass-card px-5 py-4 transition-colors hover:bg-accent/40">
+        {body}
+      </Link>
+    );
+  }
+  return <section className="rounded-xl border glass-card px-5 py-4">{body}</section>;
 }
 
 // ─── Inventory row with per-record quick-fix actions ──────────────────────────
@@ -395,7 +387,7 @@ export default async function GovernancePage() {
   const inventory = await loadGovernanceInventory(activeWorkspace.workspaceId, db as never);
   const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
 
-  const [{ count: auditCount }, { count: runCount }] = await Promise.all([
+  const [{ count: auditCount }, { count: runCount }, { count: pendingApprovalCount }] = await Promise.all([
     (db as any)
       .from("app_logs")
       .select("id", { count: "exact", head: true })
@@ -406,6 +398,11 @@ export default async function GovernancePage() {
       .select("id, programs!inner(workspace_id)", { count: "exact", head: true })
       .eq("programs.workspace_id", activeWorkspace.workspaceId)
       .gte("created_at", monthAgo),
+    (db as any)
+      .from("approvals")
+      .select("id, node_executions!inner(runs!inner(programs!inner(workspace_id)))", { count: "exact", head: true })
+      .eq("status", "pending")
+      .eq("node_executions.runs.programs.workspace_id", activeWorkspace.workspaceId),
   ]);
 
   const metrics = inventory.metrics;
@@ -422,9 +419,6 @@ export default async function GovernancePage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-            Governance center
-          </p>
           <h1 className="text-3xl font-black tracking-tight">
             AI inventory, risk, documentation, audit, and oversight
           </h1>
@@ -438,12 +432,19 @@ export default async function GovernancePage() {
       </section>
 
       {/* ── Metrics ────────────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <Metric
           label="AI systems"
           value={metrics.total_ai_systems}
           caption="Workflows automatically registered."
           icon={<ClipboardList className="h-4 w-4" />}
+        />
+        <Metric
+          label="Pending approvals"
+          value={pendingApprovalCount ?? 0}
+          caption="Runs paused for a human decision. Click to review."
+          icon={<UserCheck className="h-4 w-4" />}
+          href="/governance/reviews"
         />
         <Metric
           label="High risk"
@@ -466,8 +467,9 @@ export default async function GovernancePage() {
         <Metric
           label="Due review"
           value={metrics.systems_due_for_review}
-          caption="Never reviewed or older than 180 days."
+          caption="Never reviewed or older than 180 days. Click to review."
           icon={<History className="h-4 w-4" />}
+          href="/governance/reviews"
         />
       </section>
 
