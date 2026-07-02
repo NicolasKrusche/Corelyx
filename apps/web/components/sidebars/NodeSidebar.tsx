@@ -1080,17 +1080,39 @@ function AgentSidebar({
           />
 
           {config.requires_approval && (
-            <FieldGroup label="Approval timeout (hours)" htmlFor="agent-approval-timeout" helpKey="approval_timeout_hours">
-              <Input
-                id="agent-approval-timeout"
-                type="number"
-                min={0}
-                value={config.approval_timeout_hours}
-                onChange={(e) =>
-                  onUpdate({ approval_timeout_hours: Number(e.target.value) })
-                }
-              />
-            </FieldGroup>
+            <>
+              <FieldGroup label="Approval timeout (hours)" htmlFor="agent-approval-timeout" helpKey="approval_timeout_hours">
+                <Input
+                  id="agent-approval-timeout"
+                  type="number"
+                  min={0}
+                  value={config.approval_timeout_hours}
+                  onChange={(e) =>
+                    onUpdate({ approval_timeout_hours: Number(e.target.value) })
+                  }
+                />
+              </FieldGroup>
+              <FieldGroup label="Approver (name or role)" htmlFor="agent-approval-approver" helpKey="approval_approver">
+                <Input
+                  id="agent-approval-approver"
+                  maxLength={200}
+                  placeholder="e.g. Jane Doe, Compliance Lead"
+                  value={config.approval_approver ?? ""}
+                  onChange={(e) => onUpdate({ approval_approver: e.target.value })}
+                />
+              </FieldGroup>
+              <FieldGroup label="Reason shown to the approver" htmlFor="agent-approval-reason" helpKey="approval_reason">
+                <Textarea
+                  id="agent-approval-reason"
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Why does this step need a human decision?"
+                  value={config.approval_reason ?? ""}
+                  onChange={(e) => onUpdate({ approval_reason: e.target.value })}
+                  className="text-xs resize-none"
+                />
+              </FieldGroup>
+            </>
           )}
         </div>
       )}

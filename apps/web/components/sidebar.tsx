@@ -1042,6 +1042,24 @@ export function Sidebar({
             icon={<LinkIcon />} isDark={isDark} tourId="nav-connections" />
         </div>
 
+        {/* ── GOVERNANCE & COMPLIANCE ────────────────────────────────────── */}
+        <NavSectionLabel label={tSidebar("sections.governance")} isDark={isDark} />
+        <div className="space-y-0.5">
+          <NavItem href="/governance" label={tSidebar("nav.governance")} active={pathname.startsWith("/governance")}
+            icon={<GovernanceIcon />} isDark={isDark} tourId="nav-governance" />
+          {/* Sub-items — only rendered when sidebar is expanded */}
+          <div className="max-h-0 overflow-hidden transition-all duration-200 group-hover/side:max-h-72 group-data-[open]/side:max-h-72">
+            <div className="space-y-0.5 pb-0.5">
+              <NavSubItem href="/governance/reviews" label={tSidebar("governanceNav.reviews")} active={pathname.startsWith("/governance/reviews")} isDark={isDark} />
+              <NavSubItem href="/governance/audit-logs" label={tSidebar("governanceNav.auditLogs")} active={pathname.startsWith("/governance/audit-logs")} isDark={isDark} />
+              <NavSubItem href="/governance/data-controls" label={tSidebar("governanceNav.dataControls")} active={pathname.startsWith("/governance/data-controls")} isDark={isDark} />
+              <NavSubItem href="/governance/access" label={tSidebar("governanceNav.access")} active={pathname.startsWith("/governance/access")} isDark={isDark} />
+              <NavSubItem href="/governance/ai-act" label={tSidebar("governanceNav.aiAct")} active={pathname.startsWith("/governance/ai-act")} isDark={isDark} />
+              <NavSubItem href="/governance/exports" label={tSidebar("governanceNav.exports")} active={pathname.startsWith("/governance/exports")} isDark={isDark} />
+            </div>
+          </div>
+        </div>
+
         {/* ── SETTINGS ───────────────────────────────────────────────────── */}
         <NavSectionLabel label={tSidebar("sections.settings")} isDark={isDark} />
         <div className="space-y-0.5">
@@ -1057,7 +1075,6 @@ export function Sidebar({
               <NavSubItem href="/api-keys" label={tNav("apiKeys")} active={pathname.startsWith("/api-keys")} isDark={isDark} />
               <NavSubItem href="/settings/devices" label="Devices" active={pathname.startsWith("/settings/devices")} isDark={isDark} />
               <NavSubItem href="/env-vars" label={tNav("envVars")} active={pathname.startsWith("/env-vars")} isDark={isDark} />
-              <NavSubItem href="/governance" label={tSidebar("nav.governance")} active={pathname.startsWith("/governance")} isDark={isDark} />
               <NavSubItem href="/credits" label={tSidebar("nav.usageBilling")} active={pathname.startsWith("/credits")} isDark={isDark} />
               {isAdmin && (
                 <NavSubItem href="/admin" label={tNav("admin")} active={pathname.startsWith("/admin")} isDark={isDark} />

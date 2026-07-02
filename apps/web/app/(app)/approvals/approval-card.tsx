@@ -17,6 +17,7 @@ type ApprovalRow = {
     input?: unknown;
     program_id?: string;
     reason?: string;
+    approver?: string;
   } | null;
   decision_note: string | null;
   decided_at: string | null;
@@ -60,6 +61,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
   const programId = approval.node_executions?.runs?.program_id;
   const nodeLabel = approval.context?.node_label ?? approval.node_executions?.node_id;
   const reason = approval.context?.reason;
+  const approver = approval.context?.approver;
 
   async function decide(decision: "approved" | "rejected") {
     setSubmitting(decision);
@@ -135,6 +137,14 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
           {timeAgo(approval.created_at)}
         </div>
       </div>
+
+      {/* Assigned approver (recorded on the decision for audit evidence) */}
+      {approver && (
+        <div className="mx-5 mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/80">Assigned approver:</span>
+          <span>{approver}</span>
+        </div>
+      )}
 
       {/* Reason */}
       {reason && (

@@ -138,6 +138,10 @@ export interface AgentConfig {
   output_schema: DataSchema | null;
   requires_approval: boolean;
   approval_timeout_hours: number;
+  // Governance metadata recorded on the approval request: a named
+  // approver/role and a plain-language reason shown to the approver.
+  approval_approver?: string;
+  approval_reason?: string;
   scope_required: string | null;
   scope_access: "read" | "write" | "read_write";
   retry: RetryConfig;
@@ -172,6 +176,9 @@ export interface AgentTaskConfig {
   // Pause for human approval before any write / side-effecting tool runs.
   requires_approval: boolean;
   approval_timeout_hours: number;
+  // Governance metadata recorded on the approval request (optional).
+  approval_approver?: string;
+  approval_reason?: string;
   input_schema: DataSchema | null;
   output_schema: DataSchema | null;
   retry: RetryConfig;

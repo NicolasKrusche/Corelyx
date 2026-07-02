@@ -257,7 +257,7 @@ export default function ProgramSettingsPage() {
 
         <Field
           label="AI Act risk review"
-          description="Classify the workflow before production use. Final obligations depend on use case, configuration, and customer role."
+          description="Classify the workflow before production use. Final obligations depend on use case, configuration, and customer role. This record is also editable under Governance → AI Act Checkpoints. Storage and retention for this workflow follow the workspace Data Controls."
         >
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">

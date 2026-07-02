@@ -161,6 +161,13 @@ const NAV_ITEMS = [
   { id: "credits",     label: "Credits & Usage",href: "/credits",        icon: CreditsIcon },
   { id: "support",     label: "Support",        href: "/support",        icon: SupportIcon },
   { id: "pricing",     label: "Pricing",        href: "/plan",           icon: PricingIcon },
+  { id: "governance",       label: "Governance & Compliance",       href: "/governance",               icon: LogsIcon },
+  { id: "gov-reviews",      label: "Governance: Reviews",           href: "/governance/reviews",       icon: ApprovalsIcon },
+  { id: "gov-audit",        label: "Governance: Audit Logs",        href: "/governance/audit-logs",    icon: LogsIcon },
+  { id: "gov-data",         label: "Governance: Data Controls",     href: "/governance/data-controls", icon: LogsIcon },
+  { id: "gov-access",       label: "Governance: Access & Credentials", href: "/governance/access",     icon: KeyIcon },
+  { id: "gov-ai-act",       label: "Governance: AI Act Checkpoints", href: "/governance/ai-act",       icon: LogsIcon },
+  { id: "gov-exports",      label: "Governance: Exports",           href: "/governance/exports",       icon: LogsIcon },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────

@@ -325,7 +325,8 @@
     "goBack": "뒤로 가기"
   },
   "sidebar": {
-    "sections": { "main": "메인", "data": "데이터", "settings": "설정", "help": "도움말" },
+    "sections": { "main": "메인", "data": "데이터", "settings": "설정", "help": "도움말", "governance": "거버넌스 및 컴플라이언스" },
+    "governanceNav": { "reviews": "검토", "auditLogs": "감사 로그", "dataControls": "데이터 제어", "access": "액세스 및 자격 증명", "aiAct": "AI법 체크포인트", "exports": "내보내기" },
     "nav": {
       "settings": "설정",
       "governance": "거버넌스",

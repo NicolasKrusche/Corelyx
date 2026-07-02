@@ -325,7 +325,8 @@
     "goBack": "返回"
   },
   "sidebar": {
-    "sections": { "main": "主要", "data": "数据", "settings": "设置", "help": "帮助" },
+    "sections": { "main": "主要", "data": "数据", "settings": "设置", "help": "帮助", "governance": "治理与合规" },
+    "governanceNav": { "reviews": "审核", "auditLogs": "审计日志", "dataControls": "数据控制", "access": "访问与凭据", "aiAct": "AI法案检查点", "exports": "导出" },
     "nav": {
       "settings": "设置",
       "governance": "治理",

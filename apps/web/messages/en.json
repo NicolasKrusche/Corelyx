@@ -328,8 +328,17 @@
     "sections": {
       "main": "Main",
       "data": "Data",
+      "governance": "Governance & Compliance",
       "settings": "Settings",
       "help": "Help"
+    },
+    "governanceNav": {
+      "reviews": "Reviews",
+      "auditLogs": "Audit Logs",
+      "dataControls": "Data Controls",
+      "access": "Access & Credentials",
+      "aiAct": "AI Act Checkpoints",
+      "exports": "Exports"
     },
     "nav": {
       "settings": "Settings",

@@ -325,7 +325,8 @@
     "goBack": "Назад"
   },
   "sidebar": {
-    "sections": { "main": "Главное", "data": "Данные", "settings": "Настройки", "help": "Помощь" },
+    "sections": { "main": "Главное", "data": "Данные", "settings": "Настройки", "help": "Помощь", "governance": "Управление и соответствие" },
+    "governanceNav": { "reviews": "Проверки", "auditLogs": "Журналы аудита", "dataControls": "Контроль данных", "access": "Доступ и учётные данные", "aiAct": "Контрольные точки AI Act", "exports": "Экспорт" },
     "nav": {
       "settings": "Настройки",
       "governance": "Управление",

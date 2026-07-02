@@ -325,7 +325,8 @@
     "goBack": "Terug gaan"
   },
   "sidebar": {
-    "sections": { "main": "Hoofd", "data": "Gegevens", "settings": "Instellingen", "help": "Help" },
+    "sections": { "main": "Hoofd", "data": "Gegevens", "settings": "Instellingen", "help": "Help", "governance": "Governance & compliance" },
+    "governanceNav": { "reviews": "Beoordelingen", "auditLogs": "Auditlogs", "dataControls": "Databeheer", "access": "Toegang & inloggegevens", "aiAct": "AI Act-checkpoints", "exports": "Exports" },
     "nav": {
       "settings": "Instellingen",
       "governance": "Governance",
