@@ -89,6 +89,7 @@ export function NewAgentForm() {
   const [thoughts, setThoughts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
+  const doneRef = useRef(false);
   const connectionIdsRef = useRef<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -161,6 +162,15 @@ export function NewAgentForm() {
           } catch {}
         }
       }
+
+      // The stream can end without a terminal done/error event (e.g. the
+      // serverless function was cut off mid-generation) — without this the
+      // "Building your agent" screen never resolves.
+      if (startedRef.current && !doneRef.current) {
+        setError("The connection ended before your agent finished building. Please try again.");
+        setPhase("error");
+        startedRef.current = false;
+      }
     } catch (err) {
       setError(
         friendlyErrorMessage(
@@ -203,6 +213,7 @@ export function NewAgentForm() {
         if (typeof event.message === "string") setStatus(event.message);
         return;
       case "done": {
+        doneRef.current = true;
         const programId = event.program_id as string | undefined;
         setStatus("Opening your agent...");
         if (programId) router.replace(`/agents/${programId}`);

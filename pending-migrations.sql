@@ -1,81 +1,66 @@
--- Pending migrations not yet applied to your Supabase database (probed 2026-07-04).
+-- Pending migrations not yet applied to your Supabase database (probed 2026-07-04, evening).
 -- Run this whole file once in the Supabase dashboard: SQL Editor -> New query -> paste -> Run.
 -- Everything is idempotent, so re-running is safe. Delete this file afterwards.
 --
--- This fixes the "internal server error" on Manage workspaces: /api/workspaces
--- selects workspaces.bulk_write_approval_threshold, which does not exist yet.
+-- The earlier batch (agent_flags, bulk_write_approval_threshold, credential-lock
+-- cleanup) is applied and has been removed from this file. What remains fixes:
+--
+--  1. Silent "free tier for everyone": lib/limits.ts getBillingScope() selects
+--     billing columns that do not exist in the live DB, so the whole select
+--     fails, the error is discarded, and EVERY user's tier resolves to "free"
+--     (2-program cap, 3 Genesis uses/month) unless their email is in the
+--     ADMIN_EMAILS env. Real tiers in profiles.tier (e.g. "unlimited") are
+--     ignored until these columns exist.
+--
+--  2. Silent loss of all audit logs: the immutable-logs migration recreated
+--     app_logs RLS with SELECT only, so user-scoped writeAppLog() inserts have
+--     failed silently since 2026-05-29 (last Genesis log row: May 26). This is
+--     why the Genesis outage on www.corelyx.app left no trace in app_logs.
 
--- ── 20260621140000_agent_flags.sql ──────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.agent_flags (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id    UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-  program_id      UUID REFERENCES public.programs(id) ON DELETE SET NULL,
-  run_id          UUID,
-  user_id         UUID,
-  source_provider TEXT,
-  source_ref      TEXT,
-  subject         TEXT,
-  snippet         TEXT,
-  reason          TEXT,
-  categories      TEXT[] NOT NULL DEFAULT '{}',
-  origin          TEXT NOT NULL DEFAULT 'auto' CHECK (origin IN ('auto', 'agent')),
-  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'kept', 'dismissed')),
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  resolved_at     TIMESTAMPTZ,
-  resolved_by     UUID
-);
+-- ── 20240013_entitlements.sql (missing parts): profiles genesis tracking ─────
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS genesis_uses_this_month INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS genesis_month_reset_at  TIMESTAMPTZ;
 
-CREATE INDEX IF NOT EXISTS idx_agent_flags_workspace_status
-  ON public.agent_flags (workspace_id, status);
-CREATE INDEX IF NOT EXISTS idx_agent_flags_program
-  ON public.agent_flags (program_id);
-
-ALTER TABLE public.agent_flags ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "workspace members read agent_flags" ON public.agent_flags;
-CREATE POLICY "workspace members read agent_flags"
-  ON public.agent_flags
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.workspace_memberships m
-      WHERE m.workspace_id = agent_flags.workspace_id AND m.user_id = auth.uid()
-    )
-  );
-
-DROP POLICY IF EXISTS "workspace members resolve agent_flags" ON public.agent_flags;
-CREATE POLICY "workspace members resolve agent_flags"
-  ON public.agent_flags
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.workspace_memberships m
-      WHERE m.workspace_id = agent_flags.workspace_id AND m.user_id = auth.uid()
-    )
-  );
-
-COMMENT ON TABLE public.agent_flags IS
-  'Critical-signal safety flags (auto-screened or agent-escalated) shown in the Flagged-for-review inbox.';
-
--- ── 20260622120000_bulk_write_threshold_setting.sql ─────────────────────────
+-- ── 20240022_workspace_billing.sql: workspace-scoped billing columns ─────────
 ALTER TABLE public.workspaces
-  ADD COLUMN IF NOT EXISTS bulk_write_approval_threshold INTEGER NOT NULL DEFAULT 25
-    CHECK (bulk_write_approval_threshold > 0);
+  ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT 'free'
+    CHECK (tier IN ('free', 'plus', 'pro', 'builder', 'unlimited')),
+  ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS bonus_runs INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS is_beta_tester BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS genesis_uses_this_month INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS genesis_month_reset_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
+  ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
 
--- ── 20260630120000_schedule_credential_lock_cleanup.sql ─────────────────────
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_cron') THEN
-    BEGIN
-      CREATE EXTENSION IF NOT EXISTS pg_cron;
-      -- cron.schedule upserts by job name, so re-running this migration is safe.
-      PERFORM cron.schedule(
-        'cleanup-credential-locks',
-        '*/10 * * * *',
-        'SELECT cleanup_expired_credential_locks();'
-      );
-    EXCEPTION WHEN OTHERS THEN
-      RAISE NOTICE 'pg_cron scheduling skipped: %', SQLERRM;
-    END;
-  ELSE
-    RAISE NOTICE 'pg_cron not available; credential_locks rely on lazy cleanup only';
-  END IF;
-END $$;
+CREATE INDEX IF NOT EXISTS idx_workspaces_tier
+  ON public.workspaces (tier);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_workspaces_stripe_customer_id
+  ON public.workspaces (stripe_customer_id)
+  WHERE stripe_customer_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_workspaces_stripe_subscription_id
+  ON public.workspaces (stripe_subscription_id)
+  WHERE stripe_subscription_id IS NOT NULL;
+
+-- Backfill workspace billing from the creator's profile so paid tiers
+-- (e.g. profiles.tier = 'unlimited') take effect at the workspace level.
+UPDATE public.workspaces w
+SET tier = COALESCE(p.tier, w.tier),
+    plan_expires_at = COALESCE(p.plan_expires_at, w.plan_expires_at),
+    bonus_runs = COALESCE(p.bonus_runs, w.bonus_runs),
+    is_beta_tester = COALESCE(p.is_beta_tester, w.is_beta_tester),
+    genesis_uses_this_month = COALESCE(p.genesis_uses_this_month, w.genesis_uses_this_month),
+    genesis_month_reset_at = COALESCE(p.genesis_month_reset_at, w.genesis_month_reset_at)
+FROM public.profiles p
+WHERE p.id = w.created_by;
+
+-- ── 20260704220000_restore_app_logs_insert_policy.sql ────────────────────────
+-- Users may APPEND their own audit rows again; UPDATE/DELETE stay revoked and
+-- trigger-guarded by the immutable-logs migration.
+DROP POLICY IF EXISTS "users insert own app_logs" ON public.app_logs;
+CREATE POLICY "users insert own app_logs" ON public.app_logs
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);

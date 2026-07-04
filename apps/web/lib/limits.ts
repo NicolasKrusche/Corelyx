@@ -5,6 +5,7 @@
 
 import { createServiceClient } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
+import { serverLog } from "@/lib/server-log";
 import {
   getEntitlements,
   parseTier,
@@ -32,7 +33,7 @@ async function resolveWorkspaceId(userId: string, workspaceId?: string | null): 
 async function getBillingScope(userId: string, workspaceId?: string | null): Promise<BillingScope> {
   const serviceClient = createServiceClient();
   const resolvedWorkspaceId = await resolveWorkspaceId(userId, workspaceId);
-  const [{ data: profileData }, { data: workspaceData }, { data: authData }] = await Promise.all([
+  const [profileResult, workspaceResult, { data: authData }] = await Promise.all([
     serviceClient
       .from("profiles")
       .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at")
@@ -44,9 +45,24 @@ async function getBillingScope(userId: string, workspaceId?: string | null): Pro
           .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at")
           .eq("id", resolvedWorkspaceId)
           .maybeSingle()
-      : Promise.resolve({ data: null }),
+      : Promise.resolve({ data: null, error: null }),
     serviceClient.auth.admin.getUserById(userId),
   ]);
+  const { data: profileData } = profileResult;
+  const { data: workspaceData } = workspaceResult;
+
+  // A failed select here (e.g. a billing column missing from the deployed DB)
+  // would silently downgrade the user to the "free" tier. Losing the real tier
+  // must at least be visible in server logs.
+  const billingReadError = ("error" in workspaceResult && workspaceResult.error) || profileResult.error;
+  if (billingReadError && !workspaceData && !profileData) {
+    serverLog({
+      level: "error",
+      event: "limits.billing_scope.read_failed",
+      message: "Billing scope select failed; user will be treated as free tier unless ADMIN_EMAILS matches.",
+      details: { code: billingReadError.code ?? null },
+    });
+  }
 
   const billingData = (workspaceData ?? profileData) as {
     tier?: string;

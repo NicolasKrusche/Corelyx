@@ -1585,6 +1585,7 @@ export function EditorShell({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let sawTerminalEvent = false;
 
       // Local accumulators — flushed to canvas on rAF so bursts of events
       // produce one Dagre relayout + one React render, not one per node.
@@ -1676,6 +1677,7 @@ export function EditorShell({
             streamEdges = [...streamEdges, rfEdge];
             flushCanvas();
           } else if (event.type === "done") {
+            sawTerminalEvent = true;
             if (event.schema) {
               dispatch({ type: "RESTORE_VERSION", schema: event.schema as ProgramSchema });
             }
@@ -1687,11 +1689,19 @@ export function EditorShell({
             setAiEditPrompt("");
             notifyIfHidden("Workflow edit complete", "Your AI edit is ready — switch back to review and save.");
           } else if (event.type === "error") {
+            sawTerminalEvent = true;
             setAiEditError(typeof event.message === "string"
               ? event.message
               : "The AI edit did not work. Please try again.");
           }
         }
+      }
+
+      // The stream can end without a terminal done/error event (e.g. the
+      // serverless function was cut off mid-edit) — surface that instead of
+      // silently leaving the previous canvas state.
+      if (!sawTerminalEvent) {
+        setAiEditError("The connection ended before the AI edit finished. Please try again.");
       }
     } catch {
       setAiEditError("We could not connect. Check your internet connection and try again.");
