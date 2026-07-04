@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Folder, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Folder, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeleteProgramButton } from "@/components/programs/delete-program-button";
 import { PROVIDER_ICON_URL } from "@/lib/provider-icons";
@@ -26,7 +26,9 @@ export type FolderItem = {
   color: string | null;
 };
 
-export type ProgramStats = Record<string, { total: number; failed: number; runSeries?: number[]; providers?: string[]; lastRunAt?: string | null }>;
+export type ProgramSchedule = { type: string; nextRunAt: string | null };
+
+export type ProgramStats = Record<string, { total: number; failed: number; runSeries?: number[]; providers?: string[]; lastRunAt?: string | null; schedule?: ProgramSchedule | null }>;
 
 const FOLDER_COLORS = [
   { hex: "#6366f1", label: "Indigo" },
@@ -137,6 +139,36 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// A daily cron only "runs" for seconds a day, so last-run recency alone reads
+// as stale for the other 23+ hours. Showing when it fires next makes an
+// enabled schedule obviously alive regardless of when it last fired.
+function timeUntil(iso: string): string {
+  const diff = new Date(iso).getTime() - Date.now();
+  if (diff <= 0) return "due now";
+  const mins = Math.round(diff / 60000);
+  if (mins < 1) return "due now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.round(hrs / 24)}d`;
+}
+
+function ScheduleBadge({ schedule }: { schedule: ProgramSchedule }) {
+  const label = schedule.nextRunAt ? `Next run in ${timeUntil(schedule.nextRunAt)}` : "Runs automatically";
+  const title = schedule.nextRunAt
+    ? `Next scheduled run: ${new Date(schedule.nextRunAt).toLocaleString()}`
+    : "Triggered automatically (event-driven), not on a fixed schedule.";
+  return (
+    <span
+      title={title}
+      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary"
+    >
+      <Clock className="h-2.5 w-2.5" />
+      {label}
+    </span>
+  );
+}
+
 const RECENTISH = 7 * 24 * 60 * 60 * 1000;
 
 export function ProgramList({
@@ -157,7 +189,7 @@ export function ProgramList({
   const [programs, setPrograms] = useState(initialPrograms);
   const [folders, setFolders] = useState(initialFolders);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [activeFilter, setActiveFilter] = useState<"all" | "attention" | "edited" | "run" | "inactive">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "attention" | "edited" | "run" | "scheduled" | "inactive">("all");
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState<string>(FOLDER_COLORS[0].hex);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -174,6 +206,7 @@ export function ProgramList({
     attention: programs.filter((p) => (stats[p.id]?.failed ?? 0) > 0).length,
     edited: programs.filter((p) => p.updated_at > recentCutoff).length,
     run: programs.filter((p) => p.last_run_at && p.last_run_at > recentCutoff).length,
+    scheduled: programs.filter((p) => !!stats[p.id]?.schedule).length,
     inactive: programs.filter((p) => !p.is_active).length,
     all: programs.length,
   };
@@ -187,6 +220,7 @@ export function ProgramList({
     if (activeFilter === "attention") return (stats[p.id]?.failed ?? 0) > 0;
     if (activeFilter === "edited") return p.updated_at > recentCutoff;
     if (activeFilter === "run") return p.last_run_at != null && p.last_run_at > recentCutoff;
+    if (activeFilter === "scheduled") return !!stats[p.id]?.schedule;
     if (activeFilter === "inactive") return !p.is_active;
     return true;
   });
@@ -284,9 +318,12 @@ export function ProgramList({
 
         <Link href={`/programs/${p.id}`} className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{p.name}</p>
-          <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground/60">
-            v{p.schema_version} · {p.execution_mode}
-          </p>
+          <div className="mt-0.5 flex min-w-0 items-center gap-2">
+            <p className="truncate font-mono text-[11px] text-muted-foreground/60">
+              v{p.schema_version} · {p.execution_mode}
+            </p>
+            {s.schedule && <ScheduleBadge schedule={s.schedule} />}
+          </div>
         </Link>
 
         <div className="hidden lg:block w-24 shrink-0 text-[11px] text-muted-foreground/70">
@@ -379,8 +416,8 @@ export function ProgramList({
               Needs attention {counts.attention}
             </button>
           )}
-          {(["edited", "run", "inactive", "all"] as const).map((f) => {
-            const label = f === "edited" ? `Recently edited ${counts.edited}` : f === "run" ? `Recently run ${counts.run}` : f === "inactive" ? `Inactive ${counts.inactive}` : `All ${counts.all}`;
+          {(["edited", "run", "scheduled", "inactive", "all"] as const).map((f) => {
+            const label = f === "edited" ? `Recently edited ${counts.edited}` : f === "run" ? `Recently run ${counts.run}` : f === "scheduled" ? `Scheduled ${counts.scheduled}` : f === "inactive" ? `Inactive ${counts.inactive}` : `All ${counts.all}`;
             return (
               <button
                 key={f}
