@@ -233,6 +233,16 @@ export function GenesisJobProvider({ children }: { children: ReactNode }) {
             }
           }
         }
+
+        // The stream can end without a terminal done/error event (e.g. the
+        // serverless function hit its execution ceiling mid-generation). Without
+        // this, the job stays "Building..." forever.
+        if (runningRef.current) {
+          update({
+            error: "The connection ended before the workflow finished generating. Please try again.",
+          });
+          runningRef.current = false;
+        }
       } catch (err) {
         update({
           error: friendlyErrorMessage(

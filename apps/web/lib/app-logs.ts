@@ -1,4 +1,5 @@
 import type { Json } from "@flowos/db";
+import { createServiceClient } from "@/lib/api";
 import { redactSecretText, redactSecrets } from "@/lib/redaction";
 
 type AppLogLevel = "info" | "warning" | "error";
@@ -51,7 +52,7 @@ export async function writeAppLog(
   client: AppLogClient,
   input: AppLogInput
 ) {
-  const { error } = await client.from("app_logs").insert({
+  const row = {
     user_id: input.userId,
     program_id: input.programId ?? null,
     run_id: input.runId ?? null,
@@ -62,9 +63,27 @@ export async function writeAppLog(
     message: redactSecretText(input.message),
     details: input.details ? toJson(input.details) : null,
     duration_ms: input.durationMs ?? null,
-  });
+  };
 
-  if (error) {
-    console.warn("[app-logs] failed to write app log:", error.message);
+  const { error } = await client.from("app_logs").insert(row);
+  if (!error) return;
+
+  // User-scoped clients can lack an app_logs INSERT policy (the immutable-logs
+  // migration recreated only SELECT), which silently discarded every log for
+  // weeks. Audit events must not depend on the caller's RLS grants — retry with
+  // the service role before giving up.
+  try {
+    const { error: serviceError } = await (createServiceClient() as unknown as AppLogClient)
+      .from("app_logs")
+      .insert(row);
+    if (!serviceError) return;
+    console.warn("[app-logs] failed to write app log:", serviceError.message);
+  } catch (serviceClientError) {
+    console.warn(
+      "[app-logs] failed to write app log:",
+      error.message,
+      "| service fallback unavailable:",
+      serviceClientError instanceof Error ? serviceClientError.message : String(serviceClientError)
+    );
   }
 }
