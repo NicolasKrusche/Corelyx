@@ -140,7 +140,7 @@ Every execution records node-level status, outputs, connector calls, approvals, 
 
 **GDPR compliance infrastructure**
 Processing records per run, Data Processing Agreement (DPA) available on the product, DPIA template, subprocessor registry, data export schema — all accessible without a sales cycle.  
- 
+  
 **Triggers**
 Manual runs, cron schedules, webhook events, and external API calls. Workflows can respond to events from any connected system.
 
