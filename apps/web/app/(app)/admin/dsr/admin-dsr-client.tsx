@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { CineEyebrow } from "@/components/cinematic";
 
 type DsrStatus = "submitted" | "in_review" | "waiting_on_user" | "completed" | "rejected";
 
@@ -141,8 +142,8 @@ export function AdminDsrClient() {
     <div className="max-w-6xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Admin</p>
-          <h1 className="text-3xl font-black tracking-tight">DSR Queue</h1>
+          <CineEyebrow className="mb-1">Admin</CineEyebrow>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">DSR Queue</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Review open GDPR requests, write responses, and mark fulfillment status.
           </p>

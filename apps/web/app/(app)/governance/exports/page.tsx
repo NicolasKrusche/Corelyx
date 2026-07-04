@@ -34,7 +34,7 @@ export default async function GovernanceExportsPage() {
   return (
     <div className="space-y-6 pb-12">
       <section className="border-b border-border pb-6">
-        <h1 className="text-3xl font-black tracking-tight">Compliance exports</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Compliance exports</h1>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
           Download the evidence an auditor, customer, or regulator asks for — without needing
           an engineer. Every export reflects live data at the moment you download it.

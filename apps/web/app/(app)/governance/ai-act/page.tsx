@@ -62,7 +62,7 @@ export default async function GovernanceAiActPage({
   return (
     <div className="space-y-6 pb-12">
       <section className="border-b border-border pb-6">
-        <h1 className="text-3xl font-black tracking-tight">EU AI Act checkpoints</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">EU AI Act checkpoints</h1>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
           A living record for each workflow: what the AI is used for, how risky it is, whether
           a person stays in the loop, and when it was last reviewed. Anyone with edit access

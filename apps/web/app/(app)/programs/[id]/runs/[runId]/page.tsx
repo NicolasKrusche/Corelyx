@@ -230,7 +230,7 @@ export default async function RunLogPage({
           </a>
         </p>
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-semibold">Run log</h1>
+          <h1 className="text-2xl font-semibold bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Run log</h1>
           {showSkipTrigger && <SkipTriggerButton runId={run.id} />}
           {["running", "waiting_approval", "pending"].includes(run.status) && (
             <StopRunButton runId={run.id} />

@@ -285,7 +285,7 @@ export function BrowseClient({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold">Browse</h1>
+        <h1 className="text-2xl font-semibold bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Browse</h1>
         <p className="text-sm text-muted-foreground mt-1">
           {isFiltered
             ? `${visiblePrograms.length} of ${total} program${total !== 1 ? "s" : ""} shown`

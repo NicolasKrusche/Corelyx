@@ -271,9 +271,9 @@ export function ProgramList({
     const s = stats[p.id] ?? { total: 0, failed: 0, runSeries: [], providers: [] };
     const hasFailed = s.failed > 0;
     const bar = hasFailed
-      ? "bg-red-500/60 group-hover:bg-red-500"
+      ? "bg-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.5)] group-hover:bg-red-500"
       : p.is_active
-      ? "bg-green-500/60 group-hover:bg-green-500"
+      ? "bg-green-500/60 group-hover:bg-green-500 group-hover:shadow-[0_0_8px_rgba(34,197,94,0.45)]"
       : "bg-muted-foreground/20";
 
     return (
@@ -306,15 +306,18 @@ export function ProgramList({
 
         <div className="hidden lg:flex w-24 shrink-0">
           {hasFailed ? (
-            <span className="inline-flex items-center gap-1 rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-red-500">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-red-500">
+              <span className="h-1 w-1 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)]" />
               {s.failed} failed
             </span>
           ) : p.is_active ? (
-            <span className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-600">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-green-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-600">
+              <span className="h-1 w-1 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.9)]" />
               Healthy
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
               Inactive
             </span>
           )}
@@ -457,7 +460,7 @@ export function ProgramList({
 
       {/* Column headers */}
       {visible.length > 0 && (
-        <div className="hidden lg:grid grid-cols-[56px_1fr_96px_80px_96px_32px] gap-3 border-b border-border/40 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+        <div className="hidden lg:grid grid-cols-[56px_1fr_96px_80px_96px_32px] gap-3 border-b border-border/40 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
           <span />
           <span>Program</span>
           <span>Last run</span>

@@ -98,22 +98,22 @@ export default async function CostsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Costs & Billing</h1>
-        <p className="text-gray-600">Monitor LLM usage and costs</p>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Costs & Billing</h1>
+        <p className="text-muted-foreground">Monitor LLM usage and costs</p>
       </div>
       
       {/* Cost Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Today&apos;s Cost</p>
+            <p className="text-sm font-medium text-muted-foreground">Today&apos;s Cost</p>
             <DollarSign className="w-5 h-5 text-green-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-3xl font-bold text-foreground">
             ${stats.todayCost.toFixed(2)}
           </p>
           <div className="mt-2">
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-muted rounded-full h-2">
               <div 
                 className={`h-2 rounded-full ${
                   dailyPercent > 90 ? "bg-red-500" : dailyPercent > 70 ? "bg-yellow-500" : "bg-green-500"
@@ -121,22 +121,22 @@ export default async function CostsPage() {
                 style={{ width: `${Math.min(dailyPercent, 100)}%` }}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {dailyPercent.toFixed(1)}% of ${dailyLimit} daily limit
             </p>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Monthly Cost</p>
+            <p className="text-sm font-medium text-muted-foreground">Monthly Cost</p>
             <TrendingUp className="w-5 h-5 text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-3xl font-bold text-foreground">
             ${stats.monthlyCost.toFixed(2)}
           </p>
           <div className="mt-2">
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-muted rounded-full h-2">
               <div 
                 className={`h-2 rounded-full ${
                   monthlyPercent > 90 ? "bg-red-500" : monthlyPercent > 70 ? "bg-yellow-500" : "bg-blue-500"
@@ -144,21 +144,21 @@ export default async function CostsPage() {
                 style={{ width: `${Math.min(monthlyPercent, 100)}%` }}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {monthlyPercent.toFixed(1)}% of ${monthlyLimit} monthly limit
             </p>
           </div>
         </div>
         
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-600">Active Users</p>
+            <p className="text-sm font-medium text-muted-foreground">Active Users</p>
             <Users className="w-5 h-5 text-purple-500" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-3xl font-bold text-foreground">
             {stats.topUsers.length}
           </p>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Users with LLM usage today
           </p>
         </div>
@@ -166,14 +166,14 @@ export default async function CostsPage() {
       
       {/* Alerts */}
       {(dailyPercent > 80 || monthlyPercent > 80) && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <div className="bg-yellow-500/10 border-l-4 border-yellow-500/60 p-4">
           <div className="flex">
             <AlertTriangle className="h-5 w-5 text-yellow-400" />
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
+              <h3 className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
                 Approaching Cost Limit
               </h3>
-              <div className="mt-2 text-sm text-yellow-700">
+              <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
                 {dailyPercent > 80 && (
                   <p>Daily cost at {dailyPercent.toFixed(0)}% of limit</p>
                 )}
@@ -187,26 +187,26 @@ export default async function CostsPage() {
       )}
       
       {/* Model Breakdown */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Cost by Model (Today)</h2>
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Cost by Model (Today)</h2>
         </div>
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-border">
           {Object.entries(stats.modelCosts)
             .sort(([,a], [,b]) => b.cost - a.cost)
             .map(([model, data]) => (
               <div key={model} className="px-6 py-4 flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{model}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-foreground">{model}</p>
+                  <p className="text-sm text-muted-foreground">
                     {data.tokens.toLocaleString()} tokens
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-foreground">
                     ${data.cost.toFixed(4)}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {stats.todayCost > 0 ? ((data.cost / stats.todayCost) * 100).toFixed(1) : "0.0"}%
                   </p>
                 </div>
@@ -216,12 +216,12 @@ export default async function CostsPage() {
       </div>
       
       {/* Usage Limits Info */}
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Usage Limits</h3>
+      <div className="bg-muted/40 rounded-lg border border-border p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Usage Limits</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="font-medium text-gray-700">Free Plan</p>
-            <ul className="mt-2 space-y-1 text-gray-600">
+            <p className="font-medium text-foreground/80">Free Plan</p>
+            <ul className="mt-2 space-y-1 text-muted-foreground">
               <li>Max $5 per run</li>
               <li>Max 100 nodes per run</li>
               <li>Max 100k LLM tokens per run</li>
@@ -229,8 +229,8 @@ export default async function CostsPage() {
             </ul>
           </div>
           <div>
-            <p className="font-medium text-gray-700">Paid Plans</p>
-            <ul className="mt-2 space-y-1 text-gray-600">
+            <p className="font-medium text-foreground/80">Paid Plans</p>
+            <ul className="mt-2 space-y-1 text-muted-foreground">
               <li>Max $50 per run</li>
               <li>Max 500 nodes per run</li>
               <li>Max 1M LLM tokens per run</li>

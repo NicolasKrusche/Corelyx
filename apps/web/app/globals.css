@@ -269,6 +269,36 @@
   .cx-blink { animation: none; }
 }
 
+/* â”€â”€ Dashboard cinematic ambient (landing-film echo) â”€â”€
+   Perspective grid fading toward the horizon + film grain, both driven by the
+   active theme variables. Kept at single-digit opacity on purpose. */
+.dash-grid {
+  background-image:
+    linear-gradient(to right, hsl(var(--theme-glow-strong) / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--theme-glow-strong) / 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 85% 60% at 50% 0%, black 0%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 60% at 50% 0%, black 0%, transparent 78%);
+}
+
+.light .dash-grid {
+  background-image:
+    linear-gradient(to right, hsl(var(--primary) / 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--primary) / 0.08) 1px, transparent 1px);
+}
+
+.dash-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+}
+
+.light .dash-grain { display: none; }
+
+/* Noir is deliberately flat black â€” no ambient decoration there. */
+.bg-noir .dash-ambient { display: none; }
+
 /* â”€â”€ Auth page background glow â”€â”€ */
 .auth-page-bg {
   background:
@@ -638,6 +668,9 @@
 }
 .edge-animate { animation: dash-flow 1.6s linear infinite; }
 .edge-hero { animation: dash-hero 4s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .edge-animate, .edge-hero { animation: none; }
+}
 
 /* â”€â”€ Marquee â”€â”€ */
 @keyframes marquee {

@@ -107,7 +107,7 @@ export default async function AdminLayout({
     <div className="min-h-screen">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Admin Dashboard</h1>
           <p className="text-muted-foreground">System monitoring and controls</p>
         </div>
         <Link

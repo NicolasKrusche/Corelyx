@@ -419,7 +419,7 @@ export default async function GovernancePage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
             AI inventory, risk, documentation, audit, and oversight
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">

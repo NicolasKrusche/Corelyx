@@ -111,7 +111,7 @@ export default async function ConflictsPage({
             {prog.name}
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Conflict Settings</h1>
+        <h1 className="text-2xl font-semibold bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Conflict Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage how concurrent runs are handled when programs share connections.
         </p>

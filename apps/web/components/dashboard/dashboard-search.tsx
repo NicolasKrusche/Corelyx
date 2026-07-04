@@ -49,7 +49,7 @@ export function DashboardSearch({ initialValue }: { initialValue: string }) {
         placeholder="Search workflows and recent runs"
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-10 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/50"
+        className="h-10 w-full rounded-xl border border-border/70 bg-card/60 pl-9 pr-10 text-sm outline-none backdrop-blur-md transition-all placeholder:text-muted-foreground focus:border-primary/50 focus:shadow-[0_0_24px_-10px_hsl(var(--primary)/0.6)]"
       />
       {value && (
         <button

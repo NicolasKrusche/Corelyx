@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 import { Sidebar } from "@/components/sidebar";
+import { AppAmbient } from "@/components/app-ambient";
 import { CommandPalette } from "@/components/command-palette";
 import { DesktopBridgeHandshake } from "@/components/devices/desktop-bridge-handshake";
 import { DesktopSessionWatcher } from "@/components/devices/desktop-session-watcher";
@@ -133,6 +134,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <main className="relative ml-0 min-h-screen px-6 py-14 lg:ml-56 lg:mr-56 lg:px-0 lg:py-8">
         <div className="app-bg-gradient pointer-events-none fixed inset-0 -z-10 bg-background" />
+        {/* Cinematic ambient layer (landing-film echo) behind every app page */}
+        <AppAmbient />
         {/* Animated ambient orbs */}
         <div className="orb-primary" aria-hidden="true" />
         <div className="orb-blue" aria-hidden="true" />

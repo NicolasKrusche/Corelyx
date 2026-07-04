@@ -42,15 +42,15 @@ export default async function CircuitBreakersPage() {
       case "HALF_OPEN":
         return <AlertCircle className="w-5 h-5 text-yellow-500" />;
       default:
-        return <Activity className="w-5 h-5 text-gray-500" />;
+        return <Activity className="w-5 h-5 text-muted-foreground" />;
     }
   };
   
   const getStateBadge = (state: string) => {
     const styles = {
-      CLOSED: "bg-green-100 text-green-800",
-      OPEN: "bg-red-100 text-red-800",
-      HALF_OPEN: "bg-yellow-100 text-yellow-800",
+      CLOSED: "bg-green-500/15 text-green-700 dark:text-green-300",
+      OPEN: "bg-red-500/15 text-red-700 dark:text-red-300",
+      HALF_OPEN: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
     };
     
     return (
@@ -63,8 +63,8 @@ export default async function CircuitBreakersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Circuit Breakers</h1>
-        <p className="text-gray-600">Monitor and manage circuit breaker states</p>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Circuit Breakers</h1>
+        <p className="text-muted-foreground">Monitor and manage circuit breaker states</p>
       </div>
       
       {/* Circuit Breaker Cards */}
@@ -72,16 +72,16 @@ export default async function CircuitBreakersPage() {
         {circuits.map((circuit) => (
           <div 
             key={circuit.name}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            className="bg-card rounded-lg shadow-sm border border-border p-6"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {getStateIcon(circuit.state)}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                  <h3 className="text-lg font-semibold text-foreground capitalize">
                     {circuit.name.replace("_", " ")}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Protects against cascading failures
                   </p>
                 </div>
@@ -90,23 +90,23 @@ export default async function CircuitBreakersPage() {
             </div>
             
             <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-              <div className="bg-gray-50 p-3 rounded">
-                <p className="text-gray-500">Success Count</p>
-                <p className="text-xl font-semibold text-gray-900">
+              <div className="bg-muted/40 p-3 rounded">
+                <p className="text-muted-foreground">Success Count</p>
+                <p className="text-xl font-semibold text-foreground">
                   {circuit.successCount.toLocaleString()}
                 </p>
               </div>
-              <div className="bg-gray-50 p-3 rounded">
-                <p className="text-gray-500">Failure Count</p>
+              <div className="bg-muted/40 p-3 rounded">
+                <p className="text-muted-foreground">Failure Count</p>
                 <p className={`text-xl font-semibold ${
-                  circuit.failureCount > 0 ? "text-red-600" : "text-gray-900"
+                  circuit.failureCount > 0 ? "text-red-600 dark:text-red-400" : "text-foreground"
                 }`}>
                   {circuit.failureCount}
                 </p>
               </div>
-              <div className="bg-gray-50 p-3 rounded">
-                <p className="text-gray-500">Last Failure</p>
-                <p className="text-sm text-gray-900">
+              <div className="bg-muted/40 p-3 rounded">
+                <p className="text-muted-foreground">Last Failure</p>
+                <p className="text-sm text-foreground">
                   {circuit.lastFailure 
                     ? new Date(circuit.lastFailure).toLocaleString()
                     : "Never"
@@ -119,12 +119,12 @@ export default async function CircuitBreakersPage() {
       </div>
       
       {/* How It Works */}
-      <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+      <div className="bg-blue-500/10 rounded-lg border border-blue-500/30 p-6">
+        <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5" />
           How Circuit Breakers Work
         </h3>
-        <div className="space-y-3 text-sm text-blue-800">
+        <div className="space-y-3 text-sm text-blue-700 dark:text-blue-300">
           <p>
             <strong>CLOSED:</strong> Normal operation. Requests pass through.
           </p>
@@ -134,7 +134,7 @@ export default async function CircuitBreakersPage() {
           <p>
             <strong>HALF-OPEN:</strong> Testing recovery. A limited number of test requests are allowed.
           </p>
-          <div className="mt-4 pt-4 border-t border-blue-200">
+          <div className="mt-4 pt-4 border-t border-blue-500/30">
             <p className="font-medium">Configuration:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li>Opens after 5 consecutive failures</li>
@@ -147,19 +147,19 @@ export default async function CircuitBreakersPage() {
       </div>
       
       {/* Manual Reset */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Manual Reset</h3>
-        <p className="text-sm text-gray-600 mb-4">
+      <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Manual Reset</h3>
+        <p className="text-sm text-muted-foreground mb-4">
           If a circuit breaker is stuck in OPEN state, you can manually reset it.
           Only do this if you&apos;re sure the underlying issue is resolved.
         </p>
         <button
           disabled
-          className="px-4 py-2 bg-gray-100 text-gray-400 rounded-lg cursor-not-allowed"
+          className="px-4 py-2 bg-muted text-muted-foreground/60 rounded-lg cursor-not-allowed"
         >
           Reset All Circuits (Requires Runtime Access)
         </button>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-muted-foreground mt-2">
           Note: To reset circuits, restart the runtime service or use the Python console.
         </p>
       </div>

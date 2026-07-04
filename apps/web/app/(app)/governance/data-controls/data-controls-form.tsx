@@ -54,10 +54,14 @@ function Toggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${checked ? "bg-primary" : "bg-muted"}`}
+        className={`relative h-5 w-9 shrink-0 rounded-full ring-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+          checked
+            ? "bg-primary shadow-[0_0_14px_-2px_hsl(var(--primary)/0.7)] ring-primary/40"
+            : "bg-muted ring-border/80"
+        }`}
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`}
+          className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`}
         />
       </button>
       <span>{label}</span>
@@ -86,7 +90,7 @@ function NumberInput({
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+        className="w-24 rounded-lg border border-border/70 bg-card/60 px-3 py-2 text-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:shadow-[0_0_20px_-10px_hsl(var(--primary)/0.6)] disabled:opacity-50"
       />
       <span className="text-xs text-muted-foreground">{suffix}</span>
     </span>
@@ -189,7 +193,7 @@ export function DataControlsForm({
           value={settings.pii_mode}
           disabled={!canManage}
           onChange={(e) => set("pii_mode", e.target.value as DataControlSettings["pii_mode"])}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+          className="rounded-lg border border-border/70 bg-card/60 px-3 py-2 text-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:shadow-[0_0_20px_-10px_hsl(var(--primary)/0.6)] disabled:opacity-50"
         >
           <option value="auto">Automatic (based on workflow risk)</option>
           <option value="standard">Standard</option>
@@ -254,7 +258,7 @@ export function DataControlsForm({
             value={settings.compliance_mode}
             disabled={!canManage}
             onChange={(e) => set("compliance_mode", e.target.value as DataControlSettings["compliance_mode"])}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+            className="rounded-lg border border-border/70 bg-card/60 px-3 py-2 text-sm outline-none backdrop-blur-sm transition-all focus:border-primary/50 focus:shadow-[0_0_20px_-10px_hsl(var(--primary)/0.6)] disabled:opacity-50"
           >
             <option value="standard">Standard</option>
             <option value="eu_only">EU-only providers</option>
@@ -270,7 +274,7 @@ export function DataControlsForm({
           type="button"
           onClick={() => void handleSave()}
           disabled={!canManage || saving}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_0_24px_-8px_hsl(var(--primary)/0.7)] transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {saving ? "Saving…" : "Save data controls"}
         </button>

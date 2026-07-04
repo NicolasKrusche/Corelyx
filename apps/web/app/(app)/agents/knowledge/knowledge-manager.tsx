@@ -600,7 +600,7 @@ export function KnowledgeManager() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <BookOpen className="h-4 w-4 text-primary" />
             </span>
-            <h1 className="text-xl font-bold tracking-tight">Knowledge</h1>
+            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Knowledge</h1>
             {docs.length > 0 && (
               <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground ring-1 ring-border/50">
                 {docs.length} doc{docs.length === 1 ? "" : "s"}

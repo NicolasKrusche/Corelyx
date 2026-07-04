@@ -49,7 +49,7 @@ export default async function GovernanceAuditLogsPage() {
     <div className="space-y-6 pb-12">
       <section className="flex flex-col gap-4 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Audit logs</h1>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Audit logs</h1>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
             Every workflow run with the models and connectors it used, the policy checks it
             passed, and the human approvals it collected. Download the full log as CSV or PDF

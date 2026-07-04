@@ -35,7 +35,7 @@ export default async function AdminPostsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Posts</h1>
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Posts</h1>
           <p className="text-muted-foreground">Manage the Corelyx in-app blog</p>
         </div>
         <Link

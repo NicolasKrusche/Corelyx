@@ -23,7 +23,7 @@ export default async function SupportPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Support</h1>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Support</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Open a ticket, track your conversations, or contact sales.
         </p>

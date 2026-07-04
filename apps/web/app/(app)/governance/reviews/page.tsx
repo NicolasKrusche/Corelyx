@@ -102,7 +102,7 @@ export default async function GovernanceReviewsPage() {
   return (
     <div className="space-y-6 pb-12">
       <section className="border-b border-border pb-6">
-        <h1 className="text-3xl font-black tracking-tight">Reviews</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Reviews</h1>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
           Everything waiting on a human decision: runs paused at an approval gate, plus
           workflows whose governance record is due for a periodic check.

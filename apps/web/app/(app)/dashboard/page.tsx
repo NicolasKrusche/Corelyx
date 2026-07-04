@@ -15,6 +15,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { ProgramList, type FolderItem, type ProgramListItem } from "@/components/programs/program-list";
 import { DashboardSearch } from "@/components/dashboard/dashboard-search";
+import { CineEyebrow, CINE_TITLE } from "@/components/cinematic";
 import {
   DashboardAttentionPanel,
   type DashboardApproval,
@@ -93,16 +94,41 @@ function sparklinePoints(values: number[], width: number, height: number) {
     .join(" ");
 }
 
-function StatSparkline({ tone, values }: { tone: "green" | "blue" | "violet" | "amber"; values: number[] }) {
-  const tones = {
-    green: "stroke-emerald-500",
-    blue: "stroke-sky-500",
-    violet: "stroke-violet-500",
-    amber: "stroke-amber-500",
-  };
+// Node-chip styling lifted from the landing film's scene kit: each stat reads
+// like a glowing workflow node — tone hairline on top, glowing status dot, and
+// a sparkline with a soft bloom.
+const STAT_TONES = {
+  green: {
+    icon: "bg-emerald-500/10 text-emerald-500",
+    line: "via-emerald-500/50",
+    dot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]",
+    spark: "stroke-emerald-500 [filter:drop-shadow(0_0_3px_rgba(16,185,129,0.45))]",
+  },
+  blue: {
+    icon: "bg-sky-500/10 text-sky-500",
+    line: "via-sky-500/50",
+    dot: "bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]",
+    spark: "stroke-sky-500 [filter:drop-shadow(0_0_3px_rgba(14,165,233,0.45))]",
+  },
+  violet: {
+    icon: "bg-violet-500/10 text-violet-500",
+    line: "via-violet-500/50",
+    dot: "bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.8)]",
+    spark: "stroke-violet-500 [filter:drop-shadow(0_0_3px_rgba(139,92,246,0.45))]",
+  },
+  amber: {
+    icon: "bg-amber-500/10 text-amber-500",
+    line: "via-amber-500/50",
+    dot: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]",
+    spark: "stroke-amber-500 [filter:drop-shadow(0_0_3px_rgba(245,158,11,0.45))]",
+  },
+} as const;
 
+type StatTone = keyof typeof STAT_TONES;
+
+function StatSparkline({ tone, values }: { tone: StatTone; values: number[] }) {
   return (
-    <svg viewBox="0 0 80 28" aria-hidden="true" className={cn("h-8 w-20 fill-none", tones[tone])}>
+    <svg viewBox="0 0 80 28" aria-hidden="true" className={cn("h-8 w-20 fill-none", STAT_TONES[tone].spark)}>
       <polyline
         points={sparklinePoints(values, 80, 28)}
         stroke="currentColor"
@@ -126,31 +152,28 @@ function StatCard({
   value: string;
   detail: string;
   Icon: typeof Activity;
-  tone: "green" | "blue" | "violet" | "amber";
+  tone: StatTone;
   series: number[];
 }) {
-  const tones = {
-    green: "bg-emerald-500/10 text-emerald-500",
-    blue: "bg-sky-500/10 text-sky-500",
-    violet: "bg-violet-500/10 text-violet-500",
-    amber: "bg-amber-500/10 text-amber-500",
-  };
+  const tones = STAT_TONES[tone];
 
   return (
-    <section className="rounded-2xl border border-border/80 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
+    <section className="group relative overflow-hidden rounded-2xl border glass-card p-4 shadow-sm transition-transform duration-300 hover:-translate-y-0.5">
+      <div className={cn("absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent", tones.line)} />
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", tones[tone])}>
+        <div className="flex min-w-0 items-center gap-2 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", tones.icon)}>
             <Icon className="h-3.5 w-3.5" />
           </span>
-          {label}
+          <span className="truncate">{label}</span>
         </div>
-        <span className="text-[10px] font-semibold text-emerald-500">{detail}</span>
+        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", tones.dot)} />
       </div>
       <div className="mt-3 flex items-end justify-between gap-3">
-        <p className="text-3xl font-black tracking-tight text-foreground">{value}</p>
+        <p className="text-3xl font-black tabular-nums tracking-tight text-foreground">{value}</p>
         <StatSparkline tone={tone} values={series} />
       </div>
+      <p className="mt-2 truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">{detail}</p>
     </section>
   );
 }
@@ -380,7 +403,7 @@ export default async function DashboardPage({
   const workspaceName = workspace?.name ?? t("unknownWorkflow");
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] space-y-5 pb-8 text-foreground">
+    <div className="relative mx-auto w-full max-w-[1480px] space-y-5 pb-8 text-foreground">
       {isFreeTier && <UpgradeBannerNudge />}
 
       {creditBalance && creditBalance.total !== Infinity && creditBalance.total < 1_000 && (
@@ -401,11 +424,11 @@ export default async function DashboardPage({
 
       <header className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t("overview")}</p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight">
+          <CineEyebrow>{t("overview")}</CineEyebrow>
+          <h1 className={cn("mt-2 text-3xl", CINE_TITLE)}>
             {displayName ? t("greetingNamed", { name: displayName }) : t("greetingAnon")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1.5 font-mono text-xs text-muted-foreground">
             {programs.length === 1
               ? t("subheadingSingular", { workspace: workspaceName, count: 1 })
               : t("subheadingPlural", { workspace: workspaceName, count: programs.length })}
@@ -415,7 +438,7 @@ export default async function DashboardPage({
           <DashboardSearch initialValue={searchQuery} />
           <Link
             href="/programs/new"
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:opacity-90"
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_0_28px_-8px_hsl(var(--primary)/0.7)] transition-all hover:-translate-y-0.5 hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
             {t("newWorkflow")}
@@ -430,10 +453,28 @@ export default async function DashboardPage({
         <StatCard label={t("awaitingYou")} value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? t("reviewNow") : t("allClear")} Icon={CircleAlert} tone="amber" series={approvalsSeries} />
       </div>
 
-      <section data-tour="genesis" className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/[0.09] via-card/90 to-card/75 shadow-sm">
-        <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <section
+        data-tour="genesis"
+        className="relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/[0.09] via-card/80 to-card/60 shadow-sm backdrop-blur-md"
+      >
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+        <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
+        {/* Flowing signal line — the landing's "AI signal" motif, at whisper volume. */}
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-6 w-full">
+          <line
+            x1="0"
+            y1="50%"
+            x2="100%"
+            y2="50%"
+            stroke="hsl(var(--primary) / 0.22)"
+            strokeWidth="1"
+            strokeDasharray="4 6"
+            className="edge-hero"
+          />
+        </svg>
+        <div className="relative flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/20">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary shadow-[0_0_28px_-6px_hsl(var(--primary)/0.55)] ring-1 ring-primary/25">
               <Sparkles className="h-5 w-5" />
             </span>
             <div>
@@ -454,7 +495,7 @@ export default async function DashboardPage({
       </section>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="overflow-hidden rounded-2xl border border-border/80 bg-card/80 shadow-sm backdrop-blur-sm">
+        <section className="glass-panel overflow-hidden rounded-2xl border shadow-sm">
           <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
             <div>
               <h2 className="text-sm font-bold">{t("yourWorkflows")}</h2>

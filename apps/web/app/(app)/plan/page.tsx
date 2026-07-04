@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { PricingTiers, PricingFAQ } from "@/components/pricing/pricing-tiers";
+import { CineEyebrow } from "@/components/cinematic";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -53,8 +54,8 @@ export default async function PricingPage() {
     <div className="space-y-10">
       {/* Header */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mb-2">Pricing</p>
-        <h1 className="text-3xl font-black tracking-tight">Simple, honest pricing.</h1>
+        <CineEyebrow className="mb-2">Pricing</CineEyebrow>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Simple, honest pricing.</h1>
         <p className="text-muted-foreground text-sm mt-1">Start free. No credit card required. Upgrade when the limits hurt.</p>
       </div>
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Check, Crown, Settings, Shield, Upload, UserPlus, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CineEyebrow } from "@/components/cinematic";
 import {
   WORKSPACE_ROLE_LABELS,
   canAssignWorkspaceRole,
@@ -435,8 +436,8 @@ export function WorkspacesClient() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Workspace</p>
-          <h1 className="text-3xl font-black tracking-tight">Workspaces & People</h1>
+          <CineEyebrow className="mb-1">Workspace</CineEyebrow>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Workspaces & People</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
             Create separate workspaces and assign each person a rank: Owner, Admin, Member, or Viewer.
           </p>

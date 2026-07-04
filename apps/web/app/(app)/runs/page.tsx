@@ -201,7 +201,7 @@ export default async function RunsPage({
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">{t("title")}</h1>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {runs24h.length} in last 24h
             {runningNow > 0 && <> · <span className="text-yellow-500">{runningNow} running now</span></>}

@@ -19,7 +19,7 @@ export default async function DataRequestsPage() {
           {" / "}
           <span>Data Requests</span>
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">Your data requests</h1>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Your data requests</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Track the status of your GDPR data subject requests and provide follow-up information when asked.
         </p>
