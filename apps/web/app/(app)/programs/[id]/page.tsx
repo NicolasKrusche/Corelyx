@@ -195,14 +195,28 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     completedRunsResult,
     failedRunsResult,
     creatorResult,
+    triggersResult,
   ] = await Promise.all([
     serviceClient.from("program_connections").select("connection_id").eq("program_id", id),
     serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id).eq("status", "completed"),
     serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id).eq("status", "failed"),
     serviceClient.from("profiles").select("display_name").eq("id", program.user_id).maybeSingle(),
+    serviceClient.from("triggers").select("type, is_active, next_run_at").eq("program_id", id).neq("type", "manual"),
   ]);
 
   const connectionIds = (linkedConnsResult.data ?? []).map((r: { connection_id: string }) => r.connection_id);
+
+  // Surface schedule state next to the Active/Inactive badge: a daily cron
+  // program looks "idle" almost all the time, so the badge alone can't tell
+  // a user whether it's actually on autopilot. Also catch the reverse trap —
+  // program.is_active=true but its only trigger is paused.
+  type ProgramTriggerRow = { type: string; is_active: boolean; next_run_at: string | null };
+  const programTriggers = (triggersResult.data ?? []) as ProgramTriggerRow[];
+  const nextCronRun = programTriggers
+    .filter((trigger) => trigger.type === "cron" && trigger.is_active && trigger.next_run_at)
+    .sort((a, b) => (a.next_run_at as string).localeCompare(b.next_run_at as string))[0]?.next_run_at ?? null;
+  const hasPausedCronOnly = !nextCronRun && programTriggers.some((trigger) => trigger.type === "cron" && !trigger.is_active);
+  const hasOtherActiveTrigger = !nextCronRun && programTriggers.some((trigger) => trigger.type !== "cron" && trigger.is_active);
 
   let conflictingProgramCount = 0;
   if (connectionIds.length > 0) {
@@ -264,6 +278,31 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               <span className={`h-2.5 w-2.5 rounded-full ${program.is_active ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
               <h1 className="truncate text-3xl font-semibold tracking-normal">{program.name}</h1>
               <Badge variant="secondary">{program.is_active ? "Active" : "Inactive"}</Badge>
+              {nextCronRun && (
+                <Badge
+                  variant="outline"
+                  title={`Next scheduled run: ${new Date(nextCronRun).toLocaleString()}`}
+                  className="border-primary/30 bg-primary/10 text-primary"
+                >
+                  <Clock3 className="mr-1 h-3 w-3" />
+                  Next run {formatDate(nextCronRun)}
+                </Badge>
+              )}
+              {hasOtherActiveTrigger && (
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                  <Clock3 className="mr-1 h-3 w-3" />
+                  Runs automatically
+                </Badge>
+              )}
+              {hasPausedCronOnly && program.is_active && (
+                <Badge
+                  variant="outline"
+                  title="This program is active, but its schedule is paused — it will not fire on its own until you resume the trigger."
+                  className="border-amber-400/40 bg-amber-500/10 text-amber-700 dark:border-amber-500/40 dark:text-amber-300"
+                >
+                  Schedule paused
+                </Badge>
+              )}
               {aiGenerated && (
                 <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                   <Sparkles className="mr-1 h-3 w-3" />

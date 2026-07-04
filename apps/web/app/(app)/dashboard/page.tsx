@@ -50,6 +50,14 @@ type ProgramConnectionRow = {
   connection_id: string;
 };
 
+type TriggerRow = {
+  program_id: string;
+  type: string;
+  next_run_at: string | null;
+};
+
+export type ProgramSchedule = { type: string; nextRunAt: string | null };
+
 type ConnectionRow = {
   id: string;
   provider: string;
@@ -245,8 +253,10 @@ export default async function DashboardPage({
   let programConnections: ProgramConnectionRow[] = [];
   let connections: ConnectionRow[] = [];
 
+  const programSchedules = new Map<string, ProgramSchedule>();
+
   if (programIds.length > 0) {
-    const [runsResult, approvalsResult, programConnectionsResult] = await Promise.all([
+    const [runsResult, approvalsResult, programConnectionsResult, triggersResult] = await Promise.all([
       serviceClient
         .from("runs")
         .select("id, program_id, status, triggered_by, created_at")
@@ -280,10 +290,32 @@ export default async function DashboardPage({
         .from("program_connections")
         .select("program_id, connection_id")
         .in("program_id", programIds),
+      // Active, non-manual triggers — surfaces "this runs on autopilot" independent
+      // of program.is_active and of how recently it last fired (a daily cron looks
+      // idle 23.9 hours out of 24 otherwise).
+      serviceClient
+        .from("triggers")
+        .select("program_id, type, next_run_at")
+        .in("program_id", programIds)
+        .eq("is_active", true)
+        .neq("type", "manual"),
     ]);
 
     recentRuns = (runsResult.data ?? []) as RunRow[];
     programConnections = (programConnectionsResult.data ?? []) as ProgramConnectionRow[];
+
+    // Prefer a cron trigger (has a concrete next_run_at) over other automated
+    // trigger types; among crons, keep the one firing soonest.
+    for (const trigger of (triggersResult.data ?? []) as TriggerRow[]) {
+      const existing = programSchedules.get(trigger.program_id);
+      if (trigger.type === "cron" && trigger.next_run_at) {
+        if (!existing || existing.type !== "cron" || (existing.nextRunAt && trigger.next_run_at < existing.nextRunAt)) {
+          programSchedules.set(trigger.program_id, { type: "cron", nextRunAt: trigger.next_run_at });
+        }
+      } else if (!existing) {
+        programSchedules.set(trigger.program_id, { type: trigger.type, nextRunAt: trigger.next_run_at });
+      }
+    }
     pendingApprovals = ((approvalsResult.data ?? []) as unknown as ApprovalRow[])
       .filter((approval) => {
         const programId = approval.node_executions?.runs?.program_id;
@@ -331,7 +363,7 @@ export default async function DashboardPage({
     if (!providersByProgramId.has(link.program_id)) providersByProgramId.set(link.program_id, new Set());
     providersByProgramId.get(link.program_id)?.add(provider);
   }
-  const perProgramStats: Record<string, { total: number; failed: number; runSeries: number[]; providers: string[]; lastRunAt: string | null }> = {};
+  const perProgramStats: Record<string, { total: number; failed: number; runSeries: number[]; providers: string[]; lastRunAt: string | null; schedule: ProgramSchedule | null }> = {};
   for (const program of programs) {
     perProgramStats[program.id] = {
       total: 0,
@@ -339,11 +371,12 @@ export default async function DashboardPage({
       runSeries: dayKeys.map(() => 0),
       providers: [...(providersByProgramId.get(program.id) ?? [])],
       lastRunAt: null,
+      schedule: programSchedules.get(program.id) ?? null,
     };
   }
   for (const run of recentRuns) {
     if (!perProgramStats[run.program_id]) {
-      perProgramStats[run.program_id] = { total: 0, failed: 0, runSeries: dayKeys.map(() => 0), providers: [], lastRunAt: null };
+      perProgramStats[run.program_id] = { total: 0, failed: 0, runSeries: dayKeys.map(() => 0), providers: [], lastRunAt: null, schedule: programSchedules.get(run.program_id) ?? null };
     }
     perProgramStats[run.program_id].total++;
     if (run.status === "failed") perProgramStats[run.program_id].failed++;
