@@ -35,7 +35,7 @@ export default async function ProfilePage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Profile</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Profile</h1>
         <p className="text-sm text-muted-foreground mt-1.5">
           How you appear across Corelyx.
         </p>

@@ -130,12 +130,12 @@ export default async function EmergencyControlsPage({
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Emergency Controls</h1>
-        <p className="text-gray-600">Kill switches and emergency stops</p>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Emergency Controls</h1>
+        <p className="text-muted-foreground">Kill switches and emergency stops</p>
       </div>
 
       {actionError && (
-        <div className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+        <div className="flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
           <div>
             <p className="font-semibold">Couldn&apos;t update maintenance settings</p>
@@ -146,16 +146,16 @@ export default async function EmergencyControlsPage({
 
       {/* Emergency Banner */}
       {anyActive && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+        <div className="bg-red-500/10 border-l-4 border-red-500/60 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-red-400" />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">
+              <h3 className="text-sm font-medium text-red-700 dark:text-red-300">
                 Emergency Mode Active
               </h3>
-              <div className="mt-2 text-sm text-red-700">
+              <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                 <ul className="list-disc pl-5 space-y-1">
                   {status.maintenanceMode && (
                     <li>Full maintenance mode - entire app blocked for non-admins</li>
@@ -171,18 +171,18 @@ export default async function EmergencyControlsPage({
       )}
       
       {/* Emergency Stop - Big Red Button */}
-      <div className="bg-white rounded-lg shadow-sm border-2 border-red-200 overflow-hidden">
-        <div className="px-6 py-4 bg-red-50 border-b border-red-200">
-          <h2 className="text-lg font-semibold text-red-900 flex items-center gap-2">
+      <div className="bg-card rounded-lg shadow-sm border-2 border-red-500/30 overflow-hidden">
+        <div className="px-6 py-4 bg-red-500/10 border-b border-red-500/30">
+          <h2 className="text-lg font-semibold text-red-700 dark:text-red-300 flex items-center gap-2">
             <Power className="w-5 h-5" />
             EMERGENCY STOP
           </h2>
         </div>
         <div className="p-6">
-          <p className="text-gray-700 mb-4">
+          <p className="text-foreground/80 mb-4">
             Immediately stops all non-essential services. Use this during:
           </p>
-          <ul className="list-disc pl-5 text-sm text-gray-600 mb-6 space-y-1">
+          <ul className="list-disc pl-5 text-sm text-muted-foreground mb-6 space-y-1">
             <li>Security breaches</li>
             <li>Data corruption incidents</li>
             <li>Runaway costs</li>
@@ -196,7 +196,7 @@ export default async function EmergencyControlsPage({
                 disabled={status.maintenanceMode}
                 className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
                   status.maintenanceMode
-                    ? "bg-gray-400 cursor-not-allowed"
+                    ? "bg-muted-foreground/50 cursor-not-allowed"
                     : "bg-red-600 hover:bg-red-700"
                 }`}
               >
@@ -221,10 +221,10 @@ export default async function EmergencyControlsPage({
       </div>
       
       {/* Maintenance message — shown on the maintenance page + 503 responses */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Maintenance message</h2>
-          <p className="text-sm text-gray-500">
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Maintenance message</h2>
+          <p className="text-sm text-muted-foreground">
             Optional. Shown to users on the maintenance page and in API 503s during full
             maintenance. Good for timing, e.g. &ldquo;Back by ~15:00 UTC&rdquo;. Leave blank for the default.
           </p>
@@ -236,11 +236,11 @@ export default async function EmergencyControlsPage({
             maxLength={500}
             rows={3}
             placeholder="e.g. Upgrading our database — back by ~15:00 UTC. Thanks for your patience!"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-500 focus:outline-none"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground focus:border-border focus:outline-none"
           />
           <button
             type="submit"
-            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+            className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent"
           >
             Save message
           </button>
@@ -248,13 +248,13 @@ export default async function EmergencyControlsPage({
       </div>
 
       {/* Tester preview link — bypass full maintenance for one trusted tester */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Eye className="w-5 h-5 text-gray-600" />
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Eye className="w-5 h-5 text-muted-foreground" />
             Tester preview link
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Generate an unguessable link that lets a single tester browse the live app
             while full maintenance stays on for everyone else. The token is stored only as
             a hash and shown to you once. Works within ~10s of generating.
@@ -262,14 +262,14 @@ export default async function EmergencyControlsPage({
         </div>
         <div className="p-6 space-y-4">
           {previewLink && (
-            <div className="rounded-lg border border-green-300 bg-green-50 p-4">
-              <p className="text-sm font-semibold text-green-900">
+            <div className="rounded-lg border border-green-500/40 bg-green-500/10 p-4">
+              <p className="text-sm font-semibold text-green-700 dark:text-green-300">
                 New tester link — copy it now, it won&apos;t be shown again:
               </p>
-              <code className="mt-2 block w-full overflow-x-auto rounded bg-white border border-green-200 px-3 py-2 text-xs text-gray-900 select-all">
+              <code className="mt-2 block w-full overflow-x-auto rounded bg-card border border-green-500/30 px-3 py-2 text-xs text-foreground select-all">
                 {previewLink}
               </code>
-              <p className="mt-2 text-xs text-green-800">
+              <p className="mt-2 text-xs text-green-700 dark:text-green-300">
                 Send it to the tester. Generating a new link or revoking invalidates this one.
               </p>
             </div>
@@ -280,13 +280,13 @@ export default async function EmergencyControlsPage({
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   status.previewBypassActive
-                    ? "bg-green-100 text-green-800"
-                    : "bg-gray-100 text-gray-600"
+                    ? "bg-green-500/15 text-green-700 dark:text-green-300"
+                    : "bg-muted text-muted-foreground"
                 }`}
               >
                 {status.previewBypassActive ? "ACTIVE" : "NONE"}
               </span>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 {status.previewBypassActive
                   ? "A preview link is currently valid."
                   : "No preview link is active."}
@@ -296,7 +296,7 @@ export default async function EmergencyControlsPage({
               <form action={generatePreviewLink}>
                 <button
                   type="submit"
-                  className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+                  className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent"
                 >
                   {status.previewBypassActive ? "Regenerate link" : "Generate link"}
                 </button>
@@ -305,7 +305,7 @@ export default async function EmergencyControlsPage({
                 <form action={revokePreviewLink}>
                   <button
                     type="submit"
-                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                    className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 transition-colors hover:bg-red-500/15"
                   >
                     Revoke
                   </button>
@@ -317,34 +317,34 @@ export default async function EmergencyControlsPage({
       </div>
 
       {/* Scoped maintenance — disable individual parts of the app */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Partial maintenance</h2>
-          <p className="text-sm text-gray-500">
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Partial maintenance</h2>
+          <p className="text-sm text-muted-foreground">
             Disable specific areas while the rest of the app keeps running. Admins can still use disabled areas.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-muted">
           {MAINTENANCE_AREAS.map((area) => {
             const disabled = status.disabledAreas.has(area.key);
             return (
-              <div key={area.key} className="bg-white p-6">
+              <div key={area.key} className="bg-card p-6">
                 <div className="flex items-start justify-between mb-2 gap-3">
-                  <h3 className="text-sm font-semibold text-gray-900">{area.label}</h3>
+                  <h3 className="text-sm font-semibold text-foreground">{area.label}</h3>
                   <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    disabled ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
+                    disabled ? "bg-red-500/15 text-red-700 dark:text-red-300" : "bg-green-500/15 text-green-700 dark:text-green-300"
                   }`}>
                     {disabled ? "DISABLED" : "ENABLED"}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mb-4">{area.description}</p>
+                <p className="text-xs text-muted-foreground mb-4">{area.description}</p>
                 <form action={toggleArea.bind(null, area.key, !disabled)}>
                   <button
                     type="submit"
                     className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                       disabled
-                        ? "bg-green-100 text-green-700 hover:bg-green-200"
-                        : "bg-red-100 text-red-700 hover:bg-red-200"
+                        ? "bg-green-500/15 text-green-700 dark:text-green-300 hover:bg-green-500/25"
+                        : "bg-red-500/15 text-red-700 dark:text-red-300 hover:bg-red-500/25"
                     }`}
                   >
                     {disabled ? `Enable ${area.label}` : `Disable ${area.label}`}
@@ -357,12 +357,12 @@ export default async function EmergencyControlsPage({
       </div>
       
       {/* Manual Overrides */}
-      <div className="bg-yellow-50 rounded-lg border border-yellow-200 p-6">
-        <h3 className="text-lg font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+      <div className="bg-yellow-500/10 rounded-lg border border-yellow-500/30 p-6">
+        <h3 className="text-lg font-semibold text-yellow-700 dark:text-yellow-300 mb-2 flex items-center gap-2">
           <AlertTriangle className="w-5 h-5" />
           Manual Override Instructions
         </h3>
-        <div className="text-sm text-yellow-800 space-y-2">
+        <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-2">
           <p>
             The toggles above write to the database and take effect within ~10s — no
             redeploy needed. Admins (ADMIN_EMAILS, or a founder/dev role) can still
@@ -372,7 +372,7 @@ export default async function EmergencyControlsPage({
             Break-glass fallback only — if the database is unreachable, these Vercel
             env vars force a flag on (they require a redeploy to change):
           </p>
-          <pre className="bg-yellow-100 p-3 rounded mt-2 overflow-x-auto">
+          <pre className="bg-yellow-500/15 p-3 rounded mt-2 overflow-x-auto">
 {`EMERGENCY_MAINTENANCE_MODE=true
 DISABLE_GENESIS_GENERATION=true
 DISABLE_WORKFLOW_EXECUTION=true`}

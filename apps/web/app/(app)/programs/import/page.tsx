@@ -108,7 +108,7 @@ export default function ImportProgramPage() {
             Dashboard
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Import program</h1>
+        <h1 className="text-2xl font-semibold bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Import program</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Import a full Program schema either from a JSON file or by pasting JSON code.
         </p>

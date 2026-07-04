@@ -78,9 +78,9 @@ function ApprovalItem({ approval }: { approval: DashboardApproval }) {
   }
 
   return (
-    <article className="rounded-xl border border-border/70 bg-background/45 p-3">
+    <article className="rounded-xl border border-amber-500/20 bg-background/45 p-3 shadow-[0_0_24px_-10px_rgba(245,177,76,0.35)] backdrop-blur-sm">
       <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/25">
           <ShieldCheck className="h-3.5 w-3.5" />
         </span>
         <div className="min-w-0 flex-1">
@@ -134,12 +134,13 @@ export function DashboardAttentionPanel({
   const isEmpty = visibleApprovals.length === 0 && visibleFailedRuns.length === 0;
 
   return (
-    <aside className="overflow-hidden rounded-2xl border border-border/80 bg-card/80 shadow-sm backdrop-blur-sm">
+    <aside className="glass-panel overflow-hidden rounded-2xl border shadow-sm">
       <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-bold">Needs your attention</h2>
           {approvals.length > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500/15 px-1.5 text-[10px] font-bold text-amber-500">
+            <span className="inline-flex h-5 min-w-5 items-center justify-center gap-1 rounded-full bg-amber-500/15 px-1.5 text-[10px] font-bold text-amber-500 shadow-[0_0_14px_-4px_rgba(245,158,11,0.7)]">
+              <span className="cx-blink h-1 w-1 rounded-full bg-amber-500" />
               {approvals.length}
             </span>
           )}
@@ -158,9 +159,9 @@ export function DashboardAttentionPanel({
           <Link
             key={run.id}
             href={`/programs/${run.programId}/runs/${run.id}`}
-            className="group flex items-start gap-2.5 rounded-xl border border-red-500/15 bg-red-500/[0.04] p-3 transition-colors hover:bg-red-500/[0.08]"
+            className="group flex items-start gap-2.5 rounded-xl border border-red-500/15 bg-red-500/[0.04] p-3 shadow-[0_0_24px_-10px_rgba(240,86,63,0.35)] transition-colors hover:bg-red-500/[0.08]"
           >
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 ring-1 ring-red-500/25">
               <AlertTriangle className="h-3.5 w-3.5" />
             </span>
             <div className="min-w-0 flex-1">
@@ -177,7 +178,7 @@ export function DashboardAttentionPanel({
 
         {isEmpty && (
           <div className="px-3 py-8 text-center">
-            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 shadow-[0_0_24px_-6px_rgba(52,211,153,0.5)] ring-1 ring-emerald-500/25">
               <CircleCheck className="h-5 w-5" />
             </span>
             <p className="mt-3 text-xs font-bold">Everything looks clear</p>

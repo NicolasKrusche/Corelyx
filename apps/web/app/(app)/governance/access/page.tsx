@@ -138,7 +138,7 @@ export default async function GovernanceAccessPage() {
   return (
     <div className="space-y-6 pb-12">
       <section className="border-b border-border pb-6">
-        <h1 className="text-3xl font-black tracking-tight">Access &amp; credentials</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Access &amp; credentials</h1>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
           Who can touch each workflow, which connected accounts and keys they use, and where
           the boundaries are. Credentials are always stored server-side and never shown here.

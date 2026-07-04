@@ -52,7 +52,7 @@ export default async function GovernanceDataControlsPage() {
   return (
     <div className="space-y-6 pb-12">
       <section className="border-b border-border pb-6">
-        <h1 className="text-3xl font-black tracking-tight">Data controls</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Data controls</h1>
         <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
           Decide what workflow data is stored, how long it is kept, and how people can request
           access to or deletion of their data. These controls apply to every workflow in this

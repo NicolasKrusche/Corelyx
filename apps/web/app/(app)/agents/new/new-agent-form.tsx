@@ -286,7 +286,7 @@ export function NewAgentForm() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
             <Bot className="h-4 w-4 text-primary" />
           </span>
-          <h1 className="text-xl font-bold tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
             New one-time agent
           </h1>
         </div>

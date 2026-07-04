@@ -292,7 +292,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-black tracking-tight">{t("title")}</h1>
+              <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">{t("title")}</h1>
               <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {TIER_LABEL[tier]} plan
               </span>

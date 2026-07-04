@@ -163,31 +163,31 @@ export default async function TestFirmsPage() {
   const { firms, totals } = await loadTestFirms();
 
   const stats = [
-    { label: "Test firms", value: totals.firms, Icon: Building2, tone: "bg-blue-100 text-blue-600" },
-    { label: "Connected inboxes", value: totals.inboxes, Icon: Inbox, tone: "bg-emerald-100 text-emerald-600" },
-    { label: "Pending flags", value: totals.pendingFlags, Icon: AlertTriangle, tone: "bg-red-100 text-red-600" },
-    { label: "Failed runs", value: totals.failedRuns, Icon: XCircle, tone: "bg-amber-100 text-amber-600" },
+    { label: "Test firms", value: totals.firms, Icon: Building2, tone: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
+    { label: "Connected inboxes", value: totals.inboxes, Icon: Inbox, tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+    { label: "Pending flags", value: totals.pendingFlags, Icon: AlertTriangle, tone: "bg-red-500/15 text-red-600 dark:text-red-400" },
+    { label: "Failed runs", value: totals.failedRuns, Icon: XCircle, tone: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Test Firms</h1>
-        <p className="text-gray-600">Firms you&apos;ve designated for testing — inbox health, agent activity, run outcomes, and safety flags.</p>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Test Firms</h1>
+        <p className="text-muted-foreground">Firms you&apos;ve designated for testing — inbox health, agent activity, run outcomes, and safety flags.</p>
       </div>
 
       <AddTestFirm />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div key={s.label} className="rounded-lg border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <div className={`rounded-full p-3 ${s.tone}`}>
                 <s.Icon className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">{s.label}</p>
-                <p className="text-2xl font-bold text-gray-900">{s.value}</p>
+                <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+                <p className="text-2xl font-bold text-foreground">{s.value}</p>
               </div>
             </div>
           </div>
@@ -195,10 +195,10 @@ export default async function TestFirmsPage() {
       </div>
 
       {totals.invalidInboxes > 0 && (
-        <div className="border-l-4 border-amber-400 bg-amber-50 p-4">
+        <div className="border-l-4 border-amber-500/60 bg-amber-500/10 p-4">
           <div className="flex">
             <AlertTriangle className="h-5 w-5 text-amber-400" />
-            <p className="ml-3 text-sm text-amber-700">
+            <p className="ml-3 text-sm text-amber-700 dark:text-amber-300">
               {totals.invalidInboxes} connected inbox{totals.invalidInboxes === 1 ? "" : "es"} {totals.invalidInboxes === 1 ? "is" : "are"} failing
               validation (expired/incorrect credentials) — agents can&apos;t read or send until reconnected.
             </p>
@@ -207,24 +207,24 @@ export default async function TestFirmsPage() {
       )}
 
       {firms.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-10 text-center text-gray-500">
-          <Inbox className="mx-auto mb-3 h-12 w-12 text-gray-400" />
-          <p className="font-medium text-gray-700">No test firms yet</p>
+        <div className="rounded-lg border border-border bg-card p-10 text-center text-muted-foreground">
+          <Inbox className="mx-auto mb-3 h-12 w-12 text-muted-foreground/60" />
+          <p className="font-medium text-foreground/80">No test firms yet</p>
           <p className="text-sm">Add one above by workspace ID or the firm&apos;s account email. Connecting an inbox does not designate a firm.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {firms.map((f) => (
-            <div key={f.workspaceId} className="rounded-lg border border-gray-200 bg-white shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4">
+            <div key={f.workspaceId} className="rounded-lg border border-border bg-card shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-gray-400" />
-                  <Link href={`/admin/test-firms/${f.workspaceId}`} className="text-lg font-semibold text-gray-900 hover:text-blue-600 hover:underline">
+                  <Building2 className="h-5 w-5 text-muted-foreground/60" />
+                  <Link href={`/admin/test-firms/${f.workspaceId}`} className="text-lg font-semibold text-foreground hover:text-blue-600 dark:text-blue-400 hover:underline">
                     {f.name}
                   </Link>
                   <span
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      f.complianceMode === "eu_only" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
+                      f.complianceMode === "eu_only" ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" : "bg-muted text-muted-foreground"
                     }`}
                   >
                     <ShieldCheck className="h-3 w-3" />
@@ -233,7 +233,7 @@ export default async function TestFirmsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {f.flagsPending > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-xs font-semibold text-red-700 dark:text-red-300">
                       <AlertTriangle className="h-3.5 w-3.5" />
                       {f.flagsPending} flag{f.flagsPending === 1 ? "" : "s"} pending
                       <span className="font-normal text-red-500"> ({f.flagsAuto} auto · {f.flagsAgent} agent)</span>
@@ -243,10 +243,10 @@ export default async function TestFirmsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-px bg-gray-100 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-px bg-muted sm:grid-cols-2 lg:grid-cols-4">
                 {/* Inboxes */}
-                <div className="bg-white px-6 py-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Inboxes</p>
+                <div className="bg-card px-6 py-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Inboxes</p>
                   <ul className="mt-1 space-y-1">
                     {f.connections.map((c) => (
                       <li key={c.id} className="flex items-center gap-1.5 text-sm">
@@ -254,44 +254,44 @@ export default async function TestFirmsPage() {
                           className={`h-2 w-2 shrink-0 rounded-full ${c.is_valid === false ? "bg-red-500" : "bg-emerald-500"}`}
                           title={c.is_valid === false ? "Invalid" : "Valid"}
                         />
-                        <span className="truncate text-gray-800">{c.name ?? "Inbox"}</span>
+                        <span className="truncate text-foreground">{c.name ?? "Inbox"}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
                 {/* Agents */}
-                <div className="bg-white px-6 py-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Agents</p>
-                  <p className="mt-1 flex items-center gap-1.5 text-2xl font-bold text-gray-900">
-                    <Bot className="h-5 w-5 text-gray-400" />
+                <div className="bg-card px-6 py-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Agents</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-2xl font-bold text-foreground">
+                    <Bot className="h-5 w-5 text-muted-foreground/60" />
                     {f.agentCount}
                   </p>
                 </div>
 
                 {/* Runs */}
-                <div className="bg-white px-6 py-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Runs</p>
+                <div className="bg-card px-6 py-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Runs</p>
                   <div className="mt-1 flex flex-wrap gap-2 text-sm">
-                    <span className="text-emerald-600">{f.runCounts.success} ok</span>
-                    <span className="text-red-600">{f.runCounts.failed} failed</span>
-                    <span className="text-blue-600">{f.runCounts.active} active</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{f.runCounts.success} ok</span>
+                    <span className="text-red-600 dark:text-red-400">{f.runCounts.failed} failed</span>
+                    <span className="text-blue-600 dark:text-blue-400">{f.runCounts.active} active</span>
                   </div>
-                  <p className="mt-1 text-xs text-gray-400">Last: {fmtDate(f.lastActivity)}</p>
+                  <p className="mt-1 text-xs text-muted-foreground/60">Last: {fmtDate(f.lastActivity)}</p>
                 </div>
 
                 {/* Latest flag */}
-                <div className="bg-white px-6 py-4">
-                  <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Latest flag</p>
+                <div className="bg-card px-6 py-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Latest flag</p>
                   {f.latestFlag ? (
                     <div className="mt-1">
-                      <p className="truncate text-sm text-gray-800">{f.latestFlag.subject ?? "Flagged message"}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="truncate text-sm text-foreground">{f.latestFlag.subject ?? "Flagged message"}</p>
+                      <p className="text-xs text-muted-foreground/60">
                         {(f.latestFlag.categories ?? []).join(", ").replace(/_/g, " ") || "—"} · {fmtDate(f.latestFlag.created_at)}
                       </p>
                     </div>
                   ) : (
-                    <p className="mt-1 text-sm text-gray-400">None</p>
+                    <p className="mt-1 text-sm text-muted-foreground/60">None</p>
                   )}
                 </div>
               </div>

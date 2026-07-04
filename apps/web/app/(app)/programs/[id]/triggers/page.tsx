@@ -106,7 +106,7 @@ export default async function TriggersPage({
             {prog.name}
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Triggers</h1>
+        <h1 className="text-2xl font-semibold bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Triggers</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Configure how and when this program runs automatically.
         </p>

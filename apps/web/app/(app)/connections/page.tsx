@@ -1319,7 +1319,7 @@ export default function ConnectionsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Connections</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Connections</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Click any connection to open its settings, review linked accounts, and manage which account is primary.
         </p>

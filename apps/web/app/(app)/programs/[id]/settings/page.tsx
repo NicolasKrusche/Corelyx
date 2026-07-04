@@ -178,7 +178,7 @@ export default function ProgramSettingsPage() {
           <Link href={`/programs/${id}`} className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors mb-2 inline-block">
             ← Back to program
           </Link>
-          <h1 className="text-3xl font-black tracking-tight">Program settings</h1>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Program settings</h1>
           <p className="text-sm text-muted-foreground mt-1">{program.name}</p>
         </div>
       </div>

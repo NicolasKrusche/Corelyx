@@ -148,12 +148,12 @@ function StatusPill({ status }: { status: string | null }) {
   const s = status ?? "—";
   const tone =
     s === "success" || s === "completed"
-      ? "bg-emerald-100 text-emerald-700"
+      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
       : s === "failed" || s === "rejected"
-        ? "bg-red-100 text-red-700"
+        ? "bg-red-500/15 text-red-700 dark:text-red-300"
         : s === "running" || s === "pending" || s === "waiting_approval"
-          ? "bg-blue-100 text-blue-700"
-          : "bg-gray-100 text-gray-600";
+          ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+          : "bg-muted text-muted-foreground";
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{s}</span>;
 }
 
@@ -182,29 +182,29 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/admin/test-firms" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+        <Link href="/admin/test-firms" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> All test firms
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold text-gray-900">{d.name}</h1>
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${d.complianceMode === "eu_only" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}>
+          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">{d.name}</h1>
+          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${d.complianceMode === "eu_only" ? "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" : "bg-muted text-muted-foreground"}`}>
             <ShieldCheck className="h-3 w-3" />
             {d.complianceMode === "eu_only" ? "EU-only" : "Standard"}
           </span>
         </div>
-        <p className="mt-1 font-mono text-xs text-gray-400">{d.firm.workspace_id} · registered {fmt(d.firm.created_at)} · total spend {money(d.totalSpend)}</p>
-        {d.firm.notes && <p className="mt-1 text-sm text-gray-600">{d.firm.notes}</p>}
+        <p className="mt-1 font-mono text-xs text-muted-foreground/60">{d.firm.workspace_id} · registered {fmt(d.firm.created_at)} · total spend {money(d.totalSpend)}</p>
+        {d.firm.notes && <p className="mt-1 text-sm text-muted-foreground">{d.firm.notes}</p>}
       </div>
 
       {/* Risk summary — everything that could flag an issue */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
         {riskItems.map((r) => (
-          <div key={r.label} className={`rounded-lg border p-3 ${r.bad ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"}`}>
-            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-              <r.Icon className={`h-3.5 w-3.5 ${r.bad ? "text-red-500" : "text-gray-400"}`} />
+          <div key={r.label} className={`rounded-lg border p-3 ${r.bad ? "border-red-500/30 bg-red-500/10" : "border-border bg-card"}`}>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <r.Icon className={`h-3.5 w-3.5 ${r.bad ? "text-red-500" : "text-muted-foreground/60"}`} />
               {r.label}
             </div>
-            <p className={`mt-1 text-xl font-bold ${r.bad ? "text-red-700" : "text-gray-900"}`}>{r.value}</p>
+            <p className={`mt-1 text-xl font-bold ${r.bad ? "text-red-700 dark:text-red-300" : "text-foreground"}`}>{r.value}</p>
           </div>
         ))}
       </div>
@@ -212,23 +212,23 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
       {/* Safety flags */}
       <Section title="Safety flags" Icon={AlertTriangle} count={d.flags.length}>
         {d.flags.length === 0 ? <Empty text="No flags." /> : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-border/60">
             {d.flags.map((f) => (
               <li key={f.id} className="flex items-start justify-between gap-3 px-4 py-2.5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-sm font-medium text-gray-900">{f.subject ?? "Flagged message"}</span>
-                    <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase text-gray-500">{f.origin === "agent" ? "agent" : "auto"}</span>
+                    <span className="text-sm font-medium text-foreground">{f.subject ?? "Flagged message"}</span>
+                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">{f.origin === "agent" ? "agent" : "auto"}</span>
                     {(f.categories ?? []).map((c) => (
-                      <span key={c} className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] capitalize text-red-600">{c.replace(/_/g, " ")}</span>
+                      <span key={c} className="rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] capitalize text-red-600 dark:text-red-400">{c.replace(/_/g, " ")}</span>
                     ))}
                   </div>
-                  {f.reason && <p className="text-xs text-gray-500">{f.reason}</p>}
-                  {f.snippet && <p className="truncate text-xs italic text-gray-400">“{f.snippet}”</p>}
+                  {f.reason && <p className="text-xs text-muted-foreground">{f.reason}</p>}
+                  {f.snippet && <p className="truncate text-xs italic text-muted-foreground/60">“{f.snippet}”</p>}
                 </div>
                 <div className="shrink-0 text-right">
                   <StatusPill status={f.status} />
-                  <p className="mt-0.5 text-[10px] text-gray-400">{fmt(f.created_at)}</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground/60">{fmt(f.created_at)}</p>
                 </div>
               </li>
             ))}
@@ -240,17 +240,17 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
       <Section title="Runs" Icon={ListChecks} count={d.runs.length}>
         {d.runs.length === 0 ? <Empty text="No runs." /> : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr><th className="px-4 py-2">Agent</th><th className="px-4 py-2">Status</th><th className="px-4 py-2">Trigger</th><th className="px-4 py-2">Cost</th><th className="px-4 py-2">When</th></tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border/60">
               {d.runs.slice(0, 40).map((r) => (
                 <tr key={r.id}>
-                  <td className="max-w-[200px] truncate px-4 py-2 text-gray-800">{d.progName.get(r.program_id) ?? r.program_id}</td>
+                  <td className="max-w-[200px] truncate px-4 py-2 text-foreground">{d.progName.get(r.program_id) ?? r.program_id}</td>
                   <td className="px-4 py-2"><StatusPill status={r.status} />{r.error_message && <span className="ml-1 text-xs text-red-500" title={r.error_message}>⚠</span>}</td>
-                  <td className="px-4 py-2 text-gray-500">{r.triggered_by ?? "—"}</td>
-                  <td className="px-4 py-2 text-gray-500">{r.estimated_cost_usd ? money(r.estimated_cost_usd) : "—"}</td>
-                  <td className="px-4 py-2 text-gray-400">{fmt(r.created_at)}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{r.triggered_by ?? "—"}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{r.estimated_cost_usd ? money(r.estimated_cost_usd) : "—"}</td>
+                  <td className="px-4 py-2 text-muted-foreground/60">{fmt(r.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -261,15 +261,15 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
       {/* Decisions = tool calls */}
       <Section title="Decisions (tool calls)" Icon={Bot} count={d.decisions.length}>
         {d.decisions.length === 0 ? <Empty text="No tool calls recorded." /> : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-border/60">
             {d.decisions.slice(0, 120).map((c, i) => (
               <li key={i} className="flex items-center justify-between gap-3 px-4 py-1.5 text-sm">
                 <span className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${c.outcome === "error" ? "bg-red-500" : c.outcome === "simulated" ? "bg-amber-400" : "bg-emerald-500"}`} />
-                  <span className="font-mono text-xs text-gray-800">{c.name}</span>
+                  <span className="font-mono text-xs text-foreground">{c.name}</span>
                   {c.detail && <span className="truncate text-xs text-red-500">{c.detail}</span>}
                 </span>
-                <span className="shrink-0 text-[10px] text-gray-400">{c.nodeId} · {fmt(c.at)}</span>
+                <span className="shrink-0 text-[10px] text-muted-foreground/60">{c.nodeId} · {fmt(c.at)}</span>
               </li>
             ))}
           </ul>
@@ -279,15 +279,15 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
       {/* Reports */}
       <Section title="Agent reports" Icon={FileText} count={d.reports.length}>
         {d.reports.length === 0 ? <Empty text="No reports." /> : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-border/60">
             {d.reports.map((r) => {
               const outcome = (r.data?.outcome as string | undefined) ?? null;
               return (
                 <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
-                  <span className="truncate text-gray-800">{r.title ?? "Report"}{r.dry_run ? <span className="ml-1 text-[10px] text-gray-400">(dry run)</span> : null}</span>
+                  <span className="truncate text-foreground">{r.title ?? "Report"}{r.dry_run ? <span className="ml-1 text-[10px] text-muted-foreground/60">(dry run)</span> : null}</span>
                   <span className="flex shrink-0 items-center gap-2">
                     {outcome && <StatusPill status={outcome === "success" ? "success" : outcome === "failed" ? "failed" : "pending"} />}
-                    <span className="text-[10px] text-gray-400">{fmt(r.created_at)}</span>
+                    <span className="text-[10px] text-muted-foreground/60">{fmt(r.created_at)}</span>
                   </span>
                 </li>
               );
@@ -299,11 +299,11 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
       {/* Approvals / questions */}
       <Section title="Approvals & questions" Icon={HelpCircle} count={d.approvals.length}>
         {d.approvals.length === 0 ? <Empty text="None." /> : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-border/60">
             {d.approvals.map((a) => (
               <li key={a.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
-                <span className="truncate text-gray-700">{String(a.context?.kind ?? "approval")}{a.decision_note ? <span className="text-gray-400"> — {a.decision_note}</span> : null}</span>
-                <span className="flex shrink-0 items-center gap-2"><StatusPill status={a.status} /><span className="text-[10px] text-gray-400">{fmt(a.created_at)}</span></span>
+                <span className="truncate text-foreground/80">{String(a.context?.kind ?? "approval")}{a.decision_note ? <span className="text-muted-foreground/60"> — {a.decision_note}</span> : null}</span>
+                <span className="flex shrink-0 items-center gap-2"><StatusPill status={a.status} /><span className="text-[10px] text-muted-foreground/60">{fmt(a.created_at)}</span></span>
               </li>
             ))}
           </ul>
@@ -314,11 +314,11 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Inboxes & connections" Icon={Inbox} count={d.connections.length}>
           {d.connections.length === 0 ? <Empty text="None." /> : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-border/60">
               {d.connections.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
-                  <span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${c.is_valid === false ? "bg-red-500" : "bg-emerald-500"}`} /><span className="text-gray-800">{c.name ?? "Connection"}</span><span className="text-[10px] text-gray-400">{c.provider}</span></span>
-                  <span className="text-[10px] text-gray-400">{fmt(c.last_validated_at)}</span>
+                  <span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${c.is_valid === false ? "bg-red-500" : "bg-emerald-500"}`} /><span className="text-foreground">{c.name ?? "Connection"}</span><span className="text-[10px] text-muted-foreground/60">{c.provider}</span></span>
+                  <span className="text-[10px] text-muted-foreground/60">{fmt(c.last_validated_at)}</span>
                 </li>
               ))}
             </ul>
@@ -326,10 +326,10 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
         </Section>
         <Section title="Agents & workflows" Icon={Bot} count={d.programs.length}>
           {d.programs.length === 0 ? <Empty text="None." /> : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-border/60">
               {d.programs.slice(0, 50).map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
-                  <span className="truncate text-gray-800">{p.name}<span className="ml-1 text-[10px] text-gray-400">{p.program_type}</span></span>
+                  <span className="truncate text-foreground">{p.name}<span className="ml-1 text-[10px] text-muted-foreground/60">{p.program_type}</span></span>
                   <StatusPill status={p.agent_state} />
                 </li>
               ))}
@@ -341,13 +341,13 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
       {/* Logs */}
       <Section title="Activity log" Icon={ScrollText} count={d.logs.length}>
         {d.logs.length === 0 ? <Empty text="No logs." /> : (
-          <ul className="divide-y divide-gray-100 font-mono text-xs">
+          <ul className="divide-y divide-border/60 font-mono text-xs">
             {d.logs.map((l) => (
               <li key={l.id} className="flex items-start gap-2 px-4 py-1.5">
-                <span className={`mt-0.5 shrink-0 ${l.level === "error" ? "text-red-600" : l.level === "warning" ? "text-amber-600" : "text-gray-400"}`}>{l.level}</span>
-                <span className="shrink-0 text-gray-400">{l.source}</span>
-                <span className="min-w-0 flex-1 truncate text-gray-700">{l.event}: {l.message}</span>
-                <span className="shrink-0 text-gray-300">{fmt(l.created_at)}</span>
+                <span className={`mt-0.5 shrink-0 ${l.level === "error" ? "text-red-600 dark:text-red-400" : l.level === "warning" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/60"}`}>{l.level}</span>
+                <span className="shrink-0 text-muted-foreground/60">{l.source}</span>
+                <span className="min-w-0 flex-1 truncate text-foreground/80">{l.event}: {l.message}</span>
+                <span className="shrink-0 text-muted-foreground/40">{fmt(l.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -359,11 +359,11 @@ export default async function TestFirmDetailPage({ params }: { params: Promise<{
 
 function Section({ title, Icon, count, children }: { title: string; Icon: typeof Bot; count: number; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
-        <Icon className="h-4 w-4 text-gray-400" />
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{count}</span>
+    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <Icon className="h-4 w-4 text-muted-foreground/60" />
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{count}</span>
       </div>
       <div className="overflow-x-auto">{children}</div>
     </div>
@@ -371,5 +371,5 @@ function Section({ title, Icon, count, children }: { title: string; Icon: typeof
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="px-4 py-4 text-sm text-gray-400">{text}</p>;
+  return <p className="px-4 py-4 text-sm text-muted-foreground/60">{text}</p>;
 }

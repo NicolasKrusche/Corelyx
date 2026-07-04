@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createServerClient } from "@/lib/supabase/server";
 import { EuComplianceCenter } from "@/components/eu-compliance-center";
+import { CineEyebrow } from "@/components/cinematic";
 
 export const metadata: Metadata = {
   title: "EU Compliance Center",
@@ -25,12 +26,10 @@ export default async function AccountCompliancePage() {
   return (
     <div className="max-w-4xl space-y-8 pb-12">
       <header className="space-y-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-          Privacy & Rights
-        </p>
+        <CineEyebrow>Privacy &amp; Rights</CineEyebrow>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
               EU Compliance Center
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

@@ -87,7 +87,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             </span>
           ))}
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">{post.title}</h1>
+        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">{post.title}</h1>
         <p className="text-sm text-muted-foreground">
           {post.author_name} · {new Date(post.published_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
         </p>

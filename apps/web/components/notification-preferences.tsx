@@ -124,7 +124,7 @@ export function NotificationPreferences({ panelClass }: { panelClass: string }) 
                 onClick={() => { if (!locked) void toggle(key); }}
                 className={cn(
                   "mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  enabled ? "bg-primary" : "bg-input",
+                  enabled ? "bg-primary shadow-[0_0_14px_-2px_hsl(var(--primary)/0.7)]" : "bg-input",
                   (locked || !prefs) && "cursor-not-allowed opacity-60",
                 )}
               >

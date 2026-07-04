@@ -30,7 +30,7 @@ export default async function UpdatesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Updates</h1>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Updates</h1>
         <p className="text-muted-foreground">News and updates from the Corelyx team</p>
       </div>
 

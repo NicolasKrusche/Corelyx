@@ -115,33 +115,33 @@ export default async function AdminOverviewPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">System Overview</h1>
-        <p className="text-gray-600">Real-time system status and key metrics</p>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">System Overview</h1>
+        <p className="text-muted-foreground">Real-time system status and key metrics</p>
       </div>
       
       {/* Status Banner */}
       <div className={`p-4 rounded-lg border ${
         isHealthy 
-          ? "bg-green-50 border-green-200" 
+          ? "bg-green-500/10 border-green-500/30" 
           : isDegraded
-          ? "bg-yellow-50 border-yellow-200"
-          : "bg-red-50 border-red-200"
+          ? "bg-yellow-500/10 border-yellow-500/30"
+          : "bg-red-500/10 border-red-500/30"
       }`}>
         <div className="flex items-center gap-3">
           {isHealthy ? (
-            <CheckCircle className="w-6 h-6 text-green-600" />
+            <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
           ) : isDegraded ? (
-            <AlertTriangle className="w-6 h-6 text-yellow-600" />
+            <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
           ) : (
-            <XCircle className="w-6 h-6 text-red-600" />
+            <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
           )}
           <div>
             <h2 className={`font-semibold ${
-              isHealthy ? "text-green-800" : isDegraded ? "text-yellow-800" : "text-red-800"
+              isHealthy ? "text-green-700 dark:text-green-300" : isDegraded ? "text-yellow-700 dark:text-yellow-300" : "text-red-700 dark:text-red-300"
             }`}>
               System Status: {health.status.toUpperCase()}
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Last checked: {new Date(health.timestamp).toLocaleString()}
             </p>
           </div>
@@ -151,84 +151,84 @@ export default async function AdminOverviewPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Active Runs */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Runs</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.activeRuns}</p>
+              <p className="text-sm font-medium text-muted-foreground">Active Runs</p>
+              <p className="text-3xl font-bold text-foreground">{stats.activeRuns}</p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <Play className="w-6 h-6 text-blue-600" />
+            <div className="p-3 bg-blue-500/15 rounded-full">
+              <Play className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-muted-foreground mt-2">
             {stats.todayRuns} runs today
           </p>
         </div>
         
         {/* Total Users */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalUsers}</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Users</p>
+              <p className="text-3xl font-bold text-foreground">{stats.totalUsers}</p>
             </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <Users className="w-6 h-6 text-purple-600" />
+            <div className="p-3 bg-purple-500/15 rounded-full">
+              <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-muted-foreground mt-2">
             Registered accounts
           </p>
         </div>
         
         {/* Today's Cost */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Today&apos;s LLM Cost</p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-muted-foreground">Today&apos;s LLM Cost</p>
+              <p className="text-3xl font-bold text-foreground">
                 ${stats.todayCost.toFixed(2)}
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <DollarSign className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-green-500/15 rounded-full">
+              <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-muted-foreground mt-2">
             Estimated spend
           </p>
         </div>
         
         {/* System Load */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Health Score</p>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-muted-foreground">Health Score</p>
+              <p className="text-3xl font-bold text-foreground">
                 {isHealthy ? "100%" : isDegraded ? "75%" : "0%"}
               </p>
             </div>
             <div className={`p-3 rounded-full ${
-              isHealthy ? "bg-green-100" : isDegraded ? "bg-yellow-100" : "bg-red-100"
+              isHealthy ? "bg-green-500/15" : isDegraded ? "bg-yellow-500/15" : "bg-red-500/15"
             }`}>
               <Activity className={`w-6 h-6 ${
-                isHealthy ? "text-green-600" : isDegraded ? "text-yellow-600" : "text-red-600"
+                isHealthy ? "text-green-600 dark:text-green-400" : isDegraded ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"
               }`} />
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-muted-foreground mt-2">
             Based on health checks
           </p>
         </div>
       </div>
       
       {/* Health Checks Detail */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Health Check Details</h2>
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Health Check Details</h2>
         </div>
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-border">
           {Object.entries(health.checks).map(([name, check]) => (
             <div key={name} className="px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -240,25 +240,25 @@ export default async function AdminOverviewPage() {
                   <XCircle className="w-5 h-5 text-red-500" />
                 )}
                 <div>
-                  <p className="font-medium text-gray-900 capitalize">
+                  <p className="font-medium text-foreground capitalize">
                     {name.replace(/_/g, " ")}
                   </p>
                   {check?.message && (
-                    <p className="text-sm text-gray-500">{check.message}</p>
+                    <p className="text-sm text-muted-foreground">{check.message}</p>
                   )}
                 </div>
               </div>
               <div className="text-right">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   check?.status === "pass" 
-                    ? "bg-green-100 text-green-800"
+                    ? "bg-green-500/15 text-green-700 dark:text-green-300"
                     : check?.status === "warn"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
+                    ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
+                    : "bg-red-500/15 text-red-700 dark:text-red-300"
                 }`}>
                   {check?.status === "pass" ? "Healthy" : check?.status === "warn" ? "Warning" : "Failed"}
                 </span>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {check?.responseTimeMs}ms
                 </p>
               </div>
@@ -269,26 +269,26 @@ export default async function AdminOverviewPage() {
       
       {/* Recent Failures */}
       {stats.recentFailures.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Failed Runs</h2>
+        <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+          <div className="px-6 py-4 border-b border-border">
+            <h2 className="text-lg font-semibold text-foreground">Recent Failed Runs</h2>
           </div>
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {stats.recentFailures.map((run) => (
               <div key={run.id} className="px-6 py-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-foreground">
                       Run ID: {run.id.slice(0, 8)}...
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       Program: {run.program_id?.slice(0, 8)}...
                     </p>
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">
                       {summarizeRunError(run.error_message)}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted-foreground/60">
                     {new Date(run.created_at).toLocaleString()}
                   </span>
                 </div>
@@ -302,24 +302,24 @@ export default async function AdminOverviewPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/admin/emergency"
-          className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+          className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/15 transition-colors"
         >
-          <Zap className="w-5 h-5 text-red-600" />
-          <span className="font-medium text-red-800">Emergency Controls</span>
+          <Zap className="w-5 h-5 text-red-600 dark:text-red-400" />
+          <span className="font-medium text-red-700 dark:text-red-300">Emergency Controls</span>
         </Link>
         <Link
           href="/admin/circuits"
-          className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+          className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-blue-500/15 transition-colors"
         >
-          <Activity className="w-5 h-5 text-blue-600" />
-          <span className="font-medium text-blue-800">Circuit Breakers</span>
+          <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <span className="font-medium text-blue-700 dark:text-blue-300">Circuit Breakers</span>
         </Link>
         <Link
           href="/admin/security"
-          className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-3 p-4 bg-muted/40 border border-border rounded-lg hover:bg-muted transition-colors"
         >
-          <AlertTriangle className="w-5 h-5 text-gray-600" />
-          <span className="font-medium text-gray-800">Security Sentinel</span>
+          <AlertTriangle className="w-5 h-5 text-muted-foreground" />
+          <span className="font-medium text-foreground">Security Sentinel</span>
         </Link>
       </div>
     </div>

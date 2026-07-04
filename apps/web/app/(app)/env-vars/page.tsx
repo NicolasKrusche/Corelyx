@@ -129,7 +129,7 @@ export default function EnvVarsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Environment Variables</h1>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Environment Variables</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
             Encrypted key/value pairs available to all workflows in this workspace as{" "}
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">$env.VARIABLE_NAME</code>.

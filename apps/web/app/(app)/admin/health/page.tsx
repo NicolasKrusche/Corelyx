@@ -23,42 +23,42 @@ export default async function HealthPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">System Health</h1>
-        <p className="text-gray-600">Detailed health check results</p>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">System Health</h1>
+        <p className="text-muted-foreground">Detailed health check results</p>
       </div>
       
       {/* Overall Status */}
       <div className={`p-6 rounded-lg border ${
         health.status === "healthy"
-          ? "bg-green-50 border-green-200"
+          ? "bg-green-500/10 border-green-500/30"
           : health.status === "degraded"
-          ? "bg-yellow-50 border-yellow-200"
-          : "bg-red-50 border-red-200"
+          ? "bg-yellow-500/10 border-yellow-500/30"
+          : "bg-red-500/10 border-red-500/30"
       }`}>
         <div className="flex items-center gap-4">
           {health.status === "healthy" ? (
-            <CheckCircle className="w-12 h-12 text-green-600" />
+            <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
           ) : health.status === "degraded" ? (
-            <AlertTriangle className="w-12 h-12 text-yellow-600" />
+            <AlertTriangle className="w-12 h-12 text-yellow-600 dark:text-yellow-400" />
           ) : (
-            <XCircle className="w-12 h-12 text-red-600" />
+            <XCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
           )}
           <div>
             <h2 className={`text-2xl font-bold ${
               health.status === "healthy"
-                ? "text-green-800"
+                ? "text-green-700 dark:text-green-300"
                 : health.status === "degraded"
-                ? "text-yellow-800"
-                : "text-red-800"
+                ? "text-yellow-700 dark:text-yellow-300"
+                : "text-red-700 dark:text-red-300"
             }`}>
               {health.status === "healthy" ? "All Systems Operational" : 
                health.status === "degraded" ? "Systems Degraded" : 
                "Systems Unhealthy"}
             </h2>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Last checked: {new Date(health.timestamp).toLocaleString()}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Version: {health.version}
             </p>
           </div>
@@ -81,29 +81,29 @@ export default async function HealthPage() {
           return (
             <div 
               key={name}
-              className={`bg-white rounded-lg shadow-sm border overflow-hidden ${
+              className={`bg-card rounded-lg shadow-sm border overflow-hidden ${
                 check.status === "pass"
-                  ? "border-green-200"
+                  ? "border-green-500/30"
                   : check.status === "warn"
-                  ? "border-yellow-200"
-                  : "border-red-200"
+                  ? "border-yellow-500/30"
+                  : "border-red-500/30"
               }`}
             >
               <div className={`px-6 py-4 border-b ${
                 check.status === "pass"
-                  ? "bg-green-50 border-green-200"
+                  ? "bg-green-500/10 border-green-500/30"
                   : check.status === "warn"
-                  ? "bg-yellow-50 border-yellow-200"
-                  : "bg-red-50 border-red-200"
+                  ? "bg-yellow-500/10 border-yellow-500/30"
+                  : "bg-red-500/10 border-red-500/30"
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Icon className={`w-5 h-5 ${
                       check.status === "pass"
-                        ? "text-green-600"
+                        ? "text-green-600 dark:text-green-400"
                         : check.status === "warn"
-                        ? "text-yellow-600"
-                        : "text-red-600"
+                        ? "text-yellow-600 dark:text-yellow-400"
+                        : "text-red-600 dark:text-red-400"
                     }`} />
                     <h3 className="font-semibold capitalize">
                       {name.replace(/_/g, " ")}
@@ -111,10 +111,10 @@ export default async function HealthPage() {
                   </div>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     check.status === "pass"
-                      ? "bg-green-100 text-green-800"
+                      ? "bg-green-500/15 text-green-700 dark:text-green-300"
                       : check.status === "warn"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-red-100 text-red-800"
+                      ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
+                      : "bg-red-500/15 text-red-700 dark:text-red-300"
                   }`}>
                     {check.status === "pass" ? "Healthy" : 
                      check.status === "warn" ? "Warning" : "Failed"}
@@ -125,16 +125,16 @@ export default async function HealthPage() {
               <div className="px-6 py-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-500">Response Time</p>
-                    <p className="font-medium text-gray-900">
+                    <p className="text-muted-foreground">Response Time</p>
+                    <p className="font-medium text-foreground">
                       {check.responseTimeMs}ms
                     </p>
                   </div>
                   {check.message && (
                     <div className="col-span-2">
-                      <p className="text-gray-500">Message</p>
+                      <p className="text-muted-foreground">Message</p>
                       <p className={`font-medium ${
-                        check.status === "fail" ? "text-red-600" : "text-gray-900"
+                        check.status === "fail" ? "text-red-600 dark:text-red-400" : "text-foreground"
                       }`}>
                         {check.message}
                       </p>
@@ -142,8 +142,8 @@ export default async function HealthPage() {
                   )}
                   {check.lastError && (
                     <div className="col-span-2">
-                      <p className="text-gray-500">Last Error</p>
-                      <p className="text-red-600 font-mono text-xs">
+                      <p className="text-muted-foreground">Last Error</p>
+                      <p className="text-red-600 dark:text-red-400 font-mono text-xs">
                         {check.lastError}
                       </p>
                     </div>
@@ -156,7 +156,7 @@ export default async function HealthPage() {
       </div>
       
       {/* Refresh Info */}
-      <div className="text-center text-sm text-gray-500">
+      <div className="text-center text-sm text-muted-foreground">
         <p>Health checks are performed in real-time on each page load.</p>
         <p>For continuous monitoring, check the status page or set up alerts.</p>
       </div>

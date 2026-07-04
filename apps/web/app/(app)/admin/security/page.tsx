@@ -114,10 +114,10 @@ async function applyLockAction(formData: FormData) {
 function severityBadge(severity: SecurityEventRow["severity"]) {
   const styles =
     severity === "critical"
-      ? "bg-red-100 text-red-800"
+      ? "bg-red-500/15 text-red-700 dark:text-red-300"
       : severity === "warning"
-        ? "bg-amber-100 text-amber-800"
-        : "bg-gray-100 text-gray-700";
+        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+        : "bg-muted text-foreground/80";
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>
       {severity}
@@ -157,15 +157,15 @@ export default async function SecuritySentinelPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Security Sentinel</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Security Sentinel</h1>
+        <p className="text-muted-foreground">
           Anomaly events and scoped containment locks. Locks affect one token,
           program, or user — full maintenance mode lives under Emergency.
         </p>
       </div>
 
       {actionError && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {actionError}
         </div>
@@ -173,87 +173,87 @@ export default async function SecuritySentinelPage({
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className={`rounded-full p-3 ${locks.length > 0 ? "bg-red-100" : "bg-green-100"}`}>
+            <div className={`rounded-full p-3 ${locks.length > 0 ? "bg-red-500/15" : "bg-green-500/15"}`}>
               {locks.length > 0 ? (
-                <Lock className="h-6 w-6 text-red-600" />
+                <Lock className="h-6 w-6 text-red-600 dark:text-red-400" />
               ) : (
-                <ShieldCheck className="h-6 w-6 text-green-600" />
+                <ShieldCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
               )}
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Locks</p>
-              <p className="text-2xl font-bold text-gray-900">{locks.length}</p>
+              <p className="text-sm font-medium text-muted-foreground">Active Locks</p>
+              <p className="text-2xl font-bold text-foreground">{locks.length}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className={`rounded-full p-3 ${criticalToday > 0 ? "bg-red-100" : "bg-gray-100"}`}>
-              <ShieldAlert className={`h-6 w-6 ${criticalToday > 0 ? "text-red-600" : "text-gray-500"}`} />
+            <div className={`rounded-full p-3 ${criticalToday > 0 ? "bg-red-500/15" : "bg-muted"}`}>
+              <ShieldAlert className={`h-6 w-6 ${criticalToday > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`} />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Critical (24h)</p>
-              <p className="text-2xl font-bold text-gray-900">{criticalToday}</p>
+              <p className="text-sm font-medium text-muted-foreground">Critical (24h)</p>
+              <p className="text-2xl font-bold text-foreground">{criticalToday}</p>
             </div>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="rounded-full bg-blue-100 p-3">
-              <AlertTriangle className="h-6 w-6 text-blue-600" />
+            <div className="rounded-full bg-blue-500/15 p-3">
+              <AlertTriangle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Events (24h)</p>
-              <p className="text-2xl font-bold text-gray-900">{eventsToday.length}</p>
+              <p className="text-sm font-medium text-muted-foreground">Events (24h)</p>
+              <p className="text-2xl font-bold text-foreground">{eventsToday.length}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Active locks */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">Active Locks</h2>
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="text-lg font-semibold text-foreground">Active Locks</h2>
         </div>
         {locks.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-muted-foreground">
             <ShieldCheck className="mx-auto mb-3 h-12 w-12 text-green-500" />
             <p>No active security locks</p>
             <p className="text-sm">Nothing is currently contained</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/40">
                 <tr>
                   {["Scope", "Scope ID", "Reason", "Locked By", "Expires", ""].map((h) => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th key={h} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-border bg-card">
                 {locks.map((lock) => (
-                  <tr key={lock.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{lock.scope_type}</td>
-                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-gray-500" title={lock.scope_id}>
+                  <tr key={lock.id} className="hover:bg-muted/40">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-foreground">{lock.scope_type}</td>
+                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-muted-foreground" title={lock.scope_id}>
                       {shortScope(lock.scope_id)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{lock.reason}</td>
-                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-foreground/80">{lock.reason}</td>
+                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-muted-foreground">
                       {lock.locked_by === "sentinel" ? "sentinel (auto)" : shortScope(lock.locked_by)}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatExpiry(lock.expires_at)}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">{formatExpiry(lock.expires_at)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <form action={releaseLockAction}>
                         <input type="hidden" name="scope_type" value={lock.scope_type} />
                         <input type="hidden" name="scope_id" value={lock.scope_id} />
                         <button
                           type="submit"
-                          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted"
                         >
                           <Unlock className="h-3.5 w-3.5" />
                           Release
@@ -269,9 +269,9 @@ export default async function SecuritySentinelPage({
       </div>
 
       {/* Manual lock */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-lg font-semibold text-gray-900">Apply a Manual Lock</h2>
-        <p className="mb-4 text-sm text-gray-600">
+      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
+        <h2 className="mb-1 text-lg font-semibold text-foreground">Apply a Manual Lock</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
           Contain a specific program, user, or webhook token while you investigate.
           Webhook tokens must be entered as their SHA-256 hash (shown in events).
         </p>
@@ -279,7 +279,7 @@ export default async function SecuritySentinelPage({
           <select
             name="scope_type"
             defaultValue="program"
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-md border border-border px-3 py-2 text-sm"
           >
             {SCOPE_TYPES.map((t) => (
               <option key={t} value={t}>{t}</option>
@@ -289,19 +289,19 @@ export default async function SecuritySentinelPage({
             name="scope_id"
             required
             placeholder="Scope id (program/user UUID, token hash…)"
-            className="rounded-md border border-gray-300 px-3 py-2 font-mono text-sm lg:col-span-2"
+            className="rounded-md border border-border px-3 py-2 font-mono text-sm lg:col-span-2"
           />
           <input
             name="ttl_minutes"
             type="number"
             min={1}
             placeholder="TTL minutes (blank = until released)"
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-md border border-border px-3 py-2 text-sm"
           />
           <input
             name="reason"
             placeholder="Reason"
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm sm:col-span-2 lg:col-span-4"
+            className="rounded-md border border-border px-3 py-2 text-sm sm:col-span-2 lg:col-span-4"
           />
           <button
             type="submit"
@@ -314,40 +314,40 @@ export default async function SecuritySentinelPage({
       </div>
 
       {/* Recent events */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Security Events</h2>
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="text-lg font-semibold text-foreground">Recent Security Events</h2>
         </div>
         {events.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-muted-foreground">
             <ShieldCheck className="mx-auto mb-3 h-12 w-12 text-green-500" />
             <p>No security events recorded</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/40">
                 <tr>
                   {["Time", "Event", "Severity", "Scope", "Scope ID", "Details"].map((h) => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th key={h} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-border bg-card">
                 {events.map((e) => (
-                  <tr key={e.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <tr key={e.id} className="hover:bg-muted/40">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">
                       {new Date(e.created_at).toLocaleString()}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-gray-900">{e.event}</td>
+                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-foreground">{e.event}</td>
                     <td className="whitespace-nowrap px-6 py-4">{severityBadge(e.severity)}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{e.scope_type}</td>
-                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-gray-500" title={e.scope_id}>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-foreground/80">{e.scope_type}</td>
+                    <td className="whitespace-nowrap px-6 py-4 font-mono text-sm text-muted-foreground" title={e.scope_id}>
                       {shortScope(e.scope_id)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-muted-foreground">
                       {e.details ? JSON.stringify(e.details).slice(0, 80) : "—"}
                     </td>
                   </tr>
@@ -359,9 +359,9 @@ export default async function SecuritySentinelPage({
       </div>
 
       {/* Rules reference */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
-        <h3 className="mb-2 text-lg font-semibold text-blue-900">Automatic Rules</h3>
-        <div className="space-y-2 text-sm text-blue-800">
+      <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-6">
+        <h3 className="mb-2 text-lg font-semibold text-blue-700 dark:text-blue-300">Automatic Rules</h3>
+        <div className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
           {Object.entries(SENTINEL_RULES).map(([event, rule]) => (
             <p key={event}>
               <strong className="font-mono">{event}</strong>: over{" "}

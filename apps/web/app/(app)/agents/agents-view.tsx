@@ -24,6 +24,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CineEyebrow, CINE_TITLE } from "@/components/cinematic";
 import {
   buildFlowClusters,
   type Rel,
@@ -159,7 +160,7 @@ function CompactAgentCard({ agent }: { agent: AgentVM }) {
         <div className="flex items-center gap-1.5">
           <p className="truncate text-sm font-semibold group-hover:text-primary">{agent.name}</p>
           {agent.hasQuestion && (
-            <span className="shrink-0 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 ring-1 ring-amber-500/25 dark:text-amber-400">
+            <span className="shrink-0 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 shadow-[0_0_10px_-2px_rgba(245,158,11,0.6)] ring-1 ring-amber-500/25 dark:text-amber-400">
               Needs answer
             </span>
           )}
@@ -191,26 +192,30 @@ function CompactAgentCard({ agent }: { agent: AgentVM }) {
 // ── Kanban column ──
 type ColumnTone = "amber" | "red" | "blue" | "emerald";
 
-const COLUMN_TONE: Record<ColumnTone, { dot: string; text: string; pill: string }> = {
+const COLUMN_TONE: Record<ColumnTone, { dot: string; text: string; pill: string; line: string }> = {
   amber: {
-    dot: "bg-amber-500",
+    dot: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]",
     text: "text-amber-600 dark:text-amber-400",
     pill: "bg-amber-500/10 text-amber-600 ring-amber-500/25 dark:text-amber-400",
+    line: "via-amber-500/50",
   },
   red: {
-    dot: "bg-destructive",
+    dot: "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.8)]",
     text: "text-destructive",
     pill: "bg-destructive/10 text-destructive ring-destructive/25",
+    line: "via-red-500/50",
   },
   blue: {
-    dot: "bg-primary",
+    dot: "bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.8)]",
     text: "text-primary",
     pill: "bg-primary/10 text-primary ring-primary/25",
+    line: "via-[hsl(var(--primary)/0.5)]",
   },
   emerald: {
-    dot: "bg-emerald-500",
+    dot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]",
     text: "text-emerald-600 dark:text-emerald-400",
     pill: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25 dark:text-emerald-400",
+    line: "via-emerald-500/50",
   },
 };
 
@@ -231,16 +236,17 @@ function KanbanColumn({
   return (
     <section
       className={cn(
-        "flex flex-col overflow-hidden rounded-2xl border glass-panel",
+        "relative flex flex-col overflow-hidden rounded-2xl border glass-panel",
         emphasized && agents.length > 0 && "ring-1",
         emphasized && agents.length > 0 && tone === "amber" && "ring-amber-500/20",
         emphasized && agents.length > 0 && tone === "red" && "ring-destructive/20"
       )}
     >
+      <div className={cn("absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent", t.line)} />
       <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
           <span className={cn("h-2 w-2 rounded-full", t.dot)} />
-          <p className={cn("text-[11px] font-semibold uppercase tracking-wider", t.text)}>{title}</p>
+          <p className={cn("font-mono text-[11px] font-semibold uppercase tracking-wider", t.text)}>{title}</p>
         </div>
         <span
           className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1", t.pill)}
@@ -286,12 +292,13 @@ function SummaryStrip({
     { label: "Completed", value: completed, Icon: CheckCircle2, tone: "text-emerald-500" },
   ];
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border glass-panel px-5 py-3">
+    <div className="relative flex flex-wrap items-center gap-x-6 gap-y-2 overflow-hidden rounded-2xl border glass-panel px-5 py-3">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[hsl(var(--primary)/0.35)] to-transparent" />
       {items.map((it) => (
         <div key={it.label} className="flex items-center gap-2">
           <it.Icon className={cn("h-4 w-4", it.tone)} />
           <span className="text-lg font-black tracking-tight tabular-nums">{it.value}</span>
-          <span className="text-xs text-muted-foreground">{it.label}</span>
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{it.label}</span>
         </div>
       ))}
     </div>
@@ -499,7 +506,7 @@ function FlowCluster({
   return (
     <div className="overflow-hidden rounded-2xl border glass-panel">
       <div className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-2.5">
-        <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+        <p className="truncate font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
           {title}
         </p>
         {badge && (
@@ -572,7 +579,7 @@ function FlowCluster({
 function FlowLegend() {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border glass-panel px-4 py-3 text-[11px]">
-      <span className="font-semibold uppercase tracking-wider text-muted-foreground/70">
+      <span className="font-mono font-semibold uppercase tracking-wider text-muted-foreground/70">
         Reference types
       </span>
       {(Object.keys(REL) as Rel[]).map((k) => (
@@ -676,7 +683,7 @@ function FlowView({
 
       {clusters.length > 0 ? (
         <div className="space-y-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
             Your linked agents
           </p>
           {clusters.map((c, i) => (
@@ -741,7 +748,8 @@ function FlaggedInbox({ flags }: { flags: FlagVM[] }) {
   if (items.length === 0) return null;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-destructive/30 bg-destructive/[0.04] ring-1 ring-destructive/15">
+    <section className="relative overflow-hidden rounded-2xl border border-destructive/30 bg-destructive/[0.04] shadow-[0_0_40px_-18px_rgba(239,68,68,0.45)] ring-1 ring-destructive/15 backdrop-blur-sm">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
       <div className="flex items-center gap-2 border-b border-destructive/20 px-5 py-3">
         <AlertTriangle className="h-4 w-4 text-destructive" />
         <p className="text-sm font-semibold text-destructive">Flagged for review</p>
@@ -853,26 +861,27 @@ export function AgentsView({
   const needsAttention = needs.length;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6">
+    <div className="relative mx-auto w-full max-w-6xl space-y-6">
       {/* Header */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Agents</p>
-          <div className="mt-1 flex items-center gap-2.5">
-            <h1 className="text-2xl font-black tracking-tight">Your agents</h1>
+          <CineEyebrow>Agents</CineEyebrow>
+          <div className="mt-2 flex items-center gap-2.5">
+            <h1 className={cn("text-3xl", CINE_TITLE)}>Your agents</h1>
             {needsAttention > 0 && (
-              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 ring-1 ring-amber-500/25 dark:text-amber-400">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 shadow-[0_0_14px_-4px_rgba(245,158,11,0.7)] ring-1 ring-amber-500/25 dark:text-amber-400">
+                <span className="cx-blink h-1 w-1 rounded-full bg-amber-500" />
                 {needsAttention} need{needsAttention === 1 ? "s" : ""} you
               </span>
             )}
             {flags.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive ring-1 ring-destructive/25">
+              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive shadow-[0_0_14px_-4px_rgba(239,68,68,0.7)] ring-1 ring-destructive/25">
                 <AlertTriangle className="h-3 w-3" />
                 {flags.length} flagged
               </span>
             )}
           </div>
-          <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+          <p className="mt-1.5 max-w-lg font-mono text-xs text-muted-foreground">
             One-time agents handle a single, well-defined task. Describe it, approve the
             plan, run it once — then it steps aside.
           </p>
@@ -881,14 +890,14 @@ export function AgentsView({
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/agents/knowledge"
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/50 px-3.5 text-sm font-semibold transition-colors hover:bg-accent"
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3.5 text-sm font-semibold backdrop-blur-md transition-colors hover:bg-accent"
           >
             <BookOpen className="h-4 w-4" />
             Knowledge
           </Link>
           <Link
             href="/agents/new"
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:opacity-90"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_0_28px_-8px_hsl(var(--primary)/0.7)] transition-all hover:-translate-y-0.5 hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
             New agent
@@ -900,8 +909,8 @@ export function AgentsView({
       <FlaggedInbox flags={flags} />
 
       {agents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center backdrop-blur-sm">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 shadow-[0_0_32px_-8px_hsl(var(--primary)/0.6)] ring-1 ring-primary/25">
             <Sparkles className="h-7 w-7 text-primary" />
           </span>
           <p className="mt-5 text-base font-semibold">No agents yet</p>
@@ -928,14 +937,14 @@ export function AgentsView({
               failed={failed.length}
               completed={completed.length}
             />
-            <div className="inline-flex shrink-0 self-start rounded-xl border border-border bg-background/50 p-0.5">
+            <div className="inline-flex shrink-0 self-start rounded-xl border border-border/70 bg-card/60 p-0.5 backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => setView("board")}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
                   view === "board"
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-[0_0_20px_-6px_hsl(var(--primary)/0.7)]"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -948,7 +957,7 @@ export function AgentsView({
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
                   view === "flow"
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-[0_0_20px_-6px_hsl(var(--primary)/0.7)]"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -970,7 +979,7 @@ export function AgentsView({
               {other.length > 0 && (
                 <section className="overflow-hidden rounded-2xl border glass-panel">
                   <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                       Drafts &amp; idle
                     </p>
                     <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground ring-1 ring-border/50">

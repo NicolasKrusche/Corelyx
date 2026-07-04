@@ -290,7 +290,7 @@ export default async function AgentDetailPage({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight">{program.name}</h1>
+              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">{program.name}</h1>
               <StateChip state={state} />
               {program.agent_saved_template && (
                 <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">

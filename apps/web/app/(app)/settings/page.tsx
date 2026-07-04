@@ -16,7 +16,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-2">
-      <h1 className="text-3xl font-black tracking-tight">Settings</h1>
+      <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Settings</h1>
       <p className="text-sm text-muted-foreground">
         Manage your account, appearance, language, and notification preferences.
       </p>

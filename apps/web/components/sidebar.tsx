@@ -452,6 +452,7 @@ export function Sidebar({
   const usageRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
+  const workspaceHoverTimerRef = useRef<number | null>(null);
   const sidebarRequestRef = useRef<AbortController | null>(null);
 
   const palette = SIDEBAR_PALETTE[base][accent];
@@ -636,6 +637,37 @@ export function Sidebar({
     }
   }, [workspaceMenuOpen]);
 
+  // Hover quick-switch: hovering the workspace button opens the switcher menu;
+  // leaving it (button + menu share one container) closes after a short grace
+  // period so the pointer can travel into the list. Click/keyboard still work.
+  function openWorkspaceMenuOnHover() {
+    if (workspaceHoverTimerRef.current !== null) {
+      window.clearTimeout(workspaceHoverTimerRef.current);
+      workspaceHoverTimerRef.current = null;
+    }
+    setWorkspaceMenuOpen(true);
+  }
+
+  function scheduleWorkspaceMenuClose() {
+    // Don't yank the menu away mid-typing in the inline create form.
+    if (createWorkspaceOpen) return;
+    if (workspaceHoverTimerRef.current !== null) {
+      window.clearTimeout(workspaceHoverTimerRef.current);
+    }
+    workspaceHoverTimerRef.current = window.setTimeout(() => {
+      workspaceHoverTimerRef.current = null;
+      setWorkspaceMenuOpen(false);
+    }, 260);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (workspaceHoverTimerRef.current !== null) {
+        window.clearTimeout(workspaceHoverTimerRef.current);
+      }
+    };
+  }, []);
+
   // Close mobile sidebar on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
@@ -813,7 +845,12 @@ export function Sidebar({
       </div>
 
       <div className="px-3 pt-3">
-        <div ref={workspaceMenuRef} className="relative mb-3">
+        <div
+          ref={workspaceMenuRef}
+          className="relative mb-3"
+          onMouseEnter={openWorkspaceMenuOnHover}
+          onMouseLeave={scheduleWorkspaceMenuClose}
+        >
           <button
             type="button"
             aria-label="Active workspace"
@@ -2556,7 +2593,7 @@ function SettingsModal({
                       onClick={() => setRawSchemaEnabled(!rawSchemaEnabled)}
                       className={cn(
                         "relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors duration-200 overflow-hidden",
-                        rawSchemaEnabled ? "bg-primary" : "bg-muted border border-border"
+                        rawSchemaEnabled ? "bg-primary shadow-[0_0_14px_-2px_hsl(var(--primary)/0.7)]" : "bg-muted border border-border"
                       )}
                     >
                       <span

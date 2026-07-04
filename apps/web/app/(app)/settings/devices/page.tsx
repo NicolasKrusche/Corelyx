@@ -26,7 +26,7 @@ export default async function DevicesPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-black tracking-tight">Devices</h1>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">Devices</h1>
         <p className="text-sm text-muted-foreground">
           Pair the Corelyx desktop app so your workflows and agents can act on local
           files. Files never leave your machine — every access runs inside folders
