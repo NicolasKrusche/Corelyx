@@ -975,8 +975,36 @@ describe("toReactFlow / fromReactFlow roundtrip", () => {
 
     expect(note?.zIndex).toBe(1000);
     expect(note?.dragHandle).toBe(".note-drag-handle");
+    // A note with no persisted size falls back to the default.
+    expect(note?.style).toMatchObject({ width: 200, height: 120 });
     expect(group?.style).toMatchObject({ width: 480, height: 320 });
     expect(schemaEqual(roundtrip(annotationSchema), annotationSchema)).toBe(true);
+  });
+
+  it("13. reflects a resized note's persisted width/height (does not snap back)", () => {
+    const resizedNoteSchema: ProgramSchema = {
+      ...triggerOnlySchema,
+      nodes: [
+        ...triggerOnlySchema.nodes,
+        {
+          id: "n1",
+          type: "note",
+          label: "Big note",
+          description: "",
+          connection: null,
+          position: { x: 0, y: 0 },
+          status: "idle",
+          config: { content: "resized", color: "blue", width: 360, height: 240 },
+        },
+      ],
+    };
+
+    const { nodes } = toReactFlow(resizedNoteSchema, null);
+    const note = nodes.find((node) => node.id === "n1");
+    // Persisted dimensions must survive the schema→canvas sync, otherwise a
+    // resize is discarded on the next re-render and the note snaps back.
+    expect(note?.style).toMatchObject({ width: 360, height: 240 });
+    expect(schemaEqual(roundtrip(resizedNoteSchema), resizedNoteSchema)).toBe(true);
   });
 });
 
