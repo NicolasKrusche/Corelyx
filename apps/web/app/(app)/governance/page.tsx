@@ -16,7 +16,7 @@ import {
   UserCheck,
   XCircle,
 } from "lucide-react";
-import { createServerClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { loadGovernanceInventory } from "@/lib/compliance/governance-server";
@@ -376,18 +376,18 @@ const EU_REGULATIONS = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function GovernancePage() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) redirect("/login");
 
   const activeWorkspace = await getActiveWorkspace(user.id);
   if (!activeWorkspace) redirect("/workspaces");
 
   const db = createServiceClient();
-  const inventory = await loadGovernanceInventory(activeWorkspace.workspaceId, db as never);
   const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
 
-  const [{ count: auditCount }, { count: runCount }, { count: pendingApprovalCount }] = await Promise.all([
+  // Inventory and the three metric counts are independent — one parallel wave.
+  const [inventory, { count: auditCount }, { count: runCount }, { count: pendingApprovalCount }] = await Promise.all([
+    loadGovernanceInventory(activeWorkspace.workspaceId, db as never),
     (db as any)
       .from("app_logs")
       .select("id", { count: "exact", head: true })

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, ShieldAlert } from "lucide-react";
-import { createServerClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { collectRunAuditLog } from "@/lib/compliance/audit-log";
@@ -33,8 +33,7 @@ function listOrDash(values: string[], max = 3) {
 }
 
 export default async function GovernanceAuditLogsPage() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) redirect("/login");
 
   const activeWorkspace = await getActiveWorkspace(user.id);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Download, FileText, ShieldCheck } from "lucide-react";
-import { createServerClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { ExportButtons } from "../_components/export-buttons";
@@ -13,8 +13,7 @@ export const metadata = {
 };
 
 export default async function GovernanceExportsPage() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) redirect("/login");
 
   const activeWorkspace = await getActiveWorkspace(user.id);

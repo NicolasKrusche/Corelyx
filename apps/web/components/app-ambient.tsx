@@ -64,7 +64,17 @@ export function AppAmbient() {
       }));
     };
 
-    const draw = () => {
+    // ~30fps is indistinguishable for slow-drifting dust but halves the
+    // full-screen composite work this layer adds to every app page.
+    const FRAME_MS = 33;
+    let lastFrame = 0;
+
+    const draw = (now = 0) => {
+      if (!reducedMq.matches && now - lastFrame < FRAME_MS) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
+      lastFrame = now;
       ctx.clearRect(0, 0, w, h);
       for (const p of parts) {
         p.y += p.vy;

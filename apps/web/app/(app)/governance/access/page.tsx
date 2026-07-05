@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AlertTriangle, KeyRound, Users } from "lucide-react";
-import { createServerClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { EmptyState, PanelSection, Pill, statusClass } from "../_components/ui";
@@ -24,8 +24,7 @@ const PROGRAM_ROLE_LABELS: Record<string, string> = {
 };
 
 export default async function GovernanceAccessPage() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) redirect("/login");
 
   const activeWorkspace = await getActiveWorkspace(user.id);

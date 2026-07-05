@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { loadGovernanceInventory } from "@/lib/compliance/governance-server";
@@ -15,8 +15,7 @@ export default async function GovernanceAiActPage({
 }: {
   searchParams: Promise<{ highlight?: string }>;
 }) {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getRequestUser();
   if (!user) redirect("/login");
 
   const activeWorkspace = await getActiveWorkspace(user.id);
