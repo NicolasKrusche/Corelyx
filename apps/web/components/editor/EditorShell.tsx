@@ -448,6 +448,28 @@ export function EditorShell({
   const [aiEditLoading, setAiEditLoading] = React.useState(false);
   const [aiEditError, setAiEditError] = React.useState<string | null>(null);
   const [aiEditMode, setAiEditMode] = React.useState<"personal" | "platform">("personal");
+  // Genesis V2 (dev-gated) patch-edit: available only to dev users; when on, AI
+  // edits run through the patch pipeline and animate the diff. Defaults on when
+  // available so the intended V2 behavior is what a dev sees.
+  const [v2EditAvailable, setV2EditAvailable] = React.useState(false);
+  const [useV2Edit, setUseV2Edit] = React.useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/genesis/models");
+        if (!res.ok) return;
+        const body = (await res.json()) as { v2Available?: boolean };
+        if (!cancelled) setV2EditAvailable(body.v2Available === true);
+      } catch {
+        // No toggle on failure — AI edit still works (as V1).
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [isValidating, setIsValidating] = React.useState(false);
   const [validationNotice, setValidationNotice] = React.useState<string | null>(null);
@@ -1589,6 +1611,10 @@ export function EditorShell({
 
     let requestBody: Record<string, unknown>;
 
+    // Genesis V2 patch-edit opt-in (dev-gated; server treats it as V1 for
+    // non-devs). When on, the refinement returns a patch and the diff animates.
+    const v2Field = v2EditAvailable && useV2Edit ? { genesis_v2: true } : {};
+
     if (aiEditMode === "platform") {
       requestBody = {
         description: state.schema.program_name,
@@ -1597,6 +1623,7 @@ export function EditorShell({
         existing_schema: state.schema,
         refinement: prompt,
         existing_program_id: programId,
+        ...v2Field,
       };
     } else {
       const bestKey = [...apiKeys].sort(
@@ -1618,6 +1645,7 @@ export function EditorShell({
         existing_schema: state.schema,
         refinement: prompt,
         existing_program_id: programId,
+        ...v2Field,
       };
     }
 
@@ -1798,7 +1826,7 @@ export function EditorShell({
       setAiEditLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiEditMode, aiEditPrompt, apiKeys, linkedConnections, programId, state.schema]);
+  }, [aiEditMode, aiEditPrompt, apiKeys, linkedConnections, programId, state.schema, v2EditAvailable, useV2Edit]);
 
   // ── Genesis clarification answers (V2) ────────────────────────────────────
   // Applies one answer as a scoped server-side patch, then animates the diff
@@ -2186,6 +2214,9 @@ export function EditorShell({
           mode={aiEditMode}
           onModeChange={(m: AiEditMode) => { setAiEditMode(m); setAiEditError(null); }}
           platformRateCredits={1_000}
+          v2Available={v2EditAvailable}
+          useV2={useV2Edit}
+          onV2Change={setUseV2Edit}
         />
       )}
 
