@@ -847,7 +847,8 @@ export function buildRefinementUserMessage(
   refinement: string,
   existingSchema: object,
   availableConnections: Array<{ name: string; type: string; scopes: string[] }>,
-  euComplianceContext?: string | null
+  euComplianceContext?: string | null,
+  options?: { usePatch?: boolean }
 ): string {
   const connectionList =
     availableConnections.length > 0
@@ -876,9 +877,25 @@ export function buildRefinementUserMessage(
     "",
     "You are EDITING this existing program, not creating a new one. Apply the smallest change that satisfies the request — add, remove, or modify only the specific nodes/edges/fields it requires.",
     "",
-    PATCH_OUTPUT_SPEC,
+    // Genesis V2 (dev-gated) asks for a patch; V1 asks for the full schema.
+    options?.usePatch ? PATCH_OUTPUT_SPEC : FULL_SCHEMA_EDIT_SPEC,
   ].join("\n");
 }
+
+// V1 refinement contract: return the whole updated schema. Kept as the default
+// so non-V2 (non-dev) refinements behave exactly as before Genesis V2.
+const FULL_SCHEMA_EDIT_SPEC = [
+  "EDIT RULES (these OVERRIDE the system prompt's generation defaults):",
+  "- Reuse the EXISTING `program_id` verbatim. Do NOT emit \"__GENERATED__\".",
+  "- Keep `program_name`, `execution_mode`, `created_at`, and `metadata` exactly as-is unless the request explicitly changes them. Update `updated_at` to the current time.",
+  "- For every node and edge that is NOT affected by the request, copy it through byte-for-byte: same `id`, `type`, `label`, `description`, `connection`, `config`, and `position`. Do NOT renumber, rename, reword, reorder, or re-lay-out unchanged nodes. Ignore the system prompt's \"n1, n2, …\" id convention and POSITIONS rule for nodes that already exist — preserve their current ids and positions.",
+  "- When MODIFYING a node, keep its existing `id` and `position`; change only the fields the request calls for. EXCEPTION: if the change alters what the node does, ALSO update its `label` and `description` so they accurately describe the new behavior — a node whose config no longer matches its label is a bug.",
+  "- When ADDING a node, give it a new id that does not collide with any existing id (e.g. continue the existing numbering), wire it in with new edges, and reuse an existing node's nearby position as a starting point.",
+  "- When REMOVING a node, also remove every edge that references it and reconnect the surrounding nodes so the graph stays connected.",
+  "- Preserve any `__USER_ASSIGNED__` values (model, api_key_ref, etc.) already present — never overwrite a user's assigned model or key.",
+  "",
+  "Return the complete canonical updated program schema as a single JSON object, not a patch — but it must read as the original schema with only the requested edit applied. Include every required top-level field, node field, config default, trigger entry, and edge field. Output only the raw JSON object — no explanation, no markdown, no code fences.",
+].join("\n");
 
 // Shared patch-output contract for refinements and clarification answers.
 const PATCH_OUTPUT_SPEC = [

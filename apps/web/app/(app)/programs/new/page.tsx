@@ -198,6 +198,9 @@ function NewProgramPageInner() {
   // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
   const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b:free");
+  // Genesis V2 (dev-gated): toggle shown only when the server reports access.
+  const [v2Available, setV2Available] = useState(false);
+  const [useV2, setUseV2] = useState(false);
 
   useEffect(() => {
     if (!connectionsOpen) return;
@@ -263,6 +266,7 @@ function NewProgramPageInner() {
         const models = (data.models ?? []) as PlatformModel[];
         setPlatformModels(models);
         setSelectedPlatformModel(data.defaultModel ?? "openai/gpt-oss-120b:free");
+        setV2Available(data.v2Available === true);
       })
       .catch(() => { /* non-fatal — stays on default free model */ });
   }, []);
@@ -409,6 +413,7 @@ function NewProgramPageInner() {
           connection_ids: [...selectedIds],
           api_key_id: keyIdToUse,
           model: modelToUse,
+          ...(v2Available && useV2 ? { genesis_v2: true } : {}),
         }),
       });
     } catch (error) {
@@ -700,6 +705,9 @@ function NewProgramPageInner() {
     const loadedIds = await connectionsLoadRef.current;
     const connectionIds = connectionsTouchedRef.current ? [...selectedIds] : loadedIds;
 
+    // Genesis V2 opt-in — only meaningful for dev users; server gates regardless.
+    const v2Field = v2Available && useV2 ? { genesis_v2: true as const } : {};
+
     const payload = selection
       ? {
           description: descriptionToUse,
@@ -707,6 +715,7 @@ function NewProgramPageInner() {
           api_key_id: selection.keyId,
           model: selection.modelId,
           layout_direction,
+          ...v2Field,
         }
       : {
           description: descriptionToUse,
@@ -715,6 +724,7 @@ function NewProgramPageInner() {
           // Include the chosen platform model (may be non-default for paid tiers)
           model: selectedPlatformModel,
           layout_direction,
+          ...v2Field,
         };
 
     // Hand the job to the app-wide provider so it keeps running even if the user
@@ -756,6 +766,33 @@ function NewProgramPageInner() {
           </div>
           {scratchCreateError && (
             <p className="text-xs text-red-300">{scratchCreateError}</p>
+          )}
+          {v2Available && (
+            <button
+              type="button"
+              onClick={() => setUseV2((v) => !v)}
+              aria-pressed={useV2}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-200 ${
+                useV2
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/60 bg-background/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span
+                className={`inline-flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                  useV2 ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`h-3 w-3 rounded-full bg-white transition-transform ${
+                    useV2 ? "translate-x-3" : "translate-x-0"
+                  }`}
+                />
+              </span>
+              <span>
+                Genesis V2 <span className="opacity-60">· dev · live introspection, patch edits, clarifying questions</span>
+              </span>
+            </button>
           )}
         </div>
       ) : (

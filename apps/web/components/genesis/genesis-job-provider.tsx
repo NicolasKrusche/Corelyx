@@ -20,7 +20,7 @@ import { friendlyErrorMessage } from "@/lib/friendly-errors";
 export type GenesisPayload = (
   | { description: string; connection_ids: string[]; api_key_id: string; model: string }
   | { description: string; connection_ids: string[]; use_platform_key: true; model?: string }
-) & { layout_direction?: "horizontal" | "vertical" };
+) & { layout_direction?: "horizontal" | "vertical"; genesis_v2?: boolean };
 
 export type GenesisJobNode = {
   id: string;

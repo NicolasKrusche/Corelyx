@@ -32,6 +32,7 @@ import {
   type GenesisPatchSummary,
 } from "@/lib/genesis/patch";
 import { extractClarifications } from "@/lib/genesis/clarifications";
+import { isGenesisV2Enabled } from "@/lib/genesis/v2-access";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
@@ -278,11 +279,13 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connectionRows);
 
-  // Genesis V2: introspect the selected connections for live, metadata-only
-  // capability data. User-named strings are registered with piiSession — only
-  // placeholders reach the prompt. Failures fall back to the static catalog.
+  // Genesis V2 (dev-gated): introspect the selected connections for live,
+  // metadata-only capability data. User-named strings are registered with
+  // piiSession — only placeholders reach the prompt. Failures fall back to the
+  // static catalog. Skipped entirely when V2 is off.
+  const v2Enabled = await isGenesisV2Enabled(userId, user.email, parsed.data.genesis_v2);
   let capabilitySection: string | null = null;
-  if (connectionRows.length > 0) {
+  if (v2Enabled && connectionRows.length > 0) {
     const descriptors = await fetchConnectionCapabilities(
       connectionRows.map((row) => row.id),
       userId
@@ -465,7 +468,8 @@ export async function POST(request: Request) {
           ? sanitizedExistingSchema.value
           : {}) as object,
         availableConnections,
-        euComplianceContext
+        euComplianceContext,
+        { usePatch: v2Enabled }
       )
     : buildGenesisUserMessage(groundedDescription, availableConnections, euComplianceContext);
 
@@ -758,7 +762,7 @@ export async function POST(request: Request) {
   // trusted existing schema. Full-schema responses fall through to the legacy
   // path with a computed diff so the client can animate either way.
   let patchSummary: GenesisPatchSummary | null = null;
-  if (isRefinement && existing_schema && typeof existing_schema === "object") {
+  if (v2Enabled && isRefinement && existing_schema && typeof existing_schema === "object") {
     if (isGenesisPatch(parsed_schema)) {
       const patchResult = GenesisPatchZ.safeParse(parsed_schema);
       if (!patchResult.success) {
@@ -836,9 +840,10 @@ export async function POST(request: Request) {
 
   // ── Refinement path: update existing program ─────────────────────────────
   if (isRefinement) {
-    // Legacy full-schema response: derive the diff so clients can render the
-    // change and the version row still records what actually changed.
-    if (!patchSummary && existing_schema && typeof existing_schema === "object") {
+    // Under V2, if the model returned a full schema instead of a patch, derive
+    // the diff so the version row records what changed. Under V1 there is no
+    // patch column write and behavior is unchanged.
+    if (v2Enabled && !patchSummary && existing_schema && typeof existing_schema === "object") {
       patchSummary = diffSchemas(existing_schema as object, schema as object);
     }
 

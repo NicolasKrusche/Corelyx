@@ -33,6 +33,10 @@ export const GenesisRequestSchema = z.object({
   // "agent" generates a one-time agent (program_type:"agent") instead of a
   // repeating workflow. Absent = workflow, preserving existing behavior.
   program_type: z.enum(["workflow", "agent"]).optional(),
+  // Genesis V2 opt-in (dev-gated): live connection introspection, patch-based
+  // refinement, and clarifying questions. The server only honors this for users
+  // with technical access; a non-dev request is silently treated as V1.
+  genesis_v2: z.boolean().optional(),
 }).superRefine((request, ctx) => {
   if (!isGenesisRefinementRequest(request) && request.description.length < 10) {
     ctx.addIssue({

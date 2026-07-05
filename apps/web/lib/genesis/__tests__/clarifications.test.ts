@@ -73,10 +73,15 @@ describe("prompt integration", () => {
     expect(prompt).toContain("LIVE CONNECTION CAPABILITIES");
   });
 
-  it("refinement message asks for a patch, not a full schema", () => {
-    const message = buildRefinementUserMessage("add a filter", { nodes: [] }, []);
-    expect(message).toContain("return a PATCH");
-    expect(message).toContain("patch_version");
-    expect(message).not.toContain("not a patch");
+  it("refinement asks for a full schema by default (V1), a patch under V2", () => {
+    // Default (dev V2 off) preserves the pre-V2 full-schema edit contract.
+    const v1 = buildRefinementUserMessage("add a filter", { nodes: [] }, []);
+    expect(v1).toContain("not a patch");
+    expect(v1).not.toContain("return a PATCH");
+
+    // V2 (dev-gated) opts into patch output.
+    const v2 = buildRefinementUserMessage("add a filter", { nodes: [] }, [], null, { usePatch: true });
+    expect(v2).toContain("return a PATCH");
+    expect(v2).toContain("patch_version");
   });
 });
