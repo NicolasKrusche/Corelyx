@@ -198,6 +198,10 @@ function NewProgramPageInner() {
   // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
   const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b:free");
+  // True once the user explicitly picks a model in the platform picker. When set,
+  // generation uses the platform key with that model instead of silently
+  // preferring an auto-selected BYOK key (which ignored the picker entirely).
+  const [platformModelChosen, setPlatformModelChosen] = useState(false);
   // Genesis V2 (dev-gated): toggle shown only when the server reports access.
   const [v2Available, setV2Available] = useState(false);
   const [useV2, setUseV2] = useState(false);
@@ -679,16 +683,20 @@ function NewProgramPageInner() {
 
     setInlinePhase("generating");
 
+    // If the user explicitly picked a platform model, use the platform path with
+    // it. Otherwise fall back to auto-selecting a BYOK key (legacy default).
     let selection: { keyId: string; modelId: string } | null = null;
-    try {
-      selection = await ensureModelSelection();
-    } catch {
-      setInlinePhase("connections");
-      setInlineMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "We could not connect. Check your internet connection and try again." },
-      ]);
-      return;
+    if (!platformModelChosen) {
+      try {
+        selection = await ensureModelSelection();
+      } catch {
+        setInlinePhase("connections");
+        setInlineMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: "We could not connect. Check your internet connection and try again." },
+        ]);
+        return;
+      }
     }
 
     // Honor the user's last-chosen layout orientation (set via the editor's
@@ -946,7 +954,7 @@ function NewProgramPageInner() {
           onImport={navigateImportSource}
           availableModels={platformModels}
           selectedModelId={selectedPlatformModel}
-          onModelChange={setSelectedPlatformModel}
+          onModelChange={(id) => { setSelectedPlatformModel(id); setPlatformModelChosen(true); }}
         />
       </div>
     );
