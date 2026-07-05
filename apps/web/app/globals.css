@@ -157,6 +157,9 @@
   pointer-events: none;
   z-index: -9;
   border-radius: 50%;
+  /* Promote each blurred orb to its own compositor layer so the huge blur()
+     is rasterized once instead of re-filtered on every animation frame. */
+  will-change: transform;
 }
 
 .orb-primary {

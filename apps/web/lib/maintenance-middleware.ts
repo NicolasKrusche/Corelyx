@@ -88,8 +88,6 @@ async function readSessionIdentity(
 }
 
 export async function maintenanceGate(request: NextRequest): Promise<NextResponse | null> {
-  // TEMP local verification bypass — DO NOT COMMIT.
-  if (process.env.NODE_ENV === "development") return null;
   const flags = await readSystemFlags();
   const { pathname } = request.nextUrl;
 

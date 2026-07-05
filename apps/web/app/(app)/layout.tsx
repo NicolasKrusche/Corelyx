@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient, getRequestUser } from "@/lib/supabase/server";
 import { TWO_FACTOR_COOKIE, verifyCookieValue } from "@/lib/auth/two-factor";
 
 // Entire authenticated app shell must be excluded from search index.
@@ -18,7 +18,6 @@ import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
 import { MaintenanceAdminBanner } from "@/components/maintenance-admin-banner";
-import { ensureAvatarBucket } from "@/lib/avatar-storage";
 
 type AppLayoutUser = {
   id: string;
@@ -42,9 +41,7 @@ type AppLayoutProfile = {
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getRequestUser();
 
   const allowMockUser =
     process.env.NODE_ENV === "development" &&
@@ -60,17 +57,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       identities: [],
     };
 
-  try {
-    await ensureAvatarBucket();
-  } catch (error) {
-    console.warn("[app] Could not ensure avatar bucket:", error);
-  }
-
-  const { data: profileRaw, error: profileError } = await supabase
-    .from("profiles")
-    .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username, legal_consented_at, email_2fa_enabled")
-    .eq("id", appUser.id)
-    .single();
+  // Profile + XP counts in one parallel wave — this layout runs on every
+  // authenticated page, so each extra sequential round trip slows the whole app.
+  // (Avatar-bucket provisioning happens in the avatar upload route, not here.)
+  const [
+    { data: profileRaw, error: profileError },
+    { count: runCount },
+    { count: programCount },
+    { count: connectionCount },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("tier, plan_expires_at, is_beta_tester, display_name, avatar_url, created_at, is_admin, username, legal_consented_at, email_2fa_enabled")
+      .eq("id", appUser.id)
+      .single(),
+    supabase.from("runs").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
+    supabase.from("programs").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
+    supabase.from("connections").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
+  ]);
   const profile = profileRaw as AppLayoutProfile | null;
 
   // Only redirect to onboarding when the query succeeded but the profile is
@@ -97,12 +101,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
-  // Fetch XP stats for skill level calculation (parallel, best-effort)
-  const [{ count: runCount }, { count: programCount }, { count: connectionCount }] = await Promise.all([
-    supabase.from("runs").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
-    supabase.from("programs").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
-    supabase.from("connections").select("id", { count: "exact", head: true }).eq("user_id", appUser.id),
-  ]);
   const skillXp =
     (runCount ?? 0) * 5 +
     (programCount ?? 0) * 50 +
