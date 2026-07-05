@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
+import { ModelSelector, type PlatformModel } from "@/components/ui/bolt-style-chat";
 
 export type AiEditMode = "personal" | "platform";
 
@@ -25,6 +26,10 @@ interface AiEditPanelProps {
   v2Available?: boolean;
   useV2?: boolean;
   onV2Change?: (value: boolean) => void;
+  /** Platform model catalog (with tier-lock flags) for the Corelyx AI path. */
+  platformModels?: PlatformModel[];
+  selectedModel?: string;
+  onModelChange?: (id: string) => void;
 }
 
 export function AiEditPanel({
@@ -41,6 +46,9 @@ export function AiEditPanel({
   v2Available = false,
   useV2 = false,
   onV2Change,
+  platformModels = [],
+  selectedModel = "",
+  onModelChange,
 }: AiEditPanelProps) {
   const canSubmitPersonal = hasApiKeys && mode === "personal";
   const canSubmitPlatform = mode === "platform";
@@ -214,6 +222,16 @@ export function AiEditPanel({
 
       {/* Footer */}
       <div className="px-3 py-2.5 border-t border-border shrink-0 space-y-1.5">
+        {!loading && mode === "platform" && platformModels.length > 1 && onModelChange && (
+          <div className="flex items-center justify-between gap-2 pb-0.5">
+            <span className="text-[11px] text-muted-foreground">Model</span>
+            <ModelSelector
+              models={platformModels}
+              selectedModelId={selectedModel}
+              onModelChange={onModelChange}
+            />
+          </div>
+        )}
         <Button
           onClick={onSubmit}
           disabled={loading || !prompt.trim() || !canSubmit || prompt.length > 2000}
