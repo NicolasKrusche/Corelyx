@@ -58,6 +58,7 @@ _REQUIRED_SECRETS = [
     "next:vault",             # runtime → web (Vault secret fetch)
     "next:credits",           # runtime → web (credit deduction)
     "next:agent-tools",       # runtime → web (agent_task account tools)
+    "next:cron:tick",         # runtime → web (cron scheduler heartbeat)
 ]
 for _audience in _REQUIRED_SECRETS:
     try:
@@ -198,8 +199,59 @@ async def trigger_workflow(workflow_id: str) -> None:
         await _notify_complete(run_id, workflow_id, user_id, final_status)
 
 
+# ── Cron heartbeat: runtime → web ────────────────────────────────────────────
+# The web app owns cron-trigger state (next_run_at, limits, dispatch) but has no
+# always-on process; this runtime does. Every 60s we call the web's internal
+# tick endpoint, which fires all due cron triggers via an atomically-claimed
+# sweep (safe to overlap with the Inngest scheduler when that is configured).
+
+_cron_tick_failures = 0
+
+
+async def _cron_tick() -> None:
+    global _cron_tick_failures
+    nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000").rstrip("/")
+    path = "/api/internal/cron/tick"
+    body = "{}"
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=55) as client:
+            res = await client.post(
+                f"{nextjs_url}{path}",
+                headers=build_internal_service_headers(
+                    "next:cron:tick",
+                    subject="runtime-scheduler",
+                    method="POST",
+                    path=path,
+                    body=body,
+                ),
+                content=body,
+            )
+        if res.status_code != 200:
+            raise RuntimeError(f"HTTP {res.status_code}: {res.text[:200]}")
+        if _cron_tick_failures > 0:
+            print(f"[runtime] Cron heartbeat recovered after {_cron_tick_failures} failed tick(s)")
+        _cron_tick_failures = 0
+        data = res.json()
+        if isinstance(data, dict) and data.get("fired"):
+            print(f"[runtime] Cron tick fired {data['fired']} trigger(s)")
+    except Exception as exc:  # log the first failure and then every 10th, not every minute
+        _cron_tick_failures += 1
+        if _cron_tick_failures == 1 or _cron_tick_failures % 10 == 0:
+            print(f"[runtime] Cron heartbeat failed ({_cron_tick_failures}x): {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    scheduler.add_job(
+        _cron_tick,
+        "interval",
+        seconds=60,
+        max_instances=1,
+        coalesce=True,
+        id="cron-heartbeat",
+    )
     try:
         workflows = await get_active_cron_workflows()
         for w in workflows:
