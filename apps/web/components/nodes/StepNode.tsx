@@ -73,6 +73,7 @@ export function StepNode({ id, data, selected }: NodeProps) {
         subtitle={nodeData.description}
         error={nodeData.errors?.[0]?.message}
         warning={nodeData.warnings?.[0]?.message}
+        questionPin={(data as { genesisQuestion?: string | null }).genesisQuestion}
       />
 
       <SourceAddHandle nodeId={id} accent="sky" />

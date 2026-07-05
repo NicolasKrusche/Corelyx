@@ -46,6 +46,7 @@ export function AgentNode({ id, data, selected }: NodeProps) {
         badges={badges}
         error={nodeData.errors?.[0]?.message}
         warning={nodeData.warnings?.[0]?.message}
+        questionPin={(data as { genesisQuestion?: string | null }).genesisQuestion}
       />
 
       <SourceAddHandle nodeId={id} accent="purple" />

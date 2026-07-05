@@ -79,6 +79,7 @@ export function ConnectionNode({ id, data, selected }: NodeProps) {
         meta={meta}
         error={nodeData.errors?.[0]?.message}
         warning={nodeData.warnings?.[0]?.message}
+        questionPin={(data as { genesisQuestion?: string | null }).genesisQuestion}
       />
 
       <SourceAddHandle nodeId={id} accent="blue" />
