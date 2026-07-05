@@ -34,6 +34,7 @@ import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
+import { buildCapabilitySection, fetchConnectionCapabilities } from "@/lib/genesis/introspection";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -137,6 +138,9 @@ export async function POST(request: Request) {
   // placeholders; streamed nodes/edges and the final schema are rehydrated.
   const piiSession = new PseudonymizationSession();
   const sanitizedDescription = piiSession.sanitizeText(isRefinement && refinementText ? refinementText : description);
+  // The existing schema also goes to the model on refinements — sanitize it
+  // with the same session so its PII round-trips as placeholders too.
+  const sanitizedExistingSchema = existingSchemaRaw === null ? null : piiSession.sanitizeValue(existingSchemaRaw);
   const serviceClient = createServiceClient();
 
   // Stage 1: rate limit and workspace resolution. Refinements use the program's
@@ -220,11 +224,31 @@ export async function POST(request: Request) {
   }
 
   const availableConnections = toGenesisConnectionList(connections);
+
+  // Genesis V2: introspect the selected connections for live, metadata-only
+  // capability data. User-named strings are registered with piiSession — only
+  // placeholders reach the prompt. Failures fall back to the static catalog.
+  let capabilitySection: string | null = null;
+  if (connections.length > 0 && !isAgent) {
+    const descriptors = await fetchConnectionCapabilities(
+      connections.map((row) => row.id),
+      userId
+    );
+    capabilitySection = buildCapabilitySection(descriptors, connections, piiSession);
+  }
+
+  // Align user-typed references to introspected resources with the same
+  // placeholders used in the capability section (identity without the name).
+  const groundedDescription = piiSession.applyKnownValues(sanitizedDescription.value);
+  const groundedExistingSchema = sanitizedExistingSchema === null
+    ? null
+    : sanitizedExistingSchema.value;
+
   const selectedProviders = availableConnections.map((conn) => conn.type);
   const providersForPrompt = selectedProviders.length > 0 ? selectedProviders : null;
   const genesisSystemPrompt = isAgent
     ? buildAgentSystemPrompt(providersForPrompt)
-    : buildGenesisSystemPrompt(providersForPrompt);
+    : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection);
 
   // Resolve API keys
   let keyCandidates: GenesisApiKeyRow[];
@@ -282,7 +306,7 @@ export async function POST(request: Request) {
             const filterApiKey = filterKeyRow.id === "platform"
               ? filterKeyRow.vault_secret_id
               : await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
-            const result = await runEuComplianceFilter(sanitizedDescription.value, filterKeyRow, filterApiKey);
+            const result = await runEuComplianceFilter(groundedDescription, filterKeyRow, filterApiKey);
             if (result?.verdict === "blocked") {
               complianceBlockReason = result.blockedReason;
               ac.abort();
@@ -295,11 +319,13 @@ export async function POST(request: Request) {
 
         send({ type: "status", message: "Contacting model..." });
 
-        const userMessage = isRefinement && refinementText && existingSchemaRaw
-          ? buildRefinementUserMessage(refinementText, existingSchemaRaw as object, availableConnections)
+        // Refinement previously sent the raw edit text + schema to the model;
+        // both now go through the same pseudonymization session as generation.
+        const userMessage = isRefinement && refinementText && groundedExistingSchema
+          ? buildRefinementUserMessage(groundedDescription, groundedExistingSchema as object, availableConnections)
           : isAgent
-            ? buildAgentUserMessage(sanitizedDescription.value, availableConnections, null, userProfileContext)
-            : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null, userProfileContext);
+            ? buildAgentUserMessage(groundedDescription, availableConnections, null, userProfileContext)
+            : buildGenesisUserMessage(groundedDescription, availableConnections, null, userProfileContext);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {

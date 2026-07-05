@@ -526,10 +526,15 @@ function buildGapReferenceSection(
  */
 export function buildGenesisSystemPrompt(
   selectedProviders: string[] | null = null,
-  userTier?: string | null
+  userTier?: string | null,
+  capabilitySection?: string | null
 ): string {
   const operationsSection = buildConnectorOperationsSection(selectedProviders);
   const gapRefSection = buildGapReferenceSection(selectedProviders);
+  // Live capabilities (Genesis V2 introspection) come pre-pseudonymized — the
+  // section builder registers every user-named string with the request's
+  // PseudonymizationSession before it gets here. See lib/genesis/introspection.ts.
+  const liveCapabilities = capabilitySection ? `\n${capabilitySection}\n` : "";
 
   const isPaidTier = userTier === "plus" || userTier === "pro" || userTier === "builder" || userTier === "unlimited";
   const agentFirstSection = isPaidTier ? `
@@ -634,7 +639,7 @@ EVENT TRIGGER SOURCES (use with trigger_type:"event"):
             payload:{resource_gid,resource_type,resource_name,parent_gid,action,events:[...]}
 
 ${operationsSection}
-
+${liveCapabilities}
 ${gapRefSection}
 
 COMPLETE EXAMPLE — Email processing workflow (cron → fetch emails → send Slack summary):
