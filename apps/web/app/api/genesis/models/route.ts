@@ -20,20 +20,24 @@ export async function GET() {
   const tier = await getUserTier(user.id);
   const ent = getEntitlements(tier);
   const modelTier = ent.genesisPlatformModelTier;
-  const allowedIds = new Set(getAllowedPlatformModels(modelTier).map((m) => m.id));
+
+  // Dev accounts get every platform model unlocked (run on the funded platform
+  // key) so they can test with a capable model without a personal billing tier.
+  const isDev = await hasTechnicalAccess(user.id, user.email);
+  const allowedIds = isDev
+    ? new Set(PLATFORM_MODEL_CATALOG.map((m) => m.id))
+    : new Set(getAllowedPlatformModels(modelTier).map((m) => m.id));
 
   const models = PLATFORM_MODEL_CATALOG.map((m) => ({
     ...m,
     locked: !allowedIds.has(m.id),
   }));
 
-  // Genesis V2 is dev-gated: the client only shows the V2 toggle when true.
-  const v2Available = await hasTechnicalAccess(user.id, user.email);
-
   return NextResponse.json({
     tier: modelTier,
     defaultModel: PLATFORM_DEFAULT_MODEL,
     models,
-    v2Available,
+    // Genesis V2 is dev-gated: the client only shows the V2 toggle when true.
+    v2Available: isDev,
   });
 }

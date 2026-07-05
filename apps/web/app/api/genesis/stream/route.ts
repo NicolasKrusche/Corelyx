@@ -43,7 +43,7 @@ import {
   type GenesisPatchSummary,
 } from "@/lib/genesis/patch";
 import { extractClarifications, type GenesisClarification } from "@/lib/genesis/clarifications";
-import { isGenesisV2Enabled } from "@/lib/genesis/v2-access";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { serverLog } from "@/lib/server-log";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
@@ -55,6 +55,7 @@ import {
   GenesisRequestSchema,
   getAllowedPlatformModels,
   getMissingConnectionIds,
+  PLATFORM_MODEL_CATALOG,
   getModelCandidates,
   getProviderBaseURL,
   isGenesisRefinementRequest,
@@ -124,7 +125,10 @@ export async function POST(request: Request) {
 
   // Genesis V2 is dev-gated: introspection, patch refinement, and clarifying
   // questions only activate when a dev user opted in. Everything else is V1.
-  const v2Enabled = await isGenesisV2Enabled(userId, user.email, parsed.data.genesis_v2);
+  // isDev also unlocks all platform models (below), so a dev can test with a
+  // capable model on the funded platform key without a personal billing tier.
+  const isDev = await hasTechnicalAccess(userId, user.email);
+  const v2Enabled = parsed.data.genesis_v2 === true && isDev;
   // Make the gate decision visible in stdout so "did V2 run?" is answerable
   // without a DB round-trip. requested vs enabled distinguishes "toggle off" from
   // "toggle on but not a dev".
@@ -151,10 +155,11 @@ export async function POST(request: Request) {
   if (usePlatformKey) {
     const requestedModel = parsed.data.model;
     if (requestedModel && requestedModel !== PLATFORM_MODEL) {
-      // Validate the requested model against the user's tier
-      const tier = await getUserTier(userId);
-      const ent = getEntitlements(tier);
-      const allowed = getAllowedPlatformModels(ent.genesisPlatformModelTier);
+      // Validate the requested model against the user's tier — dev accounts may
+      // use any catalog model (same unlock as /api/genesis/models).
+      const allowed = isDev
+        ? PLATFORM_MODEL_CATALOG
+        : getAllowedPlatformModels(getEntitlements(await getUserTier(userId)).genesisPlatformModelTier);
       if (!allowed.some((m) => m.id === requestedModel)) {
         return apiError(
           `Model "${requestedModel}" is not available on your current plan. Upgrade to Solo or higher to access premium models.`,
