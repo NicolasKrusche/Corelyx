@@ -7,7 +7,9 @@ vi.mock("@/lib/admin-auth", () => ({ hasTechnicalAccess: (...args: unknown[]) =>
 
 import { isGenesisV2Enabled } from "../v2-access";
 
-afterEach(() => hasTechnicalAccess.mockReset());
+afterEach(() => {
+  hasTechnicalAccess.mockReset();
+});
 
 describe("isGenesisV2Enabled", () => {
   it("returns false and never checks access when the flag is not set", async () => {

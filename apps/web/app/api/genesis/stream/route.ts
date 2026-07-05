@@ -44,6 +44,7 @@ import {
 } from "@/lib/genesis/patch";
 import { extractClarifications, type GenesisClarification } from "@/lib/genesis/clarifications";
 import { isGenesisV2Enabled } from "@/lib/genesis/v2-access";
+import { serverLog } from "@/lib/server-log";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -124,6 +125,20 @@ export async function POST(request: Request) {
   // Genesis V2 is dev-gated: introspection, patch refinement, and clarifying
   // questions only activate when a dev user opted in. Everything else is V1.
   const v2Enabled = await isGenesisV2Enabled(userId, user.email, parsed.data.genesis_v2);
+  // Make the gate decision visible in stdout so "did V2 run?" is answerable
+  // without a DB round-trip. requested vs enabled distinguishes "toggle off" from
+  // "toggle on but not a dev".
+  serverLog({
+    level: "info",
+    event: "genesis.v2.gate",
+    message: "Genesis V2 gate evaluated.",
+    details: {
+      requested: parsed.data.genesis_v2 === true,
+      enabled: v2Enabled,
+      is_refinement: isRefinement,
+      is_agent: isAgent,
+    },
+  });
 
   if (!usePlatformKey && !api_key_id) {
     return apiError("api_key_id is required when not using the platform key", 400);
