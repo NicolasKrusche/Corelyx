@@ -12,6 +12,7 @@ import { vaultRetrieve } from "@/lib/vault";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeAppLog } from "@/lib/app-logs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { PseudonymizationSession } from "@/lib/privacy/pii";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
@@ -71,6 +72,12 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
   const userId = user.id;
+
+  // V2 is dev-gated. Clarification sessions only exist for dev users, but gate
+  // here too so a revoked-access user can't keep answering.
+  if (!(await hasTechnicalAccess(userId, user.email))) {
+    return apiError("Genesis V2 is not enabled for this account.", 403);
+  }
 
   const processingRestriction = await ensureProcessingAllowed(userId);
   if (processingRestriction) return processingRestriction;

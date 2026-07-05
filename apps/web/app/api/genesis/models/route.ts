@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { getUserTier } from "@/lib/limits";
 import { getEntitlements } from "@/lib/entitlements";
 import { PLATFORM_MODEL_CATALOG, getAllowedPlatformModels, PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/request";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
 
 /**
  * GET /api/genesis/models
@@ -26,9 +27,13 @@ export async function GET() {
     locked: !allowedIds.has(m.id),
   }));
 
+  // Genesis V2 is dev-gated: the client only shows the V2 toggle when true.
+  const v2Available = await hasTechnicalAccess(user.id, user.email);
+
   return NextResponse.json({
     tier: modelTier,
     defaultModel: PLATFORM_DEFAULT_MODEL,
     models,
+    v2Available,
   });
 }

@@ -43,6 +43,7 @@ import {
   type GenesisPatchSummary,
 } from "@/lib/genesis/patch";
 import { extractClarifications, type GenesisClarification } from "@/lib/genesis/clarifications";
+import { isGenesisV2Enabled } from "@/lib/genesis/v2-access";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -119,6 +120,10 @@ export async function POST(request: Request) {
   const refinementText = parsed.data.refinement ?? null;
   const existingSchemaRaw = parsed.data.existing_schema ?? null;
   const usePlatformKey = use_platform_key === true;
+
+  // Genesis V2 is dev-gated: introspection, patch refinement, and clarifying
+  // questions only activate when a dev user opted in. Everything else is V1.
+  const v2Enabled = await isGenesisV2Enabled(userId, user.email, parsed.data.genesis_v2);
 
   if (!usePlatformKey && !api_key_id) {
     return apiError("api_key_id is required when not using the platform key", 400);
@@ -243,11 +248,12 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connections);
 
-  // Genesis V2: introspect the selected connections for live, metadata-only
-  // capability data. User-named strings are registered with piiSession — only
-  // placeholders reach the prompt. Failures fall back to the static catalog.
+  // Genesis V2 (dev-gated): introspect the selected connections for live,
+  // metadata-only capability data. User-named strings are registered with
+  // piiSession — only placeholders reach the prompt. Failures fall back to the
+  // static catalog. Skipped entirely when V2 is off.
   let capabilitySection: string | null = null;
-  if (connections.length > 0 && !isAgent) {
+  if (v2Enabled && connections.length > 0 && !isAgent) {
     const descriptors = await fetchConnectionCapabilities(
       connections.map((row) => row.id),
       userId
@@ -257,6 +263,7 @@ export async function POST(request: Request) {
 
   // Align user-typed references to introspected resources with the same
   // placeholders used in the capability section (identity without the name).
+  // No-op when introspection didn't run (no known values registered).
   const groundedDescription = piiSession.applyKnownValues(sanitizedDescription.value);
   const groundedExistingSchema = sanitizedExistingSchema === null
     ? null
@@ -267,7 +274,7 @@ export async function POST(request: Request) {
   const genesisSystemPrompt = isAgent
     ? buildAgentSystemPrompt(providersForPrompt)
     : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection, {
-        allowClarifications: !isRefinement,
+        allowClarifications: v2Enabled && !isRefinement,
       });
 
   // Resolve API keys
@@ -346,7 +353,7 @@ export async function POST(request: Request) {
         // Refinement previously sent the raw edit text + schema to the model;
         // both now go through the same pseudonymization session as generation.
         const userMessage = isRefinement && refinementText && groundedExistingSchema
-          ? buildRefinementUserMessage(groundedDescription, groundedExistingSchema as object, availableConnections)
+          ? buildRefinementUserMessage(groundedDescription, groundedExistingSchema as object, availableConnections, null, { usePatch: v2Enabled })
           : isAgent
             ? buildAgentUserMessage(groundedDescription, availableConnections, null, userProfileContext)
             : buildGenesisUserMessage(groundedDescription, availableConnections, null, userProfileContext);
@@ -518,7 +525,7 @@ export async function POST(request: Request) {
         // the patch instruction) fall through to the legacy path; the diff is
         // computed instead so the client can animate either way.
         let patchSummary: GenesisPatchSummary | null = null;
-        if (isRefinement && existingSchemaRaw && typeof existingSchemaRaw === "object") {
+        if (v2Enabled && isRefinement && existingSchemaRaw && typeof existingSchemaRaw === "object") {
           if (isGenesisPatch(parsedSchema)) {
             const patchResult = GenesisPatchZ.safeParse(parsedSchema);
             if (!patchResult.success) {
@@ -530,12 +537,13 @@ export async function POST(request: Request) {
           }
         }
 
-        // Genesis V2 clarifying questions: pull the sidecar out before any
-        // schema validation (the canonical schema never carries it). Questions
-        // are already rehydrated along with the rest of the model output above.
-        const clarifications = !isRefinement && !isAgent
+        // Always strip a `clarifications` sidecar before schema validation so a
+        // stray key can't fail an otherwise-valid schema; only ACT on it under
+        // V2 (the V1 prompt never asks for questions, so this is normally []).
+        const extractedClarifications = !isRefinement && !isAgent
           ? extractClarifications(parsedSchema)
           : [];
+        const clarifications = v2Enabled ? extractedClarifications : [];
 
         // Stamp the agent discriminator BEFORE normalizeSchema: its corelyx
         // connection-node repair (a bogus "corelyx:primary" connection rewritten
@@ -632,9 +640,10 @@ export async function POST(request: Request) {
         const complianceObligations = complianceResult?.verdict === "obligations" ? complianceResult.context : null;
 
         if (isRefinement) {
-          // Legacy full-schema response: derive the diff so the editor can
-          // animate exactly as it would for a real patch.
-          if (!patchSummary && existingSchemaRaw && typeof existingSchemaRaw === "object") {
+          // Under V2, if the model returned a full schema instead of a patch,
+          // derive the diff so the editor still animates the change. Under V1
+          // no patch is sent and the editor does its normal silent swap.
+          if (v2Enabled && !patchSummary && existingSchemaRaw && typeof existingSchemaRaw === "object") {
             patchSummary = diffSchemas(existingSchemaRaw as object, schema as object);
           }
 
