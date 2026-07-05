@@ -49,6 +49,7 @@ import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
 import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/components/editor/NodePalettePanel";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
+import type { PlatformModel } from "@/components/ui/bolt-style-chat";
 import { EditorTour } from "@/components/editor/editor-tour";
 import type { AiEditMode } from "@/components/editor/AiEditPanel";
 import { RawSchemaPanel } from "@/components/editor/RawSchemaPanel";
@@ -453,6 +454,9 @@ export function EditorShell({
   // available so the intended V2 behavior is what a dev sees.
   const [v2EditAvailable, setV2EditAvailable] = React.useState(false);
   const [useV2Edit, setUseV2Edit] = React.useState(true);
+  // Platform model choice for AI edits — same catalog + tier locks as generation.
+  const [editPlatformModels, setEditPlatformModels] = React.useState<PlatformModel[]>([]);
+  const [selectedEditModel, setSelectedEditModel] = React.useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -460,10 +464,17 @@ export function EditorShell({
       try {
         const res = await fetch("/api/genesis/models");
         if (!res.ok) return;
-        const body = (await res.json()) as { v2Available?: boolean };
-        if (!cancelled) setV2EditAvailable(body.v2Available === true);
+        const body = (await res.json()) as {
+          v2Available?: boolean;
+          models?: PlatformModel[];
+          defaultModel?: string;
+        };
+        if (cancelled) return;
+        setV2EditAvailable(body.v2Available === true);
+        setEditPlatformModels(body.models ?? []);
+        setSelectedEditModel(body.defaultModel ?? "");
       } catch {
-        // No toggle on failure — AI edit still works (as V1).
+        // No picker/toggle on failure — AI edit still works (platform default).
       }
     })();
     return () => {
@@ -1620,6 +1631,8 @@ export function EditorShell({
         description: state.schema.program_name,
         connection_ids: linkedConnections.map((c) => c.id),
         use_platform_key: true,
+        // Chosen platform model (tier-locked server-side, same as generation).
+        ...(selectedEditModel ? { model: selectedEditModel } : {}),
         existing_schema: state.schema,
         refinement: prompt,
         existing_program_id: programId,
@@ -1826,7 +1839,7 @@ export function EditorShell({
       setAiEditLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiEditMode, aiEditPrompt, apiKeys, linkedConnections, programId, state.schema, v2EditAvailable, useV2Edit]);
+  }, [aiEditMode, aiEditPrompt, apiKeys, linkedConnections, programId, state.schema, v2EditAvailable, useV2Edit, selectedEditModel]);
 
   // ── Genesis clarification answers (V2) ────────────────────────────────────
   // Applies one answer as a scoped server-side patch, then animates the diff
@@ -2217,6 +2230,9 @@ export function EditorShell({
           v2Available={v2EditAvailable}
           useV2={useV2Edit}
           onV2Change={setUseV2Edit}
+          platformModels={editPlatformModels}
+          selectedModel={selectedEditModel}
+          onModelChange={setSelectedEditModel}
         />
       )}
 
