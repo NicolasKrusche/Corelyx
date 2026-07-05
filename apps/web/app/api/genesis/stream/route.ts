@@ -35,6 +35,14 @@ import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/gen
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
 import { buildCapabilitySection, fetchConnectionCapabilities } from "@/lib/genesis/introspection";
+import {
+  applyGenesisPatch,
+  diffSchemas,
+  GenesisPatchZ,
+  isGenesisPatch,
+  type GenesisPatchSummary,
+} from "@/lib/genesis/patch";
+import { extractClarifications, type GenesisClarification } from "@/lib/genesis/clarifications";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -74,7 +82,17 @@ type StreamEvent =
   | { type: "node"; node: unknown }
   | { type: "edge"; edge: unknown }
   | { type: "status"; message: string }
-  | { type: "done"; program_id: string; program_name: string; validation: unknown; schema?: unknown }
+  | {
+      type: "done";
+      program_id: string;
+      program_name: string;
+      validation: unknown;
+      schema?: unknown;
+      patch?: GenesisPatchSummary | null;
+      session_id?: string;
+      clarifications?: GenesisClarification[];
+    }
+  | { type: "question"; session_id: string; clarifications: GenesisClarification[] }
   | { type: "error"; message: string; code?: string };
 
 export async function POST(request: Request) {
@@ -242,13 +260,15 @@ export async function POST(request: Request) {
   const groundedDescription = piiSession.applyKnownValues(sanitizedDescription.value);
   const groundedExistingSchema = sanitizedExistingSchema === null
     ? null
-    : sanitizedExistingSchema.value;
+    : piiSession.applyKnownValuesToValue(sanitizedExistingSchema.value);
 
   const selectedProviders = availableConnections.map((conn) => conn.type);
   const providersForPrompt = selectedProviders.length > 0 ? selectedProviders : null;
   const genesisSystemPrompt = isAgent
     ? buildAgentSystemPrompt(providersForPrompt)
-    : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection);
+    : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection, {
+        allowClarifications: !isRefinement,
+      });
 
   // Resolve API keys
   let keyCandidates: GenesisApiKeyRow[];
@@ -282,6 +302,10 @@ export async function POST(request: Request) {
       const scanner = new PartialSchemaScanner();
 
       const pushChunk = (chunk: string) => {
+        // Refinements return a PATCH, not a schema — its add.nodes fragments
+        // would stream as node events and wipe the editor canvas mid-edit.
+        // The canvas keeps its current state until `done` delivers the diff.
+        if (isRefinement) return;
         const delta = scanner.feed(chunk);
         // Live-preview events carry model output → rehydrate placeholders so
         // the user reviews the real values, not [EMAIL_1].
@@ -426,10 +450,12 @@ export async function POST(request: Request) {
         }
 
         // Emit any trailing nodes/edges the streaming pass was holding back
-        const finalDelta = scanner.finalize();
-        if (finalDelta.programName) send({ type: "meta", program_name: piiSession.rehydrateText(finalDelta.programName) });
-        for (const node of finalDelta.newNodes) send({ type: "node", node: piiSession.rehydrateValue(node) });
-        for (const edge of finalDelta.newEdges) send({ type: "edge", edge: piiSession.rehydrateValue(edge) });
+        if (!isRefinement) {
+          const finalDelta = scanner.finalize();
+          if (finalDelta.programName) send({ type: "meta", program_name: piiSession.rehydrateText(finalDelta.programName) });
+          for (const node of finalDelta.newNodes) send({ type: "node", node: piiSession.rehydrateValue(node) });
+          for (const edge of finalDelta.newEdges) send({ type: "edge", edge: piiSession.rehydrateValue(edge) });
+        }
 
         if (!rawText) throw new Error("The AI did not respond. Please try again in a moment.");
 
@@ -486,6 +512,30 @@ export async function POST(request: Request) {
         ) {
           (parsedSchema as Record<string, unknown>).program_id = crypto.randomUUID();
         }
+
+        // Genesis V2 refinement: the model returns a patch, applied here to the
+        // trusted existing schema. Full-schema responses (weak models ignoring
+        // the patch instruction) fall through to the legacy path; the diff is
+        // computed instead so the client can animate either way.
+        let patchSummary: GenesisPatchSummary | null = null;
+        if (isRefinement && existingSchemaRaw && typeof existingSchemaRaw === "object") {
+          if (isGenesisPatch(parsedSchema)) {
+            const patchResult = GenesisPatchZ.safeParse(parsedSchema);
+            if (!patchResult.success) {
+              throw new Error("The AI returned an edit we could not apply. Please try again.");
+            }
+            const applied = applyGenesisPatch(existingSchemaRaw as object, patchResult.data);
+            parsedSchema = applied.schema;
+            patchSummary = applied.summary;
+          }
+        }
+
+        // Genesis V2 clarifying questions: pull the sidecar out before any
+        // schema validation (the canonical schema never carries it). Questions
+        // are already rehydrated along with the rest of the model output above.
+        const clarifications = !isRefinement && !isAgent
+          ? extractClarifications(parsedSchema)
+          : [];
 
         // Stamp the agent discriminator BEFORE normalizeSchema: its corelyx
         // connection-node repair (a bogus "corelyx:primary" connection rewritten
@@ -582,6 +632,12 @@ export async function POST(request: Request) {
         const complianceObligations = complianceResult?.verdict === "obligations" ? complianceResult.context : null;
 
         if (isRefinement) {
+          // Legacy full-schema response: derive the diff so the editor can
+          // animate exactly as it would for a real patch.
+          if (!patchSummary && existingSchemaRaw && typeof existingSchemaRaw === "object") {
+            patchSummary = diffSchemas(existingSchemaRaw as object, schema as object);
+          }
+
           // Refinement (AI edit): return the updated schema to the client.
           // The editor applies it via RESTORE_VERSION and handles its own save.
           send({
@@ -590,6 +646,7 @@ export async function POST(request: Request) {
             program_name: schema.program_name,
             validation,
             schema,
+            patch: patchSummary,
           });
 
           await Promise.all([
@@ -694,11 +751,33 @@ export async function POST(request: Request) {
             });
           }
 
+          // Genesis V2: questions never block the build — the program is saved
+          // complete above; the session just records what is worth confirming.
+          // A failed session insert degrades to a normal no-questions build.
+          let sessionId: string | null = null;
+          if (clarifications.length > 0) {
+            const { data: sessionRow, error: sessionError } = await serviceClient
+              .from("genesis_sessions")
+              .insert({
+                user_id: userId,
+                workspace_id: workspaceId,
+                program_id: program.id,
+                clarifications: clarifications as unknown as Record<string, unknown>[],
+              } as unknown as never)
+              .select("id")
+              .single();
+            if (!sessionError && sessionRow) {
+              sessionId = (sessionRow as unknown as { id: string }).id;
+              send({ type: "question", session_id: sessionId, clarifications });
+            }
+          }
+
           send({
             type: "done",
             program_id: program.id,
             program_name: schema.program_name,
             validation,
+            ...(sessionId ? { session_id: sessionId, clarifications } : {}),
           });
 
           await Promise.all([

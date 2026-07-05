@@ -24,6 +24,14 @@ import {
   fetchConnectionCapabilities,
   summarizeCapabilities,
 } from "@/lib/genesis/introspection";
+import {
+  applyGenesisPatch,
+  diffSchemas,
+  GenesisPatchZ,
+  isGenesisPatch,
+  type GenesisPatchSummary,
+} from "@/lib/genesis/patch";
+import { extractClarifications } from "@/lib/genesis/clarifications";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
@@ -746,6 +754,31 @@ export async function POST(request: Request) {
     (parsed_schema as Record<string, unknown>).program_id = crypto.randomUUID();
   }
 
+  // Genesis V2 refinement: the model returns a patch, applied here to the
+  // trusted existing schema. Full-schema responses fall through to the legacy
+  // path with a computed diff so the client can animate either way.
+  let patchSummary: GenesisPatchSummary | null = null;
+  if (isRefinement && existing_schema && typeof existing_schema === "object") {
+    if (isGenesisPatch(parsed_schema)) {
+      const patchResult = GenesisPatchZ.safeParse(parsed_schema);
+      if (!patchResult.success) {
+        return loggedApiError(
+          "The AI returned an edit we could not apply. Please try again.",
+          422,
+          "genesis.patch_invalid",
+          { issues: patchResult.error.flatten() }
+        );
+      }
+      const applied = applyGenesisPatch(existing_schema as object, patchResult.data);
+      parsed_schema = applied.schema;
+      patchSummary = applied.summary;
+    }
+  }
+
+  // Defensive: this route never asks for clarifications, but strip a stray
+  // sidecar before validation rather than fail an otherwise-valid schema.
+  extractClarifications(parsed_schema);
+
   // Normalize common model deviations before validation
   normalizeSchema(parsed_schema);
   parsed_schema = normalizeProgramDraft(parsed_schema, isRefinement && existing_schema ? existing_schema as Partial<ProgramSchema> : undefined);
@@ -803,6 +836,12 @@ export async function POST(request: Request) {
 
   // ── Refinement path: update existing program ─────────────────────────────
   if (isRefinement) {
+    // Legacy full-schema response: derive the diff so clients can render the
+    // change and the version row still records what actually changed.
+    if (!patchSummary && existing_schema && typeof existing_schema === "object") {
+      patchSummary = diffSchemas(existing_schema as object, schema as object);
+    }
+
     const { data: rawExisting, error: fetchError } = await supabase
       .from("programs")
       .select("id, schema_version")
@@ -844,12 +883,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Store refinement snapshot
+    // Store refinement snapshot. change_summary stays human-readable (the
+    // model's one-sentence summary beats a truncated echo of the request);
+    // the structured diff goes in the jsonb `patch` column for the diff UI.
+    const changeCounts = patchSummary
+      ? ` (+${patchSummary.added_node_ids.length} ~${patchSummary.updated_node_ids.length} −${patchSummary.removed_node_ids.length} nodes)`
+      : "";
     const { error: versionErr } = await supabase.from("program_versions").insert({
       program_id: existing_program_id!,
       version: nextVersion,
       schema: schema as unknown as Record<string, unknown>,
-      change_summary: `Refined — ${refinement!.slice(0, 120)}`,
+      change_summary:
+        (patchSummary?.change_summary ?? `Refined — ${refinement!.slice(0, 120)}`) + changeCounts,
+      ...(patchSummary ? { patch: patchSummary as unknown as Record<string, unknown> } : {}),
     } as unknown as never);
     if (versionErr) {
       serverLog({ level: "error", event: "genesis.refinement.version_insert_failed", message: "Failed to store refinement version snapshot." });
@@ -894,7 +940,7 @@ export async function POST(request: Request) {
     );
     await incrementGenesisUses(userId, workspaceId);
     if (usePlatformKey) await deductUserCredits(userId, GENESIS_EDIT_PLATFORM_RATE_CREDITS);
-    return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
+    return NextResponse.json({ program: updatedProgram, schema, validation, patch: patchSummary }, { status: 200 });
   }
 
   // ── New program path ──────────────────────────────────────────────────────

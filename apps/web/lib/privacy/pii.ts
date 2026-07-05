@@ -312,6 +312,32 @@ export class PseudonymizationSession {
     return value;
   }
 
+  /** applyKnownValues over every string in a nested structure (values and keys). */
+  applyKnownValuesToValue<T>(value: T): T {
+    if (this.knownValues.length === 0) return value;
+    return this.applyKnownValuesUnknown(value, new WeakSet<object>()) as T;
+  }
+
+  private applyKnownValuesUnknown(value: unknown, seen: WeakSet<object>): unknown {
+    if (typeof value === "string") return this.applyKnownValues(value);
+    if (value === null || typeof value !== "object") return value;
+    if (seen.has(value)) return value;
+    seen.add(value);
+
+    try {
+      if (Array.isArray(value)) {
+        return value.map((item) => this.applyKnownValuesUnknown(item, seen));
+      }
+      const result: Record<string, unknown> = {};
+      for (const [key, item] of Object.entries(value)) {
+        result[this.applyKnownValues(key)] = this.applyKnownValuesUnknown(item, seen);
+      }
+      return result;
+    } finally {
+      seen.delete(value);
+    }
+  }
+
   /**
    * Substitute known placeholders back to their real values. Placeholders this
    * session never issued (e.g. a model-invented "[EMAIL_99]") are left as-is.
