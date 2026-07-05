@@ -19,6 +19,11 @@ import {
   mergePiiRedactions,
   PseudonymizationSession,
 } from "@/lib/privacy/pii";
+import {
+  buildCapabilitySection,
+  fetchConnectionCapabilities,
+  summarizeCapabilities,
+} from "@/lib/genesis/introspection";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
@@ -265,11 +270,40 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connectionRows);
 
+  // Genesis V2: introspect the selected connections for live, metadata-only
+  // capability data. User-named strings are registered with piiSession — only
+  // placeholders reach the prompt. Failures fall back to the static catalog.
+  let capabilitySection: string | null = null;
+  if (connectionRows.length > 0) {
+    const descriptors = await fetchConnectionCapabilities(
+      connectionRows.map((row) => row.id),
+      userId
+    );
+    capabilitySection = buildCapabilitySection(descriptors, connectionRows, piiSession);
+    if (capabilitySection) {
+      await logGenesis(
+        "info",
+        "genesis.introspection.applied",
+        "running",
+        "Live connection capabilities included in Genesis prompt.",
+        { introspection: summarizeCapabilities(descriptors) }
+      );
+    }
+  }
+
+  // Align user-typed references to introspected resources with the same
+  // placeholders used in the capability section (identity without the name).
+  const groundedDescription = piiSession.applyKnownValues(sanitizedDescription.value);
+  const groundedRefinement = sanitizedRefinement
+    ? piiSession.applyKnownValues(sanitizedRefinement.value)
+    : null;
+
   // Extract provider names from available connections for dynamic prompt generation
   const selectedProviders = availableConnections.map((conn) => conn.type);
   const genesisSystemPrompt = buildGenesisSystemPrompt(
     selectedProviders.length > 0 ? selectedProviders : null,
-    userTier
+    userTier,
+    capabilitySection
   );
 
   const serviceClient = createServiceClient();
@@ -385,7 +419,7 @@ export async function POST(request: Request) {
     if (filterKeyRow) {
       const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
       const complianceResult = await runEuComplianceFilter(
-        sanitizedDescription.value,
+        groundedDescription,
         filterKeyRow,
         filterApiKey
       );
@@ -418,14 +452,14 @@ export async function POST(request: Request) {
   let usedApiKey = "";
   const userMessage = isRefinement
     ? buildRefinementUserMessage(
-        sanitizedRefinement!.value,
+        groundedRefinement!,
         (sanitizedExistingSchema?.value && typeof sanitizedExistingSchema.value === "object"
           ? sanitizedExistingSchema.value
           : {}) as object,
         availableConnections,
         euComplianceContext
       )
-    : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, euComplianceContext);
+    : buildGenesisUserMessage(groundedDescription, availableConnections, euComplianceContext);
 
   keyAttemptLoop:
   for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex++) {
