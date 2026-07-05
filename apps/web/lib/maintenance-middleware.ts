@@ -40,6 +40,11 @@ const EXEMPT_PREFIXES = [
   "/api/health",
   "/api/status",
   "/api/internal/",
+  // Inngest Cloud executes scheduled/background functions (cron triggers,
+  // data-retention purge, approval timeouts) by calling this endpoint. It
+  // verifies its own request signatures (INNGEST_SIGNING_KEY), and blocking it
+  // during maintenance silently stopped every background job.
+  "/api/inngest",
   // The desktop Bridge authenticates with a per-device token (not a user
   // session), so it can never be the maintenance-bypass admin. Blocking it would
   // stall file operations + folder watches for the whole maintenance window — and
