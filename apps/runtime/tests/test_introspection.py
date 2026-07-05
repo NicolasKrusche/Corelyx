@@ -95,6 +95,38 @@ class SlackIntrospectionTests(unittest.IsolatedAsyncioTestCase):
             await introspect_slack(client, "token")
         self.assertIn("invalid_auth", ctx.exception.message)
 
+    async def test_missing_scope_falls_back_to_public_channels(self) -> None:
+        # A token with channels:read but not groups:read: Slack rejects the
+        # combined public+private request with missing_scope; introspection must
+        # retry with public channels only rather than fail entirely.
+        missing = _fake_response({"ok": False, "error": "missing_scope"})
+        ok = _fake_response(
+            {"ok": True, "channels": [{"name": "revenue"}, {"name": "sozial"}]},
+            headers={"x-oauth-scopes": "channels:read"},
+        )
+        client = MagicMock(spec=httpx.AsyncClient)
+        client.get = AsyncMock(side_effect=[missing, ok])
+
+        descriptor = await introspect_slack(client, "token")
+
+        self.assertEqual([r["name"] for r in descriptor["resources"]], ["revenue", "sozial"])
+        # First attempt asked for both types; the retry narrowed to public only.
+        self.assertEqual(
+            client.get.call_args_list[0].kwargs["params"]["types"], "public_channel,private_channel"
+        )
+        self.assertEqual(client.get.call_args_list[1].kwargs["params"]["types"], "public_channel")
+
+    async def test_missing_scope_on_retry_still_raises(self) -> None:
+        # If public-only also fails, surface the provider error rather than hang.
+        client = MagicMock(spec=httpx.AsyncClient)
+        client.get = AsyncMock(side_effect=[
+            _fake_response({"ok": False, "error": "missing_scope"}),
+            _fake_response({"ok": False, "error": "missing_scope"}),
+        ])
+        with self.assertRaises(IntrospectionError) as ctx:
+            await introspect_slack(client, "token")
+        self.assertIn("missing_scope", ctx.exception.message)
+
 
 class NotionIntrospectionTests(unittest.IsolatedAsyncioTestCase):
     async def test_database_schema_only(self) -> None:

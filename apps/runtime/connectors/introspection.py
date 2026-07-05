@@ -134,21 +134,36 @@ async def introspect_gmail(client: httpx.AsyncClient, access_token: str) -> dict
     return {"provider": "gmail", "resources": resources, "truncated": truncated}
 
 
-async def introspect_slack(client: httpx.AsyncClient, access_token: str) -> dict[str, Any]:
-    headers = {"Authorization": f"Bearer {access_token}"}
-    resp = await client.get(
+async def _slack_conversations(
+    client: httpx.AsyncClient, headers: dict, types: str
+) -> httpx.Response:
+    return await client.get(
         f"{_SLACK_BASE}/conversations.list",
         headers=headers,
         params={
-            "types": "public_channel,private_channel",
+            "types": types,
             "exclude_archived": "true",
             "limit": str(MAX_RESOURCES_PER_CONNECTION),
         },
     )
+
+
+async def introspect_slack(client: httpx.AsyncClient, access_token: str) -> dict[str, Any]:
+    headers = {"Authorization": f"Bearer {access_token}"}
+    # Private channels need groups:read; requesting them when the token only has
+    # channels:read makes Slack reject the WHOLE call with missing_scope. So ask
+    # for both, and on missing_scope fall back to public channels only (readable
+    # with channels:read) rather than failing introspection entirely.
+    resp = await _slack_conversations(client, headers, "public_channel,private_channel")
     _raise_for_status(resp, "slack")
     body = resp.json()
     if not body.get("ok"):
-        raise IntrospectionError("PROVIDER_ERROR", f"slack: {body.get('error', 'unknown')}")
+        if body.get("error") == "missing_scope":
+            resp = await _slack_conversations(client, headers, "public_channel")
+            _raise_for_status(resp, "slack")
+            body = resp.json()
+        if not body.get("ok"):
+            raise IntrospectionError("PROVIDER_ERROR", f"slack: {body.get('error', 'unknown')}")
 
     resources = [
         {"kind": "channel", "name": ch["name"], "user_named": True}
