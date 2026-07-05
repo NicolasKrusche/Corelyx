@@ -442,7 +442,10 @@ async def introspect_connections(
             descriptor = await introspect_connection(provider, connection_id, user_id)
             return connection_id, descriptor, None
         except IntrospectionError as e:
-            print(f"[runtime] Introspection failed for {connection_id} ({provider}): {e.code}")
+            # Include the provider's error text (e.g. "missing_scope",
+            # "invalid_auth") — it's an API status string, not user data, and it
+            # is the actionable detail for why a connection could not introspect.
+            print(f"[runtime] Introspection failed for {connection_id} ({provider}): {e.code} — {e.message}")
             return connection_id, None, e.code
         except Exception as e:
             print(f"[runtime] Introspection failed for {connection_id} ({provider}): {type(e).__name__}")
