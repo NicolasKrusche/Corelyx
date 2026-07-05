@@ -448,9 +448,32 @@ export async function POST(request: Request) {
               }
 
               modelUsed = candidateModel;
+              serverLog({
+                level: "info",
+                event: "genesis.stream.model_used",
+                message: "Genesis produced output.",
+                details: { provider: currentKeyRow.provider, model: candidateModel, is_refinement: isRefinement },
+              });
               break keyAttemptLoop;
             } catch (err) {
+              // A credit/auth error means the KEY is dead — trying its other
+              // models would fail identically, so don't. Skip straight to the
+              // next key (or fail) instead of grinding the fallback chain.
+              const keyIsDead = isKeyError(err);
+              serverLog({
+                level: "warn",
+                event: "genesis.stream.model_attempt_failed",
+                message: "A Genesis model attempt failed.",
+                details: {
+                  provider: currentKeyRow.provider,
+                  model: candidateModel,
+                  key_error: keyIsDead,
+                  error: err instanceof Error ? err.message.slice(0, 160) : "unknown",
+                },
+              });
+
               const canModelFallback =
+                !keyIsDead &&
                 rawText.length === 0 &&
                 modelIndex < modelCandidates.length - 1;
 
