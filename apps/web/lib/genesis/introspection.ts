@@ -2,6 +2,7 @@ import "server-only";
 
 import { buildInternalServiceHeaders } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
+import { serverLog } from "@/lib/server-log";
 import type { PseudonymizationSession } from "@/lib/privacy/pii";
 import type { GenesisConnectionRow } from "@/lib/genesis/request";
 
@@ -66,12 +67,46 @@ export async function fetchConnectionCapabilities(
       signal: AbortSignal.timeout(INTROSPECT_TIMEOUT_MS),
       cache: "no-store",
     });
-    if (!response.ok) return [];
-    const parsed = (await response.json()) as { descriptors?: CapabilityDescriptor[] };
-    return Array.isArray(parsed.descriptors) ? parsed.descriptors : [];
-  } catch {
+    if (!response.ok) {
+      // The most common silent failure: introspect auth misconfigured (401) or
+      // runtime unreachable. Log the status so it isn't invisible.
+      serverLog({
+        level: "warn",
+        event: "genesis.introspection.http_error",
+        message: "Connection introspection call to the runtime failed; using static catalog.",
+        details: { status: response.status, connection_count: connectionIds.length },
+      });
+      return [];
+    }
+    const parsed = (await response.json()) as {
+      descriptors?: CapabilityDescriptor[];
+      errors?: Record<string, string>;
+    };
+    const descriptors = Array.isArray(parsed.descriptors) ? parsed.descriptors : [];
+    // Per-connection error CODES only (never names/content) — the key
+    // diagnostic for "introspection returned nothing" (e.g. TOKEN_FETCH_FAILED,
+    // UNSUPPORTED_PROVIDER, PROVIDER_UNREACHABLE, CONNECTION_NOT_FOUND).
+    const errorCodes = parsed.errors ? Object.values(parsed.errors) : [];
+    serverLog({
+      level: errorCodes.length > 0 && descriptors.length === 0 ? "warn" : "info",
+      event: "genesis.introspection.result",
+      message: "Connection introspection completed.",
+      details: {
+        connection_count: connectionIds.length,
+        descriptor_count: descriptors.length,
+        error_codes: errorCodes.length > 0 ? [...new Set(errorCodes)].join(",") : "",
+      },
+    });
+    return descriptors;
+  } catch (err) {
     // Timeout, network failure, or missing secret — generation proceeds on
     // the static catalog alone.
+    serverLog({
+      level: "warn",
+      event: "genesis.introspection.unreachable",
+      message: "Connection introspection could not reach the runtime; using static catalog.",
+      details: { error: err instanceof Error ? err.name : "unknown", connection_count: connectionIds.length },
+    });
     return [];
   }
 }
