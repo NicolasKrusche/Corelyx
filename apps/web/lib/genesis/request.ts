@@ -212,6 +212,13 @@ export function sortApiKeyFallbacks(preferredKeyId: string, keys: GenesisApiKeyR
 export function getModelCandidates(provider: string, requestedModel: string): string[] {
   if (provider !== "openrouter") return [requestedModel];
 
+  // Local/testing escape hatch: with GENESIS_DISABLE_MODEL_FALLBACKS=true, try
+  // only the requested model and fail fast, instead of grinding through the free
+  // fallback chain (each free model can take ~30s to time out when rate-limited).
+  if (process.env.GENESIS_DISABLE_MODEL_FALLBACKS === "true") {
+    return [requestedModel];
+  }
+
   return [requestedModel, ...OPENROUTER_FALLBACK_MODELS].filter(
     (candidate, index, candidates) => Boolean(candidate) && candidates.indexOf(candidate) === index
   );
