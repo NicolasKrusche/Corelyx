@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Play, Megaphone, RefreshCw } from "lucide-react";
-import { GenesisV2ReleaseSlides } from "@/components/genesis/genesis-v2-release";
+import { GenesisV2ReleaseModal } from "@/components/genesis/genesis-v2-release";
 
 type ReleaseState = { active: boolean; version: number };
 
@@ -107,7 +107,7 @@ export function GenesisReleaseAdmin() {
         </div>
       </div>
 
-      {preview && <GenesisV2ReleaseSlides onClose={() => setPreview(false)} />}
+      {preview && <GenesisV2ReleaseModal onClose={() => setPreview(false)} />}
     </div>
   );
 }
