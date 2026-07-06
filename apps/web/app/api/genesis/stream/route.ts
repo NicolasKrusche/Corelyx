@@ -34,7 +34,7 @@ import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
-import { buildCapabilitySection, fetchConnectionCapabilities } from "@/lib/genesis/introspection";
+import { buildCapabilitySection, fetchConnectionCapabilities, summarizeCapabilities } from "@/lib/genesis/introspection";
 import {
   applyGenesisPatch,
   diffSchemas,
@@ -279,6 +279,19 @@ export async function POST(request: Request) {
       userId
     );
     capabilitySection = buildCapabilitySection(descriptors, connections, piiSession);
+    // Confirm the capability section actually made it into the prompt (present +
+    // size + resource/user-named counts), so "model ignored the channels" can be
+    // told apart from "channels never reached the prompt".
+    serverLog({
+      level: "info",
+      event: "genesis.capability_section",
+      message: "Capability section built for the prompt.",
+      details: {
+        present: capabilitySection !== null,
+        chars: capabilitySection?.length ?? 0,
+        ...summarizeCapabilities(descriptors),
+      },
+    });
   }
 
   // Align user-typed references to introspected resources with the same
