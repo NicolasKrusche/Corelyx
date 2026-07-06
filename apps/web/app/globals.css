@@ -760,3 +760,36 @@
   opacity: 0.45;
   filter: saturate(0.55);
 }
+
+/* ── Genesis V2 release announcement — looping preview animations ── */
+@keyframes genesis-preview-added {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.96); box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  20%  { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 16px 0 rgba(74,222,128,0.65); }
+  60%  { box-shadow: 0 0 6px 0 rgba(74,222,128,0.3); }
+  100% { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+}
+.genesis-preview-added { animation: genesis-preview-added 3.6s ease-in-out infinite; }
+
+@keyframes genesis-preview-updated {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+  50%      { box-shadow: 0 0 14px 1px rgba(251,191,36,0.7); }
+}
+.genesis-preview-updated { animation: genesis-preview-updated 1.8s ease-in-out infinite; }
+
+.genesis-preview-removed { position: relative; animation: genesis-preview-removed 3.6s ease-in-out infinite; }
+@keyframes genesis-preview-removed {
+  0%, 40% { opacity: 0.9; filter: grayscale(0); }
+  70%, 100% { opacity: 0.28; filter: grayscale(1); }
+}
+.genesis-preview-removed::after {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px;
+  background: rgba(239,68,68,0.85); transform: rotate(-5deg);
+  animation: genesis-preview-strike 3.6s ease-in-out infinite;
+}
+@keyframes genesis-preview-strike { 0%, 40% { opacity: 0; } 70%, 100% { opacity: 1; } }
+
+@keyframes genesis-slide-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.genesis-slide-in { animation: genesis-slide-in 0.35s ease-out; }
