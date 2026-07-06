@@ -316,31 +316,6 @@ function NewProgramPageInner() {
     setLoadingKeys(false);
   }
 
-  async function ensureModelSelection(): Promise<{ keyId: string; modelId: string } | null> {
-    if (selectedKeyId && model.trim()) {
-      return { keyId: selectedKeyId, modelId: model.trim() };
-    }
-
-    const res = await fetch("/api/keys");
-    if (!res.ok) return null;
-
-    const data: ApiKey[] = await res.json();
-    const valid = data.filter((k) => k.is_valid);
-    setApiKeys(valid);
-
-    if (valid.length === 0) return null;
-
-    const best = bestKey(valid);
-    if (!best) return null;
-    const keyId = best.id;
-    const modelId = DEFAULT_MODELS[best.provider] ?? "";
-    setSelectedKeyId(keyId);
-    setModel(modelId);
-
-    if (!modelId) return null;
-    return { keyId, modelId };
-  }
-
   function toggleConnection(id: string) {
     connectionsTouchedRef.current = true;
     setSelectedIds((prev) => {
@@ -683,21 +658,14 @@ function NewProgramPageInner() {
 
     setInlinePhase("generating");
 
-    // If the user explicitly picked a platform model, use the platform path with
-    // it. Otherwise fall back to auto-selecting a BYOK key (legacy default).
-    let selection: { keyId: string; modelId: string } | null = null;
-    if (!platformModelChosen) {
-      try {
-        selection = await ensureModelSelection();
-      } catch {
-        setInlinePhase("connections");
-        setInlineMessages((prev) => [
-          ...prev,
-          { role: "assistant", text: "We could not connect. Check your internet connection and try again." },
-        ]);
-        return;
-      }
-    }
+    // The inline chat is platform-first: by default use the platform key + the
+    // selected platform model. Use a personal (BYOK) key ONLY when the user
+    // explicitly chose one via the key selector (selectedKeyId is set only then,
+    // not on mount) and hasn't picked a platform model.
+    const selection: { keyId: string; modelId: string } | null =
+      !platformModelChosen && selectedKeyId && model.trim()
+        ? { keyId: selectedKeyId, modelId: model.trim() }
+        : null;
 
     // Honor the user's last-chosen layout orientation (set via the editor's
     // Auto-layout control). Defaults to horizontal when unset.
