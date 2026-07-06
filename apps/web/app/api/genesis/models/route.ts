@@ -35,7 +35,9 @@ export async function GET() {
 
   return NextResponse.json({
     tier: modelTier,
-    defaultModel: PLATFORM_DEFAULT_MODEL,
+    // Devs default to a capable model (funded platform key) so V2 testing gets a
+    // model that actually follows instructions, without having to pick one.
+    defaultModel: isDev ? "anthropic/claude-3-haiku" : PLATFORM_DEFAULT_MODEL,
     models,
     // Genesis V2 is dev-gated: the client only shows the V2 toggle when true.
     v2Available: isDev,
