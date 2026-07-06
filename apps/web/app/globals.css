@@ -762,11 +762,14 @@
 }
 
 /* ── Genesis V2 release announcement — looping preview animations ── */
+/* NOTE: never animate `transform` on a .react-flow__node — React Flow uses
+   transform to position nodes, so animating it collapses the node to the
+   origin (nodes overlap). Only opacity / box-shadow / filter are safe. */
 @keyframes genesis-preview-added {
-  0%   { opacity: 0; transform: translateY(6px) scale(0.96); box-shadow: 0 0 0 0 rgba(74,222,128,0); }
-  20%  { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 16px 0 rgba(74,222,128,0.65); }
-  60%  { box-shadow: 0 0 6px 0 rgba(74,222,128,0.3); }
-  100% { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  0%   { opacity: 0; box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  20%  { opacity: 1; box-shadow: 0 0 18px 1px rgba(74,222,128,0.7); }
+  60%  { box-shadow: 0 0 7px 0 rgba(74,222,128,0.32); }
+  100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0); }
 }
 .genesis-preview-added { animation: genesis-preview-added 3.6s ease-in-out infinite; }
 
@@ -778,8 +781,8 @@
 
 .genesis-preview-removed { position: relative; animation: genesis-preview-removed 3.6s ease-in-out infinite; }
 @keyframes genesis-preview-removed {
-  0%, 40% { opacity: 0.9; filter: grayscale(0); }
-  70%, 100% { opacity: 0.28; filter: grayscale(1); }
+  0%, 40% { opacity: 0.95; filter: grayscale(0); }
+  70%, 100% { opacity: 0.45; filter: grayscale(1); }
 }
 .genesis-preview-removed::after {
   content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px;
