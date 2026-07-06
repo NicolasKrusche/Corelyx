@@ -12,7 +12,7 @@ import { vaultRetrieve } from "@/lib/vault";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeAppLog } from "@/lib/app-logs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
-import { hasTechnicalAccess } from "@/lib/admin-auth";
+import { hasGenesisV2Access } from "@/lib/genesis/v2-access";
 import { PseudonymizationSession } from "@/lib/privacy/pii";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
@@ -73,9 +73,9 @@ export async function POST(
   if (!user) return apiError("Unauthorized", 401);
   const userId = user.id;
 
-  // V2 is dev-gated. Clarification sessions only exist for dev users, but gate
-  // here too so a revoked-access user can't keep answering.
-  if (!(await hasTechnicalAccess(userId, user.email))) {
+  // Gate on V2 access (dev or top plan) so a user who lost access can't keep
+  // answering clarification sessions.
+  if (!(await hasGenesisV2Access(userId, user.email))) {
     return apiError("Genesis V2 is not enabled for this account.", 403);
   }
 

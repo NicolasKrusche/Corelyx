@@ -40,7 +40,8 @@ export async function GET() {
     // questions — Haiku is too weak for that. Without having to pick one.
     defaultModel: isDev ? "anthropic/claude-sonnet-4.6" : PLATFORM_DEFAULT_MODEL,
     models,
-    // Genesis V2 is dev-gated: the client only shows the V2 toggle when true.
-    v2Available: isDev,
+    // Genesis V2 access = dev (testing) OR the top plan(s); the client shows the
+    // V2 toggle only when true.
+    v2Available: isDev || getEntitlements(tier).genesisV2,
   });
 }

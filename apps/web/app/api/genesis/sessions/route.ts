@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
-import { hasTechnicalAccess } from "@/lib/admin-auth";
+import { hasGenesisV2Access } from "@/lib/genesis/v2-access";
 
 // GET /api/genesis/sessions?program_id=<uuid>
 // Open clarifying-question sessions for the caller (Genesis V2). Used by the
@@ -13,8 +13,8 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  // V2 is dev-gated: non-dev users have no sessions, so short-circuit to empty.
-  if (!(await hasTechnicalAccess(user.id, user.email))) {
+  // No V2 access → no sessions; short-circuit to empty.
+  if (!(await hasGenesisV2Access(user.id, user.email))) {
     return NextResponse.json({ sessions: [] });
   }
 
