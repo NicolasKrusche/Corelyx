@@ -125,10 +125,13 @@ export async function POST(request: Request) {
 
   // Genesis V2 is dev-gated: introspection, patch refinement, and clarifying
   // questions only activate when a dev user opted in. Everything else is V1.
-  // isDev also unlocks all platform models (below), so a dev can test with a
-  // capable model on the funded platform key without a personal billing tier.
+  // V2 access = dev (testing) OR the top plan(s) (entitlements.genesisV2). isDev
+  // also unlocks all platform models (below), so a dev can test with a capable
+  // model on the funded platform key without a personal billing tier.
   const isDev = await hasTechnicalAccess(userId, user.email);
-  const v2Enabled = parsed.data.genesis_v2 === true && isDev;
+  const v2Enabled =
+    parsed.data.genesis_v2 === true &&
+    (isDev || getEntitlements(await getUserTier(userId)).genesisV2);
   // Make the gate decision visible in stdout so "did V2 run?" is answerable
   // without a DB round-trip. requested vs enabled distinguishes "toggle off" from
   // "toggle on but not a dev".

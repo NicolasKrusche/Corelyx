@@ -1,16 +1,28 @@
 import "server-only";
 
 import { hasTechnicalAccess } from "@/lib/admin-auth";
+import { getUserTier } from "@/lib/limits";
+import { getEntitlements } from "@/lib/entitlements";
 
 /**
- * Genesis V2 is dev-gated for now. It is enabled for a request only when BOTH:
- *   1. the request opted in (genesis_v2: true), and
- *   2. the user has technical access (ADMIN_EMAILS or team_role founder/dev).
- *
- * A non-dev request that sets the flag is silently treated as V1 — the toggle
- * is hidden for non-dev users, and this is the server-side backstop so the flag
- * can never be forged into V2 behavior. Every V2 behavior (introspection,
- * patch refinement, clarifying questions) checks this single boolean.
+ * Who may use Genesis V2. Because V2 defaults to a strong (expensive) model, it
+ * is gated to the top plan(s) (entitlements.genesisV2 — Scale/unlimited) plus
+ * dev accounts (ADMIN_EMAILS or team_role founder/dev) for testing.
+ */
+export async function hasGenesisV2Access(
+  userId: string,
+  email: string | null | undefined
+): Promise<boolean> {
+  if (await hasTechnicalAccess(userId, email)) return true;
+  const tier = await getUserTier(userId);
+  return getEntitlements(tier).genesisV2;
+}
+
+/**
+ * Whether V2 behaviors run for a request: the request opted in (genesis_v2:
+ * true) AND the user has V2 access. A request that sets the flag without access
+ * is silently treated as V1 — the server-side backstop so the flag can't be
+ * forged into V2 behavior. Every V2 behavior checks this single boolean.
  */
 export async function isGenesisV2Enabled(
   userId: string,
@@ -18,5 +30,5 @@ export async function isGenesisV2Enabled(
   requested: boolean | undefined
 ): Promise<boolean> {
   if (requested !== true) return false;
-  return hasTechnicalAccess(userId, email);
+  return hasGenesisV2Access(userId, email);
 }

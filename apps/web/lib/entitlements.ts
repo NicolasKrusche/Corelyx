@@ -53,6 +53,11 @@ export interface PlanEntitlements {
   // "standard" → + Claude 3 Haiku, GPT-4o Mini  (Solo)
   // "premium"  → + Claude Sonnet, GPT-4o         (Team / Scale)
   genesisPlatformModelTier: "free" | "standard" | "premium";
+
+  // Genesis V2 (live connector introspection, patch-based edits, clarifying
+  // questions). Defaults to a strong model, so it's gated to the top plan(s)
+  // for now; dev accounts also get access for testing (see lib/genesis/v2-access).
+  genesisV2: boolean;
 }
 
 export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
@@ -73,6 +78,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxWorkspaces: 1,
     includedAiCredits: 0,
     genesisPlatformModelTier: "free",
+    genesisV2: false,
   },
   plus: {   // Solo
     maxPrograms: 5,
@@ -91,6 +97,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxWorkspaces: 1,
     includedAiCredits: 2_500,
     genesisPlatformModelTier: "standard",
+    genesisV2: false,
   },
   pro: {   // Team
     maxPrograms: null,
@@ -109,6 +116,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxWorkspaces: 3,
     includedAiCredits: 10_000,
     genesisPlatformModelTier: "premium",
+    genesisV2: false,
   },
   builder: {   // Scale
     maxPrograms: null,
@@ -127,6 +135,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxWorkspaces: null,
     includedAiCredits: 15_000,
     genesisPlatformModelTier: "premium",
+    genesisV2: true,
   },
   unlimited: {
     maxPrograms: null,
@@ -145,6 +154,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxWorkspaces: null,
     includedAiCredits: null,
     genesisPlatformModelTier: "premium",
+    genesisV2: true,
   },
 };
 
