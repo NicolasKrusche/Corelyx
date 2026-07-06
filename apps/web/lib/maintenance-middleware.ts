@@ -66,6 +66,88 @@ function isExempt(pathname: string): boolean {
   return EXEMPT_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
+/** Minimal HTML escaping for values interpolated into the maintenance page. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Self-contained maintenance page served straight from middleware so it can
+ * carry a real HTTP 503.
+ *
+ * The old path rewrote to the /maintenance App Router page, but a rewrite always
+ * emits 200 — Next takes the final status from the rendered destination, not
+ * from the middleware response, so `rewrite(url, { status: 503 })` does not
+ * work. A 200 told Google the thin "we'll be right back" page WAS each URL's
+ * real content, and it deindexed the live marketing/SEO pages (impressions
+ * collapse). A 503 + Retry-After signals a temporary outage so crawlers hold
+ * rankings and return later. Inline <style> is permitted by our CSP
+ * (style-src 'unsafe-inline'); the meta refresh recovers the page for humans.
+ */
+function maintenanceHtml(title: string, message: string): string {
+  const safeTitle = escapeHtml(title);
+  const safeMessage = escapeHtml(message);
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="30">
+<title>${safeTitle}</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center;
+    justify-content: center; padding: 64px 24px; background: #f9fafb;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif; color: #111827; }
+  .card { width: 100%; max-width: 28rem; text-align: center; }
+  .icon { margin: 0 auto 24px; height: 64px; width: 64px; display: flex;
+    align-items: center; justify-content: center; border-radius: 16px;
+    background: #fef3c7; }
+  .icon svg { height: 32px; width: 32px; color: #d97706; }
+  h1 { margin: 0; font-size: 1.5rem; line-height: 2rem; font-weight: 600; }
+  p { margin: 12px 0 0; color: #4b5563; line-height: 1.6; }
+  a { display: inline-block; margin-top: 32px; font-size: .875rem;
+    color: #9ca3af; text-decoration: none; }
+  a:hover { color: #4b5563; text-decoration: underline; }
+  .brand { margin-top: 8px; font-size: .875rem; color: #9ca3af; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" aria-hidden="true">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+    </div>
+    <h1>${safeTitle}</h1>
+    <p>${safeMessage}</p>
+    <a href="/login">Team sign-in</a>
+    <p class="brand">Corelyx</p>
+  </main>
+</body>
+</html>`;
+}
+
+/** 503 maintenance response carrying the temporary-outage signal crawlers need. */
+function maintenancePageResponse(title: string, message: string): NextResponse {
+  return new NextResponse(maintenanceHtml(title, message), {
+    status: 503,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "Retry-After": "3600",
+    },
+  });
+}
+
 /** Decode the user's id/email from the cookie session (no network call). */
 async function readSessionIdentity(
   request: NextRequest
@@ -141,10 +223,10 @@ export async function maintenanceGate(request: NextRequest): Promise<NextRespons
       );
     }
 
-    const url = request.nextUrl.clone();
-    url.pathname = "/maintenance";
-    url.search = "";
-    return NextResponse.rewrite(url);
+    return maintenancePageResponse(
+      "We'll be right back",
+      flags.maintenanceMessage || DEFAULT_MAINTENANCE_MESSAGE
+    );
   }
 
   // ── Scoped maintenance: individual areas disabled, rest of app stays up ────
@@ -167,11 +249,10 @@ export async function maintenanceGate(request: NextRequest): Promise<NextRespons
       );
     }
 
-    const url = request.nextUrl.clone();
-    url.pathname = "/maintenance";
-    url.search = "";
-    url.searchParams.set("area", blockedArea.key);
-    return NextResponse.rewrite(url);
+    return maintenancePageResponse(
+      `${blockedArea.label} is under maintenance`,
+      `${blockedArea.description} This part of Corelyx is temporarily unavailable — please try again shortly.`
+    );
   }
 
   return null;
