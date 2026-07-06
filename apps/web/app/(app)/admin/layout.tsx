@@ -20,6 +20,7 @@ import {
   Newspaper,
   Ticket,
   Building2,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,7 @@ export default async function AdminLayout({
       { href: "/admin/security", label: "Security Sentinel", icon: ShieldAlert },
       { href: "/admin/locks", label: "Credential Locks", icon: Lock },
       { href: "/admin/flags", label: "Feature Flags", icon: Settings },
+      { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
     ] as AdminNavItem[] : []),
     ...(canAccessCosts ? [
       { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
