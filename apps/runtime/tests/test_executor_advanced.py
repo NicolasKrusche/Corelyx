@@ -34,6 +34,7 @@ from engine.executor import (
     _extract_reported_cost_usd,
     _extract_usage_tokens,
     _get_llm_client,
+    _is_openrouter_call,
     _pricing_for_model,
     _recover_event_operation_params,
     _resolve_expression_raw,
@@ -174,10 +175,120 @@ class TestHelperPricingForModel(unittest.TestCase):
         self.assertIsNotNone(pricing)
         self.assertEqual(pricing, (0.40, 1.60))
 
+    def test_free_variant_never_priced(self) -> None:
+        """':free' OpenRouter variants cost nothing — the substring match must
+        not bill them at the paid model's rate."""
+        self.assertIsNone(_pricing_for_model("qwen/qwen3-coder:free"))
+        self.assertIsNone(_pricing_for_model("meta-llama/llama-3.3-70b-instruct:free"))
+
+    def test_openrouter_paid_models_priced(self) -> None:
+        self.assertEqual(_pricing_for_model("deepseek/deepseek-chat"), (0.27, 1.10))
+        self.assertEqual(_pricing_for_model("qwen/qwen3-coder"), (0.20, 0.80))
+
 
 class TestHelperEstimateCostUsd(unittest.TestCase):
     def test_pricing_none_returns_zero(self) -> None:
         self.assertEqual(_estimate_cost_usd("unknown-model", 100, 50), 0.0)
+
+    def test_free_model_costs_zero(self) -> None:
+        self.assertEqual(_estimate_cost_usd("openai/gpt-oss-120b:free", 1_000_000, 500_000), 0.0)
+
+
+class TestHelperIsOpenrouterCall(unittest.TestCase):
+    def test_provider_match(self) -> None:
+        self.assertTrue(_is_openrouter_call("openrouter", "https://proxy.internal/v1"))
+
+    def test_base_url_match(self) -> None:
+        self.assertTrue(_is_openrouter_call("openai", "https://openrouter.ai/api/v1"))
+
+    def test_no_match(self) -> None:
+        self.assertFalse(_is_openrouter_call("openai", "https://api.openai.com/v1"))
+
+
+class TestLogLlmUsage(unittest.TestCase):
+    """_log_llm_usage feeds the admin cost/finance pages; it must degrade
+    gracefully when the billing migration (or the whole table) is missing."""
+
+    def _executor(self) -> ProgramExecutor:
+        executor = ProgramExecutor.__new__(ProgramExecutor)
+        executor.user_id = "user-1"
+        executor.workspace_id = "ws-1"
+        executor.run_id = "run-1"
+        return executor
+
+    def _insert_db(self, execute_effects: list[Any]) -> tuple[Mock, Mock]:
+        db = Mock()
+        builder = Mock()
+        db.table.return_value = builder
+        builder.insert.return_value = builder
+        builder.execute.side_effect = execute_effects
+        return db, builder
+
+    def test_enriched_row_written(self) -> None:
+        executor = self._executor()
+        db, builder = self._insert_db([Mock(data=[{}])])
+        executor.db = db
+        executor._log_llm_usage(
+            "n1",
+            "openai/gpt-4o",
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+            estimated_cost_usd=0.00123,
+            billed_credits=13,
+            billing="platform",
+            source="workflow",
+        )
+        db.table.assert_called_once_with("llm_usage_logs")
+        row = builder.insert.call_args[0][0]
+        self.assertEqual(row["user_id"], "user-1")
+        self.assertEqual(row["run_id"], "run-1")
+        self.assertEqual(row["model"], "openai/gpt-4o")
+        self.assertEqual(row["total_tokens"], 150)
+        self.assertEqual(row["estimated_cost_usd"], 0.00123)
+        self.assertEqual(row["billed_credits"], 13)
+        self.assertEqual(row["billing"], "platform")
+        self.assertEqual(row["source"], "workflow")
+        self.assertEqual(row["node_id"], "n1")
+
+    def test_missing_billing_columns_falls_back_to_base_row(self) -> None:
+        executor = self._executor()
+        db, builder = self._insert_db(
+            [
+                Exception(
+                    "Could not find the 'billed_credits' column of 'llm_usage_logs' in the schema cache"
+                ),
+                Mock(data=[{}]),
+            ]
+        )
+        executor.db = db
+        executor._log_llm_usage("n1", "m", total_tokens=5, estimated_cost_usd=0.1)
+        base_row = builder.insert.call_args_list[1][0][0]
+        self.assertNotIn("billing", base_row)
+        self.assertNotIn("billed_credits", base_row)
+        self.assertNotIn("source", base_row)
+        self.assertNotIn("node_id", base_row)
+        self.assertEqual(base_row["estimated_cost_usd"], 0.1)
+        self.assertFalse(getattr(executor, "_llm_usage_logging_disabled", False))
+
+    def test_missing_table_disables_logging_for_run(self) -> None:
+        executor = self._executor()
+        db, builder = self._insert_db(
+            [Exception("Could not find the table 'public.llm_usage_logs' in the schema cache")]
+        )
+        executor.db = db
+        executor._log_llm_usage("n1", "m", total_tokens=5)
+        self.assertTrue(executor._llm_usage_logging_disabled)
+        executor._log_llm_usage("n1", "m", total_tokens=5)
+        self.assertEqual(builder.insert.call_count, 1)
+
+    def test_no_user_id_skips_logging(self) -> None:
+        executor = self._executor()
+        executor.user_id = ""
+        db, builder = self._insert_db([Mock(data=[{}])])
+        executor.db = db
+        executor._log_llm_usage("n1", "m", total_tokens=5)
+        builder.insert.assert_not_called()
 
 
 class TestHelperResolvePath(unittest.TestCase):

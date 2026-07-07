@@ -173,5 +173,36 @@ class CostCapTests(unittest.TestCase):
             ex._record_agent_llm_usage("a1", "m", self._usage(100.0))  # no cap → fine
 
 
+class AgentMarkupTests(unittest.TestCase):
+    """Agent LLM calls on the platform key charge the same markup as workflow
+    calls: ceil(cost * PLATFORM_MARKUP * CREDITS_PER_USD) credits."""
+
+    def _usage(self, cost):
+        return {"usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2, "cost": cost}}
+
+    def test_platform_key_returns_marked_up_credits(self):
+        ex = _agent_executor()
+        ex._limiter = Mock()
+        ex._agent_capabilities = {}
+        ex._agent_billing_platform = True
+        billed = ex._record_agent_llm_usage("a1", "m", self._usage(0.0123))
+        # 0.0123 USD * 10 markup * 1000 credits/USD = 123 credits
+        self.assertEqual(billed, 123)
+
+    def test_byok_returns_zero_credits(self):
+        ex = _agent_executor()
+        ex._limiter = Mock()
+        ex._agent_capabilities = {}
+        ex._agent_billing_platform = False
+        self.assertEqual(ex._record_agent_llm_usage("a1", "m", self._usage(0.0123)), 0)
+
+    def test_free_model_returns_zero_credits(self):
+        ex = _agent_executor()
+        ex._limiter = Mock()
+        ex._agent_capabilities = {}
+        ex._agent_billing_platform = True
+        self.assertEqual(ex._record_agent_llm_usage("a1", "m", self._usage(0.0)), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

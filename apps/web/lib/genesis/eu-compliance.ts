@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { getProviderBaseURL } from "@/lib/genesis/request";
 import type { GenesisApiKeyRow } from "@/lib/genesis/request";
+import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
 
 export type EuComplianceResult =
   | { verdict: "none" }
@@ -62,7 +63,8 @@ function buildEuComplianceFilterMessage(description: string): string {
 export async function runEuComplianceFilter(
   description: string,
   keyRow: GenesisApiKeyRow,
-  apiKey: string
+  apiKey: string,
+  usageLog?: { userId: string; workspaceId?: string | null }
 ): Promise<EuComplianceResult | null> {
   const filterModel = COMPLIANCE_FILTER_MODELS[keyRow.provider];
   if (!filterModel) return null;
@@ -70,6 +72,7 @@ export async function runEuComplianceFilter(
 
   try {
     let response = "";
+    let usageData: LlmUsageLike = null;
 
     if (keyRow.provider === "anthropic") {
       const anthropic = new Anthropic({ apiKey });
@@ -80,6 +83,7 @@ export async function runEuComplianceFilter(
         system: EU_COMPLIANCE_FILTER_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMessage }],
       });
+      usageData = msg.usage as LlmUsageLike;
       response =
         msg.content[0]?.type === "text"
           ? (msg.content[0] as { type: "text"; text: string }).text
@@ -94,12 +98,26 @@ export async function runEuComplianceFilter(
       const completion = await openai.chat.completions.create({
         model: filterModel,
         max_tokens: 600,
+        // OpenRouter usage accounting: exact billed cost in response usage.
+        ...(keyRow.provider === "openrouter" && ({ usage: { include: true } } as object)),
         messages: [
           { role: "system", content: EU_COMPLIANCE_FILTER_SYSTEM_PROMPT },
           { role: "user", content: userMessage },
         ],
       });
+      usageData = (completion as { usage?: LlmUsageLike }).usage ?? null;
       response = completion.choices[0]?.message?.content ?? "";
+    }
+
+    if (usageLog) {
+      recordLlmUsage({
+        userId: usageLog.userId,
+        workspaceId: usageLog.workspaceId,
+        model: filterModel,
+        usage: usageData,
+        billing: keyRow.id === "platform" ? "platform" : "byok",
+        source: "genesis",
+      });
     }
 
     const trimmed = response.trim();

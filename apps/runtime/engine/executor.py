@@ -40,6 +40,7 @@ from engine.agent_tools import (
 from connectors import get_connector
 from connectors.base import ConnectorError
 from db import (
+    _looks_like_missing_column_error,
     acquire_resource_lock,
     cleanup_stale_locks,
     create_approval,
@@ -111,9 +112,31 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
     # Google
     "gemini-2.5-pro": (1.25, 5.00),
     "gemini-2.5-flash": (0.30, 2.50),
+    "gemini-2.0-flash": (0.10, 0.40),
     "gemini-1.5-pro": (3.50, 10.50),
     "gemini-1.5-flash": (0.35, 1.05),
+    # OpenRouter-routed open/other models (approximate list prices; only used
+    # when the provider does not report exact cost in the response usage).
+    "deepseek-r1": (0.55, 2.19),
+    "deepseek-chat": (0.27, 1.10),
+    "llama-3.3-70b-instruct": (0.12, 0.30),
+    "llama-3.1-405b-instruct": (0.80, 0.80),
+    "llama-3.1-70b-instruct": (0.12, 0.30),
+    "qwen3-coder": (0.20, 0.80),
+    "qwen3-235b": (0.13, 0.60),
+    "mistral-large": (2.00, 6.00),
+    "mistral-small": (0.10, 0.30),
+    "mixtral-8x7b": (0.24, 0.24),
+    "gpt-oss-120b": (0.10, 0.50),
+    "grok-3-mini": (0.30, 0.50),
+    "grok-3": (3.00, 15.00),
 }
+
+# Platform-key billing: users are charged a markup over raw provider cost,
+# denominated in integer credits. Telemetry and llm_usage_logs keep the RAW
+# provider cost in USD; billed_credits carries what the user was charged.
+PLATFORM_MARKUP = 10.0
+CREDITS_PER_USD = 1000
 
 OPENROUTER_PLATFORM_FALLBACK_MODELS: tuple[str, ...] = (
     "qwen/qwen3-coder:free",
@@ -354,9 +377,19 @@ def _extract_reported_cost_usd(payload: dict[str, Any]) -> float | None:
     return None
 
 
+def _is_openrouter_call(provider: str, base_url: str) -> bool:
+    """Whether a request goes to OpenRouter (which supports usage cost accounting)."""
+    return provider == "openrouter" or "openrouter" in (base_url or "").lower()
+
+
 def _pricing_for_model(model: str) -> tuple[float, float] | None:
     needle = model.lower().strip()
     if not needle:
+        return None
+
+    # ":free" OpenRouter variants cost nothing; without this guard the
+    # substring match below would bill them at the paid model's rate.
+    if ":free" in needle:
         return None
 
     # Prefer longest match so "gpt-4.1-mini" resolves before "gpt-4.1".
@@ -929,6 +962,12 @@ class ProgramExecutor:
         # the web run dispatch so the runtime can fall through keys (and finally the
         # platform key) when one is out of credits / invalid.
         self._agent_credentials: list[dict[str, str]] | None = None
+        # Whether the currently-active agent credential is the platform key
+        # (drives platform-vs-byok attribution in llm_usage_logs).
+        self._agent_billing_platform = False
+        # Latched when llm_usage_logs rejects inserts (e.g. table missing) so a
+        # broken audit table costs one warning per run, not one per LLM call.
+        self._llm_usage_logging_disabled = False
         # Guardrail: total agent tool calls allowed across the whole run.
         self._agent_tool_calls_made = 0
         # Bulk-write safety net: cumulative connector write ops in this run and a
@@ -1024,6 +1063,66 @@ class ProgramExecutor:
         self._run_telemetry["estimated_cost_usd"] += cost
         self._run_telemetry["connector_api_calls"] += connector_calls
         self._run_telemetry["model_call_count"] += model_calls
+
+    def _log_llm_usage(
+        self,
+        node_id: str,
+        model: str,
+        *,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        total_tokens: int = 0,
+        estimated_cost_usd: float = 0.0,
+        billed_credits: int = 0,
+        billing: str = "byok",
+        source: str = "workflow",
+    ) -> None:
+        """Append one audit row to llm_usage_logs — the admin cost/finance pages
+        read this table. estimated_cost_usd is RAW provider cost; billed_credits
+        is what the user was charged (0 for BYOK/free). Best-effort: a logging
+        failure must never fail the LLM call that produced it.
+        """
+        db = getattr(self, "db", None)
+        user_id = getattr(self, "user_id", None)
+        if db is None or not user_id or getattr(self, "_llm_usage_logging_disabled", False):
+            return
+        base_row: dict[str, Any] = {
+            "user_id": user_id,
+            "workspace_id": getattr(self, "workspace_id", None),
+            "run_id": getattr(self, "run_id", None),
+            "model": model,
+            "prompt_tokens": _non_negative_int(prompt_tokens),
+            "completion_tokens": _non_negative_int(completion_tokens),
+            "total_tokens": _non_negative_int(total_tokens),
+            "estimated_cost_usd": _round_cost(_non_negative_float(estimated_cost_usd)),
+        }
+        billing_columns = {"node_id", "source", "billing", "billed_credits"}
+        enriched_row = {
+            **base_row,
+            "node_id": node_id,
+            "source": source,
+            "billing": billing,
+            "billed_credits": _non_negative_int(billed_credits),
+        }
+        try:
+            db.table("llm_usage_logs").insert(enriched_row).execute()
+            return
+        except Exception as exc:
+            if "could not find the table" in str(exc).lower():
+                # Table itself missing (migration 20260111120000 unapplied) —
+                # one warning per run, not one per LLM call.
+                self._llm_usage_logging_disabled = True
+                print(f"[llm-usage] WARNING: usage logging disabled for this run: {exc}", flush=True)
+                return
+            if not _looks_like_missing_column_error(exc, billing_columns):
+                print(f"[llm-usage] WARNING: usage log insert failed: {exc}", flush=True)
+                return
+        # Billing columns not migrated yet (20260708120000): keep the base audit row.
+        try:
+            db.table("llm_usage_logs").insert(base_row).execute()
+        except Exception as exc:
+            self._llm_usage_logging_disabled = True
+            print(f"[llm-usage] WARNING: usage logging disabled for this run: {exc}", flush=True)
 
     def _node_telemetry_payload(self, node_id: str) -> dict[str, int | float]:
         metrics = self._node_telemetry.get(node_id, _empty_telemetry())
@@ -2065,6 +2164,9 @@ class ProgramExecutor:
                 raise
 
             provider_id = "openrouter" if use_platform_key else provider_for_model(model, provider)
+            # Remember which key funds this candidate so per-call usage logging
+            # can attribute cost to platform vs BYOK.
+            self._agent_billing_platform = use_platform_key
             await self._enforce_provider_policy(provider_id, node.id, model_id=model)
             await update_node_execution(
                 self.db,
@@ -2163,6 +2265,9 @@ class ProgramExecutor:
             if tools_spec:
                 body["tools"] = tools_spec
                 body["tool_choice"] = "auto"
+            if _is_openrouter_call(provider, base_url):
+                # Exact billed cost in response usage (see _call_llm).
+                body["usage"] = {"include": True}
             self._record_telemetry(node_id, model_call_count=1)
             client = _get_llm_client()
             resp = await client.post(f"{base_url}/chat/completions", headers=headers, json=body)
@@ -2173,7 +2278,9 @@ class ProgramExecutor:
                     node_id,
                 )
             data = resp.json()
-            self._record_agent_llm_usage(node_id, model, data)
+            billed_credits = self._record_agent_llm_usage(node_id, model, data)
+            if billed_credits:
+                await self._deduct_platform_credits(billed_credits)
             msg = ((data.get("choices") or [{}])[0].get("message")) or {}
             assistant_msg: dict[str, Any] = {"role": "assistant", "content": msg.get("content") or ""}
             tool_calls = msg.get("tool_calls") or []
@@ -2252,7 +2359,9 @@ class ProgramExecutor:
                     node_id,
                 )
             data = resp.json()
-            self._record_agent_llm_usage(node_id, model, data)
+            billed_credits = self._record_agent_llm_usage(node_id, model, data)
+            if billed_credits:
+                await self._deduct_platform_credits(billed_credits)
             content_blocks = data.get("content") or []
             messages.append({"role": "assistant", "content": content_blocks})
 
@@ -2691,12 +2800,16 @@ class ProgramExecutor:
             return True
         return provider_id in allowed
 
-    def _record_agent_llm_usage(self, node_id: str, model: str, data: dict) -> None:
+    def _record_agent_llm_usage(self, node_id: str, model: str, data: dict) -> int:
         """Record token usage + cost for one agent_task LLM call and enforce the
         run's token/cost ceilings (the same limiter used by workflow LLM calls).
 
         Without this, agent_task loops were untracked and unbounded on spend;
         check_llm_tokens/check_cost raise when the run's ceiling is exceeded.
+
+        Returns the platform credits to charge for this call (0 for BYOK/free);
+        the async caller performs the actual deduction, matching the workflow
+        path's markup (PLATFORM_MARKUP over raw provider cost).
         """
         prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(data)
         reported_cost = _extract_reported_cost_usd(data)
@@ -2714,6 +2827,21 @@ class ProgramExecutor:
             total_tokens=total_tokens,
             estimated_cost_usd=estimated_cost_usd,
         )
+        billing_platform = getattr(self, "_agent_billing_platform", False)
+        billed_credits = 0
+        if billing_platform and estimated_cost_usd and getattr(self, "user_id", None):
+            billed_credits = math.ceil(estimated_cost_usd * PLATFORM_MARKUP * CREDITS_PER_USD)
+        self._log_llm_usage(
+            node_id,
+            model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            estimated_cost_usd=estimated_cost_usd,
+            billed_credits=billed_credits,
+            billing="platform" if billing_platform else "byok",
+            source="agent",
+        )
 
         # User-set per-agent spend cap (capability scope). Aborts the run once the
         # accumulated agent LLM cost crosses the ceiling, so a standing agent can't
@@ -2726,6 +2854,8 @@ class ProgramExecutor:
                 "AGENT_COST_CAP",
                 f"Agent stopped: it reached its ${cap:.2f} spend cap for this run.",
             )
+
+        return billed_credits
 
     async def _ensure_agent_report(
         self,
@@ -3307,6 +3437,11 @@ class ProgramExecutor:
             }
             if _should_request_json_object(cfg) and _supports_openai_json_mode(provider, base_url, litellm_url):
                 request_body["response_format"] = {"type": "json_object"}
+            if _is_openrouter_call(provider, base_url):
+                # Ask OpenRouter for exact billed cost in response usage —
+                # without this the response has tokens but no "cost" field and
+                # cost falls back to the static price-table estimate.
+                request_body["usage"] = {"include": True}
 
             client = _get_llm_client()
             resp = await client.post(
@@ -3343,13 +3478,10 @@ class ProgramExecutor:
         self._limiter.check_llm_tokens(total_tokens)
         self._limiter.check_cost(estimated_cost_usd)
 
-        # 10x markup on provider cost. Telemetry remains raw provider cost in USD,
-        # while the user-facing balance is stored as integer credits.
-        _PLATFORM_MARKUP = 10.0
-        _CREDITS_PER_USD = 1000
+        billed_credits = 0
         if deduct_credits and estimated_cost_usd and self.user_id:
-            amount_credits = math.ceil(estimated_cost_usd * _PLATFORM_MARKUP * _CREDITS_PER_USD)
-            await self._deduct_platform_credits(amount_credits)
+            billed_credits = math.ceil(estimated_cost_usd * PLATFORM_MARKUP * CREDITS_PER_USD)
+            await self._deduct_platform_credits(billed_credits)
 
         self._record_telemetry(
             node_id,
@@ -3357,6 +3489,17 @@ class ProgramExecutor:
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
             estimated_cost_usd=estimated_cost_usd,
+        )
+        self._log_llm_usage(
+            node_id,
+            cfg.model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            estimated_cost_usd=estimated_cost_usd,
+            billed_credits=billed_credits,
+            billing="platform" if deduct_credits else "byok",
+            source="workflow",
         )
 
         # Try to parse as JSON, else wrap in text field. Either way, rehydrate

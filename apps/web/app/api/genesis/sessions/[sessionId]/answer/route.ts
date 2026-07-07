@@ -9,6 +9,7 @@ export const maxDuration = 120;
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
+import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeAppLog } from "@/lib/app-logs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -231,6 +232,7 @@ export async function POST(
   const modelCandidates = getModelCandidates(provider, model);
   for (let i = 0; i < modelCandidates.length; i += 1) {
     const candidateModel = modelCandidates[i] ?? model;
+    let usageData: LlmUsageLike = null;
     try {
       if (provider === "anthropic") {
         const anthropic = new Anthropic({ apiKey });
@@ -241,6 +243,7 @@ export async function POST(
           system: systemPrompt,
           messages: [{ role: "user", content: userMessage }],
         });
+        usageData = message.usage as LlmUsageLike;
         rawText = message.content[0]?.type === "text" ? message.content[0].text : "";
       } else {
         const baseURL = getProviderBaseURL(provider);
@@ -252,15 +255,26 @@ export async function POST(
           ...(supportsOpenAiJsonMode(provider, getProviderBaseURL(provider)) && {
             response_format: { type: "json_object" as const },
           }),
+          // OpenRouter usage accounting: exact billed cost in response usage.
+          ...(provider === "openrouter" && ({ usage: { include: true } } as object)),
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
           ],
         });
+        usageData = (completion as { usage?: LlmUsageLike }).usage ?? null;
         rawText = completion.choices[0]?.message?.content ?? "";
       }
       if (rawText) {
         modelUsed = candidateModel;
+        recordLlmUsage({
+          userId,
+          workspaceId: session.workspace_id,
+          model: candidateModel,
+          usage: usageData,
+          billing: use_platform_key === true ? "platform" : "byok",
+          source: "genesis",
+        });
         break;
       }
     } catch {
