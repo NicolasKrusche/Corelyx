@@ -33,6 +33,11 @@ from db import (
     release_run_locks,
     update_run,
 )
+from connectors.introspection import (
+    IntrospectionError,
+    introspect_connection,
+    supports_introspection,
+)
 from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
 from compliance import (
     load_program_connection_providers,
@@ -44,6 +49,7 @@ from internal_auth import (
     _get_internal_service_secret,
     build_internal_service_headers,
     verify_internal_service_token,
+    verify_internal_service_token_claims,
 )
 from schema import ProgramSchema, parse_schema
 
@@ -53,6 +59,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Railway logs immediately rather than silently on the first execute request.
 _REQUIRED_SECRETS = [
     "runtime:execute",        # web → runtime (inbound)
+    "runtime:introspect",     # web → runtime (Genesis connection introspection)
     "next:runs:complete",     # runtime → web (run completion callback)
     "next:connections:token", # runtime → web (OAuth token fetch)
     "next:vault",             # runtime → web (Vault secret fetch)
@@ -417,6 +424,90 @@ async def execute_program(
         workspace_policy,
     )
     return {"status": "started", "run_id": body.run_id}
+
+
+class IntrospectRequest(BaseModel):
+    connection_ids: list[str] = Field(min_length=1, max_length=20)
+
+
+@app.post("/introspect")
+async def introspect_connections(
+    request: Request,
+    x_internal_service_token: str | None = Header(
+        default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER
+    ),
+) -> dict[str, Any]:
+    """Genesis V2: metadata-only capability introspection for selected connections.
+
+    Returns structure (labels, channels, database schemas) — never record
+    contents. The web app pseudonymizes user-named strings before any LLM
+    prompt; nothing is persisted here.
+    """
+    raw_body = await request.body()
+    if not x_internal_service_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        claims = verify_internal_service_token_claims(
+            x_internal_service_token,
+            "runtime:introspect",
+            method=request.method,
+            path=request.url.path,
+            body=raw_body,
+        )
+    except RuntimeError as exc:
+        if "INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_INTROSPECT" in str(exc):
+            print(f"[runtime] Introspect auth misconfigured: {exc}")
+            raise HTTPException(status_code=500, detail="Runtime auth is not configured")
+        raise
+
+    if claims is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    user_id = claims.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        body = IntrospectRequest.model_validate_json(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid introspect payload")
+
+    # Ownership check: only introspect valid connections belonging to the token
+    # subject — a leaked token cannot enumerate other users' account structure.
+    db = get_db()
+    rows = (
+        db.table("connections")
+        .select("id, provider, user_id, is_valid")
+        .in_("id", body.connection_ids)
+        .execute()
+    ).data or []
+    rows_by_id = {row["id"]: row for row in rows}
+
+    async def _introspect_one(connection_id: str) -> tuple[str, dict[str, Any] | None, str | None]:
+        row = rows_by_id.get(connection_id)
+        if row is None or row.get("user_id") != user_id or not row.get("is_valid"):
+            return connection_id, None, "CONNECTION_NOT_FOUND"
+        provider = str(row.get("provider") or "")
+        if not supports_introspection(provider):
+            return connection_id, None, "UNSUPPORTED_PROVIDER"
+        try:
+            descriptor = await introspect_connection(provider, connection_id, user_id)
+            return connection_id, descriptor, None
+        except IntrospectionError as e:
+            # Include the provider's error text (e.g. "missing_scope",
+            # "invalid_auth") — it's an API status string, not user data, and it
+            # is the actionable detail for why a connection could not introspect.
+            print(f"[runtime] Introspection failed for {connection_id} ({provider}): {e.code} — {e.message}")
+            return connection_id, None, e.code
+        except Exception as e:
+            print(f"[runtime] Introspection failed for {connection_id} ({provider}): {type(e).__name__}")
+            return connection_id, None, "INTROSPECTION_FAILED"
+
+    results = await asyncio.gather(*(_introspect_one(cid) for cid in body.connection_ids))
+
+    descriptors = [descriptor for _, descriptor, _ in results if descriptor is not None]
+    errors = {cid: code for cid, _, code in results if code is not None}
+    return {"descriptors": descriptors, "errors": errors}
 
 
 RUN_TIMEOUT_SECONDS = 600  # 10 minutes max per run

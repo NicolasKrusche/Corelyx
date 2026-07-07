@@ -53,6 +53,7 @@ export function TriggerNode({ id, data, selected }: NodeProps) {
         subtitle={nodeData.description}
         error={nodeData.errors?.[0]?.message}
         warning={nodeData.warnings?.[0]?.message}
+        questionPin={(data as { genesisQuestion?: string | null }).genesisQuestion}
       />
 
       {/* Source handle only — triggers have no incoming connections */}

@@ -191,16 +191,28 @@ async function listGoogleCalendars(accessToken: string): Promise<Resource[]> {
   return [{ id: "primary", name: "Primary calendar" }, ...calendars.filter((calendar) => calendar.id !== "primary")];
 }
 
-async function listSlackChannels(accessToken: string): Promise<Resource[]> {
+type SlackChannelList = {
+  ok?: boolean;
+  error?: string;
+  channels?: Array<{ id: string; name?: string; is_private?: boolean }>;
+};
+
+async function fetchSlackChannels(accessToken: string, types: string): Promise<SlackChannelList> {
   const url = new URL("https://slack.com/api/conversations.list");
-  url.searchParams.set("types", "public_channel,private_channel");
+  url.searchParams.set("types", types);
   url.searchParams.set("exclude_archived", "true");
   url.searchParams.set("limit", "200");
+  return getJson<SlackChannelList>(url.toString(), accessToken);
+}
 
-  const data = await getJson<{ ok?: boolean; error?: string; channels?: Array<{ id: string; name?: string; is_private?: boolean }> }>(
-    url.toString(),
-    accessToken
-  );
+async function listSlackChannels(accessToken: string): Promise<Resource[]> {
+  // Private channels require groups:read; requesting them with a channels:read-
+  // only token makes Slack reject the WHOLE call with missing_scope. Fall back
+  // to public channels rather than failing the picker entirely.
+  let data = await fetchSlackChannels(accessToken, "public_channel,private_channel");
+  if (data.ok === false && data.error === "missing_scope") {
+    data = await fetchSlackChannels(accessToken, "public_channel");
+  }
   if (data.ok === false) throw new Error(data.error ?? "Slack returned an error");
 
   return (data.channels ?? []).map((channel) => ({

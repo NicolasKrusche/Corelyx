@@ -711,3 +711,167 @@
 }
 .animate-float { animation: float-slow 9s ease-in-out infinite; }
 .animate-float-delay { animation: float-slow 9s ease-in-out 3s infinite; }
+
+/* ── Genesis V2 refinement diff (workflow canvas) ── */
+/* Applied as React Flow node classNames; drop-shadow follows the card's
+   rendered shape, so no wrapper geometry assumptions. */
+@keyframes genesis-diff-in {
+  0%   { opacity: 0; transform: scale(0.9); }
+  60%  { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes genesis-diff-pulse {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.0)); }
+  50%      { filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.75)); }
+}
+@keyframes genesis-diff-out {
+  0%   { opacity: 1; transform: scale(1); filter: grayscale(0); }
+  100% { opacity: 0.12; transform: scale(0.94); filter: grayscale(1); }
+}
+.react-flow__node.genesis-diff-added {
+  animation: genesis-diff-in 0.5s ease-out;
+  filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.65));
+  transition: filter 1.2s ease 3.5s;
+}
+.react-flow__node.genesis-diff-updated {
+  animation: genesis-diff-pulse 1.1s ease-in-out 3;
+}
+.react-flow__node.genesis-diff-removed {
+  animation: genesis-diff-out 0.85s ease-in forwards;
+  pointer-events: none;
+}
+.react-flow__node.genesis-diff-removed::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 50%;
+  height: 2px;
+  background: rgba(239, 68, 68, 0.8);
+  transform: rotate(-6deg);
+}
+
+/* ── Genesis V2 clarification pins ── */
+@keyframes genesis-pin-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.genesis-question-pin {
+  animation: genesis-pin-bob 2.2s ease-in-out infinite;
+}
+.react-flow__node.genesis-blocked {
+  opacity: 0.45;
+  filter: saturate(0.55);
+}
+
+/* ── Genesis V2 release announcement — looping preview animations ── */
+/* NOTE: never animate `transform` on a .react-flow__node — React Flow uses
+   transform to position nodes, so animating it collapses the node to the
+   origin (nodes overlap). Only opacity / box-shadow / filter are safe. */
+@keyframes genesis-preview-added {
+  0%   { opacity: 0; box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  20%  { opacity: 1; box-shadow: 0 0 18px 1px rgba(74,222,128,0.7); }
+  60%  { box-shadow: 0 0 7px 0 rgba(74,222,128,0.32); }
+  100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+}
+.genesis-preview-added { animation: genesis-preview-added 3.6s ease-in-out infinite; }
+
+@keyframes genesis-preview-updated {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+  50%      { box-shadow: 0 0 14px 1px rgba(251,191,36,0.7); }
+}
+.genesis-preview-updated { animation: genesis-preview-updated 1.8s ease-in-out infinite; }
+
+.genesis-preview-removed { position: relative; animation: genesis-preview-removed 3.6s ease-in-out infinite; }
+@keyframes genesis-preview-removed {
+  0%, 40% { opacity: 0.95; filter: grayscale(0); }
+  70%, 100% { opacity: 0.45; filter: grayscale(1); }
+}
+.genesis-preview-removed::after {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px;
+  background: rgba(239,68,68,0.85); transform: rotate(-5deg);
+  animation: genesis-preview-strike 3.6s ease-in-out infinite;
+}
+@keyframes genesis-preview-strike { 0%, 40% { opacity: 0; } 70%, 100% { opacity: 1; } }
+
+@keyframes genesis-slide-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.genesis-slide-in { animation: genesis-slide-in 0.35s ease-out; }
+
+/* ── Genesis V2 release: cinematic entrance + slide transitions ── */
+/* Screen ripple/shockwave that plays as the modal opens. Concentric rings
+   expand from centre; the card is delayed so they read before it covers it. */
+.genesis-ripple {
+  position: absolute; left: 50%; top: 50%;
+  height: 60px; width: 60px; margin: -30px 0 0 -30px;
+  border-radius: 9999px; border: 2.5px solid hsl(var(--primary) / 0.6);
+  transform: scale(0); opacity: 0;
+  animation: genesis-ripple 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes genesis-ripple {
+  0%   { opacity: 0.7; transform: scale(0); }
+  55%  { opacity: 0.4; }
+  100% { opacity: 0; transform: scale(30); }
+}
+/* Central glow flash at the origin of the ripple. */
+.genesis-flash {
+  position: absolute; left: 50%; top: 50%;
+  height: 240px; width: 240px; margin: -120px 0 0 -120px;
+  border-radius: 9999px; pointer-events: none;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 68%);
+  opacity: 0;
+  animation: genesis-flash 0.75s ease-out forwards;
+}
+@keyframes genesis-flash {
+  0%   { opacity: 0; transform: scale(0.3); }
+  28%  { opacity: 0.95; }
+  100% { opacity: 0; transform: scale(3.4); }
+}
+
+.genesis-backdrop-in { animation: genesis-backdrop-in 0.45s ease-out; }
+@keyframes genesis-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* The card arrives after the ripple, tilting up out of the screen in 3D. */
+.genesis-modal-enter {
+  transform-origin: center 60%;
+  animation: genesis-modal-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.42s both;
+}
+@keyframes genesis-modal-enter {
+  0%   { opacity: 0; transform: perspective(1200px) rotateX(16deg) scale(0.9) translateY(28px); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(1200px) rotateX(0deg) scale(1) translateY(0); }
+}
+
+/* ── Slide-to-slide transitions ──
+   Text slides: a direction-aware 3D glide with a soft spring overshoot. Heavy
+   (React Flow) slides can only animate opacity — transform corrupts fitView and
+   a blur filter over React Flow's layered canvas hangs the compositor. `both`
+   fill so a staggered element stays hidden pre-delay. */
+.genesis-enter-next { animation: genesis-enter-next 0.52s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.genesis-enter-prev { animation: genesis-enter-prev 0.52s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.genesis-enter-focus { animation: genesis-enter-focus 0.45s ease-out both; }
+
+@keyframes genesis-enter-next {
+  0%   { opacity: 0; transform: perspective(1100px) translateX(46px) rotateY(-11deg) scale(0.96); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(1100px) translateX(0) rotateY(0deg) scale(1); }
+}
+@keyframes genesis-enter-prev {
+  0%   { opacity: 0; transform: perspective(1100px) translateX(-46px) rotateY(11deg) scale(0.96); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(1100px) translateX(0) rotateY(0deg) scale(1); }
+}
+@keyframes genesis-enter-focus {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .genesis-ripple, .genesis-flash { display: none; }
+  .genesis-modal-enter,
+  .genesis-enter-next,
+  .genesis-enter-prev,
+  .genesis-enter-focus { animation: genesis-backdrop-in 0.2s ease-out both; }
+}

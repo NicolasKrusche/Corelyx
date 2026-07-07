@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
+import { ModelSelector, type PlatformModel } from "@/components/ui/bolt-style-chat";
 
 export type AiEditMode = "personal" | "platform";
 
@@ -21,6 +22,14 @@ interface AiEditPanelProps {
   onModeChange: (mode: AiEditMode) => void;
   /** Display cost in credits for the platform key path. */
   platformRateCredits: number;
+  /** Genesis V2 (dev-gated): show the patch-edit toggle. */
+  v2Available?: boolean;
+  useV2?: boolean;
+  onV2Change?: (value: boolean) => void;
+  /** Platform model catalog (with tier-lock flags) for the Corelyx AI path. */
+  platformModels?: PlatformModel[];
+  selectedModel?: string;
+  onModelChange?: (id: string) => void;
 }
 
 export function AiEditPanel({
@@ -34,6 +43,12 @@ export function AiEditPanel({
   mode,
   onModeChange,
   platformRateCredits,
+  v2Available = false,
+  useV2 = false,
+  onV2Change,
+  platformModels = [],
+  selectedModel = "",
+  onModelChange,
 }: AiEditPanelProps) {
   const canSubmitPersonal = hasApiKeys && mode === "personal";
   const canSubmitPlatform = mode === "platform";
@@ -145,6 +160,37 @@ export function AiEditPanel({
               </p>
             )}
 
+            {v2Available && (
+              <button
+                type="button"
+                onClick={() => onV2Change?.(!useV2)}
+                aria-pressed={useV2}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-[11px] font-medium transition-colors",
+                  useV2
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors",
+                    useV2 ? "bg-primary" : "bg-muted-foreground/30"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-3 w-3 rounded-full bg-white transition-transform",
+                      useV2 ? "translate-x-3" : "translate-x-0"
+                    )}
+                  />
+                </span>
+                <span className="text-left leading-tight">
+                  Genesis V2 <span className="opacity-60">· dev · patch edit with animated diff</span>
+                </span>
+              </button>
+            )}
+
             <Textarea
               rows={6}
               className="text-sm resize-none"
@@ -176,6 +222,16 @@ export function AiEditPanel({
 
       {/* Footer */}
       <div className="px-3 py-2.5 border-t border-border shrink-0 space-y-1.5">
+        {!loading && mode === "platform" && platformModels.length > 1 && onModelChange && (
+          <div className="flex items-center justify-between gap-2 pb-0.5">
+            <span className="text-[11px] text-muted-foreground">Model</span>
+            <ModelSelector
+              models={platformModels}
+              selectedModelId={selectedModel}
+              onModelChange={onModelChange}
+            />
+          </div>
+        )}
         <Button
           onClick={onSubmit}
           disabled={loading || !prompt.trim() || !canSubmit || prompt.length > 2000}

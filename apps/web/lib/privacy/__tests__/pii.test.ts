@@ -104,3 +104,72 @@ describe("PseudonymizationSession", () => {
     expect(session.rehydrateValue(sanitized.value)).toEqual(original);
   });
 });
+
+describe("known-value pseudonymization (Genesis V2 introspection)", () => {
+  it("registers user-named taxonomy and substitutes it in free text", () => {
+    const session = new PseudonymizationSession();
+    const placeholder = session.registerKnownValue("gmail_label", "Invoices");
+
+    expect(placeholder).toBe("[GMAIL_LABEL_1]");
+    // Same value, same category → same placeholder.
+    expect(session.registerKnownValue("gmail_label", "Invoices")).toBe(placeholder);
+
+    const grounded = session.applyKnownValues("Move mail with the invoices label to archive");
+    expect(grounded).toContain("[GMAIL_LABEL_1]");
+    expect(grounded).not.toMatch(/invoices/i);
+  });
+
+  it("rehydrates known-value placeholders back to the raw name", () => {
+    const session = new PseudonymizationSession();
+    session.registerKnownValue("notion_database", "CRM Leads");
+
+    const schemaText = '{"operation_params":{"database":"[NOTION_DATABASE_1]"}}';
+    expect(session.rehydrateText(schemaText)).toContain("CRM Leads");
+  });
+
+  it("prefers the longest match and never rewrites inside placeholders", () => {
+    const session = new PseudonymizationSession();
+    session.registerKnownValue("slack_channel", "sales");
+    session.registerKnownValue("slack_channel", "sales-eu");
+    // A registered name matching a placeholder's category word must not
+    // corrupt already-substituted placeholders.
+    session.registerKnownValue("slack_channel", "channel");
+
+    const grounded = session.applyKnownValues("post to sales-eu then sales channel");
+    expect(grounded).toContain("[SLACK_CHANNEL_2]"); // sales-eu
+    expect(grounded).toContain("[SLACK_CHANNEL_1]"); // sales
+    expect(grounded).not.toContain("[SLACK_[SLACK_");
+    expect(session.rehydrateText(grounded)).toContain("sales-eu");
+  });
+
+  it("skips substitution for values too short to match safely", () => {
+    const session = new PseudonymizationSession();
+    session.registerKnownValue("gmail_label", "To");
+
+    expect(session.applyKnownValues("Send it to me")).toBe("Send it to me");
+    // Rehydration still works when the model copies the placeholder from the
+    // capability listing.
+    expect(session.rehydrateText("[GMAIL_LABEL_1]")).toBe("To");
+  });
+
+  it("leaves unknown placeholders untouched on rehydration", () => {
+    const session = new PseudonymizationSession();
+    session.registerKnownValue("gmail_label", "Invoices");
+
+    expect(session.rehydrateText("[GMAIL_LABEL_99] [MADE_UP_1]")).toBe(
+      "[GMAIL_LABEL_99] [MADE_UP_1]"
+    );
+  });
+
+  it("keeps regex-detected PII and known values in one placeholder namespace", () => {
+    const session = new PseudonymizationSession();
+    const sanitized = session.sanitizeText("Contact ada@example.com");
+    session.registerKnownValue("gmail_label", "Invoices");
+
+    const roundTripped = session.rehydrateText(
+      `${sanitized.value} filed under [GMAIL_LABEL_1]`
+    );
+    expect(roundTripped).toContain("ada@example.com");
+    expect(roundTripped).toContain("Invoices");
+  });
+});

@@ -55,8 +55,10 @@ export function toReactFlow(
     const errors = nodeErrorsById.get(node.id) ?? [];
     const warnings = nodeWarningsById.get(node.id) ?? [];
 
-    // Group nodes need explicit style dimensions so NodeResizer works correctly.
-    // Note nodes use a fixed default; their size is free-form via user drag.
+    // Group and note nodes need explicit style dimensions so NodeResizer works
+    // correctly. Both read persisted width/height from config (falling back to a
+    // default) — otherwise a resize is discarded on the next schema→canvas sync
+    // and the node snaps back to its default size.
     const style: React.CSSProperties | undefined =
       node.type === "group"
         ? {
@@ -64,7 +66,10 @@ export function toReactFlow(
             height: (node.config as { height?: number }).height ?? 300,
           }
         : node.type === "note"
-          ? { width: 200, height: 120 }
+          ? {
+              width: (node.config as { width?: number }).width ?? 200,
+              height: (node.config as { height?: number }).height ?? 120,
+            }
           : undefined;
 
     return {

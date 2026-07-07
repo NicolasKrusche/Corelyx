@@ -20,7 +20,7 @@ import { friendlyErrorMessage } from "@/lib/friendly-errors";
 export type GenesisPayload = (
   | { description: string; connection_ids: string[]; api_key_id: string; model: string }
   | { description: string; connection_ids: string[]; use_platform_key: true; model?: string }
-) & { layout_direction?: "horizontal" | "vertical" };
+) & { layout_direction?: "horizontal" | "vertical"; genesis_v2?: boolean };
 
 export type GenesisJobNode = {
   id: string;
@@ -40,6 +40,12 @@ export type GenesisJobEdge = {
   label?: string | null;
 };
 
+export type GenesisClarification = {
+  node_id: string;
+  question: string;
+  blocked_node_ids: string[];
+};
+
 export type GenesisJob = {
   status: string;
   programName: string;
@@ -49,12 +55,24 @@ export type GenesisJob = {
   error: string | null;
   programId: string | null;
   done: boolean;
+  // Genesis V2 clarifying questions: present when the model flagged nodes it
+  // configured on a best guess. The program is saved and runnable regardless.
+  sessionId: string | null;
+  clarifications: GenesisClarification[];
+  // Key context retained so answers use the same key the generation did.
+  keyContext: { api_key_id?: string; use_platform_key?: boolean };
 };
 
 type GenesisJobContextValue = {
   job: GenesisJob | null;
   start: (payload: GenesisPayload) => void;
   clear: () => void;
+  /** Apply an answer result: refreshed graph + remaining open questions. */
+  applyClarificationResult: (
+    nodes: GenesisJobNode[],
+    edges: GenesisJobEdge[],
+    remaining: GenesisClarification[]
+  ) => void;
 };
 
 export const BUILDING_PATH = "/programs/new/building";
@@ -76,6 +94,9 @@ const EMPTY_JOB: GenesisJob = {
   error: null,
   programId: null,
   done: false,
+  sessionId: null,
+  clarifications: [],
+  keyContext: {},
 };
 
 function requestNotificationPermission(): void {
@@ -107,11 +128,26 @@ export function GenesisJobProvider({ children }: { children: ReactNode }) {
     setJob(null);
   }, []);
 
+  const applyClarificationResult = useCallback(
+    (nodes: GenesisJobNode[], edges: GenesisJobEdge[], remaining: GenesisClarification[]) => {
+      setJob((prev) =>
+        prev ? { ...prev, nodes, edges, clarifications: remaining } : prev
+      );
+    },
+    []
+  );
+
   const start = useCallback((payload: GenesisPayload) => {
     if (runningRef.current) return;
     runningRef.current = true;
     requestNotificationPermission();
-    setJob({ ...EMPTY_JOB });
+    const keyContext =
+      "use_platform_key" in payload && payload.use_platform_key
+        ? { use_platform_key: true as const }
+        : "api_key_id" in payload
+          ? { api_key_id: payload.api_key_id }
+          : {};
+    setJob({ ...EMPTY_JOB, keyContext });
 
     const update = (partial: Partial<GenesisJob>) =>
       setJob((prev) => ({ ...(prev ?? EMPTY_JOB), ...partial }));
@@ -158,10 +194,36 @@ export function GenesisJobProvider({ children }: { children: ReactNode }) {
           if (typeof event.message === "string") update({ status: event.message });
           return;
         }
+        case "question": {
+          const sessionId = typeof event.session_id === "string" ? event.session_id : null;
+          const clarifications = Array.isArray(event.clarifications)
+            ? (event.clarifications as GenesisClarification[])
+            : [];
+          if (sessionId && clarifications.length > 0) {
+            update({ sessionId, clarifications });
+            pushThought(
+              clarifications.length === 1
+                ? "One detail is worth confirming — see the pinned question"
+                : `${clarifications.length} details are worth confirming — see the pinned questions`
+            );
+          }
+          return;
+        }
         case "done": {
           const programId = (event.program_id as string) ?? null;
           const programName = typeof event.program_name === "string" ? event.program_name : undefined;
-          update({ done: true, programId, status: "Ready", ...(programName ? { programName } : {}) });
+          // done may repeat the session payload (covers a missed question frame).
+          const sessionId = typeof event.session_id === "string" ? event.session_id : null;
+          const clarifications = Array.isArray(event.clarifications)
+            ? (event.clarifications as GenesisClarification[])
+            : null;
+          update({
+            done: true,
+            programId,
+            status: "Ready",
+            ...(programName ? { programName } : {}),
+            ...(sessionId && clarifications ? { sessionId, clarifications } : {}),
+          });
           runningRef.current = false;
           // Only ping the user if they left the building page — if they're
           // watching, the page itself opens the program for them.
@@ -256,7 +318,7 @@ export function GenesisJobProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <GenesisJobContext.Provider value={{ job, start, clear }}>
+    <GenesisJobContext.Provider value={{ job, start, clear, applyClarificationResult }}>
       {children}
       <GenesisBackgroundWidget />
     </GenesisJobContext.Provider>
