@@ -46,6 +46,7 @@ import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/l
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, writeAppLog } from "@/lib/app-logs";
 import { serverLog } from "@/lib/server-log";
+import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
@@ -432,7 +433,8 @@ export async function POST(request: Request) {
       const complianceResult = await runEuComplianceFilter(
         groundedDescription,
         filterKeyRow,
-        filterApiKey
+        filterApiKey,
+        { userId, workspaceId }
       );
       if (complianceResult?.verdict === "blocked") {
         return NextResponse.json(
@@ -457,6 +459,7 @@ export async function POST(request: Request) {
 
   // Step 2: Build the Genesis user message including any EU compliance context.
   let rawText = "";
+  let usageData: LlmUsageLike = null;
   let lastErr: unknown;
   let modelUsed = model;
   let usedKeyRow: GenesisApiKeyRow | null = null;
@@ -515,6 +518,7 @@ export async function POST(request: Request) {
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
           rawText = "";
+          usageData = null;
 
           if (anthropic) {
             const msg = await anthropic.messages.create({
@@ -524,6 +528,7 @@ export async function POST(request: Request) {
               system: genesisSystemPrompt,
               messages: [{ role: "user", content: userMessage }],
             });
+            usageData = msg.usage as LlmUsageLike;
             rawText = msg.content[0]?.type === "text" ? (msg.content[0] as { type: "text"; text: string }).text : "";
           } else if (openai) {
             const completion = await openai.chat.completions.create({
@@ -532,11 +537,14 @@ export async function POST(request: Request) {
               ...(supportsOpenAiJsonMode(currentKeyRow.provider, baseURL) && {
                 response_format: { type: "json_object" as const },
               }),
+              // OpenRouter usage accounting: exact billed cost in response usage.
+              ...(currentKeyRow.provider === "openrouter" && ({ usage: { include: true } } as object)),
               messages: [
                 { role: "system", content: genesisSystemPrompt },
                 { role: "user", content: userMessage },
               ],
             });
+            usageData = (completion as { usage?: LlmUsageLike }).usage ?? null;
             rawText = completion.choices[0]?.message?.content ?? "";
           }
 
@@ -544,6 +552,14 @@ export async function POST(request: Request) {
           modelUsed = candidateModel;
           usedKeyRow = currentKeyRow;
           usedApiKey = currentApiKey;
+          recordLlmUsage({
+            userId,
+            workspaceId,
+            model: candidateModel,
+            usage: usageData,
+            billing: currentKeyRow.id === "platform" ? "platform" : "byok",
+            source: "genesis",
+          });
           break keyAttemptLoop; // success
         } catch (err) {
           lastErr = err;
@@ -679,6 +695,14 @@ export async function POST(request: Request) {
             temperature: GENESIS_TEMPERATURE,
             messages: [{ role: "user", content: repairPrompt }],
           });
+          recordLlmUsage({
+            userId,
+            workspaceId,
+            model: modelUsed,
+            usage: repairMsg.usage as LlmUsageLike,
+            billing: usedKeyRow?.id === "platform" ? "platform" : "byok",
+            source: "genesis",
+          });
           repairedText = repairMsg.content[0]?.type === "text"
             ? (repairMsg.content[0] as { type: "text"; text: string }).text
             : "";
@@ -691,7 +715,16 @@ export async function POST(request: Request) {
             ...(supportsOpenAiJsonMode(apiKeyRow.provider, baseURL) && {
               response_format: { type: "json_object" as const },
             }),
+            ...(apiKeyRow.provider === "openrouter" && ({ usage: { include: true } } as object)),
             messages: [{ role: "user", content: repairPrompt }],
+          });
+          recordLlmUsage({
+            userId,
+            workspaceId,
+            model: modelUsed,
+            usage: (repairMsg as { usage?: LlmUsageLike }).usage ?? null,
+            billing: usedKeyRow?.id === "platform" ? "platform" : "byok",
+            source: "genesis",
           });
           repairedText = repairMsg.choices[0]?.message?.content ?? "";
         }

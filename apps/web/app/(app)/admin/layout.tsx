@@ -12,6 +12,7 @@ import {
   Zap,
   Settings,
   DollarSign,
+  Landmark,
   PlayCircle,
   Lock,
   ArrowLeft,
@@ -99,6 +100,7 @@ export default async function AdminLayout({
     { href: "/admin/codes", label: "Code Manager", icon: Ticket },
     { href: "/admin/posts", label: "Posts", icon: Newspaper },
     ...(isFounder ? [
+      { href: "/admin/finances", label: "Finances", icon: Landmark },
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/dsr", label: "DSR Queue", icon: FileText },
       { href: "/admin/team", label: "Team", icon: Users },

@@ -3,11 +3,8 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
+import { getFinanceSummary } from "@/lib/admin-finance";
 import { serverLog } from "@/lib/server-log";
-
-type EstimatedCostRow = {
-  estimated_cost_usd: number | null;
-};
 
 type RecentFailureRow = {
   id: string;
@@ -51,7 +48,7 @@ export async function GET() {
     const [
       { count: todayRuns },
       { count: totalUsers },
-      { data: todayCostData },
+      todaySummary,
       { data: recentFailures },
     ] = await Promise.all([
       db
@@ -61,10 +58,8 @@ export async function GET() {
       db
         .from("profiles")
         .select("*", { count: "exact", head: true }),
-      db
-        .from("llm_usage_logs")
-        .select("estimated_cost_usd")
-        .gte("created_at", today),
+      // Platform-key provider cost only (what LLM usage costs US).
+      getFinanceSummary(db, today),
       db
         .from("runs")
         .select("id, program_id, error_message, created_at")
@@ -72,10 +67,7 @@ export async function GET() {
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
-    const todayCost = asRows<EstimatedCostRow>(todayCostData).reduce(
-      (sum, row) => sum + (row.estimated_cost_usd || 0),
-      0
-    );
+    const todayCost = todaySummary.data.platformCostUsd;
     
     return NextResponse.json({
       activeRuns: activeRuns || 0,

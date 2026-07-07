@@ -2,82 +2,31 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { hasCostsAccess } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/api";
+import { getFinanceSummary, getModelSpread } from "@/lib/admin-finance";
 import { DollarSign, TrendingUp, Users, AlertTriangle } from "lucide-react";
 
-type EstimatedCostRow = {
-  estimated_cost_usd: number | null;
-};
+export const dynamic = "force-dynamic";
 
-type TopUserCostRow = EstimatedCostRow & {
-  user_id: string | null;
-  total_tokens: number | null;
-};
-
-type ModelCostRow = EstimatedCostRow & {
-  model: string | null;
-  total_tokens: number | null;
-};
-
-function asRows<T>(data: unknown): T[] {
-  return Array.isArray(data) ? (data as T[]) : [];
-}
-
+// This page tracks what LLM usage costs US: platform-key provider cost only
+// (BYOK calls are paid by the user's own key). Revenue/profit live on
+// /admin/finances.
 async function getCostStats() {
   const db = createServiceClient();
-  
-  const today = new Date().toISOString().split("T")[0];
-  const monthStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
-  
-  // Today's cost
-  const { data: todayData } = await db
-    .from("llm_usage_logs")
-    .select("estimated_cost_usd")
-    .gte("created_at", today);
-  const todayCost = asRows<EstimatedCostRow>(todayData).reduce(
-    (sum, row) => sum + (row.estimated_cost_usd || 0),
-    0
-  );
-  
-  // Monthly cost
-  const { data: monthlyData } = await db
-    .from("llm_usage_logs")
-    .select("estimated_cost_usd")
-    .gte("created_at", monthStart);
-  
-  const monthlyCost = asRows<EstimatedCostRow>(monthlyData).reduce(
-    (sum, row) => sum + (row.estimated_cost_usd || 0), 
-    0
-  );
-  
-  // Top users by cost
-  const { data: topUsers } = await db
-    .from("llm_usage_logs")
-    .select("user_id, estimated_cost_usd, total_tokens")
-    .gte("created_at", today)
-    .order("estimated_cost_usd", { ascending: false })
-    .limit(10);
-  
-  // Cost by model
-  const { data: modelBreakdown } = await db
-    .from("llm_usage_logs")
-    .select("model, estimated_cost_usd, total_tokens")
-    .gte("created_at", today);
-  
-  const modelCosts: Record<string, { cost: number; tokens: number }> = {};
-  asRows<ModelCostRow>(modelBreakdown).forEach((row) => {
-    const model = row.model ?? "unknown";
-    if (!modelCosts[model]) {
-      modelCosts[model] = { cost: 0, tokens: 0 };
-    }
-    modelCosts[model].cost += row.estimated_cost_usd || 0;
-    modelCosts[model].tokens += row.total_tokens || 0;
-  });
-  
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  const [today, month, models] = await Promise.all([
+    getFinanceSummary(db, todayStart),
+    getFinanceSummary(db, monthStart),
+    getModelSpread(db, todayStart),
+  ]);
+
   return {
-    todayCost,
-    monthlyCost,
-    topUsers: asRows<TopUserCostRow>(topUsers),
-    modelCosts,
+    todayCost: today.data.platformCostUsd,
+    monthlyCost: month.data.platformCostUsd,
+    activeUsers: today.data.distinctUsers,
+    models: models.data,
   };
 }
 
@@ -156,7 +105,7 @@ export default async function CostsPage() {
             <Users className="w-5 h-5 text-purple-500" />
           </div>
           <p className="text-3xl font-bold text-foreground">
-            {stats.topUsers.length}
+            {stats.activeUsers}
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             Users with LLM usage today
@@ -192,26 +141,27 @@ export default async function CostsPage() {
           <h2 className="text-lg font-semibold text-foreground">Cost by Model (Today)</h2>
         </div>
         <div className="divide-y divide-border">
-          {Object.entries(stats.modelCosts)
-            .sort(([,a], [,b]) => b.cost - a.cost)
-            .map(([model, data]) => (
-              <div key={model} className="px-6 py-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">{model}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {data.tokens.toLocaleString()} tokens
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-foreground">
-                    ${data.cost.toFixed(4)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.todayCost > 0 ? ((data.cost / stats.todayCost) * 100).toFixed(1) : "0.0"}%
-                  </p>
-                </div>
+          {stats.models.length === 0 && (
+            <p className="px-6 py-4 text-sm text-muted-foreground">No LLM usage recorded today.</p>
+          )}
+          {stats.models.map((row) => (
+            <div key={row.model} className="px-6 py-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">{row.model}</p>
+                <p className="text-sm text-muted-foreground">
+                  {row.totalTokens.toLocaleString()} tokens · {row.callCount.toLocaleString()} calls
+                </p>
               </div>
-            ))}
+              <div className="text-right">
+                <p className="font-semibold text-foreground">
+                  ${row.platformCostUsd.toFixed(4)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.todayCost > 0 ? ((row.platformCostUsd / stats.todayCost) * 100).toFixed(1) : "0.0"}%
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       

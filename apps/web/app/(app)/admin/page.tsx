@@ -1,20 +1,17 @@
 import { getHealthStatus } from "@/lib/health-check";
 import { createServiceClient } from "@/lib/api";
+import { getFinanceSummary } from "@/lib/admin-finance";
 import Link from "next/link";
-import { 
-  Activity, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Activity,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   Users,
   Play,
   DollarSign,
   Zap
 } from "lucide-react";
-
-type EstimatedCostRow = {
-  estimated_cost_usd: number | null;
-};
 
 type RecentFailureRow = {
   id: string;
@@ -75,16 +72,12 @@ async function getStats() {
     .from("profiles")
     .select("*", { count: "exact", head: true });
   
-  // Today's cost
-  const { data: todayCostData } = await db
-    .from("llm_usage_logs")
-    .select("estimated_cost_usd")
-    .gte("created_at", today);
-  const todayCost = asRows<EstimatedCostRow>(todayCostData).reduce(
-    (sum, row) => sum + (row.estimated_cost_usd || 0),
-    0
-  );
-  
+  // Today's cost — platform-key provider cost only (what LLM usage costs US;
+  // BYOK calls are funded by the user's own key).
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const todayCost = (await getFinanceSummary(db, todayStart)).data.platformCostUsd;
+
   // Recent failed runs
   const { data: recentFailures } = await db
     .from("runs")

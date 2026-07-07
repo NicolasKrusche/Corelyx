@@ -45,6 +45,7 @@ import {
 import { extractClarifications, type GenesisClarification } from "@/lib/genesis/clarifications";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { serverLog } from "@/lib/server-log";
+import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -373,7 +374,7 @@ export async function POST(request: Request) {
             const filterApiKey = filterKeyRow.id === "platform"
               ? filterKeyRow.vault_secret_id
               : await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
-            const result = await runEuComplianceFilter(groundedDescription, filterKeyRow, filterApiKey);
+            const result = await runEuComplianceFilter(groundedDescription, filterKeyRow, filterApiKey, { userId, workspaceId });
             if (result?.verdict === "blocked") {
               complianceBlockReason = result.blockedReason;
               ac.abort();
@@ -413,6 +414,7 @@ export async function POST(request: Request) {
           for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex += 1) {
             const candidateModel = modelCandidates[modelIndex] ?? model;
             rawText = "";
+            let usageData: LlmUsageLike = null;
 
             try {
               if (currentKeyRow.provider === "anthropic") {
@@ -431,6 +433,7 @@ export async function POST(request: Request) {
                 });
 
                 const final = await msgStream.finalMessage();
+                usageData = final.usage as LlmUsageLike;
                 if (!rawText && final.content[0]?.type === "text") {
                   rawText = (final.content[0] as { type: "text"; text: string }).text;
                 }
@@ -444,6 +447,10 @@ export async function POST(request: Request) {
                   ...(supportsOpenAiJsonMode(currentKeyRow.provider, baseURL) && {
                     response_format: { type: "json_object" as const },
                   }),
+                  // Usage in the final stream chunk: OpenRouter reports exact
+                  // billed cost with usage accounting; OpenAI needs stream_options.
+                  ...(currentKeyRow.provider === "openrouter" && ({ usage: { include: true } } as object)),
+                  ...(currentKeyRow.provider === "openai" && { stream_options: { include_usage: true } }),
                   messages: [
                     { role: "system", content: genesisSystemPrompt },
                     { role: "user", content: userMessage },
@@ -451,6 +458,8 @@ export async function POST(request: Request) {
                 }, { signal: ac.signal });
 
                 for await (const chunk of openaiStream) {
+                  const chunkUsage = (chunk as { usage?: LlmUsageLike }).usage;
+                  if (chunkUsage) usageData = chunkUsage;
                   const piece = chunk.choices[0]?.delta?.content ?? "";
                   if (piece) {
                     rawText += piece;
@@ -469,6 +478,14 @@ export async function POST(request: Request) {
               }
 
               modelUsed = candidateModel;
+              recordLlmUsage({
+                userId,
+                workspaceId,
+                model: candidateModel,
+                usage: usageData,
+                billing: currentKeyRow.id === "platform" ? "platform" : "byok",
+                source: "genesis",
+              });
               serverLog({
                 level: "info",
                 event: "genesis.stream.model_used",
