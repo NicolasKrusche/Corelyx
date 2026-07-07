@@ -798,27 +798,46 @@
 .genesis-slide-in { animation: genesis-slide-in 0.35s ease-out; }
 
 /* ── Genesis V2 release: cinematic entrance + slide transitions ── */
-/* Screen ripple/shockwave that plays as the modal opens. */
+/* Screen ripple/shockwave that plays as the modal opens. Concentric rings
+   expand from centre; the card is delayed so they read before it covers it. */
 .genesis-ripple {
   position: absolute; left: 50%; top: 50%;
-  height: 40px; width: 40px; margin: -20px 0 0 -20px;
-  border-radius: 9999px; border: 2px solid hsl(var(--primary) / 0.45);
+  height: 60px; width: 60px; margin: -30px 0 0 -30px;
+  border-radius: 9999px; border: 2.5px solid hsl(var(--primary) / 0.6);
   transform: scale(0); opacity: 0;
-  animation: genesis-ripple 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: genesis-ripple 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes genesis-ripple {
-  0%   { opacity: 0.6; transform: scale(0); }
-  70%  { opacity: 0.28; }
-  100% { opacity: 0; transform: scale(46); }
+  0%   { opacity: 0.7; transform: scale(0); }
+  55%  { opacity: 0.4; }
+  100% { opacity: 0; transform: scale(30); }
+}
+/* Central glow flash at the origin of the ripple. */
+.genesis-flash {
+  position: absolute; left: 50%; top: 50%;
+  height: 240px; width: 240px; margin: -120px 0 0 -120px;
+  border-radius: 9999px; pointer-events: none;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 68%);
+  opacity: 0;
+  animation: genesis-flash 0.75s ease-out forwards;
+}
+@keyframes genesis-flash {
+  0%   { opacity: 0; transform: scale(0.3); }
+  28%  { opacity: 0.95; }
+  100% { opacity: 0; transform: scale(3.4); }
 }
 
-.genesis-backdrop-in { animation: genesis-backdrop-in 0.5s ease-out; }
+.genesis-backdrop-in { animation: genesis-backdrop-in 0.45s ease-out; }
 @keyframes genesis-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Opacity-only transition for React Flow slides (transform would break fitView). */
+.genesis-slide-fade { animation: genesis-slide-fade 0.4s ease-out; }
+@keyframes genesis-slide-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* The card arrives after the ripple, tilting up out of the screen in 3D. */
 .genesis-modal-enter {
   transform-origin: center 60%;
-  animation: genesis-modal-enter 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+  animation: genesis-modal-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.42s both;
 }
 @keyframes genesis-modal-enter {
   0%   { opacity: 0; transform: perspective(1200px) rotateX(16deg) scale(0.9) translateY(28px); }
@@ -839,8 +858,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .genesis-ripple { display: none; }
+  .genesis-ripple, .genesis-flash { display: none; }
   .genesis-modal-enter,
   .genesis-slide-next,
-  .genesis-slide-prev { animation: genesis-backdrop-in 0.2s ease-out; }
+  .genesis-slide-prev,
+  .genesis-slide-fade { animation: genesis-backdrop-in 0.2s ease-out; }
 }

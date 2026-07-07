@@ -115,7 +115,9 @@ const EDIT_SCENE: PreviewNode[] = [
 
 // ─── Slides ────────────────────────────────────────────────────────────────────
 
-type Slide = { kicker: string; title: string; body: React.ReactNode };
+// `heavy` slides embed React Flow, which measures itself on mount — they must
+// NOT animate with a transform (it corrupts fitView), so they fade instead.
+type Slide = { kicker: string; title: string; body: React.ReactNode; heavy?: boolean };
 
 const SLIDES: Slide[] = [
   {
@@ -140,6 +142,7 @@ const SLIDES: Slide[] = [
   {
     kicker: "It asks first",
     title: "No more guessing which channel",
+    heavy: true,
     body: (
       <div className="space-y-3">
         <FlowPreview nodes={QUESTION_SCENE} />
@@ -152,6 +155,7 @@ const SLIDES: Slide[] = [
   {
     kicker: "Surgical edits",
     title: "Watch every change happen",
+    heavy: true,
     body: (
       <div className="space-y-3">
         <FlowPreview nodes={EDIT_SCENE} />
@@ -222,8 +226,10 @@ export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
 
       {/* Screen ripple / shockwave that plays as the modal arrives */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <span className="genesis-flash" />
         <span className="genesis-ripple" />
-        <span className="genesis-ripple" style={{ animationDelay: "0.12s" }} />
+        <span className="genesis-ripple" style={{ animationDelay: "0.1s" }} />
+        <span className="genesis-ripple" style={{ animationDelay: "0.2s" }} />
       </div>
 
       <div className="genesis-modal-enter relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
@@ -251,9 +257,19 @@ export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
           <h2 className="relative mt-1 text-xl font-black tracking-tight text-foreground">{slide.title}</h2>
         </div>
 
-        {/* Slide body — fixed min height so the card doesn't jump between slides */}
-        <div className="min-h-[248px] px-6 py-5" style={{ perspective: "1000px" }}>
-          <div key={index} className={direction === 1 ? "genesis-slide-next" : "genesis-slide-prev"}>
+        {/* Slide body — fixed min height so the card doesn't jump between slides.
+            Heavy (React Flow) slides fade; text slides get the 3D swoop. */}
+        <div className="min-h-[248px] px-6 py-5" style={slide.heavy ? undefined : { perspective: "1000px" }}>
+          <div
+            key={index}
+            className={
+              slide.heavy
+                ? "genesis-slide-fade"
+                : direction === 1
+                  ? "genesis-slide-next"
+                  : "genesis-slide-prev"
+            }
+          >
             {slide.body}
           </div>
         </div>
