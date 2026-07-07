@@ -830,10 +830,6 @@
 .genesis-backdrop-in { animation: genesis-backdrop-in 0.45s ease-out; }
 @keyframes genesis-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 
-/* Opacity-only transition for React Flow slides (transform would break fitView). */
-.genesis-slide-fade { animation: genesis-slide-fade 0.4s ease-out; }
-@keyframes genesis-slide-fade { from { opacity: 0; } to { opacity: 1; } }
-
 /* The card arrives after the ripple, tilting up out of the screen in 3D. */
 .genesis-modal-enter {
   transform-origin: center 60%;
@@ -845,22 +841,34 @@
   100% { opacity: 1; transform: perspective(1200px) rotateX(0deg) scale(1) translateY(0); }
 }
 
-/* Direction-aware 3D slide transitions between slides. */
-.genesis-slide-next { animation: genesis-slide-next 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
-.genesis-slide-prev { animation: genesis-slide-prev 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
-@keyframes genesis-slide-next {
-  from { opacity: 0; transform: perspective(1000px) rotateY(-8deg) translateX(34px) scale(0.97); }
-  to   { opacity: 1; transform: perspective(1000px) rotateY(0deg) translateX(0) scale(1); }
+/* ── Slide-to-slide transitions ──
+   Text slides: a direction-aware 3D glide with a soft spring overshoot. Heavy
+   (React Flow) slides can only animate opacity — transform corrupts fitView and
+   a blur filter over React Flow's layered canvas hangs the compositor. `both`
+   fill so a staggered element stays hidden pre-delay. */
+.genesis-enter-next { animation: genesis-enter-next 0.52s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.genesis-enter-prev { animation: genesis-enter-prev 0.52s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.genesis-enter-focus { animation: genesis-enter-focus 0.45s ease-out both; }
+
+@keyframes genesis-enter-next {
+  0%   { opacity: 0; transform: perspective(1100px) translateX(46px) rotateY(-11deg) scale(0.96); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(1100px) translateX(0) rotateY(0deg) scale(1); }
 }
-@keyframes genesis-slide-prev {
-  from { opacity: 0; transform: perspective(1000px) rotateY(8deg) translateX(-34px) scale(0.97); }
-  to   { opacity: 1; transform: perspective(1000px) rotateY(0deg) translateX(0) scale(1); }
+@keyframes genesis-enter-prev {
+  0%   { opacity: 0; transform: perspective(1100px) translateX(-46px) rotateY(11deg) scale(0.96); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(1100px) translateX(0) rotateY(0deg) scale(1); }
+}
+@keyframes genesis-enter-focus {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .genesis-ripple, .genesis-flash { display: none; }
   .genesis-modal-enter,
-  .genesis-slide-next,
-  .genesis-slide-prev,
-  .genesis-slide-fade { animation: genesis-backdrop-in 0.2s ease-out; }
+  .genesis-enter-next,
+  .genesis-enter-prev,
+  .genesis-enter-focus { animation: genesis-backdrop-in 0.2s ease-out both; }
 }
