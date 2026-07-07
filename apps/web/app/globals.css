@@ -796,3 +796,51 @@
   to   { opacity: 1; transform: translateX(0); }
 }
 .genesis-slide-in { animation: genesis-slide-in 0.35s ease-out; }
+
+/* ── Genesis V2 release: cinematic entrance + slide transitions ── */
+/* Screen ripple/shockwave that plays as the modal opens. */
+.genesis-ripple {
+  position: absolute; left: 50%; top: 50%;
+  height: 40px; width: 40px; margin: -20px 0 0 -20px;
+  border-radius: 9999px; border: 2px solid hsl(var(--primary) / 0.45);
+  transform: scale(0); opacity: 0;
+  animation: genesis-ripple 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes genesis-ripple {
+  0%   { opacity: 0.6; transform: scale(0); }
+  70%  { opacity: 0.28; }
+  100% { opacity: 0; transform: scale(46); }
+}
+
+.genesis-backdrop-in { animation: genesis-backdrop-in 0.5s ease-out; }
+@keyframes genesis-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* The card arrives after the ripple, tilting up out of the screen in 3D. */
+.genesis-modal-enter {
+  transform-origin: center 60%;
+  animation: genesis-modal-enter 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}
+@keyframes genesis-modal-enter {
+  0%   { opacity: 0; transform: perspective(1200px) rotateX(16deg) scale(0.9) translateY(28px); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(1200px) rotateX(0deg) scale(1) translateY(0); }
+}
+
+/* Direction-aware 3D slide transitions between slides. */
+.genesis-slide-next { animation: genesis-slide-next 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
+.genesis-slide-prev { animation: genesis-slide-prev 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes genesis-slide-next {
+  from { opacity: 0; transform: perspective(1000px) rotateY(-8deg) translateX(34px) scale(0.97); }
+  to   { opacity: 1; transform: perspective(1000px) rotateY(0deg) translateX(0) scale(1); }
+}
+@keyframes genesis-slide-prev {
+  from { opacity: 0; transform: perspective(1000px) rotateY(8deg) translateX(-34px) scale(0.97); }
+  to   { opacity: 1; transform: perspective(1000px) rotateY(0deg) translateX(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .genesis-ripple { display: none; }
+  .genesis-modal-enter,
+  .genesis-slide-next,
+  .genesis-slide-prev { animation: genesis-backdrop-in 0.2s ease-out; }
+}
