@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -27,6 +27,7 @@ import {
   type GenesisJobNode,
   type GenesisJobEdge,
 } from "@/components/genesis/genesis-job-provider";
+import { GenesisQuestionPanel } from "@/components/genesis/question-panel";
 
 const NODE_TYPES = {
   trigger: TriggerNode,
@@ -49,7 +50,11 @@ export default function BuildingPage() {
   );
 }
 
-function toRfNode(incoming: GenesisJobNode): ReactFlowNode {
+function toRfNode(
+  incoming: GenesisJobNode,
+  questionByNode?: Map<string, string>,
+  blockedNodeIds?: Set<string>
+): ReactFlowNode {
   return {
     id: incoming.id,
     type: incoming.type,
@@ -63,7 +68,9 @@ function toRfNode(incoming: GenesisJobNode): ReactFlowNode {
       validationState: "valid",
       errors: [],
       warnings: [],
+      genesisQuestion: questionByNode?.get(incoming.id) ?? null,
     },
+    ...(blockedNodeIds?.has(incoming.id) ? { className: "genesis-blocked" } : {}),
     draggable: false,
     selectable: false,
   };
@@ -110,7 +117,10 @@ function humanizeError(raw: string): string {
 function BuildingCanvas() {
   const router = useRouter();
   const rf = useReactFlow();
-  const { job, clear } = useGenesisJob();
+  const { job, clear, applyClarificationResult } = useGenesisJob();
+  const [answerBusyNodeId, setAnswerBusyNodeId] = useState<string | null>(null);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+  const [questionsDismissed, setQuestionsDismissed] = useState(false);
 
   // Track whether we ever had a job so a brief render gap (start() → navigate)
   // doesn't bounce us straight back to /programs/new.
@@ -126,23 +136,69 @@ function BuildingCanvas() {
     return () => clearTimeout(t);
   }, [job, router]);
 
-  // When the generation finishes while the user is watching, open the program.
+  // When the generation finishes while the user is watching, open the program —
+  // unless it raised clarifying questions: those anchor to the canvas right
+  // here, and answering (or dismissing) is what releases the navigation. The
+  // session persists server-side either way, so leaving loses nothing.
+  const hasOpenQuestions =
+    (job?.clarifications.length ?? 0) > 0 && !questionsDismissed;
   useEffect(() => {
-    if (job?.done && job.programId) {
+    if (job?.done && job.programId && !hasOpenQuestions && answerBusyNodeId === null) {
       const id = job.programId;
       clear();
       router.replace(`/programs/${id}`);
     }
-  }, [job?.done, job?.programId, clear, router]);
+  }, [job?.done, job?.programId, hasOpenQuestions, answerBusyNodeId, clear, router]);
+
+  const handleAnswer = useCallback(
+    async (nodeId: string, answer: string) => {
+      if (!job?.sessionId) return;
+      setAnswerBusyNodeId(nodeId);
+      setAnswerError(null);
+      try {
+        const res = await fetch(`/api/genesis/sessions/${job.sessionId}/answer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ node_id: nodeId, answer, ...job.keyContext }),
+        });
+        const body = (await res.json().catch(() => null)) as {
+          schema?: { nodes?: GenesisJobNode[]; edges?: GenesisJobEdge[] };
+          remaining_clarifications?: Array<{ node_id: string; question: string; blocked_node_ids: string[] }>;
+          message?: string;
+          error?: string;
+        } | null;
+        if (!res.ok || !body?.schema) {
+          setAnswerError(body?.message ?? body?.error ?? "The answer could not be applied. Please try again.");
+          return;
+        }
+        applyClarificationResult(
+          (body.schema.nodes ?? []) as GenesisJobNode[],
+          (body.schema.edges ?? []) as GenesisJobEdge[],
+          body.remaining_clarifications ?? []
+        );
+      } catch {
+        setAnswerError("We could not connect. Check your internet connection and try again.");
+      } finally {
+        setAnswerBusyNodeId(null);
+      }
+    },
+    [job?.sessionId, job?.keyContext, applyClarificationResult]
+  );
 
   const { nodes, edges } = useMemo(() => {
-    const rfNodes = (job?.nodes ?? []).map(toRfNode);
+    const questionByNode = new Map(
+      (job?.clarifications ?? []).map((c) => [c.node_id, c.question])
+    );
+    const blockedNodeIds = new Set(
+      (job?.clarifications ?? []).flatMap((c) => c.blocked_node_ids)
+    );
+    const rfNodes = (job?.nodes ?? []).map((n) => toRfNode(n, questionByNode, blockedNodeIds));
     const rfEdges = (job?.edges ?? []).map(toRfEdge);
     return {
       nodes: rfNodes.length > 0 ? applyDagreLayout(rfNodes, rfEdges, "TB") : rfNodes,
       edges: rfEdges,
     };
-  }, [job?.nodes, job?.edges]);
+  }, [job?.nodes, job?.edges, job?.clarifications]);
 
   // Refit the view as nodes stream in. fitView's own transition handles smoothness.
   useEffect(() => {
@@ -183,7 +239,7 @@ function BuildingCanvas() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-6">
         <div className="pointer-events-auto max-w-lg w-full mx-4 rounded-xl border glass-card px-4 py-3 shadow-lg">
           <div className="flex items-center gap-3">
-            {!error && <Spinner />}
+            {!error && !job?.done && <Spinner />}
             <div className="flex-1 min-w-0">
               {programName && (
                 <p className="text-sm font-semibold truncate">{programName}</p>
@@ -192,7 +248,7 @@ function BuildingCanvas() {
                 {error ? "Generation failed" : status}
               </p>
             </div>
-            {!error && (
+            {!error && !job?.done && (
               <Button
                 size="sm"
                 variant="outline"
@@ -200,6 +256,16 @@ function BuildingCanvas() {
                 onClick={() => router.push("/dashboard")}
               >
                 Continue in background
+              </Button>
+            )}
+            {!error && job?.done && hasOpenQuestions && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => setQuestionsDismissed(true)}
+              >
+                Skip questions — open program
               </Button>
             )}
           </div>
@@ -222,6 +288,20 @@ function BuildingCanvas() {
           )}
         </div>
       </div>
+
+      {/* Clarifying questions — anchored to their nodes via pins; answered here */}
+      {job?.done && hasOpenQuestions && !error && (
+        <div className="absolute right-4 top-24 z-10">
+          <GenesisQuestionPanel
+            clarifications={job.clarifications}
+            nodeLabels={new Map((job.nodes ?? []).map((n) => [n.id, n.label ?? n.id]))}
+            busyNodeId={answerBusyNodeId}
+            onAnswer={handleAnswer}
+            onDismiss={() => setQuestionsDismissed(true)}
+            error={answerError}
+          />
+        </div>
+      )}
 
       {/* Thoughts panel */}
       {thoughts.length > 0 && !error && (

@@ -2,6 +2,7 @@
 // Dynamic prompt generation based on selected connectors for optimal token efficiency.
 
 import { buildAgentToolReference } from "@/lib/genesis/agent-tools";
+import { CLARIFICATIONS_PROMPT_SECTION } from "@/lib/genesis/clarifications";
 
 // ============================================================================
 // CONNECTOR TIER & DEFINITIONS
@@ -526,10 +527,21 @@ function buildGapReferenceSection(
  */
 export function buildGenesisSystemPrompt(
   selectedProviders: string[] | null = null,
-  userTier?: string | null
+  userTier?: string | null,
+  capabilitySection?: string | null,
+  options?: { allowClarifications?: boolean }
 ): string {
   const operationsSection = buildConnectorOperationsSection(selectedProviders);
   const gapRefSection = buildGapReferenceSection(selectedProviders);
+  // Live capabilities (Genesis V2 introspection) come pre-pseudonymized — the
+  // section builder registers every user-named string with the request's
+  // PseudonymizationSession before it gets here. See lib/genesis/introspection.ts.
+  const liveCapabilities = capabilitySection ? `\n${capabilitySection}\n` : "";
+  // Clarifying questions are a generation-only affordance: refinements and
+  // clarification answers already carry the user's intent.
+  const clarificationsSection = options?.allowClarifications
+    ? `\n${CLARIFICATIONS_PROMPT_SECTION}\n`
+    : "";
 
   const isPaidTier = userTier === "plus" || userTier === "pro" || userTier === "builder" || userTier === "unlimited";
   const agentFirstSection = isPaidTier ? `
@@ -634,7 +646,7 @@ EVENT TRIGGER SOURCES (use with trigger_type:"event"):
             payload:{resource_gid,resource_type,resource_name,parent_gid,action,events:[...]}
 
 ${operationsSection}
-
+${liveCapabilities}${clarificationsSection}
 ${gapRefSection}
 
 COMPLETE EXAMPLE — Email processing workflow (cron → fetch emails → send Slack summary):
@@ -835,7 +847,8 @@ export function buildRefinementUserMessage(
   refinement: string,
   existingSchema: object,
   availableConnections: Array<{ name: string; type: string; scopes: string[] }>,
-  euComplianceContext?: string | null
+  euComplianceContext?: string | null,
+  options?: { usePatch?: boolean }
 ): string {
   const connectionList =
     availableConnections.length > 0
@@ -864,16 +877,86 @@ export function buildRefinementUserMessage(
     "",
     "You are EDITING this existing program, not creating a new one. Apply the smallest change that satisfies the request — add, remove, or modify only the specific nodes/edges/fields it requires.",
     "",
-    "EDIT RULES (these OVERRIDE the system prompt's generation defaults):",
-    "- Reuse the EXISTING `program_id` verbatim. Do NOT emit \"__GENERATED__\".",
-    "- Keep `program_name`, `execution_mode`, `created_at`, and `metadata` exactly as-is unless the request explicitly changes them. Update `updated_at` to the current time.",
-    "- For every node and edge that is NOT affected by the request, copy it through byte-for-byte: same `id`, `type`, `label`, `description`, `connection`, `config`, and `position`. Do NOT renumber, rename, reword, reorder, or re-lay-out unchanged nodes. Ignore the system prompt's \"n1, n2, …\" id convention and POSITIONS rule for nodes that already exist — preserve their current ids and positions.",
-    "- When MODIFYING a node, keep its existing `id` and `position`; change only the fields the request calls for. EXCEPTION: if the change alters what the node does, ALSO update its `label` and `description` so they accurately describe the new behavior — a node whose config no longer matches its label is a bug.",
-    "- When ADDING a node, give it a new id that does not collide with any existing id (e.g. continue the existing numbering), wire it in with new edges, and reuse an existing node's nearby position as a starting point.",
-    "- When REMOVING a node, also remove every edge that references it and reconnect the surrounding nodes so the graph stays connected.",
-    "- Preserve any `__USER_ASSIGNED__` values (model, api_key_ref, etc.) already present — never overwrite a user's assigned model or key.",
+    // Genesis V2 (dev-gated) asks for a patch; V1 asks for the full schema.
+    options?.usePatch ? PATCH_OUTPUT_SPEC : FULL_SCHEMA_EDIT_SPEC,
+  ].join("\n");
+}
+
+// V1 refinement contract: return the whole updated schema. Kept as the default
+// so non-V2 (non-dev) refinements behave exactly as before Genesis V2.
+const FULL_SCHEMA_EDIT_SPEC = [
+  "EDIT RULES (these OVERRIDE the system prompt's generation defaults):",
+  "- Reuse the EXISTING `program_id` verbatim. Do NOT emit \"__GENERATED__\".",
+  "- Keep `program_name`, `execution_mode`, `created_at`, and `metadata` exactly as-is unless the request explicitly changes them. Update `updated_at` to the current time.",
+  "- For every node and edge that is NOT affected by the request, copy it through byte-for-byte: same `id`, `type`, `label`, `description`, `connection`, `config`, and `position`. Do NOT renumber, rename, reword, reorder, or re-lay-out unchanged nodes. Ignore the system prompt's \"n1, n2, …\" id convention and POSITIONS rule for nodes that already exist — preserve their current ids and positions.",
+  "- When MODIFYING a node, keep its existing `id` and `position`; change only the fields the request calls for. EXCEPTION: if the change alters what the node does, ALSO update its `label` and `description` so they accurately describe the new behavior — a node whose config no longer matches its label is a bug.",
+  "- When ADDING a node, give it a new id that does not collide with any existing id (e.g. continue the existing numbering), wire it in with new edges, and reuse an existing node's nearby position as a starting point.",
+  "- When REMOVING a node, also remove every edge that references it and reconnect the surrounding nodes so the graph stays connected.",
+  "- Preserve any `__USER_ASSIGNED__` values (model, api_key_ref, etc.) already present — never overwrite a user's assigned model or key.",
+  "",
+  "Return the complete canonical updated program schema as a single JSON object, not a patch — but it must read as the original schema with only the requested edit applied. Include every required top-level field, node field, config default, trigger entry, and edge field. Output only the raw JSON object — no explanation, no markdown, no code fences.",
+].join("\n");
+
+// Shared patch-output contract for refinements and clarification answers.
+const PATCH_OUTPUT_SPEC = [
+  "OUTPUT FORMAT — return a PATCH, not the full schema (this OVERRIDES the system prompt's full-schema output rules and its \"no partial patch objects\" rule, which apply to generation only):",
+  "{\"patch_version\":\"1\",\"change_summary\":\"<one sentence describing the edit>\",\"add\":{\"nodes\":[...],\"edges\":[...],\"triggers\":[...]},\"update\":{\"nodes\":[...],\"edges\":[...]},\"remove\":{\"node_ids\":[...],\"edge_ids\":[...]}}",
+  "Omit any section you don't need (e.g. no removals → omit \"remove\"). An edit that touches nothing returns {\"patch_version\":\"1\",\"change_summary\":\"No changes needed — <why>\"}.",
+  "",
+  "PATCH RULES:",
+  "- add.nodes entries are COMPLETE node objects (every universal node field plus full config), exactly as the system prompt specifies for that node type. Give new nodes ids that don't collide with existing ones (continue the existing numbering) and a position near their neighbors.",
+  "- add.edges entries are complete edge objects {\"id\",\"from\",\"to\",\"type\",\"data_mapping\",\"condition\",\"label\"}. When adding a trigger node, also include its add.triggers entry.",
+  "- update.nodes entries contain the node's \"id\" plus ONLY the fields that change — but if you change `config`, include the COMPLETE new config object (it replaces the old one wholesale). If the change alters what the node does, ALSO update `label` and `description` to match — a node whose config no longer matches its label is a bug.",
+  "- Never include unchanged nodes or edges anywhere in the patch. Never renumber, rename, reword, or re-lay-out nodes the request doesn't touch.",
+  "- remove.node_ids: removing a node automatically removes its edges and trigger entries — but you must ADD any new edges needed to reconnect the surrounding nodes so the graph stays connected.",
+  "- Preserve any `__USER_ASSIGNED__` values (model, api_key_ref, etc.) — never overwrite a user's assigned model or key.",
+  "- Only reference node/edge ids that exist in the schema above (or that your own patch adds).",
+  "",
+  "Output only the raw patch JSON object — no explanation, no markdown, no code fences.",
+].join("\n");
+
+/**
+ * User message for answering one clarifying question (Genesis V2 phase 3).
+ * The answer lands as a scoped patch — the parts of the graph that were never
+ * in doubt are not up for regeneration.
+ */
+export function buildClarificationAnswerMessage(
+  question: string,
+  answer: string,
+  nodeId: string,
+  blockedNodeIds: string[],
+  existingSchema: object,
+  availableConnections: Array<{ name: string; type: string; scopes: string[] }>
+): string {
+  const connectionList =
+    availableConnections.length > 0
+      ? availableConnections
+          .map(
+            (c) =>
+              `  - name: "${c.name}", type: "${c.type}", scopes: [${c.scopes.map((s) => `"${s}"`).join(", ")}]`
+          )
+          .join("\n")
+      : "  (none)";
+
+  const scope = [nodeId, ...blockedNodeIds].map((id) => `"${id}"`).join(", ");
+
+  return [
+    "Here is an existing Corelyx program schema:",
+    "```json",
+    JSON.stringify(existingSchema, null, 2),
+    "```",
     "",
-    "Return the complete canonical updated program schema as a single JSON object, not a patch — but it must read as the original schema with only the requested edit applied. Include every required top-level field, node field, config default, trigger entry, and edge field. Output only the raw JSON object — no explanation, no markdown, no code fences.",
+    `While generating this program you asked the user a clarifying question about node "${nodeId}":`,
+    `Question: ${question}`,
+    "",
+    `The user answered:`,
+    `<user_input>\n${answer}\n</user_input>`,
+    "",
+    `Available connections:\n${connectionList}`,
+    "",
+    `Apply the smallest patch that incorporates the answer. Touch ONLY node ${scope} (and edges/triggers directly tied to them) unless the answer strictly requires more. If the answer confirms the current configuration, return an empty patch with a change_summary saying so.`,
+    "",
+    PATCH_OUTPUT_SPEC,
   ].join("\n");
 }
 

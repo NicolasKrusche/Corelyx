@@ -34,6 +34,17 @@ import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
+import { buildCapabilitySection, fetchConnectionCapabilities, summarizeCapabilities } from "@/lib/genesis/introspection";
+import {
+  applyGenesisPatch,
+  diffSchemas,
+  GenesisPatchZ,
+  isGenesisPatch,
+  type GenesisPatchSummary,
+} from "@/lib/genesis/patch";
+import { extractClarifications, type GenesisClarification } from "@/lib/genesis/clarifications";
+import { hasTechnicalAccess } from "@/lib/admin-auth";
+import { serverLog } from "@/lib/server-log";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -44,6 +55,7 @@ import {
   GenesisRequestSchema,
   getAllowedPlatformModels,
   getMissingConnectionIds,
+  PLATFORM_MODEL_CATALOG,
   getModelCandidates,
   getProviderBaseURL,
   isGenesisRefinementRequest,
@@ -73,7 +85,17 @@ type StreamEvent =
   | { type: "node"; node: unknown }
   | { type: "edge"; edge: unknown }
   | { type: "status"; message: string }
-  | { type: "done"; program_id: string; program_name: string; validation: unknown; schema?: unknown }
+  | {
+      type: "done";
+      program_id: string;
+      program_name: string;
+      validation: unknown;
+      schema?: unknown;
+      patch?: GenesisPatchSummary | null;
+      session_id?: string;
+      clarifications?: GenesisClarification[];
+    }
+  | { type: "question"; session_id: string; clarifications: GenesisClarification[] }
   | { type: "error"; message: string; code?: string };
 
 export async function POST(request: Request) {
@@ -101,6 +123,30 @@ export async function POST(request: Request) {
   const existingSchemaRaw = parsed.data.existing_schema ?? null;
   const usePlatformKey = use_platform_key === true;
 
+  // Genesis V2 is dev-gated: introspection, patch refinement, and clarifying
+  // questions only activate when a dev user opted in. Everything else is V1.
+  // V2 access = dev (testing) OR the top plan(s) (entitlements.genesisV2). isDev
+  // also unlocks all platform models (below), so a dev can test with a capable
+  // model on the funded platform key without a personal billing tier.
+  const isDev = await hasTechnicalAccess(userId, user.email);
+  const v2Enabled =
+    parsed.data.genesis_v2 === true &&
+    (isDev || getEntitlements(await getUserTier(userId)).genesisV2);
+  // Make the gate decision visible in stdout so "did V2 run?" is answerable
+  // without a DB round-trip. requested vs enabled distinguishes "toggle off" from
+  // "toggle on but not a dev".
+  serverLog({
+    level: "info",
+    event: "genesis.v2.gate",
+    message: "Genesis V2 gate evaluated.",
+    details: {
+      requested: parsed.data.genesis_v2 === true,
+      enabled: v2Enabled,
+      is_refinement: isRefinement,
+      is_agent: isAgent,
+    },
+  });
+
   if (!usePlatformKey && !api_key_id) {
     return apiError("api_key_id is required when not using the platform key", 400);
   }
@@ -112,10 +158,11 @@ export async function POST(request: Request) {
   if (usePlatformKey) {
     const requestedModel = parsed.data.model;
     if (requestedModel && requestedModel !== PLATFORM_MODEL) {
-      // Validate the requested model against the user's tier
-      const tier = await getUserTier(userId);
-      const ent = getEntitlements(tier);
-      const allowed = getAllowedPlatformModels(ent.genesisPlatformModelTier);
+      // Validate the requested model against the user's tier — dev accounts may
+      // use any catalog model (same unlock as /api/genesis/models).
+      const allowed = isDev
+        ? PLATFORM_MODEL_CATALOG
+        : getAllowedPlatformModels(getEntitlements(await getUserTier(userId)).genesisPlatformModelTier);
       if (!allowed.some((m) => m.id === requestedModel)) {
         return apiError(
           `Model "${requestedModel}" is not available on your current plan. Upgrade to Solo or higher to access premium models.`,
@@ -137,6 +184,9 @@ export async function POST(request: Request) {
   // placeholders; streamed nodes/edges and the final schema are rehydrated.
   const piiSession = new PseudonymizationSession();
   const sanitizedDescription = piiSession.sanitizeText(isRefinement && refinementText ? refinementText : description);
+  // The existing schema also goes to the model on refinements — sanitize it
+  // with the same session so its PII round-trips as placeholders too.
+  const sanitizedExistingSchema = existingSchemaRaw === null ? null : piiSession.sanitizeValue(existingSchemaRaw);
   const serviceClient = createServiceClient();
 
   // Stage 1: rate limit and workspace resolution. Refinements use the program's
@@ -220,11 +270,48 @@ export async function POST(request: Request) {
   }
 
   const availableConnections = toGenesisConnectionList(connections);
+
+  // Genesis V2 (dev-gated): introspect the selected connections for live,
+  // metadata-only capability data. User-named strings are registered with
+  // piiSession — only placeholders reach the prompt. Failures fall back to the
+  // static catalog. Skipped entirely when V2 is off.
+  let capabilitySection: string | null = null;
+  if (v2Enabled && connections.length > 0 && !isAgent) {
+    const descriptors = await fetchConnectionCapabilities(
+      connections.map((row) => row.id),
+      userId
+    );
+    capabilitySection = buildCapabilitySection(descriptors, connections, piiSession);
+    // Confirm the capability section actually made it into the prompt (present +
+    // size + resource/user-named counts), so "model ignored the channels" can be
+    // told apart from "channels never reached the prompt".
+    serverLog({
+      level: "info",
+      event: "genesis.capability_section",
+      message: "Capability section built for the prompt.",
+      details: {
+        present: capabilitySection !== null,
+        chars: capabilitySection?.length ?? 0,
+        ...summarizeCapabilities(descriptors),
+      },
+    });
+  }
+
+  // Align user-typed references to introspected resources with the same
+  // placeholders used in the capability section (identity without the name).
+  // No-op when introspection didn't run (no known values registered).
+  const groundedDescription = piiSession.applyKnownValues(sanitizedDescription.value);
+  const groundedExistingSchema = sanitizedExistingSchema === null
+    ? null
+    : piiSession.applyKnownValuesToValue(sanitizedExistingSchema.value);
+
   const selectedProviders = availableConnections.map((conn) => conn.type);
   const providersForPrompt = selectedProviders.length > 0 ? selectedProviders : null;
   const genesisSystemPrompt = isAgent
     ? buildAgentSystemPrompt(providersForPrompt)
-    : buildGenesisSystemPrompt(providersForPrompt);
+    : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection, {
+        allowClarifications: v2Enabled && !isRefinement,
+      });
 
   // Resolve API keys
   let keyCandidates: GenesisApiKeyRow[];
@@ -258,6 +345,10 @@ export async function POST(request: Request) {
       const scanner = new PartialSchemaScanner();
 
       const pushChunk = (chunk: string) => {
+        // Refinements return a PATCH, not a schema — its add.nodes fragments
+        // would stream as node events and wipe the editor canvas mid-edit.
+        // The canvas keeps its current state until `done` delivers the diff.
+        if (isRefinement) return;
         const delta = scanner.feed(chunk);
         // Live-preview events carry model output → rehydrate placeholders so
         // the user reviews the real values, not [EMAIL_1].
@@ -282,7 +373,7 @@ export async function POST(request: Request) {
             const filterApiKey = filterKeyRow.id === "platform"
               ? filterKeyRow.vault_secret_id
               : await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
-            const result = await runEuComplianceFilter(sanitizedDescription.value, filterKeyRow, filterApiKey);
+            const result = await runEuComplianceFilter(groundedDescription, filterKeyRow, filterApiKey);
             if (result?.verdict === "blocked") {
               complianceBlockReason = result.blockedReason;
               ac.abort();
@@ -295,11 +386,13 @@ export async function POST(request: Request) {
 
         send({ type: "status", message: "Contacting model..." });
 
-        const userMessage = isRefinement && refinementText && existingSchemaRaw
-          ? buildRefinementUserMessage(refinementText, existingSchemaRaw as object, availableConnections)
+        // Refinement previously sent the raw edit text + schema to the model;
+        // both now go through the same pseudonymization session as generation.
+        const userMessage = isRefinement && refinementText && groundedExistingSchema
+          ? buildRefinementUserMessage(groundedDescription, groundedExistingSchema as object, availableConnections, null, { usePatch: v2Enabled })
           : isAgent
-            ? buildAgentUserMessage(sanitizedDescription.value, availableConnections, null, userProfileContext)
-            : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, null, userProfileContext);
+            ? buildAgentUserMessage(groundedDescription, availableConnections, null, userProfileContext)
+            : buildGenesisUserMessage(groundedDescription, availableConnections, null, userProfileContext);
 
         keyAttemptLoop:
         for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex += 1) {
@@ -376,9 +469,32 @@ export async function POST(request: Request) {
               }
 
               modelUsed = candidateModel;
+              serverLog({
+                level: "info",
+                event: "genesis.stream.model_used",
+                message: "Genesis produced output.",
+                details: { provider: currentKeyRow.provider, model: candidateModel, is_refinement: isRefinement },
+              });
               break keyAttemptLoop;
             } catch (err) {
+              // A credit/auth error means the KEY is dead — trying its other
+              // models would fail identically, so don't. Skip straight to the
+              // next key (or fail) instead of grinding the fallback chain.
+              const keyIsDead = isKeyError(err);
+              serverLog({
+                level: "warn",
+                event: "genesis.stream.model_attempt_failed",
+                message: "A Genesis model attempt failed.",
+                details: {
+                  provider: currentKeyRow.provider,
+                  model: candidateModel,
+                  key_error: keyIsDead,
+                  error: err instanceof Error ? err.message.slice(0, 160) : "unknown",
+                },
+              });
+
               const canModelFallback =
+                !keyIsDead &&
                 rawText.length === 0 &&
                 modelIndex < modelCandidates.length - 1;
 
@@ -400,10 +516,12 @@ export async function POST(request: Request) {
         }
 
         // Emit any trailing nodes/edges the streaming pass was holding back
-        const finalDelta = scanner.finalize();
-        if (finalDelta.programName) send({ type: "meta", program_name: piiSession.rehydrateText(finalDelta.programName) });
-        for (const node of finalDelta.newNodes) send({ type: "node", node: piiSession.rehydrateValue(node) });
-        for (const edge of finalDelta.newEdges) send({ type: "edge", edge: piiSession.rehydrateValue(edge) });
+        if (!isRefinement) {
+          const finalDelta = scanner.finalize();
+          if (finalDelta.programName) send({ type: "meta", program_name: piiSession.rehydrateText(finalDelta.programName) });
+          for (const node of finalDelta.newNodes) send({ type: "node", node: piiSession.rehydrateValue(node) });
+          for (const edge of finalDelta.newEdges) send({ type: "edge", edge: piiSession.rehydrateValue(edge) });
+        }
 
         if (!rawText) throw new Error("The AI did not respond. Please try again in a moment.");
 
@@ -460,6 +578,31 @@ export async function POST(request: Request) {
         ) {
           (parsedSchema as Record<string, unknown>).program_id = crypto.randomUUID();
         }
+
+        // Genesis V2 refinement: the model returns a patch, applied here to the
+        // trusted existing schema. Full-schema responses (weak models ignoring
+        // the patch instruction) fall through to the legacy path; the diff is
+        // computed instead so the client can animate either way.
+        let patchSummary: GenesisPatchSummary | null = null;
+        if (v2Enabled && isRefinement && existingSchemaRaw && typeof existingSchemaRaw === "object") {
+          if (isGenesisPatch(parsedSchema)) {
+            const patchResult = GenesisPatchZ.safeParse(parsedSchema);
+            if (!patchResult.success) {
+              throw new Error("The AI returned an edit we could not apply. Please try again.");
+            }
+            const applied = applyGenesisPatch(existingSchemaRaw as object, patchResult.data);
+            parsedSchema = applied.schema;
+            patchSummary = applied.summary;
+          }
+        }
+
+        // Always strip a `clarifications` sidecar before schema validation so a
+        // stray key can't fail an otherwise-valid schema; only ACT on it under
+        // V2 (the V1 prompt never asks for questions, so this is normally []).
+        const extractedClarifications = !isRefinement && !isAgent
+          ? extractClarifications(parsedSchema)
+          : [];
+        const clarifications = v2Enabled ? extractedClarifications : [];
 
         // Stamp the agent discriminator BEFORE normalizeSchema: its corelyx
         // connection-node repair (a bogus "corelyx:primary" connection rewritten
@@ -556,6 +699,13 @@ export async function POST(request: Request) {
         const complianceObligations = complianceResult?.verdict === "obligations" ? complianceResult.context : null;
 
         if (isRefinement) {
+          // Under V2, if the model returned a full schema instead of a patch,
+          // derive the diff so the editor still animates the change. Under V1
+          // no patch is sent and the editor does its normal silent swap.
+          if (v2Enabled && !patchSummary && existingSchemaRaw && typeof existingSchemaRaw === "object") {
+            patchSummary = diffSchemas(existingSchemaRaw as object, schema as object);
+          }
+
           // Refinement (AI edit): return the updated schema to the client.
           // The editor applies it via RESTORE_VERSION and handles its own save.
           send({
@@ -564,6 +714,7 @@ export async function POST(request: Request) {
             program_name: schema.program_name,
             validation,
             schema,
+            patch: patchSummary,
           });
 
           await Promise.all([
@@ -668,11 +819,33 @@ export async function POST(request: Request) {
             });
           }
 
+          // Genesis V2: questions never block the build — the program is saved
+          // complete above; the session just records what is worth confirming.
+          // A failed session insert degrades to a normal no-questions build.
+          let sessionId: string | null = null;
+          if (clarifications.length > 0) {
+            const { data: sessionRow, error: sessionError } = await serviceClient
+              .from("genesis_sessions")
+              .insert({
+                user_id: userId,
+                workspace_id: workspaceId,
+                program_id: program.id,
+                clarifications: clarifications as unknown as Record<string, unknown>[],
+              } as unknown as never)
+              .select("id")
+              .single();
+            if (!sessionError && sessionRow) {
+              sessionId = (sessionRow as unknown as { id: string }).id;
+              send({ type: "question", session_id: sessionId, clarifications });
+            }
+          }
+
           send({
             type: "done",
             program_id: program.id,
             program_name: schema.program_name,
             validation,
+            ...(sessionId ? { session_id: sessionId, clarifications } : {}),
           });
 
           await Promise.all([

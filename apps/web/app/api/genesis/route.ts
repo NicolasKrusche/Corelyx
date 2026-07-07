@@ -19,6 +19,20 @@ import {
   mergePiiRedactions,
   PseudonymizationSession,
 } from "@/lib/privacy/pii";
+import {
+  buildCapabilitySection,
+  fetchConnectionCapabilities,
+  summarizeCapabilities,
+} from "@/lib/genesis/introspection";
+import {
+  applyGenesisPatch,
+  diffSchemas,
+  GenesisPatchZ,
+  isGenesisPatch,
+  type GenesisPatchSummary,
+} from "@/lib/genesis/patch";
+import { extractClarifications } from "@/lib/genesis/clarifications";
+import { isGenesisV2Enabled } from "@/lib/genesis/v2-access";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
@@ -265,11 +279,42 @@ export async function POST(request: Request) {
 
   const availableConnections = toGenesisConnectionList(connectionRows);
 
+  // Genesis V2 (dev-gated): introspect the selected connections for live,
+  // metadata-only capability data. User-named strings are registered with
+  // piiSession — only placeholders reach the prompt. Failures fall back to the
+  // static catalog. Skipped entirely when V2 is off.
+  const v2Enabled = await isGenesisV2Enabled(userId, user.email, parsed.data.genesis_v2);
+  let capabilitySection: string | null = null;
+  if (v2Enabled && connectionRows.length > 0) {
+    const descriptors = await fetchConnectionCapabilities(
+      connectionRows.map((row) => row.id),
+      userId
+    );
+    capabilitySection = buildCapabilitySection(descriptors, connectionRows, piiSession);
+    if (capabilitySection) {
+      await logGenesis(
+        "info",
+        "genesis.introspection.applied",
+        "running",
+        "Live connection capabilities included in Genesis prompt.",
+        { introspection: summarizeCapabilities(descriptors) }
+      );
+    }
+  }
+
+  // Align user-typed references to introspected resources with the same
+  // placeholders used in the capability section (identity without the name).
+  const groundedDescription = piiSession.applyKnownValues(sanitizedDescription.value);
+  const groundedRefinement = sanitizedRefinement
+    ? piiSession.applyKnownValues(sanitizedRefinement.value)
+    : null;
+
   // Extract provider names from available connections for dynamic prompt generation
   const selectedProviders = availableConnections.map((conn) => conn.type);
   const genesisSystemPrompt = buildGenesisSystemPrompt(
     selectedProviders.length > 0 ? selectedProviders : null,
-    userTier
+    userTier,
+    capabilitySection
   );
 
   const serviceClient = createServiceClient();
@@ -385,7 +430,7 @@ export async function POST(request: Request) {
     if (filterKeyRow) {
       const filterApiKey = await vaultRetrieve(serviceClient, filterKeyRow.vault_secret_id);
       const complianceResult = await runEuComplianceFilter(
-        sanitizedDescription.value,
+        groundedDescription,
         filterKeyRow,
         filterApiKey
       );
@@ -418,14 +463,15 @@ export async function POST(request: Request) {
   let usedApiKey = "";
   const userMessage = isRefinement
     ? buildRefinementUserMessage(
-        sanitizedRefinement!.value,
+        groundedRefinement!,
         (sanitizedExistingSchema?.value && typeof sanitizedExistingSchema.value === "object"
           ? sanitizedExistingSchema.value
           : {}) as object,
         availableConnections,
-        euComplianceContext
+        euComplianceContext,
+        { usePatch: v2Enabled }
       )
-    : buildGenesisUserMessage(sanitizedDescription.value, availableConnections, euComplianceContext);
+    : buildGenesisUserMessage(groundedDescription, availableConnections, euComplianceContext);
 
   keyAttemptLoop:
   for (let keyIndex = 0; keyIndex < keyCandidates.length; keyIndex++) {
@@ -712,6 +758,31 @@ export async function POST(request: Request) {
     (parsed_schema as Record<string, unknown>).program_id = crypto.randomUUID();
   }
 
+  // Genesis V2 refinement: the model returns a patch, applied here to the
+  // trusted existing schema. Full-schema responses fall through to the legacy
+  // path with a computed diff so the client can animate either way.
+  let patchSummary: GenesisPatchSummary | null = null;
+  if (v2Enabled && isRefinement && existing_schema && typeof existing_schema === "object") {
+    if (isGenesisPatch(parsed_schema)) {
+      const patchResult = GenesisPatchZ.safeParse(parsed_schema);
+      if (!patchResult.success) {
+        return loggedApiError(
+          "The AI returned an edit we could not apply. Please try again.",
+          422,
+          "genesis.patch_invalid",
+          { issues: patchResult.error.flatten() }
+        );
+      }
+      const applied = applyGenesisPatch(existing_schema as object, patchResult.data);
+      parsed_schema = applied.schema;
+      patchSummary = applied.summary;
+    }
+  }
+
+  // Defensive: this route never asks for clarifications, but strip a stray
+  // sidecar before validation rather than fail an otherwise-valid schema.
+  extractClarifications(parsed_schema);
+
   // Normalize common model deviations before validation
   normalizeSchema(parsed_schema);
   parsed_schema = normalizeProgramDraft(parsed_schema, isRefinement && existing_schema ? existing_schema as Partial<ProgramSchema> : undefined);
@@ -769,6 +840,13 @@ export async function POST(request: Request) {
 
   // ── Refinement path: update existing program ─────────────────────────────
   if (isRefinement) {
+    // Under V2, if the model returned a full schema instead of a patch, derive
+    // the diff so the version row records what changed. Under V1 there is no
+    // patch column write and behavior is unchanged.
+    if (v2Enabled && !patchSummary && existing_schema && typeof existing_schema === "object") {
+      patchSummary = diffSchemas(existing_schema as object, schema as object);
+    }
+
     const { data: rawExisting, error: fetchError } = await supabase
       .from("programs")
       .select("id, schema_version")
@@ -810,12 +888,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Store refinement snapshot
+    // Store refinement snapshot. change_summary stays human-readable (the
+    // model's one-sentence summary beats a truncated echo of the request);
+    // the structured diff goes in the jsonb `patch` column for the diff UI.
+    const changeCounts = patchSummary
+      ? ` (+${patchSummary.added_node_ids.length} ~${patchSummary.updated_node_ids.length} −${patchSummary.removed_node_ids.length} nodes)`
+      : "";
     const { error: versionErr } = await supabase.from("program_versions").insert({
       program_id: existing_program_id!,
       version: nextVersion,
       schema: schema as unknown as Record<string, unknown>,
-      change_summary: `Refined — ${refinement!.slice(0, 120)}`,
+      change_summary:
+        (patchSummary?.change_summary ?? `Refined — ${refinement!.slice(0, 120)}`) + changeCounts,
+      ...(patchSummary ? { patch: patchSummary as unknown as Record<string, unknown> } : {}),
     } as unknown as never);
     if (versionErr) {
       serverLog({ level: "error", event: "genesis.refinement.version_insert_failed", message: "Failed to store refinement version snapshot." });
@@ -860,7 +945,7 @@ export async function POST(request: Request) {
     );
     await incrementGenesisUses(userId, workspaceId);
     if (usePlatformKey) await deductUserCredits(userId, GENESIS_EDIT_PLATFORM_RATE_CREDITS);
-    return NextResponse.json({ program: updatedProgram, schema, validation }, { status: 200 });
+    return NextResponse.json({ program: updatedProgram, schema, validation, patch: patchSummary }, { status: 200 });
   }
 
   // ── New program path ──────────────────────────────────────────────────────

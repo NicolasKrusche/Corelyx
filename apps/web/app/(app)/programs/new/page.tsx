@@ -198,6 +198,13 @@ function NewProgramPageInner() {
   // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
   const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b:free");
+  // True once the user explicitly picks a model in the platform picker. When set,
+  // generation uses the platform key with that model instead of silently
+  // preferring an auto-selected BYOK key (which ignored the picker entirely).
+  const [platformModelChosen, setPlatformModelChosen] = useState(false);
+  // Genesis V2 (dev-gated): toggle shown only when the server reports access.
+  const [v2Available, setV2Available] = useState(false);
+  const [useV2, setUseV2] = useState(false);
 
   useEffect(() => {
     if (!connectionsOpen) return;
@@ -263,6 +270,7 @@ function NewProgramPageInner() {
         const models = (data.models ?? []) as PlatformModel[];
         setPlatformModels(models);
         setSelectedPlatformModel(data.defaultModel ?? "openai/gpt-oss-120b:free");
+        setV2Available(data.v2Available === true);
       })
       .catch(() => { /* non-fatal — stays on default free model */ });
   }, []);
@@ -306,31 +314,6 @@ function NewProgramPageInner() {
       }
     }
     setLoadingKeys(false);
-  }
-
-  async function ensureModelSelection(): Promise<{ keyId: string; modelId: string } | null> {
-    if (selectedKeyId && model.trim()) {
-      return { keyId: selectedKeyId, modelId: model.trim() };
-    }
-
-    const res = await fetch("/api/keys");
-    if (!res.ok) return null;
-
-    const data: ApiKey[] = await res.json();
-    const valid = data.filter((k) => k.is_valid);
-    setApiKeys(valid);
-
-    if (valid.length === 0) return null;
-
-    const best = bestKey(valid);
-    if (!best) return null;
-    const keyId = best.id;
-    const modelId = DEFAULT_MODELS[best.provider] ?? "";
-    setSelectedKeyId(keyId);
-    setModel(modelId);
-
-    if (!modelId) return null;
-    return { keyId, modelId };
   }
 
   function toggleConnection(id: string) {
@@ -409,6 +392,7 @@ function NewProgramPageInner() {
           connection_ids: [...selectedIds],
           api_key_id: keyIdToUse,
           model: modelToUse,
+          ...(v2Available && useV2 ? { genesis_v2: true } : {}),
         }),
       });
     } catch (error) {
@@ -674,17 +658,14 @@ function NewProgramPageInner() {
 
     setInlinePhase("generating");
 
-    let selection: { keyId: string; modelId: string } | null = null;
-    try {
-      selection = await ensureModelSelection();
-    } catch {
-      setInlinePhase("connections");
-      setInlineMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "We could not connect. Check your internet connection and try again." },
-      ]);
-      return;
-    }
+    // The inline chat is platform-first: by default use the platform key + the
+    // selected platform model. Use a personal (BYOK) key ONLY when the user
+    // explicitly chose one via the key selector (selectedKeyId is set only then,
+    // not on mount) and hasn't picked a platform model.
+    const selection: { keyId: string; modelId: string } | null =
+      !platformModelChosen && selectedKeyId && model.trim()
+        ? { keyId: selectedKeyId, modelId: model.trim() }
+        : null;
 
     // Honor the user's last-chosen layout orientation (set via the editor's
     // Auto-layout control). Defaults to horizontal when unset.
@@ -700,6 +681,9 @@ function NewProgramPageInner() {
     const loadedIds = await connectionsLoadRef.current;
     const connectionIds = connectionsTouchedRef.current ? [...selectedIds] : loadedIds;
 
+    // Genesis V2 opt-in — only meaningful for dev users; server gates regardless.
+    const v2Field = v2Available && useV2 ? { genesis_v2: true as const } : {};
+
     const payload = selection
       ? {
           description: descriptionToUse,
@@ -707,6 +691,7 @@ function NewProgramPageInner() {
           api_key_id: selection.keyId,
           model: selection.modelId,
           layout_direction,
+          ...v2Field,
         }
       : {
           description: descriptionToUse,
@@ -715,6 +700,7 @@ function NewProgramPageInner() {
           // Include the chosen platform model (may be non-default for paid tiers)
           model: selectedPlatformModel,
           layout_direction,
+          ...v2Field,
         };
 
     // Hand the job to the app-wide provider so it keeps running even if the user
@@ -756,6 +742,33 @@ function NewProgramPageInner() {
           </div>
           {scratchCreateError && (
             <p className="text-xs text-red-300">{scratchCreateError}</p>
+          )}
+          {v2Available && (
+            <button
+              type="button"
+              onClick={() => setUseV2((v) => !v)}
+              aria-pressed={useV2}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-200 ${
+                useV2
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/60 bg-background/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span
+                className={`inline-flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+                  useV2 ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`h-3 w-3 rounded-full bg-white transition-transform ${
+                    useV2 ? "translate-x-3" : "translate-x-0"
+                  }`}
+                />
+              </span>
+              <span>
+                Genesis V2 <span className="opacity-60">· dev · live introspection, patch edits, clarifying questions</span>
+              </span>
+            </button>
           )}
         </div>
       ) : (
@@ -909,7 +922,7 @@ function NewProgramPageInner() {
           onImport={navigateImportSource}
           availableModels={platformModels}
           selectedModelId={selectedPlatformModel}
-          onModelChange={setSelectedPlatformModel}
+          onModelChange={(id) => { setSelectedPlatformModel(id); setPlatformModelChosen(true); }}
         />
       </div>
     );

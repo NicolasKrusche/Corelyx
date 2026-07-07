@@ -42,7 +42,7 @@ const TIER_UPGRADE_LABEL: Record<string, string> = {
   premium: 'Team or Scale',
 }
 
-function ModelSelector({
+export function ModelSelector({
   models,
   selectedModelId,
   onModelChange,

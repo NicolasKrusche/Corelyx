@@ -33,6 +33,10 @@ export const GenesisRequestSchema = z.object({
   // "agent" generates a one-time agent (program_type:"agent") instead of a
   // repeating workflow. Absent = workflow, preserving existing behavior.
   program_type: z.enum(["workflow", "agent"]).optional(),
+  // Genesis V2 opt-in (dev-gated): live connection introspection, patch-based
+  // refinement, and clarifying questions. The server only honors this for users
+  // with technical access; a non-dev request is silently treated as V1.
+  genesis_v2: z.boolean().optional(),
 }).superRefine((request, ctx) => {
   if (!isGenesisRefinementRequest(request) && request.description.length < 10) {
     ctx.addIssue({
@@ -207,6 +211,13 @@ export function sortApiKeyFallbacks(preferredKeyId: string, keys: GenesisApiKeyR
 
 export function getModelCandidates(provider: string, requestedModel: string): string[] {
   if (provider !== "openrouter") return [requestedModel];
+
+  // Local/testing escape hatch: with GENESIS_DISABLE_MODEL_FALLBACKS=true, try
+  // only the requested model and fail fast, instead of grinding through the free
+  // fallback chain (each free model can take ~30s to time out when rate-limited).
+  if (process.env.GENESIS_DISABLE_MODEL_FALLBACKS === "true") {
+    return [requestedModel];
+  }
 
   return [requestedModel, ...OPENROUTER_FALLBACK_MODELS].filter(
     (candidate, index, candidates) => Boolean(candidate) && candidates.indexOf(candidate) === index

@@ -18,6 +18,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
 import { MaintenanceAdminBanner } from "@/components/maintenance-admin-banner";
+import { GenesisV2ReleaseGate } from "@/components/genesis/genesis-v2-release";
 
 type AppLayoutUser = {
   id: string;
@@ -166,6 +167,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </main>
+      <GenesisV2ReleaseGate />
     </div>
   );
 }

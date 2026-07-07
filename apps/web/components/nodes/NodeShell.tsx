@@ -189,6 +189,8 @@ export interface NodeShellProps {
   badges?: NodeBadge[];
   error?: string;
   warning?: string;
+  /** Genesis V2: open clarifying question pinned to this node. */
+  questionPin?: string | null;
 }
 
 function badgeClasses(tone: NodeBadge["tone"]): string {
@@ -212,6 +214,7 @@ export function NodeShell({
   badges,
   error,
   warning,
+  questionPin,
 }: NodeShellProps) {
   const a = ACCENT[accent];
 
@@ -224,6 +227,7 @@ export function NodeShell({
   else if (status === "waiting_approval") ring = "rgba(251,191,36,0.6)";
   else if (validationState === "error") ring = "rgba(239,68,68,0.5)";
   else if (validationState === "warning") ring = "rgba(250,204,21,0.5)";
+  else if (questionPin) ring = "rgba(251,191,36,0.55)";
   else if (selected) ring = a.glow;
 
   const baseShadow = "0 6px 22px -8px rgba(0,0,0,0.35), 0 2px 6px -2px rgba(0,0,0,0.12)";
@@ -245,6 +249,18 @@ export function NodeShell({
       <div className="absolute right-2.5 top-2.5">
         <StatusIcon status={status} />
       </div>
+
+      {/* Genesis clarifying-question pin — the question itself is answered in
+          the questions panel; the pin anchors it to the node it concerns. */}
+      {questionPin && (
+        <div
+          className="genesis-question-pin absolute left-2 top-2 z-10 grid h-5 w-5 place-items-center rounded-full bg-amber-400 text-[11px] font-bold text-amber-950 shadow-md ring-2 ring-amber-200/60"
+          title={questionPin}
+          aria-label={`Open question: ${questionPin}`}
+        >
+          ?
+        </div>
+      )}
 
       {/* Header: medallion + title */}
       <div className="flex items-start gap-2.5">

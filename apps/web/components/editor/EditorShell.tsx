@@ -49,6 +49,7 @@ import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
 import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/components/editor/NodePalettePanel";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
+import type { PlatformModel } from "@/components/ui/bolt-style-chat";
 import { EditorTour } from "@/components/editor/editor-tour";
 import type { AiEditMode } from "@/components/editor/AiEditPanel";
 import { RawSchemaPanel } from "@/components/editor/RawSchemaPanel";
@@ -66,6 +67,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { PreFlightCheck } from "@/lib/validation/pre-flight";
 import type { ComplianceCheck } from "@/lib/compliance/workflow";
 import { useTheme } from "@/components/theme-provider";
+import { GenesisQuestionPanel } from "@/components/genesis/question-panel";
 import {
   isJsonObject,
   workflowRequiresPayloadForManualRun,
@@ -447,6 +449,38 @@ export function EditorShell({
   const [aiEditLoading, setAiEditLoading] = React.useState(false);
   const [aiEditError, setAiEditError] = React.useState<string | null>(null);
   const [aiEditMode, setAiEditMode] = React.useState<"personal" | "platform">("personal");
+  // Genesis V2 (dev-gated) patch-edit: available only to dev users; when on, AI
+  // edits run through the patch pipeline and animate the diff. Defaults on when
+  // available so the intended V2 behavior is what a dev sees.
+  const [v2EditAvailable, setV2EditAvailable] = React.useState(false);
+  const [useV2Edit, setUseV2Edit] = React.useState(true);
+  // Platform model choice for AI edits — same catalog + tier locks as generation.
+  const [editPlatformModels, setEditPlatformModels] = React.useState<PlatformModel[]>([]);
+  const [selectedEditModel, setSelectedEditModel] = React.useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/genesis/models");
+        if (!res.ok) return;
+        const body = (await res.json()) as {
+          v2Available?: boolean;
+          models?: PlatformModel[];
+          defaultModel?: string;
+        };
+        if (cancelled) return;
+        setV2EditAvailable(body.v2Available === true);
+        setEditPlatformModels(body.models ?? []);
+        setSelectedEditModel(body.defaultModel ?? "");
+      } catch {
+        // No picker/toggle on failure — AI edit still works (platform default).
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [isValidating, setIsValidating] = React.useState(false);
   const [validationNotice, setValidationNotice] = React.useState<string | null>(null);
@@ -525,12 +559,67 @@ export function EditorShell({
   // validation) doesn't overwrite the running/success/failed indicators.
   const skipSyncRef = useRef(false);
 
+  // Genesis V2 refinement diff: node ids to highlight after an AI edit lands.
+  // Set by the AI-edit done handler, cleared by its timeout; diffVersion bumps
+  // force a resync so the highlight classes appear and later disappear.
+  const diffHighlightsRef = useRef<{ added: Set<string>; updated: Set<string> } | null>(null);
+  const diffClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [diffVersion, setDiffVersion] = React.useState(0);
+
+  // Genesis V2 clarifying questions: an open session for this program pins
+  // unanswered questions to their nodes (survives tabs/devices — it's a row,
+  // not stream state).
+  const [genesisSession, setGenesisSession] = React.useState<{
+    id: string;
+    clarifications: Array<{ node_id: string; question: string; blocked_node_ids: string[] }>;
+  } | null>(null);
+  const [answerBusyNodeId, setAnswerBusyNodeId] = React.useState<string | null>(null);
+  const [answerError, setAnswerError] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/genesis/sessions?program_id=${programId}`);
+        if (!res.ok) return;
+        const body = (await res.json()) as {
+          sessions?: Array<{ id: string; clarifications: Array<{ node_id: string; question: string; blocked_node_ids: string[] }> }>;
+        };
+        const session = body.sessions?.[0];
+        if (!cancelled && session && session.clarifications.length > 0) {
+          setGenesisSession({ id: session.id, clarifications: session.clarifications });
+        }
+      } catch {
+        // No pins on failure — the editor works fine without them.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [programId]);
+
   useEffect(() => {
     if (skipSyncRef.current) {
       skipSyncRef.current = false;
       return;
     }
-    const { nodes, edges } = toReactFlow(state.schema, state.validationResult);
+    const { nodes: rawNodes, edges } = toReactFlow(state.schema, state.validationResult);
+    const highlights = diffHighlightsRef.current;
+    const questionByNode = new Map(
+      (genesisSession?.clarifications ?? []).map((c) => [c.node_id, c.question])
+    );
+    const blockedIds = new Set(
+      (genesisSession?.clarifications ?? []).flatMap((c) => c.blocked_node_ids)
+    );
+    const nodes = rawNodes.map((n) => {
+      let node = n;
+      if (highlights?.added.has(n.id)) node = { ...node, className: "genesis-diff-added" };
+      else if (highlights?.updated.has(n.id)) node = { ...node, className: "genesis-diff-updated" };
+      else if (blockedIds.has(n.id)) node = { ...node, className: "genesis-blocked" };
+      const question = questionByNode.get(n.id);
+      if (question) node = { ...node, data: { ...node.data, genesisQuestion: question } };
+      return node;
+    });
 
     setRfNodes((prev) => {
       const execStatus = new Map(
@@ -557,7 +646,8 @@ export function EditorShell({
         return d ? { ...e, data: { ...e.data, ...d } } : e;
       });
     });
-  }, [state.schema, state.validationResult]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.schema, state.validationResult, diffVersion, genesisSession]);
 
   // ── Auto-save (2s debounce) ───────────────────────────────────────────────
 
@@ -1532,14 +1622,21 @@ export function EditorShell({
 
     let requestBody: Record<string, unknown>;
 
+    // Genesis V2 patch-edit opt-in (dev-gated; server treats it as V1 for
+    // non-devs). When on, the refinement returns a patch and the diff animates.
+    const v2Field = v2EditAvailable && useV2Edit ? { genesis_v2: true } : {};
+
     if (aiEditMode === "platform") {
       requestBody = {
         description: state.schema.program_name,
         connection_ids: linkedConnections.map((c) => c.id),
         use_platform_key: true,
+        // Chosen platform model (tier-locked server-side, same as generation).
+        ...(selectedEditModel ? { model: selectedEditModel } : {}),
         existing_schema: state.schema,
         refinement: prompt,
         existing_program_id: programId,
+        ...v2Field,
       };
     } else {
       const bestKey = [...apiKeys].sort(
@@ -1561,6 +1658,7 @@ export function EditorShell({
         existing_schema: state.schema,
         refinement: prompt,
         existing_program_id: programId,
+        ...v2Field,
       };
     }
 
@@ -1679,6 +1777,38 @@ export function EditorShell({
           } else if (event.type === "done") {
             sawTerminalEvent = true;
             if (event.schema) {
+              const patch = (event.patch ?? null) as {
+                added_node_ids?: string[];
+                updated_node_ids?: string[];
+                removed_node_ids?: string[];
+              } | null;
+
+              // Make the edit visible, not just applied: removed nodes strike
+              // through and fade before the new schema lands; added nodes fade
+              // in green and updated nodes pulse for a few seconds after.
+              if (patch?.removed_node_ids?.length) {
+                const removedIds = new Set(patch.removed_node_ids);
+                setRfNodes((prev) =>
+                  prev.map((n) =>
+                    removedIds.has(n.id) ? { ...n, className: "genesis-diff-removed" } : n
+                  )
+                );
+                await new Promise((resolve) => setTimeout(resolve, 900));
+              }
+              if (
+                patch &&
+                ((patch.added_node_ids?.length ?? 0) > 0 || (patch.updated_node_ids?.length ?? 0) > 0)
+              ) {
+                diffHighlightsRef.current = {
+                  added: new Set(patch.added_node_ids ?? []),
+                  updated: new Set(patch.updated_node_ids ?? []),
+                };
+                if (diffClearTimerRef.current) clearTimeout(diffClearTimerRef.current);
+                diffClearTimerRef.current = setTimeout(() => {
+                  diffHighlightsRef.current = null;
+                  setDiffVersion((v) => v + 1);
+                }, 6000);
+              }
               dispatch({ type: "RESTORE_VERSION", schema: event.schema as ProgramSchema });
             }
             if (event.validation) {
@@ -1709,7 +1839,83 @@ export function EditorShell({
       setAiEditLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiEditMode, aiEditPrompt, apiKeys, linkedConnections, programId, state.schema]);
+  }, [aiEditMode, aiEditPrompt, apiKeys, linkedConnections, programId, state.schema, v2EditAvailable, useV2Edit, selectedEditModel]);
+
+  // ── Genesis clarification answers (V2) ────────────────────────────────────
+  // Applies one answer as a scoped server-side patch, then animates the diff
+  // with the same machinery as AI edits.
+
+  const handleClarificationAnswer = useCallback(
+    async (nodeId: string, answer: string) => {
+      if (!genesisSession) return;
+      setAnswerBusyNodeId(nodeId);
+      setAnswerError(null);
+
+      const bestKey = [...apiKeys].sort(
+        (a, b) => (PROVIDER_PRIORITY[a.provider] ?? 99) - (PROVIDER_PRIORITY[b.provider] ?? 99)
+      )[0];
+      const keyContext =
+        aiEditMode === "platform" || !bestKey
+          ? { use_platform_key: true }
+          : { api_key_id: bestKey.id };
+
+      try {
+        const res = await fetch(`/api/genesis/sessions/${genesisSession.id}/answer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ node_id: nodeId, answer, ...keyContext }),
+        });
+        const body = (await res.json().catch(() => null)) as {
+          schema?: ProgramSchema;
+          validation?: ValidationResult;
+          patch?: { added_node_ids?: string[]; updated_node_ids?: string[]; removed_node_ids?: string[] } | null;
+          remaining_clarifications?: Array<{ node_id: string; question: string; blocked_node_ids: string[] }>;
+          message?: string;
+          error?: string;
+        } | null;
+        if (!res.ok || !body?.schema) {
+          setAnswerError(body?.message ?? body?.error ?? "The answer could not be applied. Please try again.");
+          return;
+        }
+
+        const patch = body.patch ?? null;
+        if (patch?.removed_node_ids?.length) {
+          const removedIds = new Set(patch.removed_node_ids);
+          setRfNodes((prev) =>
+            prev.map((n) => (removedIds.has(n.id) ? { ...n, className: "genesis-diff-removed" } : n))
+          );
+          await new Promise((resolve) => setTimeout(resolve, 900));
+        }
+        if (patch && ((patch.added_node_ids?.length ?? 0) > 0 || (patch.updated_node_ids?.length ?? 0) > 0)) {
+          diffHighlightsRef.current = {
+            added: new Set(patch.added_node_ids ?? []),
+            updated: new Set(patch.updated_node_ids ?? []),
+          };
+          if (diffClearTimerRef.current) clearTimeout(diffClearTimerRef.current);
+          diffClearTimerRef.current = setTimeout(() => {
+            diffHighlightsRef.current = null;
+            setDiffVersion((v) => v + 1);
+          }, 6000);
+        }
+
+        setGenesisSession(
+          (body.remaining_clarifications?.length ?? 0) > 0
+            ? { id: genesisSession.id, clarifications: body.remaining_clarifications! }
+            : null
+        );
+        // The server already saved this change; RESTORE_VERSION marks the local
+        // draft dirty, which is fine — auto-save is a no-op write of the same.
+        dispatch({ type: "RESTORE_VERSION", schema: body.schema });
+        if (body.validation) dispatch({ type: "SET_VALIDATION", result: body.validation });
+      } catch {
+        setAnswerError("We could not connect. Check your internet connection and try again.");
+      } finally {
+        setAnswerBusyNodeId(null);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [genesisSession, apiKeys, aiEditMode]
+  );
 
   // ── Run ───────────────────────────────────────────────────────────────────
 
@@ -2021,6 +2227,12 @@ export function EditorShell({
           mode={aiEditMode}
           onModeChange={(m: AiEditMode) => { setAiEditMode(m); setAiEditError(null); }}
           platformRateCredits={1_000}
+          v2Available={v2EditAvailable}
+          useV2={useV2Edit}
+          onV2Change={setUseV2Edit}
+          platformModels={editPlatformModels}
+          selectedModel={selectedEditModel}
+          onModelChange={setSelectedEditModel}
         />
       )}
 
@@ -2070,6 +2282,20 @@ export function EditorShell({
             >
               Dismiss
             </button>
+          </div>
+        )}
+
+        {/* Genesis clarifying questions — pinned to nodes, answered here */}
+        {genesisSession && genesisSession.clarifications.length > 0 && !isMobile && (
+          <div className="absolute right-4 top-16 z-30">
+            <GenesisQuestionPanel
+              clarifications={genesisSession.clarifications}
+              nodeLabels={new Map(rfNodes.map((n) => [n.id, String(n.data.label ?? n.id)]))}
+              busyNodeId={answerBusyNodeId}
+              onAnswer={handleClarificationAnswer}
+              onDismiss={() => setGenesisSession(null)}
+              error={answerError}
+            />
           </div>
         )}
 
