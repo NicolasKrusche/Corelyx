@@ -10,6 +10,7 @@ import {
   type Edge as ReactFlowEdge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import Link from "next/link";
 import { Sparkles, Radar, MessagesSquare, GitPullRequestArrow, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TriggerNode } from "@/components/nodes/TriggerNode";
@@ -176,7 +177,11 @@ const SLIDES: Slide[] = [
           </p>
         </div>
         <p className="text-center text-[12px] font-medium text-foreground">
-          Available now on the <span className="text-primary">Scale</span> plan.
+          Available now on the{" "}
+          <Link href="/pricing" className="text-primary underline underline-offset-2 hover:opacity-80">
+            Scale
+          </Link>{" "}
+          plan.
         </p>
       </div>
     ),
@@ -187,11 +192,19 @@ const SLIDES: Slide[] = [
 
 export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
   const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
   const last = SLIDES.length - 1;
   const slide = SLIDES[index]!;
 
-  const next = useCallback(() => setIndex((i) => Math.min(i + 1, last)), [last]);
-  const prev = useCallback(() => setIndex((i) => Math.max(i - 1, 0)), []);
+  const go = useCallback((target: number) => {
+    setIndex((i) => {
+      const t = Math.max(0, Math.min(last, target));
+      setDirection(t >= i ? 1 : -1);
+      return t;
+    });
+  }, [last]);
+  const next = useCallback(() => go(index + 1), [go, index]);
+  const prev = useCallback(() => go(index - 1), [go, index]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -205,9 +218,15 @@ export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-background/70 backdrop-blur-md" onClick={onClose} />
+      <div className="genesis-backdrop-in absolute inset-0 bg-background/70 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      {/* Screen ripple / shockwave that plays as the modal arrives */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <span className="genesis-ripple" />
+        <span className="genesis-ripple" style={{ animationDelay: "0.12s" }} />
+      </div>
+
+      <div className="genesis-modal-enter relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
         {/* Accent header */}
         <div className="relative overflow-hidden border-b border-border/60 px-6 pb-4 pt-5">
           <div
@@ -233,8 +252,8 @@ export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Slide body — fixed min height so the card doesn't jump between slides */}
-        <div className="min-h-[248px] px-6 py-5">
-          <div key={index} className="genesis-slide-in">
+        <div className="min-h-[248px] px-6 py-5" style={{ perspective: "1000px" }}>
+          <div key={index} className={direction === 1 ? "genesis-slide-next" : "genesis-slide-prev"}>
             {slide.body}
           </div>
         </div>
@@ -247,7 +266,7 @@ export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
                 key={i}
                 type="button"
                 aria-label={`Go to slide ${i + 1}`}
-                onClick={() => setIndex(i)}
+                onClick={() => go(i)}
                 className={cn(
                   "h-1.5 rounded-full transition-all",
                   i === index ? "w-5 bg-primary" : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50"
