@@ -5,6 +5,7 @@ import {
   ReactFlow,
   Background,
   ReactFlowProvider,
+  useReactFlow,
   MarkerType,
   type Node as ReactFlowNode,
   type Edge as ReactFlowEdge,
@@ -43,6 +44,9 @@ function toRf(node: PreviewNode): ReactFlowNode {
     id: node.id,
     type: node.type,
     position: { x: node.x, y: 0 },
+    // Give React Flow the node's real width up front so fitView computes the
+    // correct zoom on first run instead of over-zooming before measurement.
+    width: 238,
     draggable: false,
     selectable: false,
     connectable: false,
@@ -59,6 +63,18 @@ function toRf(node: PreviewNode): ReactFlowNode {
       genesisQuestion: node.genesisQuestion ?? null,
     },
   };
+}
+
+// Re-run fitView shortly after mount: React Flow's initial fit can race node
+// measurement (over-zooming so nodes overflow the small preview canvas).
+function FitOnMount() {
+  const rf = useReactFlow();
+  useEffect(() => {
+    const fit = () => { try { rf.fitView({ padding: 0.18 }); } catch { /* not ready */ } };
+    const timers = [setTimeout(fit, 80), setTimeout(fit, 260)];
+    return () => timers.forEach(clearTimeout);
+  }, [rf]);
+  return null;
 }
 
 function FlowPreview({ nodes }: { nodes: PreviewNode[] }) {
@@ -92,6 +108,7 @@ function FlowPreview({ nodes }: { nodes: PreviewNode[] }) {
           fitViewOptions={{ padding: 0.18 }}
           proOptions={{ hideAttribution: true }}
         >
+          <FitOnMount />
           <Background gap={16} className="opacity-40" />
         </ReactFlow>
       </ReactFlowProvider>
@@ -200,6 +217,14 @@ export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
   const last = SLIDES.length - 1;
   const slide = SLIDES[index]!;
 
+  // Heavy (React Flow) slides focus-in via blur; text slides do a 3D glide in
+  // the travel direction. Header + body share the class so they move together.
+  const enterClass = slide.heavy
+    ? "genesis-enter-focus"
+    : direction === 1
+      ? "genesis-enter-next"
+      : "genesis-enter-prev";
+
   const go = useCallback((target: number) => {
     setIndex((i) => {
       const t = Math.max(0, Math.min(last, target));
@@ -253,23 +278,16 @@ export function GenesisV2ReleaseModal({ onClose }: { onClose: () => void }) {
               Skip
             </button>
           </div>
-          <p className="relative mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{slide.kicker}</p>
-          <h2 className="relative mt-1 text-xl font-black tracking-tight text-foreground">{slide.title}</h2>
+          <div key={`h${index}`} className={`relative mt-3 ${enterClass}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{slide.kicker}</p>
+            <h2 className="mt-1 text-xl font-black tracking-tight text-foreground">{slide.title}</h2>
+          </div>
         </div>
 
         {/* Slide body — fixed min height so the card doesn't jump between slides.
-            Heavy (React Flow) slides fade; text slides get the 3D swoop. */}
-        <div className="min-h-[248px] px-6 py-5" style={slide.heavy ? undefined : { perspective: "1000px" }}>
-          <div
-            key={index}
-            className={
-              slide.heavy
-                ? "genesis-slide-fade"
-                : direction === 1
-                  ? "genesis-slide-next"
-                  : "genesis-slide-prev"
-            }
-          >
+            Body trails the header slightly (stagger) for a layered feel. */}
+        <div className="min-h-[248px] px-6 py-5">
+          <div key={index} className={enterClass} style={{ animationDelay: "0.06s" }}>
             {slide.body}
           </div>
         </div>
