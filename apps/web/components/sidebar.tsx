@@ -1481,6 +1481,7 @@ function SettingsModal({
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
   const [twoFactorStatus, setTwoFactorStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [signOutAllBusy, setSignOutAllBusy] = useState(false);
+  const [signOutAllError, setSignOutAllError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1522,10 +1523,20 @@ function SettingsModal({
 
   async function handleSignOutEverywhere() {
     setSignOutAllBusy(true);
+    setSignOutAllError(null);
     const supabase = createBrowserClient();
-    // Global scope revokes every session for this user, including this one.
-    await supabase.auth.signOut({ scope: "global" }).catch(() => undefined);
-    window.location.href = "/login";
+    try {
+      // Global scope revokes every session for this user, including this one.
+      // signOut returns failures rather than throwing them; on failure auth-js
+      // keeps the local session, so redirecting anyway would bounce straight
+      // back into the app looking like the button did nothing.
+      const { error } = await supabase.auth.signOut({ scope: "global" });
+      if (error) throw error;
+      window.location.href = "/login";
+    } catch {
+      setSignOutAllError("Could not sign out everywhere. Check your connection and try again.");
+      setSignOutAllBusy(false);
+    }
   }
 
   const [code, setCode] = useState("");
@@ -2300,6 +2311,9 @@ function SettingsModal({
                   >
                     {signOutAllBusy ? "Signing out..." : "Sign out everywhere"}
                   </button>
+                  {signOutAllError && (
+                    <p className="mt-3 text-xs text-red-600">{signOutAllError}</p>
+                  )}
                 </section>
 
                 <section className={subPanelClass}>

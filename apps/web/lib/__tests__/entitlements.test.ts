@@ -36,7 +36,7 @@ describe("getEntitlements", () => {
     expect(ent.runHistoryDays).toBe(7);
     expect(ent.genesisUsesPerMonth).toBe(3);
     expect(ent.byok).toBe(false);
-    expect(ent.hitlApprovals).toBe(false);
+    expect(ent.hitlApprovals).toBe(true);
     expect(ent.conflictDetection).toBe(false);
     expect(ent.priorityExecution).toBe(false);
     expect(ent.maxTeamSeats).toBe(1);
@@ -58,7 +58,7 @@ describe("getEntitlements", () => {
     expect(ent.runHistoryDays).toBe(30);
     expect(ent.genesisUsesPerMonth).toBe(5);
     expect(ent.byok).toBe(true);
-    expect(ent.hitlApprovals).toBe(false);
+    expect(ent.hitlApprovals).toBe(true);
     expect(ent.conflictDetection).toBe(false);
     expect(ent.priorityExecution).toBe(false);
     expect(ent.maxTeamSeats).toBe(1);

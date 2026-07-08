@@ -277,6 +277,34 @@ def get_user_run_plan(db: Client, user_id: str) -> str:
         return "free"
 
 
+_PRIORITY_EXECUTION_TIERS = {"builder", "unlimited"}
+
+
+def get_user_priority_tier(db: Client, user_id: str) -> bool:
+    """Whether this user's plan gets the reserved priority-execution slot pool
+    (Scale tier and admins). Falls back to False on any lookup error so a
+    transient DB issue never silently grants priority."""
+    if not user_id:
+        return False
+    try:
+        result = (
+            db.table("profiles")
+            .select("tier, is_admin")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return False
+        row = rows[0]
+        if row.get("is_admin") is True:
+            return True
+        return row.get("tier") in _PRIORITY_EXECUTION_TIERS
+    except Exception:
+        return False
+
+
 def is_processing_restricted(db: Client, user_id: str) -> bool:
     result = (
         db.table("profiles")

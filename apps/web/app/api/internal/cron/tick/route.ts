@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
 import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { sweepDueCronTriggers } from "@/lib/cron-sweep";
+import { sweepStuckRuns } from "@/lib/run-reaper";
 import { recordSecurityEvent } from "@/lib/security/sentinel";
 
 // A sweep may dispatch several runs in sequence; give it room beyond the
@@ -36,11 +37,23 @@ export async function POST(request: Request) {
     return apiError("Unauthorized", 401);
   }
 
+  let cronResult;
   try {
-    const result = await sweepDueCronTriggers(console);
-    return NextResponse.json(result);
+    cronResult = await sweepDueCronTriggers(console);
   } catch (error) {
     console.error("[cron-tick] sweep failed:", error);
     return apiError("Cron sweep failed", 500);
   }
+
+  // Independent of the cron sweep — a reaper bug should never block cron
+  // triggers from firing, so it's isolated in its own try/catch.
+  let reaperResult;
+  try {
+    reaperResult = await sweepStuckRuns(console);
+  } catch (error) {
+    console.error("[cron-tick] run reaper failed:", error);
+    reaperResult = { error: error instanceof Error ? error.message : "Run reaper failed" };
+  }
+
+  return NextResponse.json({ ...cronResult, reaper: reaperResult });
 }

@@ -13,7 +13,7 @@ import { Sidebar } from "@/components/sidebar";
 import { AppAmbient } from "@/components/app-ambient";
 import { CommandPalette } from "@/components/command-palette";
 import { DesktopBridgeHandshake } from "@/components/devices/desktop-bridge-handshake";
-import { DesktopSessionWatcher } from "@/components/devices/desktop-session-watcher";
+import { SessionWatcher } from "@/components/session-watcher";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
@@ -116,7 +116,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen">
       <CommandPalette />
       <DesktopBridgeHandshake />
-      <DesktopSessionWatcher />
+      <SessionWatcher />
       <Sidebar
         isAdmin={isAdmin}
         email={appUser.email ?? ""}

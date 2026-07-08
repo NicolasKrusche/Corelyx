@@ -65,6 +65,13 @@ const TIER_LABEL: Record<string, string> = {
   free: "Free", plus: "Solo", pro: "Team", builder: "Scale", unlimited: "Unlimited",
 };
 
+// Tiers entitled to "Priority support" per the pricing page (Team, Scale, and
+// internal/unlimited accounts) — used to surface their tickets first.
+const PRIORITY_SUPPORT_TIERS = new Set(["pro", "builder", "unlimited"]);
+function isPrioritySupport(tier: string) {
+  return PRIORITY_SUPPORT_TIERS.has(tier);
+}
+
 function formatRelative(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 60) return "just now";
@@ -195,7 +202,13 @@ export function AdminSupportClient() {
     router.refresh();
   }
 
-  const filtered = tickets.filter((t) => filter === "all" || t.status === filter);
+  // Priority-support tickets (Team/Scale/Unlimited) float to the top of the
+  // queue, ahead of everyone else, so staff triage them first — API order
+  // (most recently updated first) is preserved within each group.
+  const filtered = tickets
+    .filter((t) => filter === "all" || t.status === filter)
+    .slice()
+    .sort((a, b) => Number(isPrioritySupport(b.user_tier)) - Number(isPrioritySupport(a.user_tier)));
 
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
@@ -231,7 +244,8 @@ export function AdminSupportClient() {
               type="button"
               onClick={() => setSelected(ticket)}
               className={cn(
-                "w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-accent",
+                "w-full border-b border-border px-4 py-3 text-left transition-colors hover:bg-accent border-l-2",
+                isPrioritySupport(ticket.user_tier) ? "border-l-amber-500 bg-amber-500/[0.04]" : "border-l-transparent",
                 selected?.id === ticket.id && "bg-accent",
               )}
             >
@@ -242,6 +256,14 @@ export function AdminSupportClient() {
                 </span>
               </div>
               <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                {isPrioritySupport(ticket.user_tier) && (
+                  <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                    <svg viewBox="0 0 16 16" fill="currentColor" className="h-2.5 w-2.5">
+                      <path d="M9.5 1 3 9.5h4l-1 5.5L13 7H9l.5-6Z" />
+                    </svg>
+                    Priority
+                  </span>
+                )}
                 <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-semibold", TIER_BADGE[ticket.user_tier] ?? TIER_BADGE.free)}>
                   {TIER_LABEL[ticket.user_tier] ?? ticket.user_tier}
                 </span>
