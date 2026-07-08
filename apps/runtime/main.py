@@ -28,6 +28,7 @@ from cors_config import (
 from db import (
     get_active_cron_workflows,
     get_db,
+    get_user_priority_tier,
     get_user_run_plan,
     is_processing_restricted,
     release_run_locks,
@@ -184,7 +185,8 @@ async def trigger_workflow(workflow_id: str) -> None:
             execution_log_retention_days=workspace_policy.get("execution_log_retention_days", 90),
             pii_mode=workspace_policy.get("pii_mode", "auto"),
         )
-        await executor.execute(None)
+        async with _acquire_run_slot(get_user_priority_tier(db, user_id)):
+            await executor.execute(None)
         final_status = "completed"
     except ExecutionError as e:
         error_message = e.message
@@ -313,6 +315,40 @@ class ExecuteRequest(BaseModel):
 # but a separate skip-trigger flow handles that — cold /execute should not.
 _DISPATCHABLE_RUN_STATUSES = {"running", "pending"}
 
+# ─── Priority execution queue (Scale tier) ─────────────────────────────────
+# There is no queue/worker-pool infra otherwise — runs dispatch essentially
+# immediately via BackgroundTasks. Concurrency is UNBOUNDED by default
+# (RUNTIME_MAX_CONCURRENT_RUNS=0): an idle semaphore slot costs nothing, but a
+# low cap does — it would throttle real traffic that previously ran fine
+# unthrottled. Set RUNTIME_MAX_CONCURRENT_RUNS to a positive number to opt
+# into a ceiling (e.g. to protect the box from a runaway/malicious loop); only
+# then does the reserved priority pool mean anything, since only then can
+# standard-tier runs actually queue for Scale-tier runs to skip ahead of.
+_MAX_CONCURRENT_RUNS = int(os.environ.get("RUNTIME_MAX_CONCURRENT_RUNS", "0"))
+_PRIORITY_RESERVED_SLOTS = (
+    min(int(os.environ.get("RUNTIME_PRIORITY_RESERVED_SLOTS", "8")), max(_MAX_CONCURRENT_RUNS - 1, 1))
+    if _MAX_CONCURRENT_RUNS > 0
+    else 0
+)
+_standard_run_slots = (
+    asyncio.Semaphore(max(_MAX_CONCURRENT_RUNS - _PRIORITY_RESERVED_SLOTS, 1))
+    if _MAX_CONCURRENT_RUNS > 0
+    else None
+)
+_priority_run_slots = asyncio.Semaphore(_PRIORITY_RESERVED_SLOTS) if _MAX_CONCURRENT_RUNS > 0 else None
+
+
+@asynccontextmanager
+async def _acquire_run_slot(is_priority: bool) -> AsyncGenerator[None, None]:
+    """No-op when concurrency is unbounded (the default); otherwise acquires
+    from the priority or standard pool per _MAX_CONCURRENT_RUNS above."""
+    if _MAX_CONCURRENT_RUNS <= 0:
+        yield
+        return
+    slots = _priority_run_slots if is_priority else _standard_run_slots
+    async with slots:  # type: ignore[union-attr]
+        yield
+
 
 @app.post("/execute")
 async def execute_program(
@@ -413,7 +449,7 @@ async def execute_program(
         raise HTTPException(status_code=422, detail=policy_blocks[0]["reason"])
 
     background_tasks.add_task(
-        _run_program,
+        _run_program_gated,
         schema,
         body.run_id,
         program_id_db,
@@ -422,6 +458,7 @@ async def execute_program(
         body.connections,
         program_row.get("workspace_id"),
         workspace_policy,
+        is_priority=get_user_priority_tier(db, user_id_db),
     )
     return {"status": "started", "run_id": body.run_id}
 
@@ -589,6 +626,34 @@ async def _run_program(
         await release_run_locks(db, run_id)
         # Notify Next.js — fires inter-program triggers for completed runs
         await _notify_complete(run_id, program_id, user_id, final_status)
+
+
+async def _run_program_gated(
+    schema: ProgramSchema,
+    run_id: str,
+    program_id: str,
+    user_id: str,
+    trigger_payload: Optional[dict[str, Any]],
+    connection_name_to_id: dict[str, str] | None = None,
+    workspace_id: str | None = None,
+    workspace_policy: dict[str, Any] | None = None,
+    is_priority: bool = False,
+) -> None:
+    """Runs _run_program behind the concurrency gate (see _acquire_run_slot
+    above). No-op unless RUNTIME_MAX_CONCURRENT_RUNS is set; when it is,
+    priority runs draw from their own reserved pool so they're never queued
+    behind standard-tier congestion."""
+    async with _acquire_run_slot(is_priority):
+        await _run_program(
+            schema,
+            run_id,
+            program_id,
+            user_id,
+            trigger_payload,
+            connection_name_to_id,
+            workspace_id,
+            workspace_policy,
+        )
 
 
 @app.get("/health")

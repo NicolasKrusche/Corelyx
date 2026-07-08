@@ -398,6 +398,43 @@ export async function getUserTier(userId: string, workspaceId?: string | null): 
   return billing.tier;
 }
 
+/** Count active memberships + pending invitations in a workspace (a seat is held either way). */
+async function countTeamSeats(workspaceId: string): Promise<number> {
+  const serviceClient = createServiceClient();
+  const [{ count: memberCount }, { count: inviteCount }] = await Promise.all([
+    serviceClient
+      .from("workspace_memberships")
+      .select("user_id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId),
+    serviceClient
+      .from("workspace_invitations")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .is("accepted_at", null)
+      .is("revoked_at", null),
+  ]);
+  return (memberCount ?? 0) + (inviteCount ?? 0);
+}
+
+/** Check whether a workspace can add one more seat (a new member or a new pending invitation). */
+export async function checkTeamSeatLimit(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+  const profile = await getBillingScope(userId, workspaceId);
+  const ent = getEntitlements(profile.tier);
+
+  if (ent.maxTeamSeats === null || !profile.workspaceId) return { allowed: true };
+
+  const current = await countTeamSeats(profile.workspaceId);
+  if (current >= ent.maxTeamSeats) {
+    return {
+      allowed: false,
+      reason: `Team seat limit reached (${current}/${ent.maxTeamSeats} on ${profile.tier} plan)`,
+      upgradeMessage: `You've reached the ${ent.maxTeamSeats}-seat limit on your plan. Upgrade to add more teammates.`,
+    };
+  }
+
+  return { allowed: true };
+}
+
 export async function checkWorkspaceLimit(userId: string): Promise<LimitCheckResult> {
   const profile = await getBillingScope(userId);
   const ent = getEntitlements(profile.tier);

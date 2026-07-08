@@ -13,7 +13,7 @@ export const PLAN_COLUMNS = ["Free", "Solo", "Team", "Scale"] as const;
  * `components/pricing/pricing-tiers.tsx` and `components/ui/pricing-section-4.tsx`.
  * Where a higher tier states "Everything in <lower tier>", the lower value is
  * inherited (e.g. Team/Scale inherit Solo's Genesis access as Unlimited, Scale
- * inherits Team's approvals/error prevention). Boolean rows render as a check or
+ * inherits Team's approvals/conflict handling). Boolean rows render as a check or
  * a minus; string rows render their value verbatim.
  *
  * Values are ordered [Free, Solo, Team, Scale].
@@ -37,15 +37,13 @@ export const COMPARISON_FEATURES: FeatureItem[] = [
   },
   { label: "Genesis AI uses / month", values: ["3", "5", "Unlimited", "Unlimited"] },
   { label: "AI agents (one-time tasks)", values: [false, true, true, true] },
-  { label: "Human-in-the-loop approvals", values: [false, false, true, true] },
-  { label: "Error prevention (auto)", values: [false, false, true, true] },
+  { label: "Human-in-the-loop approvals", values: [true, true, true, true] },
+  { label: "Custom conflict handling (skip/fail policies)", values: [false, false, true, true] },
   { label: "Run history", values: ["7 days", "30 days", "90 days", "1 year"] },
   {
     label: "Triggers",
     values: ["Manual & cron", "Manual, cron & webhook", "All types", "All types"],
   },
-  { label: "Priority execution queue", values: [false, false, false, true] },
-  { label: "Email notifications", values: [false, false, true, true] },
   { label: "Dedicated success manager", values: [false, false, false, true] },
   { label: "Custom integrations", values: [false, false, false, true] },
   { label: "SLA guarantee", values: [false, false, false, true] },

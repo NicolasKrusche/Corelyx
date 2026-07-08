@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
+import { checkTeamSeatLimit } from "@/lib/limits";
 import {
   canAssignWorkspaceRole,
   canManageWorkspace,
@@ -181,6 +182,11 @@ export async function POST(
   const target = await findAuthUserByEmail(service, parsed.data.email);
 
   if (!target) {
+    const seatCheck = await checkTeamSeatLimit(user.id, params.id);
+    if (!seatCheck.allowed) {
+      return apiError(seatCheck.upgradeMessage ?? seatCheck.reason ?? "Team seat limit reached.", 403);
+    }
+
     const { data, error } = await service
       .from("workspace_invitations")
       .insert({
@@ -205,6 +211,14 @@ export async function POST(
     });
 
     return NextResponse.json({ invitation: data as InvitationRow }, { status: 201 });
+  }
+
+  const existingMembership = await getActorMembership(service, params.id, target.id);
+  if (!existingMembership) {
+    const seatCheck = await checkTeamSeatLimit(user.id, params.id);
+    if (!seatCheck.allowed) {
+      return apiError(seatCheck.upgradeMessage ?? seatCheck.reason ?? "Team seat limit reached.", 403);
+    }
   }
 
   await service

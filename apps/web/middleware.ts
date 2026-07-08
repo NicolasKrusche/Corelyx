@@ -256,9 +256,24 @@ export async function middleware(request: NextRequest) {
   }
 
   if (session && (pathname === "/login" || pathname === "/signup")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return redirectWithSecurity(url);
+    // The cookie JWT can outlive its session ("Sign out everywhere", password
+    // change, remote revoke). Bouncing a dead session to /dashboard loops
+    // forever against the app layout's server-verified redirect back to
+    // /login — so verify against the auth server before bouncing. This network
+    // call only runs on auth pages visited with a session cookie present.
+    let verifiedUser = false;
+    try {
+      const { data } = await supabase.auth.getUser();
+      verifiedUser = Boolean(data.user);
+    } catch {
+      verifiedUser = false;
+    }
+    if (verifiedUser) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return redirectWithSecurity(url);
+    }
+    // Dead or unverifiable session: let the visitor reach the login page.
   }
 
   return supabaseResponse;
