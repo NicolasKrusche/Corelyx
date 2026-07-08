@@ -148,15 +148,16 @@ export async function sweepDueCronTriggers(logger: Logger = console): Promise<Cr
       continue;
     }
 
+    // The trigger's own is_active (checked above) is the source of truth for
+    // whether this schedule runs — program.is_active is not a second gate.
     const { data: program, error: progErr } = await (db as any)
       .from("programs")
       .select("id, schema, user_id, workspace_id, execution_mode, program_type, name, description")
       .eq("id", trigger.program_id)
-      .eq("is_active", true)
       .single();
 
     if (progErr || !program) {
-      logger.warn(`Skipping trigger ${trigger.id}: program not found or inactive`);
+      logger.warn(`Skipping trigger ${trigger.id}: program not found`);
       result.skipped++;
       continue;
     }
