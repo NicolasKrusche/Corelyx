@@ -401,8 +401,11 @@ export default async function DashboardPage({
       : failedThisWeek > 0
         ? t("failedCount", { count: failedThisWeek })
         : t("onTrack");
+  // programs.is_active is never set by any UI action — an active, enabled
+  // trigger (programSchedules) is what actually determines whether a workflow
+  // runs on its own, so that's the real "active" signal here.
   const activeWorkflowSeries = dayKeys.map((key) =>
-    programs.filter((program) => program.is_active && program.created_at.slice(0, 10) <= key).length
+    programs.filter((program) => programSchedules.has(program.id) && program.created_at.slice(0, 10) <= key).length
   );
   const runsSeries = bucketValues(runsThisWeek);
   const successRateSeries = dayKeys.map((key) => {
@@ -480,7 +483,7 @@ export default async function DashboardPage({
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={t("activeWorkflows")} value={String(programs.filter((program) => program.is_active).length)} detail={t("totalCount", { count: programs.length })} Icon={FolderKanban} tone="green" series={activeWorkflowSeries} />
+        <StatCard label={t("activeWorkflows")} value={String(programs.filter((program) => programSchedules.has(program.id)).length)} detail={t("totalCount", { count: programs.length })} Icon={FolderKanban} tone="green" series={activeWorkflowSeries} />
         <StatCard label={t("runsThisWeek")} value={runsThisWeek.length.toLocaleString()} detail={t("sevenDayView")} Icon={Activity} tone="blue" series={runsSeries} />
         <StatCard label={t("successRate")} value={successRate === null ? "-%" : `${successRate}%`} detail={successRateDetail} Icon={CheckCircle2} tone="violet" series={successRateSeries} />
         <StatCard label={t("awaitingYou")} value={String(pendingApprovals.length)} detail={pendingApprovals.length > 0 ? t("reviewNow") : t("allClear")} Icon={CircleAlert} tone="amber" series={approvalsSeries} />

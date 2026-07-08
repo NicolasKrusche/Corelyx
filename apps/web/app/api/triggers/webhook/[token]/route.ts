@@ -143,7 +143,6 @@ export async function POST(
     user_id: string;
     workspace_id: string;
     execution_mode: string;
-    is_active: boolean;
     program_type: string | null;
     name: string;
     description: string | null;
@@ -151,17 +150,13 @@ export async function POST(
 
   const { data: programRaw, error: programError } = await db
     .from("programs")
-    .select("id, schema, user_id, workspace_id, execution_mode, is_active, program_type, name, description")
+    .select("id, schema, user_id, workspace_id, execution_mode, program_type, name, description")
     .eq("id", trigger.program_id)
     .single();
 
   if (programError || !programRaw) return apiError("Program not found", 404);
 
   const program = programRaw as unknown as ProgramRow;
-
-  if (!program.is_active) {
-    return apiError("Program is not active", 409);
-  }
 
   // Sentinel containment: a program (or its owner) under a security lock —
   // applied automatically after repeated anomalies, or manually by an admin —

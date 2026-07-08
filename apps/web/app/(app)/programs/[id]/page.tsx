@@ -18,7 +18,7 @@ import {
   FileJson,
   FileText,
   History,
-  MoreHorizontal,
+  Loader2,
   Network,
   RefreshCw,
   Settings,
@@ -194,22 +194,25 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     linkedConnsResult,
     completedRunsResult,
     failedRunsResult,
+    runningRunsResult,
     creatorResult,
     triggersResult,
   ] = await Promise.all([
     serviceClient.from("program_connections").select("connection_id").eq("program_id", id),
     serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id).eq("status", "completed"),
     serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id).eq("status", "failed"),
+    serviceClient.from("runs").select("id", { count: "exact", head: true }).eq("program_id", id).in("status", ["running", "waiting_approval"]),
     serviceClient.from("profiles").select("display_name").eq("id", program.user_id).maybeSingle(),
     serviceClient.from("triggers").select("type, is_active, next_run_at").eq("program_id", id).neq("type", "manual"),
   ]);
+
+  const isRunning = (runningRunsResult.count ?? 0) > 0;
 
   const connectionIds = (linkedConnsResult.data ?? []).map((r: { connection_id: string }) => r.connection_id);
 
   // Surface schedule state next to the Active/Inactive badge: a daily cron
   // program looks "idle" almost all the time, so the badge alone can't tell
-  // a user whether it's actually on autopilot. Also catch the reverse trap —
-  // program.is_active=true but its only trigger is paused.
+  // a user whether it's actually on autopilot.
   type ProgramTriggerRow = { type: string; is_active: boolean; next_run_at: string | null };
   const programTriggers = (triggersResult.data ?? []) as ProgramTriggerRow[];
   const nextCronRun = programTriggers
@@ -217,6 +220,10 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
     .sort((a, b) => (a.next_run_at as string).localeCompare(b.next_run_at as string))[0]?.next_run_at ?? null;
   const hasPausedCronOnly = !nextCronRun && programTriggers.some((trigger) => trigger.type === "cron" && !trigger.is_active);
   const hasOtherActiveTrigger = !nextCronRun && programTriggers.some((trigger) => trigger.type !== "cron" && trigger.is_active);
+  // programs.is_active is not a real activation flag — nothing in the app ever
+  // sets it true, and it's no longer checked before firing triggers (triggers.is_active
+  // is the source of truth). Derive the displayed Active/Inactive state from that instead.
+  const hasActiveTrigger = programTriggers.some((trigger) => trigger.is_active);
 
   let conflictingProgramCount = 0;
   if (connectionIds.length > 0) {
@@ -275,9 +282,15 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${program.is_active ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+              <span className={`h-2.5 w-2.5 rounded-full ${hasActiveTrigger ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
               <h1 className="truncate text-3xl font-semibold tracking-normal">{program.name}</h1>
-              <Badge variant="secondary">{program.is_active ? "Active" : "Inactive"}</Badge>
+              <Badge variant="secondary">{hasActiveTrigger ? "Active" : "Inactive"}</Badge>
+              {isRunning && (
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  Running
+                </Badge>
+              )}
               {nextCronRun && (
                 <Badge
                   variant="outline"
@@ -294,7 +307,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                   Runs automatically
                 </Badge>
               )}
-              {hasPausedCronOnly && program.is_active && (
+              {hasPausedCronOnly && hasActiveTrigger && (
                 <Badge
                   variant="outline"
                   title="This program is active, but its schedule is paused — it will not fire on its own until you resume the trigger."
@@ -357,7 +370,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {aiGenerated && !program.is_active && (
+      {aiGenerated && !hasActiveTrigger && (
         <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">
           <Sparkles className="h-4 w-4 shrink-0 text-primary" />
           <p className="min-w-0 flex-1">
@@ -403,9 +416,6 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
                     </Link>
                   </Button>
                 )}
-                <Button variant="outline" size="icon" className="h-9 w-9">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
               </div>
             </div>
 

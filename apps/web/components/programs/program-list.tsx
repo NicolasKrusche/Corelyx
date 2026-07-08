@@ -207,7 +207,7 @@ export function ProgramList({
     edited: programs.filter((p) => p.updated_at > recentCutoff).length,
     run: programs.filter((p) => p.last_run_at && p.last_run_at > recentCutoff).length,
     scheduled: programs.filter((p) => !!stats[p.id]?.schedule).length,
-    inactive: programs.filter((p) => !p.is_active).length,
+    inactive: programs.filter((p) => !stats[p.id]?.schedule).length,
     all: programs.length,
   };
 
@@ -221,7 +221,7 @@ export function ProgramList({
     if (activeFilter === "edited") return p.updated_at > recentCutoff;
     if (activeFilter === "run") return p.last_run_at != null && p.last_run_at > recentCutoff;
     if (activeFilter === "scheduled") return !!stats[p.id]?.schedule;
-    if (activeFilter === "inactive") return !p.is_active;
+    if (activeFilter === "inactive") return !stats[p.id]?.schedule;
     return true;
   });
 
@@ -304,9 +304,13 @@ export function ProgramList({
   function ProgramRow({ p }: { p: ProgramListItem }) {
     const s = stats[p.id] ?? { total: 0, failed: 0, runSeries: [], providers: [] };
     const hasFailed = s.failed > 0;
+    // programs.is_active is never set by any UI action — an active, enabled
+    // trigger (surfaced here as s.schedule) is what actually determines whether
+    // a workflow runs on its own.
+    const isActive = !!s.schedule;
     const bar = hasFailed
       ? "bg-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.5)] group-hover:bg-red-500"
-      : p.is_active
+      : isActive
       ? "bg-green-500/60 group-hover:bg-green-500 group-hover:shadow-[0_0_8px_rgba(34,197,94,0.45)]"
       : "bg-muted-foreground/20";
 
@@ -347,10 +351,10 @@ export function ProgramList({
               <span className="h-1 w-1 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)]" />
               {s.failed} failed
             </span>
-          ) : p.is_active ? (
+          ) : isActive ? (
             <span className="inline-flex items-center gap-1.5 rounded-md bg-green-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-green-600">
               <span className="h-1 w-1 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.9)]" />
-              Healthy
+              Active
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
