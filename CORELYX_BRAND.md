@@ -11,7 +11,7 @@ Corelyx is a **visual AI workflow automation platform** built for teams that ope
 The one-line pitch: **"Describe what you want to automate. Corelyx designs the agent graph, you tune it visually — then it runs itself."**
 
 It is NOT a general no-code tool like Zapier or Make. The differentiator is the combination of AI-first workflow generation + compliance evidence infrastructure (EU-first controls, EU-only mode for eligible workflows, human-in-the-loop approvals, processing records) — things that Zapier and n8n treat as afterthoughts.
- 
+  
 ---
 
 ## Who It's For
