@@ -32,6 +32,7 @@ import {
   GENESIS_TEMPERATURE,
   KEY_DEFAULT_MODELS,
   PLATFORM_DEFAULT_MODEL,
+  PLATFORM_MODEL_CATALOG,
   getModelCandidates,
   getProviderBaseURL,
   mapExecutionMode,
@@ -154,7 +155,19 @@ export async function POST(
     if (!platformRawKey) return apiError("Platform AI key is not available.", 503);
     apiKey = platformRawKey;
     provider = "openrouter";
-    model = PLATFORM_DEFAULT_MODEL;
+    // Reuse the model that actually generated this program (server-stamped
+    // after generation — see stream/route.ts) instead of always falling back
+    // to the platform default. Without this, answering a clarifying question
+    // ignored whichever model the user picked for generation (e.g. a paid,
+    // reliable model) and always ground through the free-tier default and its
+    // fallback chain instead — which is exactly the slow path a user picking
+    // a different model was trying to avoid. Only trust it if it's still a
+    // real, currently-offered model (older programs may carry unverified,
+    // model-reported text from before this was server-stamped).
+    const generatedModel = (program.schema as { metadata?: { genesis_model?: string } }).metadata?.genesis_model;
+    model = generatedModel && PLATFORM_MODEL_CATALOG.some((m) => m.id === generatedModel)
+      ? generatedModel
+      : PLATFORM_DEFAULT_MODEL;
   } else {
     if (!api_key_id) return apiError("api_key_id is required when not using the platform key", 400);
     const { data: keyRow, error: keyError } = await serviceClient

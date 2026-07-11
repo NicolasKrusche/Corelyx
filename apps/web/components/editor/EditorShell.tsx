@@ -1606,7 +1606,7 @@ export function EditorShell({
     google: "gemini-1.5-pro",
     groq: "llama-3.3-70b-versatile",
     mistral: "mistral-large-latest",
-    openrouter: "openai/gpt-oss-120b:free",
+    openrouter: "openai/gpt-oss-120b",
   };
 
   const handleAiEditSubmit = useCallback(async () => {

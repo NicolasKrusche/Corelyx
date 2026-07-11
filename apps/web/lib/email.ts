@@ -589,6 +589,60 @@ Questions? Reply to this email or contact <a href="mailto:legal@corelyx.app" sty
   });
 }
 
+interface FeedbackNotificationOptions {
+  to: string;
+  type: "bug" | "idea" | "other";
+  message: string;
+  userEmail: string;
+  pagePath?: string | null;
+  adminUrl: string;
+}
+
+const FEEDBACK_TYPE_LABEL: Record<FeedbackNotificationOptions["type"], string> = {
+  bug: "Bug report",
+  idea: "Feature idea",
+  other: "Feedback",
+};
+
+export async function sendFeedbackNotificationEmail({
+  to,
+  type,
+  message,
+  userEmail,
+  pagePath,
+  adminUrl,
+}: FeedbackNotificationOptions): Promise<void> {
+  const typeLabel = FEEDBACK_TYPE_LABEL[type];
+  const pageLine = pagePath
+    ? `<p style="margin:0 0 12px;font-size:14px;color:#374151;">${escapeHtml(pagePath)}</p>`
+    : "";
+
+  await sendEmail({
+    to,
+    subject: `[Feedback] ${typeLabel} from ${userEmail}`,
+    html: `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;">
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e5e7eb;"><span style="font-size:18px;font-weight:600;color:#111827;">Corelyx — new feedback</span></td></tr>
+<tr><td style="padding:32px;">
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#111827;">${escapeHtml(typeLabel)}</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#6b7280;">From ${escapeHtml(userEmail)}</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;border-radius:6px;margin-bottom:24px;">
+<tr><td style="padding:16px 20px;">
+<p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(message)}</p>
+</td></tr></table>
+${pageLine}
+<a href="${adminUrl}" style="display:inline-block;background:#111827;color:#fff;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:600;text-decoration:none;">Open in admin</a>
+</td></tr>
+<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;"><p style="margin:0;font-size:12px;color:#9ca3af;">Internal feedback notification</p></td></tr>
+</table></td></tr></table>
+</body></html>`.trim(),
+  });
+}
+
 interface DsrEmailLegalOptions {
   to: string;
   reference: string;

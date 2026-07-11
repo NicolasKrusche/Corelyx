@@ -32,9 +32,13 @@ import { checkAgentAccess, checkProgramLimit, checkGenesisAccess, incrementGenes
 import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
+import { applyDeterministicRepairs, createRepairModelCaller, repairMissingOperationParams } from "@/lib/genesis/semantic-repair";
+import { buildPlanSystemPrompt } from "@/lib/genesis/plan-prompt";
+import { collectPendingConnectionGroups, resolvePendingConnections } from "@/lib/genesis/decomposed-generation";
 import { PartialSchemaScanner } from "@/lib/genesis/partial-schema";
 import { hasPiiRedactions, PseudonymizationSession } from "@/lib/privacy/pii";
-import { buildCapabilitySection, fetchConnectionCapabilities, summarizeCapabilities } from "@/lib/genesis/introspection";
+import { buildCapabilityNamesSection, buildCapabilitySection, buildCapabilitySectionsByProvider, fetchConnectionCapabilities, summarizeCapabilities, type CapabilityDescriptor } from "@/lib/genesis/introspection";
+import { buildAmbiguityClarification, findAmbiguousTargets } from "@/lib/genesis/ambiguity-detection";
 import {
   applyGenesisPatch,
   diffSchemas,
@@ -42,7 +46,7 @@ import {
   isGenesisPatch,
   type GenesisPatchSummary,
 } from "@/lib/genesis/patch";
-import { extractClarifications, type GenesisClarification } from "@/lib/genesis/clarifications";
+import { extractClarifications, MAX_CLARIFICATIONS, type GenesisClarification } from "@/lib/genesis/clarifications";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { serverLog } from "@/lib/server-log";
 import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
@@ -277,12 +281,30 @@ export async function POST(request: Request) {
   // piiSession — only placeholders reach the prompt. Failures fall back to the
   // static catalog. Skipped entirely when V2 is off.
   let capabilitySection: string | null = null;
+  // Per-provider breakdown of the same introspected data, for decomposed
+  // generation's Phase 2 resolve calls (each sees only its own provider's
+  // capability data, same as it only sees its own operation docs) — see
+  // buildCapabilitySectionsByProvider in introspection.ts.
+  let capabilityByProvider: Map<string, string> | undefined;
+  // Names-only view for Phase 1 (planning) — the full section's nested
+  // properties (a Notion database's fields, a form's questions, etc.) are only
+  // needed once Phase 2 is filling in operation_params for one specific
+  // operation; including them at planning time reintroduces exactly the
+  // context bloat decomposition exists to avoid. See buildCapabilityNamesSection.
+  let planCapabilitySection: string | null = null;
+  // Hoisted so the deterministic ambiguity-detection pass (after Phase 2, see
+  // below) can compare a resolved node's target against how many real
+  // candidates of that kind actually exist.
+  let capabilityDescriptors: CapabilityDescriptor[] = [];
   if (v2Enabled && connections.length > 0 && !isAgent) {
     const descriptors = await fetchConnectionCapabilities(
       connections.map((row) => row.id),
       userId
     );
+    capabilityDescriptors = descriptors;
     capabilitySection = buildCapabilitySection(descriptors, connections, piiSession);
+    capabilityByProvider = buildCapabilitySectionsByProvider(descriptors, connections, piiSession);
+    planCapabilitySection = buildCapabilityNamesSection(descriptors, connections, piiSession);
     // Confirm the capability section actually made it into the prompt (present +
     // size + resource/user-named counts), so "model ignored the channels" can be
     // told apart from "channels never reached the prompt".
@@ -308,11 +330,25 @@ export async function POST(request: Request) {
 
   const selectedProviders = availableConnections.map((conn) => conn.type);
   const providersForPrompt = selectedProviders.length > 0 ? selectedProviders : null;
+  // Fresh workflow generation goes through the decomposed "plan-then-resolve"
+  // path (see decomposed-generation.ts): this call gets a much smaller prompt
+  // with no connector operation docs at all, and connection nodes come back
+  // as an unresolved placeholder that a per-provider resolve pass fills in
+  // after this call completes. Refinements (already patch-based, already
+  // small) and agent generation (its own prompt/tool catalog) are unaffected.
+  // Gated on v2Enabled (same gate as introspection/patches/clarifications) —
+  // V1's single-shot prompt stays the default for everyone else. This is a
+  // deliberate release-sequencing choice, not a technical requirement: V2 is
+  // being held back for a dedicated launch moment rather than silently
+  // becoming everyone's default generation behavior ahead of that.
+  const isDecomposedGeneration = v2Enabled && !isAgent && !isRefinement;
   const genesisSystemPrompt = isAgent
     ? buildAgentSystemPrompt(providersForPrompt)
-    : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection, {
-        allowClarifications: v2Enabled && !isRefinement,
-      });
+    : isDecomposedGeneration
+      ? buildPlanSystemPrompt(providersForPrompt, null, planCapabilitySection, { allowClarifications: v2Enabled })
+      : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection, {
+          allowClarifications: v2Enabled && !isRefinement,
+        });
 
   // Resolve API keys
   let keyCandidates: GenesisApiKeyRow[];
@@ -360,6 +396,10 @@ export async function POST(request: Request) {
 
       let rawText = "";
       let modelUsed = model;
+      // Captured on success so the post-validation repair pass (below) can
+      // reuse the same key/model instead of re-running key/model fallback.
+      let usedApiKey = "";
+      let usedKeyRow: GenesisApiKeyRow | null = null;
       // Hoisted so the catch block can check whether an abort was compliance-triggered.
       let complianceBlockReason: string | null = null;
 
@@ -478,6 +518,8 @@ export async function POST(request: Request) {
               }
 
               modelUsed = candidateModel;
+              usedApiKey = currentApiKey;
+              usedKeyRow = currentKeyRow;
               recordLlmUsage({
                 userId,
                 workspaceId,
@@ -575,8 +617,16 @@ export async function POST(request: Request) {
         }
 
         // Put the real values back into the parsed schema (the model only ever
-        // saw placeholders), so the saved workflow is configured with usable data.
-        parsedSchema = piiSession.rehydrateValue(parsedSchema);
+        // saw placeholders), so the saved workflow is configured with usable
+        // data. Deferred for decomposed generation — Phase 2's resolve calls
+        // (below) must never see real user data, and the deterministic
+        // ambiguity check needs placeholders intact to match against. Those
+        // paths rehydrate right before normalizeSchema instead (see below).
+        // Refinement patches merge into the trusted, already-real existing
+        // schema, so they still need rehydration now.
+        if (!isDecomposedGeneration) {
+          parsedSchema = piiSession.rehydrateValue(parsedSchema);
+        }
 
         if (parsedSchema && typeof parsedSchema === "object" && "error" in parsedSchema) {
           const genesisError = parsedSchema as Record<string, unknown>;
@@ -616,10 +666,101 @@ export async function POST(request: Request) {
         // Always strip a `clarifications` sidecar before schema validation so a
         // stray key can't fail an otherwise-valid schema; only ACT on it under
         // V2 (the V1 prompt never asks for questions, so this is normally []).
+        // Rehydrated independently of the schema's own (possibly still-
+        // deferred, see above) rehydration — question text is user-facing and
+        // must never show a raw placeholder. A no-op if parsedSchema was
+        // already rehydrated by this point (nothing left to substitute).
         const extractedClarifications = !isRefinement && !isAgent
-          ? extractClarifications(parsedSchema)
+          ? (piiSession.rehydrateValue(extractClarifications(parsedSchema)) as GenesisClarification[])
           : [];
-        const clarifications = v2Enabled ? extractedClarifications : [];
+        // Mutable: the deterministic ambiguity check (after Phase 2, below)
+        // appends to this when it finds a write-scoped node targeting an
+        // unresolved ambiguous resource the model didn't flag itself.
+        let clarifications = v2Enabled ? extractedClarifications : [];
+
+        // Phase 2 of decomposed generation: resolve every "pending" connection
+        // node the plan-mode prompt produced, one call per provider actually
+        // used. Must run before normalizeSchema/normalizeProgramDraft below —
+        // those rebuild connection-node config from a fixed field allowlist and
+        // would otherwise strip the "pending"/"purpose" markers this depends
+        // on. See decomposed-generation.ts for the merge/fallback contract.
+        if (isDecomposedGeneration && usedKeyRow) {
+          const pendingGroups = collectPendingConnectionGroups(parsedSchema);
+          const pendingProviders = [...pendingGroups.keys()];
+          const pendingNodeCount = pendingProviders.reduce((n, p) => n + (pendingGroups.get(p)?.length ?? 0), 0);
+
+          const resolveKeyRow = usedKeyRow;
+          const callResolveModel = createRepairModelCaller(
+            {
+              provider: resolveKeyRow.provider,
+              apiKey: usedApiKey,
+              model: modelUsed,
+              billing: resolveKeyRow.id === "platform" ? "platform" : "byok",
+              userId,
+              workspaceId,
+            },
+            1536
+          );
+          const { resolvedProviders, failedProviders } = await resolvePendingConnections(
+            parsedSchema,
+            groundedDescription,
+            (systemPrompt, userMessage) => callResolveModel(userMessage, systemPrompt),
+            (provider) => send({ type: "status", message: `Resolving ${provider} integration...` }),
+            capabilityByProvider
+          );
+          // Always logged (not just on failure) — this is the only server-side
+          // evidence that Phase 2 actually ran, since a fully-successful pass
+          // otherwise leaves no trace. A plan-mode call that produced zero
+          // pending nodes (pending_node_count: 0) means the model either
+          // ignored the "pending" connector_type instruction and emitted
+          // resolved config directly in Phase 1, or the plan had no connection
+          // nodes at all — worth knowing when diagnosing "did V2 even run".
+          serverLog({
+            level: failedProviders.length > 0 ? "warn" : "info",
+            event: "genesis.stream.decomposed_resolve",
+            message: "Decomposed generation Phase 2 (connector resolve) completed.",
+            details: {
+              pending_providers: pendingProviders.join(","),
+              pending_node_count: pendingNodeCount,
+              resolved_providers: resolvedProviders.join(","),
+              failed_providers: failedProviders.join(","),
+            },
+          });
+
+          // Deterministic ambiguity detection (no model call — see
+          // ambiguity-detection.ts): catches a write-scoped node that
+          // resolved against one of several real same-kind candidates
+          // without the description narrowing which one, regardless of
+          // whether the model itself thought to flag it. Must run here,
+          // before the deferred rehydration below, while operation_params
+          // still holds [CATEGORY_N] placeholders to match against. Skips a
+          // node the model already flagged on its own — never double-ask.
+          const ambiguousTargets = findAmbiguousTargets(parsedSchema, capabilityDescriptors).filter(
+            (target) => !clarifications.some((c) => c.node_id === target.nodeId)
+          );
+          if (ambiguousTargets.length > 0) {
+            clarifications = [
+              ...clarifications,
+              ...ambiguousTargets.map(buildAmbiguityClarification),
+            ].slice(0, MAX_CLARIFICATIONS);
+            serverLog({
+              level: "info",
+              event: "genesis.stream.deterministic_clarification",
+              message: "Deterministic ambiguity check flagged one or more unresolved write-target choices.",
+              details: {
+                node_ids: ambiguousTargets.map((t) => t.nodeId).join(","),
+                categories: ambiguousTargets.map((t) => t.category).join(","),
+              },
+            });
+          }
+        }
+
+        // Rehydrate now if deferred above (decomposed generation only) — Phase
+        // 2 and the ambiguity check above are done with the schema, so real
+        // values can safely be substituted back in before validation/save.
+        if (isDecomposedGeneration) {
+          parsedSchema = piiSession.rehydrateValue(parsedSchema);
+        }
 
         // Stamp the agent discriminator BEFORE normalizeSchema: its corelyx
         // connection-node repair (a bogus "corelyx:primary" connection rewritten
@@ -704,7 +845,48 @@ export async function POST(request: Request) {
         // Keep the stored schema's discriminator aligned with the column even if
         // the model forgot to emit program_type.
         if (isAgent) (schema as { program_type?: string }).program_type = "agent";
-        const validation = validatePostGenesis(schema as unknown as Parameters<typeof validatePostGenesis>[0], connections);
+        // metadata.genesis_model is whatever the model itself wrote into that
+        // field per the prompt's TOP-LEVEL SCHEMA example — unverified model
+        // output, not a fact (a weak model may echo the literal placeholder or
+        // guess wrong). Overwrite with the model that actually produced this
+        // schema so downstream consumers can trust it — e.g. the clarifying-
+        // question answer route reuses it instead of falling back to a fixed
+        // default model regardless of what generated the program.
+        (schema as { metadata: { genesis_model: string } }).metadata.genesis_model = modelUsed;
+        let validation = validatePostGenesis(schema as unknown as Parameters<typeof validatePostGenesis>[0], connections);
+
+        // Targeted repair pass — see semantic-repair.ts. Deterministic fixes
+        // first (free), then one narrow single-node model call per node still
+        // missing required operation params, reusing the key/model that
+        // already succeeded above. Best-effort: never worse than leaving the
+        // original warning if a repair call fails.
+        {
+          const typedSchema = schema as unknown as ProgramSchema;
+          const detRepair = applyDeterministicRepairs(typedSchema, validation);
+          let needsRevalidate = detRepair.fixedNodeIds.length > 0;
+
+          if (validation.warnings.some((w) => w.code === "WARN_004") && usedKeyRow) {
+            const callGenesisRepairModel = createRepairModelCaller({
+              provider: usedKeyRow.provider,
+              apiKey: usedApiKey,
+              model: modelUsed,
+              billing: usedKeyRow.id === "platform" ? "platform" : "byok",
+              userId,
+              workspaceId,
+            });
+            const { repairedNodeIds } = await repairMissingOperationParams(
+              typedSchema,
+              connections,
+              groundedDescription,
+              callGenesisRepairModel
+            );
+            if (repairedNodeIds.length > 0) needsRevalidate = true;
+          }
+
+          if (needsRevalidate) {
+            validation = validatePostGenesis(schema as unknown as Parameters<typeof validatePostGenesis>[0], connections);
+          }
+        }
 
         // Await compliance before saving — catches late-arriving blocks if generation
         // finished faster than the compliance model responded.

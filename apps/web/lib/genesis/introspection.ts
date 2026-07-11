@@ -194,6 +194,79 @@ export function buildCapabilitySection(
   return lines.join("\n");
 }
 
+/**
+ * Lightweight version of buildCapabilitySection: resource names only, no
+ * nested properties (a Notion database's property schema, a form's fields,
+ * etc.). Used by decomposed generation's plan stage, which should know WHICH
+ * real resources exist — for sharper connection-node purposes and clarifying
+ * questions — without the property-level detail that only matters once a
+ * later stage is filling in operation_params for one specific operation.
+ * Keeping this small matters here specifically: the plan stage's whole point
+ * is staying free of the context bloat that hurts small models most, and
+ * property listings (the bulk of buildCapabilitySection's output for a
+ * database-shaped resource) are exactly that kind of bloat at this stage.
+ */
+export function buildCapabilityNamesSection(
+  descriptors: CapabilityDescriptor[],
+  connections: GenesisConnectionRow[],
+  session: PseudonymizationSession
+): string | null {
+  if (descriptors.length === 0) return null;
+
+  const connectionById = new Map(connections.map((row) => [row.id, row]));
+  const lines: string[] = [
+    "KNOWN RESOURCES (introspected from the user's real accounts just now — names only; a later stage resolves each resource's fields):",
+    "User-created names are pseudonymized as [CATEGORY_N] placeholders. Copy a placeholder EXACTLY (including brackets) when a purpose or clarifying question refers to one of these. Never invent a placeholder number not listed here.",
+    "",
+  ];
+
+  let rendered = 0;
+  for (const descriptor of descriptors) {
+    const row = connectionById.get(descriptor.connection_id);
+    if (!row || descriptor.resources.length === 0) continue;
+    rendered += 1;
+
+    const names = descriptor.resources.map((resource) => {
+      const displayName = resource.user_named
+        ? session.registerKnownValue(placeholderCategory(descriptor.provider, resource.kind), resource.name)
+        : resource.name;
+      return `${resource.kind}: ${displayName}`;
+    });
+    lines.push(`Connection "${row.name}" (${descriptor.provider}): ${names.join("; ")}`);
+  }
+
+  if (rendered === 0) return null;
+  return lines.join("\n");
+}
+
+/**
+ * Same data as buildCapabilitySection, split into one section per provider.
+ * Decomposed generation's resolve pass (lib/genesis/decomposed-generation.ts)
+ * runs one narrow call per provider — it should only see that provider's own
+ * capability data, not every selected connector's combined capabilities,
+ * matching the same "no irrelevant context" reasoning as the operation docs.
+ * Safe to call alongside buildCapabilitySection on the same descriptors: each
+ * descriptor belongs to exactly one provider, so nothing is double-registered
+ * with the pseudonymization session.
+ */
+export function buildCapabilitySectionsByProvider(
+  descriptors: CapabilityDescriptor[],
+  connections: GenesisConnectionRow[],
+  session: PseudonymizationSession
+): Map<string, string> {
+  const byProvider = new Map<string, string>();
+  const providers = new Set(descriptors.map((d) => d.provider));
+  for (const provider of providers) {
+    const section = buildCapabilitySection(
+      descriptors.filter((d) => d.provider === provider),
+      connections,
+      session
+    );
+    if (section) byProvider.set(provider, section);
+  }
+  return byProvider;
+}
+
 /** Counts-only summary for logs — never raw names. */
 export function summarizeCapabilities(descriptors: CapabilityDescriptor[]): {
   connections: number;

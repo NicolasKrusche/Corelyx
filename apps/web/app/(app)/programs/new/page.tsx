@@ -197,7 +197,7 @@ function NewProgramPageInner() {
   const connectionsTouchedRef = useRef(false);
   // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
-  const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b:free");
+  const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b");
   // True once the user explicitly picks a model in the platform picker. When set,
   // generation uses the platform key with that model instead of silently
   // preferring an auto-selected BYOK key (which ignored the picker entirely).
@@ -269,7 +269,7 @@ function NewProgramPageInner() {
         if (!data) return;
         const models = (data.models ?? []) as PlatformModel[];
         setPlatformModels(models);
-        setSelectedPlatformModel(data.defaultModel ?? "openai/gpt-oss-120b:free");
+        setSelectedPlatformModel(data.defaultModel ?? "openai/gpt-oss-120b");
         setV2Available(data.v2Available === true);
       })
       .catch(() => { /* non-fatal — stays on default free model */ });
@@ -281,7 +281,7 @@ function NewProgramPageInner() {
     google: "gemini-1.5-pro",
     groq: "llama-3.3-70b-versatile",
     mistral: "mistral-large-latest",
-    openrouter: "openai/gpt-oss-120b:free",
+    openrouter: "openai/gpt-oss-120b",
   };
 
   // Providers ranked by Genesis suitability (large prompt support, reliability)

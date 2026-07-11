@@ -14,6 +14,7 @@ import {
   runEuComplianceFilter,
 } from "@/lib/genesis/eu-compliance";
 import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
+import { applyDeterministicRepairs, createRepairModelCaller, repairMissingOperationParams } from "@/lib/genesis/semantic-repair";
 import {
   hasPiiRedactions,
   mergePiiRedactions,
@@ -868,8 +869,42 @@ export async function POST(request: Request) {
   const schemaResult = ProgramSchemaZ.safeParse(parsed_schema);
   const schema = (schemaResult.success ? schemaResult.data : draftResult.data) as unknown as ProgramSchema;
 
+  // Reuses the model/key that already succeeded for generation — no new
+  // key/model fallback chain, just one small call. Callers must treat any
+  // rejection as best-effort-failed, not a generation failure.
+  const callGenesisRepairModel = createRepairModelCaller({
+    provider: apiKeyRow.provider,
+    apiKey: usedApiKey,
+    model: modelUsed,
+    billing: usedKeyRow?.id === "platform" ? "platform" : "byok",
+    userId,
+    workspaceId,
+  });
+
   // Run post-genesis validation
-  const validation = validatePostGenesis(schema, connectionRows);
+  let validation = validatePostGenesis(schema, connectionRows);
+
+  // Targeted repair pass — fixes the categories weaker/cheaper models hit far
+  // more often than Sonnet-class models, without touching the rest of the
+  // graph. Deterministic fixes first (free), then one narrow single-node model
+  // call per node still missing required operation params (bounded, and never
+  // worse than leaving the original warning if it fails). See semantic-repair.ts.
+  {
+    const detRepair = applyDeterministicRepairs(schema, validation);
+    let needsRevalidate = detRepair.fixedNodeIds.length > 0;
+
+    if (validation.warnings.some((w) => w.code === "WARN_004")) {
+      const { repairedNodeIds } = await repairMissingOperationParams(
+        schema,
+        connectionRows,
+        groundedDescription || groundedRefinement || "",
+        (prompt) => callGenesisRepairModel(prompt)
+      );
+      if (repairedNodeIds.length > 0) needsRevalidate = true;
+    }
+
+    if (needsRevalidate) validation = validatePostGenesis(schema, connectionRows);
+  }
 
   // ── Refinement path: update existing program ─────────────────────────────
   if (isRefinement) {

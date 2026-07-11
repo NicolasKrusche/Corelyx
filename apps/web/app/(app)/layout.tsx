@@ -14,6 +14,7 @@ import { AppAmbient } from "@/components/app-ambient";
 import { CommandPalette } from "@/components/command-palette";
 import { DesktopBridgeHandshake } from "@/components/devices/desktop-bridge-handshake";
 import { SessionWatcher } from "@/components/session-watcher";
+import { FeedbackWidget } from "@/components/feedback-widget";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
 import { WelcomeOfferBanner } from "@/components/welcome-offer-banner";
@@ -117,6 +118,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <CommandPalette />
       <DesktopBridgeHandshake />
       <SessionWatcher />
+      <FeedbackWidget />
       <Sidebar
         isAdmin={isAdmin}
         email={appUser.email ?? ""}

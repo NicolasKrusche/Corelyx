@@ -764,114 +764,736 @@
   filter: saturate(0.55);
 }
 
-/* ── Genesis V2 release announcement — looping preview animations ── */
-/* NOTE: never animate `transform` on a .react-flow__node — React Flow uses
-   transform to position nodes, so animating it collapses the node to the
-   origin (nodes overlap). Only opacity / box-shadow / filter are safe. */
-@keyframes genesis-preview-added {
-  0%   { opacity: 0; box-shadow: 0 0 0 0 rgba(74,222,128,0); }
-  20%  { opacity: 1; box-shadow: 0 0 18px 1px rgba(74,222,128,0.7); }
-  60%  { box-shadow: 0 0 7px 0 rgba(74,222,128,0.32); }
-  100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0); }
-}
-.genesis-preview-added { animation: genesis-preview-added 3.6s ease-in-out infinite; }
 
-@keyframes genesis-preview-updated {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); }
-  50%      { box-shadow: 0 0 14px 1px rgba(251,191,36,0.7); }
-}
-.genesis-preview-updated { animation: genesis-preview-updated 1.8s ease-in-out infinite; }
+/* ══ Genesis V2 release — "Flightdeck" cinematic camera-dolly edition (gv2-*) ══ */
+/* Self-contained, uniquely prefixed. Hard-dark interior regardless of app theme;
+   all text is light for legibility in both themes. Brand color drives every glow.
+   Entrance: a drop falls onto a 3D water surface; the ripple builds to the modal
+   rising out of the impact point. A vanilla-canvas starfield adds forward depth. */
 
-.genesis-preview-removed { position: relative; animation: genesis-preview-removed 3.6s ease-in-out infinite; }
-@keyframes genesis-preview-removed {
-  0%, 40% { opacity: 0.95; filter: grayscale(0); }
-  70%, 100% { opacity: 0.45; filter: grayscale(1); }
+.gv2-root {
+  --gv2-star: 165, 195, 255;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
-.genesis-preview-removed::after {
-  content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px;
-  background: rgba(239,68,68,0.85); transform: rotate(-5deg);
-  animation: genesis-preview-strike 3.6s ease-in-out infinite;
+.gv2-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 4, 8, 0.74);
+  backdrop-filter: blur(10px);
+  animation: gv2-fade 0.4s ease-out;
 }
-@keyframes genesis-preview-strike { 0%, 40% { opacity: 0; } 70%, 100% { opacity: 1; } }
+/* WebGL path: the opaque water canvas hides the blur anyway — skip its cost. */
+.gv2-backdrop--noblur { backdrop-filter: none; }
+@keyframes gv2-fade { from { opacity: 0; } to { opacity: 1; } }
 
-@keyframes genesis-slide-in {
-  from { opacity: 0; transform: translateX(14px); }
-  to   { opacity: 1; transform: translateX(0); }
+/* ── Rest-of-screen ambient field: sharp cinematic space over the blur ──
+   Above the blurred backdrop, below the modal; pointer-events:none so
+   click-to-close still lands on the backdrop underneath. */
+.gv2-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
 }
-.genesis-slide-in { animation: genesis-slide-in 0.35s ease-out; }
+.gv2-screen-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0.4;
+  /* Clear the centre so stars frame the modal rather than sit behind it. */
+  -webkit-mask-image: radial-gradient(58% 58% at 50% 50%, transparent 32%, #000 80%);
+  mask-image: radial-gradient(58% 58% at 50% 50%, transparent 32%, #000 80%);
+  animation: gv2-screen-in 1.4s ease-out both;
+}
+@keyframes gv2-screen-in { from { opacity: 0; } to { opacity: 0.4; } }
+.gv2-neb {
+  position: absolute;
+  width: 72vw;
+  height: 72vw;
+  border-radius: 50%;
+  filter: blur(64px);
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+.gv2-neb-a {
+  top: -24vw;
+  left: -14vw;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.22), transparent 66%);
+  animation: gv2-neb-a 16s ease-in-out infinite alternate;
+}
+.gv2-neb-b {
+  bottom: -26vw;
+  right: -16vw;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.16), transparent 66%);
+  animation: gv2-neb-b 20s ease-in-out infinite alternate;
+}
+@keyframes gv2-neb-a {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(4vw, 3vw) scale(1.12); }
+}
+@keyframes gv2-neb-b {
+  from { transform: translate(0, 0) scale(1.06); }
+  to { transform: translate(-4vw, -3vw) scale(1); }
+}
+.gv2-screenvig {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(125% 125% at 50% 50%, transparent 50%, rgba(2, 3, 7, 0.55) 100%);
+}
 
-/* ── Genesis V2 release: cinematic entrance + slide transitions ── */
-/* Screen ripple/shockwave that plays as the modal opens. Concentric rings
-   expand from centre; the card is delayed so they read before it covers it. */
-.genesis-ripple {
-  position: absolute; left: 50%; top: 50%;
-  height: 60px; width: 60px; margin: -30px 0 0 -30px;
-  border-radius: 9999px; border: 2.5px solid hsl(var(--primary) / 0.6);
-  transform: scale(0); opacity: 0;
-  animation: genesis-ripple 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+/* ── Full-3D water cinematic (WebGL) ──
+   Self-contained scene (ocean disc + sky dome carry their own backdrop),
+   below the modal. pointer-events:none keeps click-to-close on the backdrop.
+   The opaque background guarantees no page content bleeds through on
+   renderers with quirky canvas-alpha compositing (e.g. software WebGL) —
+   the dome fills every pixel anyway, so it is never visible on real GPUs. */
+.gv2-water {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: #05070d;
+  /* No fill-mode: if the animation never runs (hidden/throttled tab), the
+     layer must rest at its base opacity of 1, not the from{opacity:0} frame —
+     otherwise the whole ocean is invisible and the page bleeds through. */
+  animation: gv2-fade 0.9s ease-out;
 }
-@keyframes genesis-ripple {
-  0%   { opacity: 0.7; transform: scale(0); }
-  55%  { opacity: 0.4; }
-  100% { opacity: 0; transform: scale(30); }
+.gv2-water canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
-/* Central glow flash at the origin of the ripple. */
-.genesis-flash {
-  position: absolute; left: 50%; top: 50%;
-  height: 240px; width: 240px; margin: -120px 0 0 -120px;
-  border-radius: 9999px; pointer-events: none;
-  background: radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 68%);
+.gv2-skipintro {
+  position: absolute;
+  bottom: 1.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 0.45rem 0.95rem;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(238, 241, 248, 0.85);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+  transition: color 0.2s ease, background 0.2s ease;
+  animation: gv2-skipintro-in 0.5s ease-out 0.9s both;
+}
+.gv2-skipintro:hover { color: #fff; background: rgba(255, 255, 255, 0.14); }
+@keyframes gv2-skipintro-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Signature entrance: a drop falls onto a 3D water surface ──
+   The drop accelerates down from the top of the screen (gravity easing),
+   stretches just before impact, then flattens at the centre. */
+.gv2-dropwrap {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.gv2-drop {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, #ffffff, hsl(var(--primary) / 0.95) 52%, hsl(var(--primary) / 0.35));
+  box-shadow: 0 0 16px hsl(var(--primary) / 0.9), 0 0 4px #fff;
+  transform: translateY(-46vh);
+  animation: gv2-drop 0.46s cubic-bezier(0.45, 0, 0.85, 0.5) forwards;
+}
+.gv2-drop::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  width: 2px;
+  height: 24px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: linear-gradient(to top, hsl(var(--primary) / 0.55), transparent);
+  opacity: 0.7;
+}
+@keyframes gv2-drop {
+  0%   { transform: translateY(-46vh) scaleY(0.85); opacity: 0; }
+  12%  { opacity: 1; }
+  82%  { transform: translateY(-3px) scaleY(1.4); opacity: 1; }
+  100% { transform: translateY(0) scaleY(0.45); opacity: 0; }
+}
+
+/* Impact splash + concentric ripple rings on a perspective-tilted water plane.
+   Mounts at impact, so every animation here starts from the strike. */
+.gv2-ripplewrap {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  perspective: 820px;
+  perspective-origin: 50% 50%;
+}
+.gv2-splash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140px;
+  height: 140px;
+  margin: -70px 0 0 -70px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.7), transparent 60%);
+  transform: scale(0.15);
   opacity: 0;
-  animation: genesis-flash 0.75s ease-out forwards;
+  animation: gv2-splash 0.65s ease-out forwards;
 }
-@keyframes genesis-flash {
-  0%   { opacity: 0; transform: scale(0.3); }
-  28%  { opacity: 0.95; }
-  100% { opacity: 0; transform: scale(3.4); }
+@keyframes gv2-splash {
+  0%   { opacity: 0.95; transform: scale(0.15); }
+  100% { opacity: 0; transform: scale(2.4); }
 }
-
-.genesis-backdrop-in { animation: genesis-backdrop-in 0.45s ease-out; }
-@keyframes genesis-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
-
-/* The card arrives after the ripple, tilting up out of the screen in 3D. */
-.genesis-modal-enter {
-  transform-origin: center 60%;
-  animation: genesis-modal-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.42s both;
+.gv2-surface {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotateX(64deg);
+  transform-style: preserve-3d;
 }
-@keyframes genesis-modal-enter {
-  0%   { opacity: 0; transform: perspective(1200px) rotateX(16deg) scale(0.9) translateY(28px); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: perspective(1200px) rotateX(0deg) scale(1) translateY(0); }
+.gv2-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  border-radius: 50%;
+  border: 2px solid hsl(var(--primary) / 0.6);
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.45), inset 0 0 10px hsl(var(--primary) / 0.25);
+  transform: scale(0);
+  opacity: 0;
+  animation: gv2-ring 1.9s cubic-bezier(0.12, 0.6, 0.2, 1) forwards;
 }
-
-/* ── Slide-to-slide transitions ──
-   Text slides: a direction-aware 3D glide with a soft spring overshoot. Heavy
-   (React Flow) slides can only animate opacity — transform corrupts fitView and
-   a blur filter over React Flow's layered canvas hangs the compositor. `both`
-   fill so a staggered element stays hidden pre-delay. */
-.genesis-enter-next { animation: genesis-enter-next 0.52s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.genesis-enter-prev { animation: genesis-enter-prev 0.52s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.genesis-enter-focus { animation: genesis-enter-focus 0.45s ease-out both; }
-
-@keyframes genesis-enter-next {
-  0%   { opacity: 0; transform: perspective(1100px) translateX(46px) rotateY(-11deg) scale(0.96); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: perspective(1100px) translateX(0) rotateY(0deg) scale(1); }
-}
-@keyframes genesis-enter-prev {
-  0%   { opacity: 0; transform: perspective(1100px) translateX(-46px) rotateY(11deg) scale(0.96); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: perspective(1100px) translateX(0) rotateY(0deg) scale(1); }
-}
-@keyframes genesis-enter-focus {
-  0%   { opacity: 0; }
-  100% { opacity: 1; }
+@keyframes gv2-ring {
+  0%   { transform: scale(0); opacity: 0; border-width: 3px; }
+  10%  { opacity: 0.8; }
+  100% { transform: scale(26); opacity: 0; border-width: 0.5px; }
 }
 
+.gv2-modal:focus { outline: none; }
+.gv2-modal {
+  --gv2-star: 165, 195, 255;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 44rem;
+  border-radius: 1.15rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--primary) / 0.22);
+  background:
+    radial-gradient(120% 80% at 12% -10%, hsl(var(--primary) / 0.20), transparent 55%),
+    radial-gradient(120% 90% at 92% 112%, hsl(var(--primary) / 0.12), transparent 55%),
+    linear-gradient(180deg, #090b12 0%, #06070d 58%, #04050a 100%);
+  box-shadow: 0 40px 120px -20px rgba(0, 0, 0, 0.82), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  color: #eef1f8;
+}
+/* Held below the surface until the drop lands, then rises out of the ripple.
+   visibility+pointer-events matter: on the water path this state lasts 5.6s,
+   and an invisible-but-interactive card would swallow stray clicks (hidden
+   Skip permanently dismisses the announcement) and take Tab focus. */
+.gv2-modal--pre {
+  opacity: 0;
+  transform: perspective(1400px) rotateX(16deg) translateY(44px) scale(0.9);
+  visibility: hidden;
+  pointer-events: none;
+}
+.gv2-modal--in {
+  animation: gv2-modal-in 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes gv2-modal-in {
+  0%   { opacity: 0; transform: perspective(1400px) rotateX(16deg) translateY(44px) scale(0.9); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(1400px) rotateX(0) translateY(0) scale(1); }
+}
+
+/* ── 3D stage + camera rig ── */
+.gv2-stage {
+  position: relative;
+  height: 330px;
+  overflow: hidden;
+  perspective: 1200px;
+  perspective-origin: 50% 42%;
+  background: radial-gradient(80% 90% at 50% 30%, #0a0d17 0%, #05060b 70%);
+}
+.gv2-camera {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-origin: 0 0;
+  transform-style: preserve-3d;
+  transition: transform 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.gv2-layer {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* Far plane: nebula + receding grid (base kept transparent so the starfield
+   shows through behind the glows). */
+.gv2-far { transform: translateZ(-320px) scale(1.9); }
+.gv2-far::before {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  background:
+    radial-gradient(45% 45% at 30% 32%, hsl(var(--primary) / 0.20), transparent 62%),
+    radial-gradient(42% 42% at 74% 66%, hsl(var(--primary) / 0.14), transparent 62%);
+}
+.gv2-grid {
+  position: absolute;
+  inset: -45%;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(hsl(var(--primary) / 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.11) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(58% 58% at 50% 45%, #000 28%, transparent 76%);
+  mask-image: radial-gradient(58% 58% at 50% 45%, #000 28%, transparent 76%);
+  animation: gv2-drift 26s linear infinite;
+}
+@keyframes gv2-drift { to { background-position: 40px 40px; } }
+
+/* Mid plane: glowing connection lines */
+.gv2-lines {
+  width: 720px;
+  height: 380px;
+  overflow: visible;
+}
+.gv2-edge { transition: opacity 0.5s ease; }
+.gv2-edge-hidden { opacity: 0; }
+.gv2-edge-base {
+  fill: none;
+  stroke: hsl(var(--primary) / 0.28);
+  stroke-width: 2;
+}
+.gv2-edge-glow {
+  fill: none;
+  stroke: hsl(var(--primary) / 0.85);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 14 210;
+  filter: drop-shadow(0 0 5px hsl(var(--primary) / 0.85));
+  animation: gv2-flow 2.6s linear infinite;
+}
+@keyframes gv2-flow { to { stroke-dashoffset: -224; } }
+
+/* Mid plane: node cards */
+.gv2-node {
+  position: absolute;
+  width: 150px;
+  transition: opacity 0.5s ease, filter 0.5s ease;
+}
+.gv2-card {
+  position: relative;
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.6rem 0.55rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02));
+  border: 1px solid hsl(var(--primary) / 0.30);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.7), 0 0 18px -4px hsl(var(--primary) / 0.35);
+  backdrop-filter: blur(2px);
+  transition: border-color 0.5s ease, box-shadow 0.5s ease;
+}
+.gv2-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: hsl(var(--primary));
+}
+.gv2-card-ico { height: 0.85rem; width: 0.85rem; }
+.gv2-card-sub {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(238, 241, 248, 0.55);
+}
+.gv2-card-label {
+  margin-top: 0.2rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f4f6fb;
+}
+
+.gv2-dim { opacity: 0.34; filter: saturate(0.6); }
+.gv2-focus .gv2-card {
+  border-color: hsl(var(--primary) / 0.75);
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.8), 0 0 30px -2px hsl(var(--primary) / 0.7);
+}
+.gv2-ghost { opacity: 0; pointer-events: none; }
+.gv2-ghost.gv2-show { opacity: 1; }
+
+/* Introspection radar sweep (accounts beat) */
+.gv2-scanning .gv2-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary) / 0.32) 40deg, transparent 90deg);
+  animation: gv2-sweep 1.8s linear infinite;
+  pointer-events: none;
+}
+@keyframes gv2-sweep { to { transform: rotate(360deg); } }
+
+/* Diff semantics (surgical-edits beat) */
+.gv2-added .gv2-card {
+  border-color: rgba(52, 211, 153, 0.75);
+  box-shadow: 0 0 28px -2px rgba(52, 211, 153, 0.55);
+  animation: gv2-added-in 1.8s ease both;
+}
+.gv2-added .gv2-card-head { color: #34d399; }
+@keyframes gv2-added-in {
+  0% { opacity: 0; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  25% { opacity: 1; box-shadow: 0 0 26px 2px rgba(52, 211, 153, 0.7); }
+  100% { opacity: 1; box-shadow: 0 0 14px -2px rgba(52, 211, 153, 0.45); }
+}
+.gv2-changed .gv2-card {
+  border-color: rgba(251, 191, 36, 0.75);
+  animation: gv2-amber 1.6s ease-in-out infinite;
+}
+.gv2-changed .gv2-card-head { color: #fbbf24; }
+@keyframes gv2-amber {
+  0%, 100% { box-shadow: 0 0 6px -2px rgba(251, 191, 36, 0.3); }
+  50% { box-shadow: 0 0 26px 1px rgba(251, 191, 36, 0.65); }
+}
+.gv2-removed .gv2-card {
+  border-color: rgba(244, 63, 94, 0.65);
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+.gv2-removed .gv2-card-head { color: #f43f5e; }
+.gv2-strike {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 2px;
+  background: rgba(244, 63, 94, 0.9);
+  transform: rotate(-5deg) scaleX(0);
+  transform-origin: left center;
+  animation: gv2-strike 1.6s ease-out 0.3s forwards;
+}
+@keyframes gv2-strike { to { transform: rotate(-5deg) scaleX(1); } }
+
+/* Clarifying-question pin (asks beat) */
+/* Supersampled 2×: tiny text inside the preserve-3d camera rig is rasterized
+   once at natural size, then the per-beat camera zoom (scale 1.14-1.16)
+   stretches the texture and blurs it. Render at double metrics and scale(0.5)
+   so the texture carries 2× pixels — crisp under any beat zoom. The scale is
+   anchored bottom-center so the pin keeps its exact position over the node. */
+.gv2-pin {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  width: max-content;
+  max-width: 380px;
+  transform: translateX(-50%) scale(0.5);
+  transform-origin: 50% 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.95), hsl(var(--primary) / 0.8));
+  color: hsl(var(--primary-foreground));
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  box-shadow: 0 16px 44px -12px hsl(var(--primary) / 0.7);
+  animation: gv2-bob 2.2s ease-in-out infinite;
+}
+.gv2-pin::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -10px;
+  border: 10px solid transparent;
+  border-top-color: hsl(var(--primary) / 0.85);
+}
+.gv2-pin-ico { height: 1.6rem; width: 1.6rem; flex-shrink: 0; }
+@keyframes gv2-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0) scale(0.5); }
+  50% { transform: translateX(-50%) translateY(-10px) scale(0.5); }
+}
+
+/* Introspection chips flying into the Gmail node.
+   Supersampled 2× like .gv2-pin (see above): double metrics + scale(0.5),
+   anchored top-left so the inline top/left placement is unchanged. */
+.gv2-chip {
+  position: absolute;
+  padding: 0.3rem 0.8rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.16);
+  border: 2px solid hsl(var(--primary) / 0.5);
+  color: #f4f6fb;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 0 24px -6px hsl(var(--primary) / 0.6);
+  transform: scale(0.5);
+  transform-origin: 0 0;
+  animation: gv2-chip-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes gv2-chip-in {
+  0% { opacity: 0; transform: translate(-44px, 12px) scale(0.35); }
+  100% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+}
+
+/* Near plane: drifting light particles */
+.gv2-near { transform: translateZ(150px); }
+.gv2-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: hsl(var(--primary) / 0.9);
+  filter: blur(0.5px) drop-shadow(0 0 6px hsl(var(--primary)));
+  animation: gv2-float 6s ease-in-out infinite;
+}
+@keyframes gv2-float {
+  0%, 100% { opacity: 0.15; transform: translateY(0); }
+  50% { opacity: 0.8; transform: translateY(-14px); }
+}
+
+/* ── Depth scrim over the world ── */
+.gv2-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(4, 5, 10, 0.55) 0%,
+    transparent 20%,
+    transparent 62%,
+    rgba(4, 5, 10, 0.9) 100%
+  );
+}
+
+/* ── Top HUD row ── */
+.gv2-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+}
+.gv2-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--primary) / 0.35);
+  background: hsl(var(--primary) / 0.14);
+  color: hsl(var(--primary));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
+.gv2-badge-ico { height: 0.75rem; width: 0.75rem; }
+.gv2-skip {
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(238, 241, 248, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.gv2-skip:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+
+/* ── Copy panel (cross-fades per beat) ── */
+.gv2-panel {
+  position: relative;
+  min-height: 148px;
+  padding: 1.1rem 1.4rem 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.gv2-hud { animation: gv2-hud-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes gv2-hud-in {
+  from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.gv2-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+.gv2-title {
+  margin-top: 0.25rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.gv2-body-wrap { margin-top: 0.5rem; }
+.gv2-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(238, 241, 248, 0.74);
+  max-width: 40rem;
+}
+.gv2-em { color: #eef1f8; font-weight: 500; }
+
+.gv2-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.7rem; }
+.gv2-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #eef1f8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid hsl(var(--primary) / 0.28);
+}
+.gv2-pill-ico { height: 0.8rem; width: 0.8rem; color: hsl(var(--primary)); }
+.gv2-pill-num { padding-left: 0.35rem; }
+.gv2-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.05rem;
+  width: 1.05rem;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.gv2-legend { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.7rem; }
+.gv2-lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(238, 241, 248, 0.85);
+}
+.gv2-dot-g { height: 8px; width: 8px; border-radius: 9999px; }
+.gv2-lg-added { background: #34d399; box-shadow: 0 0 8px 0 rgba(52, 211, 153, 0.8); }
+.gv2-lg-changed { background: #fbbf24; box-shadow: 0 0 8px 0 rgba(251, 191, 36, 0.8); }
+.gv2-lg-removed { background: #f43f5e; box-shadow: 0 0 8px 0 rgba(244, 63, 94, 0.8); }
+
+.gv2-availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+}
+.gv2-avail-ico { height: 1rem; width: 1rem; color: hsl(var(--primary)); }
+
+/* ── Footer controls ── */
+.gv2-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.gv2-dots { display: flex; align-items: center; gap: 0.4rem; }
+.gv2-dot {
+  height: 6px;
+  width: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  transition: all 0.3s ease;
+}
+.gv2-dot:hover { background: rgba(255, 255, 255, 0.45); }
+.gv2-dot-active { width: 22px; background: hsl(var(--primary)); }
+.gv2-nav { display: flex; align-items: center; gap: 0.5rem; }
+.gv2-btn {
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.55rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(238, 241, 248, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+.gv2-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.gv2-btn-primary {
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  box-shadow: 0 6px 20px -6px hsl(var(--primary) / 0.7);
+}
+.gv2-btn-primary:hover { opacity: 0.92; color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); }
+
+/* ══ Reduced motion: calm, static, legible poster ══ */
 @media (prefers-reduced-motion: reduce) {
-  .genesis-ripple, .genesis-flash { display: none; }
-  .genesis-modal-enter,
-  .genesis-enter-next,
-  .genesis-enter-prev,
-  .genesis-enter-focus { animation: genesis-backdrop-in 0.2s ease-out both; }
+  .gv2-camera { transition: none !important; }
+  .gv2-modal,
+  .gv2-modal--in,
+  .gv2-backdrop,
+  .gv2-hud,
+  .gv2-grid,
+  .gv2-edge-glow,
+  .gv2-scanning .gv2-card::after,
+  .gv2-added .gv2-card,
+  .gv2-changed .gv2-card,
+  .gv2-strike,
+  .gv2-pin,
+  .gv2-chip,
+  .gv2-particle,
+  .gv2-neb,
+  .gv2-screen-field {
+    animation: none !important;
+  }
+  .gv2-near,
+  .gv2-particle,
+  .gv2-screen,
+  .gv2-dropwrap,
+  .gv2-ripplewrap,
+  .gv2-water,
+  .gv2-skipintro {
+    display: none !important;
+  }
+  .gv2-modal--pre { opacity: 1 !important; transform: none !important; }
+  .gv2-edge-glow { stroke-dashoffset: 0; opacity: 0.6; }
+  .gv2-strike { transform: rotate(-5deg) scaleX(1); }
+  /* Keep the 2× supersample scale — "none" would render the chip double-size. */
+  .gv2-chip { opacity: 1 !important; transform: scale(0.5) !important; }
+  .gv2-scanning .gv2-card::after { display: none; }
 }

@@ -64,10 +64,13 @@ describe("genesis request helpers", () => {
 
   it("adds OpenRouter fallback models without duplicates", () => {
     expect(getModelCandidates("openai", "gpt-4o")).toEqual(["gpt-4o"]);
-    expect(getModelCandidates("openrouter", "openai/gpt-oss-120b:free")).toEqual([
-      "openai/gpt-oss-120b:free",
-      "qwen/qwen3-coder:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
+    expect(getModelCandidates("openrouter", "anthropic/claude-sonnet-4.6")).toEqual([
+      "anthropic/claude-sonnet-4.6",
+      "openai/gpt-oss-120b",
+    ]);
+    // Requesting the fallback model itself must not duplicate it.
+    expect(getModelCandidates("openrouter", "openai/gpt-oss-120b")).toEqual([
+      "openai/gpt-oss-120b",
     ]);
   });
 
@@ -75,7 +78,11 @@ describe("genesis request helpers", () => {
     const ids = PLATFORM_MODEL_CATALOG.map((model) => model.id);
     expect(ids).toContain("anthropic/claude-sonnet-4.6");
     expect(ids).not.toContain("anthropic/claude-sonnet-4-6");
-    expect(OPENROUTER_FALLBACK_MODELS).toContain("qwen/qwen3-coder:free");
+    // The fallback chain must never point at an OpenRouter ":free" slug —
+    // those are served by a small pool of upstream providers with their own
+    // rate limits and proved unreliable in practice (see OPENROUTER_FALLBACK_MODELS).
+    expect(OPENROUTER_FALLBACK_MODELS.every((id) => !id.endsWith(":free"))).toBe(true);
+    expect(ids.every((id) => !id.endsWith(":free"))).toBe(true);
   });
 
   it("keeps the minimum description length for new workflow generation", () => {

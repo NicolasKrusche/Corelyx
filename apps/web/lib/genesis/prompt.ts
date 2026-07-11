@@ -21,9 +21,10 @@ type ConnectorDef = {
  * Tier 2: Medium detail, included if selected. Common use cases.
  * Tier 3: Stub only ("provider: op1, op2, ..."). Rarely used.
  */
-const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
+export const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   gmail: {
     tier: 1,
+    stub: `GMAIL: list_emails/search, read_email, send_email, archive_email, delete_email, label_email, list_threads, get_attachment`,
     full: `GMAIL:
   list_emails / search: params={query:string(REQUIRED),max_results:number} → output:{emails:[{id,threadId}]}
     ⚠ ALWAYS set max_results explicitly (e.g. 25; never more than 100) on list_emails/search/list_threads. Unbounded inbox scans make the downstream loop exceed the run time limit.
@@ -50,6 +51,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   slack: {
     tier: 1,
+    stub: `SLACK: send_message, read_channel, list_channels, create_channel`,
     full: `SLACK:
   send_message: params={channel(REQUIRED),text(REQUIRED),thread_ts?} → output:{ts,channel}
   read_channel: params={channel(REQUIRED),limit?,oldest?} → output:{messages:[...]}
@@ -67,6 +69,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   notion: {
     tier: 1,
+    stub: `NOTION: create_database_entry, create_page, create_database, query_database, read_page, append_to_page`,
     full: `NOTION:
   ⚠ ADDING A ROW TO A DATABASE → ALWAYS use create_database_entry, NEVER create_page.
   create_database_entry: params={database_id(REQUIRED — plain name e.g. "Tasks" OR uuid),_title?,_body?,_status?,_select?,_date?}
@@ -86,6 +89,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   github: {
     tier: 1,
+    stub: `GITHUB: create_issue, comment_on_issue, list_prs, get_pr_diff, push_file`,
     full: `GITHUB:
   create_issue: params={owner,repo,title(all REQUIRED),body?,labels?} → output:{number,url}
   comment_on_issue: params={owner,repo,issue_number,body(all REQUIRED)} → output:{id,url}
@@ -108,6 +112,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   sheets: {
     tier: 1,
+    stub: `SHEETS: read_range, write_range, append_row, list_sheets, create_sheet, clear_range`,
     full: `SHEETS:
   read_range: params={spreadsheet_id,range(both REQUIRED)} → output:{values:[[row],...]} scope_access:"read" scope_required:["https://www.googleapis.com/auth/spreadsheets.readonly"]
   write_range: params={spreadsheet_id,range,values:[[...]](all REQUIRED)} → output:{updated_cells} scope_access:"write" scope_required:["https://www.googleapis.com/auth/spreadsheets"]
@@ -123,6 +128,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   airtable: {
     tier: 1,
+    stub: `AIRTABLE: list_records, get_record, create_record, update_record, delete_record`,
     full: `AIRTABLE:
   list_records: params={base_id(REQUIRED),table_name(REQUIRED),view?,filter_formula?,sort_field?,sort_direction?,max_records?} → output:{records:[{id,fields:{...}}]}
   get_record: params={base_id(REQUIRED),table_name(REQUIRED),record_id(REQUIRED)} → output:{id,fields:{...}}
@@ -137,6 +143,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   calendar: {
     tier: 1,
+    stub: `GOOGLE CALENDAR: list_events, get_event, create_event, update_event, delete_event`,
     full: `GOOGLE CALENDAR (provider: calendar):
   list_events: params={calendar_id:"primary",time_min?,time_max?,query?,max_results?} → output:{events:[{id,summary,start,end,status,html_link}]}
     time_min/time_max: ISO8601 datetime strings e.g. "2026-04-12T00:00:00Z"
@@ -153,6 +160,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   drive: {
     tier: 1,
+    stub: `GOOGLE DRIVE: list_files, get_file/get_file_metadata, upload_file, create_folder, move_file, share_file, delete_file`,
     full: `GOOGLE DRIVE:
   list_files: params={query?,folder_id?,mime_type?,max_results?} → output:{files:[{id,name,mimeType,size,modifiedTime,webViewLink}]}
     mime_type examples: "application/vnd.google-apps.spreadsheet", "application/pdf", "application/vnd.google-apps.document"
@@ -172,6 +180,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   docs: {
     tier: 1,
+    stub: `GOOGLE DOCS: read_document, create_document, append_text/append_to_document, replace_text`,
     full: `GOOGLE DOCS:
   ⚠ Docs has NO list_files operation. Listing documents is GOOGLE DRIVE list_files (mime_type:"application/vnd.google-apps.document") — never assign list_files to the docs connector.
   read_document: params={document_id(REQUIRED)} → output:{document_id,title,text,revision_id}
@@ -186,6 +195,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   hubspot: {
     tier: 1,
+    stub: `HUBSPOT: list_contacts, get_contact, create_contact, update_contact, list_deals, create_deal, update_deal`,
     full: `HUBSPOT:
   list_contacts: params={limit?,properties?:[...]} → output:{contacts:[{id,email,firstname,lastname,...}]}
   get_contact: params={contact_id? OR email?} → output:{id,email,firstname,lastname,phone,company}
@@ -203,6 +213,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   asana: {
     tier: 1,
+    stub: `ASANA: list_projects, list_tasks, get_task, create_task, update_task, complete_task`,
     full: `ASANA:
   list_projects: params={workspace_id?,limit?} → output:{projects:[{gid,name,color,archived}]}
   list_tasks: params={project_id(REQUIRED),completed?,limit?} → output:{tasks:[{gid,name,completed,due_on,notes}]}
@@ -220,6 +231,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   typeform: {
     tier: 1,
+    stub: `TYPEFORM: list_forms, get_form, get_responses`,
     full: `TYPEFORM:
   list_forms: params={page_size?,search?} → output:{forms:[{id,title,last_updated_at,self_link}],total_items}
   get_form: params={form_id(REQUIRED)} → output:{id,title,fields:[{id,title,type}],settings}
@@ -232,6 +244,7 @@ const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   },
   outlook: {
     tier: 1,
+    stub: `OUTLOOK: list_emails, read_email, send_email, reply_email, delete_email, list_folders, move_email`,
     full: `OUTLOOK:
   list_emails: params={folder:"inbox",max_results?,filter?} → output:{emails:[{id,subject,from,received_at,is_read,preview}]}
     folder: "inbox", "sentitems", "drafts", "deleteditems", or a folder ID
@@ -466,14 +479,15 @@ function buildConnectorOperationsSection(
       }
     }
   } else {
-    // Include Tier 1 + selected providers
+    // Only the providers actually selected (connected) for this request — Tier 1
+    // no longer gets a free pass here. Including every Tier-1 connector's full
+    // op-docs regardless of selection was wasting ~18K chars of mostly-irrelevant
+    // context on every call, which hurts small/free models the most (more
+    // context to hallucinate against, less signal on what's actually relevant).
     const selected = new Set(selectedProviders.map((p) => p.toLowerCase()));
 
     for (const [name, def] of Object.entries(CONNECTOR_DEFINITIONS)) {
-      if (def.tier === 1 && def.full) {
-        lines.push(def.full);
-        lines.push("");
-      } else if (selected.has(name.toLowerCase())) {
+      if (selected.has(name.toLowerCase())) {
         if (def.full) lines.push(def.full);
         else if (def.medium) lines.push(def.medium);
         else if (def.stub) lines.push(def.stub);
@@ -503,11 +517,12 @@ function buildGapReferenceSection(
       }
     }
   } else {
-    // Include selected gaps
+    // Only gaps for the providers actually selected — see matching note in
+    // buildConnectorOperationsSection above.
     const selected = new Set(selectedProviders.map((p) => p.toLowerCase()));
 
     for (const [name, def] of Object.entries(CONNECTOR_DEFINITIONS)) {
-      if ((def.tier === 1 || selected.has(name.toLowerCase())) && def.gapReference) {
+      if (selected.has(name.toLowerCase()) && def.gapReference) {
         lines.push(`  ${def.gapReference}\n`);
       }
     }
@@ -616,6 +631,7 @@ NOTE NODE (sticky note — purely visual, never executed):
     Write it as if explaining to the user what they need to know or do (e.g. "Before enabling this workflow, create a Slack incoming webhook at api.slack.com and paste the URL into the HTTP node.").
   color guide: yellow = warnings/setup steps, blue = informational, pink = important caveats, green = tips.
   Use for: manual-setup requirements, non-obvious data transformations, rate-limit warnings, credential instructions, or anything the user must act on before running.
+  ⚠ content must reference ONLY the apps/nodes actually present in the nodes array you are emitting right now — never pad a "manual setup" checklist with an app you didn't add a connection node for, even if that app happens to be available/connected in general.
   Example: {"id":"note1","type":"note","label":"⚠ Setup Required","description":"","connection":null,"config":{"content":"Before enabling this workflow, create a Slack incoming webhook at api.slack.com and paste the webhook URL into the HTTP node below.","color":"yellow"},"position":{"x":100,"y":420},"status":"idle"}
 
 GROUP NODE (visual group container — purely visual, never executed):

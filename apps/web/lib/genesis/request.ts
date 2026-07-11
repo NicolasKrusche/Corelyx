@@ -78,7 +78,14 @@ export type PlatformModelOption = {
 
 export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
   {
-    id: "openai/gpt-oss-120b:free",
+    // Deliberately NOT the ":free" OpenRouter slug — that variant is served by
+    // a single upstream provider with its own tight rate limits (independent
+    // of this account's tier) and was unreliable in practice (frequent 429s).
+    // This slug is load-balanced across ~20 providers on OpenRouter and costs
+    // a fraction of a cent per generation — negligible enough that the tier
+    // stays free to the user; we just no longer pass that cost through as
+    // reliability risk.
+    id: "openai/gpt-oss-120b",
     label: "GPT OSS 120B",
     sublabel: "Free · Fast",
     tier: "free",
@@ -110,7 +117,7 @@ export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
 ];
 
 /** The model ID used when the user hasn't picked one (free tier default). */
-export const PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b:free";
+export const PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b";
 
 /**
  * Platform model for agent tool-loops (agent_task) when running on the platform
@@ -129,15 +136,18 @@ export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModel
 
 // ─── OpenRouter fallback chain ────────────────────────────────────────────────
 
-// Free OpenRouter models tried in order. Keep only slugs OpenRouter currently
-// serves — a removed/renamed slug returns "404 No endpoints found", and if it is
-// the last entry there is nothing left to fall back to, so the 404 surfaces to
-// the user. (google/gemma-3-27b-it:free was removed upstream and dropped here.)
-export const OPENROUTER_FALLBACK_MODELS = [
-  "openai/gpt-oss-120b:free",
-  "qwen/qwen3-coder:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-] as const;
+// OpenRouter models tried, in order, when the requested model fails. Used
+// for every OpenRouter-routed call regardless of tier (a premium user's
+// Sonnet call falls back through this chain too), so it must actually be
+// reliable — not just cheap. The ":free"-suffixed slugs previously here
+// (openai/gpt-oss-120b:free, qwen/qwen3-coder:free,
+// meta-llama/llama-3.3-70b-instruct:free) were dropped after proving
+// unreliable in practice: each is served by a single or small pool of
+// upstream providers with their own rate limits, and live endpoint checks
+// showed one at 0% uptime and another single-provider-throttled. The
+// non-free gpt-oss-120b slug is load-balanced across ~20 providers and costs
+// a fraction of a cent — a genuinely reliable fallback, not just a cheap one.
+export const OPENROUTER_FALLBACK_MODELS = ["openai/gpt-oss-120b"] as const;
 
 export const KEY_PROVIDER_PRIORITY: Record<string, number> = {
   anthropic: 0,
@@ -154,7 +164,7 @@ export const KEY_DEFAULT_MODELS: Record<string, string> = {
   google: "gemini-1.5-pro",
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-large-latest",
-  openrouter: "openai/gpt-oss-120b:free",
+  openrouter: "openai/gpt-oss-120b",
 };
 
 // Output token budget for a single generation. Larger graphs need more output
