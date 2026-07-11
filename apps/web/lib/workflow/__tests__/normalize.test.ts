@@ -78,6 +78,72 @@ describe("workflow draft normalization", () => {
     }
   });
 
+  it("rejects invalid cron expressions before they can be persisted", () => {
+    const schema = normalizeProgramDraft({
+      nodes: [
+        {
+          id: "cron-1",
+          type: "trigger",
+          config: {
+            trigger_type: "cron",
+            expression: "not a schedule",
+            timezone: "UTC",
+          },
+        },
+      ],
+      edges: [],
+    });
+
+    const result = validateProgramDraft(schema);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(getDraftValidationMessage(result.error)).toContain("valid five-field cron expression");
+    }
+  });
+
+  it("rejects six-field cron expressions that include seconds", () => {
+    const schema = normalizeProgramDraft({
+      nodes: [
+        {
+          id: "cron-1",
+          type: "trigger",
+          config: {
+            trigger_type: "cron",
+            expression: "0 0 9 * * *",
+            timezone: "UTC",
+          },
+        },
+      ],
+      edges: [],
+    });
+
+    const result = validateProgramDraft(schema);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(getDraftValidationMessage(result.error)).toContain("five-field cron expression");
+    }
+  });
+
+  it("accepts a valid timezone-aware cron expression", () => {
+    const schema = normalizeProgramDraft({
+      nodes: [
+        {
+          id: "cron-1",
+          type: "trigger",
+          config: {
+            trigger_type: "cron",
+            expression: "0 9 * * 1-5",
+            timezone: "Europe/Vienna",
+          },
+        },
+      ],
+      edges: [],
+    });
+
+    expect(validateProgramDraft(schema).success).toBe(true);
+  });
+
   it("preserves existing identity fields when normalizing refinement output", () => {
     const existing = normalizeProgramDraft({
       program_id: "existing-program",

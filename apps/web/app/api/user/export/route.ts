@@ -73,6 +73,21 @@ type TriggerRow = {
   updated_at: string | null;
 };
 
+type ProgramDpiaDraftRow = {
+  id: string;
+  program_id: string;
+  created_by: string | null;
+  source_kind: "generated" | "edited" | "status_change";
+  review_status: "draft" | "completed";
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  content: string;
+  source_schema_version: number | null;
+  source_program_updated_at: string | null;
+  source_snapshot: unknown;
+  created_at: string;
+};
+
 type RunRow = {
   id: string;
   program_id: string;
@@ -307,11 +322,12 @@ export async function GET() {
 
   let program_connections: ProgramConnectionRow[] = [];
   let program_versions: VersionRow[] = [];
+  let program_dpia_drafts: ProgramDpiaDraftRow[] = [];
   let triggers: TriggerRow[] = [];
   let runs: RunRow[] = [];
 
   if (programIds.length > 0) {
-    const [programConnectionsRes, versionsRes, triggersRes, runsRes] = await Promise.all([
+    const [programConnectionsRes, versionsRes, dpiaDraftsRes, triggersRes, runsRes] = await Promise.all([
       db
         .from("program_connections")
         .select("program_id, connection_id")
@@ -319,6 +335,13 @@ export async function GET() {
       db
         .from("program_versions")
         .select("id, program_id, version, schema, change_summary, created_at")
+        .in("program_id", programIds)
+        .order("created_at", { ascending: false }),
+      db
+        .from("program_dpia_drafts")
+        .select(
+          "id, program_id, created_by, source_kind, review_status, reviewed_by, reviewed_at, content, source_schema_version, source_program_updated_at, source_snapshot, created_at"
+        )
         .in("program_id", programIds)
         .order("created_at", { ascending: false }),
       db
@@ -337,6 +360,7 @@ export async function GET() {
 
     program_connections = (programConnectionsRes.data ?? []) as unknown as ProgramConnectionRow[];
     program_versions = (versionsRes.data ?? []) as unknown as VersionRow[];
+    program_dpia_drafts = (dpiaDraftsRes.data ?? []) as unknown as ProgramDpiaDraftRow[];
     triggers = (triggersRes.data ?? []) as unknown as TriggerRow[];
     runs = (runsRes.data ?? []) as unknown as RunRow[];
   }
@@ -396,7 +420,7 @@ export async function GET() {
   const bundle = {
     export_metadata: {
       exported_at: new Date().toISOString(),
-      schema_version: 5,
+      schema_version: 6,
       schema_document: "/data-export-schema",
       account_id: user.id,
       format: "application/json",
@@ -420,6 +444,7 @@ export async function GET() {
     programs,
     program_connections,
     program_versions,
+    program_dpia_drafts,
     triggers,
     runs,
     node_executions,
@@ -442,7 +467,7 @@ export async function GET() {
       status: "completed",
       message: "User downloaded GDPR account data export.",
       details: {
-        schema_version: 5,
+        schema_version: 6,
         schema_document: "/data-export-schema",
         exported_sections: Object.keys(bundle).filter((key) => key !== "export_metadata"),
       },
@@ -456,7 +481,7 @@ export async function GET() {
     headers: {
       "Content-Type": "application/json",
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "X-Corelyx-Export-Schema-Version": "5",
+      "X-Corelyx-Export-Schema-Version": "6",
     },
   });
 }

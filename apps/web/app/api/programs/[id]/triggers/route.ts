@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { CronExpressionParser } from "cron-parser"; // fix: cron-parser v5 exports CronExpressionParser, not parseExpression
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { nextFiveFieldCronRun } from "@/lib/cron-expression";
 import { enrichWebhookTriggerForClient } from "@/lib/webhook-trigger-auth";
 import { checkTriggerAccess } from "@/lib/limits";
 import type { TriggerType } from "@/lib/entitlements";
@@ -116,13 +116,9 @@ export async function POST(
   if (type === "cron") {
     const expr = config.expression as string | undefined;
     if (!expr) return apiError("Cron trigger requires config.expression", 400);
-    try {
-      const timezone = (config.timezone as string) ?? "UTC";
-      const interval = CronExpressionParser.parse(expr, { tz: timezone });
-      nextRunAt = interval.next().toISOString();
-    } catch {
-      return apiError("Invalid cron expression", 400);
-    }
+    const timezone = typeof config.timezone === "string" ? config.timezone : "UTC";
+    nextRunAt = nextFiveFieldCronRun(expr, timezone);
+    if (!nextRunAt) return apiError("Invalid five-field cron expression or timezone", 400);
   }
 
   if (type === "program" && !config.source_program_id) {

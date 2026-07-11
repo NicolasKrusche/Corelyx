@@ -69,7 +69,7 @@ export type AiSystemInventoryRecord = {
   transparency_notice_required: boolean;
   high_risk_documentation_required: boolean;
   documentation_status: "Complete" | "Partial" | "Missing";
-  dpia_status: "Not required" | "Draft recommended" | "Required" | "Completed";
+  dpia_status: "Not required" | "Draft recommended" | "Required" | "Draft saved" | "Completed";
   review_due: boolean;
 };
 
@@ -105,6 +105,8 @@ export type ProgramInventorySource = {
 
 export type DpiaDraftInput = {
   systemName: string;
+  businessOwner?: string;
+  technicalOwner?: string;
   processingPurpose: string;
   dataCategories: string[];
   dataSubjects: string[];
@@ -406,9 +408,10 @@ function dpiaStatus(
   risk: PublicRiskCategory | "Unknown",
   personalData: "Yes" | "No" | "Unknown",
   specialCategory: "Yes" | "No" | "Unknown",
-  notes?: string | null
+  persistedStatus?: "saved" | "completed"
 ) {
-  if (notes && /dpia\s*:\s*(complete|completed|approved)/i.test(notes)) return "Completed";
+  if (persistedStatus === "completed") return "Completed";
+  if (persistedStatus === "saved") return "Draft saved";
   if (specialCategory === "Yes") return "Required";
   if (risk === "High Risk" && personalData !== "No") return "Required";
   if (personalData === "Yes" || personalData === "Unknown") return "Draft recommended";
@@ -420,11 +423,13 @@ export function buildInventoryRecordFromProgram({
   schema,
   flow = [],
   creatorEmail,
+  persistedDpiaStatus,
 }: {
   program: ProgramInventorySource;
   schema?: ProgramSchema | null;
   flow?: DataFlowPreviewItem[];
   creatorEmail?: string | null;
+  persistedDpiaStatus?: "saved" | "completed";
 }): AiSystemInventoryRecord {
   const meta = metadata(schema);
   const risk = mapAiActRiskToPublicCategory(program.ai_act_risk_level);
@@ -490,7 +495,7 @@ export function buildInventoryRecordFromProgram({
     record.risk_classification,
     record.personal_data_processed,
     record.special_category_data_processed,
-    program.ai_act_notes
+    persistedDpiaStatus
   );
   return record;
 }
@@ -607,46 +612,69 @@ export function generateDpiaDraft(input: DpiaDraftInput) {
         "Third-party provider configuration may change.",
       ];
 
-  return `# DPIA Draft: ${input.systemName}
+  return `# DPIA Working Draft: ${input.systemName}
 
-## Purpose
+> **Status:** Draft for human review. This document was generated automatically from the information provided. Confirm it against the workflow's actual data flow and governance evidence. It is not legal advice, an approval, or a completed DPIA.
+
+## How to use this draft
+1. Confirm that the purpose, people, data, providers, and automated decisions below are accurate.
+2. Replace broad or missing statements with facts specific to this workflow.
+3. Have the accountable business, technical, privacy/DPO, and legal reviewers assess the risks and controls.
+4. Record completion only after the reviewers agree that the assessment is accurate and residual risk is accepted or escalated.
+
+## 1. Processing purpose
 ${input.processingPurpose}
 
-## Data categories
+## 2. Personal-data scope
+
+### Data categories
 ${input.dataCategories.map((category) => `- ${category}`).join("\n")}
 
-## Data subjects
+### People affected
 ${input.dataSubjects.map((subject) => `- ${subject}`).join("\n")}
 
-## Personal data usage
+### How the workflow uses personal data
 ${input.personalDataUsage}
 
-## Automated decision-making
+## 3. Automated decision-making
 ${input.automatedDecisionMaking ? "Automated decision-making may be involved. Human review and legal assessment are required before consequential action." : "No solely automated consequential decision-making is documented in this draft."}
 
-## Third-party providers
+## 4. Providers and external systems
 ${input.thirdPartyProviders.length ? input.thirdPartyProviders.map((provider) => `- ${provider}`).join("\n") : "- Not documented"}
 
-## Necessity assessment
+## 5. Necessity assessment
 The processing should be limited to data necessary for the documented workflow purpose. Each node should have a defined input, output, retention need, and owner.
 
-## Proportionality assessment
+## 6. Proportionality assessment
 The workflow should use the least intrusive data source, minimise prompt content, avoid unnecessary special-category data, and provide human oversight where the output affects people.
 
-## Risk analysis
+## 7. Risk analysis
 - Unnecessary personal-data exposure in prompts or connector payloads.
 - Inaccurate, biased, or poorly explained AI recommendations.
 - Excessive retention of prompts, outputs, or decision evidence.
 - Insufficient review before customer, employee, patient, or candidate impact.
 
-## Mitigation measures
+## 8. Mitigation measures
 ${mitigations.map((item) => `- ${item}`).join("\n")}
 
-## Residual risks
+## 9. Residual risks
 ${residualRisks.map((item) => `- ${item}`).join("\n")}
 
-## Approval workflow
-Business owner, technical owner, privacy/compliance reviewer, and legal reviewer should approve this DPIA before production deployment when high risk remains.
+## 10. Review and decision
+- [ ] Workflow facts and data flows verified
+- [ ] Necessity and proportionality assessed
+- [ ] Risks and mitigations reviewed by the privacy owner or DPO
+- [ ] Residual risk accepted or escalated
+- [ ] Required notices and human oversight confirmed
+
+### Reviewer record
+- Business owner: ${input.businessOwner || "Not recorded in this draft"}
+- Technical owner: ${input.technicalOwner || "Not recorded in this draft"}
+- Privacy/DPO reviewer: Not recorded in this draft
+- Legal reviewer (where required): Not recorded in this draft
+- Decision and rationale: Pending human review
+
+If high residual risk cannot be mitigated, obtain qualified advice on prior consultation with the competent supervisory authority before processing begins.
 `;
 }
 
@@ -705,6 +733,8 @@ export function assessGovernanceMaturity(input: MaturityAssessmentInput): Maturi
 export function buildDpiaInputFromInventory(record: AiSystemInventoryRecord): DpiaDraftInput {
   return {
     systemName: record.name,
+    businessOwner: record.business_owner,
+    technicalOwner: record.technical_owner,
     processingPurpose: record.purpose,
     dataCategories: [
       record.personal_data_processed === "Yes" ? "Personal data" : "Workflow metadata",
@@ -827,7 +857,9 @@ export function buildRemediationActions(
       regulation: "GDPR Art. 35 · EU AI Act Art. 9",
       regulationLabel: "DPIA Requirement",
       actionLabel: "Generate DPIA draft",
-      actionHref: "/tools/dpia-generator",
+      actionHref: dpiaRequired[0].program_id
+        ? `/governance/dpia/${dpiaRequired[0].program_id}`
+        : "/tools/dpia-generator",
       affectedSystemNames: dpiaRequired.map((r) => r.name),
       count: dpiaRequired.length,
     });
@@ -910,7 +942,9 @@ export function buildRemediationActions(
       regulation: "GDPR Art. 24 · Art. 35",
       regulationLabel: "Accountability & DPIA",
       actionLabel: "Generate DPIA draft",
-      actionHref: "/tools/dpia-generator",
+      actionHref: dpiaDraftRec[0].program_id
+        ? `/governance/dpia/${dpiaDraftRec[0].program_id}`
+        : "/tools/dpia-generator",
       affectedSystemNames: dpiaDraftRec.map((r) => r.name),
       count: dpiaDraftRec.length,
     });

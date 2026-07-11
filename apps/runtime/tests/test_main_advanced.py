@@ -20,10 +20,12 @@ os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_CONNECTIONS_TOKEN", "se
 os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_VAULT", "secret-vault")
 os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_CREDITS", "secret-credits")
 os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_AGENT_TOOLS", "secret-tools")
+os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_CRON_TICK", "secret-cron")
 
 import main as main_module
 from main import (
     ExecuteRequest,
+    _cron_tick,
     _notify_complete,
     _retention_expiry,
     _run_program,
@@ -354,20 +356,81 @@ class TestTriggerWorkflow(unittest.IsolatedAsyncioTestCase):
 
 
 class TestLifespan(unittest.IsolatedAsyncioTestCase):
-    async def test_loads_cron_and_shuts_down(self) -> None:
-        with patch("main.get_active_cron_workflows", new=AsyncMock(return_value=[{"id": "w1", "cron_expression": "0 * * * *"}])):
+    async def test_registers_only_the_web_cron_heartbeat(self) -> None:
+        fake_scheduler = Mock()
+        with patch("main.scheduler", fake_scheduler), \
+             patch("main.close_llm_client", new=AsyncMock()):
             async with main_module.lifespan(app):
                 pass
 
-    async def test_skips_invalid_cron(self) -> None:
-        with patch("main.get_active_cron_workflows", new=AsyncMock(return_value=[{"id": "w1", "cron_expression": "bad"}])):
-            async with main_module.lifespan(app):
-                pass
+        fake_scheduler.add_job.assert_called_once_with(
+            main_module._cron_tick,
+            "interval",
+            seconds=60,
+            max_instances=1,
+            coalesce=True,
+            id="cron-heartbeat",
+            replace_existing=True,
+        )
+        fake_scheduler.start.assert_called_once_with()
+        fake_scheduler.shutdown.assert_called_once_with(wait=False)
 
-    async def test_load_error(self) -> None:
-        with patch("main.get_active_cron_workflows", new=AsyncMock(side_effect=RuntimeError("db down"))):
-            async with main_module.lifespan(app):
-                pass
+
+class TestCronHeartbeat(unittest.IsolatedAsyncioTestCase):
+    async def test_follows_canonical_host_redirects(self) -> None:
+        import httpx
+
+        client_options: dict[str, Any] = {}
+        requests: list[httpx.Request] = []
+        real_async_client = httpx.AsyncClient
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.host == "corelyx.app":
+                return httpx.Response(
+                    308,
+                    headers={"location": "https://www.corelyx.app/api/internal/cron/tick"},
+                )
+            return httpx.Response(200, json={"fired": 0})
+
+        def make_client(**kwargs: Any) -> httpx.AsyncClient:
+            client_options.update(kwargs)
+            return real_async_client(transport=httpx.MockTransport(handle), **kwargs)
+
+        with patch.dict(os.environ, {"NEXTJS_INTERNAL_URL": "https://corelyx.app"}), \
+             patch("httpx.AsyncClient", side_effect=make_client), \
+             patch("main.build_internal_service_headers", return_value={"x-internal-service-token": "signed"}):
+            await _cron_tick()
+
+        self.assertEqual([request.url.host for request in requests], ["corelyx.app", "www.corelyx.app"])
+        self.assertEqual(requests[-1].method, "POST")
+        self.assertEqual(requests[-1].content, b"{}")
+        self.assertEqual(requests[-1].headers["x-internal-service-token"], "signed")
+        self.assertFalse(client_options.get("follow_redirects"))
+        self.assertEqual(client_options.get("timeout"), 55)
+
+    async def test_rejects_cross_site_redirects_without_forwarding_token(self) -> None:
+        import httpx
+
+        requests: list[httpx.Request] = []
+        real_async_client = httpx.AsyncClient
+
+        def handle(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(
+                308,
+                headers={"location": "https://attacker.example/api/internal/cron/tick"},
+            )
+
+        def make_client(**kwargs: Any) -> httpx.AsyncClient:
+            return real_async_client(transport=httpx.MockTransport(handle), **kwargs)
+
+        with patch.dict(os.environ, {"NEXTJS_INTERNAL_URL": "https://corelyx.app"}), \
+             patch("httpx.AsyncClient", side_effect=make_client), \
+             patch("main.build_internal_service_headers", return_value={"x-internal-service-token": "signed"}):
+            await _cron_tick()
+
+        self.assertEqual([request.url.host for request in requests], ["corelyx.app"])
 
 
 class TestExecuteRequestModel(unittest.TestCase):

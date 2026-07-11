@@ -82,6 +82,31 @@ describe("compliance governance", () => {
     expect(metrics.systems_due_for_review).toBe(1);
   });
 
+  it("uses persisted workflow DPIA state instead of an inferred recommendation", () => {
+    const program = {
+      id: "12345678-1234-1234-1234-123456789012",
+      name: "Support triage",
+      description: "Classifies customer email.",
+      is_active: true,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+      ai_act_risk_level: "transparency" as const,
+      ai_act_notes: null,
+    };
+
+    expect(
+      buildInventoryRecordFromProgram({ program, persistedDpiaStatus: "saved" }).dpia_status
+    ).toBe("Draft saved");
+    expect(
+      buildInventoryRecordFromProgram({ program, persistedDpiaStatus: "completed" }).dpia_status
+    ).toBe("Completed");
+    expect(
+      buildInventoryRecordFromProgram({
+        program: { ...program, ai_act_notes: "DPIA: completed" },
+      }).dpia_status
+    ).toBe("Draft recommended");
+  });
+
   it("scores governance maturity", () => {
     const result = assessGovernanceMaturity({
       inventoryCoverage: true,

@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "Yapay zekâ bildirimi",
+    "message": "Yapay zekâ ile etkileşim kuruyorsunuz. Yapay zekâ tarafından üretilen sonuçlar hatalı olabilir; önemli sonuçları kontrol edin."
+  },
   "nav": {
     "home": "Ana Sayfa",
     "workspaces": "Çalışma Alanları",

@@ -11,9 +11,7 @@ import {
   renderComplianceReportHtml,
 } from "@/lib/compliance/workflow";
 import {
-  buildDpiaInputFromInventory,
   buildInventoryRecordFromProgram,
-  generateDpiaDraft,
   generateTechnicalDocumentation,
 } from "@/lib/compliance/governance";
 import {
@@ -22,11 +20,75 @@ import {
 } from "@/lib/compliance/export";
 import { canView, getProgramAccess } from "@/lib/workspaces";
 
+const DPIA_FORMATS = new Set(["dpia-md", "dpia-pdf", "dpia-docx"]);
+
+function savedDpiaResponse({
+  draft,
+  filenameBase,
+  format,
+}: {
+  draft: {
+    id: string;
+    content: string;
+    review_status: "draft" | "completed";
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+    created_at: string;
+  };
+  filenameBase: string;
+  format: string;
+}) {
+  const statusLabel = draft.review_status === "completed" ? "Completed" : "Draft";
+  const documentKind = draft.review_status === "completed" ? "review-record" : "draft";
+  const exportContent = [
+    `> **Saved workflow revision:** ${draft.id}`,
+    `> **Review status:** ${statusLabel}`,
+    `> **Revision created:** ${draft.created_at}`,
+    ...(draft.reviewed_at ? [`> **Review recorded:** ${draft.reviewed_at}`] : []),
+    ...(draft.reviewed_by ? [`> **Reviewer record ID:** ${draft.reviewed_by}`] : []),
+    "",
+    draft.content,
+  ].join("\n");
+  const commonHeaders = {
+    "Content-Disposition": `attachment; filename="${filenameBase}-dpia-${documentKind}-${draft.id.slice(0, 8)}.${
+      format === "dpia-md" ? "md" : format === "dpia-pdf" ? "pdf" : "docx"
+    }"`,
+    "X-Corelyx-DPIA-Draft-Id": draft.id,
+    "X-Corelyx-DPIA-Review-Status": draft.review_status,
+  };
+
+  if (format === "dpia-md") {
+    return new NextResponse(exportContent, {
+      headers: { ...commonHeaders, "Content-Type": "text/markdown; charset=utf-8" },
+    });
+  }
+  if (format === "dpia-pdf") {
+    return new NextResponse(textToPdfBuffer(
+      draft.review_status === "completed" ? "Corelyx DPIA Review Record" : "Corelyx DPIA Draft",
+      exportContent
+    ), {
+      headers: { ...commonHeaders, "Content-Type": "application/pdf" },
+    });
+  }
+  return new NextResponse(textToDocxBuffer(
+    draft.review_status === "completed" ? "Corelyx DPIA Review Record" : "Corelyx DPIA Draft",
+    exportContent
+  ), {
+    headers: {
+      ...commonHeaders,
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+  });
+}
+
 export async function GET(
   request: Request,
   { params: routeParams }: { params: Promise<{ id: string }> }
 ) {
   const params = await routeParams;
+  const searchParams = new URL(request.url).searchParams;
+  const format = searchParams.get("format") ?? "json";
+  const filenameBase = `corelyx-compliance-${params.id}`;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
@@ -66,6 +128,50 @@ export async function GET(
     legal_review_override: boolean;
   };
 
+  // DPIA downloads are intentionally backed by a saved workflow revision.
+  // Generating an untracked document here would recreate the previous bug:
+  // a user could download a draft that existed nowhere in Governance.
+  if (DPIA_FORMATS.has(format)) {
+    const requestedDraftId = searchParams.get("draftId");
+    const draftResult = requestedDraftId
+      ? await db
+          .from("program_dpia_drafts")
+          .select("id, content, review_status, reviewed_by, reviewed_at, created_at")
+          .eq("program_id", params.id)
+          .eq("id", requestedDraftId)
+          .maybeSingle()
+      : await db
+          .from("program_dpia_drafts")
+          .select("id, content, review_status, reviewed_by, reviewed_at, created_at")
+          .eq("program_id", params.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+    if (draftResult.error) return apiError(draftResult.error.message, 500);
+    if (!draftResult.data) {
+      return apiError(
+        "No saved DPIA draft exists for this workflow. Generate and save one in Governance first.",
+        409,
+        "DPIA_DRAFT_NOT_SAVED"
+      );
+    }
+
+    const draft = draftResult.data as {
+      id: string;
+      content: string;
+      review_status: "draft" | "completed";
+      reviewed_by: string | null;
+      reviewed_at: string | null;
+      created_at: string;
+    };
+    return savedDpiaResponse({
+      draft,
+      filenameBase,
+      format,
+    });
+  }
+
   const parsed = ProgramSchemaZ.safeParse(program.schema);
   if (!parsed.success) {
     return NextResponse.json(
@@ -90,15 +196,12 @@ export async function GET(
     program,
   });
 
-  const format = new URL(request.url).searchParams.get("format") ?? "json";
-  const filenameBase = `corelyx-compliance-${params.id}`;
   const inventoryRecord = buildInventoryRecordFromProgram({
     program,
     schema: parsed.data as unknown as ProgramSchema,
     flow: report.data_flow,
   });
   const technicalDocument = generateTechnicalDocumentation(inventoryRecord);
-  const dpiaDocument = generateDpiaDraft(buildDpiaInputFromInventory(inventoryRecord));
 
   if (format === "html") {
     return new NextResponse(renderComplianceReportHtml(report), {
@@ -132,33 +235,6 @@ export async function GET(
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="${filenameBase}-technical-documentation.docx"`,
-      },
-    });
-  }
-
-  if (format === "dpia-md") {
-    return new NextResponse(dpiaDocument, {
-      headers: {
-        "Content-Type": "text/markdown; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filenameBase}-dpia-draft.md"`,
-      },
-    });
-  }
-
-  if (format === "dpia-pdf") {
-    return new NextResponse(textToPdfBuffer("Corelyx DPIA Draft", dpiaDocument), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filenameBase}-dpia-draft.pdf"`,
-      },
-    });
-  }
-
-  if (format === "dpia-docx") {
-    return new NextResponse(textToDocxBuffer("Corelyx DPIA Draft", dpiaDocument), {
-      headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${filenameBase}-dpia-draft.docx"`,
       },
     });
   }

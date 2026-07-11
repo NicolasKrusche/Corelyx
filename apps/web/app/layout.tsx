@@ -2,12 +2,13 @@
 import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import "./globals.css";
 import { CookieNotice } from "@/components/consent-banner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageBootstrap, LanguagePrompt } from "@/components/language-switcher";
 import { GenesisJobProvider } from "@/components/genesis/genesis-job-provider";
+import { PersistentAiDisclosure } from "@/components/ai-transparency";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -74,6 +75,7 @@ export default async function RootLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const locale = await getLocale();
   const messages = await getMessages();
+  const aiDisclosure = await getTranslations("aiDisclosure");
   return (
     <html lang={locale} className={`${inter.variable} light accent-blue`} suppressHydrationWarning>
       <head>
@@ -94,7 +96,14 @@ export default async function RootLayout({
               {children}
             </GenesisJobProvider>
             <LanguagePrompt />
-            <CookieNotice />
+            <CookieNotice
+              aiDisclosureTitle={aiDisclosure("title")}
+              aiDisclosureMessage={aiDisclosure("message")}
+            />
+            <PersistentAiDisclosure
+              title={aiDisclosure("title")}
+              message={aiDisclosure("message")}
+            />
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

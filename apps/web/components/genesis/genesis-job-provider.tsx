@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { AiIdentityBadge } from "@/components/ai-transparency";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 
 // The Genesis stream used to run inside the building page, which meant leaving
@@ -346,6 +347,7 @@ function GenesisBackgroundWidget() {
       <div className="flex items-start gap-3">
         {!job.done && !job.error && <Spinner />}
         <div className="min-w-0 flex-1">
+          <AiIdentityBadge label="Genesis AI" className="mb-1" />
           <p className="truncate text-sm font-semibold">
             {job.error ? "Generation failed" : job.done ? `${title} is ready` : `Building ${title}`}
           </p>

@@ -6,7 +6,13 @@ import { useEffect, useState } from "react";
 const STORAGE_KEY = "corelyx-cookie-notice-dismissed";
 const LEGACY_STORAGE_KEY = "corelyx-consent";
 
-export function CookieNotice() {
+export function CookieNotice({
+  aiDisclosureTitle,
+  aiDisclosureMessage,
+}: {
+  aiDisclosureTitle?: string;
+  aiDisclosureMessage?: string;
+}) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -24,19 +30,27 @@ export function CookieNotice() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p className="leading-relaxed">
-          We only use essential authentication cookies and saved interface
-          preferences. We do not load analytics, advertising, or other optional
-          trackers. See our{" "}
-          <Link href="/privacy" className="text-primary hover:underline">
-            Privacy Policy
-          </Link>{" "}
-          and{" "}
-          <Link href="/terms" className="text-primary hover:underline">
-            Terms
-          </Link>
-          .
-        </p>
+        <div className="space-y-1.5 leading-relaxed">
+          {aiDisclosureTitle && aiDisclosureMessage && (
+            <p className="font-medium text-foreground">
+              <span className="font-semibold text-primary">{aiDisclosureTitle}:</span>{" "}
+              {aiDisclosureMessage}
+            </p>
+          )}
+          <p>
+            We only use essential authentication cookies and saved interface
+            preferences. We do not load analytics, advertising, or other optional
+            trackers. See our{" "}
+            <Link href="/privacy" className="text-primary hover:underline">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/terms" className="text-primary hover:underline">
+              Terms
+            </Link>
+            .
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => {

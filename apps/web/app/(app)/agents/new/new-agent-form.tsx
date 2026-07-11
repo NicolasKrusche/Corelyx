@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import { AiIdentityBadge } from "@/components/ai-transparency";
 
 type Phase = "describe" | "building" | "error";
 
@@ -252,7 +253,10 @@ export function NewAgentForm() {
               <Spinner />
             </div>
             <div>
-              <p className="text-base font-bold">Building your agent</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold">Building your agent</p>
+                <AiIdentityBadge label="Genesis AI" />
+              </div>
               <p className="mt-0.5 text-sm text-muted-foreground">{status}</p>
             </div>
           </div>
@@ -300,6 +304,7 @@ export function NewAgentForm() {
           <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
             New one-time agent
           </h1>
+          <AiIdentityBadge label="Genesis AI" />
         </div>
         <p className="text-sm text-muted-foreground">
           Describe a single task you want done — the agent will plan it out,

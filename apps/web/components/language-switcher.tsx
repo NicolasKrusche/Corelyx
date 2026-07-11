@@ -142,7 +142,7 @@ export function LanguagePrompt() {
   const label = lang?.native ?? detected;
 
   return (
-    <div className="notranslate fixed bottom-4 right-4 z-[60] max-w-sm rounded-2xl border border-border bg-card p-4 shadow-xl">
+    <div className="notranslate fixed right-4 top-12 z-[60] max-w-sm rounded-2xl border border-border bg-card p-4 shadow-xl">
       <p className="text-sm font-medium text-foreground">
         Translate this site to {label}?
       </p>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { GenesisClarification } from "@/components/genesis/genesis-job-provider";
+import { AiIdentityBadge } from "@/components/ai-transparency";
 
 /**
  * Genesis V2 clarifying-questions panel. Presentational: the caller owns the
@@ -30,11 +31,14 @@ export function GenesisQuestionPanel({
   return (
     <div className="pointer-events-auto w-96 max-w-[calc(100vw-2rem)] rounded-xl border glass-card bg-background/95 shadow-xl backdrop-blur-md">
       <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {clarifications.length === 1
-            ? "1 question about this workflow"
-            : `${clarifications.length} questions about this workflow`}
-        </p>
+        <div className="flex items-center gap-2">
+          <AiIdentityBadge label="Genesis AI" />
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {clarifications.length === 1
+              ? "1 question about this workflow"
+              : `${clarifications.length} questions about this workflow`}
+          </p>
+        </div>
         {onDismiss && (
           <button
             type="button"

@@ -1,6 +1,7 @@
 import { ProgramDraftSchemaZ } from "@flowos/schema";
 import type { ProgramSchema, Node as SchemaNode, TriggerConfig, StepConfig, RunStatus } from "@flowos/schema";
 import { z } from "zod";
+import { nextFiveFieldCronRun } from "@/lib/cron-expression";
 
 type MutableRecord = Record<string, unknown>;
 type FilterStepConfig = Extract<StepConfig, { logic_type: "filter" }>;
@@ -67,6 +68,27 @@ const DEFAULT_METADATA = {
   last_run_status: null,
   last_run_timestamp: null,
 };
+
+const ProgramDraftWithValidCronZ = ProgramDraftSchemaZ.superRefine((schema, ctx) => {
+  schema.nodes.forEach((node, index) => {
+    const config = node.config as Record<string, unknown>;
+    if (node.type !== "trigger" || config.trigger_type !== "cron") return;
+    try {
+      if (typeof config.expression !== "string" || typeof config.timezone !== "string") {
+        throw new Error("Invalid cron configuration");
+      }
+      if (!nextFiveFieldCronRun(config.expression, config.timezone)) {
+        throw new Error("Invalid cron configuration");
+      }
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["nodes", index, "config", "expression"],
+        message: "Enter a valid five-field cron expression and IANA timezone.",
+      });
+    }
+  });
+});
 
 function isRecord(value: unknown): value is MutableRecord {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -429,7 +451,7 @@ export function normalizeProgramDraft(raw: unknown, fallback?: Partial<ProgramSc
 }
 
 export function validateProgramDraft(schema: unknown) {
-  return ProgramDraftSchemaZ.safeParse(schema);
+  return ProgramDraftWithValidCronZ.safeParse(schema);
 }
 
 /**
