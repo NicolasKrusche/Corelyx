@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 interface DialogProps {
@@ -10,6 +11,12 @@ interface DialogProps {
 }
 
 export function Dialog({ open, onOpenChange, children }: DialogProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange(false);
@@ -18,9 +25,13 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     return () => document.removeEventListener("keydown", handler);
   }, [open, onOpenChange]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  // Portal to <body> — a "fixed" overlay rendered inline can end up fixed
+  // to the nearest backdrop-filter/filter/transform ancestor instead of the
+  // viewport (e.g. the .glass-card/.glass-panel wrappers used throughout the
+  // app), which shows the dialog off-screen inside long scrollable lists.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="fixed inset-0 bg-black/50"
@@ -28,7 +39,8 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
         aria-hidden
       />
       <div className="relative z-50">{children}</div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

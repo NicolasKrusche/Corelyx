@@ -7,6 +7,7 @@ import {
   Activity,
   AlertTriangle,
   MessageCircle,
+  MessageSquarePlus,
   Shield,
   ShieldAlert,
   Zap,
@@ -62,9 +63,10 @@ export default async function AdminLayout({
   const supabase = await createServerClient();
   const service = createServiceClient();
 
-  const [profileRes, openTicketsRes] = await Promise.all([
+  const [profileRes, openTicketsRes, newFeedbackRes] = await Promise.all([
     supabase.from("profiles").select("is_admin, team_role").eq("id", user.id).single(),
     service.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
+    service.from("feedback").select("id", { count: "exact", head: true }).eq("status", "new"),
   ]);
 
   const adminProfile = profileRes.data as unknown as AdminProfileRow | null;
@@ -79,6 +81,7 @@ export default async function AdminLayout({
   const canAccessTechnical = isFounder || teamRole === "dev";
   const canAccessCosts = canAccessTechnical || teamRole === "marketing";
   const openTicketCount = openTicketsRes.count ?? 0;
+  const newFeedbackCount = newFeedbackRes.count ?? 0;
 
   const navItems: AdminNavItem[] = [
     { href: "/admin", label: "Overview", icon: Activity },
@@ -97,6 +100,7 @@ export default async function AdminLayout({
       { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
     ] as AdminNavItem[] : []),
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
+    { href: "/admin/feedback", label: "Feedback", icon: MessageSquarePlus, badge: newFeedbackCount },
     { href: "/admin/codes", label: "Code Manager", icon: Ticket },
     { href: "/admin/posts", label: "Posts", icon: Newspaper },
     ...(isFounder ? [

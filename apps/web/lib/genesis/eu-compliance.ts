@@ -19,7 +19,7 @@ const COMPLIANCE_FILTER_MODELS: Record<string, string> = {
   openai: "gpt-4o-mini",
   groq: "llama-3.3-70b-versatile",
   mistral: "mistral-small-latest",
-  openrouter: "meta-llama/llama-3.3-70b-instruct:free",
+  openrouter: "openai/gpt-oss-120b",
 };
 
 export function pickEuComplianceFilterKey(

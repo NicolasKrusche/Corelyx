@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { PseudonymizationSession } from "@/lib/privacy/pii";
 import {
+  buildCapabilityNamesSection,
   buildCapabilitySection,
+  buildCapabilitySectionsByProvider,
   summarizeCapabilities,
   type CapabilityDescriptor,
 } from "../introspection";
@@ -108,6 +110,84 @@ describe("buildCapabilitySection", () => {
         session
       )
     ).toBeNull();
+  });
+});
+
+describe("buildCapabilityNamesSection", () => {
+  it("lists resource names but never their nested properties", () => {
+    const session = new PseudonymizationSession();
+    const section = buildCapabilityNamesSection(descriptors, connections, session);
+
+    expect(section).toBeTruthy();
+    expect(section).toContain("[GMAIL_LABEL_1]");
+    expect(section).toContain("[NOTION_DATABASE_1]");
+    // Property-level detail belongs to the full section (Phase 2), not this
+    // one (Phase 1) — that's the whole point of the lightweight variant.
+    expect(section).not.toContain("[NOTION_PROPERTY_1]");
+    expect(section).not.toContain("select");
+    expect(section).not.toContain("Deal Status");
+  });
+
+  it("is meaningfully smaller than the full capability section for the same data", () => {
+    const session1 = new PseudonymizationSession();
+    const session2 = new PseudonymizationSession();
+    const full = buildCapabilitySection(descriptors, connections, session1)!;
+    const names = buildCapabilityNamesSection(descriptors, connections, session2)!;
+    expect(names.length).toBeLessThan(full.length);
+  });
+
+  it("registers the same placeholders as the full section (same session)", () => {
+    const session = new PseudonymizationSession();
+    buildCapabilitySection(descriptors, connections, session);
+    const names = buildCapabilityNamesSection(descriptors, connections, session);
+    expect(names).toContain("[NOTION_DATABASE_1]");
+  });
+
+  it("returns null when there is nothing to show", () => {
+    const session = new PseudonymizationSession();
+    expect(buildCapabilityNamesSection([], connections, session)).toBeNull();
+  });
+});
+
+describe("buildCapabilitySectionsByProvider", () => {
+  it("splits capability data into one section per provider", () => {
+    const session = new PseudonymizationSession();
+    const byProvider = buildCapabilitySectionsByProvider(descriptors, connections, session);
+
+    expect([...byProvider.keys()].sort()).toEqual(["gmail", "notion"]);
+    expect(byProvider.get("gmail")).toContain("[GMAIL_LABEL_1]");
+    expect(byProvider.get("gmail")).not.toContain("NOTION");
+    expect(byProvider.get("notion")).toContain("[NOTION_DATABASE_1]");
+    expect(byProvider.get("notion")).not.toContain("GMAIL");
+  });
+
+  it("registers the same placeholders as the combined section (same session)", () => {
+    const session = new PseudonymizationSession();
+    const combined = buildCapabilitySection(descriptors, connections, session);
+    const byProvider = buildCapabilitySectionsByProvider(descriptors, connections, session);
+
+    expect(combined).toContain("[NOTION_DATABASE_1]");
+    expect(byProvider.get("notion")).toContain("[NOTION_DATABASE_1]");
+
+    // Calling both against the same session must not allocate a second
+    // placeholder for the same real value (e.g. [NOTION_DATABASE_2]).
+    const rehydrated = session.rehydrateValue({ ref: "[NOTION_DATABASE_1]" });
+    expect(rehydrated).toEqual({ ref: "CRM Leads" });
+  });
+
+  it("omits a provider with no renderable resources", () => {
+    const session = new PseudonymizationSession();
+    const byProvider = buildCapabilitySectionsByProvider(
+      [{ provider: "slack", connection_id: "unknown", resources: [] }],
+      connections,
+      session
+    );
+    expect(byProvider.size).toBe(0);
+  });
+
+  it("returns an empty map for no descriptors", () => {
+    const session = new PseudonymizationSession();
+    expect(buildCapabilitySectionsByProvider([], connections, session).size).toBe(0);
   });
 });
 
