@@ -22,6 +22,10 @@ import {
 } from "@/lib/workspaces";
 import { isDestructiveAgentTool } from "@/lib/genesis/agent-tools";
 import { AgentReport } from "@/components/ui/agent-report";
+import {
+  AiGeneratedContentNotice,
+  AiIdentityBadge,
+} from "@/components/ai-transparency";
 import { AgentActions } from "./agent-actions";
 import { AgentQuestion } from "./agent-question";
 import { AgentSchedule } from "./agent-schedule";
@@ -291,6 +295,7 @@ export default async function AgentDetailPage({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">{program.name}</h1>
+              <AiIdentityBadge label="AI agent" />
               <StateChip state={state} />
               {program.agent_saved_template && (
                 <span className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
@@ -364,6 +369,10 @@ export default async function AgentDetailPage({
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                   {summary}
                 </p>
+                <AiGeneratedContentNotice
+                  contentKind="summary"
+                  className="mt-4 border-t border-border/40 pt-2 italic"
+                />
               </div>
             )}
 
@@ -394,6 +403,7 @@ export default async function AgentDetailPage({
                 <h2 className="text-sm font-semibold">
                   {hasActivity ? "Plan & activity" : "Execution plan"}
                 </h2>
+                <AiIdentityBadge label="AI plan" />
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground">

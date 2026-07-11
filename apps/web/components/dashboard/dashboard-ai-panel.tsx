@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { AiIdentityBadge } from "@/components/ai-transparency";
 
 // ─── Suggestion definitions ───────────────────────────────────────────────────
 
@@ -90,7 +91,10 @@ export function DashboardAiPanel() {
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
-        <span className="text-[13px] font-medium text-foreground/80">New workflow</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-medium text-foreground/80">New workflow</span>
+          <AiIdentityBadge label="Genesis AI" />
+        </div>
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4 text-muted-foreground">
           <rect x="1" y="1" width="6" height="14" rx="1.5" />
           <rect x="9" y="1" width="6" height="14" rx="1.5" />

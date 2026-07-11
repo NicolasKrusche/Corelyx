@@ -85,7 +85,9 @@ function InventoryRow({ record }: { record: AiSystemInventoryRecord }) {
     (needsTransparencyNotice && !!record.program_id) ||
     (needsHighRiskDocumentation && !!record.program_id) ||
     record.dpia_status === "Required" ||
-    record.dpia_status === "Draft recommended";
+    record.dpia_status === "Draft recommended" ||
+    record.dpia_status === "Draft saved" ||
+    record.dpia_status === "Completed";
 
   return (
     <tr className="align-top">
@@ -195,20 +197,38 @@ function InventoryRow({ record }: { record: AiSystemInventoryRecord }) {
             )}
             {record.dpia_status === "Required" && (
               <Link
-                href={record.program_id ? `/api/programs/${record.program_id}/compliance/export?format=dpia-pdf` : "/tools/dpia-generator"}
+                href={record.program_id ? `/governance/dpia/${record.program_id}` : "/tools/dpia-generator"}
                 className="inline-flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-300"
               >
                 <Scale className="h-3 w-3" />
-                Download DPIA draft
+                Generate and save DPIA draft
               </Link>
             )}
             {record.dpia_status === "Draft recommended" && (
               <Link
-                href={record.program_id ? `/api/programs/${record.program_id}/compliance/export?format=dpia-pdf` : "/tools/dpia-generator"}
+                href={record.program_id ? `/governance/dpia/${record.program_id}` : "/tools/dpia-generator"}
                 className="inline-flex items-center gap-1 rounded border border-border bg-background/60 px-2 py-1 text-[11px] font-medium transition-colors hover:bg-accent"
               >
                 <BookOpen className="h-3 w-3" />
-                Download DPIA draft
+                Prepare DPIA draft
+              </Link>
+            )}
+            {record.dpia_status === "Draft saved" && record.program_id && (
+              <Link
+                href={`/governance/dpia/${record.program_id}`}
+                className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
+              >
+                <BookOpen className="h-3 w-3" />
+                Open saved DPIA draft
+              </Link>
+            )}
+            {record.dpia_status === "Completed" && record.program_id && (
+              <Link
+                href={`/governance/dpia/${record.program_id}`}
+                className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
+              >
+                <CheckCircle2 className="h-3 w-3" />
+                Open completed DPIA
               </Link>
             )}
             {record.program_id && record.documentation_status !== "Complete" && (

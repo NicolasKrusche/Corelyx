@@ -455,6 +455,14 @@ function DpiaGenerator() {
     <ToolLayout
       form={
         <>
+          <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-3 text-xs leading-5 text-amber-800 dark:text-amber-200">
+            <p className="font-semibold">Public preview only — nothing here is saved.</p>
+            <p className="mt-1">
+              This automatically generated draft is not attached to a workflow or account. To
+              keep workflow-specific revisions, review changes, and record completion, sign in
+              and use the workflow&apos;s DPIA page in Governance.
+            </p>
+          </div>
           <TextField label="System name" value={state.systemName} onChange={(value) => setState((s) => ({ ...s, systemName: value }))} />
           <TextArea label="Processing purpose" value={state.processingPurpose} onChange={(value) => setState((s) => ({ ...s, processingPurpose: value }))} />
           <TextField label="Data categories" value={state.dataCategories} onChange={(value) => setState((s) => ({ ...s, dataCategories: value }))} />

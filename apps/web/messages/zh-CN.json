@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "AI 提示",
+    "message": "您正在与 AI 互动。AI 生成的内容可能不准确；请核查重要结果。"
+  },
   "nav": {
     "home": "首页",
     "workspaces": "工作区",

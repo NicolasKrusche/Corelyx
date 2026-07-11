@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CronBuilder } from "@/components/triggers/cron-builder";
-import { friendlyResponseMessage } from "@/lib/friendly-errors";
+import { friendlyErrorMessage, friendlyResponseMessage } from "@/lib/friendly-errors";
+import { removeTrigger, setTriggerActive } from "@/lib/triggers/manage-trigger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,22 +87,29 @@ function NewTriggerForm({
     }
 
     startTransition(async () => {
-      const res = await fetch(`/api/programs/${programId}/triggers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, config }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(friendlyResponseMessage(data as { error?: string }, "We could not create this trigger. Please try again."));
-        return;
+      try {
+        const res = await fetch(`/api/programs/${programId}/triggers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type, config }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(friendlyResponseMessage(data as { error?: string }, "We could not create this trigger. Please try again."));
+          return;
+        }
+        const data = await res.json() as { trigger: TriggerRow };
+        onCreated(data.trigger);
+        // Reset form
+        setType("manual");
+        setCronExpr("0 9 * * 1-5");
+        setSourceProgramId("");
+      } catch (cause) {
+        setError(friendlyErrorMessage(
+          cause instanceof Error ? cause.message : null,
+          "We could not create this trigger. Please try again."
+        ));
       }
-      const data = await res.json() as { trigger: TriggerRow };
-      onCreated(data.trigger);
-      // Reset form
-      setType("manual");
-      setCronExpr("0 9 * * 1-5");
-      setSourceProgramId("");
     });
   };
 
@@ -188,22 +196,35 @@ function TriggerCard({
 }: {
   trigger: TriggerRow;
   programId: string;
-  onToggle: (id: string, active: boolean) => void;
+  onToggle: (trigger: TriggerRow) => void;
   onDelete: (id: string) => void;
 }) {
   const [isDeleting, startDelete] = useTransition();
   const [isToggling, startToggle] = useTransition();
   const [copied, setCopied] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const schemaNodeId =
+    typeof trigger.config.node_id === "string" && trigger.config.node_id.trim()
+      ? trigger.config.node_id.trim()
+      : null;
 
   const handleToggle = () => {
+    setActionError(null);
     startToggle(async () => {
-      await fetch(`/api/programs/${programId}/triggers/${trigger.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !trigger.is_active }),
-      });
-      onToggle(trigger.id, !trigger.is_active);
+      try {
+        const updated = await setTriggerActive<TriggerRow>(
+          programId,
+          trigger.id,
+          !trigger.is_active
+        );
+        onToggle(updated);
+      } catch (cause) {
+        setActionError(friendlyErrorMessage(
+          cause instanceof Error ? cause.message : null,
+          "We could not update this trigger. Please try again."
+        ));
+      }
     });
   };
 
@@ -211,11 +232,17 @@ function TriggerCard({
 
   const confirmDelete = () => {
     setDeleteOpen(false);
+    setActionError(null);
     startDelete(async () => {
-      await fetch(`/api/programs/${programId}/triggers/${trigger.id}`, {
-        method: "DELETE",
-      });
-      onDelete(trigger.id);
+      try {
+        await removeTrigger(programId, trigger.id);
+        onDelete(trigger.id);
+      } catch (cause) {
+        setActionError(friendlyErrorMessage(
+          cause instanceof Error ? cause.message : null,
+          "We could not delete this trigger. Please try again."
+        ));
+      }
     });
   };
 
@@ -258,15 +285,26 @@ function TriggerCard({
           >
             {trigger.is_active ? "Pause" : "Enable"}
           </button>
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="text-xs text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
-          >
-            Delete
-          </button>
+          {schemaNodeId ? (
+            <Link
+              href={`/programs/${programId}/editor`}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Remove in editor
+            </Link>
+          ) : (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="text-xs text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
+
+      {actionError && <p role="alert" className="text-xs text-destructive">{actionError}</p>}
 
       {/* Config details */}
       <div className="text-xs text-muted-foreground space-y-1">
@@ -334,7 +372,6 @@ function TriggerCard({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TriggerManager({ programId, initialTriggers }: Props) {
-  const router = useRouter();
   const [triggers, setTriggers] = useState<TriggerRow[]>(initialTriggers);
   const [showForm, setShowForm] = useState(false);
 
@@ -343,9 +380,9 @@ export function TriggerManager({ programId, initialTriggers }: Props) {
     setShowForm(false);
   };
 
-  const handleToggle = (id: string, active: boolean) => {
+  const handleToggle = (trigger: TriggerRow) => {
     setTriggers((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, is_active: active } : t))
+      prev.map((current) => (current.id === trigger.id ? trigger : current))
     );
   };
 

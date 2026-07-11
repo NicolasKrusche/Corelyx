@@ -37,6 +37,7 @@ const TENANT_TABLES = [
   "triggers",
   "webhook_deliveries",
   "program_versions",
+  "program_dpia_drafts",
   "data_subject_requests",
   "app_logs",
 ];

@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Node as SchemaNode } from "@flowos/schema";
 import type { NodeExecutionData } from "./EditorShell";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
+import { AiGeneratedContentNotice } from "@/components/ai-transparency";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -365,10 +366,7 @@ export function RunLogDrawer({
                 {/* AI transparency disclaimer — shown on every AI-produced output */}
                 {(node?.type === "agent" || node?.type === "agent_task") &&
                   exec.output_payload != null && (
-                    <p className="text-[10px] text-muted-foreground/70 italic">
-                      ⚠ AI-generated output — may contain errors and is not professional
-                      advice. Verify before relying on it.
-                    </p>
+                    <AiGeneratedContentNotice contentKind="output" className="italic" />
                   )}
               </div>
             );

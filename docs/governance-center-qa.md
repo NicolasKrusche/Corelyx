@@ -92,12 +92,15 @@ reachable, visible, and functional in the product. Run it after any change to
 - [ ] Run audit log downloads as CSV and PDF.
 - [ ] Evidence pack ZIP contains README, inventory, approvals, per-agent
       audits, and a SHA-256 MANIFEST.
-- [ ] Per-workflow technical docs + DPIA drafts download (PDF/Word) and are
-      labeled as drafts, not finished legal documents.
+- [ ] Each workflow opens its own DPIA workspace; generated and edited revisions
+      persist to that workflow before Markdown/PDF/Word download.
+- [ ] Completed/reopened review status is recorded as an immutable revision with
+      reviewer and timestamp; a later workflow change makes completion stale.
 - [ ] "Download my data (JSON)" returns the personal-data export.
 
 ## Honesty constraints
 
 - Generated DPIA/technical documents are labeled drafts/working papers.
+- The anonymous DPIA tool says its preview is not saved or attached to a workflow.
 - The AI Act classifier output is labeled a governance aid, not legal advice.
 - No page claims certification or guaranteed legal compliance.

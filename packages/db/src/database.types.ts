@@ -542,6 +542,50 @@ export interface Database {
           updated_at?: string;
         };
       };
+      program_dpia_drafts: {
+        Row: {
+          id: string;
+          program_id: string;
+          created_by: string | null;
+          source_kind: "generated" | "edited" | "status_change";
+          review_status: "draft" | "completed";
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          content: string;
+          source_schema_version: number | null;
+          source_program_updated_at: string | null;
+          source_snapshot: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          program_id: string;
+          created_by?: string | null;
+          source_kind: "generated" | "edited" | "status_change";
+          review_status?: "draft" | "completed";
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          content: string;
+          source_schema_version?: number | null;
+          source_program_updated_at?: string | null;
+          source_snapshot?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          program_id?: string;
+          created_by?: string | null;
+          source_kind?: "generated" | "edited" | "status_change";
+          review_status?: "draft" | "completed";
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          content?: string;
+          source_schema_version?: number | null;
+          source_program_updated_at?: string | null;
+          source_snapshot?: Json;
+          created_at?: string;
+        };
+      };
       program_connections: {
         Row: { program_id: string; connection_id: string };
         Insert: { program_id: string; connection_id: string };

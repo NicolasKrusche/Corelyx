@@ -7,6 +7,7 @@ import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Optional
+from urllib.parse import urljoin, urlsplit
 
 # Force UTF-8 stdout/stderr on Windows so Unicode chars in log output don't crash
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -26,7 +27,6 @@ from cors_config import (
     get_cors_allowed_origins,
 )
 from db import (
-    get_active_cron_workflows,
     get_db,
     get_user_priority_tier,
     get_user_run_plan,
@@ -217,26 +217,72 @@ async def trigger_workflow(workflow_id: str) -> None:
 _cron_tick_failures = 0
 
 
+def _cron_tick_endpoint(configured_url: str, path: str) -> str:
+    """Build the internal endpoint from the configured origin, never a stray path."""
+    parsed = urlsplit(configured_url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise RuntimeError("NEXTJS_INTERNAL_URL must be an absolute http(s) URL")
+    return f"{parsed.scheme}://{parsed.netloc}{path}"
+
+
+def _safe_cron_redirect(source_url: str, location: str, path: str) -> str | None:
+    """Allow one same-site canonical redirect without leaking the scoped token."""
+    target_url = urljoin(source_url, location)
+    source = urlsplit(source_url)
+    target = urlsplit(target_url)
+    if target.scheme not in {source.scheme, "https"}:
+        return None
+    if source.scheme == "https" and target.scheme != "https":
+        return None
+    if target.username or target.password or target.query or target.fragment or target.path != path:
+        return None
+    source_host = (source.hostname or "").lower().removeprefix("www.")
+    target_host = (target.hostname or "").lower().removeprefix("www.")
+    if not source_host or source_host != target_host:
+        return None
+    source_port = source.port or (443 if source.scheme == "https" else 80)
+    target_port = target.port or (443 if target.scheme == "https" else 80)
+    if source.scheme == target.scheme and source_port != target_port:
+        return None
+    if source.scheme == "http" and target.scheme == "https" and source_port != 80:
+        return None
+    return target_url
+
+
 async def _cron_tick() -> None:
     global _cron_tick_failures
-    nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000").rstrip("/")
+    nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000")
     path = "/api/internal/cron/tick"
     body = "{}"
     try:
         import httpx
 
-        async with httpx.AsyncClient(timeout=55) as client:
-            res = await client.post(
-                f"{nextjs_url}{path}",
-                headers=build_internal_service_headers(
-                    "next:cron:tick",
-                    subject="runtime-scheduler",
-                    method="POST",
-                    path=path,
-                    body=body,
-                ),
-                content=body,
-            )
+        # Production may canonicalize the configured app URL (for example,
+        # apex -> www) with a 307/308. Follow only one validated same-site
+        # redirect so the scoped internal token can never be forwarded to an
+        # arbitrary host supplied by a redirect response.
+        # The web sweep has its own 45s deadline.  Leave enough headroom for
+        # the response and redirect round-trip without reaching the route's
+        # 60s serverless ceiling.
+        endpoint = _cron_tick_endpoint(nextjs_url, path)
+        auth_headers = build_internal_service_headers(
+            "next:cron:tick",
+            subject="runtime-scheduler",
+            method="POST",
+            path=path,
+            body=body,
+        )
+        async with httpx.AsyncClient(timeout=55, follow_redirects=False) as client:
+            res = await client.post(endpoint, headers=auth_headers, content=body)
+            if res.status_code in {307, 308}:
+                redirect_target = _safe_cron_redirect(
+                    endpoint,
+                    res.headers.get("location", ""),
+                    path,
+                )
+                if not redirect_target:
+                    raise RuntimeError("Cron heartbeat rejected an unsafe redirect")
+                res = await client.post(redirect_target, headers=auth_headers, content=body)
         if res.status_code != 200:
             raise RuntimeError(f"HTTP {res.status_code}: {res.text[:200]}")
         if _cron_tick_failures > 0:
@@ -253,6 +299,11 @@ async def _cron_tick() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # The web sweep is the single owner of cron state, entitlements, atomic
+    # claiming, and dispatch.  Do not also register per-workflow APScheduler
+    # jobs here: that legacy path reads an obsolete schema shape and bypasses
+    # the web controls; for old schemas it can also double-fire alongside the
+    # heartbeat/Inngest sweep.
     scheduler.add_job(
         _cron_tick,
         "interval",
@@ -260,21 +311,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         max_instances=1,
         coalesce=True,
         id="cron-heartbeat",
+        replace_existing=True,
     )
-    try:
-        workflows = await get_active_cron_workflows()
-        for w in workflows:
-            try:
-                scheduler.add_job(
-                    trigger_workflow,
-                    "cron",
-                    **parse_cron(w.get("cron_expression", "0 * * * *")),
-                    args=[w["id"]],
-                )
-            except ValueError:
-                pass  # Skip workflows with invalid cron expressions
-    except Exception as e:
-        print(f"[runtime] Warning: could not load cron workflows: {e}")
     scheduler.start()
     yield
     await close_llm_client()

@@ -14,6 +14,7 @@ import {
   type ProgramInventorySource,
 } from "@/lib/compliance/governance";
 import { loadWorkspaceComplianceSettings } from "@/lib/compliance/server";
+import { resolvePersistedDpiaStatus } from "@/lib/compliance/dpia-drafts";
 
 type LooseServiceClient = ReturnType<typeof createServiceClient> & {
   from(table: string): any;
@@ -61,7 +62,7 @@ export async function loadGovernanceInventory(
   // Everything the per-program records need, fetched in one parallel wave —
   // never per program. (This page used to issue 2-3 queries per workflow,
   // which made the whole governance section crawl on real workspaces.)
-  const [workspace, profilesRes, apiKeysRes, connectionsRes, linkRows] = await Promise.all([
+  const [workspace, profilesRes, apiKeysRes, connectionsRes, linkRows, dpiaRows] = await Promise.all([
     loadWorkspaceComplianceSettings(workspaceId, db),
     creatorIds.length > 0
       ? db.from("profiles").select("id, display_name").in("id", creatorIds)
@@ -79,7 +80,31 @@ export async function loadGovernanceInventory(
       }
       return rows;
     })(),
+    (async () => {
+      const rows: Array<{
+        program_id: string;
+        review_status: "draft" | "completed";
+        created_at: string;
+        source_schema_version: number | null;
+        source_program_updated_at: string | null;
+      }> = [];
+      for (const group of chunk(programIds, IN_CHUNK)) {
+        const { data } = await db
+          .from("program_dpia_drafts")
+          .select(
+            "program_id, review_status, created_at, source_schema_version, source_program_updated_at"
+          )
+          .in("program_id", group)
+          .order("created_at", { ascending: false });
+        rows.push(...((data ?? []) as typeof rows));
+      }
+      return rows;
+    })(),
   ]);
+  const latestDpiaByProgram = new Map<string, (typeof dpiaRows)[number]>();
+  for (const row of dpiaRows) {
+    if (!latestDpiaByProgram.has(row.program_id)) latestDpiaByProgram.set(row.program_id, row);
+  }
 
   const creatorEmailById = new Map<string, string>();
   for (const profile of (profilesRes.data ?? []) as Array<{ id: string; display_name: string | null }>) {
@@ -112,6 +137,13 @@ export async function loadGovernanceInventory(
       };
       flow = buildDataFlowPreview(schema, workspace, context);
     }
+    const latestDpia = latestDpiaByProgram.get(program.id);
+    const persistedDpiaStatus = latestDpia
+      ? resolvePersistedDpiaStatus(latestDpia, {
+          schemaVersion: program.schema_version ?? null,
+          updatedAt: program.updated_at,
+        })
+      : undefined;
 
     records.push(
       buildInventoryRecordFromProgram({
@@ -122,6 +154,7 @@ export async function loadGovernanceInventory(
         schema,
         flow,
         creatorEmail: creatorEmailById.get(program.user_id) ?? null,
+        persistedDpiaStatus,
       })
     );
   }

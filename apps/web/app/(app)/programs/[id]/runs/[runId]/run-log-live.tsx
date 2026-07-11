@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
 import type { Edge, Node } from "@flowos/schema";
 import { RunGraphFlow } from "./run-graph-flow";
+import { AiGeneratedContentNotice } from "@/components/ai-transparency";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -424,6 +425,10 @@ export function RunLogLive({
 
                   <JsonViewer label="▸ Input" data={exec.input_payload} defaultOpen={isFailed} />
                   <JsonViewer label="▸ Output" data={exec.output_payload} />
+                  {(node?.type === "agent" || node?.type === "agent_task") &&
+                    exec.output_payload != null && (
+                      <AiGeneratedContentNotice contentKind="output" className="italic" />
+                    )}
                 </div>
               );
             })}

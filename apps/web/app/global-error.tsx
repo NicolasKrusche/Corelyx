@@ -1,6 +1,7 @@
 "use client";
 
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
+import { PersistentAiDisclosure } from "@/components/ai-transparency";
 
 export default function GlobalError({
   error,
@@ -22,6 +23,10 @@ export default function GlobalError({
         >
           Try again
         </button>
+        <PersistentAiDisclosure
+          title="AI disclosure"
+          message="You are interacting with AI. AI-generated output can be inaccurate; review important results."
+        />
       </body>
     </html>
   );

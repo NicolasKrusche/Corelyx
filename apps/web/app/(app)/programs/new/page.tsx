@@ -16,6 +16,7 @@ import { TEMPLATES } from "@/lib/templates";
 import { writeClientLog } from "@/lib/client-logs";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { useGenesisJob } from "@/components/genesis/genesis-job-provider";
+import { AiIdentityBadge } from "@/components/ai-transparency";
 
 type Connection = {
   id: string;
@@ -782,7 +783,12 @@ function NewProgramPageInner() {
                   : "bg-muted/60 text-foreground"
               }`}
             >
-              {message.text}
+              {message.role === "assistant" && (
+                <AiIdentityBadge label="Genesis AI" className="mb-1.5" />
+              )}
+              <span className={message.role === "assistant" ? "block" : undefined}>
+                {message.text}
+              </span>
             </div>
           ))}
         </div>
@@ -1217,6 +1223,7 @@ function NewProgramPageInner() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-semibold">{programName}</h1>
+                  <AiIdentityBadge label="Genesis AI" />
                   {wasRefined && (
                     <Badge variant="secondary" className="text-xs">
                       Refined ✓

@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "AI disclosure",
+    "message": "You are interacting with AI. AI-generated output can be inaccurate; review important results."
+  },
   "nav": {
     "home": "Home",
     "workspaces": "Workspaces",

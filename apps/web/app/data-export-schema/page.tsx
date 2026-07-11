@@ -24,6 +24,7 @@ const sections = [
   ["programs", "User workflow definitions, owner/org identifiers, and workflow settings."],
   ["program_connections", "Links between workflows and saved connections."],
   ["program_versions", "Saved workflow schema versions."],
+  ["program_dpia_drafts", "Saved workflow-specific DPIA content revisions, source snapshots, and review records."],
   ["triggers", "Trigger configuration and scheduling metadata. Webhook trigger tokens are excluded."],
   ["runs", "Workflow run metadata, trigger payload, execution mode, status, timing, error, token, cost, and connector-call counters."],
   ["node_executions", "Per-node execution records, including retained input/output payloads where still available under retention policy."],
@@ -48,6 +49,7 @@ const topLevelShape = `{
   "programs": [],
   "program_connections": [],
   "program_versions": [],
+  "program_dpia_drafts": [],
   "triggers": [],
   "runs": [],
   "node_executions": [],
@@ -72,7 +74,7 @@ export default async function DataExportSchemaPage() {
             Data Export Schema
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            Version 5 JSON schema for the GDPR Articles 15 and 20 export returned by <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">GET /api/user/export</code>.
+            Version 6 JSON schema for the GDPR Articles 15 and 20 export returned by <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">GET /api/user/export</code>.
           </p>
         </div>
 

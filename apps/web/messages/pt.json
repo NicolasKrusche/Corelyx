@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "Aviso de IA",
+    "message": "Está a interagir com IA. Os resultados gerados por IA podem estar incorretos; reveja os resultados importantes."
+  },
   "nav": {
     "home": "Início",
     "workspaces": "Espaços de trabalho",

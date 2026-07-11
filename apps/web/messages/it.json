@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "Avviso sull’IA",
+    "message": "Stai interagendo con un’IA. I risultati generati dall’IA possono essere imprecisi; verifica quelli importanti."
+  },
   "nav": {
     "home": "Home",
     "workspaces": "Spazi di lavoro",

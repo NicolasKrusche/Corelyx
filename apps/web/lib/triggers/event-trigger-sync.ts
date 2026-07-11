@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/api";
-import { CronExpressionParser } from "cron-parser";
+import { nextFiveFieldCronRun } from "@/lib/cron-expression";
 
 type Db = ReturnType<typeof createServiceClient>;
 
@@ -200,10 +200,14 @@ export async function syncCronTriggers(
     if (cfg.trigger_type !== "cron") continue;
     const expression = stringField(cfg.expression, "0 9 * * *");
     const timezone = stringField(cfg.timezone, "UTC");
+    const scheduleIsValid = computeNextRunAt(expression, timezone) !== null;
     desired.push({
       node_id: node.id,
       config: { trigger_type: "cron", expression, timezone, node_id: node.id },
-      is_active: activeByNode.get(node.id) ?? true,
+      // Legacy schemas could contain a non-empty but invalid expression. Keep
+      // their runtime projection paused instead of re-enabling it on every
+      // reconciliation after the sweep correctly pauses it.
+      is_active: scheduleIsValid && (activeByNode.get(node.id) ?? true),
     });
   }
 
@@ -258,9 +262,18 @@ export async function syncCronTriggers(
 
       const { error: insertError } = await db.from("triggers").insert(insertPayload as never);
       if (!insertError) inserted++;
-    } else if (!configsEqual(d.config, existing.config) || existing.is_active !== d.is_active || !existing.next_run_at) {
+    } else if (
+      !configsEqual(d.config, existing.config) ||
+      existing.is_active !== d.is_active ||
+      (d.is_active && !existing.next_run_at) ||
+      (!d.is_active && existing.next_run_at != null)
+    ) {
       const updatePayload: Record<string, unknown> = { config: d.config, is_active: d.is_active };
-      if (nextRunAt) updatePayload.next_run_at = nextRunAt;
+      if (d.is_active && nextRunAt) updatePayload.next_run_at = nextRunAt;
+      if (!d.is_active && "next_run_at" in existing) updatePayload.next_run_at = null;
+      // Cron claims compare updated_at as a schedule-version guard. Keep that
+      // version current whenever schema sync changes config/active state.
+      if ("next_run_at" in existing) updatePayload.updated_at = new Date().toISOString();
 
       await db
         .from("triggers")
@@ -283,11 +296,7 @@ export async function syncCronTriggers(
 }
 
 function computeNextRunAt(expression: string, timezone: string): string | null {
-  try {
-    return CronExpressionParser.parse(expression, { tz: timezone }).next().toISOString();
-  } catch {
-    return null;
-  }
+  return nextFiveFieldCronRun(expression, timezone);
 }
 
 // ─── File-watch trigger sync ──────────────────────────────────────────────────

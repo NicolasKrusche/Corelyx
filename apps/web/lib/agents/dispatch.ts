@@ -134,6 +134,7 @@ export async function dispatchAgentRun(
     triggeredBy: string;
     dryRun?: boolean;
     triggerExtra?: Record<string, unknown>;
+    dispatchTimeoutMs?: number;
   }
 ): Promise<AgentDispatchResult> {
   const { programId, userId, workspaceId, triggeredBy } = opts;
@@ -240,6 +241,9 @@ export async function dispatchAgentRun(
       method: "POST",
       headers: buildRuntimeExecuteHeaders(runtimeBody),
       body: runtimeBody,
+      ...(opts.dispatchTimeoutMs
+        ? { signal: AbortSignal.timeout(opts.dispatchTimeoutMs) }
+        : {}),
     });
     if (!res.ok) {
       serverLog({ level: "error", event: "agent.run.dispatch_failed", message: "Agent run dispatch failed.", details: { status: res.status, triggeredBy } });
@@ -336,7 +340,8 @@ export async function fireAgentTrigger(
   service: Service,
   source: { id: string; user_id: string; workspace_id: string },
   triggeredBy: string,
-  triggerExtra?: Record<string, unknown>
+  triggerExtra?: Record<string, unknown>,
+  options?: { dispatchTimeoutMs?: number }
 ): Promise<AgentDispatchResult> {
   // Agents are Solo+ — a standing agent must stop firing if the owner downgrades.
   const agentAccess = await checkAgentAccess(source.user_id, source.workspace_id);
@@ -350,5 +355,6 @@ export async function fireAgentTrigger(
     workspaceId: source.workspace_id,
     triggeredBy,
     triggerExtra,
+    dispatchTimeoutMs: options?.dispatchTimeoutMs,
   });
 }

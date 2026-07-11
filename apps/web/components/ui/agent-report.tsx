@@ -4,6 +4,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  AiGeneratedContentNotice,
+  AiIdentityBadge,
+} from "@/components/ai-transparency";
 
 export type AgentReportMetric = {
   label: string;
@@ -73,6 +77,7 @@ export function AgentReport({
       <div className="mb-3 flex items-center gap-2">
         <FileText className="h-4 w-4 shrink-0 text-primary" />
         <p className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</p>
+        <AiIdentityBadge label="AI-generated" />
         {outcome && (
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${outcome.cls}`}>
             {outcome.label}
@@ -134,10 +139,10 @@ export function AgentReport({
         </ReactMarkdown>
       </div>
 
-      <p className="mt-4 border-t border-border/40 pt-2 text-[10px] italic text-muted-foreground/70">
-        ⚠ AI-generated report — may contain errors and is not professional advice.
-        Verify important results before relying on them.
-      </p>
+      <AiGeneratedContentNotice
+        contentKind="report"
+        className="mt-4 border-t border-border/40 pt-2 italic"
+      />
     </div>
   );
 }

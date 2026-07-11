@@ -29,6 +29,16 @@ export default async function GovernanceExportsPage() {
     .order("updated_at", { ascending: false })
     .limit(100);
   const programs = (programRows ?? []) as Array<{ id: string; name: string }>;
+  const { data: dpiaRows } = programs.length
+    ? await db
+        .from("program_dpia_drafts")
+        .select("program_id")
+        .in("program_id", programs.map((program) => program.id))
+    : { data: [] };
+  const dpiaByProgram = new Map<string, number>();
+  for (const row of (dpiaRows ?? []) as Array<{ program_id: string }>) {
+    dpiaByProgram.set(row.program_id, (dpiaByProgram.get(row.program_id) ?? 0) + 1);
+  }
 
   return (
     <div className="space-y-6 pb-12">
@@ -71,43 +81,46 @@ export default async function GovernanceExportsPage() {
 
       <PanelSection
         title="Per-workflow documents"
-        description="Generated working papers for individual workflows: a technical documentation draft and a DPIA (data protection impact assessment) draft. Both are starting points for your own review, not finished legal documents."
+        description="Technical documents are generated from live workflow data. DPIA drafts have a dedicated workflow workspace where every generated or edited revision is saved before download."
       >
         {programs.length === 0 ? (
           <EmptyState>No workflows yet.</EmptyState>
         ) : (
           <div className="divide-y divide-border/50">
-            {programs.map((program) => (
-              <div
-                key={program.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-              >
-                <p className="min-w-0 flex-1 truncate text-sm font-medium">{program.name}</p>
-                <div className="flex flex-wrap gap-2">
-                  <a
-                    href={`/api/programs/${program.id}/compliance/export?format=technical-pdf`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold transition-colors hover:bg-accent"
-                  >
-                    <FileText className="h-3 w-3" />
-                    Technical docs (PDF)
-                  </a>
-                  <a
-                    href={`/api/programs/${program.id}/compliance/export?format=dpia-pdf`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold transition-colors hover:bg-accent"
-                  >
-                    <FileText className="h-3 w-3" />
-                    DPIA draft (PDF)
-                  </a>
-                  <a
-                    href={`/api/programs/${program.id}/compliance/export?format=dpia-docx`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold transition-colors hover:bg-accent"
-                  >
-                    <Download className="h-3 w-3" />
-                    DPIA draft (Word)
-                  </a>
+            {programs.map((program) => {
+              const dpia = dpiaByProgram.get(program.id);
+              return (
+                <div
+                  key={program.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{program.name}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {dpia
+                        ? `${dpia} saved DPIA revision${dpia === 1 ? "" : "s"}`
+                        : "No saved DPIA draft"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`/api/programs/${program.id}/compliance/export?format=technical-pdf`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold transition-colors hover:bg-accent"
+                    >
+                      <FileText className="h-3 w-3" />
+                      Technical docs (PDF)
+                    </a>
+                    <Link
+                      href={`/governance/dpia/${program.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-semibold transition-colors hover:bg-accent"
+                    >
+                      <FileText className="h-3 w-3" />
+                      {dpia ? "Open saved DPIA drafts" : "Create DPIA draft"}
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </PanelSection>

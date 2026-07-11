@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "KI-Hinweis",
+    "message": "Sie interagieren mit KI. KI-generierte Ausgaben können ungenau sein; prüfen Sie wichtige Ergebnisse."
+  },
   "nav": {
     "home": "Startseite",
     "workspaces": "Arbeitsbereiche",

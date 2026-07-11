@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "Informacja o AI",
+    "message": "Wchodzisz w interakcję ze sztuczną inteligencją. Wyniki generowane przez AI mogą być niedokładne; sprawdzaj ważne rezultaty."
+  },
   "nav": {
     "home": "Strona główna",
     "workspaces": "Przestrzenie robocze",

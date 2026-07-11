@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "Information IA",
+    "message": "Vous interagissez avec une IA. Les contenus générés par l’IA peuvent être inexacts ; vérifiez les résultats importants."
+  },
   "nav": {
     "home": "Accueil",
     "workspaces": "Espaces de travail",

@@ -1,4 +1,8 @@
 {
+  "aiDisclosure": {
+    "title": "AI-melding",
+    "message": "U communiceert met AI. Door AI gegenereerde uitvoer kan onjuist zijn; controleer belangrijke resultaten."
+  },
   "nav": {
     "home": "Home",
     "workspaces": "Werkruimten",

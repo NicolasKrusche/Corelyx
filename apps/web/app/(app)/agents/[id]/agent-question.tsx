@@ -6,6 +6,7 @@ import { HelpCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
+import { AiIdentityBadge } from "@/components/ai-transparency";
 
 /**
  * Inline card for answering a question an agent asked mid-run (corelyx.ask_user).
@@ -49,6 +50,7 @@ export function AgentQuestion({ approvalId, question }: { approvalId: string; qu
         <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
           The agent needs your input
         </p>
+        <AiIdentityBadge label="AI agent" />
       </div>
       <div className="space-y-3 px-5 py-4">
         <p className="text-sm text-foreground/90">{question}</p>
