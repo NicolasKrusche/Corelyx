@@ -1,6 +1,6 @@
 {
   "name": "corelyx-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Corelyx Desktop — Tauri shell + local file Bridge.",
   "comment": "Standalone (excluded from the pnpm workspace): run npm/pnpm install here directly. Requires the Rust toolchain + Tauri prerequisites.",

@@ -1,6 +1,6 @@
 [package]
 name = "corelyx-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Corelyx Desktop Bridge — runs local file operations for Corelyx workflows."
 authors = ["Corelyx"]
 edition = "2021"
