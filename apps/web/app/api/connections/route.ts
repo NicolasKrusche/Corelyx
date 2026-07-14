@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
-import { apiError } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
 
 const COMMON_METADATA_KEYS = ["email"] as const;
@@ -57,16 +56,18 @@ function sanitizeMetadataForClient(
 
 // GET /api/connections — connections in the active workspace.
 export async function GET() {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getAuthUser (not the cookie-only supabase.auth.getUser) so device-token
+  // clients (Corelyx Mobile) work; the query then runs on the service client
+  // with the same explicit workspace scoping RLS would have enforced
+  // (getActiveWorkspace resolves membership, and we filter by that workspace).
+  const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
   const ws = await getActiveWorkspace(user.id);
   if (!ws) return apiError("No active workspace", 400);
 
-  const { data, error } = await supabase
+  const service = createServiceClient();
+  const { data, error } = await service
     .from("connections")
     .select("id, name, provider, auth_type, scopes, metadata, is_valid, last_validated_at, created_at, user_id, workspace_id")
     .eq("workspace_id", ws.workspaceId)

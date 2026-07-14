@@ -2,6 +2,7 @@ import { NonRetriableError, cron } from "inngest";
 import { inngest } from "@/lib/inngest";
 import { createServiceClient } from "@/lib/api";
 import { sendApprovalEmail, sendAgentQuestionEmail } from "@/lib/email";
+import { notifyUserPush } from "@/lib/notify";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
 
 type PendingApproval = {
@@ -95,13 +96,27 @@ export const approvalNotifier = inngest.createFunction(
                 question: approval.context.question ?? "Your agent needs your input to continue.",
               });
             }
-          } else if (await isNotificationEnabled(approval.user_id, "approvals")) {
-            await sendApprovalEmail({
-              to: email,
-              nodeLabel,
-              programName,
-              approvalId: approval.id,
-              reason,
+            // Push mirror (self-gated on the push channel pref). Same notified_at
+            // idempotency below covers both channels.
+            void notifyUserPush(approval.user_id, "agent_reports", {
+              title: `${programName} needs your input`,
+              body: (approval.context.question ?? "Your agent asked a question.").slice(0, 140),
+              data: { kind: "agent_question", approval_id: approval.id, program_id: approval.context.program_id },
+            });
+          } else {
+            if (await isNotificationEnabled(approval.user_id, "approvals")) {
+              await sendApprovalEmail({
+                to: email,
+                nodeLabel,
+                programName,
+                approvalId: approval.id,
+                reason,
+              });
+            }
+            void notifyUserPush(approval.user_id, "approvals", {
+              title: "Approval needed",
+              body: `${nodeLabel} in ${programName} is waiting for your approval.`.slice(0, 140),
+              data: { kind: "approval", approval_id: approval.id },
             });
           }
         } catch (err) {

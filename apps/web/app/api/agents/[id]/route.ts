@@ -2,6 +2,125 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
 
+// GET /api/agents/[id] — agent detail for Corelyx Mobile. Read-only mirror of
+// the /agents/[id] server page: program + latest run + reports + pending
+// questions + capabilities from schema.metadata.capabilities.
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: programId } = await params;
+  const user = await getAuthUser();
+  if (!user) return apiError("Unauthorized", 401);
+
+  const access = await getProgramAccess(programId, user.id);
+  if (!canView(access)) return apiError("Agent not found", 404);
+
+  const service = createServiceClient() as ReturnType<typeof createServiceClient> & { from(t: string): any };
+
+  const { data: prog } = await service
+    .from("programs")
+    .select("id, name, description, program_type, agent_state, created_at, schema")
+    .eq("id", programId)
+    .maybeSingle();
+
+  const program = prog as {
+    id: string;
+    name: string;
+    description: string | null;
+    program_type: string | null;
+    agent_state: string | null;
+    created_at: string;
+    schema: Record<string, unknown> | null;
+  } | null;
+
+  if (!program || program.program_type !== "agent") return apiError("Agent not found", 404);
+
+  const state = program.agent_state ?? "draft";
+  const schemaMeta = (program.schema?.metadata && typeof program.schema.metadata === "object"
+    ? (program.schema.metadata as Record<string, unknown>)
+    : {});
+  const capabilities = (schemaMeta.capabilities && typeof schemaMeta.capabilities === "object"
+    ? (schemaMeta.capabilities as Record<string, unknown>)
+    : {});
+
+  // Scheduled when any active trigger is non-manual (mirrors the /agents list).
+  const { data: trigRows } = await service
+    .from("triggers")
+    .select("type, is_active")
+    .eq("program_id", programId)
+    .eq("is_active", true);
+  const scheduled = ((trigRows ?? []) as Array<{ type: string }>).some((t) => t.type !== "manual");
+
+  const { data: runRows } = await service
+    .from("runs")
+    .select("id, status, error_message, triggered_by, created_at, estimated_cost_usd")
+    .eq("program_id", programId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const latestRun = (runRows?.[0] ?? null) as {
+    id: string;
+    status: string;
+    error_message: string | null;
+    triggered_by: string | null;
+    created_at: string;
+    estimated_cost_usd: number | null;
+  } | null;
+
+  let reports: Array<{
+    id: string;
+    title: string;
+    body: string;
+    data: unknown;
+    dry_run: boolean;
+    created_at: string;
+  }> = [];
+  let pendingQuestions: Array<{ id: string; question: string }> = [];
+
+  if (latestRun) {
+    const { data: nodeExecs } = await service
+      .from("node_executions")
+      .select("id")
+      .eq("run_id", latestRun.id);
+    const nodeExecIds = ((nodeExecs ?? []) as Array<{ id: string | null }>)
+      .map((ne) => ne.id)
+      .filter((id): id is string => Boolean(id));
+
+    const { data: reportRows } = await service
+      .from("agent_reports")
+      .select("id, title, body, data, dry_run, created_at")
+      .eq("run_id", latestRun.id)
+      .order("created_at", { ascending: true });
+    reports = (reportRows ?? []) as typeof reports;
+
+    // Pending questions the agent asked mid-run (corelyx.ask_user) — the run is
+    // paused until these are answered.
+    if (nodeExecIds.length > 0) {
+      const { data: questionRows } = await service
+        .from("approvals")
+        .select("id, status, context, node_execution_id")
+        .in("node_execution_id", nodeExecIds)
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+      pendingQuestions = ((questionRows ?? []) as Array<{ id: string; context: Record<string, unknown> | null }>)
+        .filter((r) => r.context?.kind === "question" && typeof r.context?.question === "string")
+        .map((r) => ({ id: r.id, question: r.context!.question as string }));
+    }
+  }
+
+  return NextResponse.json({
+    agent: {
+      id: program.id,
+      name: program.name,
+      description: program.description,
+      state,
+      createdAt: program.created_at,
+      scheduled,
+      capabilities,
+    },
+    latestRun,
+    reports,
+    pendingQuestions,
+  });
+}
+
 // PATCH /api/agents/[id] — update agent lifecycle settings.
 // Body: { agent_saved_template?: boolean, agent_discard_after_run?: boolean }
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

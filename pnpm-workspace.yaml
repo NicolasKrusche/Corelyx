@@ -5,4 +5,9 @@ packages:
   # It stays in the monorepo for atomic schema/runtime/web/desktop PRs, but is kept
   # out of the JS workspace install/CI — same precedent as apps/runtime (Python).
   - "!apps/desktop"
+  # apps/mobile is an Expo (React Native) app. Metro's module resolution fights
+  # pnpm workspace symlink hoisting, and the app talks to the web app over HTTP
+  # (no compile-time coupling to packages/schema), so it manages its own deps and
+  # stays out of the JS workspace/CI — same precedent as apps/desktop.
+  - "!apps/mobile"
   - "packages/*"

@@ -306,7 +306,57 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const program_id = searchParams.get("program_id");
-  if (!program_id) return apiError("Missing program_id", 400);
+
+  // No program_id → cross-workspace recent-runs feed for the active workspace
+  // (mirrors the /runs dashboard page: workspace program ids → runs desc, with
+  // the program name). When program_id IS given, behaviour below is unchanged.
+  if (!program_id) {
+    const feedService = createServiceClient();
+    const feedWs = await getActiveWorkspace(user.id);
+
+    let programIds: string[] = [];
+    if (feedWs) {
+      const { data: programsRaw } = await feedService
+        .from("programs")
+        .select("id")
+        .eq("workspace_id", feedWs.workspaceId);
+      programIds = ((programsRaw ?? []) as Array<{ id: string }>).map((p) => p.id);
+    }
+
+    type FeedRunRow = {
+      id: string;
+      program_id: string;
+      status: string;
+      triggered_by: string;
+      started_at: string | null;
+      completed_at: string | null;
+      error_message: string | null;
+      created_at: string;
+      programs: { name: string } | null;
+    };
+
+    const { data: feedRaw, error: feedError } = await feedService
+      .from("runs")
+      .select("id, program_id, status, triggered_by, started_at, completed_at, error_message, created_at, programs(name)")
+      .in("program_id", programIds.length > 0 ? programIds : ["__none__"])
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (feedError) return apiError(feedError.message, 500);
+
+    const feedRuns = ((feedRaw ?? []) as unknown as FeedRunRow[]).map((r) => ({
+      id: r.id,
+      program_id: r.program_id,
+      program_name: r.programs?.name ?? null,
+      status: r.status,
+      triggered_by: r.triggered_by,
+      started_at: r.started_at,
+      completed_at: r.completed_at,
+      error_message: r.error_message,
+      created_at: r.created_at,
+    }));
+    return NextResponse.json({ runs: feedRuns });
+  }
 
   const access = await getProgramAccess(program_id, user.id);
   if (!canView(access)) return apiError("Program not found", 404);

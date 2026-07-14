@@ -142,11 +142,12 @@ function timeAgo(iso: string): string {
 // A daily cron only "runs" for seconds a day, so last-run recency alone reads
 // as stale for the other 23+ hours. Showing when it fires next makes an
 // enabled schedule obviously alive regardless of when it last fired.
-function timeUntil(iso: string): string {
+// Returns null when the occurrence is due or overdue (the scheduler fires or
+// skips it on its next sweep).
+function timeUntil(iso: string): string | null {
   const diff = new Date(iso).getTime() - Date.now();
-  if (diff <= 0) return "due now";
   const mins = Math.round(diff / 60000);
-  if (mins < 1) return "due now";
+  if (mins < 1) return null;
   if (mins < 60) return `${mins}m`;
   const hrs = Math.round(mins / 60);
   if (hrs < 24) return `${hrs}h`;
@@ -154,7 +155,12 @@ function timeUntil(iso: string): string {
 }
 
 function ScheduleBadge({ schedule }: { schedule: ProgramSchedule }) {
-  const label = schedule.nextRunAt ? `Next run in ${timeUntil(schedule.nextRunAt)}` : "Runs automatically";
+  const until = schedule.nextRunAt ? timeUntil(schedule.nextRunAt) : null;
+  const label = schedule.nextRunAt
+    ? until
+      ? `Next run in ${until}`
+      : "Next run due now"
+    : "Runs automatically";
   const title = schedule.nextRunAt
     ? `Next scheduled run: ${new Date(schedule.nextRunAt).toLocaleString()}`
     : "Triggered automatically (event-driven), not on a fixed schedule.";

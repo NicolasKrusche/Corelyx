@@ -21,17 +21,20 @@ export async function recordTriggerEvent(opts: {
 }): Promise<void> {
   try {
     const db = createServiceClient();
-    const { error } = await db
-      .from("trigger_events")
-      .insert({
-        trigger_id: opts.triggerId,
-        program_id: opts.programId,
-        run_id: opts.runId ?? null,
-        source: opts.source,
-        status: opts.status,
-        message: opts.message ?? null,
-        payload: opts.payload ?? null,
-      } as never);
+    // Only include payload when one was captured: PostgREST rejects the whole
+    // insert if the column list references a column the live DB doesn't have,
+    // so an always-present `payload: null` turns schema drift into silently
+    // losing every trigger event.
+    const row: Record<string, unknown> = {
+      trigger_id: opts.triggerId,
+      program_id: opts.programId,
+      run_id: opts.runId ?? null,
+      source: opts.source,
+      status: opts.status,
+      message: opts.message ?? null,
+    };
+    if (opts.payload !== undefined && opts.payload !== null) row.payload = opts.payload;
+    const { error } = await db.from("trigger_events").insert(row as never);
     if (error) console.warn("[trigger-events] insert failed:", error.message);
   } catch (error) {
     console.warn(

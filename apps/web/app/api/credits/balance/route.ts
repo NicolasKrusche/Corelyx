@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { apiError } from "@/lib/api";
-import { createServerClient } from "@/lib/supabase/server";
+import { apiError, getAuthUser } from "@/lib/api";
 import { getUserCreditBalance } from "@/lib/credits";
 
 // GET /api/credits/balance
 // Returns the current user's platform AI credit balance.
 export async function GET() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // getAuthUser (not the cookie-only supabase.auth.getUser) so device-token
+  // clients (Corelyx Mobile) can read the balance too.
+  const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
   try {

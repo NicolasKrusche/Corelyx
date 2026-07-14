@@ -72,6 +72,12 @@ function globToRegExp(glob: string): RegExp {
  * The workspace's default device for watches that don't name one: the most
  * recently seen, non-revoked device. Mirrors the runtime's resolve_default_device
  * so only one device acts on a null-device watch (no double-watching).
+ *
+ * Mobile devices (ios/android) are EXCLUDED: only the desktop Bridge can execute
+ * file operations / watch folders, and a phone — which phones home often — would
+ * otherwise become "most recently seen" and silently hijack file-op routing to a
+ * device that can't run it. Keep this filter in lockstep with the runtime's
+ * resolve_default_device (apps/runtime/db.py).
  */
 export async function resolveDefaultDeviceId(
   db: AnyDb,
@@ -82,6 +88,9 @@ export async function resolveDefaultDeviceId(
     .select("id")
     .eq("workspace_id", workspaceId)
     .is("revoked_at", null)
+    // Allowlist (not a denylist) so an unknown future platform fails SAFE — never
+    // routed a file op — matching the runtime's _FILE_OP_CAPABLE_PLATFORMS.
+    .in("platform", ["macos", "windows", "linux", "unknown"])
     .order("last_seen_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();

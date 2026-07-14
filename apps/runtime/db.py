@@ -683,25 +683,36 @@ async def get_credential(ref: str, user_id: str) -> dict:
 FILE_OPERATION_TTL_MINUTES = 30
 
 
+# Platforms whose devices run the desktop Bridge and can execute file operations.
+# Mobile devices (ios/android) live in the same table for push 2FA but must NEVER
+# become the file-op "default device" — they can't run file ops. Keep this in
+# lockstep with resolveDefaultDeviceId (apps/web/lib/triggers/file-watch.ts).
+_FILE_OP_CAPABLE_PLATFORMS = {"macos", "windows", "linux", "unknown"}
+
+
 def resolve_default_device(db: Client, workspace_id: str) -> Optional[str]:
     """Pick the device a file node should target when none is pinned.
 
     Returns the id of the workspace's most-recently-seen active (non-revoked)
-    device, or None when the workspace has no usable device paired.
+    desktop Bridge device, or None when the workspace has no usable device paired.
+    Mobile (ios/android) devices are excluded — they cannot execute file ops.
     """
     if not workspace_id:
         return None
     try:
         result = (
             db.table("devices")
-            .select("id, last_seen_at, paired_at")
+            .select("id, platform, last_seen_at, paired_at")
             .eq("workspace_id", workspace_id)
             .is_("revoked_at", "null")
             .execute()
         )
     except Exception:
         return None
-    rows = result.data or []
+    rows = [
+        r for r in (result.data or [])
+        if r.get("platform") in _FILE_OP_CAPABLE_PLATFORMS
+    ]
     if not rows:
         return None
 
@@ -741,7 +752,7 @@ async def enqueue_file_operation(
         raise ValueError("A target device is required for a file operation.")
     owned = (
         db.table("devices")
-        .select("id")
+        .select("id, platform")
         .eq("id", device_id)
         .eq("workspace_id", workspace_id)
         .is_("revoked_at", "null")
@@ -750,6 +761,11 @@ async def enqueue_file_operation(
     )
     if not owned.data:
         raise ValueError("Target device is not a usable device in this workspace.")
+    # A pinned device_id bypasses resolve_default_device, so re-assert the
+    # platform guard here: a phone (ios/android) can never run file ops, and the
+    # Bridge would never claim the row — it would just stall and time out.
+    if owned.data[0].get("platform") not in _FILE_OP_CAPABLE_PLATFORMS:
+        raise ValueError("Target device cannot execute file operations.")
 
     expires_at = (
         datetime.now(timezone.utc) + timedelta(minutes=max(1, ttl_minutes))
