@@ -50,6 +50,13 @@ const EXEMPT_PREFIXES = [
   // stall file operations + folder watches for the whole maintenance window — and
   // it's a trusted background worker, like the internal runtime callbacks above.
   "/api/bridge/",
+  // The Corelyx Mobile bootstrap/registration routes authenticate a verified
+  // Supabase access token or a crlxmob_ device token in-handler (no cookie
+  // session, so never the bypass admin). The phone is a trusted first-party
+  // client — monitoring, approvals, and 2FA must survive a maintenance window.
+  // (Its calls to shared /api/* routes are exempted via the crlxmob_ bearer
+  // check below.)
+  "/api/mobile/",
   // Desktop download + auto-update must keep working during maintenance (the
   // updater has no session; users may still want to install).
   "/api/desktop/",
@@ -64,6 +71,17 @@ const EXEMPT_PREFIXES = [
 
 function isExempt(pathname: string): boolean {
   return EXEMPT_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+/**
+ * A signed-in Corelyx Mobile app calls the shared /api/* routes with a crlxmob_
+ * device token. Like the desktop Bridge, it's trusted first-party traffic that
+ * should keep working during a maintenance window (an invalid token is still
+ * rejected with 401 by the route, so exempting it here leaks nothing).
+ */
+function isTrustedMobileRequest(request: NextRequest): boolean {
+  const auth = request.headers.get("authorization") ?? "";
+  return /^Bearer\s+crlxmob_/i.test(auth.trim());
 }
 
 /** Minimal HTML escaping for values interpolated into the maintenance page. */
@@ -206,7 +224,7 @@ export async function maintenanceGate(request: NextRequest): Promise<NextRespons
       }
     }
 
-    if (isExempt(pathname)) return null;
+    if (isExempt(pathname) || isTrustedMobileRequest(request)) return null;
 
     const { userId, email } = await readSessionIdentity(request);
     if (await isMaintenanceBypassAdmin(userId, email)) {

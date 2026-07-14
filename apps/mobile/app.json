@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Corelyx",
+    "slug": "corelyx-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "corelyx",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#131315"
+    },
+    "ios": {
+      "bundleIdentifier": "app.corelyx.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "app.corelyx.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "versionCode": 2
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#ea580c"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "c2b6f448-e144-4185-90bb-9016cdb5edd4"
+      }
+    },
+    "owner": "corelyx"
+  }
+}

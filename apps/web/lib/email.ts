@@ -897,6 +897,13 @@ export async function sendTwoFactorCodeEmail({
   to: string;
   code: string;
 }): Promise<void> {
+  // Dev affordance: when email isn't configured (local dev with no RESEND_API_KEY)
+  // the send below silently no-ops and the user would never get their code. Print
+  // it to the server terminal so local sign-in / 2FA testing works. Never runs in
+  // production (RESEND_API_KEY is set there).
+  if (!process.env.RESEND_API_KEY && process.env.NODE_ENV !== "production") {
+    console.log(`\n[2fa][dev] Sign-in code for ${to}: ${code}\n`);
+  }
   await sendEmail({
     to,
     subject: `${code} is your Corelyx sign-in code`,

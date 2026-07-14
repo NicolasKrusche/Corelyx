@@ -24,19 +24,20 @@ export function AgentsUpsell({ showBack = false }: { showBack?: boolean }) {
             <Bot className="h-5 w-5 text-primary" />
           </span>
           <div>
-            <p className="text-base font-bold">AI agents are a Solo feature</p>
+            <p className="text-base font-bold">Let an agent manage your workflows and account</p>
             <p className="text-sm text-muted-foreground">
-              Hand off a one-time task — the agent plans it, you approve, it runs once.
+              A Solo feature: describe what you need, the agent plans it, you approve, it runs.
             </p>
           </div>
         </div>
 
         <div className="space-y-3 px-6 py-5">
           {[
-            "Describe a task in plain language and get an executable plan to approve",
+            "Ask an agent to build, edit, or turn workflows on/off for you — no editor required",
+            "Agents check your account: run history, connected apps, usage — and act on what they find",
             "Agents reason and act on your connected apps — Slack, HubSpot, Gmail and more",
             "Dry-run first: read-only steps run, write actions are simulated",
-            "Counts against your monthly runs — no separate agent quota",
+            "Counts against your monthly runs; on platform keys, LLM usage draws from your AI credits — bring your own key and it's free",
           ].map((line) => (
             <div key={line} className="flex items-start gap-2.5">
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />

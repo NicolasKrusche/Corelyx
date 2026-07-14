@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { sendRunFailureEmail, sendAgentReportEmail } from "@/lib/email";
+import { notifyUserPush } from "@/lib/notify";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
 import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
@@ -132,6 +133,12 @@ export async function POST(
               summary,
             });
           }
+          // Push mirrors the email (self-gated on the push channel pref).
+          void notifyUserPush(user_id, "agent_reports", {
+            title: `${agentName} finished`,
+            body: (report?.title ?? "Your agent completed its run.").slice(0, 140),
+            data: { kind: "agent_report", program_id, run_id: params.id },
+          });
         } catch {
           serverLog({ level: "error", event: "runs.complete.agent_report_email_failed", message: "Agent report notification email could not be sent." });
         }
@@ -190,6 +197,12 @@ export async function POST(
           triggeredBy: triggered_by,
         });
       }
+      // Push mirrors the email (self-gated on the push channel pref).
+      void notifyUserPush(user_id, "run_failures", {
+        title: "Run failed",
+        body: `${programName} failed${error_message ? `: ${String(error_message).slice(0, 100)}` : ""}`,
+        data: { kind: "run_failure", run_id: params.id, program_id },
+      });
     } catch (err) {
       serverLog({ level: "error", event: "runs.complete.failure_email_send_failed", message: "Run failure notification email could not be sent." });
     }

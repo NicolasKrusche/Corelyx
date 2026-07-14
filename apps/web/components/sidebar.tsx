@@ -1476,8 +1476,11 @@ function SettingsModal({
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // Email 2FA toggle — null while the current state is loading.
+  // 2FA toggle — null while the current state is loading.
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(null);
+  const [guardRegistered, setGuardRegistered] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState<"guard" | "email">("email");
+  const [methodBusy, setMethodBusy] = useState(false);
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
   const [twoFactorStatus, setTwoFactorStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [signOutAllBusy, setSignOutAllBusy] = useState(false);
@@ -1487,8 +1490,12 @@ function SettingsModal({
     let cancelled = false;
     void fetch("/api/settings/two-factor")
       .then((res) => (res.ok ? res.json() : null))
-      .then((body: { enabled?: boolean } | null) => {
-        if (!cancelled && body) setTwoFactorEnabled(Boolean(body.enabled));
+      .then((body: { enabled?: boolean; guard_registered?: boolean; method?: string } | null) => {
+        if (!cancelled && body) {
+          setTwoFactorEnabled(Boolean(body.enabled));
+          setGuardRegistered(Boolean(body.guard_registered));
+          if (body.method === "guard" || body.method === "email") setTwoFactorMethod(body.method);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -1511,8 +1518,8 @@ function SettingsModal({
       setTwoFactorStatus({
         type: "success",
         message: next
-          ? "Email sign-in codes are now required when you log in."
-          : "Email sign-in codes are turned off.",
+          ? "Two-factor authentication is on. Approve sign-ins with Corelyx Guard on your phone, or use an emailed code."
+          : "Two-factor authentication is turned off.",
       });
     } else {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -1521,11 +1528,40 @@ function SettingsModal({
     setTwoFactorBusy(false);
   }
 
+  async function handleSetMethod(method: "guard" | "email") {
+    if (methodBusy || method === twoFactorMethod) return;
+    setMethodBusy(true);
+    setTwoFactorStatus(null);
+    const res = await fetch("/api/settings/two-factor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method }),
+    });
+    if (res.ok) {
+      setTwoFactorMethod(method);
+      setTwoFactorStatus({
+        type: "success",
+        message:
+          method === "guard"
+            ? "You'll approve sign-ins with Corelyx Guard on your phone (email codes stay available as a backup)."
+            : "You'll receive a 6-digit code by email at each sign-in.",
+      });
+    } else {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setTwoFactorStatus({ type: "error", message: body.error ?? "Could not update your method." });
+    }
+    setMethodBusy(false);
+  }
+
   async function handleSignOutEverywhere() {
     setSignOutAllBusy(true);
     setSignOutAllError(null);
     const supabase = createBrowserClient();
     try {
+      // Also revoke mobile devices (Supabase's global sign-out only kills refresh
+      // tokens — the crlxmob_ device tokens and push tokens live in our devices
+      // table). Best-effort: never block sign-out on it.
+      await fetch("/api/mobile/revoke-all", { method: "POST" }).catch(() => {});
       // Global scope revokes every session for this user, including this one.
       // signOut returns failures rather than throwing them; on failure auth-js
       // keeps the local session, so redirecting anyway would bounce straight
@@ -2275,9 +2311,60 @@ function SettingsModal({
                 <section className={panelClass}>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Two-factor authentication</p>
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Require a 6-digit code sent to your email each time you sign in on a new device.
-                    An authenticator app option is coming with the Corelyx mobile app.
+                    Add a second step to every sign-in on a new device. Approve it in one tap with the
+                    Corelyx Guard mobile app, or get a 6-digit code by email as a backup.
                   </p>
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
+                    <span className="text-muted-foreground">
+                      {guardRegistered
+                        ? "Corelyx Guard is set up on your phone — sign-in requests are sent there to approve."
+                        : "Install the Corelyx mobile app and sign in to approve sign-ins from your phone. Until then, codes are sent by email."}
+                    </span>
+                  </div>
+                  <Link href="/download" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                    Get the Corelyx mobile app →
+                  </Link>
+                  {twoFactorEnabled ? (
+                    <div className="mt-4">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">Verify with</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleSetMethod("guard")}
+                          disabled={methodBusy || !guardRegistered}
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-left transition-colors",
+                            twoFactorMethod === "guard"
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:bg-muted/40",
+                            !guardRegistered && "cursor-not-allowed opacity-50"
+                          )}
+                        >
+                          <span className="block text-sm font-medium">Corelyx Guard</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {guardRegistered ? "Approve on your phone" : "Install the app first"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleSetMethod("email")}
+                          disabled={methodBusy}
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-left transition-colors",
+                            twoFactorMethod === "email"
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:bg-muted/40"
+                          )}
+                        >
+                          <span className="block text-sm font-medium">Email code</span>
+                          <span className="block text-xs text-muted-foreground">6-digit code by email</span>
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Email codes are always available as a backup, so you can&apos;t get locked out.
+                      </p>
+                    </div>
+                  ) : null}
                   {twoFactorStatus && (
                     <p className={cn("mt-3 text-xs", twoFactorStatus.type === "success" ? "text-green-600" : "text-red-600")}>{twoFactorStatus.message}</p>
                   )}
@@ -2292,8 +2379,8 @@ function SettingsModal({
                       : twoFactorBusy
                         ? "Saving..."
                         : twoFactorEnabled
-                          ? "Disable email codes"
-                          : "Enable email codes"}
+                          ? "Turn off two-factor"
+                          : "Turn on two-factor"}
                   </button>
                 </section>
 

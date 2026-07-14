@@ -9,7 +9,10 @@ import {
   TWO_FACTOR_METADATA_KEY,
 } from "@/lib/auth/two-factor";
 
-// GET /api/settings/two-factor — current email-2FA state for the settings UI.
+// GET /api/settings/two-factor — current 2FA state for the settings UI, plus
+// whether a Corelyx Guard (mobile) device is registered. When 2FA is on, a
+// registered phone becomes the primary method (push approval) and the emailed
+// code is the fallback.
 export async function GET() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -21,7 +24,32 @@ export async function GET() {
     .select("email_2fa_enabled")
     .eq("id", user.id)
     .single<{ email_2fa_enabled: boolean | null }>();
-  return NextResponse.json({ enabled: Boolean(data?.email_2fa_enabled) });
+
+  const { count } = await (service as unknown as {
+    from(t: string): {
+      select(c: string, o: { count: "exact"; head: true }): {
+        eq(c: string, v: string): {
+          in(c: string, v: string[]): { is(c: string, v: null): Promise<{ count: number | null }> };
+        };
+      };
+    };
+  })
+    .from("devices")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .in("platform", ["ios", "android"])
+    .is("revoked_at", null);
+
+  const guardRegistered = (count ?? 0) > 0;
+  const stored = (user.app_metadata as Record<string, unknown> | undefined)?.two_factor_method;
+  const method: "guard" | "email" =
+    stored === "guard" || stored === "email" ? stored : guardRegistered ? "guard" : "email";
+
+  return NextResponse.json({
+    enabled: Boolean(data?.email_2fa_enabled),
+    guard_registered: guardRegistered,
+    method,
+  });
 }
 
 // POST /api/settings/two-factor { enabled: boolean } — toggle email 2FA.
@@ -32,7 +60,27 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  const body = (await request.json().catch(() => null)) as { enabled?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { enabled?: unknown; method?: unknown } | null;
+
+  // Verification-method preference (Corelyx Guard push vs email code). Stored in
+  // app_metadata (service-role-only, no schema migration). Separate operation
+  // from the on/off toggle below. Email always remains an emergency fallback at
+  // sign-in, so choosing 'guard' can never lock the user out.
+  if (typeof body?.method === "string") {
+    if (body.method !== "guard" && body.method !== "email") {
+      return apiError("method must be 'guard' or 'email'.", 400);
+    }
+    const svc = createServiceClient();
+    try {
+      await svc.auth.admin.updateUserById(user.id, {
+        app_metadata: { ...(user.app_metadata ?? {}), two_factor_method: body.method },
+      });
+    } catch {
+      return apiError("Could not update your verification method.", 500);
+    }
+    return NextResponse.json({ method: body.method });
+  }
+
   if (typeof body?.enabled !== "boolean") return apiError("enabled must be a boolean.", 400);
   const enabled = body.enabled;
 

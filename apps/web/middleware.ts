@@ -63,6 +63,53 @@ async function resolvePersonalToken(
   return { userId: rows[0].user_id, tokenId: rows[0].id };
 }
 
+// ─── Mobile device token auth (crlxmob_) ──────────────────────────────────────
+
+const MOBILE_TOKEN_PREFIX = "crlxmob_";
+
+/**
+ * Validates a crlxmob_ mobile device token against the devices table (must be a
+ * non-revoked ios/android row). Returns the owning user_id on success. Mirrors
+ * resolvePersonalToken — Edge-safe direct REST, no JS client. The Corelyx Mobile
+ * app presents this token; middleware injects x-token-user-id so getAuthUser()
+ * resolves the user (the phone is a revocable possession factor, so it takes the
+ * same 2FA-exempt programmatic path as personal API tokens).
+ */
+async function resolveMobileToken(token: string): Promise<{ userId: string } | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) return null;
+
+  const hash = await sha256Hex(token);
+
+  const url = `${supabaseUrl}/rest/v1/devices?token_hash=eq.${encodeURIComponent(hash)}&revoked_at=is.null&platform=in.(ios,android)&select=id,user_id&limit=1`;
+  const res = await fetch(url, {
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) return null;
+  const rows = (await res.json()) as Array<{ id: string; user_id: string }>;
+  if (!rows[0]) return null;
+
+  // Fire-and-forget last_seen_at update (non-blocking).
+  fetch(`${supabaseUrl}/rest/v1/devices?id=eq.${rows[0].id}`, {
+    method: "PATCH",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({ last_seen_at: new Date().toISOString() }),
+  }).catch(() => {/* best-effort */});
+
+  return { userId: rows[0].user_id };
+}
+
 const PUBLIC_ROUTES = [
   "/login",
   "/signup",
@@ -187,6 +234,16 @@ export async function middleware(request: NextRequest) {
         }
         // Invalid token — reject immediately rather than falling through to cookie check
         return NextResponse.json({ error: "Invalid or expired API token." }, { status: 401 });
+      }
+      if (token.startsWith(MOBILE_TOKEN_PREFIX)) {
+        const resolved = await resolveMobileToken(token);
+        if (resolved) {
+          requestHeaders.set("x-token-user-id", resolved.userId);
+          const response = NextResponse.next({ request: { headers: requestHeaders } });
+          applySecurityHeaders(response.headers, nonce);
+          return response;
+        }
+        return NextResponse.json({ error: "Invalid or revoked device token." }, { status: 401 });
       }
     }
   }

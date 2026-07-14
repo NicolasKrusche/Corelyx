@@ -6,6 +6,7 @@ import { getRuntimeUrl } from "@/lib/runtime-url";
 import { buildRuntimeExecuteHeaders } from "@/lib/runtime-dispatch";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
 import { sendSecurityAlertEmail } from "@/lib/email";
+import { notifyUserPush } from "@/lib/notify";
 import { ProgramSchemaZ } from "@flowos/schema";
 
 // Executes account-orchestration tools on behalf of an agent_task node. The
@@ -900,6 +901,13 @@ async function flagCritical(
         });
       }
     }
+    // Push mirror — security_alerts is always-on, so this always fires when a
+    // device is registered.
+    void notifyUserPush(userId, "security_alerts", {
+      title: "A message was flagged for review",
+      body: (subject || reason || "An agent flagged something for you.").slice(0, 140),
+      data: { kind: "agent_flag" },
+    });
   } catch {
     /* notification is best-effort */
   }
