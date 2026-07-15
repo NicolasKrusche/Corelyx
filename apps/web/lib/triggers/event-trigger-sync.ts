@@ -72,9 +72,54 @@ export function desiredEventTriggersFromSchema(schema: unknown): DesiredEventTri
   return desired;
 }
 
+/**
+ * Serialize with object keys sorted recursively. Postgres jsonb does NOT
+ * preserve key order (it canonicalizes keys by length, then bytewise), so a
+ * config read back from the DB never stringifies byte-identical to the freshly
+ * built object. A plain JSON.stringify comparison therefore reported "changed"
+ * on every sync, which rewrote every owned trigger row on every save/page load
+ * — and, for cron rows, re-based next_run_at, silently swallowing any due
+ * occurrence.
+ */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as JsonObject)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
 function configsEqual(a: JsonObject, b: JsonObject | null): boolean {
   if (!b) return false;
-  return JSON.stringify(a) === JSON.stringify(b);
+  return stableStringify(a) === stableStringify(b);
+}
+
+/**
+ * Group rows by their owning node_id (config.node_id), keeping the FIRST row
+ * per node — callers must order rows oldest-first — and collecting later
+ * duplicates for deletion. Duplicates appear when two syncs race the same
+ * first insert (e.g. a page load and an auto-save); without cleanup the stray
+ * row is invisible to reconciliation forever — a duplicate cron row
+ * double-fires the schedule, and a duplicate webhook row keeps a live public
+ * URL that pause/delete never touches.
+ */
+function collectOwnedRows<T extends { id: string; config: JsonObject | null }>(
+  rows: T[]
+): { owned: Map<string, T>; strayIds: string[] } {
+  const owned = new Map<string, T>();
+  const strayIds: string[] = [];
+  for (const row of rows) {
+    const nodeId = row.config && typeof row.config.node_id === "string" ? row.config.node_id : null;
+    if (!nodeId) continue;
+    if (owned.has(nodeId)) strayIds.push(row.id);
+    else owned.set(nodeId, row);
+  }
+  return { owned, strayIds };
 }
 
 /**
@@ -130,13 +175,22 @@ export async function syncEventTriggers(
     .from("triggers")
     .select("id, config, is_active")
     .eq("program_id", programId)
-    .eq("type", "event");
+    .eq("type", "event")
+    .order("created_at", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load event triggers for sync: ${error.message}`);
   }
 
-  const existing = (existingRaw ?? []) as unknown as ExistingEventTriggerRow[];
+  const allRows = (existingRaw ?? []) as unknown as ExistingEventTriggerRow[];
+  // Self-heal duplicate owned rows (racing first-inserts) before planning —
+  // the planner keys rows by node_id and would silently ignore the strays.
+  const { strayIds } = collectOwnedRows(allRows);
+  if (strayIds.length > 0) {
+    await db.from("triggers").delete().in("id", strayIds);
+  }
+  const strays = new Set(strayIds);
+  const existing = allRows.filter((row) => !strays.has(row.id));
   const plan = planEventTriggerSync(schema, existing);
 
   if (plan.toInsert.length > 0) {
@@ -220,7 +274,8 @@ export async function syncCronTriggers(
       .from("triggers")
       .select("id, config, is_active, next_run_at")
       .eq("program_id", programId)
-      .eq("type", "cron");
+      .eq("type", "cron")
+      .order("created_at", { ascending: true });
     if (!enriched.error) {
       existing = (enriched.data ?? []) as unknown as CronRow[];
     } else {
@@ -228,16 +283,18 @@ export async function syncCronTriggers(
         .from("triggers")
         .select("id, config, is_active")
         .eq("program_id", programId)
-        .eq("type", "cron");
+        .eq("type", "cron")
+        .order("created_at", { ascending: true });
       if (base.error) throw new Error(`Failed to load cron triggers for sync: ${base.error.message}`);
       existing = (base.data ?? []) as unknown as CronRow[];
     }
   }
 
-  const owned = new Map<string, CronRow>();
-  for (const row of existing) {
-    const nodeId = row.config && typeof row.config.node_id === "string" ? row.config.node_id : null;
-    if (nodeId) owned.set(nodeId, row);
+  // Self-heal duplicate owned rows — a stray duplicate cron row double-fires
+  // the schedule and is otherwise invisible to this reconciliation.
+  const { owned, strayIds } = collectOwnedRows(existing);
+  if (strayIds.length > 0) {
+    await db.from("triggers").delete().in("id", strayIds);
   }
 
   let inserted = 0, updated = 0, deleted = 0;
@@ -268,8 +325,19 @@ export async function syncCronTriggers(
       (d.is_active && !existing.next_run_at) ||
       (!d.is_active && existing.next_run_at != null)
     ) {
+      // Re-base next_run_at ONLY when the schedule itself changed (or the row
+      // has no schedule yet, e.g. on re-enable after a pause). Unrelated config
+      // edits must not move an already-due occurrence into the future — that
+      // silently skips a fire.
+      const existingConfig = existing.config ?? {};
+      const scheduleChanged =
+        stringField(existingConfig.expression, "") !== d.config.expression ||
+        stringField(existingConfig.timezone, "UTC") !== d.config.timezone;
+
       const updatePayload: Record<string, unknown> = { config: d.config, is_active: d.is_active };
-      if (d.is_active && nextRunAt) updatePayload.next_run_at = nextRunAt;
+      if (d.is_active && nextRunAt && (scheduleChanged || !existing.next_run_at)) {
+        updatePayload.next_run_at = nextRunAt;
+      }
       if (!d.is_active && "next_run_at" in existing) updatePayload.next_run_at = null;
       // Cron claims compare updated_at as a schedule-version guard. Keep that
       // version current whenever schema sync changes config/active state.
@@ -297,6 +365,122 @@ export async function syncCronTriggers(
 
 function computeNextRunAt(expression: string, timezone: string): string | null {
   return nextFiveFieldCronRun(expression, timezone);
+}
+
+// ─── Webhook trigger sync ─────────────────────────────────────────────────────
+
+export interface DesiredWebhookTrigger {
+  node_id: string;
+  config: JsonObject;
+  is_active: boolean;
+}
+
+/**
+ * Build the set of webhook triggers the schema says should exist. Each editor
+ * trigger node of type "webhook" maps to one `triggers` row (keyed by node_id
+ * in its config). The row's webhook_token — and therefore its public URL —
+ * comes from the DB column default on insert.
+ */
+export function desiredWebhookTriggersFromSchema(schema: unknown): DesiredWebhookTrigger[] {
+  if (!isRecord(schema)) return [];
+
+  const nodes = Array.isArray(schema.nodes) ? schema.nodes : [];
+  const triggerStates = Array.isArray(schema.triggers) ? schema.triggers : [];
+
+  const activeByNode = new Map<string, boolean>();
+  for (const state of triggerStates) {
+    if (isRecord(state) && typeof state.node_id === "string") {
+      activeByNode.set(state.node_id, state.is_active !== false);
+    }
+  }
+
+  const desired: DesiredWebhookTrigger[] = [];
+  for (const node of nodes) {
+    if (!isRecord(node) || node.type !== "trigger" || typeof node.id !== "string") continue;
+    const cfg = isRecord(node.config) ? node.config : {};
+    if (cfg.trigger_type !== "webhook") continue;
+
+    const endpointId = typeof cfg.endpoint_id === "string" && cfg.endpoint_id.trim() ? cfg.endpoint_id : null;
+    desired.push({
+      node_id: node.id,
+      config: {
+        trigger_type: "webhook",
+        method: cfg.method === "GET" ? "GET" : "POST",
+        ...(endpointId ? { endpoint_id: endpointId } : {}),
+        node_id: node.id,
+      },
+      is_active: activeByNode.get(node.id) ?? true,
+    });
+  }
+  return desired;
+}
+
+/**
+ * Reconcile the `triggers` table so webhook trigger nodes in the schema each
+ * have a corresponding row. Without this, a webhook trigger node added in the
+ * editor (or generated by Genesis / a template) had no row, no webhook_token,
+ * and no URL — it could never fire. Entitlements are unaffected: the public
+ * webhook endpoint checks trigger access at fire time.
+ */
+export async function syncWebhookTriggers(
+  db: Db,
+  programId: string,
+  schema: unknown
+): Promise<{ inserted: number; updated: number; deleted: number }> {
+  const desired = desiredWebhookTriggersFromSchema(schema);
+
+  const { data: existingRaw, error } = await db
+    .from("triggers")
+    .select("id, config, is_active")
+    .eq("program_id", programId)
+    .eq("type", "webhook")
+    .order("created_at", { ascending: true });
+  if (error) {
+    throw new Error(`Failed to load webhook triggers for sync: ${error.message}`);
+  }
+  const existing = (existingRaw ?? []) as unknown as ExistingEventTriggerRow[];
+
+  // Only rows carrying a node_id are owned by this sync; rows created on the
+  // Triggers page have no node_id and are left untouched. Stray duplicates
+  // (racing first-inserts) are deleted — each carries a live public URL that
+  // pause/delete would otherwise never touch.
+  const { owned, strayIds } = collectOwnedRows(existing);
+  if (strayIds.length > 0) {
+    await db.from("triggers").delete().in("id", strayIds);
+  }
+
+  let inserted = 0,
+    updated = 0,
+    deleted = 0;
+
+  for (const d of desired) {
+    const ex = owned.get(d.node_id);
+    if (!ex) {
+      const { error: insErr } = await db.from("triggers").insert({
+        program_id: programId,
+        type: "webhook",
+        config: d.config,
+        is_active: d.is_active,
+      } as never);
+      if (!insErr) inserted++;
+    } else if (!configsEqual(d.config, ex.config) || ex.is_active !== d.is_active) {
+      await db
+        .from("triggers")
+        .update({ config: d.config, is_active: d.is_active } as never)
+        .eq("id", ex.id);
+      updated++;
+    }
+  }
+
+  const desiredNodeIds = new Set(desired.map((d) => d.node_id));
+  for (const [nodeId, row] of owned) {
+    if (!desiredNodeIds.has(nodeId)) {
+      await db.from("triggers").delete().eq("id", row.id);
+      deleted++;
+    }
+  }
+
+  return { inserted, updated, deleted };
 }
 
 // ─── File-watch trigger sync ──────────────────────────────────────────────────
@@ -367,16 +551,18 @@ export async function syncFileWatchTriggers(
     .from("triggers")
     .select("id, config, is_active")
     .eq("program_id", programId)
-    .eq("type", "file_watch");
+    .eq("type", "file_watch")
+    .order("created_at", { ascending: true });
   if (error) {
     throw new Error(`Failed to load file_watch triggers for sync: ${error.message}`);
   }
   const existing = (existingRaw ?? []) as unknown as ExistingEventTriggerRow[];
 
-  const owned = new Map<string, ExistingEventTriggerRow>();
-  for (const row of existing) {
-    const nodeId = row.config && typeof row.config.node_id === "string" ? row.config.node_id : null;
-    if (nodeId) owned.set(nodeId, row);
+  // Self-heal duplicate owned rows (racing first-inserts) — a stray duplicate
+  // watch double-dispatches every matching file event.
+  const { owned, strayIds } = collectOwnedRows(existing);
+  if (strayIds.length > 0) {
+    await db.from("triggers").delete().in("id", strayIds);
   }
 
   let inserted = 0,

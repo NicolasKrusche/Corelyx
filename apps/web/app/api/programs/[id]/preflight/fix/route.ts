@@ -204,6 +204,12 @@ export async function POST(
   return NextResponse.json({
     ok: true,
     applied: remediation.type,
+    // The fix wrote a new schema + schema_version server-side. The editor must
+    // adopt BOTH: the schema so its local draft includes the fix, and the
+    // version so its next version-guarded autosave is neither rejected as
+    // stale nor silently clobbers this fix with the pre-fix draft.
+    schema: nextSchema,
+    schema_version: nextVersion,
     validation: { result, checks },
   });
 }

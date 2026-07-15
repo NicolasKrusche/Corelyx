@@ -366,6 +366,9 @@ function makePreFlightErrorCheck(
 interface EditorShellProps {
   programId: string;
   initialSchema: ProgramSchema;
+  /** schema_version the loaded schema corresponds to — sent with every save so
+   *  a stale tab cannot silently overwrite changes made elsewhere. */
+  initialSchemaVersion?: number | null;
   initialValidation: ValidationResult | null;
   apiKeys: ApiKey[];
   linkedConnections: { id: string; name: string; provider: string; scopes: string[] }[];
@@ -384,6 +387,7 @@ type EditorContextMenu =
 export function EditorShell({
   programId,
   initialSchema,
+  initialSchemaVersion = null,
   initialValidation,
   apiKeys,
   linkedConnections: initialLinkedConnections,
@@ -672,22 +676,52 @@ export function EditorShell({
 
   // ── Save function ─────────────────────────────────────────────────────────
 
+  // Version of the schema our edits are based on. Sent with every save; the
+  // server rejects the write (409) when the program changed elsewhere (another
+  // tab, the Triggers page, Genesis) instead of silently overwriting it.
+  const schemaVersionRef = useRef<number | null>(initialSchemaVersion);
+
+  // Saves are version-guarded, so two in-flight saves from THIS tab (e.g. Run
+  // pressed while a debounced autosave is mid-flight) would race the same
+  // expected version and one would spuriously 409. Chain them instead.
+  const pendingSaveRef = useRef<Promise<boolean> | null>(null);
+
   const performSave = useCallback(
+    (schema: ProgramSchema): Promise<boolean> => {
+      const chained = (pendingSaveRef.current ?? Promise.resolve(true))
+        .catch(() => false)
+        .then(() => doSaveRef.current(schema));
+      pendingSaveRef.current = chained;
+      return chained;
+    },
+    []
+  );
+
+  const doSave = useCallback(
     async (schema: ProgramSchema): Promise<boolean> => {
       dispatch({ type: "SET_SAVING", saving: true });
       try {
         const res = await fetch(`/api/programs/${programId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schema }),
+          body: JSON.stringify({
+            schema,
+            ...(typeof schemaVersionRef.current === "number"
+              ? { expected_schema_version: schemaVersionRef.current }
+              : {}),
+          }),
         });
         const body = await res.json().catch(() => null) as {
           validation?: ValidationResult;
           error?: string;
           message?: string;
+          program?: { schema_version?: number | null };
         } | null;
 
         if (res.ok) {
+          if (typeof body?.program?.schema_version === "number") {
+            schemaVersionRef.current = body.program.schema_version;
+          }
           if (body?.validation) {
             dispatch({ type: "SET_VALIDATION", result: body.validation });
             const issueCount = body.validation.errors.length + body.validation.warnings.length;
@@ -701,6 +735,19 @@ export function EditorShell({
           }
           dispatch({ type: "MARK_SAVED" });
           return true;
+        } else if (res.status === 409 && body?.error === "SCHEMA_VERSION_CONFLICT") {
+          const message =
+            "This workflow was changed elsewhere (another tab, the Triggers page, or Genesis). Reload the editor to continue — unsaved changes here would overwrite those edits.";
+          setValidationNotice(message);
+          setPreFlightChecks([
+            makePreFlightErrorCheck(
+              "Save blocked — workflow changed elsewhere",
+              message,
+              "Reload this page to load the latest version, then re-apply your changes."
+            ),
+          ]);
+          dispatch({ type: "SET_SAVING", saving: false });
+          return false;
         } else {
           const message = friendlyResponseMessage(body, "We could not save your changes. Please try again.");
           setValidationNotice(message);
@@ -729,6 +776,12 @@ export function EditorShell({
     },
     [programId]
   );
+
+  // Ref indirection so performSave's chaining callback always invokes the
+  // latest doSave without re-creating performSave (autosave effects depend on
+  // its identity).
+  const doSaveRef = useRef(doSave);
+  doSaveRef.current = doSave;
 
   // ── Validate ──────────────────────────────────────────────────────────────
 
@@ -1867,6 +1920,7 @@ export function EditorShell({
         });
         const body = (await res.json().catch(() => null)) as {
           schema?: ProgramSchema;
+          schema_version?: number;
           validation?: ValidationResult;
           patch?: { added_node_ids?: string[]; updated_node_ids?: string[]; removed_node_ids?: string[] } | null;
           remaining_clarifications?: Array<{ node_id: string; question: string; blocked_node_ids: string[] }>;
@@ -1876,6 +1930,11 @@ export function EditorShell({
         if (!res.ok || !body?.schema) {
           setAnswerError(body?.message ?? body?.error ?? "The answer could not be applied. Please try again.");
           return;
+        }
+        // The server bumped schema_version with this write; adopt it so the
+        // next autosave isn't rejected as a stale tab.
+        if (typeof body.schema_version === "number") {
+          schemaVersionRef.current = body.schema_version;
         }
 
         const patch = body.patch ?? null;
@@ -2527,7 +2586,12 @@ export function EditorShell({
             currentVersion={state.schema.version_history.length > 0
               ? Math.max(...state.schema.version_history.map((v) => v.version_number))
               : 0}
-            onRollback={(schema) => {
+            onRollback={(schema, newSchemaVersion) => {
+              // The restore wrote a new schema_version server-side; adopt it
+              // so the next autosave isn't rejected as a stale tab.
+              if (typeof newSchemaVersion === "number") {
+                schemaVersionRef.current = newSchemaVersion;
+              }
               dispatch({ type: "RESTORE_VERSION", schema });
               setShowHistory(false);
             }}
@@ -2664,7 +2728,21 @@ export function EditorShell({
                                       body: JSON.stringify({ remediation: { type: "assign_agent_defaults", node_id: rem.node_id } }),
                                     });
                                     if (res.ok) {
-                                      const data = await res.json() as { validation?: { checks?: PreFlightCheck[] } };
+                                      const data = await res.json() as {
+                                        validation?: { checks?: PreFlightCheck[] };
+                                        schema?: ProgramSchema;
+                                        schema_version?: number;
+                                      };
+                                      // The fix was written server-side with a new
+                                      // schema_version — adopt both so the next
+                                      // autosave neither 409s as stale nor clobbers
+                                      // the fix with the pre-fix draft.
+                                      if (typeof data.schema_version === "number") {
+                                        schemaVersionRef.current = data.schema_version;
+                                      }
+                                      if (data.schema) {
+                                        dispatch({ type: "RESTORE_VERSION", schema: data.schema });
+                                      }
                                       const nextChecks = data.validation?.checks ?? [];
                                       const remaining = nextChecks.filter((c) => c.status === "fail");
                                       setPreFlightChecks(remaining.length > 0 ? nextChecks : null);

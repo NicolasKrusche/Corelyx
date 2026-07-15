@@ -31,6 +31,18 @@ type RefreshFailureSummary = {
   userMessage: string;
 };
 
+/**
+ * Transient failure while talking to the OAuth provider (timeout / network).
+ * The refresh_token was never presented, so nothing was consumed — callers can
+ * retry safely, and API surfaces should map this to a retryable 503.
+ */
+export class TransientTokenRefreshError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TransientTokenRefreshError";
+  }
+}
+
 // Provider refresh config: endpoint + how to pass client credentials
 const PROVIDER_REFRESH: Record<string, {
   endpoint: string;
@@ -324,7 +336,26 @@ async function performRefresh(supabase: Client, connection: ConnRow, tokens: Sto
   // IMPORTANT: cache: "no-store" - App Router can cache fetch() in route
   // handlers, which would return the same stale access_token on every refresh and
   // leave the connection permanently broken once the first one expired.
-  const refreshRes = await fetch(config.endpoint, { method: "POST", headers, body, cache: "no-store" });
+  // Bounded below the refresh lock's 20s TTL: a hung provider must not hold
+  // the lock past its expiry (a second refresher could then reclaim it and
+  // consume the same rotating refresh_token concurrently).
+  let refreshRes: Response;
+  try {
+    refreshRes = await fetch(config.endpoint, {
+      method: "POST",
+      headers,
+      body,
+      cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (err) {
+    // Transient network/timeout failure — do NOT mark the connection invalid;
+    // the refresh_token was never presented, so nothing was consumed.
+    const kind = err instanceof Error && err.name === "TimeoutError" ? "timed out" : "failed";
+    throw new TransientTokenRefreshError(
+      `Token refresh for ${connection.provider} ${kind} contacting the provider. Please retry.`
+    );
+  }
   const respText = await refreshRes.text();
 
   if (!refreshRes.ok) {

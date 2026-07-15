@@ -24,7 +24,7 @@ import {
   pruneUnresolvedReferences,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
-import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
+import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers, syncWebhookTriggers } from "@/lib/triggers/event-trigger-sync";
 import { buildClarificationAnswerMessage, buildGenesisSystemPrompt } from "@/lib/genesis/prompt";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
 import {
@@ -369,6 +369,7 @@ export async function POST(
   try {
     await syncEventTriggers(serviceClient, program.id, schema);
     await syncCronTriggers(serviceClient, program.id, schema);
+    await syncWebhookTriggers(serviceClient, program.id, schema);
     await syncFileWatchTriggers(serviceClient, program.id, schema);
   } catch {
     // Trigger sync failures are non-fatal here, same as the refinement path.
@@ -408,6 +409,9 @@ export async function POST(
 
   return NextResponse.json({
     schema,
+    // The editor tracks the program's schema_version for conflict-safe saves;
+    // this write bumped it, so hand the new version back to adopt.
+    schema_version: nextVersion,
     validation,
     patch: patchSummary,
     remaining_clarifications: remaining,
