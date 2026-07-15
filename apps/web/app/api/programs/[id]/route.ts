@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { validatePostGenesis } from "@/lib/validation";
-import { syncEventTriggers, syncCronTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
+import { syncEventTriggers, syncCronTriggers, syncFileWatchTriggers, syncWebhookTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureGmailWatchesForProgram } from "@/lib/triggers/gmail-watch";
 import { serverLog } from "@/lib/server-log";
 import {
@@ -55,6 +55,10 @@ export async function PATCH(
 
   const bodySchema = z.object({
     schema: z.unknown().optional(),
+    // Version the client based its edits on. When present, a mismatch with the
+    // stored version rejects the save (409) instead of silently overwriting
+    // changes made elsewhere (another tab, the Triggers page, Genesis).
+    expected_schema_version: z.number().int().nonnegative().optional(),
     name: z.string().min(1).optional(),
     description: z.string().optional(),
     is_active: z.boolean().optional(),
@@ -76,7 +80,25 @@ export async function PATCH(
   if (fetchError || !rawExisting) return apiError("Program not found", 404);
 
   const existing = rawExisting as unknown as ExistingRow;
-  const { schema: rawSchema, ...metaPatch } = parsed.data;
+  const { schema: rawSchema, expected_schema_version: expectedSchemaVersion, ...metaPatch } = parsed.data;
+
+  // A stale client (e.g. an editor tab opened before a pause on the Triggers
+  // page) must not silently overwrite trigger state or newer edits.
+  if (
+    rawSchema !== undefined &&
+    expectedSchemaVersion !== undefined &&
+    (existing.schema_version ?? 0) !== expectedSchemaVersion
+  ) {
+    return NextResponse.json(
+      {
+        error: "SCHEMA_VERSION_CONFLICT",
+        message:
+          "This workflow was changed elsewhere (another tab, the Triggers page, or Genesis). Reload the editor to continue.",
+        current_version: existing.schema_version ?? 0,
+      },
+      { status: 409 }
+    );
+  }
 
   const schema = rawSchema === undefined
     ? undefined
@@ -121,14 +143,38 @@ export async function PATCH(
       : {}),
   };
 
-  const { data: updatedProgram, error: updateError } = await supabase
+  // Compare-and-swap on schema_version when writing a schema, so two
+  // concurrent saves can't both write the same next version (the loser gets a
+  // 409 instead of silently clobbering the winner).
+  let updateQuery = supabase
     .from("programs")
     .update(updatePayload as unknown as never)
-    .eq("id", params.id)
+    .eq("id", params.id);
+  if (schema) {
+    updateQuery =
+      existing.schema_version === null
+        ? updateQuery.is("schema_version", null)
+        : updateQuery.eq("schema_version", existing.schema_version);
+  }
+  const { data: updatedProgram, error: updateError } = await updateQuery
     .select("id, name, description, execution_mode, is_active, schema_version, updated_at")
-    .single();
+    .maybeSingle();
 
   if (updateError) return apiError(updateError.message, 500);
+  if (!updatedProgram) {
+    if (schema) {
+      return NextResponse.json(
+        {
+          error: "SCHEMA_VERSION_CONFLICT",
+          message:
+            "This workflow was changed elsewhere (another tab, the Triggers page, or Genesis). Reload the editor to continue.",
+          current_version: null,
+        },
+        { status: 409 }
+      );
+    }
+    return apiError("Program not found", 404);
+  }
 
   if (schema) {
     await supabase
@@ -148,6 +194,7 @@ export async function PATCH(
       const serviceClient = createServiceClient();
       await syncEventTriggers(serviceClient, params.id, schema);
       await syncCronTriggers(serviceClient, params.id, schema);
+      await syncWebhookTriggers(serviceClient, params.id, schema);
       await syncFileWatchTriggers(serviceClient, params.id, schema);
       await ensureGmailWatchesForProgram(serviceClient, params.id);
     } catch (err) {

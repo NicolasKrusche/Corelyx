@@ -21,7 +21,9 @@ interface VersionRow {
 export interface VersionHistoryPanelProps {
   programId: string;
   currentVersion: number;
-  onRollback: (schema: ProgramSchema) => void;
+  /** newSchemaVersion is the program's schema_version AFTER the restore write —
+   *  the editor must adopt it so subsequent saves don't 409 as stale. */
+  onRollback: (schema: ProgramSchema, newSchemaVersion: number | null) => void;
   onClose: () => void;
   /** When provided, enables the "Compare" diff button per version row. */
   currentSchema?: ProgramSchema;
@@ -161,7 +163,10 @@ export function VersionHistoryPanel({
           schema: ProgramSchema;
           program: { schema_version: number };
         };
-        onRollback(json.schema);
+        onRollback(
+          json.schema,
+          typeof json.program?.schema_version === "number" ? json.program.schema_version : null
+        );
         // Refresh the version list to show the new rollback snapshot
         const listRes = await fetch(`/api/programs/${programId}/versions`);
         if (listRes.ok) {

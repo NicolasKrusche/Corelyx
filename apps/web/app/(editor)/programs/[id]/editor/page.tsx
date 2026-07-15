@@ -29,11 +29,11 @@ export default async function EditorPage({
   // Cast through unknown to handle Supabase's generated `never` return type
   // for tables that are not fully reflected in the generated types.
 
-  type ProgramRow = { id: string; name: string; schema: unknown };
+  type ProgramRow = { id: string; name: string; schema: unknown; schema_version: number | null };
 
   const { data: rawProgram, error: programError } = await supabase
     .from("programs")
-    .select("id, name, schema")
+    .select("id, name, schema, schema_version")
     .eq("id", id)
     .single();
 
@@ -127,6 +127,7 @@ export default async function EditorPage({
     <EditorShell
       programId={program.id}
       initialSchema={parsedSchema}
+      initialSchemaVersion={program.schema_version ?? null}
       initialValidation={initialValidation}
       apiKeys={apiKeys}
       linkedConnections={linkedConnections}

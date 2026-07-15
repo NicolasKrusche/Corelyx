@@ -117,6 +117,27 @@ function repairCorelyxConnectionNodes(schema: Record<string, unknown> | null): b
 }
 
 /**
+ * Mark an agent run + program failed after the runtime rejected (or never
+ * received) the dispatch. The run row MUST leave "pending": the active-run
+ * guard treats pending as running, so a phantom pending run would 409 every
+ * future fire of this agent until manually cleaned up.
+ */
+async function failAgentDispatch(
+  service: Service,
+  programId: string,
+  runId: string,
+  message: string
+): Promise<void> {
+  await Promise.all([
+    service
+      .from("runs")
+      .update({ status: "failed", error_message: message, completed_at: new Date().toISOString() } as never)
+      .eq("id", runId),
+    service.from("programs").update({ agent_state: "failed" } as never).eq("id", programId),
+  ]);
+}
+
+/**
  * Create a run for an agent program and dispatch it to the runtime. Shared by
  * the manual run route and the trigger-fire paths. Handles credentials, the
  * active-run guard, the run-limit check, cross-run memory, and runtime dispatch.
@@ -247,11 +268,11 @@ export async function dispatchAgentRun(
     });
     if (!res.ok) {
       serverLog({ level: "error", event: "agent.run.dispatch_failed", message: "Agent run dispatch failed.", details: { status: res.status, triggeredBy } });
-      await service.from("programs").update({ agent_state: "failed" } as never).eq("id", programId);
+      await failAgentDispatch(service, programId, runId, `Runtime rejected the agent run (HTTP ${res.status}).`);
       return { ok: false, error: `Agent run created but dispatch failed (HTTP ${res.status}).`, status: 502 };
     }
   } catch (err) {
-    await service.from("programs").update({ agent_state: "failed" } as never).eq("id", programId);
+    await failAgentDispatch(service, programId, runId, "Runtime is unreachable");
     return { ok: false, error: `Agent run created but dispatch failed: ${err instanceof Error ? err.message : "unknown"}`, status: 502 };
   }
 

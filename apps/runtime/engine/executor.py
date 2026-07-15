@@ -4720,27 +4720,82 @@ class ProgramExecutor:
         manager.cache_token(connection_id, token)
         return token
     
+    # Internal web endpoints can legitimately be slow or answer 503: an OAuth
+    # refresh serializes on the shared credential_locks table (up to ~25s wait)
+    # before the provider round-trip even starts. One slow round-trip must not
+    # fail a whole run, so timeouts and transient 5xx responses are retried
+    # with backoff — by the second attempt the concurrent refresh has usually
+    # finished and the fast path answers immediately.
+    _INTERNAL_FETCH_ATTEMPTS = 3
+    _INTERNAL_FETCH_BACKOFF_SECONDS = (1.0, 2.0)
+    _INTERNAL_FETCH_RETRYABLE_STATUSES = frozenset({502, 503, 504})
+
+    async def _get_with_transient_retry(
+        self,
+        client: httpx.AsyncClient,
+        endpoint_url: str,
+        *,
+        audience: str,
+        endpoint_path: str,
+        params: dict[str, str] | None,
+        attempt_errors: list[str],
+    ) -> httpx.Response | None:
+        """GET an internal web endpoint, retrying timeouts / transient 5xx.
+
+        Returns the final response, or None when network errors exhausted every
+        attempt (callers should then give up rather than try other origins —
+        the host is unreachable or overloaded, not misrouted).
+        """
+        for attempt in range(self._INTERNAL_FETCH_ATTEMPTS):
+            last_attempt = attempt == self._INTERNAL_FETCH_ATTEMPTS - 1
+            backoff = self._INTERNAL_FETCH_BACKOFF_SECONDS[
+                min(attempt, len(self._INTERNAL_FETCH_BACKOFF_SECONDS) - 1)
+            ]
+            try:
+                resp = await client.get(
+                    endpoint_url,
+                    # Rebuilt per attempt — the signed token's short TTL must
+                    # not expire across retry backoffs.
+                    headers=build_internal_service_headers(
+                        audience,
+                        subject=self.user_id,
+                        method="GET",
+                        path=endpoint_path,
+                    ),
+                    params=params,
+                )
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                attempt_errors.append(f"{endpoint_url} -> {type(e).__name__}: {e}")
+                if last_attempt:
+                    return None
+                await asyncio.sleep(backoff)
+                continue
+            if resp.status_code in self._INTERNAL_FETCH_RETRYABLE_STATUSES and not last_attempt:
+                attempt_errors.append(
+                    f"{endpoint_url} -> HTTP {resp.status_code}: {self._response_error_detail(resp)}"
+                )
+                await asyncio.sleep(backoff)
+                continue
+            return resp
+        return None
+
     async def _do_fetch_oauth_token(self, connection_id: str, force_refresh: bool = False) -> str:
         """Internal method to actually fetch the token from Next.js."""
         params = {"force_refresh": "true"} if force_refresh else {}
         endpoint_path = f"/api/internal/connections/{connection_id}/token"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
         attempt_errors: list[str] = []
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             for idx, endpoint_url in enumerate(endpoint_urls):
-                try:
-                    resp = await client.get(
-                        endpoint_url,
-                        headers=build_internal_service_headers(
-                            "next:connections:token",
-                            subject=self.user_id,
-                            method="GET",
-                            path=endpoint_path,
-                        ),
-                        params=params if params else None,
-                    )
-                except (httpx.ConnectError, httpx.TimeoutException) as e:
-                    attempt_errors.append(f"{endpoint_url} -> {type(e).__name__}: {e}")
+                resp = await self._get_with_transient_retry(
+                    client,
+                    endpoint_url,
+                    audience="next:connections:token",
+                    endpoint_path=endpoint_path,
+                    params=params if params else None,
+                    attempt_errors=attempt_errors,
+                )
+                if resp is None:
                     break
                 if resp.is_success:
                     try:
@@ -4812,17 +4867,18 @@ class ProgramExecutor:
         endpoint_path = f"/api/internal/vault/{api_key_ref}"
         endpoint_urls = self._nextjs_endpoint_candidates(endpoint_path)
         attempt_errors: list[str] = []
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             for idx, endpoint_url in enumerate(endpoint_urls):
-                resp = await client.get(
+                resp = await self._get_with_transient_retry(
+                    client,
                     endpoint_url,
-                    headers=build_internal_service_headers(
-                        "next:vault",
-                        subject=self.user_id,
-                        method="GET",
-                        path=endpoint_path,
-                    ),
+                    audience="next:vault",
+                    endpoint_path=endpoint_path,
+                    params=None,
+                    attempt_errors=attempt_errors,
                 )
+                if resp is None:
+                    break
                 if resp.is_success:
                     try:
                         data = resp.json()

@@ -88,6 +88,18 @@ async function release(supabase: Client, lockKey: string, lockId: string): Promi
 }
 
 /**
+ * Thrown when the refresh lock could not be acquired within MAX_WAIT_MS.
+ * This is a TRANSIENT condition (another refresher is mid-flight) — callers
+ * that talk to the runtime should surface it as a retryable 503, not a 500.
+ */
+export class OAuthRefreshLockTimeoutError extends Error {
+  constructor() {
+    super("Could not acquire OAuth refresh lock — another refresh is in progress. Please retry.");
+    this.name = "OAuthRefreshLockTimeoutError";
+  }
+}
+
+/**
  * Run `fn` while holding the connection's refresh lock. Fails CLOSED: if the lock
  * cannot be acquired within MAX_WAIT_MS, it throws rather than running unlocked —
  * a transient, retryable error is far better than a corrupted refresh_token.
@@ -102,9 +114,7 @@ export async function withConnectionRefreshLock<T>(
 
   const acquired = await acquire(supabase, lockKey, lockId);
   if (!acquired) {
-    throw new Error(
-      "Could not acquire OAuth refresh lock — another refresh is in progress. Please retry.",
-    );
+    throw new OAuthRefreshLockTimeoutError();
   }
 
   try {

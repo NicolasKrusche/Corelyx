@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getProgramAccess, canView } from "@/lib/workspaces";
-import { syncCronTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
+import { syncCronTriggers, syncFileWatchTriggers, syncWebhookTriggers } from "@/lib/triggers/event-trigger-sync";
 import { TriggerManager } from "./trigger-manager";
 import { TriggerEventLog, type TriggerEvent } from "@/components/triggers/trigger-event-log";
 
@@ -50,6 +50,7 @@ export default async function TriggersPage({
   const serviceClient = createServiceClient();
   try {
     await syncCronTriggers(serviceClient, id, prog.schema);
+    await syncWebhookTriggers(serviceClient, id, prog.schema);
     await syncFileWatchTriggers(serviceClient, id, prog.schema);
   } catch (err) {
     console.error("[triggers/page] cron/file_watch trigger sync failed:", err);

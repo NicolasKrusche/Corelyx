@@ -51,7 +51,7 @@ import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { serverLog } from "@/lib/server-log";
 import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
 import { getUserAiContext } from "@/lib/onboarding/profile";
-import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers } from "@/lib/triggers/event-trigger-sync";
+import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers, syncWebhookTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { canContributeToWorkspace, canEdit, canRunAgentInWorkspace, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
@@ -1004,6 +1004,7 @@ export async function POST(request: Request) {
           try {
             await syncEventTriggers(serviceClient, program.id, savedSchema);
             await syncCronTriggers(serviceClient, program.id, savedSchema);
+            await syncWebhookTriggers(serviceClient, program.id, savedSchema);
             await syncFileWatchTriggers(serviceClient, program.id, savedSchema);
           } catch (syncError) {
             await writeAppLog(supabase, {

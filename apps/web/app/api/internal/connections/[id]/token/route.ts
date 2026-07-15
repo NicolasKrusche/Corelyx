@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { getValidInternalServiceClaims } from "@/lib/internal-auth";
-import { getValidOAuthToken } from "@/lib/oauth-token";
+import { getValidOAuthToken, TransientTokenRefreshError } from "@/lib/oauth-token";
+import { OAuthRefreshLockTimeoutError } from "@/lib/oauth-refresh-lock";
+
+// A refresh may wait on the shared credential lock (up to ~25s) before it even
+// starts. Keep the function alive past the platform default so a slow-but-
+// successful refresh answers instead of being killed mid-flight.
+export const maxDuration = 60;
 
 // GET /api/internal/connections/[id]/token
 // Called by the Python runtime to get a valid (auto-refreshed) OAuth token for a connection.
@@ -77,6 +83,13 @@ export async function GET(
     accessToken = await getValidOAuthToken(serviceClient, id, forceRefresh);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to retrieve token";
+    // Lock contention and provider timeouts are transient — a retry moments
+    // later usually succeeds (often via the fast path, because the concurrent
+    // refresher finished). 503 tells the runtime to retry instead of failing
+    // the whole run.
+    if (err instanceof OAuthRefreshLockTimeoutError || err instanceof TransientTokenRefreshError) {
+      return apiError(message, 503);
+    }
     return apiError(message, 500);
   }
 

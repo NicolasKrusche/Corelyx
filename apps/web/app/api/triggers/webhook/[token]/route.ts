@@ -12,7 +12,7 @@ import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { getProcessingRestriction } from "@/lib/compliance";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
 import { readBoundedTextBody } from "@/lib/request-body";
-import { markWebhookDelivery } from "@/lib/webhook-deliveries";
+import { markWebhookDelivery, releaseWebhookDelivery } from "@/lib/webhook-deliveries";
 import {
   WEBHOOK_SIGNATURE_HEADER,
   WEBHOOK_TIMESTAMP_HEADER,
@@ -209,15 +209,18 @@ export async function POST(
       "agent_webhook",
       { trigger_id: trigger.id, webhook_payload: payload }
     );
+    if (!fired.ok) {
+      // Transient server-side failures give the delivery back so the sender's
+      // retry of the identical signed request can be processed.
+      if (fired.status >= 500) await releaseWebhookDelivery("custom-webhook", deliveryId);
+      await recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "webhook", status: "failed", message: fired.error });
+      return NextResponse.json({ error: fired.error }, { status: fired.status });
+    }
     await db
       .from("triggers")
       .update({ last_fired_at: new Date().toISOString() } as never)
       .eq("id", trigger.id);
-    if (!fired.ok) {
-      recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "webhook", status: "failed", message: fired.error });
-      return NextResponse.json({ error: fired.error }, { status: fired.status });
-    }
-    recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: fired.runId, source: "webhook", status: "dispatched", payload: Object.keys(payload).length > 0 ? payload : undefined });
+    await recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: fired.runId, source: "webhook", status: "dispatched", payload: Object.keys(payload).length > 0 ? payload : undefined });
     return NextResponse.json({ run_id: fired.runId, status: "running" }, { status: 202 });
   }
 
@@ -244,7 +247,11 @@ export async function POST(
     .select("id")
     .single();
 
-  if (runError || !runRaw) return apiError("Failed to create run", 500);
+  if (runError || !runRaw) {
+    await releaseWebhookDelivery("custom-webhook", deliveryId);
+    await recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "webhook", status: "failed", message: "Run row could not be created" });
+    return apiError("Failed to create run", 500);
+  }
 
   const run = runRaw as unknown as { id: string };
 
@@ -291,6 +298,10 @@ export async function POST(
       headers: runtimeHeaders,
       body: runtimeBody,
       cache: "no-store",
+      // Bounded like the cron sweep's dispatch: an unbounded hang here keeps
+      // the delivery mark "in flight" indefinitely, so a sender retry would be
+      // ACKed as duplicate while nothing was actually dispatched.
+      signal: AbortSignal.timeout(15_000),
     });
     if (!runtimeRes.ok) {
       const runtimeError = await readRuntimeRejectionDetails(runtimeRes);
@@ -298,6 +309,8 @@ export async function POST(
         .from("runs")
         .update({ status: "failed", error_message: formatRuntimeRejection(runtimeError), completed_at: new Date().toISOString() } as never)
         .eq("id", run.id);
+      await releaseWebhookDelivery("custom-webhook", deliveryId);
+      await recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "failed", message: formatRuntimeRejection(runtimeError) });
       return NextResponse.json(
         {
           error: "Runtime failed to accept the run",
@@ -308,22 +321,25 @@ export async function POST(
       );
     }
   } catch (error) {
+    await releaseWebhookDelivery("custom-webhook", deliveryId);
     const configError = runtimeDispatchConfigError(error);
     if (configError) {
       await db
         .from("runs")
         .update({ status: "failed", error_message: "Runtime auth is not configured.", completed_at: new Date().toISOString() } as never)
         .eq("id", run.id);
+      await recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "failed", message: "Runtime auth is not configured." });
       return configError;
     }
     await db
       .from("runs")
       .update({ status: "failed", error_message: "Runtime is unreachable", completed_at: new Date().toISOString() } as never)
       .eq("id", run.id);
+    await recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "failed", message: "Runtime is unreachable" });
     return NextResponse.json({ error: "Runtime is unreachable" }, { status: 503 });
   }
 
-  recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "dispatched", payload: Object.keys(payload).length > 0 ? payload : undefined });
+  await recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId: run.id, source: "webhook", status: "dispatched", payload: Object.keys(payload).length > 0 ? payload : undefined });
   return NextResponse.json({ run_id: run.id, status: "running" }, { status: 202 });
 }
 
