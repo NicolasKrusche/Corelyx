@@ -1042,7 +1042,7 @@ class FullProgramTests(unittest.IsolatedAsyncioTestCase):
 class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
     async def test_platform_agent_falls_back_after_openrouter_429(self) -> None:
         node = _node("a1", "agent", AgentConfig(
-            model="openai/gpt-oss-120b:free",
+            model="openai/gpt-4o-mini",
             api_key_ref="platform",
             system_prompt="Test",
             input_schema=None,
@@ -1092,14 +1092,14 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["answer"], 42)
         attempted_models = [call.kwargs["json"]["model"] for call in client.post.await_args_list]
         self.assertEqual(attempted_models, [
-            "openai/gpt-oss-120b:free",
-            "qwen/qwen3-coder:free",
+            "openai/gpt-4o-mini",
+            "openai/gpt-oss-120b",
         ])
         fallback_updates = [
             call.kwargs.get("error_message", "")
             for call in update_mock.await_args_list
         ]
-        self.assertTrue(any("trying fallback model qwen/qwen3-coder:free" in msg for msg in fallback_updates))
+        self.assertTrue(any("trying fallback model openai/gpt-oss-120b" in msg for msg in fallback_updates))
 
     async def test_agent_node_requires_approval_in_supervised_mode(self) -> None:
         node = _node("a1", "agent", AgentConfig(

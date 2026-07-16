@@ -87,8 +87,17 @@ EXECUTABLE_NODE_TYPES = {"trigger", "agent", "agent_task", "step", "connection"}
 # in place. The runtime must never forward it to the vault — treat it as the
 # shared platform key so the run still has a usable credential.
 USER_ASSIGNED_SENTINEL = "__USER_ASSIGNED__"
-# Mirrors apps/web/lib/genesis/request.ts PLATFORM_DEFAULT_MODEL.
-PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b:free"
+# Mirrors apps/web/lib/genesis/request.ts PLATFORM_DEFAULT_MODEL. Deliberately
+# NOT the ":free" slug: that variant is served by a single upstream provider with
+# its own tight rate limits and was unreliable in practice. This slug is
+# load-balanced across ~20 providers and costs a fraction of a cent.
+PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b"
+
+# Mirrors apps/web/lib/genesis/request.ts AGENT_PLATFORM_DEFAULT_MODEL. Agents
+# are a tool-calling loop, so they need a dependable tool-caller —
+# PLATFORM_DEFAULT_MODEL does not call tools reliably. Agents are Solo+, so this
+# model is permitted for them.
+AGENT_PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 # Best-effort price catalog used when the provider response does not include
 # explicit cost fields. Rates are USD per 1M tokens.
@@ -138,11 +147,13 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
 PLATFORM_MARKUP = 10.0
 CREDITS_PER_USD = 1000
 
-OPENROUTER_PLATFORM_FALLBACK_MODELS: tuple[str, ...] = (
-    "qwen/qwen3-coder:free",
-    "openai/gpt-oss-120b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-)
+# Mirrors apps/web/lib/genesis/request.ts OPENROUTER_FALLBACK_MODELS. Tried, in
+# order, when the requested model fails — for every OpenRouter-routed call, so it
+# must be reliable rather than merely cheap. The ":free" slugs previously here
+# were dropped after proving unreliable in practice: each is served by a single
+# or small pool of upstream providers with their own rate limits, and live checks
+# showed one at 0% uptime and another single-provider-throttled.
+OPENROUTER_PLATFORM_FALLBACK_MODELS: tuple[str, ...] = ("openai/gpt-oss-120b",)
 
 RETRYABLE_LLM_STATUS_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
 
@@ -2206,7 +2217,7 @@ class ProgramExecutor:
             if ref == USER_ASSIGNED_SENTINEL:
                 ref = "platform"
             if model == USER_ASSIGNED_SENTINEL:
-                model = PLATFORM_DEFAULT_MODEL
+                model = AGENT_PLATFORM_DEFAULT_MODEL
             use_platform_key = ref == "platform"
 
             try:
