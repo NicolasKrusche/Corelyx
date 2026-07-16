@@ -29,6 +29,7 @@ const FOOTER_COLUMNS = [
   {
     title: "Product",
     links: [
+      { label: "Download apps", href: "/download" },
       { label: "Integrations", href: "/integrations" },
       { label: "Use cases", href: "/use-cases" },
       { label: "Templates", href: "/templates" },
