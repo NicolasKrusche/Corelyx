@@ -19,7 +19,9 @@ function env(name: string, fallback: string): string {
 
 // Production defaults for release builds; local dev keeps pointing at the dev
 // web server unless explicitly overridden.
-const PROD_API_BASE_URL = "https://app.corelyx.app";
+// Canonical web host — app.corelyx.app is NOT configured in DNS (the v0.1.1
+// build pointed there and every API call failed with a network error).
+const PROD_API_BASE_URL = "https://www.corelyx.app";
 const PROD_SUPABASE_URL = "https://fzvmsejkqjbqyavxvirf.supabase.co";
 const PROD_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6dm1zZWprcWpicXlhdnh2aXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MjU4NTMsImV4cCI6MjA5MTAwMTg1M30.JPuLdos3w9h85reCWKxN4j3iJDDvvMpNkfWkps86bQo";

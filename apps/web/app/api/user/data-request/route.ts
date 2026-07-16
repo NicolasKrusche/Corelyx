@@ -26,7 +26,7 @@ const REQUEST_TYPE_LABELS: Record<DataSubjectRequestType, string> = {
 };
 
 const LEGAL_EMAIL = process.env.LEGAL_NOTIFY_EMAIL ?? "legal@corelyx.app";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.corelyx.app";
 
 export type DsrMessage = {
   id: string;

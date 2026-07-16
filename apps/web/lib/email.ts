@@ -5,7 +5,7 @@
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 const FROM = process.env.FROM_EMAIL ?? "Corelyx <noreply@corelyx.app>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.corelyx.app";
 
 interface SendEmailOptions {
   to: string;
