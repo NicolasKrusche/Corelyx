@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.corelyx.app";
     const resetRedirect = `${appUrl}/auth/callback?next=/update-password`;
 
     const supabase = createServiceClient();
