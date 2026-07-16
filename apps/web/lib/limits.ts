@@ -23,6 +23,9 @@ interface BillingScope {
   is_beta_tester: boolean;
   genesis_uses_this_month: number;
   genesis_month_reset_at: string | null;
+  /** One-time Genesis grants (redemption code type `genesis_uses`). Unlike
+   *  bonus_runs this is a depleting pool, not a monthly top-up. */
+  bonus_genesis_uses: number;
 }
 
 async function resolveWorkspaceId(userId: string, workspaceId?: string | null): Promise<string | null> {
@@ -36,13 +39,13 @@ async function getBillingScope(userId: string, workspaceId?: string | null): Pro
   const [profileResult, workspaceResult, { data: authData }] = await Promise.all([
     serviceClient
       .from("profiles")
-      .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at")
+      .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at, bonus_genesis_uses")
       .eq("id", userId)
       .single(),
     resolvedWorkspaceId
       ? serviceClient
           .from("workspaces")
-          .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at")
+          .select("tier, bonus_runs, is_beta_tester, genesis_uses_this_month, genesis_month_reset_at, bonus_genesis_uses")
           .eq("id", resolvedWorkspaceId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -70,6 +73,7 @@ async function getBillingScope(userId: string, workspaceId?: string | null): Pro
     is_beta_tester?: boolean;
     genesis_uses_this_month?: number;
     genesis_month_reset_at?: string | null;
+    bonus_genesis_uses?: number;
   } | null;
 
   const tier: Tier = isAdminEmail(authData?.user?.email)
@@ -83,6 +87,7 @@ async function getBillingScope(userId: string, workspaceId?: string | null): Pro
     is_beta_tester: billingData?.is_beta_tester ?? false,
     genesis_uses_this_month: billingData?.genesis_uses_this_month ?? 0,
     genesis_month_reset_at: billingData?.genesis_month_reset_at ?? null,
+    bonus_genesis_uses: billingData?.bonus_genesis_uses ?? 0,
   };
 }
 
@@ -136,6 +141,38 @@ function isCurrentMonth(isoTimestamp: string | null): boolean {
     d.getUTCFullYear() === now.getUTCFullYear() &&
     d.getUTCMonth() === now.getUTCMonth()
   );
+}
+
+// ─── Genesis allowance arithmetic ─────────────────────────────────────────────
+
+/*
+ * A `genesis_uses` redemption code grants a one-time pool (bonus_genesis_uses)
+ * on top of the plan's monthly allowance. The two rules below are what keep it
+ * one-time, and they have to agree:
+ *
+ *   - the plan allowance is always spent first, so genesis_uses_this_month
+ *     pins at the plan limit and the pool only drains after that;
+ *   - the ceiling is plan + whatever is left in the pool, so it shrinks as the
+ *     pool empties and lands back on the bare plan limit once it is gone.
+ *
+ * Spending the pool first would instead let it refill on every monthly reset,
+ * turning a campaign grant into a permanent entitlement. This differs from
+ * bonus_runs, which checkRunLimit deliberately re-adds every month.
+ */
+
+/** Genesis uses allowed this month for a capped plan, given the bonus left. */
+export function genesisCeiling(planPerMonth: number, bonusRemaining: number): number {
+  return planPerMonth + Math.max(0, bonusRemaining);
+}
+
+/** Which bucket the next Genesis use comes out of. */
+export function genesisSpendTarget(
+  planPerMonth: number | null,
+  usedThisMonth: number,
+  bonusRemaining: number
+): "plan" | "bonus" {
+  const planExhausted = planPerMonth !== null && usedThisMonth >= planPerMonth;
+  return planExhausted && bonusRemaining > 0 ? "bonus" : "plan";
 }
 
 // ─── Public result type ───────────────────────────────────────────────────────
@@ -321,7 +358,9 @@ export async function checkGenesisAccess(userId: string, workspaceId?: string | 
     ? profile.genesis_uses_this_month
     : 0;
 
-  if (usesThisMonth >= ent.genesisUsesPerMonth) {
+  const totalAllowed = genesisCeiling(ent.genesisUsesPerMonth, profile.bonus_genesis_uses ?? 0);
+
+  if (usesThisMonth >= totalAllowed) {
     const tierNames: Record<string, string> = {
       free: "Free", plus: "Solo", pro: "Team", builder: "Scale", unlimited: "Unlimited",
     };
@@ -333,33 +372,40 @@ export async function checkGenesisAccess(userId: string, workspaceId?: string | 
       : "Contact support to increase your limit.";
     return {
       allowed: false,
-      reason: `Genesis AI limit reached (${usesThisMonth}/${ent.genesisUsesPerMonth} this month on ${tierName} plan)`,
-      upgradeMessage: `You've used all ${ent.genesisUsesPerMonth} Genesis AI uses this month on the ${tierName} plan. ${nextTierHint}`,
+      reason: `Genesis AI limit reached (${usesThisMonth}/${totalAllowed} this month on ${tierName} plan)`,
+      upgradeMessage: `You've used all ${totalAllowed} Genesis AI uses this month on the ${tierName} plan. ${nextTierHint}`,
       usesThisMonth,
-      maxUses: ent.genesisUsesPerMonth,
+      maxUses: totalAllowed,
     };
   }
 
-  return { allowed: true, usesThisMonth, maxUses: ent.genesisUsesPerMonth };
+  return { allowed: true, usesThisMonth, maxUses: totalAllowed };
 }
 
-/** Atomically increment genesis uses after a successful genesis call. */
+/** Record one genesis use after a successful genesis call. */
 export async function incrementGenesisUses(userId: string, workspaceId?: string | null): Promise<void> {
+  const profile = await getBillingScope(userId, workspaceId);
+  const ent = getEntitlements(profile.tier);
   const serviceClient = createServiceClient();
-  const resolvedWorkspaceId = await resolveWorkspaceId(userId, workspaceId);
-  const table = resolvedWorkspaceId ? "workspaces" : "profiles";
-  const idColumn = resolvedWorkspaceId ? "id" : "id";
-  const idValue = resolvedWorkspaceId ?? userId;
-  const { data: profileData } = await serviceClient
-    .from(table)
-    .select("genesis_uses_this_month, genesis_month_reset_at")
-    .eq(idColumn, idValue)
-    .single();
+  const table = profile.workspaceId ? "workspaces" : "profiles";
+  const idValue = profile.workspaceId ?? userId;
 
-  const resetAt = (profileData as { genesis_month_reset_at?: string | null } | null)?.genesis_month_reset_at ?? null;
-  const currentUses = isCurrentMonth(resetAt)
-    ? ((profileData as { genesis_uses_this_month?: number } | null)?.genesis_uses_this_month ?? 0)
+  const currentUses = isCurrentMonth(profile.genesis_month_reset_at)
+    ? profile.genesis_uses_this_month
     : 0;
+
+  const target = genesisSpendTarget(
+    ent.genesisUsesPerMonth,
+    currentUses,
+    profile.bonus_genesis_uses
+  );
+  if (target === "bonus") {
+    await serviceClient
+      .from(table)
+      .update({ bonus_genesis_uses: profile.bonus_genesis_uses - 1 } as never)
+      .eq("id", idValue);
+    return;
+  }
 
   await serviceClient
     .from(table)
@@ -367,7 +413,7 @@ export async function incrementGenesisUses(userId: string, workspaceId?: string 
       genesis_uses_this_month: currentUses + 1,
       genesis_month_reset_at: new Date().toISOString(),
     } as never)
-    .eq(idColumn, idValue);
+    .eq("id", idValue);
 }
 
 /** Check whether the user can connect pay-per-use providers (Solo+ only). */
