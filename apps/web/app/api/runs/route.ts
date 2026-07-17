@@ -9,7 +9,7 @@ import {
 } from "@/lib/runtime-dispatch";
 import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
-import { checkRunLimit, getRunHistoryDays } from "@/lib/limits";
+import { checkRunLimit, getRunHistoryDays, getUserTier } from "@/lib/limits";
 import { sendRunLimitWarningEmail } from "@/lib/email";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -29,6 +29,7 @@ import {
 } from "@/lib/triggers/manual-run";
 import { normalizeSchema } from "@/lib/genesis/parsing";
 import { isAnySecurityLocked } from "@/lib/security/sentinel";
+import { getAgentModelAccessIssue } from "@/lib/agent-model-access";
 
 // POST /api/runs — create a run and dispatch to runtime
 export async function POST(request: Request) {
@@ -154,6 +155,21 @@ export async function POST(request: Request) {
   const apiKeys = (apiKeysRaw ?? []) as ApiKeyRow[];
 
   const runnableSchema = executableSchema.data as unknown as ProgramSchema;
+  const modelAccessIssue = getAgentModelAccessIssue(
+    runnableSchema,
+    await getUserTier(user.id, programWorkspaceId)
+  );
+  if (modelAccessIssue) {
+    return NextResponse.json(
+      {
+        error: modelAccessIssue.code,
+        message: modelAccessIssue.message,
+        node_id: modelAccessIssue.nodeId,
+      },
+      { status: 403 }
+    );
+  }
+
   if (workflowRequiresPayloadForManualRun(runnableSchema) && trigger_payload === undefined) {
     return NextResponse.json(
       {

@@ -45,7 +45,7 @@ import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
 import { RunLogDrawer } from "@/components/editor/RunLogDrawer";
 import { NodeSidebar } from "@/components/sidebars/NodeSidebar";
-import type { ApiKey } from "@/components/sidebars/NodeSidebar";
+import type { ApiKey, PlatformAgentModel } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
 import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/components/editor/NodePalettePanel";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
@@ -371,6 +371,8 @@ interface EditorShellProps {
   initialSchemaVersion?: number | null;
   initialValidation: ValidationResult | null;
   apiKeys: ApiKey[];
+  byokAllowed: boolean;
+  platformModels: PlatformAgentModel[];
   linkedConnections: { id: string; name: string; provider: string; scopes: string[] }[];
   allConnections: { id: string; name: string; provider: string; scopes: string[] }[];
   enableAdvancedEditor?: boolean;
@@ -390,6 +392,8 @@ export function EditorShell({
   initialSchemaVersion = null,
   initialValidation,
   apiKeys,
+  byokAllowed,
+  platformModels,
   linkedConnections: initialLinkedConnections,
   allConnections,
   enableAdvancedEditor = false,
@@ -2553,6 +2557,8 @@ export function EditorShell({
             schema={state.schema}
             programId={programId}
             apiKeys={apiKeys}
+            byokAllowed={byokAllowed}
+            platformModels={platformModels}
             connections={allConnections}
             validationResult={state.validationResult}
             nodeExecutions={nodeExecutions}

@@ -9,7 +9,7 @@ import {
 } from "@/lib/runtime-dispatch";
 import { createServerClient } from "@/lib/supabase/server";
 import { validatePreFlight } from "@/lib/validation/pre-flight";
-import { checkRunLimit } from "@/lib/limits";
+import { checkRunLimit, getUserTier } from "@/lib/limits";
 import { sendRunLimitWarningEmail } from "@/lib/email";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -18,6 +18,7 @@ import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { canRun, canView, getProgramAccess } from "@/lib/workspaces";
 import { resolveWorkspaceEnvVars } from "@/lib/env-vars";
+import { getAgentModelAccessIssue } from "@/lib/agent-model-access";
 
 /**
  * POST /api/runs/[id]/replay
@@ -145,6 +146,21 @@ export async function POST(
   const apiKeys = (apiKeysRaw ?? []) as ApiKeyRow[];
 
   const runnableSchema = executableSchema.data as unknown as ProgramSchema;
+  const modelAccessIssue = getAgentModelAccessIssue(
+    runnableSchema,
+    await getUserTier(user.id, programWorkspaceId)
+  );
+  if (modelAccessIssue) {
+    return NextResponse.json(
+      {
+        error: modelAccessIssue.code,
+        message: modelAccessIssue.message,
+        node_id: modelAccessIssue.nodeId,
+      },
+      { status: 403 }
+    );
+  }
+
   const { result, checks } = await validatePreFlight(runnableSchema, connections, apiKeys);
   if (!result.valid) {
     return NextResponse.json({ error: "Pre-flight checks failed", checks }, { status: 422 });
