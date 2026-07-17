@@ -547,6 +547,49 @@ class GetUserRunPlanTests(unittest.TestCase):
         self.assertEqual(plan, "free")
 
 
+class GetModelAccessTierTests(unittest.TestCase):
+    def _db(self, profile_rows, workspace_rows):
+        db = MagicMock()
+        profile_query = _QueryBuilder()
+        profile_query.execute.return_value = MagicMock(data=profile_rows)
+        workspace_query = _QueryBuilder()
+        workspace_query.execute.return_value = MagicMock(data=workspace_rows)
+        db.table.side_effect = lambda table: (
+            profile_query if table == "profiles" else workspace_query
+        )
+        return db
+
+    def test_uses_workspace_tier_for_members(self):
+        db = self._db(
+            [{"tier": "free", "is_admin": False}],
+            [{"tier": "pro"}],
+        )
+        self.assertEqual(
+            db_module.get_model_access_tier(db, "user-1", "workspace-1"),
+            "pro",
+        )
+
+    def test_admin_is_unlimited_even_in_free_workspace(self):
+        db = self._db(
+            [{"tier": "free", "is_admin": True}],
+            [{"tier": "free"}],
+        )
+        self.assertEqual(
+            db_module.get_model_access_tier(db, "user-1", "workspace-1"),
+            "unlimited",
+        )
+
+    def test_missing_workspace_tier_fails_closed(self):
+        db = self._db(
+            [{"tier": "builder", "is_admin": False}],
+            [],
+        )
+        self.assertEqual(
+            db_module.get_model_access_tier(db, "user-1", "workspace-1"),
+            "free",
+        )
+
+
 class IsProcessingRestrictedTests(unittest.TestCase):
     def _run(self, db):
         return db_module.is_processing_restricted(db, "user-1")

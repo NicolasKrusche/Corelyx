@@ -28,6 +28,7 @@ from cors_config import (
 )
 from db import (
     get_db,
+    get_model_access_tier,
     get_user_priority_tier,
     get_user_run_plan,
     is_processing_restricted,
@@ -179,6 +180,7 @@ async def trigger_workflow(workflow_id: str) -> None:
             workflow_id,
             user_id,
             plan=get_user_run_plan(db, user_id),
+            model_access_tier=get_model_access_tier(db, user_id, program_data.get("workspace_id")),
             workspace_id=program_data.get("workspace_id"),
             compliance_mode=workspace_policy.get("compliance_mode", "standard"),
             data_region=workspace_policy.get("data_region"),
@@ -634,6 +636,7 @@ async def _run_program(
         user_id,
         connection_name_to_id=connection_name_to_id,
         plan=get_user_run_plan(db, user_id),
+        model_access_tier=get_model_access_tier(db, user_id, workspace_id),
         workspace_id=workspace_id,
         compliance_mode=policy.get("compliance_mode", "standard"),
         data_region=policy.get("data_region"),
