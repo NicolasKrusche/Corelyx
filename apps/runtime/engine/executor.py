@@ -860,6 +860,32 @@ def _extract_json_text(raw: str) -> str:
     return _find_complete_json_object(text) or text
 
 
+def _narrow_to_input_schema(input_data: Any, input_schema: dict[str, Any] | None) -> Any:
+    """Send an agent only the top-level fields its input_schema declares.
+
+    input_schema was parsed off the node and then never read, so an agent was
+    handed whatever the upstream node happened to emit. That is a cost bug, not
+    a cosmetic one: the Gmail digest's classifier received the entire message
+    object — body_html and attachments included — and spent 55,594 prompt tokens
+    per email to answer in 32. Input is ~99.9% of an agent's token bill, and
+    nothing bounded it.
+
+    Declaring fields now bounds the prompt. Narrowing is top-level and only
+    affects what this node sends to the model: downstream nodes still read the
+    upstream node's full output via data['nX'], so nothing else sees a
+    difference. No schema (or a non-object one) keeps the old
+    send-everything behaviour, so agents that declare nothing are unaffected.
+    """
+    if not isinstance(input_data, dict):
+        return input_data
+    if not input_schema or input_schema.get("type") != "object":
+        return input_data
+    properties = input_schema.get("properties")
+    if not isinstance(properties, dict) or not properties:
+        return input_data
+    return {key: value for key, value in input_data.items() if key in properties}
+
+
 def _output_schema_contract(output_schema: dict[str, Any] | None) -> str:
     """Instruct the model to emit exactly the shape `output_schema` declares.
 
@@ -3534,7 +3560,9 @@ class ProgramExecutor:
             if part and part.strip()
         )
         sanitized_system = self._pii.sanitize_text(raw_system)
-        sanitized_input_data = self._pii.sanitize_value(input_data)
+        sanitized_input_data = self._pii.sanitize_value(
+            _narrow_to_input_schema(input_data, cfg.input_schema)
+        )
         _system = sanitized_system.value
         llm_input_json = json.dumps(sanitized_input_data.value)
         await update_node_execution(
