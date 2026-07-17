@@ -418,6 +418,7 @@ export function Sidebar({
   const [advanced, setAdvanced] = useAdvancedMode();
   const { base, accent, setBase, setAccent } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapseSignal, setSidebarCollapseSignal] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   // Forced open while the product tour points at sidebar items
@@ -425,7 +426,10 @@ export function Sidebar({
 
   useEffect(() => {
     const onTourStart = () => setTourOpen(true);
-    const onTourEnd = () => setTourOpen(false);
+    const onTourEnd = () => {
+      setTourOpen(false);
+      setSidebarCollapseSignal((value) => value + 1);
+    };
     window.addEventListener("corelyx:tour-start", onTourStart);
     window.addEventListener("corelyx:tour-end", onTourEnd);
     return () => {
@@ -669,7 +673,10 @@ export function Sidebar({
   }, []);
 
   // Close mobile sidebar on navigation
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  useEffect(() => {
+    setMobileOpen(false);
+    setSidebarCollapseSignal((value) => value + 1);
+  }, [pathname]);
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? (localStorage.getItem("corelyx-language") ?? "en") : "en";
@@ -789,7 +796,10 @@ export function Sidebar({
       <button
         type="button"
         aria-label={mobileOpen ? "Close menu" : "Open menu"}
-        onClick={() => setMobileOpen((v) => !v)}
+        onClick={() => {
+          if (mobileOpen) setSidebarCollapseSignal((value) => value + 1);
+          setMobileOpen((value) => !value);
+        }}
         className={cn(
           "fixed left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-lg border transition-colors lg:hidden",
           isDark
@@ -804,7 +814,10 @@ export function Sidebar({
       {mobileOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setMobileOpen(false)}
+          onClick={() => {
+            setMobileOpen(false);
+            setSidebarCollapseSignal((value) => value + 1);
+          }}
           aria-hidden
         />
       )}
@@ -821,15 +834,16 @@ export function Sidebar({
         isDark ? "text-white shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)]" : "text-gray-900",
         borderCls
       )}
-      onMouseLeave={() => {
-        setMenuOpen(false);
-        setUsageOpen(false);
-        setWorkspaceMenuOpen(false);
-      }}
       style={{
         background: `linear-gradient(to bottom, ${palette.from}, ${palette.via}, ${palette.to})`,
         ["--sb-bar" as string]: palette.activeBar,
         ["--sb-badge" as string]: palette.badgeBg,
+      }}
+      onMouseLeave={() => {
+        setSidebarCollapseSignal((value) => value + 1);
+        setMenuOpen(false);
+        setUsageOpen(false);
+        setWorkspaceMenuOpen(false);
       }}
     >
       {/* Logo */}
@@ -1123,7 +1137,7 @@ export function Sidebar({
         {/* ── HELP ───────────────────────────────────────────────────────── */}
         <NavSectionLabel label={tSidebar("sections.help")} isDark={isDark} />
         <div className="space-y-0.5">
-          <NotificationCenter isDark={isDark} />
+          <NotificationCenter isDark={isDark} sidebarCollapseSignal={sidebarCollapseSignal} />
           <NavItem href="/support" label={tNav("support")} active={pathname.startsWith("/support")}
             icon={<SupportIcon />} isDark={isDark} />
         </div>
