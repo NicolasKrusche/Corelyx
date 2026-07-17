@@ -7,6 +7,7 @@
 // an auto-running workflow).
 
 import { jsonrepair } from "jsonrepair";
+import type { ZodError } from "zod";
 import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { extractJson, normalizeSchema } from "@/lib/genesis/parsing";
@@ -63,7 +64,7 @@ export function parseConvertedSchema(rawText: string): unknown {
 export type FinalizeResult = {
   schema: ProgramSchema;
   draftValid: boolean;
-  draftError?: ReturnType<typeof validateProgramDraft> extends { error: infer E } ? E : never;
+  draftError?: ZodError;
   /** Number of dangling edges/triggers pruned (for logging). */
   removed: { edges: number; triggers: number };
 };
@@ -115,7 +116,7 @@ export function finalizeConvertedSchema(
     return {
       schema: normalized,
       draftValid: false,
-      draftError: draftResult.error as FinalizeResult["draftError"],
+      draftError: draftResult.error,
       removed: { edges: pruned.removedEdges, triggers: pruned.removedTriggers },
     };
   }
