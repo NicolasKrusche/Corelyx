@@ -4,11 +4,10 @@ import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import "./globals.css";
-import { CookieNotice } from "@/components/consent-banner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageBootstrap, LanguagePrompt } from "@/components/language-switcher";
 import { GenesisJobProvider } from "@/components/genesis/genesis-job-provider";
-import { PersistentAiDisclosure } from "@/components/ai-transparency";
+import { RouteAwareGlobalNotices } from "@/components/route-aware-global-notices";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -96,13 +95,9 @@ export default async function RootLayout({
               {children}
             </GenesisJobProvider>
             <LanguagePrompt />
-            <CookieNotice
+            <RouteAwareGlobalNotices
               aiDisclosureTitle={aiDisclosure("title")}
               aiDisclosureMessage={aiDisclosure("message")}
-            />
-            <PersistentAiDisclosure
-              title={aiDisclosure("title")}
-              message={aiDisclosure("message")}
             />
           </ThemeProvider>
         </NextIntlClientProvider>
