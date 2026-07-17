@@ -45,7 +45,16 @@ export interface PlanEntitlements {
   // Pay-per-use connectors (Stripe, Twilio, OpenAI, etc.) — requires own API key/OAuth account
   payPerUseConnectors: boolean;
 
-  // Platform AI credits included per month (null = unlimited, 0 = none)
+  // Platform AI credits included per month (null = unlimited, 0 = none).
+  //
+  // 1,000 credits = $1 of billed value (the credit-pack price), and the runtime
+  // bills a 10x markup over provider cost, so an allowance costs us
+  // credits/10/1000 in real terms — Solo's 15,000 is $1.50 at *full* use, which
+  // never happens. Sized as headroom, not as a cost centre: the old allowances
+  // (2,500/10,000/15,000) were tight enough that a single agent-heavy run could
+  // exhaust a Solo month, which reads as a broken product long before it reads
+  // as a spending limit. Raise these before touching PLATFORM_MARKUP — the
+  // markup is our margin on credit packs; the allowance is marketing spend.
   includedAiCredits: number | null;
 
   // Which tier of platform Genesis models the user can access
@@ -95,7 +104,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     localFiles: true,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
-    includedAiCredits: 2_500,
+    includedAiCredits: 15_000,
     genesisPlatformModelTier: "standard",
     genesisV2: false,
   },
@@ -114,7 +123,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     localFiles: true,
     maxTeamSeats: 3,
     maxWorkspaces: 3,
-    includedAiCredits: 10_000,
+    includedAiCredits: 60_000,
     genesisPlatformModelTier: "premium",
     genesisV2: false,
   },
@@ -133,7 +142,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     localFiles: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
-    includedAiCredits: 15_000,
+    includedAiCredits: 150_000,
     genesisPlatformModelTier: "premium",
     genesisV2: true,
   },

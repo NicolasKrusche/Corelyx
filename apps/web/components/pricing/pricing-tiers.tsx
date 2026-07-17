@@ -54,7 +54,7 @@ export const TIERS = [
       { text: "All 200+ connectors", note: "(incl. Stripe, Twilio, OpenAI, AWS S3…)" },
       { text: "AI agents", note: "(plan, approve & run one-time tasks)" },
       { text: "Bring your own API keys (BYOK)" },
-      { text: "2,500 platform AI credits / month", note: "(use any model, no setup)" },
+      { text: "15,000 platform AI credits / month", note: "(use any model, no setup)" },
       { text: "30-day run history" },
       { text: "5 Genesis AI uses / month" },
       { text: "Manual, cron & webhook triggers" },
@@ -81,7 +81,7 @@ export const TIERS = [
       { text: "Custom conflict handling (skip/fail)" },
       { text: "500 runs / month — enough for daily automations across your whole team" },
       { text: "All 200+ connectors" },
-      { text: "BYOK + 10,000 platform AI credits / month" },
+      { text: "BYOK + 60,000 platform AI credits / month" },
       { text: "90-day run history" },
       { text: "All trigger types" },
       { text: "Priority support" },
@@ -99,7 +99,7 @@ export const TIERS = [
     highlight: false,
     features: [
       { text: "Everything in Team" },
-      { text: "15,000 platform AI credits / month", note: "(included, resets monthly)" },
+      { text: "150,000 platform AI credits / month", note: "(included, resets monthly)" },
       { text: "Unlimited team seats" },
       { text: "2,000 runs / month", note: "(custom available)" },
       { text: "1-year run history" },
@@ -136,7 +136,7 @@ export const FAQ = [
   },
   {
     q: "What are platform AI credits?",
-    a: "An alternative to BYOK - use Corelyx's managed key and pay from a credit balance. Credits are included monthly with Solo (2,500), Team (10,000), and Scale (15,000) plans, and you can top up anytime. All providers are supported via a single key.",
+    a: "An alternative to BYOK - use Corelyx's managed key and pay from a credit balance. Credits are included monthly with Solo (15,000), Team (60,000), and Scale (150,000) plans, and you can top up anytime. All providers are supported via a single key.",
   },
   {
     q: "Can I use my own API keys on paid plans?",
