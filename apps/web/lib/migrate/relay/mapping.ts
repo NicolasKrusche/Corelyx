@@ -245,16 +245,19 @@ export const RELAY_CONCEPT_MAP: RelayConcept[] = [
   { relay: "MCP servers", corelyx: "SKIP for v1", note: "do not attempt to recreate MCP servers; note them for manual setup" },
 ];
 
+/** The gap arm of RelayAppResolution — the only one that carries `suggestion`. */
+export type RelayGapResolution = Extract<RelayAppResolution, { status: "gap" }>;
+
 export type CoverageSummary = {
   covered: RelayAppResolution[];   // connector or agent
-  gaps: RelayAppResolution[];      // no direct equivalent
+  gaps: RelayGapResolution[];      // no direct equivalent (narrowed so `.suggestion` is accessible)
 };
 
 /** Split a set of resolved apps into covered vs gap, deduped by label. */
 export function summarizeCoverage(resolutions: Array<RelayAppResolution | null>): CoverageSummary {
   const seen = new Set<string>();
   const covered: RelayAppResolution[] = [];
-  const gaps: RelayAppResolution[] = [];
+  const gaps: RelayGapResolution[] = [];
   for (const res of resolutions) {
     if (!res) continue;
     if (seen.has(res.label)) continue;
