@@ -6,6 +6,9 @@ import type { ApiKey } from "@/components/sidebars/NodeSidebar";
 import { normalizeProgramDraft, validateProgramDraft } from "@/lib/workflow/normalize";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { getProgramAccess, canView } from "@/lib/workspaces";
+import { getUserTier } from "@/lib/limits";
+import { getEntitlements } from "@/lib/entitlements";
+import { getAllowedPlatformModels } from "@/lib/genesis/request";
 
 export default async function EditorPage({
   params,
@@ -84,6 +87,17 @@ export default async function EditorPage({
     })
   );
 
+  const tier = await getUserTier(user.id, access.workspaceId);
+  const entitlements = getEntitlements(tier);
+  const platformModels = getAllowedPlatformModels(entitlements.genesisPlatformModelTier).map(
+    ({ id: modelId, label, sublabel, tier: modelTier }) => ({
+      id: modelId,
+      label,
+      sublabel,
+      tier: modelTier,
+    })
+  );
+
   // ── Fetch connections linked to this program ──────────────────────────────
 
   type LinkedConnectionRow = { connections: { id: string; name: string; provider: string; scopes: string[] | null } };
@@ -130,6 +144,8 @@ export default async function EditorPage({
       initialSchemaVersion={program.schema_version ?? null}
       initialValidation={initialValidation}
       apiKeys={apiKeys}
+      byokAllowed={entitlements.byok}
+      platformModels={platformModels}
       linkedConnections={linkedConnections}
       allConnections={allConnections}
       enableAdvancedEditor={enableAdvancedEditor}

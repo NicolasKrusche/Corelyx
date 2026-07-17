@@ -94,6 +94,39 @@ LEGACY_PLATFORM_MODEL_ALIASES: dict[str, str] = {
     "openai/gpt-oss-120b:free": PLATFORM_DEFAULT_MODEL,
 }
 
+# Mirrors apps/web/lib/genesis/request.ts PLATFORM_MODEL_CATALOG. These are the
+# Corelyx Platform Key models available at each workspace tier; BYOK remains
+# unrestricted for Solo+ because the customer pays their provider directly.
+PLATFORM_MODELS_BY_ACCESS_TIER: dict[str, frozenset[str]] = {
+    "free": frozenset({PLATFORM_DEFAULT_MODEL, "openai/gpt-oss-120b"}),
+    "plus": frozenset({
+        PLATFORM_DEFAULT_MODEL,
+        "anthropic/claude-3-haiku",
+        "openai/gpt-4o-mini",
+    }),
+    "pro": frozenset({
+        PLATFORM_DEFAULT_MODEL,
+        "anthropic/claude-3-haiku",
+        "openai/gpt-4o-mini",
+        "anthropic/claude-sonnet-4.6",
+        "openai/gpt-4o",
+    }),
+    "builder": frozenset({
+        PLATFORM_DEFAULT_MODEL,
+        "anthropic/claude-3-haiku",
+        "openai/gpt-4o-mini",
+        "anthropic/claude-sonnet-4.6",
+        "openai/gpt-4o",
+    }),
+    "unlimited": frozenset({
+        PLATFORM_DEFAULT_MODEL,
+        "anthropic/claude-3-haiku",
+        "openai/gpt-4o-mini",
+        "anthropic/claude-sonnet-4.6",
+        "openai/gpt-4o",
+    }),
+}
+
 # Best-effort price catalog used when the provider response does not include
 # explicit cost fields. Rates are USD per 1M tokens.
 MODEL_PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
@@ -421,7 +454,14 @@ def _unique_model_candidates(requested_model: str, fallback_models: tuple[str, .
 
 def _normalize_platform_model(model: str) -> str:
     """Map retired platform model IDs stored in older workflow schemas."""
-    return LEGACY_PLATFORM_MODEL_ALIASES.get(model, model)
+    if model == "openai/gpt-oss-120b:free":
+        return "openai/gpt-oss-120b"
+    return model
+
+
+def _is_free_platform_model(model: str) -> bool:
+    """Whether Corelyx absorbs the provider cost instead of billing credits."""
+    return _normalize_platform_model(model) in PLATFORM_MODELS_BY_ACCESS_TIER["free"]
 
 
 def _llm_error_status_code(error: Exception | str) -> int | None:
@@ -944,6 +984,7 @@ class ProgramExecutor:
         conflict_policy: str = "queue",
         connection_name_to_id: dict[str, str] | None = None,
         plan: str = "free",
+        model_access_tier: str | None = None,
         workspace_id: str | None = None,
         compliance_mode: str = "standard",
         data_region: str | None = None,
@@ -959,6 +1000,9 @@ class ProgramExecutor:
         self.execution_mode = execution_mode
         self.conflict_policy = conflict_policy
         self.workspace_id = workspace_id
+        # None is kept for backwards-compatible direct construction in isolated
+        # tests. Production entrypoints always pass the resolved workspace tier.
+        self.model_access_tier = model_access_tier
         # Dry-run: agent_task write/destructive tools are simulated, not executed.
         # Can also be turned on per-run via a trigger_payload {"__dry_run__": true}.
         self.dry_run = bool(dry_run)
@@ -1031,6 +1075,39 @@ class ProgramExecutor:
             session = PseudonymizationSession()
             self._pii_session = session
         return session
+
+    def _enforce_agent_model_access(self, api_key_ref: str, model: str, node_id: str) -> None:
+        """Enforce workspace model/BYOK entitlements at the final execution boundary."""
+        tier = getattr(self, "model_access_tier", None)
+        if tier is None:
+            return
+        if tier not in PLATFORM_MODELS_BY_ACCESS_TIER:
+            tier = "free"
+
+        if api_key_ref != "platform":
+            if tier == "free":
+                raise ExecutionError(
+                    "BYOK_PLAN_REQUIRED",
+                    "Bring your own API key requires the Solo plan or higher.",
+                    node_id,
+                )
+            return
+
+        normalized_model = _normalize_platform_model(model)
+        if normalized_model not in PLATFORM_MODELS_BY_ACCESS_TIER[tier]:
+            plan_names = {
+                "free": "Free",
+                "plus": "Solo",
+                "pro": "Team",
+                "builder": "Scale",
+                "unlimited": "Unlimited",
+            }
+            raise ExecutionError(
+                "PLATFORM_MODEL_PLAN_REQUIRED",
+                f"Model '{normalized_model}' is not available with the Corelyx Platform Key "
+                f"on the {plan_names[tier]} plan. Choose an available model or upgrade your plan.",
+                node_id,
+            )
 
     def _record_telemetry(
         self,
@@ -1844,8 +1921,10 @@ class ProgramExecutor:
         if use_platform_key:
             cfg.model = _normalize_platform_model(cfg.model)
 
+        self._enforce_agent_model_access(api_key_ref, cfg.model, node.id)
+
         # Check platform credit balance before fetching the key
-        if use_platform_key and self.user_id:
+        if use_platform_key and self.user_id and not _is_free_platform_model(cfg.model):
             await self._check_platform_credits()
 
         # Fetch API key from Next.js internal endpoint (keeps key off this service)
@@ -2165,7 +2244,8 @@ class ProgramExecutor:
                 model = _normalize_platform_model(model)
 
             try:
-                if use_platform_key and self.user_id:
+                self._enforce_agent_model_access(ref, model, node.id)
+                if use_platform_key and self.user_id and not _is_free_platform_model(model):
                     await self._check_platform_credits()
                 api_key, provider = await self._fetch_api_key(ref)
             except ExecutionError as e:
@@ -2840,7 +2920,12 @@ class ProgramExecutor:
         )
         billing_platform = getattr(self, "_agent_billing_platform", False)
         billed_credits = 0
-        if billing_platform and estimated_cost_usd and getattr(self, "user_id", None):
+        if (
+            billing_platform
+            and not _is_free_platform_model(model)
+            and estimated_cost_usd
+            and getattr(self, "user_id", None)
+        ):
             billed_credits = math.ceil(estimated_cost_usd * PLATFORM_MARKUP * CREDITS_PER_USD)
         self._log_llm_usage(
             node_id,
@@ -3490,7 +3575,7 @@ class ProgramExecutor:
         self._limiter.check_cost(estimated_cost_usd)
 
         billed_credits = 0
-        if deduct_credits and estimated_cost_usd and self.user_id:
+        if deduct_credits and not _is_free_platform_model(cfg.model) and estimated_cost_usd and self.user_id:
             billed_credits = math.ceil(estimated_cost_usd * PLATFORM_MARKUP * CREDITS_PER_USD)
             await self._deduct_platform_credits(billed_credits)
 

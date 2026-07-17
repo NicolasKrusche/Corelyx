@@ -244,6 +244,7 @@ def get_db() -> Client:
 # Tiers that carry the higher "paid" resource ceilings. "unlimited" and admins
 # are handled separately (no ceiling at all).
 _PAID_TIERS = {"plus", "pro", "builder"}
+_MODEL_ACCESS_TIERS = {"free", "plus", "pro", "builder", "unlimited"}
 
 
 def get_user_run_plan(db: Client, user_id: str) -> str:
@@ -273,6 +274,47 @@ def get_user_run_plan(db: Client, user_id: str) -> str:
         if row.get("tier") in _PAID_TIERS:
             return "paid"
         return "free"
+    except Exception:
+        return "free"
+
+
+def get_model_access_tier(db: Client, user_id: str, workspace_id: str | None = None) -> str:
+    """Resolve the billing tier that controls platform-model and BYOK access.
+
+    Model entitlements are workspace-scoped in the web app, so a member of a
+    paid workspace must inherit that workspace's tier even when their personal
+    profile is free. Unknown/missing data fails closed to the Free tier.
+    """
+    if not user_id:
+        return "free"
+
+    try:
+        profile_result = (
+            db.table("profiles")
+            .select("tier, is_admin")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        profile_rows = profile_result.data or []
+        profile = profile_rows[0] if profile_rows else {}
+        if profile.get("is_admin") is True:
+            return "unlimited"
+
+        if workspace_id:
+            workspace_result = (
+                db.table("workspaces")
+                .select("tier")
+                .eq("id", workspace_id)
+                .limit(1)
+                .execute()
+            )
+            workspace_rows = workspace_result.data or []
+            workspace_tier = workspace_rows[0].get("tier") if workspace_rows else None
+            return workspace_tier if workspace_tier in _MODEL_ACCESS_TIERS else "free"
+
+        profile_tier = profile.get("tier")
+        return profile_tier if profile_tier in _MODEL_ACCESS_TIERS else "free"
     except Exception:
         return "free"
 
