@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import type {
+  Node,
   ProgramSchema,
   AgentConfig,
   StepConfig,
@@ -22,6 +23,7 @@ import type {
   RetryConfig,
 } from "@flowos/schema";
 import type { ValidationResult, ValidationError, ValidationWarning } from "@/lib/validation";
+import { explainNode, getNodeAlternatives } from "@/lib/genesis/explain";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   OPERATION_PARAM_FIELDS,
@@ -75,6 +77,12 @@ interface NodeSidebarProps {
   onUpdate: (nodeId: string, config: Record<string, unknown>) => void;
   onClose: () => void;
   onDelete: (nodeId: string) => void;
+  /**
+   * Prefill the "Edit with AI" panel with a refinement and open it. Used by the
+   * "Try instead" connector alternatives so a swap is one click away. Optional so
+   * the sidebar still works in contexts without an AI-edit surface.
+   */
+  onRequestAiEdit?: (prompt: string) => void;
 }
 
 // ─── Cron presets ─────────────────────────────────────────────────────────────
@@ -2591,6 +2599,61 @@ function LastRunPanel({
 
 // ─── NodeSidebar ──────────────────────────────────────────────────────────────
 
+// ─── "Why this step?" explainability callout ──────────────────────────────────
+// Plain-language reason the node exists, derived deterministically from the
+// schema (see lib/genesis/explain). For connector nodes it also offers one-click
+// "use X instead" swaps that prefill an AI refinement. Lowers the activation
+// hurdle: users understand a generated graph instead of guessing at it.
+
+function WhyThisStep({
+  node,
+  schema,
+  onRequestAiEdit,
+}: {
+  node: Node;
+  schema: ProgramSchema;
+  onRequestAiEdit?: (prompt: string) => void;
+}) {
+  const { headline, why } = explainNode(node, schema);
+  const alternatives = onRequestAiEdit ? getNodeAlternatives(node, schema) : [];
+
+  return (
+    <div className="mb-5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+      <div className="flex items-center gap-1.5 mb-1">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5 text-primary shrink-0">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 1.5a4 4 0 00-2.5 7.12c.42.34.67.62.75 1.13l.13.75h3.24l.13-.75c.08-.51.33-.79.75-1.13A4 4 0 008 1.5zM6.25 13h3.5M6.75 14.5h2.5" />
+        </svg>
+        <h4 className="text-xs font-semibold text-foreground">Why this step?</h4>
+      </div>
+      <p className="text-[11px] font-medium text-foreground/90 leading-snug">{headline}</p>
+      <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{why}</p>
+
+      {alternatives.length > 0 && (
+        <div className="mt-2.5 pt-2.5 border-t border-primary/15">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+            Try instead
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {alternatives.map((alt) => (
+              <button
+                key={alt.provider}
+                type="button"
+                onClick={() => onRequestAiEdit?.(alt.refinement)}
+                className="text-[11px] px-2 py-1 rounded-md border border-border bg-background text-foreground/80 hover:border-primary/50 hover:text-foreground transition-colors"
+              >
+                {alt.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground/70 mt-1.5 leading-snug">
+            Swaps this step for another app via a one-click AI edit — you review it before it applies.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function NodeSidebar({
   nodeId,
   schema,
@@ -2605,6 +2668,7 @@ export function NodeSidebar({
   onUpdate,
   onClose,
   onDelete,
+  onRequestAiEdit,
 }: NodeSidebarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const node = schema.nodes.find((n) => n.id === nodeId);
@@ -2692,6 +2756,9 @@ export function NodeSidebar({
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {/* Per-node validation */}
         <ValidationSummary errors={nodeErrors} warnings={nodeWarnings} />
+
+        {/* Plain-language "why is this node here?" + one-click alternatives */}
+        <WhyThisStep node={node} schema={schema} onRequestAiEdit={onRequestAiEdit} />
 
         {/* Label & Description */}
         <SidebarSection title="Identity">

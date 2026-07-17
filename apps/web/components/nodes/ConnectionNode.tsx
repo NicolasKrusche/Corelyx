@@ -4,7 +4,7 @@ import React from "react";
 import { Position } from "@xyflow/react";
 import type { NodeProps } from "@xyflow/react";
 import { Globe, Plug, FolderOpen } from "lucide-react";
-import { NodeShell, NodeHandle, SourceAddHandle } from "./NodeShell";
+import { NodeShell, NodeHandle, SourceAddHandle, InlineSelect } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type {
   NodeStatus,
@@ -13,6 +13,9 @@ import type {
   OAuthConnectionConfig,
   FileConnectionConfig,
 } from "@flowos/schema";
+import { previewNodeOutput } from "@/lib/genesis/node-preview";
+import { CONNECTOR_OPERATIONS, OPERATION_SCOPES } from "@/lib/connectors/catalog";
+import { useOptionalEditorDispatch } from "@/lib/editor/state";
 
 interface ConnectionNodeData {
   label: string;
@@ -44,6 +47,7 @@ function isOAuthConnectionConfig(config: ConnectionConfig): config is OAuthConne
 }
 
 export function ConnectionNode({ id, data, selected }: NodeProps) {
+  const dispatch = useOptionalEditorDispatch();
   const nodeData = data as unknown as ConnectionNodeData;
   const httpConfig = isHttpConnectionConfig(nodeData.config) ? nodeData.config : null;
   const fileConfig = isFileConnectionConfig(nodeData.config) ? nodeData.config : null;
@@ -61,6 +65,39 @@ export function ConnectionNode({ id, data, selected }: NodeProps) {
     || (fileConfig ? (String((fileConfig.operation_params ?? {}).path ?? "") || undefined) : undefined)
     || nodeData.connection
     || undefined;
+
+  // Inline operation edit for OAuth connectors when selected — swap what the
+  // node does without opening the sidebar. Mirrors the sidebar's behaviour:
+  // resetting params and pulling the operation's default scopes.
+  let footer: React.ReactNode = null;
+  const provider = oauthConfig?.provider ?? "";
+  const supportedOps = provider ? (CONNECTOR_OPERATIONS[provider] ?? []) : [];
+  if (selected && dispatch && oauthConfig && supportedOps.length > 0) {
+    footer = (
+      <InlineSelect
+        label="Operation"
+        value={oauthConfig.operation ?? ""}
+        options={[
+          { value: "", label: "— pass token downstream —" },
+          ...supportedOps.map((op) => ({ value: op, label: op })),
+        ]}
+        onChange={(op) => {
+          const nextOp = op || undefined;
+          const autoScopes = nextOp ? (OPERATION_SCOPES[provider]?.[nextOp] ?? []) : [];
+          dispatch({
+            type: "UPDATE_NODE_CONFIG",
+            nodeId: id,
+            config: {
+              ...oauthConfig,
+              operation: nextOp,
+              operation_params: undefined,
+              ...(autoScopes.length > 0 ? { scope_required: autoScopes } : {}),
+            },
+          });
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -80,6 +117,8 @@ export function ConnectionNode({ id, data, selected }: NodeProps) {
         error={nodeData.errors?.[0]?.message}
         warning={nodeData.warnings?.[0]?.message}
         questionPin={(data as { genesisQuestion?: string | null }).genesisQuestion}
+        outputPreview={nodeData.config ? previewNodeOutput({ type: "connection", config: nodeData.config, connection: nodeData.connection }) : null}
+        footer={footer}
       />
 
       <SourceAddHandle nodeId={id} accent="blue" />
