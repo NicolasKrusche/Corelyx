@@ -63,7 +63,7 @@ const plans: Plan[] = [
     col: 1,
     buttonText: `Start for ${formatEur(PLAN_PRICING.plus.price)}`,
     href: "/signup",
-    highlights: ["5 programs", "All 200+ connectors", "AI agents & BYOK", "Human-in-the-loop approvals", "15,000 platform AI credits"],
+    highlights: ["5 programs", "All 200+ connectors", "AI agents & BYOK", "Human-in-the-loop approvals", "2,500 platform AI credits"],
   },
   {
     key: "pro",

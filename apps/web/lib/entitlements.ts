@@ -47,14 +47,15 @@ export interface PlanEntitlements {
 
   // Platform AI credits included per month (null = unlimited, 0 = none).
   //
-  // 1,000 credits = $1 of billed value (the credit-pack price), and the runtime
-  // bills a 10x markup over provider cost, so an allowance costs us
-  // credits/10/1000 in real terms — Solo's 15,000 is $1.50 at *full* use, which
-  // never happens. Sized as headroom, not as a cost centre: the old allowances
-  // (2,500/10,000/15,000) were tight enough that a single agent-heavy run could
-  // exhaust a Solo month, which reads as a broken product long before it reads
-  // as a spending limit. Raise these before touching PLATFORM_MARKUP — the
-  // markup is our margin on credit packs; the allowance is marketing spend.
+  // 1,000 credits = $1 of billed value (the pack price) and the runtime bills a
+  // 10x markup over provider cost, so an allowance costs credits/10/1000 in real
+  // terms — Solo's 2,500 is $0.25 at *full* use. These are small on purpose;
+  // BYOK is the intended path for heavy use.
+  //
+  // If they ever need raising, raise them — don't cut PLATFORM_MARKUP. The
+  // markup is our margin on credit packs (10x => ~90%); the allowance is
+  // marketing spend we set per tier. Cutting the markup to 3x would take pack
+  // margin to ~67% across every credit ever sold, to buy the same headroom.
   includedAiCredits: number | null;
 
   // Which tier of platform Genesis models the user can access
@@ -104,7 +105,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     localFiles: true,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
-    includedAiCredits: 15_000,
+    includedAiCredits: 2_500,
     genesisPlatformModelTier: "standard",
     genesisV2: false,
   },
@@ -123,7 +124,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     localFiles: true,
     maxTeamSeats: 3,
     maxWorkspaces: 3,
-    includedAiCredits: 60_000,
+    includedAiCredits: 10_000,
     genesisPlatformModelTier: "premium",
     genesisV2: false,
   },
@@ -142,7 +143,7 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     localFiles: true,
     maxTeamSeats: null,
     maxWorkspaces: null,
-    includedAiCredits: 150_000,
+    includedAiCredits: 15_000,
     genesisPlatformModelTier: "premium",
     genesisV2: true,
   },

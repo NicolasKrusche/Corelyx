@@ -33,7 +33,7 @@ export const COMPARISON_FEATURES: FeatureItem[] = [
   { label: "Bring your own key (BYOK)", values: [false, true, true, true] },
   {
     label: "Platform AI credits / month",
-    values: ["—", "15,000", "60,000", "150,000"],
+    values: ["—", "2,500", "10,000", "15,000"],
   },
   { label: "Genesis AI uses / month", values: ["3", "5", "Unlimited", "Unlimited"] },
   { label: "AI agents (one-time tasks)", values: [false, true, true, true] },
