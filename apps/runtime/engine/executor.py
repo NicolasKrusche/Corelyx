@@ -98,6 +98,9 @@ PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b"
 # PLATFORM_DEFAULT_MODEL does not call tools reliably. Agents are Solo+, so this
 # model is permitted for them.
 AGENT_PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini"
+LEGACY_PLATFORM_MODEL_ALIASES: dict[str, str] = {
+    "openai/gpt-oss-120b:free": PLATFORM_DEFAULT_MODEL,
+}
 
 # Mirrors apps/web/lib/genesis/request.ts PLATFORM_MODEL_CATALOG. These are the
 # Corelyx Platform Key models available at each workspace tier; BYOK remains
@@ -469,9 +472,7 @@ def _unique_model_candidates(requested_model: str, fallback_models: tuple[str, .
 
 def _normalize_platform_model(model: str) -> str:
     """Map retired platform model IDs stored in older workflow schemas."""
-    if model == "openai/gpt-oss-120b:free":
-        return "openai/gpt-oss-120b"
-    return model
+    return LEGACY_PLATFORM_MODEL_ALIASES.get(model, model)
 
 
 def _is_free_platform_model(model: str) -> bool:
@@ -2086,6 +2087,8 @@ class ProgramExecutor:
         if cfg.model == USER_ASSIGNED_SENTINEL:
             cfg.model = PLATFORM_DEFAULT_MODEL
         use_platform_key = api_key_ref == "platform"
+        if use_platform_key:
+            cfg.model = _normalize_platform_model(cfg.model)
 
         self._enforce_agent_model_access(api_key_ref, cfg.model, node.id)
 
@@ -2410,6 +2413,8 @@ class ProgramExecutor:
             if model == USER_ASSIGNED_SENTINEL:
                 model = AGENT_PLATFORM_DEFAULT_MODEL
             use_platform_key = ref == "platform"
+            if use_platform_key:
+                model = _normalize_platform_model(model)
 
             try:
                 self._enforce_agent_model_access(ref, model, node.id)
