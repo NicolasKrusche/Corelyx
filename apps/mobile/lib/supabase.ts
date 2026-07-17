@@ -19,15 +19,25 @@ const ExpoStorage = {
   removeItem: (key: string) => AsyncStorage.removeItem(key),
 };
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: ExpoStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-    flowType: "pkce",
-  },
-});
+// NEVER throw at module scope: createClient("") throws "supabaseUrl is
+// required.", and a throw during initial bundle evaluation closes a release
+// app the instant it opens (this is exactly how the env-less v0.1.0 APK
+// crashed). With missing config we construct a client against a placeholder
+// host instead — requests fail loudly at call time and the login screen shows
+// its isConfigured notice, but the app always reaches the UI.
+export const supabase = createClient(
+  SUPABASE_URL || "https://unconfigured.invalid",
+  SUPABASE_ANON_KEY || "unconfigured",
+  {
+    auth: {
+      storage: ExpoStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+      flowType: "pkce",
+    },
+  }
+);
 
 // Small, sensitive values (the crlxmob_ device token) go in the OS keychain.
 export const secureStore = {

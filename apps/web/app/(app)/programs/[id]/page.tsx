@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { LocalDateTime } from "@/components/ui/local-date-time";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
@@ -72,15 +73,8 @@ function isAiGenerated(genesisModel: string | null): boolean {
   return genesisModel !== "manual" && genesisModel !== "template";
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "Never";
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
+// NOTE: timestamps are UTC instants and this is a server component, so they
+// must be formatted client-side in the viewer's zone — see <LocalDateTime>.
 
 function relativeTime(value: string | null) {
   if (!value) return "no history";
@@ -294,11 +288,10 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               {nextCronRun && (
                 <Badge
                   variant="outline"
-                  title={`Next scheduled run: ${new Date(nextCronRun).toLocaleString()}`}
                   className="border-primary/30 bg-primary/10 text-primary"
                 >
                   <Clock3 className="mr-1 h-3 w-3" />
-                  Next run {formatDate(nextCronRun)}
+                  Next run&nbsp;<LocalDateTime value={nextCronRun} fallback="scheduled" withTitle />
                 </Badge>
               )}
               {hasOtherActiveTrigger && (
@@ -330,7 +323,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               <span>·</span>
               <span>v{program.schema_version ?? 1} schema</span>
               <span>·</span>
-              <span>created {formatDate(program.created_at)}</span>
+              <span>created <LocalDateTime value={program.created_at} /></span>
               <span>·</span>
               <span className="font-mono">{shortProgramId(program.id)}</span>
             </div>
@@ -609,8 +602,8 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
             </div>
             <div className="divide-y divide-border">
               {[
-                { label: "Last run", value: program.last_run_at ? formatDate(program.last_run_at) : "Never", icon: Clock3 },
-                { label: "Updated", value: formatDate(program.updated_at), icon: CalendarDays },
+                { label: "Last run", value: <LocalDateTime value={program.last_run_at} />, icon: Clock3 },
+                { label: "Updated", value: <LocalDateTime value={program.updated_at} />, icon: CalendarDays },
                 { label: "Completed runs", value: completedRuns, icon: CheckCircle2 },
                 { label: "Failed runs", value: failedRuns, icon: AlertTriangle },
                 { label: "Created by", value: creatorName, icon: UserRound },

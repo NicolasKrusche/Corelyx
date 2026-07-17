@@ -45,7 +45,17 @@ export interface PlanEntitlements {
   // Pay-per-use connectors (Stripe, Twilio, OpenAI, etc.) — requires own API key/OAuth account
   payPerUseConnectors: boolean;
 
-  // Platform AI credits included per month (null = unlimited, 0 = none)
+  // Platform AI credits included per month (null = unlimited, 0 = none).
+  //
+  // 1,000 credits = $1 of billed value (the pack price) and the runtime bills a
+  // 10x markup over provider cost, so an allowance costs credits/10/1000 in real
+  // terms — Solo's 2,500 is $0.25 at *full* use. These are small on purpose;
+  // BYOK is the intended path for heavy use.
+  //
+  // If they ever need raising, raise them — don't cut PLATFORM_MARKUP. The
+  // markup is our margin on credit packs (10x => ~90%); the allowance is
+  // marketing spend we set per tier. Cutting the markup to 3x would take pack
+  // margin to ~67% across every credit ever sold, to buy the same headroom.
   includedAiCredits: number | null;
 
   // Which tier of platform Genesis models the user can access

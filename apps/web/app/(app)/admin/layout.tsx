@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Zap,
   Settings,
-  DollarSign,
   Landmark,
   PlayCircle,
   Lock,
@@ -97,14 +96,13 @@ export default async function AdminLayout({
       { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
     ] as AdminNavItem[] : []),
     ...(canAccessCosts ? [
-      { href: "/admin/costs", label: "Costs & Billing", icon: DollarSign },
+      { href: "/admin/finances", label: "Finances", icon: Landmark },
     ] as AdminNavItem[] : []),
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
     { href: "/admin/feedback", label: "Feedback", icon: MessageSquarePlus, badge: newFeedbackCount },
     { href: "/admin/codes", label: "Code Manager", icon: Ticket },
     { href: "/admin/posts", label: "Posts", icon: Newspaper },
     ...(isFounder ? [
-      { href: "/admin/finances", label: "Finances", icon: Landmark },
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/dsr", label: "DSR Queue", icon: FileText },
       { href: "/admin/team", label: "Team", icon: Users },

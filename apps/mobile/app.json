@@ -2,7 +2,7 @@
   "expo": {
     "name": "Corelyx",
     "slug": "corelyx-mobile",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "orientation": "portrait",
     "scheme": "corelyx",
     "userInterfaceStyle": "automatic",
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "versionCode": 2
+      "versionCode": 4
     },
     "plugins": [
       "expo-router",

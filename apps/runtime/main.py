@@ -697,6 +697,35 @@ async def _run_program_gated(
         )
 
 
+# Railway injects RAILWAY_GIT_COMMIT_SHA at build time. The others are fallbacks
+# for other hosts / local runs. Resolved once at import — it cannot change while
+# the process lives, and a miss must not cost a syscall per health check.
+_DEPLOYED_COMMIT = (
+    os.environ.get("RAILWAY_GIT_COMMIT_SHA")
+    or os.environ.get("GIT_COMMIT_SHA")
+    or os.environ.get("SOURCE_COMMIT")
+    or os.environ.get("VERCEL_GIT_COMMIT_SHA")
+    or ""
+)
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    """Liveness, plus which commit is actually serving.
+
+    This used to return {"status": "ok"} alone, which made "did the redeploy
+    land?" unanswerable without digging through host logs — and several fixes
+    have sat unnoticed behind a stale deploy because of it. `commit` is a short
+    SHA so it can be diffed against origin/main directly:
+
+        curl -s $RUNTIME_URL/health | jq -r .commit
+        git rev-parse --short=12 origin/main
+
+    Deliberately just the SHA: this route is public and unauthenticated, so it
+    reports what is running, never how it is configured. "unknown" means the
+    host injected no commit env var (e.g. a local runtime), not that it is stale.
+    """
+    return {
+        "status": "ok",
+        "commit": _DEPLOYED_COMMIT[:12] if _DEPLOYED_COMMIT else "unknown",
+    }

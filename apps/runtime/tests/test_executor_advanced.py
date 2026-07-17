@@ -25,6 +25,7 @@ from schema import (
     parse_schema,
 )
 from engine.executor import (
+    NODE_ERROR_KEY,
     CancellationError,
     ConflictError,
     ExecutionError,
@@ -1414,7 +1415,7 @@ class TestRetryPaths(unittest.IsolatedAsyncioTestCase):
 
         with patch("engine.executor.update_node_execution", new=AsyncMock()):
             result = await executor._with_retry(_fail, retry_cfg, "t")
-        self.assertEqual(result, {})
+        self.assertEqual(result, {NODE_ERROR_KEY: "[Retries exhausted - continuing run] boom"})
         self.assertEqual(call_count, 2)
 
     async def test_with_retry_client_error_no_retry(self) -> None:
@@ -1694,6 +1695,216 @@ class TestCompliance(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ExecutionError) as ctx:
                 await executor._enforce_provider_policy("openrouter", "t", model_id="gpt-4o")
         self.assertEqual(ctx.exception.code, "COMPLIANCE_BLOCKED")
+
+
+# ─────────────────────────────────────────────────────────────
+# 15. Failed-open visibility + loop aggregation status
+# ─────────────────────────────────────────────────────────────
+
+def _loop_schema() -> ProgramSchema:
+    return _simple_schema(
+        [
+            {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+            {"id": "l", "type": "step", "config": {"logic_type": "loop", "extra": {"over": "items", "item_var": "item"}}},
+            {"id": "s", "type": "step", "config": {"logic_type": "transform", "extra": {"transformation": "item"}}},
+        ],
+        [
+            {"id": "e1", "from": "t", "to": "l", "type": "data_flow"},
+            {"id": "e2", "from": "l", "to": "s", "type": "data_flow"},
+        ],
+    )
+
+
+def _updates_for_node(update_mock: AsyncMock, node_id: str) -> list[dict]:
+    return [c.kwargs for c in update_mock.call_args_list if c.args[2] == node_id]
+
+
+class TestFailedOpenVisibility(unittest.IsolatedAsyncioTestCase):
+    async def test_loop_aggregate_keeps_all_iteration_failures(self) -> None:
+        """A body node that failed open in every iteration must end 'failed'."""
+        executor = _make_executor(_loop_schema())
+        tagged = {NODE_ERROR_KEY: "[Retries exhausted - continuing run] quota"}
+        update_mock = AsyncMock()
+        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
+             patch("engine.executor.update_node_execution", new=update_mock), \
+             patch.object(executor, "_execute_node", new=AsyncMock(return_value=dict(tagged))):
+            state: dict = {"l": {}}
+            await executor._execute_loop_body(
+                "l", {"__loop_items__": [1, 2], "item_var": "item"}, state
+            )
+        final = _updates_for_node(update_mock, "s")[-1]
+        self.assertEqual(final["status"], "failed")
+        self.assertIn("Failed in all 2 executed loop iterations", final["error_message"])
+        self.assertIn("quota", final["error_message"])
+        self.assertEqual(state["s"]["count"], 2)
+
+    async def test_loop_aggregate_partial_failures_stay_completed_with_error(self) -> None:
+        executor = _make_executor(_loop_schema())
+        outputs = [
+            {NODE_ERROR_KEY: "[Retries exhausted - continuing run] blip"},
+            {"ok": True},
+        ]
+        update_mock = AsyncMock()
+        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
+             patch("engine.executor.update_node_execution", new=update_mock), \
+             patch.object(executor, "_execute_node", new=AsyncMock(side_effect=outputs)):
+            await executor._execute_loop_body(
+                "l", {"__loop_items__": [1, 2], "item_var": "item"}, {"l": {}}
+            )
+        final = _updates_for_node(update_mock, "s")[-1]
+        self.assertEqual(final["status"], "completed")
+        self.assertIn("Failed in 1 of 2 executed loop iterations", final["error_message"])
+
+    async def test_loop_aggregate_marks_never_ran_nodes_skipped(self) -> None:
+        """Empty loop: body nodes must end 'skipped', not 'completed' at 0ms."""
+        executor = _make_executor(_loop_schema())
+        update_mock = AsyncMock()
+        with patch("engine.executor.update_node_execution", new=update_mock), \
+             patch.object(executor, "_execute_node", new=AsyncMock()) as exec_mock:
+            await executor._execute_loop_body(
+                "l", {"__loop_items__": [], "item_var": "item"}, {"l": {}}
+            )
+        exec_mock.assert_not_awaited()
+        final = _updates_for_node(update_mock, "s")[-1]
+        self.assertEqual(final["status"], "skipped")
+        self.assertIsNone(final["error_message"])
+        self.assertNotIn("started_at", final)
+
+    async def test_loop_aggregate_clean_iterations_clear_stale_errors(self) -> None:
+        executor = _make_executor(_loop_schema())
+        update_mock = AsyncMock()
+        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
+             patch("engine.executor.update_node_execution", new=update_mock), \
+             patch.object(executor, "_execute_node", new=AsyncMock(return_value={"ok": True})):
+            await executor._execute_loop_body(
+                "l", {"__loop_items__": [1], "item_var": "item"}, {"l": {}}
+            )
+        final = _updates_for_node(update_mock, "s")[-1]
+        self.assertEqual(final["status"], "completed")
+        self.assertIsNone(final["error_message"])
+
+    async def test_execute_node_keeps_failed_open_agent_failed(self) -> None:
+        """The generic completion write must not flip a failed-open agent to completed."""
+        schema = _simple_schema(
+            [
+                {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+                {"id": "a", "type": "agent", "config": {
+                    "model": "gpt-4o", "api_key_ref": "platform", "system_prompt": "",
+                    "requires_approval": False, "scope_access": "read",
+                    "retry": {"max_attempts": 1, "backoff": "none", "backoff_base_seconds": 0, "fail_program_on_exhaust": False},
+                }},
+            ],
+            [{"id": "e1", "from": "t", "to": "a", "type": "data_flow"}],
+        )
+        executor = _make_executor(schema)
+        tagged = {NODE_ERROR_KEY: "[Retries exhausted - continuing run] boom"}
+        update_mock = AsyncMock()
+        with patch("engine.executor.update_node_execution", new=update_mock), \
+             patch.object(executor, "_execute_agent", new=AsyncMock(return_value=dict(tagged))):
+            output = await executor._execute_node(executor.node_map["a"], {"x": 1})
+        self.assertEqual(output, tagged)
+        final = _updates_for_node(update_mock, "a")[-1]
+        self.assertEqual(final["status"], "failed")
+        self.assertEqual(final["error_message"], tagged[NODE_ERROR_KEY])
+
+    async def test_execute_node_success_still_completes_and_clears_error(self) -> None:
+        schema = _simple_schema(
+            [
+                {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+                {"id": "s", "type": "step", "config": {"logic_type": "transform", "transformation": "data['x']"}},
+            ],
+            [{"id": "e1", "from": "t", "to": "s", "type": "data_flow"}],
+        )
+        executor = _make_executor(schema)
+        update_mock = AsyncMock()
+        with patch("engine.executor.update_node_execution", new=update_mock):
+            await executor._execute_node(executor.node_map["s"], {"x": 41})
+        final = _updates_for_node(update_mock, "s")[-1]
+        self.assertEqual(final["status"], "completed")
+        self.assertIsNone(final["error_message"])
+
+
+class TestOpenAiReasoningModelParams(unittest.IsolatedAsyncioTestCase):
+    def _agent_cfg(self, model: str) -> AgentConfig:
+        schema = _simple_schema(
+            [
+                {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+                {"id": "a", "type": "agent", "config": {
+                    "model": model, "api_key_ref": "my-key", "system_prompt": "judge",
+                    "requires_approval": False, "scope_access": "read",
+                    "retry": {"max_attempts": 1, "backoff": "none", "backoff_base_seconds": 0, "fail_program_on_exhaust": False},
+                }},
+            ],
+            [{"id": "e1", "from": "t", "to": "a", "type": "data_flow"}],
+        )
+        self.executor = _make_executor(schema)
+        return self.executor.node_map["a"].config
+
+    def _chat_response(self) -> Mock:
+        resp = Mock()
+        resp.is_success = True
+        resp.json.return_value = {
+            "choices": [{"message": {"content": "{\"ok\": true}"}}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5},
+        }
+        return resp
+
+    async def _captured_call_llm_body(self, model: str, provider: str) -> tuple[str, dict]:
+        cfg = self._agent_cfg(model)
+        with patch.dict(os.environ), \
+             patch("engine.executor._get_llm_client") as mock_client, \
+             patch("engine.executor.update_node_execution", new=AsyncMock()):
+            os.environ.pop("LITELLM_URL", None)
+            os.environ.pop("PLATFORM_LLM_BASE_URL", None)
+            mock_client.return_value.post = AsyncMock(return_value=self._chat_response())
+            await self.executor._call_llm(cfg, "sk-test", provider, {"x": 1}, "a")
+            call = mock_client.return_value.post.call_args
+        return call.args[0], call.kwargs["json"]
+
+    async def test_call_llm_openai_direct_uses_max_completion_tokens(self) -> None:
+        url, body = await self._captured_call_llm_body("o3-mini", "openai")
+        self.assertIn("api.openai.com", url)
+        self.assertEqual(body["max_completion_tokens"], 4096)
+        self.assertNotIn("max_tokens", body)
+
+    async def test_call_llm_openrouter_keeps_max_tokens(self) -> None:
+        url, body = await self._captured_call_llm_body("openai/o3-mini", "openrouter")
+        self.assertIn("openrouter.ai", url)
+        self.assertEqual(body["max_tokens"], 4096)
+        self.assertNotIn("max_completion_tokens", body)
+
+    async def _captured_agent_loop_body(self, model: str) -> dict:
+        schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
+        executor = _make_executor(schema)
+        cfg = AgentTaskConfig(
+            objective="test", model=model, api_key_ref="my-key",
+            max_iterations=1, requires_approval=False, scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False), input_schema=None, output_schema=None,
+            approval_timeout_hours=24.0, tools=[],
+        )
+        with patch.dict(os.environ), \
+             patch("engine.executor._get_llm_client") as mock_client, \
+             patch("engine.executor.update_node_execution", new=AsyncMock()):
+            os.environ.pop("LITELLM_URL", None)
+            os.environ.pop("PLATFORM_LLM_BASE_URL", None)
+            mock_client.return_value.post = AsyncMock(return_value=self._chat_response())
+            await executor._agent_loop_openai(
+                cfg, "sk-test", "openai", "node-1", "sys", "input", [], 1, model
+            )
+            call = mock_client.return_value.post.call_args
+        return call.kwargs["json"]
+
+    async def test_agent_loop_openai_reasoning_model_drops_temperature(self) -> None:
+        body = await self._captured_agent_loop_body("o3-mini")
+        self.assertEqual(body["max_completion_tokens"], 2048)
+        self.assertNotIn("max_tokens", body)
+        self.assertNotIn("temperature", body)
+
+    async def test_agent_loop_openai_non_reasoning_model_keeps_temperature(self) -> None:
+        body = await self._captured_agent_loop_body("gpt-4o")
+        self.assertEqual(body["max_completion_tokens"], 2048)
+        self.assertNotIn("max_tokens", body)
+        self.assertIn("temperature", body)
 
 
 if __name__ == "__main__":

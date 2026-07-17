@@ -1,5 +1,27 @@
 # Corelyx — TODO
 
+## Mobile App
+
+- [ ] **Wire FCM so Corelyx Guard pushes actually deliver on Android**
+  - The sideload APK ships without `google-services.json` / Firebase config, so remote push
+    (`getExpoPushTokenAsync`) returns nothing — Guard 2FA approvals currently rely on the
+    app's in-app polling fallback instead of real push notifications.
+  - Steps: create a Firebase project for `app.corelyx.mobile`, download `google-services.json`
+    into `apps/mobile/`, reference it via `android.googleServicesFile` in `app.json`, upload the
+    FCM V1 service-account key to EAS (`eas credentials`), rebuild, and verify a Guard push
+    arrives with the app closed.
+  - Server side already works (`EXPO_ACCESS_TOKEN` + `lib/push.ts`) — this is purely the
+    Android client credential setup.
+
+- [ ] **Expo SDK upgrade for 16 KB page-size devices**
+  - The current build (Expo SDK 51 / RN 0.74) ships native libs aligned to 4 KB pages only —
+    verified by inspecting the APK's arm64 ELF headers (all 46 libs). On newer Android devices
+    that boot with 16 KB memory pages, the app will crash on launch with a native error.
+  - Upgrade to an Expo SDK whose prebuilt libraries are 16 KB-aligned (SDK 52+), re-test the
+    sideload flow, and bump `versionCode`.
+  - Also required before a Google Play listing: Play requires 16 KB support for new app
+    submissions targeting current API levels.
+
 ## EU Data Residency
 
 - [ ] **OpenRouter enterprise DPA + EU routing**

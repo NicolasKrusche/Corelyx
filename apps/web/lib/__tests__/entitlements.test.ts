@@ -176,6 +176,22 @@ describe("ENTITLEMENTS record", () => {
     expect(ENTITLEMENTS.unlimited.runHistoryDays).toBeNull();
   });
 
+  it("included credits rise with tier and stay cheap to serve", () => {
+    // 1,000 credits = $1 billed and the runtime bills 10x over provider cost,
+    // so real cost = credits / 10 / 1000. Pins what an allowance actually costs
+    // us, so a future change to these numbers is a deliberate one.
+    const realCostUsd = (credits: number) => credits / 10 / 1000;
+
+    expect(ENTITLEMENTS.free.includedAiCredits).toBe(0);
+    expect(realCostUsd(ENTITLEMENTS.plus.includedAiCredits!)).toBeCloseTo(0.25);
+    expect(realCostUsd(ENTITLEMENTS.pro.includedAiCredits!)).toBeCloseTo(1);
+    expect(realCostUsd(ENTITLEMENTS.builder.includedAiCredits!)).toBeCloseTo(1.5);
+
+    expect(ENTITLEMENTS.plus.includedAiCredits!).toBeLessThan(ENTITLEMENTS.pro.includedAiCredits!);
+    expect(ENTITLEMENTS.pro.includedAiCredits!).toBeLessThan(ENTITLEMENTS.builder.includedAiCredits!);
+    expect(ENTITLEMENTS.unlimited.includedAiCredits).toBeNull();
+  });
+
   it("free and plus are the tiers with fixed Genesis monthly limits", () => {
     expect(ENTITLEMENTS.free.genesisUsesPerMonth).not.toBeNull();
     expect(ENTITLEMENTS.plus.genesisUsesPerMonth).toBe(5);

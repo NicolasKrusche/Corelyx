@@ -204,7 +204,7 @@ async function sendLowBalanceEmail({
   currentBalance: number;
   rechargeCredits: number;
 }): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.corelyx.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.corelyx.app";
   const topUpUrl = `${appUrl}/credits#topup`;
 
   await sendEmail({

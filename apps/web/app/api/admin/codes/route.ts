@@ -6,7 +6,7 @@ import { createServiceClient, apiError } from "@/lib/api";
 import { isAdmin } from "@/lib/admin";
 import { writeAppLog } from "@/lib/app-logs";
 
-const CODE_TYPES = ["solo_lifetime", "team_lifetime", "scale_lifetime", "unlimited", "solo_trial", "team_trial", "run_credits"] as const;
+const CODE_TYPES = ["solo_lifetime", "team_lifetime", "scale_lifetime", "unlimited", "solo_trial", "team_trial", "run_credits", "genesis_uses"] as const;
 
 const CreateCodeSchema = z.object({
   code: z.string().min(3).max(64).transform((s) => s.trim().toUpperCase()).optional(),

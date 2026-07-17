@@ -1603,6 +1603,7 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     ],
     internalLinks: [
       { href: "/compare/best-eu-ai-automation-platform", label: "Best EU AI automation platform", description: "Direct decision guide for GDPR, AI Act, AI governance, and compliance-first automation buyers." },
+      { href: "/compare/relay-app-alternative", label: "Relay.app alternative", description: "Migration guide for teams moving off Relay.app before its shutdown." },
       { href: "/compare/corelyx-vs-n8n", label: "Corelyx vs n8n", description: "Compare self-hostable automation with compliance-first AI workflow controls." },
       { href: "/compare/corelyx-vs-make", label: "Corelyx vs Make", description: "Compare scenario automation with EU AI governance workflows." },
       commonLinks.security,
@@ -1718,6 +1719,70 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       { question: "Can Make-style tools be compliant?", answer: "They can support compliant processes if configured correctly. Corelyx aims to make compliance-first controls more explicit and central." },
     ],
     internalLinks: [commonLinks.compliance, commonLinks.templates, commonLinks.integrations, { href: "/data-residency", label: "Data residency", description: "Infrastructure and provider locality context." }],
+  },
+  {
+    path: "/compare/relay-app-alternative",
+    section: "compare",
+    title: "Relay.app Alternative: Migrate Before the Shutdown",
+    shortTitle: "Relay.app Alternative",
+    description:
+      "Relay.app is shutting down (free accounts August 15, 2026; paid accounts September 14, 2026). Here's how to move your workflows to Corelyx, an EU-native compliance-first AI automation platform, before access ends.",
+    eyebrow: "Migration guide",
+    headline: "Relay.app is shutting down. Here's how to move your workflows to Corelyx.",
+    summary:
+      "Relay.app has announced it is winding down: free accounts lose access on August 15, 2026, and paying customers on September 14, 2026. Relay lets you export each workflow as JSON plus a plain-language AI prompt describing what it does — and Corelyx can rebuild a workflow directly from that same kind of prompt using Genesis, its built-in AI workflow generator.",
+    definition:
+      "A Relay.app migration is the process of exporting workflows, sequences, run history, and connected-app context from Relay before account deletion, then rebuilding the equivalent automation on another platform using either the exported workflow JSON or the AI-prompt description Relay provides for each workflow.",
+    audience: "Relay.app users, RevOps and automation owners, and IT/procurement teams that need a working replacement before the September 14, 2026 shutdown deadline.",
+    lastModified: "2026-07-16",
+    primaryQuery: "Relay.app alternative",
+    entityTerms: ["Relay.app alternative", "Relay.app shutting down", "Relay.app shutdown", "migrate from Relay.app", "Relay.app export"],
+    keyPoints: [
+      "Relay.app free accounts lose access on August 15, 2026; paying customers keep access through September 14, 2026, with bonus steps and AI credits during the transition.",
+      "Relay's export gives you workflow/sequence JSON, an AI-prompt description of each workflow, run history, and tables as CSV — but Relay recommends no specific replacement platform.",
+      "Corelyx's Genesis generator builds a working workflow directly from a plain-language description, so the AI prompt Relay exports for each workflow can be pasted straight into Corelyx to rebuild it.",
+      "Do this before the deadline: Relay deletes stored credentials and tokens for connected apps when accounts are removed, so reconnecting each app early avoids a scramble later.",
+    ],
+    implementationSteps: [
+      { name: "Export from Relay now", text: "In Relay, export each workflow/sequence/MCP server as JSON and copy the AI-prompt description Relay generates for it. Export run history and any tables as CSV while they're still available." },
+      { name: "Rebuild with Genesis", text: "In Corelyx, paste each exported AI prompt into Genesis to generate the equivalent workflow. Review the generated schema, triggers, and connector steps before enabling it." },
+      { name: "Reconnect your apps", text: "Reconnect the third-party accounts your workflows depend on through Corelyx's OAuth connectors before Relay's stored tokens are deleted, so nothing is left half-migrated." },
+      { name: "Add approval gates where it matters", text: "For any workflow that sends messages, changes records, or takes a customer-facing action, add a human approval step before going live — Relay treated this as custom logic; Corelyx treats it as a first-class workflow step." },
+      { name: "Run both in parallel briefly", text: "Keep the Relay workflow running (if still active) alongside the new Corelyx version for a short overlap window, then cut over once outputs match." },
+    ],
+    table: {
+      caption: "Corelyx vs Relay.app — migration comparison",
+      headers: ["Feature", "Corelyx", "Relay.app"],
+      rows: [
+        ["Platform status", "Actively developed", "Shutting down — free Aug 15, 2026; paid Sep 14, 2026"],
+        ["Rebuild from a description", "Genesis generates a working workflow from a plain-language prompt", "Exports an AI prompt per workflow for use in another tool"],
+        ["Native workflow import", "JSON import for Corelyx's own schema, with automatic connection matching", "N/A — exports its own JSON and prompt formats for migrating out"],
+        ["Human approval gates", "Built-in workflow step with state, timeout, and role", "Available as an agent step; not a first-class runtime gate"],
+        ["Credential storage", "Server-side Vault references; tokens never reach frontend responses", "Provider tokens deleted from Relay once the account is removed"],
+        ["MCP support", "Runtime connectors usable as workflow steps", "Custom MCP servers and external MCP tool calls inside workflows"],
+        ["Connector coverage", "200+ production connectors across CRM, payments, comms, dev tools, and more", "300+ app-based triggers and broad integration coverage"],
+      ],
+    },
+    checklist: [
+      "Export every active Relay workflow's JSON and AI prompt before the account is deleted.",
+      "Export run history and tables as CSV if you need them for audit or reference.",
+      "Reconnect each third-party app in Corelyx rather than assuming credentials carry over.",
+      "Rebuild time-sensitive or revenue-critical workflows first, then lower-priority ones.",
+      "Add an approval gate to any migrated workflow that takes a customer-facing or destructive action.",
+    ],
+    faqs: [
+      { question: "When does Relay.app actually shut down?", answer: "Free accounts lose access on August 15, 2026. Paying customers keep access through September 14, 2026, with extra steps and AI credits during that window." },
+      { question: "Can I automatically import a Relay.app workflow into Corelyx?", answer: "There's no one-click Relay import today. The practical path is to take the AI-prompt description Relay exports for each workflow and paste it into Corelyx's Genesis generator, which builds the equivalent workflow from that description." },
+      { question: "What happens to my Relay.app credentials and connections?", answer: "Relay deletes stored credentials and tokens for connected apps when an account is removed. Reconnect the same apps in Corelyx ahead of time rather than waiting until the deadline." },
+      { question: "Is Corelyx a like-for-like replacement for Relay.app?", answer: "For workflows built around triggers, connector actions, and AI steps, yes. Corelyx additionally treats human approval and audit evidence as first-class workflow concepts, which is a meaningful difference if your Relay workflows touch customer data or take irreversible actions." },
+    ],
+    internalLinks: [
+      { href: "/compare/corelyx-vs-n8n", label: "Corelyx vs n8n", description: "Compare self-hostable automation with compliance-first AI workflow controls." },
+      { href: "/compare/corelyx-vs-make", label: "Corelyx vs Make", description: "Compare scenario automation with EU AI governance workflows." },
+      commonLinks.templates,
+      commonLinks.integrations,
+      { href: "/programs/import", label: "Import a workflow", description: "Bring an existing workflow schema into Corelyx." },
+    ],
   },
   {
     path: "/docs/eu-ai-act-workflow-automation",
