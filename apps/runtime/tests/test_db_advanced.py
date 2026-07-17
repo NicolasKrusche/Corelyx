@@ -659,7 +659,7 @@ class EnqueueFileOperationDeviceAuthTests(unittest.IsolatedAsyncioTestCase):
     async def test_allows_device_in_workspace(self):
         db = _make_db()
         db.table.return_value.execute.side_effect = [
-            MagicMock(data=[{"id": "device-1"}]),  # ownership check passes
+            MagicMock(data=[{"id": "device-1", "platform": "windows"}]),  # ownership check passes
             MagicMock(data=[{"id": "op-1"}]),      # file_operations insert
         ]
         row = await self._enqueue(db, "device-1")
