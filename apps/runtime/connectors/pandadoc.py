@@ -1,4 +1,5 @@
 """PandaDoc connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.pandadoc.com/v1"
 class PandadocConnector(IConnector):
     """
     PandaDoc connector for: list_documents, send_document.
-    
+
     API Base: pandadoc
     """
-    
+
     provider = "pandadoc"
-    supported_operations = [
-        "list_documents",
-        "send_document"
-    ]
+    supported_operations = ["list_documents", "send_document"]
 
     async def execute(
         self,
@@ -47,10 +45,7 @@ class PandadocConnector(IConnector):
                         f"PandaDoc does not support '{operation}'",
                     )
 
-
-    async def _list_documents(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_documents(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_documents operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -58,29 +53,33 @@ class PandadocConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/documents", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/documents",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),
             "total": data.get("total", 0),
         }
 
-    async def _send_document(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_document(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute send_document operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send_document",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/send_document",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

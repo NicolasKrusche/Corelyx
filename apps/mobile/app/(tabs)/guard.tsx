@@ -43,7 +43,7 @@ export default function Guard() {
   }, [loadPending]);
 
   useEffect(() => {
-    loadAll();
+    void Promise.resolve().then(loadAll);
     timer.current = setInterval(loadPending, 4000);
     return () => {
       if (timer.current) clearInterval(timer.current);

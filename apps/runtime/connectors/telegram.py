@@ -1,4 +1,5 @@
 """Telegram native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -43,9 +44,7 @@ class TelegramConnector(IConnector):
                         f"Telegram does not support operation '{operation}'",
                     )
 
-    async def _send_message(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _send_message(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         chat_id = params.get("chat_id")
         text = params.get("text", "")
         if not chat_id:
@@ -55,9 +54,7 @@ class TelegramConnector(IConnector):
             "text": text,
             "parse_mode": params.get("parse_mode", "HTML"),
         }
-        r = await request_with_rate_limit(
-            client, "POST", f"{base}/sendMessage", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{base}/sendMessage", headers=headers, json=body)
         _raise_for_status(r, "send_message")
         data = r.json()
         result = data.get("result", {})
@@ -67,9 +64,7 @@ class TelegramConnector(IConnector):
             "date": result.get("date"),
         }
 
-    async def _send_photo(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _send_photo(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         chat_id = params.get("chat_id")
         photo = params.get("photo")
         if not chat_id or not photo:
@@ -80,9 +75,7 @@ class TelegramConnector(IConnector):
         }
         if params.get("caption"):
             body["caption"] = params["caption"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{base}/sendPhoto", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{base}/sendPhoto", headers=headers, json=body)
         _raise_for_status(r, "send_photo")
         data = r.json()
         result = data.get("result", {})
@@ -91,9 +84,7 @@ class TelegramConnector(IConnector):
             "chat_id": result.get("chat", {}).get("id"),
         }
 
-    async def _get_chat(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _get_chat(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         chat_id = params.get("chat_id")
         if not chat_id:
             raise ConnectorError("MISSING_PARAM", "get_chat requires 'chat_id'")
@@ -115,15 +106,11 @@ class TelegramConnector(IConnector):
             "description": result.get("description"),
         }
 
-    async def _get_updates(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _get_updates(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         query: dict[str, Any] = {"limit": int(params.get("limit", 10))}
         if params.get("offset"):
             query["offset"] = params["offset"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{base}/getUpdates", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{base}/getUpdates", headers=headers, params=query)
         _raise_for_status(r, "get_updates")
         data = r.json()
         return {"updates": data.get("result", [])}

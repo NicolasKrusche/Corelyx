@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 from compliance import (
     DEFAULT_WORKSPACE_POLICY,
     PROVIDER_ALIASES,
     PROVIDERS,
-    ProviderPolicy,
     get_provider,
     is_provider_allowed_in_eu_only,
     load_program_connection_providers,
@@ -264,9 +263,7 @@ class TestLoadProgramConnectionProviders(unittest.TestCase):
     def test_success_loads_providers(self) -> None:
         db = MagicMock()
         link_chain = MagicMock()
-        link_chain.execute.return_value = Mock(
-            data=[{"connection_id": "conn-1"}, {"connection_id": "conn-2"}]
-        )
+        link_chain.execute.return_value = Mock(data=[{"connection_id": "conn-1"}, {"connection_id": "conn-2"}])
         link_mock = MagicMock()
         link_mock.select.return_value.eq.return_value = link_chain
 

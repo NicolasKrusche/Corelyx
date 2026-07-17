@@ -12,11 +12,6 @@
  * working app.
  */
 
-function env(name: string, fallback: string): string {
-  const value = process.env[name];
-  return typeof value === "string" && value.length > 0 ? value : fallback;
-}
-
 // Production defaults for release builds; local dev keeps pointing at the dev
 // web server unless explicitly overridden.
 // Canonical web host — app.corelyx.app is NOT configured in DNS (the v0.1.1
@@ -27,20 +22,18 @@ const PROD_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6dm1zZWprcWpicXlhdnh2aXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MjU4NTMsImV4cCI6MjA5MTAwMTg1M30.JPuLdos3w9h85reCWKxN4j3iJDDvvMpNkfWkps86bQo";
 
 // The Corelyx web app the mobile client calls (all data + auth go through it).
-export const API_BASE_URL = env(
-  "EXPO_PUBLIC_API_BASE_URL",
-  __DEV__ ? "http://localhost:3000" : PROD_API_BASE_URL
-);
+const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+const configuredSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const configuredSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+export const API_BASE_URL =
+  configuredApiBaseUrl || (__DEV__ ? "http://localhost:3000" : PROD_API_BASE_URL);
 
 // Same Supabase project as web. Anon key + PKCE — the mobile client establishes
 // its own session in secure storage (not cookies).
-export const SUPABASE_URL = env(
-  "EXPO_PUBLIC_SUPABASE_URL",
-  __DEV__ ? "" : PROD_SUPABASE_URL
-);
-export const SUPABASE_ANON_KEY = env(
-  "EXPO_PUBLIC_SUPABASE_ANON_KEY",
-  __DEV__ ? "" : PROD_SUPABASE_ANON_KEY
-);
+export const SUPABASE_URL =
+  configuredSupabaseUrl || (__DEV__ ? "" : PROD_SUPABASE_URL);
+export const SUPABASE_ANON_KEY =
+  configuredSupabaseAnonKey || (__DEV__ ? "" : PROD_SUPABASE_ANON_KEY);
 
 export const isConfigured = SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;

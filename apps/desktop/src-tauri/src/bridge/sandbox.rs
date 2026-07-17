@@ -19,11 +19,13 @@ pub enum Permission {
     ReadWrite,
 }
 
-impl Permission {
-    pub fn from_str(s: &str) -> Permission {
+impl std::str::FromStr for Permission {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Permission, Self::Err> {
         match s {
-            "read_write" => Permission::ReadWrite,
-            _ => Permission::Read,
+            "read_write" => Ok(Permission::ReadWrite),
+            _ => Ok(Permission::Read),
         }
     }
 }
@@ -54,7 +56,9 @@ impl std::fmt::Display for SandboxError {
             SandboxError::WriteToReadOnly => {
                 write!(f, "write requested on a read-only folder grant")
             }
-            SandboxError::InvalidPath => write!(f, "path is relative or contains an invalid traversal"),
+            SandboxError::InvalidPath => {
+                write!(f, "path is relative or contains an invalid traversal")
+            }
         }
     }
 }

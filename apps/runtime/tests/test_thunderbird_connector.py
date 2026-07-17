@@ -3,6 +3,7 @@
 The network paths need a live mail server, so these cover the parsing/credential/
 search helpers and auto-registration — the parts that carry the bugs.
 """
+
 import email
 import json
 
@@ -29,14 +30,27 @@ def test_registered_and_discovered():
 
 
 def test_parse_credentials_defaults_ports_from_security():
-    creds = _parse_credentials(json.dumps({
-        "imap_host": "imap.fastmail.com", "username": "me@x.com",
-        "password": "pw", "security": "ssl",
-    }))
+    creds = _parse_credentials(
+        json.dumps(
+            {
+                "imap_host": "imap.fastmail.com",
+                "username": "me@x.com",
+                "password": "pw",
+                "security": "ssl",
+            }
+        )
+    )
     assert creds.imap_port == 993 and creds.smtp_port == 465
-    starttls = _parse_credentials(json.dumps({
-        "imap_host": "h", "username": "u", "password": "p", "security": "starttls",
-    }))
+    starttls = _parse_credentials(
+        json.dumps(
+            {
+                "imap_host": "h",
+                "username": "u",
+                "password": "p",
+                "security": "starttls",
+            }
+        )
+    )
     assert starttls.imap_port == 143 and starttls.smtp_port == 587
 
 
@@ -120,14 +134,28 @@ class _FakeIMAP:
 
 
 def _creds():
-    return _parse_credentials(json.dumps({
-        "imap_host": "h", "smtp_host": "s", "username": "u", "password": "p",
-    }))
+    return _parse_credentials(
+        json.dumps(
+            {
+                "imap_host": "h",
+                "smtp_host": "s",
+                "username": "u",
+                "password": "p",
+            }
+        )
+    )
 
 
 def test_triage_ops_are_supported():
-    for op in ["move_message", "archive_message", "mark_spam", "trash_message",
-               "mark_read", "mark_unread", "flag_message"]:
+    for op in [
+        "move_message",
+        "archive_message",
+        "mark_spam",
+        "trash_message",
+        "mark_read",
+        "mark_unread",
+        "flag_message",
+    ]:
         assert op in ThunderbirdConnector.supported_operations
 
 

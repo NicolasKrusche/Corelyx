@@ -1,8 +1,10 @@
 """Unit tests for engine/executor helper functions and safe paths."""
+
 from __future__ import annotations
 
 import os
 import unittest
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 from engine.executor import (
@@ -233,7 +235,15 @@ class TestRecordTelemetry(unittest.IsolatedAsyncioTestCase):
     async def test_run_telemetry_payload(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = ProgramExecutor(schema, "r1", "p1", "u1")
-        executor._record_telemetry("t", prompt_tokens=5, completion_tokens=3, total_tokens=8, estimated_cost_usd=0.001, connector_api_calls=2, model_call_count=1)
+        executor._record_telemetry(
+            "t",
+            prompt_tokens=5,
+            completion_tokens=3,
+            total_tokens=8,
+            estimated_cost_usd=0.001,
+            connector_api_calls=2,
+            model_call_count=1,
+        )
         payload = executor.run_telemetry_payload()
         self.assertEqual(payload["prompt_tokens"], 5)
         self.assertEqual(payload["completion_tokens"], 3)

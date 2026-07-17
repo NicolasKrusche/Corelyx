@@ -1,4 +1,5 @@
 """Chargebee native connector."""
+
 from __future__ import annotations
 
 import base64
@@ -54,12 +55,12 @@ class ChargebeeConnector(IConnector):
                         f"Chargebee does not support '{operation}'",
                     )
 
-    async def _list_subscriptions(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _list_subscriptions(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/subscriptions",
+            client,
+            "GET",
+            f"{base}/subscriptions",
             headers=headers,
             params={"limit": limit},
         )
@@ -70,25 +71,25 @@ class ChargebeeConnector(IConnector):
             "next_offset": data.get("next_offset"),
         }
 
-    async def _get_subscription(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _get_subscription(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         subscription_id = params.get("subscription_id")
         if not subscription_id:
             raise ConnectorError("MISSING_PARAM", "get_subscription requires 'subscription_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/subscriptions/{subscription_id}",
+            client,
+            "GET",
+            f"{base}/subscriptions/{subscription_id}",
             headers=headers,
         )
         _raise_for_status(r, "get_subscription")
         return r.json().get("subscription", r.json())
 
-    async def _list_customers(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _list_customers(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/customers",
+            client,
+            "GET",
+            f"{base}/customers",
             headers=headers,
             params={"limit": limit},
         )
@@ -99,12 +100,12 @@ class ChargebeeConnector(IConnector):
             "next_offset": data.get("next_offset"),
         }
 
-    async def _list_invoices(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _list_invoices(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/invoices",
+            client,
+            "GET",
+            f"{base}/invoices",
             headers=headers,
             params={"limit": limit},
         )
@@ -115,9 +116,7 @@ class ChargebeeConnector(IConnector):
             "next_offset": data.get("next_offset"),
         }
 
-    async def _create_subscription(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _create_subscription(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         plan_id = params.get("plan_id")
         if not plan_id:
             raise ConnectorError("MISSING_PARAM", "create_subscription requires 'plan_id'")
@@ -126,7 +125,9 @@ class ChargebeeConnector(IConnector):
             if params.get(field) is not None:
                 body[field] = str(params[field])
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/subscriptions",
+            client,
+            "POST",
+            f"{base}/subscriptions",
             headers=headers,
             data=body,
         )

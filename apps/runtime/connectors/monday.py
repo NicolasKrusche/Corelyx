@@ -1,4 +1,5 @@
 """Monday.com native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -98,6 +99,7 @@ class MondayConnector(IConnector):
         variables: dict[str, Any] = {"boardId": board_id, "itemName": item_name}
         if params.get("column_values"):
             import json
+
             variables["columnValues"] = json.dumps(params["column_values"])
         data = await self._gql(client, headers, query, variables)
         return {"item": data.get("create_item")}
@@ -110,6 +112,7 @@ class MondayConnector(IConnector):
         if not board_id or not item_id or not column_id:
             raise ConnectorError("MISSING_PARAM", "update_item requires 'board_id', 'item_id', 'column_id'")
         import json
+
         query = """
         mutation UpdateItem($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
           change_column_value(board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value) {
@@ -117,10 +120,17 @@ class MondayConnector(IConnector):
           }
         }
         """
-        data = await self._gql(client, headers, query, {
-            "boardId": board_id, "itemId": item_id,
-            "columnId": column_id, "value": json.dumps(value),
-        })
+        await self._gql(
+            client,
+            headers,
+            query,
+            {
+                "boardId": board_id,
+                "itemId": item_id,
+                "columnId": column_id,
+                "value": json.dumps(value),
+            },
+        )
         return {"updated": True, "item_id": item_id}
 
     async def _create_update(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:

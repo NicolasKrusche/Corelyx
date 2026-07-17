@@ -11,9 +11,9 @@ Data-minimization contract (EU compliance — do not weaken):
   LLM prompt (see apps/web/lib/genesis/introspection.ts); the runtime returns
   them raw over the internal-auth channel only, marked `user_named: true`.
 """
+
 from __future__ import annotations
 
-import asyncio
 import os
 from typing import Any
 from urllib.parse import urlsplit
@@ -90,9 +90,7 @@ async def fetch_connection_token(connection_id: str, user_id: str) -> str:
                 data = resp.json()
                 token = data.get("access_token")
                 if not token:
-                    raise IntrospectionError(
-                        "TOKEN_FETCH_FAILED", "Token endpoint response missing access_token"
-                    )
+                    raise IntrospectionError("TOKEN_FETCH_FAILED", "Token endpoint response missing access_token")
                 return str(token)
             errors.append(f"HTTP {resp.status_code}")
             if resp.status_code not in {301, 302, 307, 308, 404}:
@@ -106,9 +104,7 @@ async def fetch_connection_token(connection_id: str, user_id: str) -> str:
 def _raise_for_status(resp: httpx.Response, provider: str) -> None:
     if resp.is_success:
         return
-    raise IntrospectionError(
-        "PROVIDER_ERROR", f"{provider} metadata endpoint returned HTTP {resp.status_code}"
-    )
+    raise IntrospectionError("PROVIDER_ERROR", f"{provider} metadata endpoint returned HTTP {resp.status_code}")
 
 
 async def introspect_gmail(client: httpx.AsyncClient, access_token: str) -> dict[str, Any]:
@@ -134,9 +130,7 @@ async def introspect_gmail(client: httpx.AsyncClient, access_token: str) -> dict
     return {"provider": "gmail", "resources": resources, "truncated": truncated}
 
 
-async def _slack_conversations(
-    client: httpx.AsyncClient, headers: dict, types: str
-) -> httpx.Response:
+async def _slack_conversations(client: httpx.AsyncClient, headers: dict, types: str) -> httpx.Response:
     return await client.get(
         f"{_SLACK_BASE}/conversations.list",
         headers=headers,
@@ -172,9 +166,7 @@ async def introspect_slack(client: httpx.AsyncClient, access_token: str) -> dict
     ][:MAX_RESOURCES_PER_CONNECTION]
 
     # Slack reports the token's granted scopes on every API response.
-    granted_scopes = [
-        s.strip() for s in resp.headers.get("x-oauth-scopes", "").split(",") if s.strip()
-    ]
+    granted_scopes = [s.strip() for s in resp.headers.get("x-oauth-scopes", "").split(",") if s.strip()]
 
     return {
         "provider": "slack",
@@ -216,15 +208,18 @@ async def introspect_notion(client: httpx.AsyncClient, access_token: str) -> dic
                 break
             prop_type = prop.get("type", "unknown")
             entry: dict[str, Any] = {"name": prop_name, "type": prop_type}
-            options = (prop.get(prop_type) or {}).get("options") if prop_type in (
-                "select",
-                "multi_select",
-                "status",
-            ) else None
+            options = (
+                (prop.get(prop_type) or {}).get("options")
+                if prop_type
+                in (
+                    "select",
+                    "multi_select",
+                    "status",
+                )
+                else None
+            )
             if options:
-                entry["options"] = [
-                    o["name"] for o in options[:MAX_OPTIONS_PER_PROPERTY] if o.get("name")
-                ]
+                entry["options"] = [o["name"] for o in options[:MAX_OPTIONS_PER_PROPERTY] if o.get("name")]
             properties.append(entry)
         resources.append(
             {
@@ -256,9 +251,7 @@ def supports_introspection(provider: str) -> bool:
     return provider.lower() in INTROSPECTORS
 
 
-async def introspect_connection(
-    provider: str, connection_id: str, user_id: str
-) -> dict[str, Any]:
+async def introspect_connection(provider: str, connection_id: str, user_id: str) -> dict[str, Any]:
     """Introspect one connection: fetch token, then metadata. Raises IntrospectionError."""
     introspector = INTROSPECTORS.get(provider.lower())
     if introspector is None:

@@ -1,4 +1,5 @@
 """Google Drive native connector."""
+
 from __future__ import annotations
 
 import base64
@@ -67,9 +68,7 @@ class DriveConnector(IConnector):
                         f"Google Drive does not support operation '{operation}'",
                     )
 
-    async def _list_files(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_files(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query_parts: list[str] = ["trashed = false"]
         if params.get("query"):
             query_parts.append(f"name contains '{_escape_query_value(params['query'])}'")
@@ -79,7 +78,9 @@ class DriveConnector(IConnector):
             query_parts.append(f"mimeType = '{_escape_query_value(params['mime_type'])}'")
         q = " and ".join(query_parts)
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/files",
+            client,
+            "GET",
+            f"{_BASE}/files",
             headers=headers,
             params={
                 "q": q,
@@ -91,23 +92,21 @@ class DriveConnector(IConnector):
         data = r.json()
         return {"files": data.get("files", [])}
 
-    async def _get_file(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_file(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         file_id = params.get("file_id")
         if not file_id:
             raise ConnectorError("MISSING_PARAM", "get_file requires 'file_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/files/{file_id}",
+            client,
+            "GET",
+            f"{_BASE}/files/{file_id}",
             headers=headers,
             params={"fields": "id,name,mimeType,size,modifiedTime,parents,webViewLink,description"},
         )
         _raise_for_status(r, "get_file")
         return r.json()
 
-    async def _create_folder(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_folder(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         name = params.get("name")
         if not name:
             raise ConnectorError("MISSING_PARAM", "create_folder requires 'name'")
@@ -118,7 +117,9 @@ class DriveConnector(IConnector):
         if params.get("parent_id"):
             body["parents"] = [params["parent_id"]]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/files",
+            client,
+            "POST",
+            f"{_BASE}/files",
             headers={**headers, "Content-Type": "application/json"},
             json=body,
         )
@@ -126,23 +127,17 @@ class DriveConnector(IConnector):
         data = r.json()
         return {"folder_id": data.get("id"), "name": data.get("name")}
 
-    async def _upload_file(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _upload_file(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         name = params.get("name")
         content_base64 = params.get("content_base64")
         mime_type = params.get("mime_type", "application/octet-stream")
         parent_id = params.get("parent_id")
         if not name or not content_base64:
-            raise ConnectorError(
-                "MISSING_PARAM", "upload_file requires 'name' and 'content_base64'"
-            )
+            raise ConnectorError("MISSING_PARAM", "upload_file requires 'name' and 'content_base64'")
         try:
             file_bytes = base64.b64decode(content_base64)
         except Exception as exc:
-            raise ConnectorError(
-                "INVALID_PARAM", f"upload_file: content_base64 is not valid base64 — {exc}"
-            ) from exc
+            raise ConnectorError("INVALID_PARAM", f"upload_file: content_base64 is not valid base64 — {exc}") from exc
 
         metadata: dict[str, Any] = {"name": name}
         if parent_id:
@@ -159,7 +154,9 @@ class DriveConnector(IConnector):
         body = meta_part + file_bytes + f"\r\n--{boundary}--".encode()
 
         r = await request_with_rate_limit(
-            client, "POST", f"{_UPLOAD_BASE}/files",
+            client,
+            "POST",
+            f"{_UPLOAD_BASE}/files",
             headers={
                 **headers,
                 "Content-Type": f"multipart/related; boundary={boundary}",
@@ -175,18 +172,16 @@ class DriveConnector(IConnector):
             "web_view_link": data.get("webViewLink"),
         }
 
-    async def _move_file(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _move_file(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         file_id = params.get("file_id")
         folder_id = params.get("folder_id")
         if not file_id or not folder_id:
-            raise ConnectorError(
-                "MISSING_PARAM", "move_file requires 'file_id' and 'folder_id'"
-            )
+            raise ConnectorError("MISSING_PARAM", "move_file requires 'file_id' and 'folder_id'")
         # Fetch current parents so we can remove them after adding the new one
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/files/{file_id}",
+            client,
+            "GET",
+            f"{_BASE}/files/{file_id}",
             headers=headers,
             params={"fields": "parents,name"},
         )
@@ -194,7 +189,9 @@ class DriveConnector(IConnector):
         info = r.json()
         old_parents = ",".join(info.get("parents", []))
         r = await request_with_rate_limit(
-            client, "PATCH", f"{_BASE}/files/{file_id}",
+            client,
+            "PATCH",
+            f"{_BASE}/files/{file_id}",
             headers={**headers, "Content-Type": "application/json"},
             params={
                 "addParents": folder_id,
@@ -206,18 +203,16 @@ class DriveConnector(IConnector):
         _raise_for_status(r, "move_file")
         return {"file_id": file_id, "name": info.get("name"), "moved": True}
 
-    async def _share_file(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _share_file(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         file_id = params.get("file_id")
         email = params.get("email")
         role = params.get("role", "reader")
         if not file_id or not email:
-            raise ConnectorError(
-                "MISSING_PARAM", "share_file requires 'file_id' and 'email'"
-            )
+            raise ConnectorError("MISSING_PARAM", "share_file requires 'file_id' and 'email'")
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/files/{file_id}/permissions",
+            client,
+            "POST",
+            f"{_BASE}/files/{file_id}/permissions",
             headers={**headers, "Content-Type": "application/json"},
             json={"type": "user", "role": role, "emailAddress": email},
         )
@@ -225,15 +220,11 @@ class DriveConnector(IConnector):
         data = r.json()
         return {"file_id": file_id, "permission_id": data.get("id"), "role": role, "email": email}
 
-    async def _delete_file(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _delete_file(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         file_id = params.get("file_id")
         if not file_id:
             raise ConnectorError("MISSING_PARAM", "delete_file requires 'file_id'")
-        r = await request_with_rate_limit(
-            client, "DELETE", f"{_BASE}/files/{file_id}", headers=headers
-        )
+        r = await request_with_rate_limit(client, "DELETE", f"{_BASE}/files/{file_id}", headers=headers)
         if r.status_code not in (200, 204):
             _raise_for_status(r, "delete_file")
         return {"file_id": file_id, "deleted": True}

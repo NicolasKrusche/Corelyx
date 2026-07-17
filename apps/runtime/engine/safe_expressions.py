@@ -82,9 +82,7 @@ def _parse_expression(expression: str) -> ast.Expression:
     if not trimmed:
         raise SafeExpressionError("Expression must not be empty")
     if len(trimmed) > MAX_EXPRESSION_LENGTH:
-        raise SafeExpressionError(
-            f"Expression exceeds maximum length of {MAX_EXPRESSION_LENGTH} characters"
-        )
+        raise SafeExpressionError(f"Expression exceeds maximum length of {MAX_EXPRESSION_LENGTH} characters")
 
     try:
         tree = ast.parse(trimmed, mode="eval")
@@ -102,13 +100,9 @@ def _enforce_ast_limits(tree: ast.AST) -> None:
         nonlocal node_count
         node_count += 1
         if node_count > MAX_AST_NODES:
-            raise SafeExpressionError(
-                f"Expression exceeds maximum complexity of {MAX_AST_NODES} AST nodes"
-            )
+            raise SafeExpressionError(f"Expression exceeds maximum complexity of {MAX_AST_NODES} AST nodes")
         if depth > MAX_AST_DEPTH:
-            raise SafeExpressionError(
-                f"Expression exceeds maximum nesting depth of {MAX_AST_DEPTH}"
-            )
+            raise SafeExpressionError(f"Expression exceeds maximum nesting depth of {MAX_AST_DEPTH}")
         for child in ast.iter_child_nodes(node):
             walk(child, depth + 1)
 
@@ -137,10 +131,7 @@ class _ExpressionEvaluator:
             raise SafeExpressionError(f"Name '{node.id}' is not allowed")
 
         if isinstance(node, ast.Dict):
-            return {
-                self.evaluate(key): self.evaluate(value)
-                for key, value in zip(node.keys, node.values)
-            }
+            return {self.evaluate(key): self.evaluate(value) for key, value in zip(node.keys, node.values)}
 
         if isinstance(node, ast.List):
             return [self.evaluate(item) for item in node.elts]
@@ -154,9 +145,7 @@ class _ExpressionEvaluator:
         if isinstance(node, ast.UnaryOp):
             op = _ALLOWED_UNARY_OPERATORS.get(type(node.op))
             if op is None:
-                raise SafeExpressionError(
-                    f"Unary operator '{type(node.op).__name__}' is not allowed"
-                )
+                raise SafeExpressionError(f"Unary operator '{type(node.op).__name__}' is not allowed")
             return op(self.evaluate(node.operand))
 
         if isinstance(node, ast.BoolOp):
@@ -174,16 +163,12 @@ class _ExpressionEvaluator:
                     if result:
                         return result
                 return result
-            raise SafeExpressionError(
-                f"Boolean operator '{type(node.op).__name__}' is not allowed"
-            )
+            raise SafeExpressionError(f"Boolean operator '{type(node.op).__name__}' is not allowed")
 
         if isinstance(node, ast.BinOp):
             op = _ALLOWED_BINARY_OPERATORS.get(type(node.op))
             if op is None:
-                raise SafeExpressionError(
-                    f"Binary operator '{type(node.op).__name__}' is not allowed"
-                )
+                raise SafeExpressionError(f"Binary operator '{type(node.op).__name__}' is not allowed")
             return op(self.evaluate(node.left), self.evaluate(node.right))
 
         if isinstance(node, ast.Compare):
@@ -192,20 +177,14 @@ class _ExpressionEvaluator:
                 right = self.evaluate(right_node)
                 op = _ALLOWED_COMPARATORS.get(type(comparator))
                 if op is None:
-                    raise SafeExpressionError(
-                        f"Comparator '{type(comparator).__name__}' is not allowed"
-                    )
+                    raise SafeExpressionError(f"Comparator '{type(comparator).__name__}' is not allowed")
                 if not op(left, right):
                     return False
                 left = right
             return True
 
         if isinstance(node, ast.IfExp):
-            return (
-                self.evaluate(node.body)
-                if self.evaluate(node.test)
-                else self.evaluate(node.orelse)
-            )
+            return self.evaluate(node.body) if self.evaluate(node.test) else self.evaluate(node.orelse)
 
         if isinstance(node, ast.Subscript):
             target = self.evaluate(node.value)
@@ -219,27 +198,19 @@ class _ExpressionEvaluator:
             if isinstance(target, (list, tuple, str)):
                 return target[index]
 
-            raise SafeExpressionError(
-                f"Subscript access is not allowed on type '{type(target).__name__}'"
-            )
+            raise SafeExpressionError(f"Subscript access is not allowed on type '{type(target).__name__}'")
 
         if isinstance(node, ast.Attribute):
             if node.attr.startswith("_"):
-                raise SafeExpressionError(
-                    f"Attribute '{node.attr}' is not allowed"
-                )
+                raise SafeExpressionError(f"Attribute '{node.attr}' is not allowed")
 
             target = self.evaluate(node.value)
             if isinstance(target, dict):
                 if node.attr in target:
                     return target[node.attr]
-                raise SafeExpressionError(
-                    f"Key '{node.attr}' not found in object"
-                )
+                raise SafeExpressionError(f"Key '{node.attr}' not found in object")
 
-            raise SafeExpressionError(
-                f"Attribute access is not allowed on type '{type(target).__name__}'"
-            )
+            raise SafeExpressionError(f"Attribute access is not allowed on type '{type(target).__name__}'")
 
         if isinstance(node, ast.Call):
             return self._evaluate_call(node)
@@ -247,9 +218,7 @@ class _ExpressionEvaluator:
         if isinstance(node, ast.ListComp):
             return self._evaluate_list_comp(node)
 
-        raise SafeExpressionError(
-            f"Syntax '{type(node).__name__}' is not allowed in workflow expressions"
-        )
+        raise SafeExpressionError(f"Syntax '{type(node).__name__}' is not allowed in workflow expressions")
 
     def _evaluate_list_comp(self, node: ast.ListComp) -> list:
         """Evaluate a single-generator list comprehension safely.
@@ -261,21 +230,15 @@ class _ExpressionEvaluator:
         scope.
         """
         if len(node.generators) != 1:
-            raise SafeExpressionError(
-                "Only single-generator list comprehensions are allowed"
-            )
+            raise SafeExpressionError("Only single-generator list comprehensions are allowed")
         gen = node.generators[0]
         if not isinstance(gen.target, ast.Name):
-            raise SafeExpressionError(
-                "List comprehension target must be a simple variable name"
-            )
+            raise SafeExpressionError("List comprehension target must be a simple variable name")
 
         var_name = gen.target.id
         iterable = self.evaluate(gen.iter)
         if not isinstance(iterable, (list, tuple)):
-            raise SafeExpressionError(
-                "List comprehension iterable must evaluate to a list or tuple"
-            )
+            raise SafeExpressionError("List comprehension iterable must evaluate to a list or tuple")
 
         results = []
         prev = self._context.get(var_name)
@@ -312,18 +275,14 @@ class _ExpressionEvaluator:
         if isinstance(node.func, ast.Name):
             func = _ALLOWED_FUNCTIONS.get(node.func.id)
             if func is None:
-                raise SafeExpressionError(
-                    f"Function '{node.func.id}' is not allowed"
-                )
+                raise SafeExpressionError(f"Function '{node.func.id}' is not allowed")
             args = [self.evaluate(arg) for arg in node.args]
             return func(*args)
 
         if isinstance(node.func, ast.Attribute):
             method_name = node.func.attr
             if method_name.startswith("_"):
-                raise SafeExpressionError(
-                    f"Method '{method_name}' is not allowed"
-                )
+                raise SafeExpressionError(f"Method '{method_name}' is not allowed")
 
             target = self.evaluate(node.func.value)
             args = [self.evaluate(arg) for arg in node.args]
@@ -343,9 +302,7 @@ class _ExpressionEvaluator:
             if isinstance(target, str) and method_name in _ALLOWED_STRING_METHODS:
                 return _ALLOWED_STRING_METHODS[method_name](target, *args)
 
-            raise SafeExpressionError(
-                f"Method '{method_name}' is not allowed on type '{type(target).__name__}'"
-            )
+            raise SafeExpressionError(f"Method '{method_name}' is not allowed on type '{type(target).__name__}'")
 
         raise SafeExpressionError("Only direct allowlisted function calls are allowed")
 

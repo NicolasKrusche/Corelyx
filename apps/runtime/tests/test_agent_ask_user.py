@@ -1,4 +1,5 @@
 """Tests for the corelyx.ask_user agent tool (pause/resume for human input)."""
+
 from __future__ import annotations
 
 import unittest
@@ -16,9 +17,7 @@ def _ask_executor(node_exec_data=None):
     builder = Mock()
     for m in ["select", "eq", "order", "limit"]:
         getattr(builder, m).return_value = builder
-    builder.execute.return_value = Mock(
-        data=node_exec_data if node_exec_data is not None else [{"id": "ne-1"}]
-    )
+    builder.execute.return_value = Mock(data=node_exec_data if node_exec_data is not None else [{"id": "ne-1"}])
     ex.db = Mock()
     ex.db.table = Mock(return_value=builder)
     return ex
@@ -63,9 +62,7 @@ class AskUserFlowTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_timeout_returns_error_not_raise(self):
         ex = _ask_executor()
-        ex._wait_for_agent_answer = AsyncMock(
-            side_effect=ExecutionError("AGENT_QUESTION_TIMEOUT", "timed out")
-        )
+        ex._wait_for_agent_answer = AsyncMock(side_effect=ExecutionError("AGENT_QUESTION_TIMEOUT", "timed out"))
         with patch("engine.executor.create_approval", new=AsyncMock(return_value={"id": "apr-1"})):
             res = await ex._execute_agent_ask_user({"question": "Proceed?"}, "a1")
         self.assertFalse(res["ok"])

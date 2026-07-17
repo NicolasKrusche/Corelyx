@@ -1,4 +1,5 @@
 """SendGrid native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,9 +50,7 @@ class SendGridConnector(IConnector):
                         f"SendGrid does not support '{operation}'",
                     )
 
-    async def _send_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         to_email = params.get("to")
         from_email = params.get("from")
         subject = params.get("subject", "")
@@ -64,23 +63,26 @@ class SendGridConnector(IConnector):
             "content": [{"type": "text/html", "value": params.get("html", params.get("text", ""))}],
         }
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/mail/send", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/mail/send",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "send_email")
         return {"sent": True, "to": to_email}
 
-    async def _list_contacts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/marketing/contacts", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/marketing/contacts",
+            headers=headers,
         )
         _raise_for_status(r, "list_contacts")
         return {"contacts": r.json().get("result", [])}
 
-    async def _add_contact(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _add_contact(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         email = params.get("email")
         if not email:
             raise ConnectorError("MISSING_PARAM", "add_contact requires 'email'")
@@ -93,23 +95,26 @@ class SendGridConnector(IConnector):
         else:
             body = {"contacts": [contact]}
         r = await request_with_rate_limit(
-            client, "PUT", f"{_BASE}/marketing/contacts", headers=headers, json=body,
+            client,
+            "PUT",
+            f"{_BASE}/marketing/contacts",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "add_contact")
         return r.json()
 
-    async def _list_lists(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_lists(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/marketing/lists", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/marketing/lists",
+            headers=headers,
         )
         _raise_for_status(r, "list_lists")
         return {"lists": r.json().get("result", [])}
 
-    async def _create_campaign(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_campaign(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         name = params.get("name")
         if not name:
             raise ConnectorError("MISSING_PARAM", "create_campaign requires 'name'")
@@ -118,7 +123,11 @@ class SendGridConnector(IConnector):
             if params.get(field) is not None:
                 body[field] = params[field]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/marketing/singlesends", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/marketing/singlesends",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_campaign")
         return r.json()

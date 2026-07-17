@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
+import { verifyHubSpotV1Signature } from "@/lib/webhook-signatures";
 
 type HubSpotConnectionRow = {
   id: string;
@@ -56,15 +56,7 @@ export async function POST(request: Request) {
   const receivedSignature = request.headers.get("x-hubspot-signature");
   if (!receivedSignature) return apiError("Missing X-HubSpot-Signature header", 401);
 
-  const expectedSignature = createHmac("sha256", clientSecret)
-    .update(clientSecret + rawBody)
-    .digest("hex");
-  const expectedBuf = Buffer.from(expectedSignature);
-  const receivedBuf = Buffer.from(receivedSignature);
-  if (
-    expectedBuf.length !== receivedBuf.length ||
-    !timingSafeEqual(expectedBuf, receivedBuf)
-  ) {
+  if (!verifyHubSpotV1Signature(rawBody, clientSecret, receivedSignature)) {
     return apiError("Invalid HubSpot signature", 401);
   }
 

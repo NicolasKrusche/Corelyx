@@ -1,4 +1,5 @@
 """Telnyx connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.telnyx.com/v1"
 class TelnyxConnector(IConnector):
     """
     Telnyx connector for: send_sms, list_messages.
-    
+
     API Base: telnyx
     """
-    
+
     provider = "telnyx"
-    supported_operations = [
-        "send_sms",
-        "list_messages"
-    ]
+    supported_operations = ["send_sms", "list_messages"]
 
     async def execute(
         self,
@@ -47,23 +45,21 @@ class TelnyxConnector(IConnector):
                         f"Telnyx does not support '{operation}'",
                     )
 
-
-    async def _send_sms(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_sms(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute send_sms operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send_sms",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/send_sms",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _list_messages(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_messages(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_messages operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -71,14 +67,17 @@ class TelnyxConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/messages", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/messages",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),

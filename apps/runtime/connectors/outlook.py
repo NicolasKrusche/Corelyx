@@ -1,4 +1,5 @@
 """Outlook (Microsoft Graph) native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -55,9 +56,7 @@ class OutlookConnector(IConnector):
                         f"Outlook does not support operation '{operation}'",
                     )
 
-    async def _list_emails(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_emails(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         folder = params.get("folder", "inbox")
         limit = int(params.get("max_results", 20))
         select = "id,subject,from,toRecipients,receivedDateTime,isRead,bodyPreview"
@@ -69,8 +68,11 @@ class OutlookConnector(IConnector):
         if params.get("filter"):
             query["$filter"] = params["filter"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/mailFolders/{folder}/messages",
-            headers=headers, params=query,
+            client,
+            "GET",
+            f"{_BASE}/mailFolders/{folder}/messages",
+            headers=headers,
+            params=query,
         )
         _raise_for_status(r, "list_emails")
         data = r.json()
@@ -87,14 +89,14 @@ class OutlookConnector(IConnector):
         ]
         return {"emails": emails}
 
-    async def _read_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _read_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         if not message_id:
             raise ConnectorError("MISSING_PARAM", "read_email requires 'message_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/messages/{message_id}",
+            client,
+            "GET",
+            f"{_BASE}/messages/{message_id}",
             headers=headers,
             params={"$select": "id,subject,from,toRecipients,ccRecipients,receivedDateTime,body,isRead"},
         )
@@ -112,9 +114,7 @@ class OutlookConnector(IConnector):
             "is_read": m.get("isRead"),
         }
 
-    async def _send_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         to = params.get("to")
         subject = params.get("subject")
         body = params.get("body", "")
@@ -130,22 +130,25 @@ class OutlookConnector(IConnector):
             cc = params["cc"]
             message["ccRecipients"] = [{"emailAddress": {"address": a}} for a in (cc if isinstance(cc, list) else [cc])]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/sendMail",
-            headers=headers, json={"message": message, "saveToSentItems": True},
+            client,
+            "POST",
+            f"{_BASE}/sendMail",
+            headers=headers,
+            json={"message": message, "saveToSentItems": True},
         )
         if r.status_code not in (200, 202):
             _raise_for_status(r, "send_email")
         return {"sent": True, "subject": subject}
 
-    async def _reply_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _reply_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         body = params.get("body", "")
         if not message_id:
             raise ConnectorError("MISSING_PARAM", "reply_email requires 'message_id'")
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/messages/{message_id}/reply",
+            client,
+            "POST",
+            f"{_BASE}/messages/{message_id}/reply",
             headers=headers,
             json={"message": {"body": {"contentType": "Text", "content": body}}},
         )
@@ -153,24 +156,20 @@ class OutlookConnector(IConnector):
             _raise_for_status(r, "reply_email")
         return {"replied": True, "message_id": message_id}
 
-    async def _delete_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _delete_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         if not message_id:
             raise ConnectorError("MISSING_PARAM", "delete_email requires 'message_id'")
-        r = await request_with_rate_limit(
-            client, "DELETE", f"{_BASE}/messages/{message_id}", headers=headers
-        )
+        r = await request_with_rate_limit(client, "DELETE", f"{_BASE}/messages/{message_id}", headers=headers)
         if r.status_code not in (200, 204):
             _raise_for_status(r, "delete_email")
         return {"message_id": message_id, "deleted": True}
 
-    async def _list_folders(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_folders(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/mailFolders",
+            client,
+            "GET",
+            f"{_BASE}/mailFolders",
             headers=headers,
             params={"$select": "id,displayName,totalItemCount,unreadItemCount"},
         )
@@ -187,9 +186,7 @@ class OutlookConnector(IConnector):
         ]
         return {"folders": folders}
 
-    async def _move_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _move_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         destination_folder = params.get("destination_folder")
         if not message_id or not destination_folder:
@@ -198,8 +195,11 @@ class OutlookConnector(IConnector):
                 "move_email requires 'message_id' and 'destination_folder'",
             )
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/messages/{message_id}/move",
-            headers=headers, json={"destinationId": destination_folder},
+            client,
+            "POST",
+            f"{_BASE}/messages/{message_id}/move",
+            headers=headers,
+            json={"destinationId": destination_folder},
         )
         _raise_for_status(r, "move_email")
         data = r.json()

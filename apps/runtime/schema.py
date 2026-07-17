@@ -63,8 +63,15 @@ class TriggerConfig:
 @dataclass
 class StepConfig:
     logic_type: Literal[
-        "transform", "filter", "branch",
-        "delay", "loop", "format", "parse", "deduplicate", "sort",
+        "transform",
+        "filter",
+        "branch",
+        "delay",
+        "loop",
+        "format",
+        "parse",
+        "deduplicate",
+        "sort",
     ]
     extra: dict = field(default_factory=dict)
 
@@ -94,8 +101,16 @@ class HttpConnectionConfig:
 
 
 FILE_OPERATIONS = (
-    "read", "write", "append", "list", "stat",
-    "move", "copy", "delete", "mkdir", "search",
+    "read",
+    "write",
+    "append",
+    "list",
+    "stat",
+    "move",
+    "copy",
+    "delete",
+    "mkdir",
+    "search",
 )
 
 
@@ -108,6 +123,7 @@ class FileConnectionConfig:
     run resumes with the result. Kept distinct from OAuth/HTTP so file access is
     explicit in the schema and the sandbox/grant model is unambiguous.
     """
+
     operation: str
     connector_type: Literal["file"] = "file"
     device_id: Optional[str] = None
@@ -133,7 +149,7 @@ class SchemaNode:
 @dataclass
 class SchemaEdge:
     id: str
-    from_node: str   # "from" is a Python keyword
+    from_node: str  # "from" is a Python keyword
     to: str
     type: Literal["data_flow", "control_flow", "event_subscription"]
     data_mapping: Optional[dict]
@@ -287,9 +303,7 @@ def _parse_node_config(
         if connector_type == "file":
             operation = raw.get("operation")
             if operation not in FILE_OPERATIONS:
-                raise ValueError(
-                    f"file connector operation must be one of: {', '.join(FILE_OPERATIONS)}"
-                )
+                raise ValueError(f"file connector operation must be one of: {', '.join(FILE_OPERATIONS)}")
             scope_access = raw.get("scope_access", "read")
             if scope_access not in ("read", "write", "read_write"):
                 raise ValueError("scope_access must be one of: read, write, read_write")

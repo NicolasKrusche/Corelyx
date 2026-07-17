@@ -1,4 +1,5 @@
 """Google Chat native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -41,9 +42,7 @@ class GoogleChatConnector(IConnector):
                         f"Google Chat does not support operation '{operation}'",
                     )
 
-    async def _send_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         space_name = params.get("space_name")
         text = params.get("text", "")
         if not space_name:
@@ -67,15 +66,11 @@ class GoogleChatConnector(IConnector):
             "text": data.get("text"),
         }
 
-    async def _list_spaces(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_spaces(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {"pageSize": int(params.get("page_size", 25))}
         if params.get("page_token"):
             query["pageToken"] = params["page_token"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/spaces", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/spaces", headers=headers, params=query)
         _raise_for_status(r, "list_spaces")
         data = r.json()
         return {

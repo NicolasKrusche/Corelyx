@@ -1,11 +1,11 @@
 """Remaining executor tests closing specific coverage gaps in engine/executor.py."""
+
 from __future__ import annotations
 
-import asyncio
 import os
 import unittest
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from schema import (
     AgentConfig,
@@ -13,7 +13,6 @@ from schema import (
     RetryConfig,
     SchemaNode,
     StepConfig,
-    TriggerConfig,
     parse_schema,
 )
 from engine.executor import (
@@ -34,17 +33,32 @@ def _mock_db() -> Mock:
     db = Mock()
     builder = Mock()
     for method in [
-        "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike",
-        "in_", "is_", "order", "limit", "range", "match", "select",
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "like",
+        "ilike",
+        "in_",
+        "is_",
+        "order",
+        "limit",
+        "range",
+        "match",
+        "select",
     ]:
         getattr(builder, method).return_value = builder
     builder.execute.return_value = Mock(data=[])
     builder.single.return_value = builder
     db.table = Mock(return_value=builder)
-    db.channel = Mock(return_value=Mock(
-        on_postgres_changes=Mock(return_value=Mock(subscribe=Mock(return_value=None))),
-        unsubscribe=Mock(return_value=None),
-    ))
+    db.channel = Mock(
+        return_value=Mock(
+            on_postgres_changes=Mock(return_value=Mock(subscribe=Mock(return_value=None))),
+            unsubscribe=Mock(return_value=None),
+        )
+    )
     return db
 
 
@@ -115,8 +129,10 @@ def _make_executor(schema: ProgramSchema, **kwargs: Any) -> ProgramExecutor:
 
 class TestRunAgent(unittest.IsolatedAsyncioTestCase):
     async def test_claude_path(self) -> None:
-        with patch("engine.executor.ChatAnthropic") as mock_claude, \
-             patch("engine.executor.StateGraph") as mock_graph_cls:
+        with (
+            patch("engine.executor.ChatAnthropic") as mock_claude,
+            patch("engine.executor.StateGraph") as mock_graph_cls,
+        ):
             mock_llm = Mock()
             mock_llm.invoke.return_value = Mock(content="claude result")
             mock_claude.return_value = mock_llm
@@ -134,8 +150,7 @@ class TestRunAgent(unittest.IsolatedAsyncioTestCase):
             mock_claude.assert_called_once()
 
     async def test_openai_path(self) -> None:
-        with patch("engine.executor.ChatOpenAI") as mock_openai, \
-             patch("engine.executor.StateGraph") as mock_graph_cls:
+        with patch("engine.executor.ChatOpenAI") as mock_openai, patch("engine.executor.StateGraph") as mock_graph_cls:
             mock_llm = Mock()
             mock_llm.invoke.return_value = Mock(content="openai result")
             mock_openai.return_value = mock_llm
@@ -155,15 +170,19 @@ class TestRunAgent(unittest.IsolatedAsyncioTestCase):
 
 class TestExecuteNodeCatchAll(unittest.IsolatedAsyncioTestCase):
     async def test_catch_all_exception_wraps_node_failed(self) -> None:
-        schema = _simple_schema([
-            {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
-            {"id": "s", "type": "step", "config": {"logic_type": "transform"}},
-        ])
+        schema = _simple_schema(
+            [
+                {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+                {"id": "s", "type": "step", "config": {"logic_type": "transform"}},
+            ]
+        )
         executor = _make_executor(schema)
         node = executor.node_map["s"]
-        with patch.object(executor, "_execute_step", side_effect=ValueError("boom")), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             self.assertRaises(ExecutionError) as ctx:
+        with (
+            patch.object(executor, "_execute_step", side_effect=ValueError("boom")),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            self.assertRaises(ExecutionError) as ctx,
+        ):
             await executor._execute_node(node, {"a": 1})
         self.assertEqual(ctx.exception.code, "NODE_FAILED")
         self.assertIn("boom", ctx.exception.message)
@@ -173,7 +192,9 @@ class TestWithRetryDelayAndSleep(unittest.IsolatedAsyncioTestCase):
     async def test_exponential_delay_calls_sleep(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
-        retry = RetryConfig(max_attempts=3, backoff="exponential", backoff_base_seconds=2.0, fail_program_on_exhaust=False)
+        retry = RetryConfig(
+            max_attempts=3, backoff="exponential", backoff_base_seconds=2.0, fail_program_on_exhaust=False
+        )
         call_count = 0
 
         async def _flaky():
@@ -183,8 +204,10 @@ class TestWithRetryDelayAndSleep(unittest.IsolatedAsyncioTestCase):
                 raise RuntimeError("fail")
             return {"ok": True}
 
-        with patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.asyncio.sleep", new=AsyncMock()) as mock_sleep:
+        with (
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        ):
             result = await executor._with_retry(_flaky, retry, "n1")
 
         self.assertTrue(result.get("ok"))
@@ -200,17 +223,21 @@ class TestAcquireOneLockRaceAfterAcquire(unittest.IsolatedAsyncioTestCase):
     async def test_race_with_fail_policy_raises_conflict(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema, conflict_policy="fail")
-        with patch("engine.executor.get_existing_lock", new=AsyncMock(return_value=None)), \
-             patch("engine.executor.acquire_resource_lock", new=AsyncMock(return_value=False)), \
-             self.assertRaises(ConflictError) as ctx:
+        with (
+            patch("engine.executor.get_existing_lock", new=AsyncMock(return_value=None)),
+            patch("engine.executor.acquire_resource_lock", new=AsyncMock(return_value=False)),
+            self.assertRaises(ConflictError) as ctx,
+        ):
             await executor._acquire_one_lock("connection", "conn-1")
         self.assertEqual(ctx.exception.code, "RESOURCE_CONFLICT")
 
     async def test_race_with_skip_policy_proceeds(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema, conflict_policy="skip")
-        with patch("engine.executor.get_existing_lock", new=AsyncMock(return_value=None)), \
-             patch("engine.executor.acquire_resource_lock", new=AsyncMock(return_value=False)):
+        with (
+            patch("engine.executor.get_existing_lock", new=AsyncMock(return_value=None)),
+            patch("engine.executor.acquire_resource_lock", new=AsyncMock(return_value=False)),
+        ):
             await executor._acquire_one_lock("connection", "conn-1")
 
 
@@ -223,8 +250,21 @@ class TestResolveConnectionIdProviderAliasFallback(unittest.IsolatedAsyncioTestC
         db = Mock()
         builder = Mock()
         for method in [
-            "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike",
-            "in_", "is_", "order", "limit", "range", "match", "select",
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "in_",
+            "is_",
+            "order",
+            "limit",
+            "range",
+            "match",
+            "select",
         ]:
             getattr(builder, method).return_value = builder
         builder.single.return_value = builder
@@ -284,9 +324,14 @@ class TestExecuteStepDefaultReturn(unittest.IsolatedAsyncioTestCase):
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
         node = SchemaNode(
-            id="s", type="step", label="", description="", connection=None,
+            id="s",
+            type="step",
+            label="",
+            description="",
+            connection=None,
             config=StepConfig(logic_type="unknown", extra={}),
-            position={}, status="idle",
+            position={},
+            status="idle",
         )
         input_data = {"a": 1}
         result = await executor._execute_step(node, input_data)
@@ -309,10 +354,17 @@ class TestCallLlmLitellmUrlPath(unittest.IsolatedAsyncioTestCase):
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
         cfg = AgentConfig(
-            model="gpt-4o", api_key_ref="platform", system_prompt="",
-            input_schema=None, output_schema=None, requires_approval=False,
-            approval_timeout_hours=24.0, scope_required=None, scope_access="read",
-            retry=RetryConfig(1, "none", 0.0, False), tools=[],
+            model="gpt-4o",
+            api_key_ref="platform",
+            system_prompt="",
+            input_schema=None,
+            output_schema=None,
+            requires_approval=False,
+            approval_timeout_hours=24.0,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False),
+            tools=[],
         )
         resp = Mock()
         resp.is_success = True
@@ -320,9 +372,11 @@ class TestCallLlmLitellmUrlPath(unittest.IsolatedAsyncioTestCase):
             "choices": [{"message": {"content": "hi"}}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3},
         }
-        with patch("engine.executor._get_llm_client") as mock_client, \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.os.environ.get", return_value="http://litellm-proxy:4000"):
+        with (
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.os.environ.get", return_value="http://litellm-proxy:4000"),
+        ):
             post_mock = AsyncMock(return_value=resp)
             mock_client.return_value.post = post_mock
             result = await executor._call_llm(cfg, "key", "openai", {}, "n1")
@@ -336,10 +390,17 @@ class TestCallLlmClaudeAnthropicModelPath(unittest.IsolatedAsyncioTestCase):
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
         cfg = AgentConfig(
-            model="claude-3-haiku", api_key_ref="platform", system_prompt="hi",
-            input_schema=None, output_schema=None, requires_approval=False,
-            approval_timeout_hours=24.0, scope_required=None, scope_access="read",
-            retry=RetryConfig(1, "none", 0.0, False), tools=[],
+            model="claude-3-haiku",
+            api_key_ref="platform",
+            system_prompt="hi",
+            input_schema=None,
+            output_schema=None,
+            requires_approval=False,
+            approval_timeout_hours=24.0,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False),
+            tools=[],
         )
         resp = Mock()
         resp.is_success = True
@@ -347,12 +408,14 @@ class TestCallLlmClaudeAnthropicModelPath(unittest.IsolatedAsyncioTestCase):
             "choices": [{"message": {"content": "ok"}}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3},
         }
-        with patch("engine.executor._get_llm_client") as mock_client, \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.os.environ.get", return_value="http://litellm"):
+        with (
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.os.environ.get", return_value="http://litellm"),
+        ):
             post_mock = AsyncMock(return_value=resp)
             mock_client.return_value.post = post_mock
-            result = await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
+            await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
         call_url = post_mock.call_args[0][0]
         self.assertTrue(call_url.startswith("http://litellm"))
 
@@ -360,10 +423,17 @@ class TestCallLlmClaudeAnthropicModelPath(unittest.IsolatedAsyncioTestCase):
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
         cfg = AgentConfig(
-            model="claude-3-haiku", api_key_ref="platform", system_prompt="hi",
-            input_schema=None, output_schema=None, requires_approval=False,
-            approval_timeout_hours=24.0, scope_required=None, scope_access="read",
-            retry=RetryConfig(1, "none", 0.0, False), tools=[],
+            model="claude-3-haiku",
+            api_key_ref="platform",
+            system_prompt="hi",
+            input_schema=None,
+            output_schema=None,
+            requires_approval=False,
+            approval_timeout_hours=24.0,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False),
+            tools=[],
         )
         resp = Mock()
         resp.is_success = True
@@ -371,12 +441,14 @@ class TestCallLlmClaudeAnthropicModelPath(unittest.IsolatedAsyncioTestCase):
             "content": [{"type": "text", "text": "hello"}],
             "usage": {"input_tokens": 5, "output_tokens": 3},
         }
-        with patch("engine.executor._get_llm_client") as mock_client, \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.os.environ.get", return_value=None):
+        with (
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.os.environ.get", return_value=None),
+        ):
             post_mock = AsyncMock(return_value=resp)
             mock_client.return_value.post = post_mock
-            result = await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
+            await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
         call_url = post_mock.call_args[0][0]
         self.assertEqual(call_url, "https://api.anthropic.com/v1/messages")
 
@@ -390,16 +462,31 @@ class TestApprovalRealtimeException(unittest.IsolatedAsyncioTestCase):
         # Polling should find an approved row after one check
         poll_builder = Mock()
         for method in [
-            "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike",
-            "in_", "is_", "order", "limit", "range", "match", "select",
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "in_",
+            "is_",
+            "order",
+            "limit",
+            "range",
+            "match",
+            "select",
         ]:
             getattr(poll_builder, method).return_value = poll_builder
         poll_builder.execute.return_value = Mock(data=[{"status": "approved"}])
         executor.db.table = Mock(return_value=poll_builder)
 
-        with patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.time.time", side_effect=[0.0, 0.0, 86401.0]):
+        with (
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.time.time", side_effect=[0.0, 0.0, 86401.0]),
+        ):
             approved = await executor._wait_for_approval_decision("exec-1", 3600)
         self.assertTrue(approved)
 
@@ -438,10 +525,17 @@ class TestCallLlmAnthropicBaseUrlButLitellm(unittest.IsolatedAsyncioTestCase):
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
         cfg = AgentConfig(
-            model="claude-3-haiku", api_key_ref="platform", system_prompt="hi",
-            input_schema=None, output_schema=None, requires_approval=False,
-            approval_timeout_hours=24.0, scope_required=None, scope_access="read",
-            retry=RetryConfig(1, "none", 0.0, False), tools=[],
+            model="claude-3-haiku",
+            api_key_ref="platform",
+            system_prompt="hi",
+            input_schema=None,
+            output_schema=None,
+            requires_approval=False,
+            approval_timeout_hours=24.0,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False),
+            tools=[],
         )
         resp = Mock()
         resp.is_success = True
@@ -449,12 +543,14 @@ class TestCallLlmAnthropicBaseUrlButLitellm(unittest.IsolatedAsyncioTestCase):
             "choices": [{"message": {"content": "ok"}}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 3},
         }
-        with patch("engine.executor._get_llm_client") as mock_client, \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.os.environ.get", return_value="http://my-litellm.local"):
+        with (
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.os.environ.get", return_value="http://my-litellm.local"),
+        ):
             post_mock = AsyncMock(return_value=resp)
             mock_client.return_value.post = post_mock
-            result = await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
+            await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
         call_url = post_mock.call_args[0][0]
         self.assertTrue("/chat/completions" in call_url)
 
@@ -464,10 +560,17 @@ class TestCallLlmJsonObjectNotSupported(unittest.IsolatedAsyncioTestCase):
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
         cfg = AgentConfig(
-            model="claude-3-haiku", api_key_ref="platform", system_prompt="Return JSON",
-            input_schema=None, output_schema={"type": "object"}, requires_approval=False,
-            approval_timeout_hours=24.0, scope_required=None, scope_access="read",
-            retry=RetryConfig(1, "none", 0.0, False), tools=[],
+            model="claude-3-haiku",
+            api_key_ref="platform",
+            system_prompt="Return JSON",
+            input_schema=None,
+            output_schema={"type": "object"},
+            requires_approval=False,
+            approval_timeout_hours=24.0,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False),
+            tools=[],
         )
         resp = Mock()
         resp.is_success = True
@@ -475,12 +578,14 @@ class TestCallLlmJsonObjectNotSupported(unittest.IsolatedAsyncioTestCase):
             "content": [{"type": "text", "text": '{"ok": true}'}],
             "usage": {"input_tokens": 5, "output_tokens": 3},
         }
-        with patch("engine.executor._get_llm_client") as mock_client, \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.os.environ.get", return_value=None):
+        with (
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.os.environ.get", return_value=None),
+        ):
             post_mock = AsyncMock(return_value=resp)
             mock_client.return_value.post = post_mock
-            result = await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
+            await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
         call_url = post_mock.call_args[0][0]
         self.assertEqual(call_url, "https://api.anthropic.com/v1/messages")
         call_body = post_mock.call_args[1]["json"]

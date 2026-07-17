@@ -1,4 +1,5 @@
 """Rocket.Chat native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,9 +50,7 @@ class RocketchatConnector(IConnector):
                         f"Rocket.Chat does not support operation '{operation}'",
                     )
 
-    async def _post_message(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _post_message(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         channel = params.get("channel")
         text = params.get("text", "")
         if not channel:
@@ -59,9 +58,7 @@ class RocketchatConnector(IConnector):
         body: dict[str, Any] = {"channel": channel, "text": text}
         if params.get("alias"):
             body["alias"] = params["alias"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{base}/chat.postMessage", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{base}/chat.postMessage", headers=headers, json=body)
         _raise_for_status(r, "post_message")
         data = r.json()
         msg = data.get("message", {})
@@ -71,16 +68,12 @@ class RocketchatConnector(IConnector):
             "timestamp": msg.get("ts"),
         }
 
-    async def _list_channels(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _list_channels(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         query: dict[str, Any] = {
             "count": int(params.get("count", 50)),
             "offset": int(params.get("offset", 0)),
         }
-        r = await request_with_rate_limit(
-            client, "GET", f"{base}/channels.list", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{base}/channels.list", headers=headers, params=query)
         _raise_for_status(r, "list_channels")
         data = r.json()
         return {
@@ -95,9 +88,7 @@ class RocketchatConnector(IConnector):
             ]
         }
 
-    async def _get_channel_messages(
-        self, client: httpx.AsyncClient, headers: dict, base: str, params: dict
-    ) -> dict:
+    async def _get_channel_messages(self, client: httpx.AsyncClient, headers: dict, base: str, params: dict) -> dict:
         room_id = params.get("room_id")
         if not room_id:
             raise ConnectorError("MISSING_PARAM", "get_channel_messages requires 'room_id'")
@@ -106,9 +97,7 @@ class RocketchatConnector(IConnector):
             "count": int(params.get("count", 20)),
             "offset": int(params.get("offset", 0)),
         }
-        r = await request_with_rate_limit(
-            client, "GET", f"{base}/channels.messages", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{base}/channels.messages", headers=headers, params=query)
         _raise_for_status(r, "get_channel_messages")
         data = r.json()
         return {

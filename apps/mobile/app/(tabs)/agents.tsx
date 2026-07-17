@@ -97,7 +97,7 @@ export default function AgentsScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   const onRefresh = useCallback(() => {

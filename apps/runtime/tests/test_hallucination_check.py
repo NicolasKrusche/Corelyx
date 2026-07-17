@@ -4,6 +4,7 @@ A confident "hallucinated" judge verdict must abort the ENTIRE run; a grounded /
 not-applicable / low-confidence / unparseable verdict (or a broken judge call)
 must let the run continue unchanged.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,8 +31,21 @@ def _mock_db() -> Mock:
     db = Mock()
     builder = Mock()
     for method in [
-        "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike",
-        "in_", "is_", "order", "limit", "range", "match", "select",
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "like",
+        "ilike",
+        "in_",
+        "is_",
+        "order",
+        "limit",
+        "range",
+        "match",
+        "select",
     ]:
         getattr(builder, method).return_value = builder
     builder.execute.return_value = Mock(data=[])
@@ -49,11 +63,23 @@ def _agent_schema() -> ProgramSchema:
             "execution_mode": "autonomous",
             "nodes": [
                 {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
-                {"id": "a", "type": "agent", "config": {
-                    "model": "gpt-4o", "api_key_ref": "my-key", "system_prompt": "Summarize the emails.",
-                    "requires_approval": False, "scope_access": "read",
-                    "retry": {"max_attempts": 1, "backoff": "none", "backoff_base_seconds": 0, "fail_program_on_exhaust": False},
-                }},
+                {
+                    "id": "a",
+                    "type": "agent",
+                    "config": {
+                        "model": "gpt-4o",
+                        "api_key_ref": "my-key",
+                        "system_prompt": "Summarize the emails.",
+                        "requires_approval": False,
+                        "scope_access": "read",
+                        "retry": {
+                            "max_attempts": 1,
+                            "backoff": "none",
+                            "backoff_base_seconds": 0,
+                            "fail_program_on_exhaust": False,
+                        },
+                    },
+                },
             ],
             "edges": [{"id": "e1", "from": "t", "to": "a", "type": "data_flow"}],
             "triggers": [],
@@ -82,15 +108,23 @@ def _make_executor(schema: ProgramSchema, **kwargs: Any) -> ProgramExecutor:
         executor.edges_from.setdefault(edge.from_node, []).append(edge)
     executor._connection_name_to_id = {}
     telemetry = {
-        "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
-        "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost_usd": 0.0,
+        "connector_api_calls": 0,
+        "model_call_count": 0,
     }
     executor._node_telemetry = {n.id: dict(telemetry) for n in schema.nodes}
     executor._run_telemetry = dict(telemetry)
     executor._limiter = Mock()
     for method in [
-        "check_node_limit", "check_execution_time", "check_llm_call",
-        "check_llm_tokens", "check_cost", "check_connector_call",
+        "check_node_limit",
+        "check_execution_time",
+        "check_llm_call",
+        "check_llm_tokens",
+        "check_cost",
+        "check_connector_call",
     ]:
         setattr(executor._limiter, method, Mock())
     executor._agent_credentials = None
@@ -281,12 +315,28 @@ class TestRunAbortPropagation(unittest.IsolatedAsyncioTestCase):
                 "execution_mode": "autonomous",
                 "nodes": [
                     {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
-                    {"id": "a", "type": "agent", "config": {
-                        "model": "gpt-4o", "api_key_ref": "my-key", "system_prompt": "Summarize.",
-                        "requires_approval": False, "scope_access": "read",
-                        "retry": {"max_attempts": 1, "backoff": "none", "backoff_base_seconds": 0, "fail_program_on_exhaust": False},
-                    }},
-                    {"id": "s2", "type": "step", "config": {"logic_type": "transform", "extra": {"transformation": "data"}}},
+                    {
+                        "id": "a",
+                        "type": "agent",
+                        "config": {
+                            "model": "gpt-4o",
+                            "api_key_ref": "my-key",
+                            "system_prompt": "Summarize.",
+                            "requires_approval": False,
+                            "scope_access": "read",
+                            "retry": {
+                                "max_attempts": 1,
+                                "backoff": "none",
+                                "backoff_base_seconds": 0,
+                                "fail_program_on_exhaust": False,
+                            },
+                        },
+                    },
+                    {
+                        "id": "s2",
+                        "type": "step",
+                        "config": {"logic_type": "transform", "extra": {"transformation": "data"}},
+                    },
                 ],
                 "edges": [
                     {"id": "e1", "from": "t", "to": "a", "type": "data_flow"},
@@ -298,16 +348,18 @@ class TestRunAbortPropagation(unittest.IsolatedAsyncioTestCase):
             }
         )
         executor = _make_executor(schema)
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(
-                 executor,
-                 "_execute_agent",
-                 AsyncMock(side_effect=HallucinationError("a", "fabricated claim")),
-             ):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(
+                executor,
+                "_execute_agent",
+                AsyncMock(side_effect=HallucinationError("a", "fabricated claim")),
+            ),
+        ):
             with self.assertRaises(ExecutionError) as ctx:
                 await executor.execute({"data": 1})
         self.assertEqual(ctx.exception.code, "HALLUCINATION_DETECTED")

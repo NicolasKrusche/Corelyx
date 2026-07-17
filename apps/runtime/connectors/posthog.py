@@ -1,4 +1,5 @@
 """PostHog connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.posthog.com/v1"
 class PosthogConnector(IConnector):
     """
     PostHog connector for: get_feature_flags, query_events.
-    
+
     API Base: posthog
     """
-    
+
     provider = "posthog"
-    supported_operations = [
-        "get_feature_flags",
-        "query_events"
-    ]
+    supported_operations = ["get_feature_flags", "query_events"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class PosthogConnector(IConnector):
                         f"PostHog does not support '{operation}'",
                     )
 
-
-    async def _get_feature_flags(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_feature_flags(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_feature_flags operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_feature_flags",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_feature_flags",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _query_events(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_events(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute query_events operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/query_events",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/query_events",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

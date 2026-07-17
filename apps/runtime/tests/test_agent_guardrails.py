@@ -1,4 +1,5 @@
 """Tests for agent guardrails: tool-call budget, audit records, usage tracking."""
+
 from __future__ import annotations
 
 import unittest
@@ -22,15 +23,11 @@ class ToolInvocationRecordTests(unittest.TestCase):
         self.assertEqual(rec, {"tool": "corelyx.list_runs", "ok": True})
 
     def test_simulated_flag_recorded(self):
-        rec = _agent_tool_invocation_record(
-            "corelyx.call_connector", {"ok": True, "simulated": True, "result": {}}
-        )
+        rec = _agent_tool_invocation_record("corelyx.call_connector", {"ok": True, "simulated": True, "result": {}})
         self.assertTrue(rec["simulated"])
 
     def test_error_truncated_and_recorded(self):
-        rec = _agent_tool_invocation_record(
-            "corelyx.call_connector", {"ok": False, "error": "x" * 500}
-        )
+        rec = _agent_tool_invocation_record("corelyx.call_connector", {"ok": False, "error": "x" * 500})
         self.assertFalse(rec["ok"])
         self.assertEqual(len(rec["error"]), 300)
 
@@ -89,9 +86,7 @@ class EnsureAgentReportTests(unittest.IsolatedAsyncioTestCase):
         ex = _agent_executor()
         node = ex.node_map["a1"]
         ex._call_agent_tool = AsyncMock(return_value={"ok": True, "result": {"delivered": True}})
-        out = await ex._ensure_agent_report(
-            node, Mock(scope_access="read"), "Email drafted and sent.", []
-        )
+        out = await ex._ensure_agent_report(node, Mock(scope_access="read"), "Email drafted and sent.", [])
         ex._call_agent_tool.assert_awaited_once()
         call = ex._call_agent_tool.await_args
         self.assertEqual(call.args[0], "corelyx.report_to_user")
@@ -115,9 +110,7 @@ class EnsureAgentReportTests(unittest.IsolatedAsyncioTestCase):
         # The budget guard must not short-circuit a bypassed call; it should
         # proceed to dispatch (here: fail at the network layer instead).
         ex._nextjs_endpoint_candidates = Mock(return_value=[])
-        res = await ex._call_agent_tool(
-            "corelyx.report_to_user", {"body": "x"}, "a1", "read", bypass_budget=True
-        )
+        res = await ex._call_agent_tool("corelyx.report_to_user", {"body": "x"}, "a1", "read", bypass_budget=True)
         self.assertNotIn("budget", str(res.get("error", "")).lower())
 
 

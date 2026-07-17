@@ -33,7 +33,9 @@ struct StatusDto {
 }
 
 fn start_loop(state: &AppState, cfg: &BridgeConfig) {
-    let Some(token) = cfg.token.clone() else { return };
+    let Some(token) = cfg.token.clone() else {
+        return;
+    };
     // Stop any previous loop before starting a new one.
     if let Ok(mut handle) = state.loop_handle.lock() {
         if let Some(h) = handle.take() {
@@ -48,18 +50,16 @@ fn start_loop(state: &AppState, cfg: &BridgeConfig) {
             .map(|p| p.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
         let snapshots = SnapshotStore::new(&base_dir);
-        *handle = Some(tauri::async_runtime::spawn(run_loop(client, status, snapshots)));
+        *handle = Some(tauri::async_runtime::spawn(run_loop(
+            client, status, snapshots,
+        )));
     }
 }
 
 #[tauri::command]
 fn get_status(state: State<'_, AppState>) -> StatusDto {
     let cfg = BridgeConfig::load(&state.config_file);
-    let s = state
-        .status
-        .lock()
-        .map(|g| g.clone())
-        .unwrap_or_default();
+    let s = state.status.lock().map(|g| g.clone()).unwrap_or_default();
     StatusDto {
         paired: cfg.is_paired(),
         connected: s.connected,
@@ -151,8 +151,14 @@ async fn check_and_install_update(app: tauri::AppHandle) {
     };
     match updater.check().await {
         Ok(Some(update)) => {
-            eprintln!("[updater] update {} available — downloading", update.version);
-            if let Err(e) = update.download_and_install(|_chunk, _total| {}, || {}).await {
+            eprintln!(
+                "[updater] update {} available — downloading",
+                update.version
+            );
+            if let Err(e) = update
+                .download_and_install(|_chunk, _total| {}, || {})
+                .await
+            {
                 eprintln!("[updater] install failed: {e}");
                 return;
             }

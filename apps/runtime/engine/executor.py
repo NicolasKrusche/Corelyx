@@ -107,32 +107,40 @@ LEGACY_PLATFORM_MODEL_ALIASES: dict[str, str] = {
 # unrestricted for Solo+ because the customer pays their provider directly.
 PLATFORM_MODELS_BY_ACCESS_TIER: dict[str, frozenset[str]] = {
     "free": frozenset({PLATFORM_DEFAULT_MODEL, "openai/gpt-oss-120b"}),
-    "plus": frozenset({
-        PLATFORM_DEFAULT_MODEL,
-        "anthropic/claude-3-haiku",
-        "openai/gpt-4o-mini",
-    }),
-    "pro": frozenset({
-        PLATFORM_DEFAULT_MODEL,
-        "anthropic/claude-3-haiku",
-        "openai/gpt-4o-mini",
-        "anthropic/claude-sonnet-4.6",
-        "openai/gpt-4o",
-    }),
-    "builder": frozenset({
-        PLATFORM_DEFAULT_MODEL,
-        "anthropic/claude-3-haiku",
-        "openai/gpt-4o-mini",
-        "anthropic/claude-sonnet-4.6",
-        "openai/gpt-4o",
-    }),
-    "unlimited": frozenset({
-        PLATFORM_DEFAULT_MODEL,
-        "anthropic/claude-3-haiku",
-        "openai/gpt-4o-mini",
-        "anthropic/claude-sonnet-4.6",
-        "openai/gpt-4o",
-    }),
+    "plus": frozenset(
+        {
+            PLATFORM_DEFAULT_MODEL,
+            "anthropic/claude-3-haiku",
+            "openai/gpt-4o-mini",
+        }
+    ),
+    "pro": frozenset(
+        {
+            PLATFORM_DEFAULT_MODEL,
+            "anthropic/claude-3-haiku",
+            "openai/gpt-4o-mini",
+            "anthropic/claude-sonnet-4.6",
+            "openai/gpt-4o",
+        }
+    ),
+    "builder": frozenset(
+        {
+            PLATFORM_DEFAULT_MODEL,
+            "anthropic/claude-3-haiku",
+            "openai/gpt-4o-mini",
+            "anthropic/claude-sonnet-4.6",
+            "openai/gpt-4o",
+        }
+    ),
+    "unlimited": frozenset(
+        {
+            PLATFORM_DEFAULT_MODEL,
+            "anthropic/claude-3-haiku",
+            "openai/gpt-4o-mini",
+            "anthropic/claude-sonnet-4.6",
+            "openai/gpt-4o",
+        }
+    ),
 }
 
 # Best-effort price catalog used when the provider response does not include
@@ -241,13 +249,15 @@ MAX_AGENT_TOOL_CALLS_PER_RUN = 100
 # Account-orchestration tools that are unconditionally writes. Mirrors the
 # scope:"write" entries in apps/web/lib/genesis/agent-tools.ts. corelyx.call_connector
 # is intentionally excluded — it is read/write-mixed and gated per-operation.
-WRITE_AGENT_TOOL_IDS = frozenset({
-    "corelyx.trigger_program",
-    "corelyx.set_program_active",
-    "corelyx.create_workflow",
-    "corelyx.update_program",
-    "corelyx.spawn_agent",
-})
+WRITE_AGENT_TOOL_IDS = frozenset(
+    {
+        "corelyx.trigger_program",
+        "corelyx.set_program_active",
+        "corelyx.create_workflow",
+        "corelyx.update_program",
+        "corelyx.spawn_agent",
+    }
+)
 
 
 def _is_agent_key_error(message: str) -> bool:
@@ -261,8 +271,19 @@ def _is_agent_key_error(message: str) -> bool:
 # treated as a write (conservative: unknown ops are simulated in agent dry-runs).
 _CONNECTOR_READ_PREFIXES = (
     # "search" (no underscore) also covers gmail's bare "search" operation.
-    "get_", "list_", "search", "fetch_", "read_", "find_", "query_",
-    "retrieve_", "lookup_", "check_", "describe_", "count_", "download_",
+    "get_",
+    "list_",
+    "search",
+    "fetch_",
+    "read_",
+    "find_",
+    "query_",
+    "retrieve_",
+    "lookup_",
+    "check_",
+    "describe_",
+    "count_",
+    "download_",
 )
 
 
@@ -275,7 +296,13 @@ def _connector_op_is_write(operation: str) -> bool:
 # approval at runtime, regardless of node config or execution mode — a generated
 # or hand-edited schema must not be able to opt out of the safety gate.
 _CONNECTOR_DESTRUCTIVE_PREFIXES = (
-    "delete_", "remove_", "clear_", "purge_", "trash_", "destroy_", "drop_",
+    "delete_",
+    "remove_",
+    "clear_",
+    "purge_",
+    "trash_",
+    "destroy_",
+    "drop_",
 )
 
 
@@ -402,12 +429,8 @@ def _extract_usage_tokens(payload: dict[str, Any]) -> tuple[int, int, int]:
     if not isinstance(usage, dict):
         return (0, 0, 0)
 
-    prompt_tokens = _non_negative_int(
-        usage.get("prompt_tokens", usage.get("input_tokens", 0))
-    )
-    completion_tokens = _non_negative_int(
-        usage.get("completion_tokens", usage.get("output_tokens", 0))
-    )
+    prompt_tokens = _non_negative_int(usage.get("prompt_tokens", usage.get("input_tokens", 0)))
+    completion_tokens = _non_negative_int(usage.get("completion_tokens", usage.get("output_tokens", 0)))
     total_tokens = _non_negative_int(usage.get("total_tokens", 0))
 
     if total_tokens == 0:
@@ -560,6 +583,7 @@ def _resolve_expressions(template: str, inputs: dict) -> str:
     """Replace {{key}} and {{node_id.field[0].sub}} expressions with values from inputs.
     Unresolved expressions resolve to empty string — never to the raw template literal.
     """
+
     def replacer(match: re.Match) -> str:
         expr = match.group(1).strip()
         result = _resolve_path(expr, inputs)
@@ -568,6 +592,7 @@ def _resolve_expressions(template: str, inputs: dict) -> str:
         if isinstance(result, (dict, list)):
             return json.dumps(result)
         return str(result)
+
     return re.sub(r"\{\{([^}]+)\}\}", replacer, template)
 
 
@@ -617,6 +642,7 @@ def _recover_event_operation_params(
     exact parameter names from those envelopes so existing saved workflows keep
     working without connector-specific fallbacks.
     """
+
     def find_param(value: Any, param_name: str) -> Any:
         if isinstance(value, dict):
             direct = value.get(param_name)
@@ -808,40 +834,37 @@ def _parse_hallucination_verdict(raw: Any) -> tuple[str, float, list[str]]:
     except (TypeError, ValueError):
         confidence = 0.0
     issues_raw = data.get("issues")
-    issues = (
-        [str(i).strip() for i in issues_raw if str(i).strip()]
-        if isinstance(issues_raw, list)
-        else []
-    )
+    issues = [str(i).strip() for i in issues_raw if str(i).strip()] if isinstance(issues_raw, list) else []
     return verdict, confidence, issues
 
-_LLM_CLIENT: httpx.AsyncClient | None = None
+
+_LLM_CLIENTS: dict[asyncio.AbstractEventLoop, httpx.AsyncClient] = {}
 
 
 def _get_llm_client() -> httpx.AsyncClient:
-    """Shared client keeps provider TLS connections warm during multi-agent runs."""
-    global _LLM_CLIENT
-    if _LLM_CLIENT is None or _LLM_CLIENT.is_closed:
-        _LLM_CLIENT = httpx.AsyncClient(
+    """Return a connection-pooled client owned by the current event loop."""
+    loop = asyncio.get_running_loop()
+    for closed_loop in [candidate for candidate in _LLM_CLIENTS if candidate.is_closed()]:
+        _LLM_CLIENTS.pop(closed_loop, None)
+    client = _LLM_CLIENTS.get(loop)
+    if client is None or client.is_closed:
+        client = httpx.AsyncClient(
             timeout=LLM_REQUEST_TIMEOUT_SECONDS,
             limits=httpx.Limits(max_keepalive_connections=20, max_connections=50),
         )
-    return _LLM_CLIENT
+        _LLM_CLIENTS[loop] = client
+    return client
 
 
 async def close_llm_client() -> None:
-    global _LLM_CLIENT
-    if _LLM_CLIENT is not None and not _LLM_CLIENT.is_closed:
-        await _LLM_CLIENT.aclose()
-    _LLM_CLIENT = None
+    loop = asyncio.get_running_loop()
+    client = _LLM_CLIENTS.pop(loop, None)
+    if client is not None and not client.is_closed:
+        await client.aclose()
 
 
 def _supports_openai_json_mode(provider: str, base_url: str, litellm_url: str | None) -> bool:
-    return (
-        litellm_url is None
-        and provider == "openai"
-        and "api.openai.com" in base_url
-    )
+    return litellm_url is None and provider == "openai" and "api.openai.com" in base_url
 
 
 def _should_request_json_object(cfg: AgentConfig) -> bool:
@@ -978,9 +1001,7 @@ def _validate_outbound_url(url: str) -> str:
 
     host = parsed.hostname or ""
     if not host:
-        raise ExecutionError(
-            "HTTP_FORBIDDEN_URL", "HTTP connector URL is missing a hostname"
-        )
+        raise ExecutionError("HTTP_FORBIDDEN_URL", "HTTP connector URL is missing a hostname")
 
     # Reject literal IPs in disallowed ranges before the resolver.
     try:
@@ -999,9 +1020,7 @@ def _validate_outbound_url(url: str) -> str:
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror as exc:
-        raise ExecutionError(
-            "HTTP_FORBIDDEN_URL", f"HTTP connector could not resolve host '{host}': {exc}"
-        ) from exc
+        raise ExecutionError("HTTP_FORBIDDEN_URL", f"HTTP connector could not resolve host '{host}': {exc}") from exc
 
     pinned_ip: str | None = None
     for info in infos:
@@ -1019,9 +1038,7 @@ def _validate_outbound_url(url: str) -> str:
             pinned_ip = str(ip)
 
     if pinned_ip is None:
-        raise ExecutionError(
-            "HTTP_FORBIDDEN_URL", f"HTTP connector could not resolve host '{host}' to any address"
-        )
+        raise ExecutionError("HTTP_FORBIDDEN_URL", f"HTTP connector could not resolve host '{host}' to any address")
     return pinned_ip
 
 
@@ -1032,12 +1049,7 @@ def _ip_is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     cloud metadata), multicast, reserved, and unspecified ranges.
     """
     return not (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_multicast
-        or ip.is_reserved
-        or ip.is_unspecified
+        ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified
     )
 
 
@@ -1084,9 +1096,7 @@ async def _ssrf_safe_request(
         # though the connection targets the pinned IP.
         extensions.setdefault("sni_hostname", host)
 
-    return await client.request(
-        method=method, url=pinned_url, headers=headers, extensions=extensions, **kwargs
-    )
+    return await client.request(method=method, url=pinned_url, headers=headers, extensions=extensions, **kwargs)
 
 
 class ProgramExecutor:
@@ -1168,9 +1178,7 @@ class ProgramExecutor:
         # Strict tier additionally pseudonymizes person names via local NER:
         # explicit per-workspace pii_mode="strict", or "auto" + eu_only mode.
         pii_strict = pii_mode == "strict" or (pii_mode == "auto" and compliance_mode == "eu_only")
-        self._pii_session = PseudonymizationSession(
-            name_detector=get_person_name_detector() if pii_strict else None
-        )
+        self._pii_session = PseudonymizationSession(name_detector=get_person_name_detector() if pii_strict else None)
         # Consent-gated user background summary supplied by the web run dispatch.
         self._user_context: str | None = None
         self.compliance_mode = compliance_mode if compliance_mode in {"standard", "eu_only"} else "standard"
@@ -1179,9 +1187,7 @@ class ProgramExecutor:
             retention_days = max(1, int(execution_log_retention_days))
         except (TypeError, ValueError):
             retention_days = 90
-        self.retention_expiry = (
-            datetime.now(timezone.utc) + timedelta(days=retention_days)
-        ).isoformat()
+        self.retention_expiry = (datetime.now(timezone.utc) + timedelta(days=retention_days)).isoformat()
         self.db = get_db()
         self.node_map: dict[str, SchemaNode] = {n.id: n for n in schema.nodes}
         self.edges_from: dict[str, list] = {}
@@ -1189,11 +1195,9 @@ class ProgramExecutor:
             self.edges_from.setdefault(edge.from_node, []).append(edge)
         # Maps connection name → UUID. Populated from the run request; falls back to DB lookup.
         self._connection_name_to_id: dict[str, str] = dict(connection_name_to_id or {})
-        self._node_telemetry: dict[str, TelemetryPayload] = {
-            node.id: _empty_telemetry() for node in schema.nodes
-        }
+        self._node_telemetry: dict[str, TelemetryPayload] = {node.id: _empty_telemetry() for node in schema.nodes}
         self._run_telemetry: TelemetryPayload = _empty_telemetry()
-        
+
         # Initialize run limiter for resource protection
         limits = get_run_limits().get_limits_for_plan(plan)
         self._limiter = RunLimiter(limits, run_id)
@@ -1351,20 +1355,14 @@ class ProgramExecutor:
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
-            "estimated_cost_usd": _round_cost(
-                _non_negative_float(metrics.get("estimated_cost_usd", 0.0))
-            ),
-            "connector_api_calls": _non_negative_int(
-                metrics.get("connector_api_calls", 0)
-            ),
+            "estimated_cost_usd": _round_cost(_non_negative_float(metrics.get("estimated_cost_usd", 0.0))),
+            "connector_api_calls": _non_negative_int(metrics.get("connector_api_calls", 0)),
             "model_call_count": _non_negative_int(metrics.get("model_call_count", 0)),
         }
 
     def run_telemetry_payload(self) -> dict[str, int | float]:
         prompt_tokens = _non_negative_int(self._run_telemetry.get("prompt_tokens", 0))
-        completion_tokens = _non_negative_int(
-            self._run_telemetry.get("completion_tokens", 0)
-        )
+        completion_tokens = _non_negative_int(self._run_telemetry.get("completion_tokens", 0))
         total_tokens = _non_negative_int(self._run_telemetry.get("total_tokens", 0))
         if total_tokens == 0:
             total_tokens = prompt_tokens + completion_tokens
@@ -1372,15 +1370,9 @@ class ProgramExecutor:
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
-            "estimated_cost_usd": _round_cost(
-                _non_negative_float(self._run_telemetry.get("estimated_cost_usd", 0.0))
-            ),
-            "connector_api_calls": _non_negative_int(
-                self._run_telemetry.get("connector_api_calls", 0)
-            ),
-            "model_call_count": _non_negative_int(
-                self._run_telemetry.get("model_call_count", 0)
-            ),
+            "estimated_cost_usd": _round_cost(_non_negative_float(self._run_telemetry.get("estimated_cost_usd", 0.0))),
+            "connector_api_calls": _non_negative_int(self._run_telemetry.get("connector_api_calls", 0)),
+            "model_call_count": _non_negative_int(self._run_telemetry.get("model_call_count", 0)),
         }
 
     @staticmethod
@@ -1461,9 +1453,7 @@ class ProgramExecutor:
                 self._agent_credentials = [c for c in creds if isinstance(c, dict) and c.get("ref")]
             priors = trigger_payload.get("__prior_reports__")
             if isinstance(priors, list) and priors:
-                self._prior_agent_reports = [
-                    p for p in priors if isinstance(p, dict) and p.get("body")
-                ]
+                self._prior_agent_reports = [p for p in priors if isinstance(p, dict) and p.get("body")]
             caps = trigger_payload.get("__agent_capabilities__")
             if isinstance(caps, dict):
                 self._agent_capabilities = caps
@@ -1495,10 +1485,7 @@ class ProgramExecutor:
             .execute()
         )
         trigger_row = trigger_check.data[0] if trigger_check.data else None
-        trigger_pre_completed = (
-            trigger_row is not None
-            and trigger_row.get("status") in ("completed", "success")
-        )
+        trigger_pre_completed = trigger_row is not None and trigger_row.get("status") in ("completed", "success")
 
         if not trigger_pre_completed:
             await update_node_execution(
@@ -1538,9 +1525,7 @@ class ProgramExecutor:
                         "but no matching outgoing edge exists.",
                         current_id,
                     )
-                selected_reachable = self._reachable_nodes_from(
-                    [edge.to for edge in selected_edges]
-                )
+                selected_reachable = self._reachable_nodes_from([edge.to for edge in selected_edges])
                 skipped = await self._skip_nodes_from(
                     [edge.to for edge in outgoing if edge.to != selected_target],
                     excluded=visited | selected_reachable,
@@ -1586,9 +1571,7 @@ class ProgramExecutor:
                     # If this is a loop step, expand it: run all downstream nodes once
                     # per item instead of once with the whole list.
                     if isinstance(output, dict) and "__loop_items__" in output:
-                        body_visited = await self._execute_loop_body(
-                            edge.to, output, state
-                        )
+                        body_visited = await self._execute_loop_body(edge.to, output, state)
                         visited.update(body_visited)
                         # Don't push loop body nodes onto the main queue — they're done.
                     else:
@@ -1617,10 +1600,7 @@ class ProgramExecutor:
                         raise
                     if target_node.type == "agent":
                         agent_cfg = target_node.config
-                        if (
-                            isinstance(agent_cfg, AgentConfig)
-                            and agent_cfg.retry.fail_program_on_exhaust
-                        ):
+                        if isinstance(agent_cfg, AgentConfig) and agent_cfg.retry.fail_program_on_exhaust:
                             raise
                     visited.add(edge.to)
                     skipped = await self._skip_descendants_from(
@@ -1698,9 +1678,7 @@ class ProgramExecutor:
 
         return descendants
 
-    async def _execute_loop_body(
-        self, loop_node_id: str, loop_output: dict, state: dict
-    ) -> set[str]:
+    async def _execute_loop_body(self, loop_node_id: str, loop_output: dict, state: dict) -> set[str]:
         """Execute all nodes downstream of a loop node once per item.
 
         Returns the set of node IDs that were executed (so the main BFS can skip them).
@@ -1755,7 +1733,7 @@ class ProgramExecutor:
             local_state = dict(state)
             local_state[loop_node_id] = {
                 **loop_output,
-                item_var: item,        # {{loop_node_id.item_var.*}}
+                item_var: item,  # {{loop_node_id.item_var.*}}
                 "current_item": item,  # {{loop_node_id.current_item.*}}
                 "index": idx,
             }
@@ -1782,8 +1760,11 @@ class ProgramExecutor:
                     local_state[nid] = {"__skipped__": True}
                     iteration_results[nid].append({"__skipped__": True})
                     await update_node_execution(
-                        self.db, self.run_id, nid,
-                        status="skipped", completed_at="now()",
+                        self.db,
+                        self.run_id,
+                        nid,
+                        status="skipped",
+                        completed_at="now()",
                         data_region=self.data_region,
                         retention_expiry=self.retention_expiry,
                     )
@@ -1800,8 +1781,12 @@ class ProgramExecutor:
                     out = await self._execute_node(node, body_input)
                 except ExecutionError as e:
                     await update_node_execution(
-                        self.db, self.run_id, nid,
-                        status="failed", error_message=e.message, completed_at="now()",
+                        self.db,
+                        self.run_id,
+                        nid,
+                        status="failed",
+                        error_message=e.message,
+                        completed_at="now()",
                         data_region=self.data_region,
                         retention_expiry=self.retention_expiry,
                         block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
@@ -1825,8 +1810,7 @@ class ProgramExecutor:
                                     continue
                                 skipped_in_iteration.add(reject_nid)
                                 reject_frontier.extend(
-                                    fe.to for fe in self.edges_from.get(reject_nid, [])
-                                    if fe.to in body_ids
+                                    fe.to for fe in self.edges_from.get(reject_nid, []) if fe.to in body_ids
                                 )
 
                 # Handle filter short-circuits: skip all descendants within the body.
@@ -1837,18 +1821,12 @@ class ProgramExecutor:
                         if reject_nid in skipped_in_iteration or reject_nid not in body_ids:
                             continue
                         skipped_in_iteration.add(reject_nid)
-                        filter_frontier.extend(
-                            fe.to for fe in self.edges_from.get(reject_nid, [])
-                            if fe.to in body_ids
-                        )
+                        filter_frontier.extend(fe.to for fe in self.edges_from.get(reject_nid, []) if fe.to in body_ids)
 
         # Write aggregated results back to the shared state
         for nid, results in iteration_results.items():
             state[nid] = {"iterations": results, "count": len(items)}
-            ran_results = [
-                r for r in results
-                if not (isinstance(r, dict) and r.get("__skipped__"))
-            ]
+            ran_results = [r for r in results if not (isinstance(r, dict) and r.get("__skipped__"))]
             error_messages = [
                 r[NODE_ERROR_KEY]
                 for r in ran_results
@@ -1880,7 +1858,9 @@ class ProgramExecutor:
                 error_message = None
             # Update the DB record to reflect the final aggregated output
             await update_node_execution(
-                self.db, self.run_id, nid,
+                self.db,
+                self.run_id,
+                nid,
                 status=status,
                 completed_at="now()",
                 error_message=error_message,
@@ -1946,16 +1926,12 @@ class ProgramExecutor:
         # Check run limits before executing
         self._limiter.check_node_limit()
         self._limiter.check_execution_time()
-        
+
         # input_data includes full state keyed by node ID (for expression resolution),
         # but logging the entire state to the DB causes oversized payloads and
         # httpx [Errno 22] on Windows. Log only the "real" input fields — strip
         # the node-ID keys that were added by _resolve_input layer 2.
-        log_input = {
-            k: v
-            for k, v in input_data.items()
-            if k not in self.node_map and k != "loop_id"
-        }
+        log_input = {k: v for k, v in input_data.items() if k not in self.node_map and k != "loop_id"}
         await update_node_execution(
             self.db,
             self.run_id,
@@ -2230,9 +2206,7 @@ class ProgramExecutor:
             )
             return []
         if verdict == "hallucinated" and confidence >= HALLUCINATION_CONFIDENCE_THRESHOLD:
-            return issues or [
-                "the answer contains claims not supported by the step's input data"
-            ]
+            return issues or ["the answer contains claims not supported by the step's input data"]
         return []
 
     async def _call_llm_with_platform_fallback(
@@ -2459,7 +2433,15 @@ class ProgramExecutor:
                     )
                 else:
                     final_summary, tool_invocations = await self._agent_loop_openai(
-                        cfg, api_key, provider_id, node.id, sanitized_system.value, input_json, allowed_tools, max_iterations, model
+                        cfg,
+                        api_key,
+                        provider_id,
+                        node.id,
+                        sanitized_system.value,
+                        input_json,
+                        allowed_tools,
+                        max_iterations,
+                        model,
                     )
             except ExecutionError as e:
                 last_error = e
@@ -2483,9 +2465,7 @@ class ProgramExecutor:
 
             # Every agent run must end with a user report. If the model skipped
             # corelyx.report_to_user, persist its final summary as the report.
-            tool_invocations = await self._ensure_agent_report(
-                node, cfg, final_summary, tool_invocations
-            )
+            tool_invocations = await self._ensure_agent_report(node, cfg, final_summary, tool_invocations)
 
             return {
                 "summary": final_summary,
@@ -2572,11 +2552,13 @@ class ProgramExecutor:
                 args = self._pii.rehydrate_value(_safe_json_args(fn.get("arguments")))
                 result = await self._call_agent_tool(tool_id, args, node_id, cfg.scope_access)
                 tool_invocations.append(_agent_tool_invocation_record(tool_id, result))
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": call.get("id", tool_id),
-                    "content": json.dumps(self._pii.sanitize_value(result).value)[:4000],
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id", tool_id),
+                        "content": json.dumps(self._pii.sanitize_value(result).value)[:4000],
+                    }
+                )
 
             if self._agent_tool_calls_made >= MAX_AGENT_TOOL_CALLS_PER_RUN:
                 return (
@@ -2640,8 +2622,7 @@ class ProgramExecutor:
             tool_uses = [b for b in content_blocks if isinstance(b, dict) and b.get("type") == "tool_use"]
             if not tool_uses:
                 text = " ".join(
-                    b.get("text", "") for b in content_blocks
-                    if isinstance(b, dict) and b.get("type") == "text"
+                    b.get("text", "") for b in content_blocks if isinstance(b, dict) and b.get("type") == "text"
                 ).strip()
                 return text, tool_invocations
 
@@ -2654,11 +2635,13 @@ class ProgramExecutor:
                 args = self._pii.rehydrate_value(raw_args)
                 result = await self._call_agent_tool(tool_id, args, node_id, cfg.scope_access)
                 tool_invocations.append(_agent_tool_invocation_record(tool_id, result))
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": use.get("id", ""),
-                    "content": json.dumps(self._pii.sanitize_value(result).value)[:4000],
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": use.get("id", ""),
+                        "content": json.dumps(self._pii.sanitize_value(result).value)[:4000],
+                    }
+                )
             messages.append({"role": "user", "content": tool_results})
 
             if self._agent_tool_calls_made >= MAX_AGENT_TOOL_CALLS_PER_RUN:
@@ -2710,7 +2693,10 @@ class ProgramExecutor:
             }
 
         client = _get_llm_client()
-        headers = {"User-Agent": "CorelyxAgent/1.0 (+https://corelyx.app)", "Accept": "text/html,application/json,text/plain,*/*"}
+        headers = {
+            "User-Agent": "CorelyxAgent/1.0 (+https://corelyx.app)",
+            "Accept": "text/html,application/json,text/plain,*/*",
+        }
         max_hops = 4
         try:
             resp = None
@@ -3026,11 +3012,7 @@ class ProgramExecutor:
                     raise CancellationError()
 
                 res = (
-                    self.db.table("approvals")
-                    .select("status, decision_note")
-                    .eq("id", approval_id)
-                    .limit(1)
-                    .execute()
+                    self.db.table("approvals").select("status, decision_note").eq("id", approval_id).limit(1).execute()
                 )
                 rows = res.data or []
                 if rows:
@@ -3086,9 +3068,7 @@ class ProgramExecutor:
         prompt_tokens, completion_tokens, total_tokens = _extract_usage_tokens(data)
         reported_cost = _extract_reported_cost_usd(data)
         estimated_cost_usd = (
-            reported_cost
-            if reported_cost is not None
-            else _estimate_cost_usd(model, prompt_tokens, completion_tokens)
+            reported_cost if reported_cost is not None else _estimate_cost_usd(model, prompt_tokens, completion_tokens)
         )
         self._limiter.check_llm_tokens(total_tokens)
         self._limiter.check_cost(estimated_cost_usd)
@@ -3148,16 +3128,11 @@ class ProgramExecutor:
         When no successful report was delivered, persist the final summary as
         the report so the run never ends report-less.
         """
-        delivered = any(
-            inv.get("tool") == "corelyx.report_to_user" and inv.get("ok")
-            for inv in tool_invocations
-        )
+        delivered = any(inv.get("tool") == "corelyx.report_to_user" and inv.get("ok") for inv in tool_invocations)
         if delivered:
             return tool_invocations
 
-        body = (final_summary or "").strip()[:20000] or (
-            "The agent finished without producing any output."
-        )
+        body = (final_summary or "").strip()[:20000] or ("The agent finished without producing any output.")
         node_label = getattr(node, "label", None)
         title = f"{node_label} — run summary" if node_label else "Run summary"
         result = await self._call_agent_tool(
@@ -3284,9 +3259,7 @@ class ProgramExecutor:
             )
         return {"ok": False, "error": "Tool endpoint unreachable."}
 
-    async def _execute_agent_file_tool(
-        self, args: dict, node_id: str | None, scope_access: str
-    ) -> dict:
+    async def _execute_agent_file_tool(self, args: dict, node_id: str | None, scope_access: str) -> dict:
         """Execute one local file operation chosen dynamically by an agent.
 
         Reuses the workflow file-node machinery: enqueue a file_operations row
@@ -3351,15 +3324,12 @@ class ProgramExecutor:
             return {
                 "ok": False,
                 "error": (
-                    "No paired device is available. Install the Corelyx desktop app, "
-                    "pair it, and grant it a folder."
+                    "No paired device is available. Install the Corelyx desktop app, pair it, and grant it a folder."
                 ),
             }
 
         # The Bridge args are the literal tool args (path + per-op extras).
-        op_args = {
-            k: v for k, v in args.items() if k not in ("operation", "device_id") and v is not None
-        }
+        op_args = {k: v for k, v in args.items() if k not in ("operation", "device_id") and v is not None}
         op_args["path"] = path
 
         try:
@@ -3380,9 +3350,7 @@ class ProgramExecutor:
         if not operation_id:
             return {"ok": False, "error": "Could not enqueue the file operation for the device."}
 
-        outcome = await self._wait_for_file_operation(
-            operation_id, FILE_OPERATION_TIMEOUT_SECONDS, node_id
-        )
+        outcome = await self._wait_for_file_operation(operation_id, FILE_OPERATION_TIMEOUT_SECONDS, node_id)
         status = outcome.get("status")
         if status == "done":
             payload = outcome.get("result")
@@ -3606,15 +3574,17 @@ class ProgramExecutor:
     ) -> dict:
         """Call the LLM via LiteLLM-compatible API."""
         if not api_key:
-            raise ExecutionError("API_KEY_MISSING", f"No API key available for provider '{provider}' — check your key configuration")
+            raise ExecutionError(
+                "API_KEY_MISSING", f"No API key available for provider '{provider}' — check your key configuration"
+            )
         litellm_url = os.environ.get("LITELLM_URL")
 
         PROVIDER_URLS: dict[str, str] = {
-            "groq":       "https://api.groq.com/openai/v1",
-            "google":     "https://generativelanguage.googleapis.com/v1beta/openai",
+            "groq": "https://api.groq.com/openai/v1",
+            "google": "https://generativelanguage.googleapis.com/v1beta/openai",
             "openrouter": "https://openrouter.ai/api/v1",
-            "openai":     "https://api.openai.com/v1",
-            "anthropic":  "https://api.anthropic.com/v1",
+            "openai": "https://api.openai.com/v1",
+            "anthropic": "https://api.anthropic.com/v1",
         }
 
         if litellm_url:
@@ -3655,9 +3625,7 @@ class ProgramExecutor:
             if part and part.strip()
         )
         sanitized_system = self._pii.sanitize_text(raw_system)
-        sanitized_input_data = self._pii.sanitize_value(
-            _narrow_to_input_schema(input_data, cfg.input_schema)
-        )
+        sanitized_input_data = self._pii.sanitize_value(_narrow_to_input_schema(input_data, cfg.input_schema))
         _system = sanitized_system.value
         llm_input_json = json.dumps(sanitized_input_data.value)
         await update_node_execution(
@@ -3685,9 +3653,7 @@ class ProgramExecutor:
                 "model": cfg.model,
                 "max_tokens": 4096,
                 "temperature": LLM_TEMPERATURE,
-                "messages": [
-                    {"role": "user", "content": f"<external_data>\n{llm_input_json}\n</external_data>"}
-                ],
+                "messages": [{"role": "user", "content": f"<external_data>\n{llm_input_json}\n</external_data>"}],
             }
             body["system"] = _system
             client = _get_llm_client()
@@ -3699,8 +3665,7 @@ class ProgramExecutor:
             print(f"[LLM/anthropic] {resp.status_code} model={cfg.model}", flush=True)
             if not resp.is_success:
                 raise Exception(
-                    f"LLM API error {resp.status_code} from {base_url} "
-                    f"(model={cfg.model}): {resp.text[:500]}"
+                    f"LLM API error {resp.status_code} from {base_url} (model={cfg.model}): {resp.text[:500]}"
                 )
             try:
                 data = resp.json()
@@ -3719,9 +3684,7 @@ class ProgramExecutor:
             # replacement and every current OpenAI chat model accepts it. Other
             # OpenAI-compatible endpoints (OpenRouter, Groq, Google, LiteLLM)
             # still expect `max_tokens` and translate it themselves where needed.
-            completion_limit_param = (
-                "max_completion_tokens" if "api.openai.com" in base_url else "max_tokens"
-            )
+            completion_limit_param = "max_completion_tokens" if "api.openai.com" in base_url else "max_tokens"
             request_body: dict[str, Any] = {
                 "model": cfg.model,
                 completion_limit_param: 4096,
@@ -3746,8 +3709,7 @@ class ProgramExecutor:
             )
             if not resp.is_success:
                 raise Exception(
-                    f"LLM API error {resp.status_code} from {base_url} "
-                    f"(model={cfg.model}): {resp.text[:500]}"
+                    f"LLM API error {resp.status_code} from {base_url} (model={cfg.model}): {resp.text[:500]}"
                 )
             try:
                 data = resp.json()
@@ -3768,7 +3730,7 @@ class ProgramExecutor:
             if reported_cost is not None
             else _estimate_cost_usd(cfg.model, prompt_tokens, completion_tokens)
         )
-        
+
         # Check run limits after getting actual usage
         self._limiter.check_llm_tokens(total_tokens)
         self._limiter.check_cost(estimated_cost_usd)
@@ -3831,6 +3793,7 @@ class ProgramExecutor:
 
         elif cfg.logic_type == "delay":
             import asyncio as _asyncio
+
             seconds = float(extra.get("seconds", 0))
             if seconds > 0:
                 await _asyncio.sleep(min(seconds, 300))  # cap at 5 min
@@ -3861,11 +3824,13 @@ class ProgramExecutor:
         elif cfg.logic_type == "parse":
             import csv as _csv
             import io as _io
+
             input_key: str = extra.get("input_key", "text")
             fmt: str = extra.get("format", "json")
             raw = input_data.get(input_key, "")
             if fmt == "json":
                 import json as _json
+
                 try:
                     parsed = _json.loads(raw) if isinstance(raw, str) else raw
                 except Exception as e:
@@ -3947,7 +3912,7 @@ class ProgramExecutor:
             connection_id = self._resolve_connection_id(connection_name)
             provider_id = self._provider_for_connection(connection_id)
             await self._enforce_provider_policy(provider_id, node.id)
-            
+
             # Fetch OAuth token with circuit breaker protection
             circuit = get_oauth_token_circuit()
             try:
@@ -3955,7 +3920,7 @@ class ProgramExecutor:
             except CircuitOpenError as e:
                 raise ExecutionError(
                     "OAUTH_CIRCUIT_OPEN",
-                    f"OAuth token service temporarily unavailable. Please try again later.",
+                    "OAuth token service temporarily unavailable. Please try again later.",
                     node.id,
                 ) from e
 
@@ -4006,10 +3971,7 @@ class ProgramExecutor:
                 # additionally prunes this iteration's descendants in loop bodies,
                 # which is the intended behavior for "no attachment on this item".
                 required_for_skip = _SKIP_WHEN_INPUT_MISSING.get(cfg.operation or "", ())
-                missing_required = [
-                    key for key in required_for_skip
-                    if resolved_params.get(key) in (None, "")
-                ]
+                missing_required = [key for key in required_for_skip if resolved_params.get(key) in (None, "")]
                 if missing_required:
                     print(
                         f"[executor] WARNING: skipping node {node.id} — "
@@ -4071,9 +4033,7 @@ class ProgramExecutor:
                 # Mandatory approval gate: destructive operations ALWAYS pause for
                 # human approval (not configurable away); in approval_required mode
                 # every write does. Supervised/manual modes already gate upstream.
-                per_op_gated = op_is_destructive or (
-                    op_is_write and self.execution_mode == "approval_required"
-                )
+                per_op_gated = op_is_destructive or (op_is_write and self.execution_mode == "approval_required")
                 if per_op_gated:
                     reason = (
                         f"Destructive action approval required ({cfg.operation})"
@@ -4102,11 +4062,7 @@ class ProgramExecutor:
                     self._write_ops_executed += 1
                     # getattr fallback: test executors built via __new__ skip __init__.
                     bwt = getattr(self, "bulk_write_approval_threshold", BULK_WRITE_APPROVAL_THRESHOLD)
-                    if (
-                        not per_op_gated
-                        and not self._bulk_write_approved
-                        and self._write_ops_executed > bwt
-                    ):
+                    if not per_op_gated and not self._bulk_write_approved and self._write_ops_executed > bwt:
                         approved = await self._request_step_approval(
                             node,
                             input_data,
@@ -4150,7 +4106,9 @@ class ProgramExecutor:
                         except ConnectorError as retry_exc:
                             # Mark connection invalid so pre-flight blocks future runs
                             try:
-                                self.db.table("connections").update({"is_valid": False}).eq("id", connection_id).execute()
+                                self.db.table("connections").update({"is_valid": False}).eq(
+                                    "id", connection_id
+                                ).execute()
                             except Exception:
                                 pass  # best-effort
                             raise ExecutionError(
@@ -4195,11 +4153,11 @@ class ProgramExecutor:
         _BLOCKED_NETWORKS = [
             ipaddress.ip_network("127.0.0.0/8"),
             ipaddress.ip_network("::1/128"),
-            ipaddress.ip_network("169.254.0.0/16"),   # link-local / cloud metadata
+            ipaddress.ip_network("169.254.0.0/16"),  # link-local / cloud metadata
             ipaddress.ip_network("10.0.0.0/8"),
             ipaddress.ip_network("172.16.0.0/12"),
             ipaddress.ip_network("192.168.0.0/16"),
-            ipaddress.ip_network("fc00::/7"),          # IPv6 ULA
+            ipaddress.ip_network("fc00::/7"),  # IPv6 ULA
             ipaddress.ip_network("0.0.0.0/8"),
         ]
 
@@ -4257,11 +4215,7 @@ class ProgramExecutor:
         }
 
         auth: tuple[str, str] | None = None
-        resolved_auth_value = (
-            _resolve_expressions(cfg.auth_value, input_data)
-            if cfg.auth_value
-            else None
-        )
+        resolved_auth_value = _resolve_expressions(cfg.auth_value, input_data) if cfg.auth_value else None
         uses_oauth_handoff = resolved_auth_value in {
             "__OAUTH_CONNECTION__",
             "__USER_ASSIGNED__",
@@ -4411,22 +4365,14 @@ class ProgramExecutor:
     # write/destructive heuristics used elsewhere in this file.
     _FILE_WRITE_OPS = frozenset({"write", "append", "move", "copy", "delete", "mkdir"})
     _FILE_DESTRUCTIVE_OPS = frozenset({"delete"})
-    _FILE_ALL_OPS = frozenset(
-        {"read", "write", "append", "list", "stat", "move", "copy", "delete", "mkdir", "search"}
-    )
+    _FILE_ALL_OPS = frozenset({"read", "write", "append", "list", "stat", "move", "copy", "delete", "mkdir", "search"})
 
     async def _resolve_workspace_id(self) -> str | None:
         """The run's workspace id, looked up from the program if not supplied."""
         if self.workspace_id:
             return self.workspace_id
         try:
-            res = (
-                self.db.table("programs")
-                .select("workspace_id")
-                .eq("id", self.program_id)
-                .limit(1)
-                .execute()
-            )
+            res = self.db.table("programs").select("workspace_id").eq("id", self.program_id).limit(1).execute()
             rows = res.data or []
             if rows and rows[0].get("workspace_id"):
                 self.workspace_id = rows[0]["workspace_id"]
@@ -4451,9 +4397,7 @@ class ProgramExecutor:
         except Exception:
             return None
 
-    async def _execute_file(
-        self, node: SchemaNode, cfg: FileConnectionConfig, input_data: dict
-    ) -> dict:
+    async def _execute_file(self, node: SchemaNode, cfg: FileConnectionConfig, input_data: dict) -> dict:
         """Run a local file operation on a paired device via the desktop Bridge.
 
         The runtime never touches a filesystem. It enqueues a file_operations row
@@ -4505,14 +4449,8 @@ class ProgramExecutor:
             or (self.execution_mode == "approval_required" and is_write)
         )
         if needs_approval:
-            reason = (
-                "Destructive file operation"
-                if is_destructive
-                else "File write approval required"
-            )
-            approved = await self._request_step_approval(
-                node, {"operation": op_type, "path": path}, reason
-            )
+            reason = "Destructive file operation" if is_destructive else "File write approval required"
+            approved = await self._request_step_approval(node, {"operation": op_type, "path": path}, reason)
             if not approved:
                 raise ExecutionError(
                     "FILE_OP_REJECTED",
@@ -4564,26 +4502,20 @@ class ProgramExecutor:
         # The node is now waiting on the device executing the op locally.
         await update_node_execution(self.db, self.run_id, node.id, status="running")
 
-        outcome = await self._wait_for_file_operation(
-            operation_id, FILE_OPERATION_TIMEOUT_SECONDS, node.id
-        )
+        outcome = await self._wait_for_file_operation(operation_id, FILE_OPERATION_TIMEOUT_SECONDS, node.id)
         status = outcome.get("status")
         if status == "done":
             payload = outcome.get("result")
             return payload if isinstance(payload, dict) else {"result": payload}
         if status == "cancelled":
-            raise ExecutionError(
-                "FILE_OP_CANCELLED", f"The {op_type} on {path} was cancelled.", node.id
-            )
+            raise ExecutionError("FILE_OP_CANCELLED", f"The {op_type} on {path} was cancelled.", node.id)
         raise ExecutionError(
             "FILE_OP_FAILED",
             str(outcome.get("error") or f"The {op_type} on {path} failed on the device."),
             node.id,
         )
 
-    async def _wait_for_file_operation(
-        self, operation_id: str, timeout_seconds: float, node_id: str | None
-    ) -> dict:
+    async def _wait_for_file_operation(self, operation_id: str, timeout_seconds: float, node_id: str | None) -> dict:
         """Block until the Bridge finishes a file operation (done/error/cancelled).
 
         Subscribes to Realtime updates on the file_operations row with a bounded
@@ -4643,9 +4575,7 @@ class ProgramExecutor:
 
                 remaining = max(0.0, deadline - time.time())
                 try:
-                    await asyncio.wait_for(
-                        resolved.wait(), timeout=min(fallback_interval, remaining)
-                    )
+                    await asyncio.wait_for(resolved.wait(), timeout=min(fallback_interval, remaining))
                 except asyncio.TimeoutError:
                     continue
                 finally:
@@ -4683,9 +4613,7 @@ class ProgramExecutor:
             node_id,
         )
 
-    async def _request_step_approval(
-        self, node: SchemaNode, input_data: dict, reason: str
-    ) -> bool:
+    async def _request_step_approval(self, node: SchemaNode, input_data: dict, reason: str) -> bool:
         """Insert approval row and poll until resolved (up to timeout)."""
         result = (
             self.db.table("node_executions")
@@ -4697,9 +4625,7 @@ class ProgramExecutor:
         )
         node_exec_id: str = result.data["id"]
 
-        await update_node_execution(
-            self.db, self.run_id, node.id, status="waiting_approval"
-        )
+        await update_node_execution(self.db, self.run_id, node.id, status="waiting_approval")
 
         # Determine timeout_hours early so it can be stored in context for
         # the DB-level timeout enforcer (approval-timeout Inngest function).
@@ -4728,7 +4654,9 @@ class ProgramExecutor:
                 "execution_mode": self.execution_mode,
                 "timeout_hours": timeout_hours,
                 "requested_action": f"{display_reason}: {node.label}",
-                "ai_generated_recommendation": input_data.get("text") if isinstance(input_data.get("text"), str) else None,
+                "ai_generated_recommendation": input_data.get("text")
+                if isinstance(input_data.get("text"), str)
+                else None,
                 "data_summary": self._approval_data_summary(input_data),
                 "risk_flags": self._approval_risk_flags(node),
             },
@@ -4737,9 +4665,7 @@ class ProgramExecutor:
         timeout_seconds = timeout_hours * 3600
         return await self._wait_for_approval_decision(node_exec_id, timeout_seconds)
 
-    async def _wait_for_approval_decision(
-        self, node_exec_id: str, timeout_seconds: float
-    ) -> bool:
+    async def _wait_for_approval_decision(self, node_exec_id: str, timeout_seconds: float) -> bool:
         """Wait for an approval update via Supabase Realtime, with bounded fallback checks."""
         decision: dict[str, str | None] = {"status": None}
         changed = asyncio.Event()
@@ -4767,8 +4693,7 @@ class ProgramExecutor:
             ).subscribe()
         except Exception as exc:
             print(
-                f"[executor] approval realtime unavailable for {node_exec_id}; "
-                f"using bounded fallback checks: {exc}",
+                f"[executor] approval realtime unavailable for {node_exec_id}; using bounded fallback checks: {exc}",
                 flush=True,
             )
             channel = None
@@ -4785,11 +4710,7 @@ class ProgramExecutor:
                     raise CancellationError()
 
                 approval = (
-                    self.db.table("approvals")
-                    .select("status")
-                    .eq("node_execution_id", node_exec_id)
-                    .limit(1)
-                    .execute()
+                    self.db.table("approvals").select("status").eq("node_execution_id", node_exec_id).limit(1).execute()
                 )
                 rows = approval.data or []
                 if rows:
@@ -4801,9 +4722,7 @@ class ProgramExecutor:
 
                 remaining = max(0.0, deadline - time.time())
                 try:
-                    await asyncio.wait_for(
-                        changed.wait(), timeout=min(fallback_interval, remaining)
-                    )
+                    await asyncio.wait_for(changed.wait(), timeout=min(fallback_interval, remaining))
                 except asyncio.TimeoutError:
                     continue
                 finally:
@@ -4822,7 +4741,6 @@ class ProgramExecutor:
 
         raise ExecutionError("APPROVAL_TIMEOUT", "Approval timed out")
 
-
     # Keep old method name as alias for backward compat
     async def _request_approval(self, node: SchemaNode, input_data: dict) -> bool:
         return await self._request_step_approval(node, input_data, "Approval required")
@@ -4834,10 +4752,7 @@ class ProgramExecutor:
         """
         # Fetch connections linked to this program
         result = (
-            self.db.table("program_connections")
-            .select("connection_id")
-            .eq("program_id", self.program_id)
-            .execute()
+            self.db.table("program_connections").select("connection_id").eq("program_id", self.program_id).execute()
         )
         connection_ids = [row["connection_id"] for row in (result.data or [])]
 
@@ -4878,9 +4793,7 @@ class ProgramExecutor:
                     )
 
         # Acquire the lock
-        acquired = await acquire_resource_lock(
-            self.db, self.run_id, resource_type, resource_id
-        )
+        acquired = await acquire_resource_lock(self.db, self.run_id, resource_type, resource_id)
         if not acquired:
             # Race condition — another run got it first
             if self.conflict_policy == "fail":
@@ -4915,9 +4828,7 @@ class ProgramExecutor:
 
         # Check the name→id map for "provider:id" entries injected by the
         # web app when the node uses a Genesis provider-alias ref.
-        provider_entry = (
-            self._connection_name_to_id.get(f"__provider:{connection_name}")
-        )
+        provider_entry = self._connection_name_to_id.get(f"__provider:{connection_name}")
         if provider_entry:
             return provider_entry
 
@@ -4942,10 +4853,7 @@ class ProgramExecutor:
         if provider_match:
             provider_slug = provider_match.group(1)
             pc_result = (
-                self.db.table("program_connections")
-                .select("connection_id")
-                .eq("program_id", self.program_id)
-                .execute()
+                self.db.table("program_connections").select("connection_id").eq("program_id", self.program_id).execute()
             )
             if pc_result.data:
                 linked_ids = [r["connection_id"] for r in pc_result.data]
@@ -4982,13 +4890,7 @@ class ProgramExecutor:
 
     def _provider_for_connection(self, connection_id: str) -> str:
         """Look up the provider slug for a connection UUID from the DB."""
-        result = (
-            self.db.table("connections")
-            .select("provider")
-            .eq("id", connection_id)
-            .single()
-            .execute()
-        )
+        result = self.db.table("connections").select("provider").eq("id", connection_id).single().execute()
         if not result.data:
             raise ExecutionError("CONNECTION_NOT_FOUND", f"Connection {connection_id} not found")
         return str(result.data["provider"])
@@ -5014,7 +4916,7 @@ class ProgramExecutor:
         token = await self._do_fetch_oauth_token(connection_id, force_refresh)
         manager.cache_token(connection_id, token)
         return token
-    
+
     # Internal web endpoints can legitimately be slow or answer 503: an OAuth
     # refresh serializes on the shared credential_locks table (up to ~25s wait)
     # before the provider round-trip even starts. One slow round-trip must not
@@ -5043,9 +4945,7 @@ class ProgramExecutor:
         """
         for attempt in range(self._INTERNAL_FETCH_ATTEMPTS):
             last_attempt = attempt == self._INTERNAL_FETCH_ATTEMPTS - 1
-            backoff = self._INTERNAL_FETCH_BACKOFF_SECONDS[
-                min(attempt, len(self._INTERNAL_FETCH_BACKOFF_SECONDS) - 1)
-            ]
+            backoff = self._INTERNAL_FETCH_BACKOFF_SECONDS[min(attempt, len(self._INTERNAL_FETCH_BACKOFF_SECONDS) - 1)]
             try:
                 resp = await client.get(
                     endpoint_url,
@@ -5066,9 +4966,7 @@ class ProgramExecutor:
                 await asyncio.sleep(backoff)
                 continue
             if resp.status_code in self._INTERNAL_FETCH_RETRYABLE_STATUSES and not last_attempt:
-                attempt_errors.append(
-                    f"{endpoint_url} -> HTTP {resp.status_code}: {self._response_error_detail(resp)}"
-                )
+                attempt_errors.append(f"{endpoint_url} -> HTTP {resp.status_code}: {self._response_error_detail(resp)}")
                 await asyncio.sleep(backoff)
                 continue
             return resp
@@ -5113,9 +5011,7 @@ class ProgramExecutor:
                 # If NEXTJS_INTERNAL_URL contains a path segment (e.g. /browse),
                 # try an origin-only fallback when the first attempt is a 404.
                 should_try_fallback = (
-                    idx == 0
-                    and len(endpoint_urls) > 1
-                    and resp.status_code in {301, 302, 307, 308, 404}
+                    idx == 0 and len(endpoint_urls) > 1 and resp.status_code in {301, 302, 307, 308, 404}
                 )
                 if should_try_fallback:
                     continue
@@ -5150,8 +5046,7 @@ class ProgramExecutor:
                 if api_key_ref == USER_ASSIGNED_SENTINEL:
                     raise ExecutionError(
                         "API_KEY_REQUIRED",
-                        "This workflow requires a user-supplied API key. "
-                        "Add one at /api-keys.",
+                        "This workflow requires a user-supplied API key. Add one at /api-keys.",
                     )
                 raise ExecutionError(
                     "PLATFORM_KEY_MISSING",
@@ -5193,9 +5088,7 @@ class ProgramExecutor:
                 attempt_errors.append(f"{endpoint_url} -> HTTP {resp.status_code}: {detail}")
 
                 should_try_fallback = (
-                    idx == 0
-                    and len(endpoint_urls) > 1
-                    and resp.status_code in {301, 302, 307, 308, 404}
+                    idx == 0 and len(endpoint_urls) > 1 and resp.status_code in {301, 302, 307, 308, 404}
                 )
                 if should_try_fallback:
                     continue

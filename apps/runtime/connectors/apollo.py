@@ -1,4 +1,5 @@
 """Apollo.io native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,7 +9,7 @@ import httpx
 from .base import IConnector, ConnectorError
 from .rate_limit import request_with_rate_limit
 
-_BASE = "https://api.apollo.io/v1"
+_BASE = "https://api.apollo.io/api/v1"
 
 
 class ApolloConnector(IConnector):
@@ -27,7 +28,7 @@ class ApolloConnector(IConnector):
         access_token: str,
     ) -> dict[str, Any]:
         headers = {
-            "Authorization": f"Bearer {access_token}",
+            "x-api-key": access_token,
             "Content-Type": "application/json",
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -46,55 +47,69 @@ class ApolloConnector(IConnector):
                         f"Apollo does not support operation '{operation}'",
                     )
 
-    async def _search_contacts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
-        # Placeholder implementation - need to check Apollo API docs
+    async def _search_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query = params.get("query", "")
         if not query:
             raise ConnectorError("MISSING_PARAM", "search_contacts requires 'query'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/people/search",
+            client,
+            "POST",
+            f"{_BASE}/mixed_people/api_search",
             headers=headers,
-            params={"q": query, "page": params.get("page", 1)},
+            json={
+                "q_keywords": query,
+                "page": params.get("page", 1),
+                "per_page": params.get("per_page", 25),
+            },
         )
         _raise_for_status(r, "search_contacts")
         return r.json()
 
-    async def _enrich_lead(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _enrich_lead(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         email = params.get("email")
         if not email:
             raise ConnectorError("MISSING_PARAM", "enrich_lead requires 'email'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/people/match",
+            client,
+            "POST",
+            f"{_BASE}/people/match",
             headers=headers,
-            params={"email": email},
+            json={"email": email},
         )
         _raise_for_status(r, "enrich_lead")
         return r.json()
 
-    async def _create_sequence(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_sequence(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         name = params.get("name")
         if not name:
             raise ConnectorError("MISSING_PARAM", "create_sequence requires 'name'")
+        body: dict[str, Any] = {"name": name}
+        for field in ("permissions", "active", "emailer_schedule_id", "folder_id"):
+            if field in params:
+                body[field] = params[field]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/sequences",
+            client,
+            "POST",
+            f"{_BASE}/sequences",
             headers=headers,
-            json={"name": name},
+            json=body,
         )
         _raise_for_status(r, "create_sequence")
         return r.json()
 
-    async def _list_sequences(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_sequences(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
+        query = {
+            "page": params.get("page", 1),
+            "per_page": params.get("per_page", 25),
+        }
+        if params.get("query"):
+            query["q_name"] = params["query"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/sequences",
+            client,
+            "POST",
+            f"{_BASE}/emailer_campaigns/search",
             headers=headers,
+            params=query,
         )
         _raise_for_status(r, "list_sequences")
         return r.json()

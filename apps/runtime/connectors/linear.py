@@ -1,4 +1,5 @@
 """Linear native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,9 +50,7 @@ class LinearConnector(IConnector):
                         f"Linear does not support operation '{operation}'",
                     )
 
-    async def _gql(
-        self, client: httpx.AsyncClient, headers: dict, query: str, variables: dict | None = None
-    ) -> dict:
+    async def _gql(self, client: httpx.AsyncClient, headers: dict, query: str, variables: dict | None = None) -> dict:
         body: dict[str, Any] = {"query": query}
         if variables:
             body["variables"] = variables

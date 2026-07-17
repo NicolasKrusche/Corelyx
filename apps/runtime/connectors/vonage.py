@@ -1,4 +1,5 @@
 """Vonage connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.vonage.com/v1"
 class VonageConnector(IConnector):
     """
     Vonage connector for: send_sms, send_message.
-    
+
     API Base: vonage
     """
-    
+
     provider = "vonage"
-    supported_operations = [
-        "send_sms",
-        "send_message"
-    ]
+    supported_operations = ["send_sms", "send_message"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class VonageConnector(IConnector):
                         f"Vonage does not support '{operation}'",
                     )
 
-
-    async def _send_sms(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_sms(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute send_sms operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send_sms",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/send_sms",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _send_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute send_message operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send_message",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/send_message",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

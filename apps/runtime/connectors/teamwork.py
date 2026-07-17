@@ -1,4 +1,5 @@
 """Teamwork native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -53,8 +54,7 @@ class TeamworkConnector(IConnector):
 
     async def _list_projects(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/projects.json", headers=headers,
-            params={"pageSize": int(params.get("limit", 50))}
+            client, "GET", f"{base}/projects.json", headers=headers, params={"pageSize": int(params.get("limit", 50))}
         )
         _raise_for_status(r, "list_projects")
         return {"projects": r.json().get("projects", [])}

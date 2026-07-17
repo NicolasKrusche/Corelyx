@@ -1,6 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import type { ColorValue } from "react-native";
 import { colors } from "@/lib/theme";
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -8,7 +9,7 @@ type IoniconName = keyof typeof Ionicons.glyphMap;
 /** Filled glyph when focused, outline when not — a clean, cohesive icon set
  *  (Ionicons) replacing the old emoji, closer to the web app's line icons. */
 function tabIcon(active: IoniconName, inactive: IoniconName) {
-  return function TabBarIcon({ color, focused, size }: { color: string; focused: boolean; size: number }) {
+  return function TabBarIcon({ color, focused, size }: { color: ColorValue; focused: boolean; size: number }) {
     return <Ionicons name={focused ? active : inactive} size={size ?? 23} color={color} />;
   };
 }

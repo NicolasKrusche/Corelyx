@@ -1,4 +1,5 @@
 """GitLab native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,9 +50,7 @@ class GitLabConnector(IConnector):
                         f"GitLab does not support '{operation}'",
                     )
 
-    async def _list_projects(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_projects(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         per_page = int(params.get("per_page", 20))
         page = int(params.get("page", 1))
         r = await request_with_rate_limit(
@@ -76,9 +75,7 @@ class GitLabConnector(IConnector):
             ]
         }
 
-    async def _list_issues(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_issues(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         project_id = params.get("project_id")
         if not project_id:
             raise ConnectorError("MISSING_PARAM", "list_issues requires 'project_id'")
@@ -107,15 +104,11 @@ class GitLabConnector(IConnector):
             ]
         }
 
-    async def _create_issue(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_issue(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         project_id = params.get("project_id")
         title = params.get("title")
         if not project_id or not title:
-            raise ConnectorError(
-                "MISSING_PARAM", "create_issue requires 'project_id' and 'title'"
-            )
+            raise ConnectorError("MISSING_PARAM", "create_issue requires 'project_id' and 'title'")
         body: dict[str, Any] = {"title": title}
         if params.get("description"):
             body["description"] = params["description"]
@@ -139,14 +132,10 @@ class GitLabConnector(IConnector):
             "web_url": result["web_url"],
         }
 
-    async def _list_merge_requests(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_merge_requests(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         project_id = params.get("project_id")
         if not project_id:
-            raise ConnectorError(
-                "MISSING_PARAM", "list_merge_requests requires 'project_id'"
-            )
+            raise ConnectorError("MISSING_PARAM", "list_merge_requests requires 'project_id'")
         state = params.get("state", "opened")
         per_page = int(params.get("per_page", 20))
         r = await request_with_rate_limit(
@@ -173,9 +162,7 @@ class GitLabConnector(IConnector):
             ]
         }
 
-    async def _create_merge_request(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_merge_request(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         project_id = params.get("project_id")
         title = params.get("title")
         source_branch = params.get("source_branch")

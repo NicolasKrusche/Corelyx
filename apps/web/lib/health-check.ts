@@ -14,6 +14,7 @@ export interface HealthStatus {
     supabase_realtime?: HealthCheckResult;
     runtime?: HealthCheckResult;
     litellm_proxy?: HealthCheckResult;
+    inngest?: HealthCheckResult;
   };
 }
 
@@ -28,14 +29,13 @@ async function checkDatabase(): Promise<HealthCheckResult> {
   const start = Date.now();
   try {
     const db = createServiceClient();
-    // Simple query to check DB connectivity
-    const { data, error } = await db
+    // Head-only count verifies connectivity without requiring any rows or a
+    // non-existent synthetic "count" column.
+    const { error } = await db
       .from("profiles")
-      .select("count")
-      .limit(1)
-      .single();
+      .select("id", { count: "exact", head: true });
     
-    if (error && !error.message.includes("Results contain 0 rows")) {
+    if (error) {
       return {
         status: "fail",
         responseTimeMs: Date.now() - start,
@@ -62,13 +62,22 @@ async function checkSupabaseRealtime(): Promise<HealthCheckResult> {
   const start = Date.now();
   try {
     const db = createServiceClient();
-    // Check Supabase is responsive by querying a table
+    // Check the Supabase data API. Realtime transport health is not exposed by
+    // the client, so this check must not silently claim success on query errors.
     const { error } = await db
       .from("profiles")
       .select("id")
       .limit(1);
     
-    // If we get here without error, Supabase is working
+    if (error) {
+      return {
+        status: "warn",
+        responseTimeMs: Date.now() - start,
+        message: "Supabase data API query failed",
+        lastError: error.message,
+      };
+    }
+
     return {
       status: "pass",
       responseTimeMs: Date.now() - start,
@@ -81,6 +90,34 @@ async function checkSupabaseRealtime(): Promise<HealthCheckResult> {
       lastError: e instanceof Error ? e.message : "Unknown error",
     };
   }
+}
+
+async function checkInngestConfiguration(): Promise<HealthCheckResult> {
+  const start = Date.now();
+  const isProduction = ["NODE_ENV", "VERCEL_ENV", "APP_ENV"].some(
+    (name) => process.env[name] === "production",
+  );
+  if (!isProduction) {
+    return {
+      status: "pass",
+      responseTimeMs: Date.now() - start,
+      message: "Development mode",
+    };
+  }
+
+  const missing = ["INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"].filter(
+    (name) => !process.env[name]?.trim(),
+  );
+  if (missing.length > 0) {
+    return {
+      status: "fail",
+      responseTimeMs: Date.now() - start,
+      message: "Inngest production configuration is incomplete",
+      lastError: `Missing ${missing.join(", ")}`,
+    };
+  }
+
+  return { status: "pass", responseTimeMs: Date.now() - start };
 }
 
 async function checkRuntime(): Promise<HealthCheckResult> {
@@ -180,11 +217,12 @@ async function checkLiteLLMProxy(): Promise<HealthCheckResult> {
 }
 
 export async function getHealthStatus(): Promise<HealthStatus> {
-  const [database, supabaseRealtime, runtime, litellmProxy] = await Promise.all([
+  const [database, supabaseRealtime, runtime, litellmProxy, inngest] = await Promise.all([
     checkDatabase(),
     checkSupabaseRealtime(),
     checkRuntime(),
     checkLiteLLMProxy(),
+    checkInngestConfiguration(),
   ]);
   
   // Determine overall status
@@ -193,6 +231,7 @@ export async function getHealthStatus(): Promise<HealthStatus> {
     supabaseRealtime,
     runtime,
     litellmProxy,
+    inngest,
   ].filter((c) => c?.status === "fail").length;
   
   const warnings = [
@@ -200,6 +239,7 @@ export async function getHealthStatus(): Promise<HealthStatus> {
     supabaseRealtime,
     runtime,
     litellmProxy,
+    inngest,
   ].filter((c) => c?.status === "warn").length;
   
   let status: HealthStatus["status"] = "healthy";
@@ -218,6 +258,7 @@ export async function getHealthStatus(): Promise<HealthStatus> {
       supabase_realtime: supabaseRealtime,
       runtime,
       litellm_proxy: litellmProxy,
+      inngest,
     },
   };
 }

@@ -1,4 +1,5 @@
 """Clearbit connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.clearbit.com/v1"
 class ClearbitConnector(IConnector):
     """
     Clearbit connector for: enrich_company, enrich_person.
-    
+
     API Base: clearbit
     """
-    
+
     provider = "clearbit"
-    supported_operations = [
-        "enrich_company",
-        "enrich_person"
-    ]
+    supported_operations = ["enrich_company", "enrich_person"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class ClearbitConnector(IConnector):
                         f"Clearbit does not support '{operation}'",
                     )
 
-
-    async def _enrich_company(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _enrich_company(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute enrich_company operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/enrich_company",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/enrich_company",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _enrich_person(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _enrich_person(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute enrich_person operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/enrich_person",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/enrich_person",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

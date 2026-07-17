@@ -1,4 +1,5 @@
 """Genesis V2 connection introspection: metadata-only fetch + endpoint auth."""
+
 from __future__ import annotations
 
 import unittest
@@ -37,12 +38,16 @@ def _client_returning(resp: MagicMock) -> MagicMock:
 
 class GmailIntrospectionTests(unittest.IsolatedAsyncioTestCase):
     async def test_labels_split_into_system_and_user_named(self) -> None:
-        client = _client_returning(_fake_response({
-            "labels": [
-                {"id": "INBOX", "name": "INBOX", "type": "system"},
-                {"id": "Label_7", "name": "Kundenrechnungen", "type": "user"},
-            ]
-        }))
+        client = _client_returning(
+            _fake_response(
+                {
+                    "labels": [
+                        {"id": "INBOX", "name": "INBOX", "type": "system"},
+                        {"id": "Label_7", "name": "Kundenrechnungen", "type": "user"},
+                    ]
+                }
+            )
+        )
 
         descriptor = await introspect_gmail(client, "token")
 
@@ -56,8 +61,7 @@ class GmailIntrospectionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_caps_resource_count(self) -> None:
         labels = [
-            {"id": f"L{i}", "name": f"Label {i}", "type": "user"}
-            for i in range(MAX_RESOURCES_PER_CONNECTION + 10)
+            {"id": f"L{i}", "name": f"Label {i}", "type": "user"} for i in range(MAX_RESOURCES_PER_CONNECTION + 10)
         ]
         client = _client_returning(_fake_response({"labels": labels}))
 
@@ -76,10 +80,12 @@ class GmailIntrospectionTests(unittest.IsolatedAsyncioTestCase):
 
 class SlackIntrospectionTests(unittest.IsolatedAsyncioTestCase):
     async def test_channels_and_scope_header(self) -> None:
-        client = _client_returning(_fake_response(
-            {"ok": True, "channels": [{"name": "sales-eu"}, {"name": "general"}]},
-            headers={"x-oauth-scopes": "chat:write, channels:read"},
-        ))
+        client = _client_returning(
+            _fake_response(
+                {"ok": True, "channels": [{"name": "sales-eu"}, {"name": "general"}]},
+                headers={"x-oauth-scopes": "chat:write, channels:read"},
+            )
+        )
 
         descriptor = await introspect_slack(client, "token")
 
@@ -111,18 +117,18 @@ class SlackIntrospectionTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([r["name"] for r in descriptor["resources"]], ["revenue", "sozial"])
         # First attempt asked for both types; the retry narrowed to public only.
-        self.assertEqual(
-            client.get.call_args_list[0].kwargs["params"]["types"], "public_channel,private_channel"
-        )
+        self.assertEqual(client.get.call_args_list[0].kwargs["params"]["types"], "public_channel,private_channel")
         self.assertEqual(client.get.call_args_list[1].kwargs["params"]["types"], "public_channel")
 
     async def test_missing_scope_on_retry_still_raises(self) -> None:
         # If public-only also fails, surface the provider error rather than hang.
         client = MagicMock(spec=httpx.AsyncClient)
-        client.get = AsyncMock(side_effect=[
-            _fake_response({"ok": False, "error": "missing_scope"}),
-            _fake_response({"ok": False, "error": "missing_scope"}),
-        ])
+        client.get = AsyncMock(
+            side_effect=[
+                _fake_response({"ok": False, "error": "missing_scope"}),
+                _fake_response({"ok": False, "error": "missing_scope"}),
+            ]
+        )
         with self.assertRaises(IntrospectionError) as ctx:
             await introspect_slack(client, "token")
         self.assertIn("missing_scope", ctx.exception.message)
@@ -130,24 +136,28 @@ class SlackIntrospectionTests(unittest.IsolatedAsyncioTestCase):
 
 class NotionIntrospectionTests(unittest.IsolatedAsyncioTestCase):
     async def test_database_schema_only(self) -> None:
-        client = _client_returning(_fake_response({
-            "results": [
+        client = _client_returning(
+            _fake_response(
                 {
-                    "object": "database",
-                    "title": [{"plain_text": "CRM "}, {"plain_text": "Leads"}],
-                    "properties": {
-                        "Deal Status": {
-                            "type": "select",
-                            "select": {"options": [{"name": "Qualified"}, {"name": "Won"}]},
+                    "results": [
+                        {
+                            "object": "database",
+                            "title": [{"plain_text": "CRM "}, {"plain_text": "Leads"}],
+                            "properties": {
+                                "Deal Status": {
+                                    "type": "select",
+                                    "select": {"options": [{"name": "Qualified"}, {"name": "Won"}]},
+                                },
+                                "Notes": {"type": "rich_text", "rich_text": {}},
+                            },
                         },
-                        "Notes": {"type": "rich_text", "rich_text": {}},
-                    },
-                },
-                # Pages must be ignored even if the API returned one.
-                {"object": "page", "properties": {"leaky": {"type": "title"}}},
-            ],
-            "has_more": False,
-        }))
+                        # Pages must be ignored even if the API returned one.
+                        {"object": "page", "properties": {"leaky": {"type": "title"}}},
+                    ],
+                    "has_more": False,
+                }
+            )
+        )
 
         descriptor = await introspect_notion(client, "token")
 
@@ -186,9 +196,7 @@ class IntrospectEndpointAuthTests(unittest.TestCase):
         body = json_module.dumps({"connection_ids": ["00000000-0000-0000-0000-000000000001"]})
         env = {"RUNTIME_ENV": "local", "INTERNAL_SERVICE_AUTH_SECRET": "test-secret"}
         with patch.dict(os.environ, env, clear=False):
-            token = create_internal_service_token(
-                "runtime:introspect", method="POST", path="/introspect", body=body
-            )
+            token = create_internal_service_token("runtime:introspect", method="POST", path="/introspect", body=body)
             response = TestClient(app).post(
                 "/introspect",
                 headers={INTERNAL_SERVICE_TOKEN_HEADER: token},

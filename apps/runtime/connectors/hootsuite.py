@@ -1,4 +1,5 @@
 """Hootsuite native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,15 +47,11 @@ class HootsuiteConnector(IConnector):
                         f"Hootsuite does not support operation '{operation}'",
                     )
 
-    async def _create_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         social_profile_ids = params.get("social_profile_ids", [])
         text = params.get("text", "")
         if not social_profile_ids:
-            raise ConnectorError(
-                "MISSING_PARAM", "create_message requires 'social_profile_ids'"
-            )
+            raise ConnectorError("MISSING_PARAM", "create_message requires 'social_profile_ids'")
         body: dict[str, Any] = {
             "text": text,
             "socialProfileIds": social_profile_ids,
@@ -63,9 +60,7 @@ class HootsuiteConnector(IConnector):
             body["scheduledSendTime"] = params["scheduled_send_time"]
         if params.get("media"):
             body["media"] = params["media"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/messages", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/messages", headers=headers, json=body)
         _raise_for_status(r, "create_message")
         data = r.json()
         return {
@@ -74,12 +69,8 @@ class HootsuiteConnector(IConnector):
             "scheduled_send_time": data.get("data", {}).get("scheduledSendTime"),
         }
 
-    async def _list_social_profiles(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/socialProfiles", headers=headers
-        )
+    async def _list_social_profiles(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/socialProfiles", headers=headers)
         _raise_for_status(r, "list_social_profiles")
         data = r.json()
         return {
@@ -94,9 +85,7 @@ class HootsuiteConnector(IConnector):
             ]
         }
 
-    async def _get_analytics(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_analytics(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         social_profile_ids = params.get("social_profile_ids", [])
         if not social_profile_ids:
             raise ConnectorError("MISSING_PARAM", "get_analytics requires 'social_profile_ids'")
@@ -107,9 +96,7 @@ class HootsuiteConnector(IConnector):
         }
         if params.get("metrics"):
             body["metrics"] = params["metrics"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/analytics/posts", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/analytics/posts", headers=headers, json=body)
         _raise_for_status(r, "get_analytics")
         data = r.json()
         return {"analytics": data.get("data", [])}

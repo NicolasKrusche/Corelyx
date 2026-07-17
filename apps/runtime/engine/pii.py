@@ -57,9 +57,7 @@ US_PHONE_RE = re.compile(r"(?:\(\d{3}\)|\b\d{3})[\s.-]\d{3}[\s.-]\d{4}\b")
 # Matches placeholders this module emits, e.g. [EMAIL_3] or [CREDIT_CARD_12].
 # Tolerant on purpose: model output may attach suffixes ("[EMAIL_1]'s") but the
 # bracketed token itself survives generation intact.
-_PLACEHOLDER_RE = re.compile(
-    r"\[(" + "|".join(kind.upper() for kind in REVERSIBLE_KINDS) + r")_(\d+)\]"
-)
+_PLACEHOLDER_RE = re.compile(r"\[(" + "|".join(kind.upper() for kind in REVERSIBLE_KINDS) + r")_(\d+)\]")
 
 
 def _add_count(redactions: PiiRedactionCounts, kind: str, count: int) -> None:

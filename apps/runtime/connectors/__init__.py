@@ -25,9 +25,7 @@ def _discover_registry() -> dict[str, type[IConnector]]:
             if not isinstance(provider, str) or not provider:
                 continue
             if provider in registry:
-                raise RuntimeError(
-                    f"Duplicate connector provider '{provider}' found in {cls.__name__}"
-                )
+                raise RuntimeError(f"Duplicate connector provider '{provider}' found in {cls.__name__}")
             registry[provider] = cls
 
     return registry

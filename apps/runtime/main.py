@@ -60,14 +60,14 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Validate required auth secrets at startup so misconfiguration surfaces in
 # Railway logs immediately rather than silently on the first execute request.
 _REQUIRED_SECRETS = [
-    "runtime:execute",        # web → runtime (inbound)
-    "runtime:introspect",     # web → runtime (Genesis connection introspection)
-    "next:runs:complete",     # runtime → web (run completion callback)
-    "next:connections:token", # runtime → web (OAuth token fetch)
-    "next:vault",             # runtime → web (Vault secret fetch)
-    "next:credits",           # runtime → web (credit deduction)
-    "next:agent-tools",       # runtime → web (agent_task account tools)
-    "next:cron:tick",         # runtime → web (cron scheduler heartbeat)
+    "runtime:execute",  # web → runtime (inbound)
+    "runtime:introspect",  # web → runtime (Genesis connection introspection)
+    "next:runs:complete",  # runtime → web (run completion callback)
+    "next:connections:token",  # runtime → web (OAuth token fetch)
+    "next:vault",  # runtime → web (Vault secret fetch)
+    "next:credits",  # runtime → web (credit deduction)
+    "next:agent-tools",  # runtime → web (agent_task account tools)
+    "next:cron:tick",  # runtime → web (cron scheduler heartbeat)
 ]
 for _audience in _REQUIRED_SECRETS:
     try:
@@ -122,18 +122,20 @@ async def trigger_workflow(workflow_id: str) -> None:
     retention_expiry = _retention_expiry(workspace_policy)
     run_result = (
         db.table("runs")
-        .insert({
-            "program_id": workflow_id,
-            "triggered_by": "cron",
-            "trigger_payload": None,
-            "status": "running",
-            "started_at": "now()",
-            "user_id": program_data.get("user_id"),
-            "workflow_version": program_data.get("schema_version") or 1,
-            "trigger_source": "cron",
-            "data_region": workspace_policy.get("data_region"),
-            "retention_expiry": retention_expiry,
-        })
+        .insert(
+            {
+                "program_id": workflow_id,
+                "triggered_by": "cron",
+                "trigger_payload": None,
+                "status": "running",
+                "started_at": "now()",
+                "user_id": program_data.get("user_id"),
+                "workflow_version": program_data.get("schema_version") or 1,
+                "trigger_source": "cron",
+                "data_region": workspace_policy.get("data_region"),
+                "retention_expiry": retention_expiry,
+            }
+        )
         .execute()
     )
     run_id = run_result.data[0]["id"]
@@ -371,9 +373,7 @@ _PRIORITY_RESERVED_SLOTS = (
     else 0
 )
 _standard_run_slots = (
-    asyncio.Semaphore(max(_MAX_CONCURRENT_RUNS - _PRIORITY_RESERVED_SLOTS, 1))
-    if _MAX_CONCURRENT_RUNS > 0
-    else None
+    asyncio.Semaphore(max(_MAX_CONCURRENT_RUNS - _PRIORITY_RESERVED_SLOTS, 1)) if _MAX_CONCURRENT_RUNS > 0 else None
 )
 _priority_run_slots = asyncio.Semaphore(_PRIORITY_RESERVED_SLOTS) if _MAX_CONCURRENT_RUNS > 0 else None
 
@@ -394,9 +394,7 @@ async def _acquire_run_slot(is_priority: bool) -> AsyncGenerator[None, None]:
 async def execute_program(
     request: Request,
     background_tasks: BackgroundTasks,
-    x_internal_service_token: str | None = Header(
-        default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER
-    ),
+    x_internal_service_token: str | None = Header(default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER),
 ) -> dict[str, str]:
     raw_body = await request.body()
     if not x_internal_service_token:
@@ -431,13 +429,7 @@ async def execute_program(
     # are ignored — a leaked runtime:execute token can no longer execute
     # arbitrary code as an arbitrary user.
     db = get_db()
-    run_lookup = (
-        db.table("runs")
-        .select("id, program_id, status")
-        .eq("id", body.run_id)
-        .limit(1)
-        .execute()
-    )
+    run_lookup = db.table("runs").select("id, program_id, status").eq("id", body.run_id).limit(1).execute()
     run_rows = run_lookup.data or []
     if not run_rows:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -510,9 +502,7 @@ class IntrospectRequest(BaseModel):
 @app.post("/introspect")
 async def introspect_connections(
     request: Request,
-    x_internal_service_token: str | None = Header(
-        default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER
-    ),
+    x_internal_service_token: str | None = Header(default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER),
 ) -> dict[str, Any]:
     """Genesis V2: metadata-only capability introspection for selected connections.
 
@@ -553,10 +543,7 @@ async def introspect_connections(
     # subject — a leaked token cannot enumerate other users' account structure.
     db = get_db()
     rows = (
-        db.table("connections")
-        .select("id, provider, user_id, is_valid")
-        .in_("id", body.connection_ids)
-        .execute()
+        db.table("connections").select("id, provider, user_id, is_valid").in_("id", body.connection_ids).execute()
     ).data or []
     rows_by_id = {row["id"]: row for row in rows}
 
@@ -595,6 +582,7 @@ async def _notify_complete(run_id: str, program_id: str, user_id: str, status: s
     nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000")
     try:
         import httpx
+
         body = json.dumps(
             {"program_id": program_id, "user_id": user_id, "status": status},
             separators=(",", ":"),

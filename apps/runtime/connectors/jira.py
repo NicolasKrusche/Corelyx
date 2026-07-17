@@ -1,4 +1,5 @@
 """Jira native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -65,9 +66,7 @@ class JiraConnector(IConnector):
             raise ConnectorError("JIRA_NO_SITES", "No accessible Jira sites found")
         return resources[0]["id"]
 
-    async def _list_issues(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _list_issues(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         jql = params.get("jql", "ORDER BY created DESC")
         r = await request_with_rate_limit(
             client,
@@ -92,9 +91,7 @@ class JiraConnector(IConnector):
             "total": data.get("total"),
         }
 
-    async def _create_issue(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _create_issue(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         project_key = params.get("project_key")
         summary = params.get("summary")
         if not project_key or not summary:
@@ -118,9 +115,7 @@ class JiraConnector(IConnector):
         data = r.json()
         return {"id": data.get("id"), "key": data.get("key"), "url": data.get("self")}
 
-    async def _update_issue(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _update_issue(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         issue_key = params.get("issue_key")
         if not issue_key:
             raise ConnectorError("MISSING_PARAM", "update_issue requires 'issue_key'")
@@ -135,9 +130,7 @@ class JiraConnector(IConnector):
         _raise_for_status(r, "update_issue")
         return {"updated": True, "issue_key": issue_key}
 
-    async def _list_projects(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _list_projects(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         r = await request_with_rate_limit(
             client,
             "GET",
@@ -147,16 +140,9 @@ class JiraConnector(IConnector):
         )
         _raise_for_status(r, "list_projects")
         data = r.json()
-        return {
-            "projects": [
-                {"id": p["id"], "key": p["key"], "name": p["name"]}
-                for p in data.get("values", [])
-            ]
-        }
+        return {"projects": [{"id": p["id"], "key": p["key"], "name": p["name"]} for p in data.get("values", [])]}
 
-    async def _get_issue(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _get_issue(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         issue_key = params.get("issue_key")
         if not issue_key:
             raise ConnectorError("MISSING_PARAM", "get_issue requires 'issue_key'")
@@ -171,9 +157,7 @@ class JiraConnector(IConnector):
             "description": data.get("fields", {}).get("description"),
         }
 
-    async def _add_comment(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _add_comment(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         issue_key = params.get("issue_key")
         body_text = params.get("body", "")
         if not issue_key:

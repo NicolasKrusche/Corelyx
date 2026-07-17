@@ -1,4 +1,5 @@
 """Zoho CRM native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,19 +50,14 @@ class ZohoCRMConnector(IConnector):
                         f"Zoho CRM does not support operation '{operation}'",
                     )
 
-    async def _list_records(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, module: str
-    ) -> dict:
+    async def _list_records(self, client: httpx.AsyncClient, headers: dict, params: dict, module: str) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/{module}", headers=headers,
-            params={"per_page": int(params.get("limit", 50))}
+            client, "GET", f"{_BASE}/{module}", headers=headers, params={"per_page": int(params.get("limit", 50))}
         )
         _raise_for_status(r, f"list_{module.lower()}")
         return {"records": r.json().get("data", [])}
 
-    async def _create_record(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, module: str
-    ) -> dict:
+    async def _create_record(self, client: httpx.AsyncClient, headers: dict, params: dict, module: str) -> dict:
         fields = params.get("fields")
         if not fields:
             raise ConnectorError("MISSING_PARAM", f"create_{module.lower()} requires 'fields'")
@@ -72,9 +68,7 @@ class ZohoCRMConnector(IConnector):
         results = data.get("data", [{}])
         return {"id": results[0].get("details", {}).get("id"), "status": results[0].get("status")}
 
-    async def _update_record(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, module: str
-    ) -> dict:
+    async def _update_record(self, client: httpx.AsyncClient, headers: dict, params: dict, module: str) -> dict:
         record_id = params.get("record_id")
         fields = params.get("fields")
         if not record_id or not fields:

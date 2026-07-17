@@ -1,4 +1,5 @@
 """Google Sheets native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,9 +50,7 @@ class SheetsConnector(IConnector):
                         f"Sheets does not support operation '{operation}'",
                     )
 
-    async def _read_range(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _read_range(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         spreadsheet_id = params.get("spreadsheet_id")
         range_ = params.get("range")
         if not spreadsheet_id or not range_:
@@ -71,9 +70,7 @@ class SheetsConnector(IConnector):
             "major_dimension": data.get("majorDimension", "ROWS"),
         }
 
-    async def _write_range(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _write_range(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         spreadsheet_id = params.get("spreadsheet_id")
         range_ = params.get("range")
         values = params.get("values")
@@ -98,9 +95,7 @@ class SheetsConnector(IConnector):
             "updated_cells": data.get("updatedCells", 0),
         }
 
-    async def _append_row(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _append_row(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         spreadsheet_id = params.get("spreadsheet_id")
         range_ = params.get("range")
         values = params.get("values")
@@ -126,9 +121,7 @@ class SheetsConnector(IConnector):
             "updated_rows": updates.get("updatedRows", 0),
         }
 
-    async def _list_sheets(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_sheets(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         spreadsheet_id = params.get("spreadsheet_id")
         if not spreadsheet_id:
             raise ConnectorError("MISSING_PARAM", "list_sheets requires 'spreadsheet_id'")
@@ -152,9 +145,7 @@ class SheetsConnector(IConnector):
             ]
         }
 
-    async def _create_sheet(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_sheet(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         spreadsheet_id = params.get("spreadsheet_id")
         title = str(params.get("title", "Sheet1"))
         if not spreadsheet_id:
@@ -186,15 +177,11 @@ class SheetsConnector(IConnector):
             "index": props.get("index"),
         }
 
-    async def _clear_range(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _clear_range(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         spreadsheet_id = params.get("spreadsheet_id")
         range_ = params.get("range")
         if not spreadsheet_id or not range_:
-            raise ConnectorError(
-                "MISSING_PARAM", "clear_range requires 'spreadsheet_id' and 'range'"
-            )
+            raise ConnectorError("MISSING_PARAM", "clear_range requires 'spreadsheet_id' and 'range'")
         r = await request_with_rate_limit(
             client,
             "POST",

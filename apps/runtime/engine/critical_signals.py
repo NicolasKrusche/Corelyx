@@ -10,6 +10,7 @@ Mirror of the categories named in the agent system prompt's SAFETY ESCALATION
 rule (apps/web/lib/genesis/prompt.ts). When you add a category/pattern here,
 keep that rule in sync.
 """
+
 from __future__ import annotations
 
 import re

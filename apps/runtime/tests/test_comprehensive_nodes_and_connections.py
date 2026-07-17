@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import unittest
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from schema import (
@@ -88,8 +85,23 @@ def _mock_db() -> Mock:
     # chain methods and returns data for execute() / single().execute().
     def _make_query_builder(data_result: list | dict | None = None):
         builder = Mock()
-        for method in ["eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike",
-                        "in_", "is_", "order", "limit", "range", "match", "select"]:
+        for method in [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "in_",
+            "is_",
+            "order",
+            "limit",
+            "range",
+            "match",
+            "select",
+        ]:
             getattr(builder, method).return_value = builder
         builder.execute.return_value = Mock(data=data_result if data_result is not None else [])
         builder.single.return_value = builder
@@ -99,10 +111,12 @@ def _mock_db() -> Mock:
         return _make_query_builder()
 
     db.table = Mock(side_effect=_table_mock)
-    db.channel = Mock(return_value=Mock(
-        on_postgres_changes=Mock(return_value=Mock(subscribe=Mock(return_value=None))),
-        unsubscribe=Mock(return_value=None),
-    ))
+    db.channel = Mock(
+        return_value=Mock(
+            on_postgres_changes=Mock(return_value=Mock(subscribe=Mock(return_value=None))),
+            unsubscribe=Mock(return_value=None),
+        )
+    )
     return db
 
 
@@ -125,8 +139,25 @@ def _executor(program: ProgramSchema) -> ProgramExecutor:
     for edge in program.edges:
         executor.edges_from.setdefault(edge.from_node, []).append(edge)
     executor._connection_name_to_id = {}
-    executor._node_telemetry = {n.id: {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0} for n in program.nodes}
-    executor._run_telemetry = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0}
+    executor._node_telemetry = {
+        n.id: {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "connector_api_calls": 0,
+            "model_call_count": 0,
+        }
+        for n in program.nodes
+    }
+    executor._run_telemetry = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost_usd": 0.0,
+        "connector_api_calls": 0,
+        "model_call_count": 0,
+    }
     executor._limiter = Mock()
     executor._limiter.check_node_limit = Mock()
     executor._limiter.check_execution_time = Mock()
@@ -139,6 +170,7 @@ def _executor(program: ProgramSchema) -> ProgramExecutor:
 
 
 # ─── Schema Parsing Tests ───────────────────────────────────────────────────
+
 
 class SchemaParsingTests(unittest.TestCase):
     def test_parse_trigger_manual(self) -> None:
@@ -616,6 +648,7 @@ class SchemaParsingTests(unittest.TestCase):
 
 # ─── Step Logic Execution Tests ───────────────────────────────────────────────
 
+
 class StepExecutionTests(unittest.IsolatedAsyncioTestCase):
     async def test_step_transform(self) -> None:
         node = _node("s1", "step", StepConfig(logic_type="transform", extra={"transformation": "input['value'] + 10"}))
@@ -639,20 +672,34 @@ class StepExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.get("__filtered_out__"))
 
     async def test_step_branch(self) -> None:
-        node = _node("s1", "step", StepConfig(logic_type="branch", extra={
-            "conditions": [{"condition": "input['value'] > 0", "target_node_id": "n_pos"}],
-            "default_branch": "n_neg",
-        }))
+        node = _node(
+            "s1",
+            "step",
+            StepConfig(
+                logic_type="branch",
+                extra={
+                    "conditions": [{"condition": "input['value'] > 0", "target_node_id": "n_pos"}],
+                    "default_branch": "n_neg",
+                },
+            ),
+        )
         executor = _executor(_program([node], []))
         with patch("engine.executor.update_node_execution", new=AsyncMock()):
             result = await executor._execute_node(node, {"value": 5})
         self.assertEqual(result["__branch_target__"], "n_pos")
 
     async def test_step_branch_default(self) -> None:
-        node = _node("s1", "step", StepConfig(logic_type="branch", extra={
-            "conditions": [{"condition": "input['value'] > 0", "target_node_id": "n_pos"}],
-            "default_branch": "n_neg",
-        }))
+        node = _node(
+            "s1",
+            "step",
+            StepConfig(
+                logic_type="branch",
+                extra={
+                    "conditions": [{"condition": "input['value'] > 0", "target_node_id": "n_pos"}],
+                    "default_branch": "n_neg",
+                },
+            ),
+        )
         executor = _executor(_program([node], []))
         with patch("engine.executor.update_node_execution", new=AsyncMock()):
             result = await executor._execute_node(node, {"value": -5})
@@ -674,7 +721,9 @@ class StepExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["item_var"], "item")
 
     async def test_step_format(self) -> None:
-        node = _node("s1", "step", StepConfig(logic_type="format", extra={"template": "Hello {name}", "output_key": "greeting"}))
+        node = _node(
+            "s1", "step", StepConfig(logic_type="format", extra={"template": "Hello {name}", "output_key": "greeting"})
+        )
         executor = _executor(_program([node], []))
         with patch("engine.executor.update_node_execution", new=AsyncMock()):
             result = await executor._execute_node(node, {"name": "World"})
@@ -728,6 +777,7 @@ class StepExecutionTests(unittest.IsolatedAsyncioTestCase):
 
 # ─── Connector Registry Tests ───────────────────────────────────────────────
 
+
 class ConnectorRegistryTests(unittest.TestCase):
     def test_all_connectors_instantiate(self) -> None:
         for name, cls in sorted(REGISTRY.items()):
@@ -763,17 +813,20 @@ class ConnectorRegistryTests(unittest.TestCase):
 
 # ─── Edge Type Routing Tests ──────────────────────────────────────────────────
 
+
 class EdgeRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def test_data_flow_edge(self) -> None:
         trigger = _node("t1", "trigger", TriggerConfig(trigger_type="manual"))
         step = _node("s1", "step", StepConfig(logic_type="transform", extra={"transformation": "input['value'] + 1"}))
         program = _program([trigger, step], [_edge("e1", "t1", "s1", "data_flow")])
         executor = _executor(program)
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+        ):
             result = await executor.execute({"value": 10})
         self.assertEqual(result["s1"]["result"], 11)
 
@@ -782,11 +835,13 @@ class EdgeRoutingTests(unittest.IsolatedAsyncioTestCase):
         step = _node("s1", "step", StepConfig(logic_type="transform", extra={"transformation": "input['value'] + 1"}))
         program = _program([trigger, step], [_edge("e1", "t1", "s1", "control_flow")])
         executor = _executor(program)
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+        ):
             result = await executor.execute({"value": 10})
         self.assertEqual(result["s1"]["result"], 11)
 
@@ -795,24 +850,30 @@ class EdgeRoutingTests(unittest.IsolatedAsyncioTestCase):
         step = _node("s1", "step", StepConfig(logic_type="transform", extra={"transformation": "input['value'] + 1"}))
         program = _program([trigger, step], [_edge("e1", "t1", "s1", "event_subscription")])
         executor = _executor(program)
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+        ):
             result = await executor.execute({"value": 10})
         self.assertEqual(result["s1"]["result"], 11)
 
     async def test_data_mapping_edge(self) -> None:
         trigger = _node("t1", "trigger", TriggerConfig(trigger_type="manual"))
-        step = _node("s1", "step", StepConfig(logic_type="transform", extra={"transformation": "input['mapped_value'] + 1"}))
+        step = _node(
+            "s1", "step", StepConfig(logic_type="transform", extra={"transformation": "input['mapped_value'] + 1"})
+        )
         program = _program([trigger, step], [_edge("e1", "t1", "s1", "data_flow", {"value": "mapped_value"})])
         executor = _executor(program)
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+        ):
             result = await executor.execute({"value": 10})
         self.assertEqual(result["s1"]["result"], 11)
 
@@ -821,16 +882,19 @@ class EdgeRoutingTests(unittest.IsolatedAsyncioTestCase):
         step = _node("s1", "step", StepConfig(logic_type="transform", extra={"transformation": "input['value'] + 1"}))
         program = _program([trigger, step], [_edge("e1", "t1", "s1", "data_flow", condition="input['value'] > 5")])
         executor = _executor(program)
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+        ):
             result = await executor.execute({"value": 10})
         self.assertEqual(result["s1"]["result"], 11)
 
 
 # ─── Connection Execution Tests ─────────────────────────────────────────────
+
 
 class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
     async def test_http_connection_with_all_auth_types(self) -> None:
@@ -842,29 +906,38 @@ class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
                 elif auth_type != "none":
                     auth_value = "secret123"
 
-                node = _node("h1", "connection", HttpConnectionConfig(
-                    connector_type="http",
-                    method="GET",
-                    url="https://httpbin.org/get",
-                    auth_type=auth_type,
-                    auth_value=auth_value,
-                    query_params=[],
-                    headers=[],
-                    body=None,
-                    parse_response=True,
-                    timeout_seconds=5,
-                    retry=None,
-                ))
-                executor = _executor(_program([node], []))
+                node = _node(
+                    "h1",
+                    "connection",
+                    HttpConnectionConfig(
+                        connector_type="http",
+                        method="GET",
+                        url="https://httpbin.org/get",
+                        auth_type=auth_type,
+                        auth_value=auth_value,
+                        query_params=[],
+                        headers=[],
+                        body=None,
+                        parse_response=True,
+                        timeout_seconds=5,
+                        retry=None,
+                    ),
+                )
+                _executor(_program([node], []))
                 # Just verify schema parsing and basic validation, don't actually call
                 self.assertIsInstance(node.config, HttpConnectionConfig)
                 self.assertEqual(node.config.auth_type, auth_type)  # type: ignore[union-attr]
 
     async def test_oauth_connection_without_operation_passes_through(self) -> None:
-        node = _node("o1", "connection", OAuthConnectionConfig(
-            scope_access="read",
-            scope_required=[],
-        ), connection="gmail:primary")
+        node = _node(
+            "o1",
+            "connection",
+            OAuthConnectionConfig(
+                scope_access="read",
+                scope_required=[],
+            ),
+            connection="gmail:primary",
+        )
         executor = _executor(_program([node], []))
         executor._resolve_connection_id = Mock(return_value="conn-1")
         executor._provider_for_connection = Mock(return_value="gmail")
@@ -876,12 +949,17 @@ class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["connection_id"], "conn-1")
 
     async def test_oauth_connection_with_operation(self) -> None:
-        node = _node("o1", "connection", OAuthConnectionConfig(
-            scope_access="read",
-            scope_required=[],
-            operation="list_emails",
-            operation_params={"max_results": 10},
-        ), connection="gmail:primary")
+        node = _node(
+            "o1",
+            "connection",
+            OAuthConnectionConfig(
+                scope_access="read",
+                scope_required=[],
+                operation="list_emails",
+                operation_params={"max_results": 10},
+            ),
+            connection="gmail:primary",
+        )
         executor = _executor(_program([node], []))
         executor._resolve_connection_id = Mock(return_value="conn-1")
         executor._provider_for_connection = Mock(return_value="gmail")
@@ -891,36 +969,50 @@ class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"emails": [{"id": "1"}]})
 
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
             result = await executor._execute_node(node, {"value": 1})
         self.assertEqual(result["emails"], [{"id": "1"}])
 
     async def test_oauth_connection_connector_not_found(self) -> None:
-        node = _node("o1", "connection", OAuthConnectionConfig(
-            scope_access="read",
-            scope_required=[],
-            operation="unknown_op",
-        ), connection="gmail:primary")
+        node = _node(
+            "o1",
+            "connection",
+            OAuthConnectionConfig(
+                scope_access="read",
+                scope_required=[],
+                operation="unknown_op",
+            ),
+            connection="gmail:primary",
+        )
         executor = _executor(_program([node], []))
         executor._resolve_connection_id = Mock(return_value="conn-1")
         executor._provider_for_connection = Mock(return_value="gmail")
         executor._fetch_oauth_token = AsyncMock(return_value="token")
         executor._enforce_provider_policy = AsyncMock()
 
-        with patch("engine.executor.get_connector", return_value=None), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_connector", return_value=None),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
             with self.assertRaises(ExecutionError) as ctx:
                 await executor._execute_node(node, {})
             self.assertEqual(ctx.exception.code, "CONNECTOR_NOT_FOUND")
 
     async def test_oauth_connection_unresolved_param(self) -> None:
-        node = _node("o1", "connection", OAuthConnectionConfig(
-            scope_access="read",
-            scope_required=[],
-            operation="list_emails",
-            operation_params={"folder": "{{missing}}"},
-        ), connection="gmail:primary")
+        node = _node(
+            "o1",
+            "connection",
+            OAuthConnectionConfig(
+                scope_access="read",
+                scope_required=[],
+                operation="list_emails",
+                operation_params={"folder": "{{missing}}"},
+            ),
+            connection="gmail:primary",
+        )
         executor = _executor(_program([node], []))
         executor._resolve_connection_id = Mock(return_value="conn-1")
         executor._provider_for_connection = Mock(return_value="gmail")
@@ -930,37 +1022,54 @@ class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={})
 
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
             with self.assertRaises(ExecutionError) as ctx:
                 await executor._execute_node(node, {})
             self.assertEqual(ctx.exception.code, "UNRESOLVED_OPERATION_PARAM")
 
     async def test_oauth_connection_token_expired_retry(self) -> None:
-        node = _node("o1", "connection", OAuthConnectionConfig(
-            scope_access="read",
-            scope_required=[],
-            operation="list_emails",
-        ), connection="gmail:primary")
+        node = _node(
+            "o1",
+            "connection",
+            OAuthConnectionConfig(
+                scope_access="read",
+                scope_required=[],
+                operation="list_emails",
+            ),
+            connection="gmail:primary",
+        )
         executor = _executor(_program([node], []))
         executor._resolve_connection_id = Mock(return_value="conn-1")
         executor._provider_for_connection = Mock(return_value="gmail")
         executor._fetch_oauth_token = AsyncMock(return_value="token")
         executor._enforce_provider_policy = AsyncMock()
         executor.db = Mock()
-        executor.db.table = Mock(return_value=Mock(update=Mock(return_value=Mock(eq=Mock(return_value=Mock(execute=Mock(return_value=Mock(data=[]))))))))
+        executor.db.table = Mock(
+            return_value=Mock(
+                update=Mock(return_value=Mock(eq=Mock(return_value=Mock(execute=Mock(return_value=Mock(data=[]))))))
+            )
+        )
 
         connector = Mock()
-        connector.execute = AsyncMock(side_effect=[
-            ConnectorError("TOKEN_EXPIRED", "Token expired"),
-            {"emails": [{"id": "1"}]},
-        ])
+        connector.execute = AsyncMock(
+            side_effect=[
+                ConnectorError("TOKEN_EXPIRED", "Token expired"),
+                {"emails": [{"id": "1"}]},
+            ]
+        )
 
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.get_oauth_token_circuit") as mock_circuit:
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_oauth_token_circuit") as mock_circuit,
+        ):
+
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn()
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_circuit.return_value = circuit
@@ -970,20 +1079,38 @@ class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
 
 # ─── Full Integration-like Tests ────────────────────────────────────────────
 
+
 class FullProgramTests(unittest.IsolatedAsyncioTestCase):
     async def test_program_with_all_step_types(self) -> None:
         """A single program that chains every step logic type together."""
         trigger = _node("t1", "trigger", TriggerConfig(trigger_type="manual"))
-        transform = _node("transform", "step", StepConfig(logic_type="transform", extra={"transformation": "input['value'] + 1"}))
-        filter_step = _node("filter", "step", StepConfig(logic_type="filter", extra={"condition": "input['result'] > 0"}))
-        branch = _node("branch", "step", StepConfig(logic_type="branch", extra={
-            "conditions": [{"condition": "input['result'] > 5", "target_node_id": "format"}],
-            "default_branch": "delay",
-        }))
+        transform = _node(
+            "transform", "step", StepConfig(logic_type="transform", extra={"transformation": "input['value'] + 1"})
+        )
+        filter_step = _node(
+            "filter", "step", StepConfig(logic_type="filter", extra={"condition": "input['result'] > 0"})
+        )
+        branch = _node(
+            "branch",
+            "step",
+            StepConfig(
+                logic_type="branch",
+                extra={
+                    "conditions": [{"condition": "input['result'] > 5", "target_node_id": "format"}],
+                    "default_branch": "delay",
+                },
+            ),
+        )
         delay = _node("delay", "step", StepConfig(logic_type="delay", extra={"seconds": 0.01}))
         loop = _node("loop", "step", StepConfig(logic_type="loop", extra={"over": "[1, 2]", "item_var": "item"}))
-        format_step = _node("format", "step", StepConfig(logic_type="format", extra={"template": "Result: {result}", "output_key": "message"}))
-        parse = _node("parse", "step", StepConfig(logic_type="parse", extra={"input_key": "raw_json", "format": "json"}))
+        format_step = _node(
+            "format",
+            "step",
+            StepConfig(logic_type="format", extra={"template": "Result: {result}", "output_key": "message"}),
+        )
+        parse = _node(
+            "parse", "step", StepConfig(logic_type="parse", extra={"input_key": "raw_json", "format": "json"})
+        )
         dedup = _node("dedup", "step", StepConfig(logic_type="deduplicate", extra={"key": "id"}))
         sort = _node("sort", "step", StepConfig(logic_type="sort", extra={"key": "name", "order": "asc"}))
 
@@ -998,16 +1125,22 @@ class FullProgramTests(unittest.IsolatedAsyncioTestCase):
             _edge("e8", "parse", "dedup", "data_flow"),
             _edge("e9", "dedup", "sort", "data_flow"),
         ]
-        program = _program([trigger, transform, filter_step, branch, delay, loop, format_step, parse, dedup, sort], edges)
+        program = _program(
+            [trigger, transform, filter_step, branch, delay, loop, format_step, parse, dedup, sort], edges
+        )
         executor = _executor(program)
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+        ):
             # Start with value=10 so branch goes to format
-            result = await executor.execute({"value": 10, "raw_json": '[{\"id\":1,\"name\":\"Z\"},{\"id\":2,\"name\":\"A\"},{\"id\":1,\"name\":\"Z\"}]'})
+            result = await executor.execute(
+                {"value": 10, "raw_json": '[{"id":1,"name":"Z"},{"id":2,"name":"A"},{"id":1,"name":"Z"}]'}
+            )
 
         self.assertIn("transform", result)
         self.assertIn("filter", result)
@@ -1018,7 +1151,9 @@ class FullProgramTests(unittest.IsolatedAsyncioTestCase):
     async def test_loop_body_execution(self) -> None:
         trigger = _node("t1", "trigger", TriggerConfig(trigger_type="manual"))
         loop = _node("loop", "step", StepConfig(logic_type="loop", extra={"over": "[10, 20]", "item_var": "num"}))
-        transform = _node("transform", "step", StepConfig(logic_type="transform", extra={"transformation": "input['num'] + 1"}))
+        transform = _node(
+            "transform", "step", StepConfig(logic_type="transform", extra={"transformation": "input['num'] + 1"})
+        )
         edges = [
             _edge("e1", "t1", "loop", "data_flow"),
             _edge("e2", "loop", "transform", "data_flow"),
@@ -1026,11 +1161,13 @@ class FullProgramTests(unittest.IsolatedAsyncioTestCase):
         program = _program([trigger, loop, transform], edges)
         executor = _executor(program)
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+        ):
             result = await executor.execute({})
 
         self.assertEqual(result["transform"]["count"], 2)
@@ -1039,21 +1176,26 @@ class FullProgramTests(unittest.IsolatedAsyncioTestCase):
 
 # ─── Agent Node Tests ───────────────────────────────────────────────────────
 
+
 class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
     async def test_platform_agent_falls_back_after_openrouter_429(self) -> None:
-        node = _node("a1", "agent", AgentConfig(
-            model="openai/gpt-4o-mini",
-            api_key_ref="platform",
-            system_prompt="Test",
-            input_schema=None,
-            output_schema=None,
-            requires_approval=False,
-            approval_timeout_hours=1,
-            scope_required=None,
-            scope_access="read",
-            retry=RetryConfig(max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=True),
-            tools=[],
-        ))
+        node = _node(
+            "a1",
+            "agent",
+            AgentConfig(
+                model="openai/gpt-4o-mini",
+                api_key_ref="platform",
+                system_prompt="Test",
+                input_schema=None,
+                output_schema=None,
+                requires_approval=False,
+                approval_timeout_hours=1,
+                scope_required=None,
+                scope_access="read",
+                retry=RetryConfig(max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=True),
+                tools=[],
+            ),
+        )
         executor = _executor(_program([node], []))
         executor._fetch_api_key = AsyncMock(return_value=("key", "openrouter"))
         executor._enforce_provider_policy = AsyncMock()
@@ -1066,16 +1208,20 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
         )
         succeeded = Mock(
             is_success=True,
-            json=Mock(return_value={
-                "choices": [{"message": {"content": '{"answer": 42}'}}],
-                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
-            }),
+            json=Mock(
+                return_value={
+                    "choices": [{"message": {"content": '{"answer": 42}'}}],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                }
+            ),
         )
 
-        with patch("engine.executor.update_node_execution", new=AsyncMock()) as update_mock, \
-             patch("engine.executor.get_llm_circuit") as mock_circuit, \
-             patch("engine.executor._get_llm_client") as mock_client, \
-             patch.object(executor, "_verify_agent_output", new=AsyncMock(return_value=[])):
+        with (
+            patch("engine.executor.update_node_execution", new=AsyncMock()) as update_mock,
+            patch("engine.executor.get_llm_circuit") as mock_circuit,
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch.object(executor, "_verify_agent_output", new=AsyncMock(return_value=[])),
+        ):
             circuit = Mock()
 
             async def _circuit_call(fn, *args, **kwargs):
@@ -1091,30 +1237,34 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result["answer"], 42)
         attempted_models = [call.kwargs["json"]["model"] for call in client.post.await_args_list]
-        self.assertEqual(attempted_models, [
-            "openai/gpt-4o-mini",
-            "openai/gpt-oss-120b",
-        ])
-        fallback_updates = [
-            call.kwargs.get("error_message", "")
-            for call in update_mock.await_args_list
-        ]
+        self.assertEqual(
+            attempted_models,
+            [
+                "openai/gpt-4o-mini",
+                "openai/gpt-oss-120b",
+            ],
+        )
+        fallback_updates = [call.kwargs.get("error_message", "") for call in update_mock.await_args_list]
         self.assertTrue(any("trying fallback model openai/gpt-oss-120b" in msg for msg in fallback_updates))
 
     async def test_platform_agent_normalizes_retired_openrouter_model(self) -> None:
-        node = _node("a1", "agent", AgentConfig(
-            model="openai/gpt-oss-120b:free",
-            api_key_ref="platform",
-            system_prompt="Test",
-            input_schema=None,
-            output_schema=None,
-            requires_approval=False,
-            approval_timeout_hours=1,
-            scope_required=None,
-            scope_access="read",
-            retry=RetryConfig(max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=True),
-            tools=[],
-        ))
+        node = _node(
+            "a1",
+            "agent",
+            AgentConfig(
+                model="openai/gpt-oss-120b:free",
+                api_key_ref="platform",
+                system_prompt="Test",
+                input_schema=None,
+                output_schema=None,
+                requires_approval=False,
+                approval_timeout_hours=1,
+                scope_required=None,
+                scope_access="read",
+                retry=RetryConfig(max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=True),
+                tools=[],
+            ),
+        )
         executor = _executor(_program([node], []))
         executor._fetch_api_key = AsyncMock(return_value=("key", "openrouter"))
         executor._enforce_provider_policy = AsyncMock()
@@ -1122,16 +1272,20 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
 
         succeeded = Mock(
             is_success=True,
-            json=Mock(return_value={
-                "choices": [{"message": {"content": '{"answer": 42}'}}],
-                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
-            }),
+            json=Mock(
+                return_value={
+                    "choices": [{"message": {"content": '{"answer": 42}'}}],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                }
+            ),
         )
 
-        with patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_circuit, \
-             patch("engine.executor._get_llm_client") as mock_client, \
-             patch.object(executor, "_verify_agent_output", new=AsyncMock(return_value=[])):
+        with (
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_circuit,
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch.object(executor, "_verify_agent_output", new=AsyncMock(return_value=[])),
+        ):
             circuit = Mock()
 
             async def _circuit_call(fn, *args, **kwargs):
@@ -1149,19 +1303,25 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.post.await_args.kwargs["json"]["model"], "openai/gpt-oss-120b")
 
     async def test_agent_node_requires_approval_in_supervised_mode(self) -> None:
-        node = _node("a1", "agent", AgentConfig(
-            model="gpt-4",
-            api_key_ref="platform",
-            system_prompt="Test",
-            input_schema=None,
-            output_schema=None,
-            requires_approval=False,
-            approval_timeout_hours=1,
-            scope_required=None,
-            scope_access="read",
-            retry=RetryConfig(max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=False),
-            tools=[],
-        ))
+        node = _node(
+            "a1",
+            "agent",
+            AgentConfig(
+                model="gpt-4",
+                api_key_ref="platform",
+                system_prompt="Test",
+                input_schema=None,
+                output_schema=None,
+                requires_approval=False,
+                approval_timeout_hours=1,
+                scope_required=None,
+                scope_access="read",
+                retry=RetryConfig(
+                    max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=False
+                ),
+                tools=[],
+            ),
+        )
         executor = _executor(_program([node], []))
         executor.execution_mode = "supervised"
         executor._request_step_approval = AsyncMock(return_value=True)
@@ -1169,41 +1329,55 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
         executor._enforce_provider_policy = AsyncMock()
         executor._check_platform_credits = AsyncMock()
 
-        with patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_circuit, \
-             patch("engine.executor._get_llm_client") as mock_client:
+        with (
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_circuit,
+            patch("engine.executor._get_llm_client") as mock_client,
+        ):
             circuit = Mock()
+
             async def _circuit_call2(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit.call = AsyncMock(side_effect=_circuit_call2)
             mock_circuit.return_value = circuit
             client = Mock()
-            client.post = AsyncMock(return_value=Mock(
-                is_success=True,
-                json=Mock(return_value={
-                    "choices": [{"message": {"content": '{"answer": 42}'}}],
-                    "usage": {"prompt_tokens": 10, "completion_tokens": 5},
-                }),
-            ))
+            client.post = AsyncMock(
+                return_value=Mock(
+                    is_success=True,
+                    json=Mock(
+                        return_value={
+                            "choices": [{"message": {"content": '{"answer": 42}'}}],
+                            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+                        }
+                    ),
+                )
+            )
             mock_client.return_value = client
             result = await executor._execute_node(node, {"question": "What is 6*7?"})
 
         self.assertEqual(result["answer"], 42)
 
     async def test_agent_node_skipped_when_approval_denied(self) -> None:
-        node = _node("a1", "agent", AgentConfig(
-            model="gpt-4",
-            api_key_ref="platform",
-            system_prompt="Test",
-            input_schema=None,
-            output_schema=None,
-            requires_approval=True,
-            approval_timeout_hours=1,
-            scope_required=None,
-            scope_access="read",
-            retry=RetryConfig(max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=False),
-            tools=[],
-        ))
+        node = _node(
+            "a1",
+            "agent",
+            AgentConfig(
+                model="gpt-4",
+                api_key_ref="platform",
+                system_prompt="Test",
+                input_schema=None,
+                output_schema=None,
+                requires_approval=True,
+                approval_timeout_hours=1,
+                scope_required=None,
+                scope_access="read",
+                retry=RetryConfig(
+                    max_attempts=1, backoff="none", backoff_base_seconds=1, fail_program_on_exhaust=False
+                ),
+                tools=[],
+            ),
+        )
         executor = _executor(_program([node], []))
         executor._request_step_approval = AsyncMock(return_value=False)
 

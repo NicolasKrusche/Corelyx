@@ -1,4 +1,5 @@
 """Twilio connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.twilio.com/v1"
 class TwilioConnector(IConnector):
     """
     Twilio connector for: send_sms, send_whatsapp.
-    
+
     API Base: twilio
     """
-    
+
     provider = "twilio"
-    supported_operations = [
-        "send_sms",
-        "send_whatsapp"
-    ]
+    supported_operations = ["send_sms", "send_whatsapp"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class TwilioConnector(IConnector):
                         f"Twilio does not support '{operation}'",
                     )
 
-
-    async def _send_sms(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_sms(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute send_sms operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send_sms",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/send_sms",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _send_whatsapp(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_whatsapp(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute send_whatsapp operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send_whatsapp",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/send_whatsapp",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

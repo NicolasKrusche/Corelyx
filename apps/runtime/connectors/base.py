@@ -1,4 +1,5 @@
 """IConnector — base interface for all native connectors."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

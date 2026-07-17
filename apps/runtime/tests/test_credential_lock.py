@@ -1,4 +1,5 @@
 """Comprehensive tests for engine.credential_lock."""
+
 from __future__ import annotations
 
 import asyncio
@@ -179,7 +180,6 @@ class TestTokenRefreshManagerRefreshWithLock(unittest.TestCase):
             return "refreshed"
 
         # Pre-populate cache after first check but inside lock (simulated by patching get_cached_token)
-        original_get_cached = self.trm.get_cached_token
 
         def side_effect(cid):
             if not hasattr(side_effect, "called"):
@@ -204,6 +204,7 @@ class TestTokenRefreshManagerRefreshWithLock(unittest.TestCase):
 class TestGetTokenRefreshManager(unittest.TestCase):
     def tearDown(self):
         import engine.credential_lock as cl
+
         cl._token_refresh_manager = None
 
     def test_singleton(self):

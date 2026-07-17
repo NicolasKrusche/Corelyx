@@ -1,4 +1,5 @@
 """Braze connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.braze.com/v1"
 class BrazeConnector(IConnector):
     """
     Braze connector for: trigger_campaign, get_user.
-    
+
     API Base: braze
     """
-    
+
     provider = "braze"
-    supported_operations = [
-        "trigger_campaign",
-        "get_user"
-    ]
+    supported_operations = ["trigger_campaign", "get_user"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class BrazeConnector(IConnector):
                         f"Braze does not support '{operation}'",
                     )
 
-
-    async def _trigger_campaign(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _trigger_campaign(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute trigger_campaign operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/trigger_campaign",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/trigger_campaign",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _get_user(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_user(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_user operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_user",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_user",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

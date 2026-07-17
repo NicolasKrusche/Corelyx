@@ -1,4 +1,5 @@
 """Parameterized stub tests for all remaining connectors in REGISTRY."""
+
 from __future__ import annotations
 
 import unittest
@@ -60,6 +61,7 @@ for _provider, _cls in sorted(REGISTRY.items()):
             pass
 
         for op in operations:
+
             def _make_success(op_name, mod_path):
                 async def _test_success(self):
                     mock = _fake_response({})
@@ -70,6 +72,7 @@ for _provider, _cls in sorted(REGISTRY.items()):
                             self.assertIsInstance(exc.code, str)
                             return
                     self.assertIsInstance(result, dict)
+
                 return _test_success
 
             def _make_error(op_name, mod_path):
@@ -78,6 +81,7 @@ for _provider, _cls in sorted(REGISTRY.items()):
                     with patch(f"{mod_path}.request_with_rate_limit", new=AsyncMock(return_value=mock)):
                         with self.assertRaises(ConnectorError):
                             await cls().execute(op_name, {}, "token")
+
                 return _test_http_error
 
             _test_name_success = f"test_{op}_success"

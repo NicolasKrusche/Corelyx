@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
 import { apiError, createServiceClient } from "@/lib/api";
 import { dispatchEventTriggers } from "@/lib/triggers/dispatch-event";
 import { readBoundedTextBody } from "@/lib/request-body";
 import { markWebhookDelivery } from "@/lib/webhook-deliveries";
 import { enforcePublicEndpointRateLimit } from "@/lib/public-rate-limit";
+import { verifyTypeformSignature } from "@/lib/webhook-signatures";
 
 type TypeformConnectionRow = {
   id: string;
@@ -17,7 +17,7 @@ type TypeformConnectionRow = {
  *
  * Receives Typeform form_response webhooks.
  * Typeform signs requests with HMAC-SHA256 of the raw body using the webhook
- * secret, delivered in the `Typeform-Signature: sha256=<hex>` header.
+ * secret, delivered in the `Typeform-Signature: sha256=<base64>` header.
  *
  * Required env: TYPEFORM_WEBHOOK_SECRET
  * Optional query param: ?connection_id=<uuid> to scope to one account.
@@ -40,15 +40,7 @@ export async function POST(request: Request) {
   const receivedSignature = request.headers.get("typeform-signature");
   if (!receivedSignature) return apiError("Missing Typeform-Signature header", 401);
 
-  const expectedSignature = `sha256=${createHmac("sha256", webhookSecret)
-    .update(rawBody)
-    .digest("hex")}`;
-  const expectedBuf = Buffer.from(expectedSignature);
-  const receivedBuf = Buffer.from(receivedSignature);
-  if (
-    expectedBuf.length !== receivedBuf.length ||
-    !timingSafeEqual(expectedBuf, receivedBuf)
-  ) {
+  if (!verifyTypeformSignature(rawBody, webhookSecret, receivedSignature)) {
     return apiError("Invalid Typeform signature", 401);
   }
 

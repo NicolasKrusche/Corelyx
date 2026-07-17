@@ -1,4 +1,5 @@
 """ConvertKit native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -47,19 +48,21 @@ class ConvertKitConnector(IConnector):
                         f"ConvertKit does not support '{operation}'",
                     )
 
-    async def _list_subscribers(
-        self, client: httpx.AsyncClient, base_params: dict, params: dict
-    ) -> dict:
+    async def _list_subscribers(self, client: httpx.AsyncClient, base_params: dict, params: dict) -> dict:
         query = {**base_params, "page": int(params.get("page", 1))}
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/subscribers", params=query,
+            client,
+            "GET",
+            f"{_BASE}/subscribers",
+            params=query,
         )
         _raise_for_status(r, "list_subscribers")
-        return {"subscribers": r.json().get("subscribers", []), "total_subscribers": r.json().get("total_subscribers", 0)}
+        return {
+            "subscribers": r.json().get("subscribers", []),
+            "total_subscribers": r.json().get("total_subscribers", 0),
+        }
 
-    async def _add_subscriber(
-        self, client: httpx.AsyncClient, base_params: dict, params: dict
-    ) -> dict:
+    async def _add_subscriber(self, client: httpx.AsyncClient, base_params: dict, params: dict) -> dict:
         form_id = params.get("form_id")
         email = params.get("email")
         if not form_id or not email:
@@ -70,41 +73,47 @@ class ConvertKitConnector(IConnector):
         if params.get("fields"):
             body["fields"] = params["fields"]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/forms/{form_id}/subscribe",
-            headers={"Content-Type": "application/json"}, json=body,
+            client,
+            "POST",
+            f"{_BASE}/forms/{form_id}/subscribe",
+            headers={"Content-Type": "application/json"},
+            json=body,
         )
         _raise_for_status(r, "add_subscriber")
         return r.json().get("subscription", {})
 
-    async def _list_forms(
-        self, client: httpx.AsyncClient, base_params: dict, params: dict
-    ) -> dict:
+    async def _list_forms(self, client: httpx.AsyncClient, base_params: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/forms", params=base_params,
+            client,
+            "GET",
+            f"{_BASE}/forms",
+            params=base_params,
         )
         _raise_for_status(r, "list_forms")
         return {"forms": r.json().get("forms", [])}
 
-    async def _list_sequences(
-        self, client: httpx.AsyncClient, base_params: dict, params: dict
-    ) -> dict:
+    async def _list_sequences(self, client: httpx.AsyncClient, base_params: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/sequences", params=base_params,
+            client,
+            "GET",
+            f"{_BASE}/sequences",
+            params=base_params,
         )
         _raise_for_status(r, "list_sequences")
         return {"sequences": r.json().get("courses", [])}
 
-    async def _tag_subscriber(
-        self, client: httpx.AsyncClient, base_params: dict, params: dict
-    ) -> dict:
+    async def _tag_subscriber(self, client: httpx.AsyncClient, base_params: dict, params: dict) -> dict:
         tag_id = params.get("tag_id")
         email = params.get("email")
         if not tag_id or not email:
             raise ConnectorError("MISSING_PARAM", "tag_subscriber requires 'tag_id' and 'email'")
         body = {**base_params, "email": email}
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/tags/{tag_id}/subscribe",
-            headers={"Content-Type": "application/json"}, json=body,
+            client,
+            "POST",
+            f"{_BASE}/tags/{tag_id}/subscribe",
+            headers={"Content-Type": "application/json"},
+            json=body,
         )
         _raise_for_status(r, "tag_subscriber")
         return r.json().get("subscription", {})

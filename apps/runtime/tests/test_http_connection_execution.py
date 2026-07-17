@@ -115,9 +115,7 @@ class HttpConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
                 {"n4": {"email": {"id": "message-1"}}},
             )
 
-        validate_url.assert_called_once_with(
-            "https://api.example.com/messages/message-1/trash"
-        )
+        validate_url.assert_called_once_with("https://api.example.com/messages/message-1/trash")
         self.assertEqual(result["url"], "https://api.example.com/messages/message-1/trash")
         self.assertEqual(clients[0].request_kwargs["params"], {"message": "message-1"})
         self.assertEqual(clients[0].request_kwargs["headers"], {"X-Message": "message-1"})

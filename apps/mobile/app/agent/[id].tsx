@@ -107,8 +107,10 @@ export default function AgentDetailScreen() {
   );
 
   useEffect(() => {
-    setLoading(true);
-    load();
+    void Promise.resolve().then(() => {
+      setLoading(true);
+      return load();
+    });
   }, [load]);
 
   // Poll while the latest run is still active.

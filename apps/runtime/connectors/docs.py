@@ -1,4 +1,5 @@
 """Google Docs native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -48,15 +49,11 @@ class DocsConnector(IConnector):
                         f"Google Docs does not support operation '{operation}'",
                     )
 
-    async def _read_document(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _read_document(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         document_id = params.get("document_id")
         if not document_id:
             raise ConnectorError("MISSING_PARAM", "read_document requires 'document_id'")
-        r = await request_with_rate_limit(
-            client, "GET", f"{_DOCS_BASE}/documents/{document_id}", headers=headers
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_DOCS_BASE}/documents/{document_id}", headers=headers)
         _raise_for_status(r, "read_document")
         doc = r.json()
         text = _extract_plain_text(doc)
@@ -67,49 +64,45 @@ class DocsConnector(IConnector):
             "revision_id": doc.get("revisionId"),
         }
 
-    async def _create_document(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_document(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         title = params.get("title", "Untitled Document")
         r = await request_with_rate_limit(
-            client, "POST", f"{_DOCS_BASE}/documents",
-            headers=headers, json={"title": title},
+            client,
+            "POST",
+            f"{_DOCS_BASE}/documents",
+            headers=headers,
+            json={"title": title},
         )
         _raise_for_status(r, "create_document")
         doc = r.json()
         document_id = doc.get("documentId")
         result: dict[str, Any] = {"document_id": document_id, "title": doc.get("title")}
         if params.get("content"):
-            await self._append_text(
-                client, headers, {"document_id": document_id, "text": params["content"]}
-            )
+            await self._append_text(client, headers, {"document_id": document_id, "text": params["content"]})
         return result
 
-    async def _append_text(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _append_text(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         document_id = params.get("document_id")
         text = params.get("text", "")
         if not document_id:
             raise ConnectorError("MISSING_PARAM", "append_text requires 'document_id'")
         requests = [{"insertText": {"location": {"index": 1}, "text": text + "\n"}}]
         r = await request_with_rate_limit(
-            client, "POST", f"{_DOCS_BASE}/documents/{document_id}:batchUpdate",
-            headers=headers, json={"requests": requests},
+            client,
+            "POST",
+            f"{_DOCS_BASE}/documents/{document_id}:batchUpdate",
+            headers=headers,
+            json={"requests": requests},
         )
         _raise_for_status(r, "append_text")
         return {"document_id": document_id, "appended": True}
 
-    async def _replace_text(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _replace_text(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         document_id = params.get("document_id")
         find = params.get("find")
         replace = params.get("replace", "")
         if not document_id or not find:
-            raise ConnectorError(
-                "MISSING_PARAM", "replace_text requires 'document_id' and 'find'"
-            )
+            raise ConnectorError("MISSING_PARAM", "replace_text requires 'document_id' and 'find'")
         requests = [
             {
                 "replaceAllText": {
@@ -119,16 +112,15 @@ class DocsConnector(IConnector):
             }
         ]
         r = await request_with_rate_limit(
-            client, "POST", f"{_DOCS_BASE}/documents/{document_id}:batchUpdate",
-            headers=headers, json={"requests": requests},
+            client,
+            "POST",
+            f"{_DOCS_BASE}/documents/{document_id}:batchUpdate",
+            headers=headers,
+            json={"requests": requests},
         )
         _raise_for_status(r, "replace_text")
         data = r.json()
-        occurrences = (
-            data.get("replies", [{}])[0]
-            .get("replaceAllText", {})
-            .get("occurrencesChanged", 0)
-        )
+        occurrences = data.get("replies", [{}])[0].get("replaceAllText", {}).get("occurrencesChanged", 0)
         return {"document_id": document_id, "occurrences_replaced": occurrences}
 
 

@@ -65,10 +65,10 @@ async function applySubscriptionToWorkspace(subscription: Stripe.Subscription) {
 }
 
 export async function POST(request: Request) {
-  const stripe = getStripeClient();
-
+  let stripe: ReturnType<typeof getStripeClient>;
   let webhookSecret: string;
   try {
+    stripe = getStripeClient();
     webhookSecret = getWebhookSecret();
   } catch (error) {
     return apiError(error instanceof Error ? error.message : "Webhook is not configured.", 500);

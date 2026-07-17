@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   web:
-    name: Web (type-check + vitest)
+    name: Web (type-check + lint + test + build)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -48,8 +48,14 @@ jobs:
       - name: Run web tests
         run: pnpm --filter @flowos/web test
 
+      - name: Lint web
+        run: pnpm --filter @flowos/web lint
+
+      - name: Build web
+        run: pnpm --filter @flowos/web build
+
   runtime:
-    name: Runtime (unittest)
+    name: Runtime (lint + pytest)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,7 +72,66 @@ jobs:
           cache-dependency-path: apps/runtime/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pytest pytest-xdist ruff
+
+      - name: Lint runtime
+        run: ruff check .
 
       - name: Run runtime tests
-        run: python -m unittest discover -s tests -p "test_*.py"
+        run: python -m pytest tests -n auto --dist worksteal
+
+  mobile:
+    name: Mobile (type-check + lint + doctor + export)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check mobile
+        run: npm run type-check
+
+      - name: Lint mobile
+        run: npm run lint
+
+      - name: Validate Expo project
+        run: npx expo-doctor
+
+      - name: Export Android bundle
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/corelyx-mobile-export"
+
+  desktop:
+    name: Desktop (format + clippy + test)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/desktop/src-tauri
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run desktop tests
+        run: cargo test --all-targets

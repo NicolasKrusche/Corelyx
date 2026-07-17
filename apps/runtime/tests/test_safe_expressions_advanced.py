@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import os
 import unittest
 
 from engine.safe_expressions import (

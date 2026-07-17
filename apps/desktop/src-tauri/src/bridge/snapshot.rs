@@ -142,7 +142,9 @@ impl SnapshotStore {
             let Some(id) = p.file_stem().and_then(|s| s.to_str()).map(String::from) else {
                 continue;
             };
-            let Some(meta) = self.load_meta(&id) else { continue };
+            let Some(meta) = self.load_meta(&id) else {
+                continue;
+            };
 
             if now.saturating_sub(meta.created_unix) > RETENTION_SECS {
                 self.remove(&id);

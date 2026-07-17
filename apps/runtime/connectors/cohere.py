@@ -1,4 +1,5 @@
 """Cohere connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.cohere.com/v1"
 class CohereConnector(IConnector):
     """
     Cohere connector for: generate_text, embed_text.
-    
+
     API Base: cohere
     """
-    
+
     provider = "cohere"
-    supported_operations = [
-        "generate_text",
-        "embed_text"
-    ]
+    supported_operations = ["generate_text", "embed_text"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class CohereConnector(IConnector):
                         f"Cohere does not support '{operation}'",
                     )
 
-
-    async def _generate_text(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _generate_text(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute generate_text operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/generate_text",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/generate_text",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _embed_text(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _embed_text(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute embed_text operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/embed_text",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/embed_text",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

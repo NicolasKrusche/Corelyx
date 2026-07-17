@@ -1,4 +1,5 @@
 """Drip native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -53,20 +54,19 @@ class DripConnector(IConnector):
                         f"Drip does not support '{operation}'",
                     )
 
-    async def _list_subscribers(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_subscribers(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/subscribers", headers=headers,
+            client,
+            "GET",
+            f"{base}/subscribers",
+            headers=headers,
             params={"per_page": int(params.get("per_page", 100))},
         )
         _raise_for_status(r, "list_subscribers")
         return {"subscribers": r.json().get("subscribers", [])}
 
-    async def _create_subscriber(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_subscriber(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         email = params.get("email")
         if not email:
@@ -76,16 +76,17 @@ class DripConnector(IConnector):
             if params.get(field):
                 subscriber[field] = params[field]
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/subscribers", headers=headers,
+            client,
+            "POST",
+            f"{base}/subscribers",
+            headers=headers,
             json={"subscribers": [subscriber]},
         )
         _raise_for_status(r, "create_subscriber")
         subs = r.json().get("subscribers", [])
         return subs[0] if subs else {}
 
-    async def _apply_tag(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _apply_tag(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         email = params.get("email")
         tag = params.get("tag")
@@ -93,24 +94,27 @@ class DripConnector(IConnector):
             raise ConnectorError("MISSING_PARAM", "apply_tag requires 'email' and 'tag'")
         body = {"tags": [{"email": email, "tag": tag}]}
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/tags", headers=headers, json=body,
+            client,
+            "POST",
+            f"{base}/tags",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "apply_tag")
         return {"applied": True, "email": email, "tag": tag}
 
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/campaigns", headers=headers,
+            client,
+            "GET",
+            f"{base}/campaigns",
+            headers=headers,
         )
         _raise_for_status(r, "list_campaigns")
         return {"campaigns": r.json().get("campaigns", [])}
 
-    async def _record_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _record_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         email = params.get("email")
         action = params.get("action")
@@ -120,7 +124,11 @@ class DripConnector(IConnector):
         if params.get("properties"):
             body["events"][0]["properties"] = params["properties"]
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/events", headers=headers, json=body,
+            client,
+            "POST",
+            f"{base}/events",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "record_event")
         return {"recorded": True, "email": email, "action": action}

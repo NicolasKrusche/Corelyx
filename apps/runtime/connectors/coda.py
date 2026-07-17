@@ -1,4 +1,5 @@
 """Coda native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -54,8 +55,7 @@ class CodaConnector(IConnector):
 
     async def _list_docs(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/docs", headers=headers,
-            params={"limit": int(params.get("limit", 50))}
+            client, "GET", f"{_BASE}/docs", headers=headers, params={"limit": int(params.get("limit", 50))}
         )
         _raise_for_status(r, "list_docs")
         data = r.json()
@@ -83,8 +83,11 @@ class CodaConnector(IConnector):
         if not doc_id or not table_id:
             raise ConnectorError("MISSING_PARAM", "list_rows requires 'doc_id' and 'table_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/docs/{doc_id}/tables/{table_id}/rows", headers=headers,
-            params={"limit": int(params.get("limit", 50))}
+            client,
+            "GET",
+            f"{_BASE}/docs/{doc_id}/tables/{table_id}/rows",
+            headers=headers,
+            params={"limit": int(params.get("limit", 50))},
         )
         _raise_for_status(r, "list_rows")
         return {"rows": r.json().get("items", [])}

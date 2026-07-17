@@ -1,4 +1,5 @@
 """Buffer native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,9 +47,7 @@ class BufferConnector(IConnector):
                         f"Buffer does not support operation '{operation}'",
                     )
 
-    async def _create_update(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_update(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         profile_ids = params.get("profile_ids", [])
         text = params.get("text", "")
         if not profile_ids:
@@ -70,13 +69,9 @@ class BufferConnector(IConnector):
             "updates": data.get("updates", []),
         }
 
-    async def _get_profiles(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_profiles(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         get_headers = {**headers, "Content-Type": "application/json"}
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/profiles.json", headers=get_headers
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/profiles.json", headers=get_headers)
         _raise_for_status(r, "get_profiles")
         profiles = r.json()
         return {
@@ -91,9 +86,7 @@ class BufferConnector(IConnector):
             ]
         }
 
-    async def _get_pending_updates(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_pending_updates(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         profile_id = params.get("profile_id")
         if not profile_id:
             raise ConnectorError("MISSING_PARAM", "get_pending_updates requires 'profile_id'")
@@ -113,9 +106,7 @@ class BufferConnector(IConnector):
             "total": data.get("total", 0),
         }
 
-    async def _analyze_post(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _analyze_post(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         update_id = params.get("update_id")
         if not update_id:
             raise ConnectorError("MISSING_PARAM", "analyze_post requires 'update_id'")

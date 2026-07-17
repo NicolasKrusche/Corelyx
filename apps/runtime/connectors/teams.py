@@ -1,4 +1,5 @@
 """Microsoft Teams native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,16 +47,12 @@ class TeamsConnector(IConnector):
                         f"Teams does not support operation '{operation}'",
                     )
 
-    async def _send_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         team_id = params.get("team_id")
         channel_id = params.get("channel_id")
         content = params.get("content", "")
         if not team_id or not channel_id:
-            raise ConnectorError(
-                "MISSING_PARAM", "send_message requires 'team_id' and 'channel_id'"
-            )
+            raise ConnectorError("MISSING_PARAM", "send_message requires 'team_id' and 'channel_id'")
         body = {"body": {"content": content, "contentType": params.get("content_type", "text")}}
         r = await request_with_rate_limit(
             client,
@@ -72,9 +69,7 @@ class TeamsConnector(IConnector):
             "created_at": data.get("createdDateTime"),
         }
 
-    async def _list_channels(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_channels(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         team_id = params.get("team_id")
         if not team_id:
             raise ConnectorError("MISSING_PARAM", "list_channels requires 'team_id'")
@@ -98,9 +93,7 @@ class TeamsConnector(IConnector):
             ]
         }
 
-    async def _list_teams(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_teams(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
             client,
             "GET",
@@ -120,15 +113,11 @@ class TeamsConnector(IConnector):
             ]
         }
 
-    async def _create_channel(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_channel(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         team_id = params.get("team_id")
         display_name = params.get("display_name")
         if not team_id or not display_name:
-            raise ConnectorError(
-                "MISSING_PARAM", "create_channel requires 'team_id' and 'display_name'"
-            )
+            raise ConnectorError("MISSING_PARAM", "create_channel requires 'team_id' and 'display_name'")
         body: dict[str, Any] = {
             "displayName": display_name,
             "membershipType": params.get("membership_type", "standard"),

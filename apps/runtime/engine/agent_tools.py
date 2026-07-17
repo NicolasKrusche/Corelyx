@@ -5,6 +5,7 @@ authority (it authorizes + executes each call); this module only provides the
 OpenAI-style function schemas the runtime hands to the LLM so it can emit valid
 tool calls. Keep the ids in sync with the TypeScript registry.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -154,7 +155,7 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
         "description": (
             "Search the web and get back ranked results (title, url, snippet) so "
             "you can DISCOVER pages when you don't already have a URL (e.g. \"top "
-            "competitors for X\", \"official pricing page of Y\"). Then read the "
+            'competitors for X", "official pricing page of Y"). Then read the '
             "best results with corelyx.web_fetch. Read-only, safe in dry runs."
         ),
         "parameters": {
@@ -213,8 +214,16 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
                 "operation": {
                     "type": "string",
                     "enum": [
-                        "read", "write", "append", "list", "stat",
-                        "move", "copy", "delete", "mkdir", "search",
+                        "read",
+                        "write",
+                        "append",
+                        "list",
+                        "stat",
+                        "move",
+                        "copy",
+                        "delete",
+                        "mkdir",
+                        "search",
                     ],
                     "description": "The file operation to perform.",
                 },
@@ -345,7 +354,11 @@ _AGENT_TOOL_SPECS: dict[str, dict[str, Any]] = {
                 "subject": {"type": "string", "description": "Short title of the flagged message."},
                 "reason": {"type": "string", "description": "Why it's critical."},
                 "snippet": {"type": "string", "description": "The relevant excerpt (optional)."},
-                "categories": {"type": "array", "items": {"type": "string"}, "description": "Harm categories (optional)."},
+                "categories": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Harm categories (optional).",
+                },
                 "source_ref": {"type": "string", "description": "Provider message id, if known (optional)."},
             },
             "required": ["reason"],

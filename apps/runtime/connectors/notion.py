@@ -1,4 +1,5 @@
 """Notion native connector."""
+
 from __future__ import annotations
 
 import re
@@ -40,11 +41,16 @@ class NotionConnector(IConnector):
         # meant create_database_entry. Redirect before any HTTP call is made.
         if operation == "create_page":
             parent_id = str(params.get("parent_id", "")).strip()
-            if (parent_id
-                    and not parent_id.startswith("http")
-                    and not _UUID_RE.fullmatch(parent_id)
-                    and not _HEX32_RE.fullmatch(parent_id)):
-                print(f"[notion] intercepted create_page with non-UUID parent_id '{parent_id}' -> create_database_entry", flush=True)
+            if (
+                parent_id
+                and not parent_id.startswith("http")
+                and not _UUID_RE.fullmatch(parent_id)
+                and not _HEX32_RE.fullmatch(parent_id)
+            ):
+                print(
+                    f"[notion] intercepted create_page with non-UUID parent_id '{parent_id}' -> create_database_entry",
+                    flush=True,
+                )
                 redirect_params: dict[str, Any] = {"database_id": parent_id}
                 if params.get("title"):
                     redirect_params["_title"] = str(params["title"])
@@ -73,27 +79,21 @@ class NotionConnector(IConnector):
                         f"Notion does not support operation '{operation}'",
                     )
 
-    async def _read_page(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _read_page(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         page_id = params.get("page_id")
         if not page_id:
             raise ConnectorError("MISSING_PARAM", "read_page requires 'page_id'")
         r = await request_with_rate_limit(client, "GET", f"{_BASE}/pages/{page_id}", headers=headers)
         _raise_for_status(r, "read_page")
         page = r.json()
-        blocks_r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/blocks/{page_id}/children", headers=headers
-        )
+        blocks_r = await request_with_rate_limit(client, "GET", f"{_BASE}/blocks/{page_id}/children", headers=headers)
         try:
             blocks = blocks_r.json().get("results", []) if blocks_r.status_code == 200 else []
         except Exception:
             blocks = []
         return {"page": page, "blocks": blocks}
 
-    async def _create_page(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_page(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         parent_id = params.get("parent_id")
         title = params.get("title", "Untitled")
         if not parent_id:
@@ -101,10 +101,15 @@ class NotionConnector(IConnector):
         # Safety net: if parent_id is a plain name (not a UUID/URL), the model
         # almost certainly meant create_database_entry — redirect automatically.
         parent_str = str(parent_id).strip()
-        if (not parent_str.startswith("http")
-                and not _UUID_RE.fullmatch(parent_str)
-                and not _HEX32_RE.fullmatch(parent_str)):
-            print(f"[notion] create_page got non-UUID parent_id '{parent_str}' — redirecting to create_database_entry", flush=True)
+        if (
+            not parent_str.startswith("http")
+            and not _UUID_RE.fullmatch(parent_str)
+            and not _HEX32_RE.fullmatch(parent_str)
+        ):
+            print(
+                f"[notion] create_page got non-UUID parent_id '{parent_str}' — redirecting to create_database_entry",
+                flush=True,
+            )
             redirect_params = {"database_id": parent_str, "_title": title}
             if params.get("content"):
                 redirect_params["_body"] = str(params["content"])
@@ -112,16 +117,12 @@ class NotionConnector(IConnector):
         body: dict[str, Any] = {
             "parent": {"type": "page_id", "page_id": parent_id},
             "properties": {
-                "title": {
-                    "title": [{"type": "text", "text": {"content": str(title)[:_NOTION_TEXT_LIMIT]}}]
-                }
+                "title": {"title": [{"type": "text", "text": {"content": str(title)[:_NOTION_TEXT_LIMIT]}}]}
             },
         }
         if params.get("content"):
             body["children"] = _text_to_blocks(str(params["content"]))
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/pages", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/pages", headers=headers, json=body)
         _raise_for_status(r, "create_page")
         try:
             result = r.json()
@@ -129,18 +130,12 @@ class NotionConnector(IConnector):
             raise ConnectorError("NOTION_PARSE_ERROR", f"create_page returned non-JSON response: {r.text[:200]}") from e
         return {"page_id": result.get("id"), "url": result.get("url")}
 
-    async def _append_to_page(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _append_to_page(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         page_id = params.get("page_id")
         content = params.get("content", "")
         if not page_id:
             raise ConnectorError("MISSING_PARAM", "append_to_page requires 'page_id'")
-        blocks = (
-            params["blocks"]
-            if isinstance(params.get("blocks"), list)
-            else _text_to_blocks(str(content))
-        )
+        blocks = params["blocks"] if isinstance(params.get("blocks"), list) else _text_to_blocks(str(content))
         r = await request_with_rate_limit(
             client,
             "PATCH",
@@ -151,9 +146,7 @@ class NotionConnector(IConnector):
         _raise_for_status(r, "append_to_page")
         return {"page_id": page_id, "appended_blocks": len(blocks)}
 
-    async def _query_database(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_database(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         database_id = params.get("database_id")
         if not database_id:
             raise ConnectorError("MISSING_PARAM", "query_database requires 'database_id'")
@@ -197,9 +190,7 @@ class NotionConnector(IConnector):
         data = r.json()
         return {"results": data.get("results", []), "has_more": data.get("has_more", False)}
 
-    async def _create_database(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_database(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Create a new Notion database as a child of a given page.
 
         Required params:
@@ -226,14 +217,14 @@ class NotionConnector(IConnector):
             "title": [{"type": "text", "text": {"content": str(title)[:_NOTION_TEXT_LIMIT]}}],
             "properties": properties,
         }
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/databases", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/databases", headers=headers, json=body)
         _raise_for_status(r, "create_database")
         try:
             result = r.json()
         except Exception as e:
-            raise ConnectorError("NOTION_PARSE_ERROR", f"create_database returned non-JSON response: {r.text[:200]}") from e
+            raise ConnectorError(
+                "NOTION_PARSE_ERROR", f"create_database returned non-JSON response: {r.text[:200]}"
+            ) from e
         return {
             "database_id": result.get("id"),
             "url": result.get("url"),
@@ -244,18 +235,14 @@ class NotionConnector(IConnector):
         self, client: httpx.AsyncClient, headers: dict, database_id: str
     ) -> dict[str, Any]:
         """Fetch the database schema and return its properties dict."""
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/databases/{database_id}", headers=headers
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/databases/{database_id}", headers=headers)
         _raise_for_status(r, "create_database_entry")
         try:
             return r.json().get("properties", {})
         except Exception:
             return {}
 
-    async def _find_or_create_database(
-        self, client: httpx.AsyncClient, headers: dict, name: str
-    ) -> str:
+    async def _find_or_create_database(self, client: httpx.AsyncClient, headers: dict, name: str) -> str:
         """Find a Notion database by name or create it automatically.
 
         1. Search for a database matching `name` (exact title match preferred).
@@ -306,17 +293,13 @@ class NotionConnector(IConnector):
             "title": [{"type": "text", "text": {"content": name[:_NOTION_TEXT_LIMIT]}}],
             "properties": {"Name": {"title": {}}},
         }
-        r3 = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/databases", headers=headers, json=body
-        )
+        r3 = await request_with_rate_limit(client, "POST", f"{_BASE}/databases", headers=headers, json=body)
         _raise_for_status(r3, "create_database")
         db_id = r3.json().get("id")
         print(f"[notion] created database '{name}' -> {db_id}", flush=True)
         return db_id
 
-    async def _create_database_entry(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_database_entry(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         raw_id = params.get("database_id")
         if not raw_id:
             raise ConnectorError("MISSING_PARAM", "create_database_entry requires 'database_id'")
@@ -333,8 +316,7 @@ class NotionConnector(IConnector):
         # Support two calling conventions:
         # 1. Flat top-level _title/_body/... keys (new genesis convention)
         # 2. Nested "properties" dict (explicit Notion API format)
-        top_level_simple = {k: v for k, v in params.items()
-                            if k.startswith("_") and k != "_"}
+        top_level_simple = {k: v for k, v in params.items() if k.startswith("_") and k != "_"}
         raw_properties = params.get("properties", {})
 
         # Merge: top-level simple keys take precedence
@@ -361,14 +343,14 @@ class NotionConnector(IConnector):
         }
         # Apply Notion's 2000-char limit to ALL rich_text content recursively
         body = _truncate_rich_text(body)
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/pages", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/pages", headers=headers, json=body)
         _raise_for_status(r, "create_database_entry")
         try:
             result = r.json()
         except Exception as e:
-            raise ConnectorError("NOTION_PARSE_ERROR", f"create_database_entry returned non-JSON response: {r.text[:200]}") from e
+            raise ConnectorError(
+                "NOTION_PARSE_ERROR", f"create_database_entry returned non-JSON response: {r.text[:200]}"
+            ) from e
         return {"page_id": result.get("id"), "url": result.get("url")}
 
 
@@ -418,6 +400,7 @@ def _hex32_to_uuid(hex_id: str) -> str:
 
 # ─── Simple field mapping ─────────────────────────────────────────────────────
 
+
 def _map_simple_fields(
     simple: dict[str, Any],
     db_schema: dict[str, Any],
@@ -437,7 +420,7 @@ def _map_simple_fields(
     """
     # Index schema by type and by normalised name
     by_type: dict[str, list[str]] = {}  # type → [prop_name, ...]
-    by_name: dict[str, str] = {}        # lower(name) → actual_name
+    by_name: dict[str, str] = {}  # lower(name) → actual_name
     for prop_name, prop_def in db_schema.items():
         prop_type = prop_def.get("type", "")
         by_type.setdefault(prop_type, []).append(prop_name)
@@ -576,6 +559,7 @@ def _format_property(prop_type: str, text: str) -> Any:
 
 # ─── Utilities ────────────────────────────────────────────────────────────────
 
+
 def _truncate_rich_text(obj: Any) -> Any:
     """Recursively truncate any text.content string to Notion's 2000-char limit."""
     if isinstance(obj, dict):
@@ -605,11 +589,11 @@ def _text_to_blocks(text: str) -> list[dict]:
     """Convert plain text into Notion paragraph blocks, one per line."""
     blocks = []
     for line in text.split("\n"):
-        blocks.append({
-            "object": "block",
-            "type": "paragraph",
-            "paragraph": {
-                "rich_text": [{"type": "text", "text": {"content": line[:_NOTION_TEXT_LIMIT]}}]
-            },
-        })
+        blocks.append(
+            {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {"rich_text": [{"type": "text", "text": {"content": line[:_NOTION_TEXT_LIMIT]}}]},
+            }
+        )
     return blocks

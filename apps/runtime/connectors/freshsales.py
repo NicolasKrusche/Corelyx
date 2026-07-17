@@ -1,4 +1,5 @@
 """Freshsales native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -52,7 +53,9 @@ class FreshsalesConnector(IConnector):
                     )
 
     async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
-        r = await request_with_rate_limit(client, "GET", f"{base}/contacts", headers=headers, params={"per_page": int(params.get("limit", 50))})
+        r = await request_with_rate_limit(
+            client, "GET", f"{base}/contacts", headers=headers, params={"per_page": int(params.get("limit", 50))}
+        )
         _raise_for_status(r, "list_contacts")
         return {"contacts": r.json().get("contacts", [])}
 
@@ -89,7 +92,9 @@ class FreshsalesConnector(IConnector):
         return {"contact": r.json().get("contact")}
 
     async def _list_deals(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
-        r = await request_with_rate_limit(client, "GET", f"{base}/deals", headers=headers, params={"per_page": int(params.get("limit", 50))})
+        r = await request_with_rate_limit(
+            client, "GET", f"{base}/deals", headers=headers, params={"per_page": int(params.get("limit", 50))}
+        )
         _raise_for_status(r, "list_deals")
         return {"deals": r.json().get("deals", [])}
 

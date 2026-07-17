@@ -1,10 +1,9 @@
 """Advanced tests for main.py endpoints and helpers."""
+
 from __future__ import annotations
 
-import json
 import os
 import unittest
-from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -109,7 +108,10 @@ class TestExecuteEndpointAuth(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_misconfigured_secret(self) -> None:
-        with patch("main.verify_internal_service_token", side_effect=RuntimeError("INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE not set")):
+        with patch(
+            "main.verify_internal_service_token",
+            side_effect=RuntimeError("INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE not set"),
+        ):
             response = client.post("/execute", json={"run_id": "r1"}, headers={"x-internal-service-token": "tok"})
         self.assertEqual(response.status_code, 500)
 
@@ -117,7 +119,7 @@ class TestExecuteEndpointAuth(unittest.IsolatedAsyncioTestCase):
 class TestExecuteEndpointPayloadValidation(unittest.IsolatedAsyncioTestCase):
     def test_invalid_json(self) -> None:
         with patch("main.verify_internal_service_token", return_value=True):
-            response = client.post("/execute", data="not json", headers={"x-internal-service-token": "tok"})
+            response = client.post("/execute", content=b"not json", headers={"x-internal-service-token": "tok"})
         self.assertEqual(response.status_code, 400)
 
     def test_missing_run_id(self) -> None:
@@ -128,76 +130,95 @@ class TestExecuteEndpointPayloadValidation(unittest.IsolatedAsyncioTestCase):
 
 class TestExecuteEndpointRunLookup(unittest.IsolatedAsyncioTestCase):
     def test_run_not_found(self) -> None:
-        with patch("main.verify_internal_service_token", return_value=True), \
-             patch("main.get_db") as mock_get_db:
+        with patch("main.verify_internal_service_token", return_value=True), patch("main.get_db") as mock_get_db:
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = (
+                MagicMock(data=[])
+            )
             mock_get_db.return_value = db
             response = client.post("/execute", json={"run_id": "r1"}, headers={"x-internal-service-token": "tok"})
         self.assertEqual(response.status_code, 404)
 
     def test_run_not_dispatchable(self) -> None:
-        with patch("main.verify_internal_service_token", return_value=True), \
-             patch("main.get_db") as mock_get_db:
+        with patch("main.verify_internal_service_token", return_value=True), patch("main.get_db") as mock_get_db:
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "completed"}])
+            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = (
+                MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "completed"}])
+            )
             mock_get_db.return_value = db
             response = client.post("/execute", json={"run_id": "r1"}, headers={"x-internal-service-token": "tok"})
         self.assertEqual(response.status_code, 409)
 
     def test_program_not_found(self) -> None:
-        with patch("main.verify_internal_service_token", return_value=True), \
-             patch("main.get_db") as mock_get_db:
+        with patch("main.verify_internal_service_token", return_value=True), patch("main.get_db") as mock_get_db:
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(side_effect=[
-                MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
-                MagicMock(data=[]),
-            ])
+            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(
+                side_effect=[
+                    MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
+                    MagicMock(data=[]),
+                ]
+            )
             mock_get_db.return_value = db
             response = client.post("/execute", json={"run_id": "r1"}, headers={"x-internal-service-token": "tok"})
         self.assertEqual(response.status_code, 404)
 
     def test_processing_restricted(self) -> None:
-        with patch("main.verify_internal_service_token", return_value=True), \
-             patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=True):
+        with (
+            patch("main.verify_internal_service_token", return_value=True),
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=True),
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(side_effect=[
-                MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
-                MagicMock(data=[{"id": "p1", "user_id": "u1", "schema": {}, "workspace_id": "w1"}]),
-            ])
+            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(
+                side_effect=[
+                    MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
+                    MagicMock(data=[{"id": "p1", "user_id": "u1", "schema": {}, "workspace_id": "w1"}]),
+                ]
+            )
             mock_get_db.return_value = db
             response = client.post("/execute", json={"run_id": "r1"}, headers={"x-internal-service-token": "tok"})
         self.assertEqual(response.status_code, 423)
 
     def test_policy_blocks(self) -> None:
-        with patch("main.verify_internal_service_token", return_value=True), \
-             patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=False), \
-             patch("main.validate_schema_policy", return_value=[{"reason": "blocked"}]), \
-             patch("main.update_run", new=AsyncMock()):
+        with (
+            patch("main.verify_internal_service_token", return_value=True),
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=False),
+            patch("main.validate_schema_policy", return_value=[{"reason": "blocked"}]),
+            patch("main.update_run", new=AsyncMock()),
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(side_effect=[
-                MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
-                MagicMock(data=[{"id": "p1", "user_id": "u1", "schema": {}, "workspace_id": "w1"}]),
-            ])
+            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(
+                side_effect=[
+                    MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
+                    MagicMock(data=[{"id": "p1", "user_id": "u1", "schema": {}, "workspace_id": "w1"}]),
+                ]
+            )
             mock_get_db.return_value = db
             response = client.post("/execute", json={"run_id": "r1"}, headers={"x-internal-service-token": "tok"})
         self.assertEqual(response.status_code, 422)
 
     def test_success(self) -> None:
-        with patch("main.verify_internal_service_token", return_value=True), \
-             patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=False), \
-             patch("main.validate_schema_policy", return_value=[]), \
-             patch("main._run_program", new=AsyncMock()) as mock_run:
+        with (
+            patch("main.verify_internal_service_token", return_value=True),
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=False),
+            patch("main.validate_schema_policy", return_value=[]),
+            patch("main._run_program", new=AsyncMock()) as mock_run,
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(side_effect=[
-                MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
-                MagicMock(data=[{"id": "p1", "user_id": "u1", "schema": {}, "workspace_id": "w1"}]),
-            ])
+            db.table.return_value.select.return_value.eq.return_value.limit.return_value.execute = Mock(
+                side_effect=[
+                    MagicMock(data=[{"id": "r1", "program_id": "p1", "status": "running"}]),
+                    MagicMock(data=[{"id": "p1", "user_id": "u1", "schema": {}, "workspace_id": "w1"}]),
+                ]
+            )
             mock_get_db.return_value = db
-            response = client.post("/execute", json={"run_id": "r1", "trigger_payload": {"x": 1}}, headers={"x-internal-service-token": "tok"})
+            response = client.post(
+                "/execute",
+                json={"run_id": "r1", "trigger_payload": {"x": 1}},
+                headers={"x-internal-service-token": "tok"},
+            )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "started")
         self.assertEqual(response.json()["run_id"], "r1")
@@ -206,12 +227,24 @@ class TestExecuteEndpointRunLookup(unittest.IsolatedAsyncioTestCase):
 
 class TestRunProgram(unittest.IsolatedAsyncioTestCase):
     async def test_success(self) -> None:
-        schema = {"version": "1.0", "program_id": "p1", "program_name": "Test", "execution_mode": "autonomous", "nodes": [], "edges": [], "triggers": [], "version_history": [], "metadata": {}}
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.ProgramExecutor") as mock_executor_cls, \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main.release_run_locks", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+        schema = {
+            "version": "1.0",
+            "program_id": "p1",
+            "program_name": "Test",
+            "execution_mode": "autonomous",
+            "nodes": [],
+            "edges": [],
+            "triggers": [],
+            "version_history": [],
+            "metadata": {},
+        }
+        with (
+            patch("main.get_db"),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()),
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             executor = Mock()
             executor.execute = AsyncMock()
             executor.run_telemetry_payload.return_value = {}
@@ -221,12 +254,24 @@ class TestRunProgram(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(mock_executor_cls.call_count, 1)
 
     async def test_timeout(self) -> None:
-        schema = {"version": "1.0", "program_id": "p1", "program_name": "Test", "execution_mode": "autonomous", "nodes": [], "edges": [], "triggers": [], "version_history": [], "metadata": {}}
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.ProgramExecutor") as mock_executor_cls, \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main.release_run_locks", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+        schema = {
+            "version": "1.0",
+            "program_id": "p1",
+            "program_name": "Test",
+            "execution_mode": "autonomous",
+            "nodes": [],
+            "edges": [],
+            "triggers": [],
+            "version_history": [],
+            "metadata": {},
+        }
+        with (
+            patch("main.get_db"),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()),
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             executor = Mock()
             executor.execute = AsyncMock(side_effect=TimeoutError("timeout"))
             executor.run_telemetry_payload.return_value = {}
@@ -236,12 +281,25 @@ class TestRunProgram(unittest.IsolatedAsyncioTestCase):
 
     async def test_execution_error(self) -> None:
         from engine.executor import ExecutionError
-        schema = {"version": "1.0", "program_id": "p1", "program_name": "Test", "execution_mode": "autonomous", "nodes": [], "edges": [], "triggers": [], "version_history": [], "metadata": {}}
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.ProgramExecutor") as mock_executor_cls, \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main.release_run_locks", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+
+        schema = {
+            "version": "1.0",
+            "program_id": "p1",
+            "program_name": "Test",
+            "execution_mode": "autonomous",
+            "nodes": [],
+            "edges": [],
+            "triggers": [],
+            "version_history": [],
+            "metadata": {},
+        }
+        with (
+            patch("main.get_db"),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()),
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             executor = Mock()
             executor.execute = AsyncMock(side_effect=ExecutionError("FAIL", "boom"))
             executor.run_telemetry_payload.return_value = {}
@@ -250,12 +308,24 @@ class TestRunProgram(unittest.IsolatedAsyncioTestCase):
             await _run_program(schema, "r1", "p1", "u1", {"x": 1})
 
     async def test_generic_exception(self) -> None:
-        schema = {"version": "1.0", "program_id": "p1", "program_name": "Test", "execution_mode": "autonomous", "nodes": [], "edges": [], "triggers": [], "version_history": [], "metadata": {}}
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.ProgramExecutor") as mock_executor_cls, \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main.release_run_locks", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+        schema = {
+            "version": "1.0",
+            "program_id": "p1",
+            "program_name": "Test",
+            "execution_mode": "autonomous",
+            "nodes": [],
+            "edges": [],
+            "triggers": [],
+            "version_history": [],
+            "metadata": {},
+        }
+        with (
+            patch("main.get_db"),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()),
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             executor = Mock()
             executor.execute = AsyncMock(side_effect=RuntimeError("boom"))
             executor.run_telemetry_payload.return_value = {}
@@ -289,43 +359,57 @@ class TestTriggerWorkflow(unittest.IsolatedAsyncioTestCase):
     async def test_program_not_found(self) -> None:
         with patch("main.get_db") as mock_get_db:
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=None)
+            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+                MagicMock(data=None)
+            )
             mock_get_db.return_value = db
             await trigger_workflow("w1")
 
     async def test_processing_restricted(self) -> None:
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=True), \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+        with (
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=True),
+            patch("main.update_run", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+                MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            )
             db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "r1"}])
             mock_get_db.return_value = db
             await trigger_workflow("w1")
 
     async def test_policy_blocks(self) -> None:
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=False), \
-             patch("main.validate_schema_policy", return_value=[{"reason": "block"}]), \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+        with (
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=False),
+            patch("main.validate_schema_policy", return_value=[{"reason": "block"}]),
+            patch("main.update_run", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+                MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            )
             db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "r1"}])
             mock_get_db.return_value = db
             await trigger_workflow("w1")
 
     async def test_success(self) -> None:
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=False), \
-             patch("main.validate_schema_policy", return_value=[]), \
-             patch("main.ProgramExecutor") as mock_executor_cls, \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main.release_run_locks", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+        with (
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=False),
+            patch("main.validate_schema_policy", return_value=[]),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()),
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+                MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            )
             db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "r1"}])
             mock_get_db.return_value = db
             executor = Mock()
@@ -336,15 +420,20 @@ class TestTriggerWorkflow(unittest.IsolatedAsyncioTestCase):
 
     async def test_execution_error(self) -> None:
         from engine.executor import ExecutionError
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=False), \
-             patch("main.validate_schema_policy", return_value=[]), \
-             patch("main.ProgramExecutor") as mock_executor_cls, \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main.release_run_locks", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+
+        with (
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=False),
+            patch("main.validate_schema_policy", return_value=[]),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()),
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+                MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            )
             db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "r1"}])
             mock_get_db.return_value = db
             executor = Mock()
@@ -354,15 +443,19 @@ class TestTriggerWorkflow(unittest.IsolatedAsyncioTestCase):
             await trigger_workflow("w1")
 
     async def test_generic_exception(self) -> None:
-        with patch("main.get_db") as mock_get_db, \
-             patch("main.is_processing_restricted", return_value=False), \
-             patch("main.validate_schema_policy", return_value=[]), \
-             patch("main.ProgramExecutor") as mock_executor_cls, \
-             patch("main.update_run", new=AsyncMock()), \
-             patch("main.release_run_locks", new=AsyncMock()), \
-             patch("main._notify_complete", new=AsyncMock()):
+        with (
+            patch("main.get_db") as mock_get_db,
+            patch("main.is_processing_restricted", return_value=False),
+            patch("main.validate_schema_policy", return_value=[]),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()),
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()),
+        ):
             db = Mock()
-            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            db.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = (
+                MagicMock(data={"id": "w1", "schema": {}, "user_id": "u1", "workspace_id": "ws1"})
+            )
             db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "r1"}])
             mock_get_db.return_value = db
             executor = Mock()
@@ -375,8 +468,7 @@ class TestTriggerWorkflow(unittest.IsolatedAsyncioTestCase):
 class TestLifespan(unittest.IsolatedAsyncioTestCase):
     async def test_registers_only_the_web_cron_heartbeat(self) -> None:
         fake_scheduler = Mock()
-        with patch("main.scheduler", fake_scheduler), \
-             patch("main.close_llm_client", new=AsyncMock()):
+        with patch("main.scheduler", fake_scheduler), patch("main.close_llm_client", new=AsyncMock()):
             async with main_module.lifespan(app):
                 pass
 
@@ -414,9 +506,11 @@ class TestCronHeartbeat(unittest.IsolatedAsyncioTestCase):
             client_options.update(kwargs)
             return real_async_client(transport=httpx.MockTransport(handle), **kwargs)
 
-        with patch.dict(os.environ, {"NEXTJS_INTERNAL_URL": "https://corelyx.app"}), \
-             patch("httpx.AsyncClient", side_effect=make_client), \
-             patch("main.build_internal_service_headers", return_value={"x-internal-service-token": "signed"}):
+        with (
+            patch.dict(os.environ, {"NEXTJS_INTERNAL_URL": "https://corelyx.app"}),
+            patch("httpx.AsyncClient", side_effect=make_client),
+            patch("main.build_internal_service_headers", return_value={"x-internal-service-token": "signed"}),
+        ):
             await _cron_tick()
 
         self.assertEqual([request.url.host for request in requests], ["corelyx.app", "www.corelyx.app"])
@@ -442,9 +536,11 @@ class TestCronHeartbeat(unittest.IsolatedAsyncioTestCase):
         def make_client(**kwargs: Any) -> httpx.AsyncClient:
             return real_async_client(transport=httpx.MockTransport(handle), **kwargs)
 
-        with patch.dict(os.environ, {"NEXTJS_INTERNAL_URL": "https://corelyx.app"}), \
-             patch("httpx.AsyncClient", side_effect=make_client), \
-             patch("main.build_internal_service_headers", return_value={"x-internal-service-token": "signed"}):
+        with (
+            patch.dict(os.environ, {"NEXTJS_INTERNAL_URL": "https://corelyx.app"}),
+            patch("httpx.AsyncClient", side_effect=make_client),
+            patch("main.build_internal_service_headers", return_value={"x-internal-service-token": "signed"}),
+        ):
             await _cron_tick()
 
         self.assertEqual([request.url.host for request in requests], ["corelyx.app"])

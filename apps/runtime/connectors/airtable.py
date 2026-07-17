@@ -1,4 +1,5 @@
 """Airtable native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -52,15 +53,11 @@ class AirtableConnector(IConnector):
     def _table_url(self, base_id: str, table_name: str) -> str:
         return f"{_BASE}/{base_id}/{table_name}"
 
-    async def _list_records(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_records(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base_id = params.get("base_id")
         table_name = params.get("table_name")
         if not base_id or not table_name:
-            raise ConnectorError(
-                "MISSING_PARAM", "list_records requires 'base_id' and 'table_name'"
-            )
+            raise ConnectorError("MISSING_PARAM", "list_records requires 'base_id' and 'table_name'")
         query: dict[str, Any] = {"maxRecords": int(params.get("max_records", 100))}
         if params.get("view"):
             query["view"] = params["view"]
@@ -70,8 +67,11 @@ class AirtableConnector(IConnector):
             query["sort[0][field]"] = params["sort_field"]
             query["sort[0][direction]"] = params.get("sort_direction", "asc")
         r = await request_with_rate_limit(
-            client, "GET", self._table_url(base_id, table_name),
-            headers=headers, params=query,
+            client,
+            "GET",
+            self._table_url(base_id, table_name),
+            headers=headers,
+            params=query,
         )
         _raise_for_status(r, "list_records")
         data = r.json()
@@ -80,9 +80,7 @@ class AirtableConnector(IConnector):
             "offset": data.get("offset"),
         }
 
-    async def _get_record(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_record(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base_id = params.get("base_id")
         table_name = params.get("table_name")
         record_id = params.get("record_id")
@@ -92,33 +90,32 @@ class AirtableConnector(IConnector):
                 "get_record requires 'base_id', 'table_name', and 'record_id'",
             )
         r = await request_with_rate_limit(
-            client, "GET", f"{self._table_url(base_id, table_name)}/{record_id}",
+            client,
+            "GET",
+            f"{self._table_url(base_id, table_name)}/{record_id}",
             headers=headers,
         )
         _raise_for_status(r, "get_record")
         return r.json()
 
-    async def _create_record(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_record(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base_id = params.get("base_id")
         table_name = params.get("table_name")
         fields = params.get("fields", {})
         if not base_id or not table_name:
-            raise ConnectorError(
-                "MISSING_PARAM", "create_record requires 'base_id' and 'table_name'"
-            )
+            raise ConnectorError("MISSING_PARAM", "create_record requires 'base_id' and 'table_name'")
         r = await request_with_rate_limit(
-            client, "POST", self._table_url(base_id, table_name),
-            headers=headers, json={"fields": fields},
+            client,
+            "POST",
+            self._table_url(base_id, table_name),
+            headers=headers,
+            json={"fields": fields},
         )
         _raise_for_status(r, "create_record")
         data = r.json()
         return {"record_id": data.get("id"), "fields": data.get("fields", {})}
 
-    async def _update_record(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _update_record(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base_id = params.get("base_id")
         table_name = params.get("table_name")
         record_id = params.get("record_id")
@@ -129,16 +126,17 @@ class AirtableConnector(IConnector):
                 "update_record requires 'base_id', 'table_name', and 'record_id'",
             )
         r = await request_with_rate_limit(
-            client, "PATCH", f"{self._table_url(base_id, table_name)}/{record_id}",
-            headers=headers, json={"fields": fields},
+            client,
+            "PATCH",
+            f"{self._table_url(base_id, table_name)}/{record_id}",
+            headers=headers,
+            json={"fields": fields},
         )
         _raise_for_status(r, "update_record")
         data = r.json()
         return {"record_id": data.get("id"), "fields": data.get("fields", {})}
 
-    async def _delete_record(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _delete_record(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base_id = params.get("base_id")
         table_name = params.get("table_name")
         record_id = params.get("record_id")
@@ -148,7 +146,9 @@ class AirtableConnector(IConnector):
                 "delete_record requires 'base_id', 'table_name', and 'record_id'",
             )
         r = await request_with_rate_limit(
-            client, "DELETE", f"{self._table_url(base_id, table_name)}/{record_id}",
+            client,
+            "DELETE",
+            f"{self._table_url(base_id, table_name)}/{record_id}",
             headers=headers,
         )
         _raise_for_status(r, "delete_record")

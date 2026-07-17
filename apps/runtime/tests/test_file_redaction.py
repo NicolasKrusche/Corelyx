@@ -6,6 +6,7 @@ and every input with `PseudonymizationSession` before the model sees it. These
 tests pin that guarantee for the file-read result shape specifically, so a future
 change can't silently start leaking raw file contents into a prompt.
 """
+
 from engine.pii import PseudonymizationSession
 
 
@@ -15,10 +16,7 @@ def _file_read_result(content: str) -> dict:
 
 
 def test_file_content_pii_is_redacted_before_llm():
-    raw = (
-        "Invoice for max@firma.de, IBAN DE44 5001 0517 5407 3249 31, "
-        "card 4111 1111 1111 1111, phone +49 170 1234567"
-    )
+    raw = "Invoice for max@firma.de, IBAN DE44 5001 0517 5407 3249 31, card 4111 1111 1111 1111, phone +49 170 1234567"
     session = PseudonymizationSession()
     sanitized = session.sanitize_value(_file_read_result(raw))
     content = sanitized.value["result"]["content"]

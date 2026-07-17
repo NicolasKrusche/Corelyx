@@ -12,7 +12,7 @@ export interface PlanPricing {
   badge: string;
   /** Monthly price in EUR, billed monthly. */
   price: number;
-  /** Total price in EUR, billed once a year (price * 10, i.e. 2 months free). */
+  /** Total price in EUR billed once a year. */
   yearlyPrice: number;
   /** Effective monthly price in EUR when billed yearly (yearlyPrice / 12). */
   yearlyMonthly: number;

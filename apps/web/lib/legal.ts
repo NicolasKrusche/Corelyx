@@ -24,8 +24,7 @@ export const legalIdentity = {
     "The sole proprietor/responsible person identified in this Impressum",
   representative:
     readEnv("LEGAL_REPRESENTATIVE") ||
-    readEnv("LEGAL_RESPONSIBLE_PERSON") ||
-    "Responsible person not configured in public environment",
+    readEnv("LEGAL_RESPONSIBLE_PERSON"),
   addressLines: [
     readEnv("LEGAL_ADDRESS_LINE_1"),
     readEnv("LEGAL_ADDRESS_LINE_2"),

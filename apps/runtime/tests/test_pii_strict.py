@@ -37,17 +37,13 @@ class StrictModePersonNameTests(unittest.TestCase):
         self.assertEqual(out, "Escalate to Bob Mueller, cc Ada Lovelace.")
 
     def test_longest_name_wins_over_substring(self) -> None:
-        session = PseudonymizationSession(
-            name_detector=fake_detector(["Max", "Max Mustermann"])
-        )
+        session = PseudonymizationSession(name_detector=fake_detector(["Max", "Max Mustermann"]))
         result = session.sanitize_text("Max Mustermann and Max agreed.")
 
         # "Max Mustermann" must be replaced as a unit, the bare "Max" separately.
         self.assertNotIn("Mustermann", result.value)
         self.assertEqual(result.redactions.get("person"), 2)
-        self.assertEqual(
-            session.rehydrate_text(result.value), "Max Mustermann and Max agreed."
-        )
+        self.assertEqual(session.rehydrate_text(result.value), "Max Mustermann and Max agreed.")
 
     def test_word_boundaries_prevent_partial_replacement(self) -> None:
         session = PseudonymizationSession(name_detector=fake_detector(["Ann"]))

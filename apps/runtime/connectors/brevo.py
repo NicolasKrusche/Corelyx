@@ -1,4 +1,5 @@
 """Brevo (Sendinblue) native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,9 +50,7 @@ class BrevoConnector(IConnector):
                         f"Brevo does not support '{operation}'",
                     )
 
-    async def _send_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         to_email = params.get("to")
         sender_email = params.get("sender_email", params.get("from"))
         subject = params.get("subject", "")
@@ -64,25 +63,28 @@ class BrevoConnector(IConnector):
             "htmlContent": params.get("html", params.get("text", "")),
         }
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/smtp/email", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/smtp/email",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "send_email")
         return r.json()
 
-    async def _list_contacts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 50))
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/contacts", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/contacts",
+            headers=headers,
             params={"limit": limit},
         )
         _raise_for_status(r, "list_contacts")
         return {"contacts": r.json().get("contacts", [])}
 
-    async def _create_contact(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_contact(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         email = params.get("email")
         if not email:
             raise ConnectorError("MISSING_PARAM", "create_contact requires 'email'")
@@ -92,25 +94,28 @@ class BrevoConnector(IConnector):
         if params.get("list_ids"):
             body["listIds"] = params["list_ids"]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/contacts", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/contacts",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_contact")
         return r.json()
 
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         status = params.get("status", "sent")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/emailCampaigns", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/emailCampaigns",
+            headers=headers,
             params={"status": status},
         )
         _raise_for_status(r, "list_campaigns")
         return {"campaigns": r.json().get("campaigns", [])}
 
-    async def _send_sms(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_sms(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         sender = params.get("sender")
         recipient = params.get("recipient")
         content = params.get("content", "")
@@ -118,7 +123,11 @@ class BrevoConnector(IConnector):
             raise ConnectorError("MISSING_PARAM", "send_sms requires 'sender' and 'recipient'")
         body = {"sender": sender, "recipient": recipient, "content": content}
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/transactionalSMS/sms", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/transactionalSMS/sms",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "send_sms")
         return r.json()

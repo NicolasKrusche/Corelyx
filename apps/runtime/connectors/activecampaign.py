@@ -1,4 +1,5 @@
 """ActiveCampaign native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -53,21 +54,20 @@ class ActiveCampaignConnector(IConnector):
                         f"ActiveCampaign does not support '{operation}'",
                     )
 
-    async def _list_contacts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/contacts", headers=headers,
+            client,
+            "GET",
+            f"{base}/contacts",
+            headers=headers,
             params={"limit": limit},
         )
         _raise_for_status(r, "list_contacts")
         return {"contacts": r.json().get("contacts", [])}
 
-    async def _create_contact(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_contact(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         email = params.get("email")
         if not email:
@@ -77,14 +77,16 @@ class ActiveCampaignConnector(IConnector):
             if params.get(field):
                 contact[field] = params[field]
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/contacts", headers=headers, json={"contact": contact},
+            client,
+            "POST",
+            f"{base}/contacts",
+            headers=headers,
+            json={"contact": contact},
         )
         _raise_for_status(r, "create_contact")
         return r.json().get("contact", {})
 
-    async def _add_tag(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _add_tag(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         contact_id = params.get("contact_id")
         tag_id = params.get("tag_id")
@@ -92,24 +94,27 @@ class ActiveCampaignConnector(IConnector):
             raise ConnectorError("MISSING_PARAM", "add_tag requires 'contact_id' and 'tag_id'")
         body = {"contactTag": {"contact": contact_id, "tag": tag_id}}
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/contactTags", headers=headers, json=body,
+            client,
+            "POST",
+            f"{base}/contactTags",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "add_tag")
         return r.json().get("contactTag", {})
 
-    async def _list_automations(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_automations(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/automations", headers=headers,
+            client,
+            "GET",
+            f"{base}/automations",
+            headers=headers,
         )
         _raise_for_status(r, "list_automations")
         return {"automations": r.json().get("automations", [])}
 
-    async def _create_deal(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_deal(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         base = self._base(params)
         title = params.get("title")
         if not title:
@@ -119,7 +124,11 @@ class ActiveCampaignConnector(IConnector):
             if params.get(field) is not None:
                 deal[field] = params[field]
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/deals", headers=headers, json={"deal": deal},
+            client,
+            "POST",
+            f"{base}/deals",
+            headers=headers,
+            json={"deal": deal},
         )
         _raise_for_status(r, "create_deal")
         return r.json().get("deal", {})

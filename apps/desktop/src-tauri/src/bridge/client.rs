@@ -73,7 +73,9 @@ impl BridgeClient {
     pub async fn report_events(&self, events: &[WatchEvent]) -> Result<(), String> {
         let url = format!("{}/api/bridge/events", self.base_url);
         for chunk in events.chunks(MAX_EVENTS_PER_REQUEST) {
-            let body = EventsBody { events: chunk.to_vec() };
+            let body = EventsBody {
+                events: chunk.to_vec(),
+            };
             let resp = self
                 .http
                 .post(&url)

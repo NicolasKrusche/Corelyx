@@ -1,4 +1,5 @@
 """Shared HTTP rate-limit retry wrapper for connector API calls."""
+
 from __future__ import annotations
 
 import asyncio
@@ -82,4 +83,3 @@ async def request_with_rate_limit(
     if last_response is not None:
         return last_response
     raise RuntimeError("request_with_rate_limit did not perform a request")
-

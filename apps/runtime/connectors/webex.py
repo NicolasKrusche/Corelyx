@@ -1,4 +1,5 @@
 """Cisco Webex native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,14 +47,10 @@ class WebexConnector(IConnector):
                         f"Webex does not support operation '{operation}'",
                     )
 
-    async def _send_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         text = params.get("text", "")
         if not params.get("room_id") and not params.get("to_person_email"):
-            raise ConnectorError(
-                "MISSING_PARAM", "send_message requires 'room_id' or 'to_person_email'"
-            )
+            raise ConnectorError("MISSING_PARAM", "send_message requires 'room_id' or 'to_person_email'")
         body: dict[str, Any] = {"text": text}
         if params.get("room_id"):
             body["roomId"] = params["room_id"]
@@ -61,9 +58,7 @@ class WebexConnector(IConnector):
             body["toPersonEmail"] = params["to_person_email"]
         if params.get("markdown"):
             body["markdown"] = params["markdown"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/messages", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/messages", headers=headers, json=body)
         _raise_for_status(r, "send_message")
         data = r.json()
         return {
@@ -73,15 +68,11 @@ class WebexConnector(IConnector):
             "created": data.get("created"),
         }
 
-    async def _list_rooms(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_rooms(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {"max": int(params.get("max", 50))}
         if params.get("type"):
             query["type"] = params["type"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/rooms", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/rooms", headers=headers, params=query)
         _raise_for_status(r, "list_rooms")
         data = r.json()
         return {
@@ -96,18 +87,14 @@ class WebexConnector(IConnector):
             ]
         }
 
-    async def _create_room(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_room(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         title = params.get("title")
         if not title:
             raise ConnectorError("MISSING_PARAM", "create_room requires 'title'")
         body: dict[str, Any] = {"title": title}
         if params.get("team_id"):
             body["teamId"] = params["team_id"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/rooms", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/rooms", headers=headers, json=body)
         _raise_for_status(r, "create_room")
         data = r.json()
         return {
@@ -117,17 +104,13 @@ class WebexConnector(IConnector):
             "created": data.get("created"),
         }
 
-    async def _list_people(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_people(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {"max": int(params.get("max", 25))}
         if params.get("email"):
             query["email"] = params["email"]
         if params.get("display_name"):
             query["displayName"] = params["display_name"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/people", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/people", headers=headers, params=query)
         _raise_for_status(r, "list_people")
         data = r.json()
         return {

@@ -1,4 +1,5 @@
 """Firebase connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.firebase.com/v1"
 class FirebaseConnector(IConnector):
     """
     Firebase connector for: query_database, write_database.
-    
+
     API Base: firebase
     """
-    
+
     provider = "firebase"
-    supported_operations = [
-        "query_database",
-        "write_database"
-    ]
+    supported_operations = ["query_database", "write_database"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class FirebaseConnector(IConnector):
                         f"Firebase does not support '{operation}'",
                     )
 
-
-    async def _query_database(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_database(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute query_database operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/query_database",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/query_database",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _write_database(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _write_database(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute write_database operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/write_database",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/write_database",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

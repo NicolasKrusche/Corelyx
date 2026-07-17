@@ -89,7 +89,7 @@ function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8">
         <Link href="#top" className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/pictures/logo-no-bg.png" alt="Corelyx" className="h-6 w-6 object-contain" />
+          <img src="/pictures/logo-no-bg.png" alt="" aria-hidden="true" className="h-6 w-6 object-contain" />
           <span className="text-sm font-semibold text-white">Corelyx</span>
         </Link>
 
@@ -168,8 +168,10 @@ function SiteFooter() {
             &copy; {new Date().getFullYear()} {legalIdentity.entityName}. All rights reserved.
           </p>
           <p className="max-w-3xl text-xs leading-5 text-white/35">
-            Contracting entity: {legalIdentity.contractingEntity}. Responsible person:{" "}
-            {legalIdentity.representative}.{" "}
+            Contracting entity: {legalIdentity.contractingEntity}.{" "}
+            {legalIdentity.representative
+              ? `Responsible person: ${legalIdentity.representative}. `
+              : null}
             {legalIdentity.addressLines.length > 0
               ? `Registered address: ${legalIdentity.addressLines.join(", ")}.`
               : "Registered address: see Impressum."}{" "}

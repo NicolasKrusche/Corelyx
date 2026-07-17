@@ -1,4 +1,5 @@
 """New Relic connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.newrelic.com/v1"
 class NewrelicConnector(IConnector):
     """
     New Relic connector for: query_nrql, get_entity.
-    
+
     API Base: newrelic
     """
-    
+
     provider = "newrelic"
-    supported_operations = [
-        "query_nrql",
-        "get_entity"
-    ]
+    supported_operations = ["query_nrql", "get_entity"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class NewrelicConnector(IConnector):
                         f"New Relic does not support '{operation}'",
                     )
 
-
-    async def _query_nrql(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_nrql(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute query_nrql operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/query_nrql",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/query_nrql",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _get_entity(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_entity(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_entity operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_entity",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_entity",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

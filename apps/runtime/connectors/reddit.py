@@ -1,4 +1,5 @@
 """Reddit native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -48,9 +49,7 @@ class RedditConnector(IConnector):
                         f"Reddit does not support operation '{operation}'",
                     )
 
-    async def _submit_post(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _submit_post(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         subreddit = params.get("subreddit")
         title = params.get("title")
         if not subreddit or not title:
@@ -71,9 +70,7 @@ class RedditConnector(IConnector):
                 raise ConnectorError("MISSING_PARAM", "submit_post with kind='link' requires 'url'")
             form_data["url"] = url
         json_headers = {**headers, "Content-Type": "application/x-www-form-urlencoded"}
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/api/submit", headers=json_headers, data=form_data
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/api/submit", headers=json_headers, data=form_data)
         _raise_for_status(r, "submit_post")
         data = r.json()
         jquery = data.get("jquery", [])
@@ -85,11 +82,9 @@ class RedditConnector(IConnector):
                     if isinstance(val, str) and "reddit.com/r/" in val:
                         post_url = val
                         break
-        return {"post_url": post_url, "success": not data.get("success") is False}
+        return {"post_url": post_url, "success": data.get("success") is not False}
 
-    async def _get_subreddit_posts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_subreddit_posts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         subreddit = params.get("subreddit")
         if not subreddit:
             raise ConnectorError("MISSING_PARAM", "get_subreddit_posts requires 'subreddit'")
@@ -124,15 +119,11 @@ class RedditConnector(IConnector):
             "after": posts_data.get("after"),
         }
 
-    async def _get_comments(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_comments(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         post_id = params.get("post_id")
         subreddit = params.get("subreddit")
         if not post_id or not subreddit:
-            raise ConnectorError(
-                "MISSING_PARAM", "get_comments requires 'post_id' and 'subreddit'"
-            )
+            raise ConnectorError("MISSING_PARAM", "get_comments requires 'post_id' and 'subreddit'")
         get_headers = {**headers, "Content-Type": "application/json"}
         r = await request_with_rate_limit(
             client,
@@ -160,15 +151,11 @@ class RedditConnector(IConnector):
             }
         return {"comments": []}
 
-    async def _search_subreddit(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _search_subreddit(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         subreddit = params.get("subreddit")
         query_text = params.get("query")
         if not subreddit or not query_text:
-            raise ConnectorError(
-                "MISSING_PARAM", "search_subreddit requires 'subreddit' and 'query'"
-            )
+            raise ConnectorError("MISSING_PARAM", "search_subreddit requires 'subreddit' and 'query'")
         get_headers = {**headers, "Content-Type": "application/json"}
         query: dict[str, Any] = {
             "q": query_text,

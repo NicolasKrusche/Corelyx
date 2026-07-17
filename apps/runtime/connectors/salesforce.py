@@ -1,4 +1,5 @@
 """Salesforce native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -95,9 +96,7 @@ class SalesforceConnector(IConnector):
         record_id = params.get("record_id")
         if not object_type or not record_id:
             raise ConnectorError("MISSING_PARAM", "get_record requires 'object_type' and 'record_id'")
-        r = await request_with_rate_limit(
-            client, "GET", f"{base}/sobjects/{object_type}/{record_id}", headers=headers
-        )
+        r = await request_with_rate_limit(client, "GET", f"{base}/sobjects/{object_type}/{record_id}", headers=headers)
         _raise_for_status(r, "get_record")
         return {"record": r.json()}
 

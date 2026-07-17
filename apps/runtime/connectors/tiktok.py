@@ -1,4 +1,5 @@
 """TikTok for Business native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -43,12 +44,8 @@ class TiktokConnector(IConnector):
                         f"TikTok does not support operation '{operation}'",
                     )
 
-    async def _get_ad_accounts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/oauth2/advertiser/get/", headers=headers
-        )
+    async def _get_ad_accounts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/oauth2/advertiser/get/", headers=headers)
         _raise_for_status(r, "get_ad_accounts")
         data = r.json()
         if data.get("code") != 0:
@@ -60,9 +57,7 @@ class TiktokConnector(IConnector):
             "ad_accounts": data.get("data", {}).get("list", []),
         }
 
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         advertiser_id = params.get("advertiser_id")
         if not advertiser_id:
             raise ConnectorError("MISSING_PARAM", "list_campaigns requires 'advertiser_id'")
@@ -71,9 +66,7 @@ class TiktokConnector(IConnector):
             "page_size": int(params.get("page_size", 10)),
             "page": int(params.get("page", 1)),
         }
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/campaign/get/", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/campaign/get/", headers=headers, params=query)
         _raise_for_status(r, "list_campaigns")
         data = r.json()
         if data.get("code") != 0:
@@ -86,9 +79,7 @@ class TiktokConnector(IConnector):
             "total": data.get("data", {}).get("page_info", {}).get("total_number", 0),
         }
 
-    async def _get_campaign_stats(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_campaign_stats(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         advertiser_id = params.get("advertiser_id")
         if not advertiser_id:
             raise ConnectorError("MISSING_PARAM", "get_campaign_stats requires 'advertiser_id'")

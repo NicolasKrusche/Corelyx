@@ -1,4 +1,5 @@
 """Slack native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,9 +47,7 @@ class SlackConnector(IConnector):
                         f"Slack does not support operation '{operation}'",
                     )
 
-    async def _send_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         channel = params.get("channel")
         text = params.get("text", "")
         if not channel:
@@ -70,9 +69,7 @@ class SlackConnector(IConnector):
             "message": data.get("message", {}),
         }
 
-    async def _read_channel(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _read_channel(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         channel = params.get("channel")
         if not channel:
             raise ConnectorError("MISSING_PARAM", "read_channel requires 'channel'")
@@ -87,9 +84,7 @@ class SlackConnector(IConnector):
         data = _raise_for_status(r, "read_channel")
         return {"messages": data.get("messages", []), "has_more": data.get("has_more", False)}
 
-    async def _list_channels(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_channels(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 100))
         r = await request_with_rate_limit(
             client,
@@ -105,9 +100,7 @@ class SlackConnector(IConnector):
         ]
         return {"channels": channels}
 
-    async def _create_channel(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_channel(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         name = params.get("name")
         if not name:
             raise ConnectorError("MISSING_PARAM", "create_channel requires 'name'")

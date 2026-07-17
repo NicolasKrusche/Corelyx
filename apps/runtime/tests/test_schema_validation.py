@@ -82,9 +82,7 @@ class SchemaValidationTests(unittest.TestCase):
         self.assertEqual(config.approval_reason, "Sends email to external recipients.")
 
     def test_approval_gate_metadata_defaults_empty(self) -> None:
-        schema = parse_schema(
-            _schema_with_config("agent", {"model": "gpt-4o-mini"})
-        )
+        schema = parse_schema(_schema_with_config("agent", {"model": "gpt-4o-mini"}))
 
         config = schema.nodes[0].config
         self.assertEqual(config.approval_approver, "")

@@ -1,4 +1,5 @@
 """Ahrefs connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.ahrefs.com/v1"
 class AhrefsConnector(IConnector):
     """
     Ahrefs connector for: get_site_overview, get_backlinks.
-    
+
     API Base: ahrefs
     """
-    
+
     provider = "ahrefs"
-    supported_operations = [
-        "get_site_overview",
-        "get_backlinks"
-    ]
+    supported_operations = ["get_site_overview", "get_backlinks"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class AhrefsConnector(IConnector):
                         f"Ahrefs does not support '{operation}'",
                     )
 
-
-    async def _get_site_overview(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_site_overview(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_site_overview operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_site_overview",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_site_overview",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _get_backlinks(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_backlinks(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_backlinks operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_backlinks",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_backlinks",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

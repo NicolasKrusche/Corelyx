@@ -1,11 +1,9 @@
 """Parameterized batch tests for native connectors."""
+
 from __future__ import annotations
 
-import inspect
-import sys
 import types
 import unittest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from connectors import REGISTRY, get_connector, _discover_registry
@@ -47,9 +45,7 @@ def _fake_response(
 
 class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
     async def test_list_emails_success(self) -> None:
-        mock_resp = _fake_response(
-            {"messages": [{"id": "m1"}], "resultSizeEstimate": 1, "nextPageToken": "t1"}
-        )
+        mock_resp = _fake_response({"messages": [{"id": "m1"}], "resultSizeEstimate": 1, "nextPageToken": "t1"})
         with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             result = await GmailConnector().execute("list_emails", {"query": "subject:test", "max_results": 5}, "tok")
         self.assertEqual(result["emails"], [{"id": "m1"}])
@@ -64,22 +60,24 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
         self.assertIn("list_emails failed", str(ctx.exception))
 
     async def test_read_email_success(self) -> None:
-        mock_resp = _fake_response({
-            "id": "msg1",
-            "threadId": "t1",
-            "historyId": "h1",
-            "snippet": "snip",
-            "payload": {
-                "headers": [
-                    {"name": "Subject", "value": "Hello"},
-                    {"name": "From", "value": "a@b.com"},
-                    {"name": "To", "value": "c@d.com"},
-                ],
-                "mimeType": "text/plain",
-                "body": {"data": "SGVsbG8=", "size": 5},
-            },
-            "labelIds": ["INBOX"],
-        })
+        mock_resp = _fake_response(
+            {
+                "id": "msg1",
+                "threadId": "t1",
+                "historyId": "h1",
+                "snippet": "snip",
+                "payload": {
+                    "headers": [
+                        {"name": "Subject", "value": "Hello"},
+                        {"name": "From", "value": "a@b.com"},
+                        {"name": "To", "value": "c@d.com"},
+                    ],
+                    "mimeType": "text/plain",
+                    "body": {"data": "SGVsbG8=", "size": 5},
+                },
+                "labelIds": ["INBOX"],
+            }
+        )
         with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             result = await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
         self.assertEqual(result["message_id"], "msg1")
@@ -111,16 +109,20 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
                 }
             },
         )
-        success = _fake_response({
-            "id": "msg1",
-            "threadId": "t1",
-            "snippet": "snip",
-            "payload": {"mimeType": "text/plain", "body": {"data": "SGVsbG8=", "size": 5}},
-            "labelIds": ["INBOX"],
-        })
+        success = _fake_response(
+            {
+                "id": "msg1",
+                "threadId": "t1",
+                "snippet": "snip",
+                "payload": {"mimeType": "text/plain", "body": {"data": "SGVsbG8=", "size": 5}},
+                "labelIds": ["INBOX"],
+            }
+        )
         mock = AsyncMock(side_effect=[precondition, precondition, success])
-        with patch("connectors.gmail.request_with_rate_limit", new=mock), \
-                patch("connectors.gmail.asyncio.sleep", new=AsyncMock()):
+        with (
+            patch("connectors.gmail.request_with_rate_limit", new=mock),
+            patch("connectors.gmail.asyncio.sleep", new=AsyncMock()),
+        ):
             result = await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
         self.assertEqual(result["message_id"], "msg1")
         self.assertEqual(mock.await_count, 3)
@@ -130,8 +132,10 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
             status_code=400,
             json_data={"error": {"status": "FAILED_PRECONDITION", "message": "Precondition check failed."}},
         )
-        with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=precondition)), \
-                patch("connectors.gmail.asyncio.sleep", new=AsyncMock()):
+        with (
+            patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=precondition)),
+            patch("connectors.gmail.asyncio.sleep", new=AsyncMock()),
+        ):
             with self.assertRaises(ConnectorError) as ctx:
                 await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
         self.assertIn("read_email failed (400)", str(ctx.exception))
@@ -143,8 +147,10 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
             json_data={"error": {"status": "INVALID_ARGUMENT", "message": "Invalid id value"}},
         )
         mock = AsyncMock(return_value=bad)
-        with patch("connectors.gmail.request_with_rate_limit", new=mock), \
-                patch("connectors.gmail.asyncio.sleep", new=AsyncMock()):
+        with (
+            patch("connectors.gmail.request_with_rate_limit", new=mock),
+            patch("connectors.gmail.asyncio.sleep", new=AsyncMock()),
+        ):
             with self.assertRaises(ConnectorError):
                 await GmailConnector().execute("read_email", {"message_id": "msg1"}, "tok")
         self.assertEqual(mock.await_count, 1)
@@ -166,9 +172,7 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
         mock_resp = _fake_response(status_code=400, text="Bad Request")
         with patch("connectors.gmail.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             with self.assertRaises(ConnectorError) as ctx:
-                await GmailConnector().execute(
-                    "send_email", {"to": "x@y.com", "subject": "Hi", "body": "Hello"}, "tok"
-                )
+                await GmailConnector().execute("send_email", {"to": "x@y.com", "subject": "Hi", "body": "Hello"}, "tok")
         self.assertIn("send_email failed", str(ctx.exception))
 
     async def test_archive_email_success(self) -> None:
@@ -205,9 +209,7 @@ class TestGmailConnector(unittest.IsolatedAsyncioTestCase):
         mock_resp = _fake_response({})
         mock_call = AsyncMock(return_value=mock_resp)
         with patch("connectors.gmail.request_with_rate_limit", new=mock_call):
-            result = await GmailConnector().execute(
-                "delete_email", {"message_id": "msg1", "permanent": True}, "tok"
-            )
+            result = await GmailConnector().execute("delete_email", {"message_id": "msg1", "permanent": True}, "tok")
         self.assertTrue(result["deleted"])
         self.assertTrue(result["permanent"])
         method, url = mock_call.await_args.args[1], mock_call.await_args.args[2]
@@ -347,9 +349,7 @@ class TestGitHubConnector(unittest.IsolatedAsyncioTestCase):
     async def test_create_issue_success(self) -> None:
         mock_resp = _fake_response({"number": 42, "html_url": "https://github.com/o/r/issues/42", "title": "Bug"})
         with patch("connectors.github.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
-            result = await GitHubConnector().execute(
-                "create_issue", {"owner": "o", "repo": "r", "title": "Bug"}, "tok"
-            )
+            result = await GitHubConnector().execute("create_issue", {"owner": "o", "repo": "r", "title": "Bug"}, "tok")
         self.assertEqual(result["issue_number"], 42)
 
     async def test_create_issue_missing_param(self) -> None:
@@ -361,19 +361,24 @@ class TestGitHubConnector(unittest.IsolatedAsyncioTestCase):
         mock_resp = _fake_response(status_code=422, text="Validation Failed")
         with patch("connectors.github.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             with self.assertRaises(ConnectorError) as ctx:
-                await GitHubConnector().execute(
-                    "create_issue", {"owner": "o", "repo": "r", "title": "Bug"}, "tok"
-                )
+                await GitHubConnector().execute("create_issue", {"owner": "o", "repo": "r", "title": "Bug"}, "tok")
         self.assertEqual(ctx.exception.code, "GITHUB_API_ERROR")
 
     async def test_list_prs_success(self) -> None:
-        mock_resp = _fake_response([
-            {"number": 1, "title": "PR1", "state": "open", "html_url": "u", "user": {"login": "a"}, "created_at": "2024-01-01"}
-        ])
+        mock_resp = _fake_response(
+            [
+                {
+                    "number": 1,
+                    "title": "PR1",
+                    "state": "open",
+                    "html_url": "u",
+                    "user": {"login": "a"},
+                    "created_at": "2024-01-01",
+                }
+            ]
+        )
         with patch("connectors.github.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
-            result = await GitHubConnector().execute(
-                "list_prs", {"owner": "o", "repo": "r"}, "tok"
-            )
+            result = await GitHubConnector().execute("list_prs", {"owner": "o", "repo": "r"}, "tok")
         self.assertEqual(result["pull_requests"][0]["author"], "a")
 
     async def test_list_prs_missing_param(self) -> None:
@@ -549,7 +554,9 @@ class TestGoogleChatConnector(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_success(self) -> None:
         mock_resp = _fake_response({"name": "msg1", "space": {"name": "spaces/s1"}, "createTime": "t", "text": "hi"})
         with patch("connectors.googlechat.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
-            result = await GoogleChatConnector().execute("send_message", {"space_name": "spaces/s1", "text": "hi"}, "tok")
+            result = await GoogleChatConnector().execute(
+                "send_message", {"space_name": "spaces/s1", "text": "hi"}, "tok"
+            )
         self.assertEqual(result["space"], "spaces/s1")
 
     async def test_send_message_missing_param(self) -> None:
@@ -580,11 +587,13 @@ class TestGoogleChatConnector(unittest.IsolatedAsyncioTestCase):
 
 class TestTeamsConnector(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_success(self) -> None:
-        mock_resp = _fake_response({
-            "id": "m1",
-            "channelIdentity": {"channelId": "c1"},
-            "createdDateTime": "2024-01-01",
-        })
+        mock_resp = _fake_response(
+            {
+                "id": "m1",
+                "channelIdentity": {"channelId": "c1"},
+                "createdDateTime": "2024-01-01",
+            }
+        )
         with patch("connectors.teams.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             result = await TeamsConnector().execute(
                 "send_message", {"team_id": "t1", "channel_id": "c1", "content": "hi"}, "tok"
@@ -696,10 +705,12 @@ class TestWhatsAppConnector(unittest.IsolatedAsyncioTestCase):
 
 class TestCalendarConnector(unittest.IsolatedAsyncioTestCase):
     async def test_list_events_success(self) -> None:
-        mock_resp = _fake_response({
-            "items": [{"id": "e1", "summary": "Meeting", "start": {}, "end": {}, "status": "confirmed"}],
-            "nextPageToken": "t1",
-        })
+        mock_resp = _fake_response(
+            {
+                "items": [{"id": "e1", "summary": "Meeting", "start": {}, "end": {}, "status": "confirmed"}],
+                "nextPageToken": "t1",
+            }
+        )
         with patch("connectors.calendar.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             result = await CalendarConnector().execute("list_events", {"calendar_id": "primary"}, "tok")
         self.assertEqual(result["events"][0]["summary"], "Meeting")
@@ -716,7 +727,11 @@ class TestCalendarConnector(unittest.IsolatedAsyncioTestCase):
         with patch("connectors.calendar.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             result = await CalendarConnector().execute(
                 "create_event",
-                {"summary": "Meeting", "start": {"dateTime": "2024-01-01T10:00:00Z"}, "end": {"dateTime": "2024-01-01T11:00:00Z"}},
+                {
+                    "summary": "Meeting",
+                    "start": {"dateTime": "2024-01-01T10:00:00Z"},
+                    "end": {"dateTime": "2024-01-01T11:00:00Z"},
+                },
                 "tok",
             )
         self.assertEqual(result["id"], "e1")
@@ -732,7 +747,11 @@ class TestCalendarConnector(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ConnectorError) as ctx:
                 await CalendarConnector().execute(
                     "create_event",
-                    {"summary": "Meeting", "start": {"dateTime": "2024-01-01T10:00:00Z"}, "end": {"dateTime": "2024-01-01T11:00:00Z"}},
+                    {
+                        "summary": "Meeting",
+                        "start": {"dateTime": "2024-01-01T10:00:00Z"},
+                        "end": {"dateTime": "2024-01-01T11:00:00Z"},
+                    },
                     "tok",
                 )
         self.assertEqual(ctx.exception.code, "CALENDAR_HTTP_ERROR")
@@ -756,9 +775,7 @@ class TestSheetsConnector(unittest.IsolatedAsyncioTestCase):
         mock_resp = _fake_response(status_code=403, text="Forbidden")
         with patch("connectors.sheets.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             with self.assertRaises(ConnectorError) as ctx:
-                await SheetsConnector().execute(
-                    "read_range", {"spreadsheet_id": "s1", "range": "Sheet1!A1"}, "tok"
-                )
+                await SheetsConnector().execute("read_range", {"spreadsheet_id": "s1", "range": "Sheet1!A1"}, "tok")
         self.assertEqual(ctx.exception.code, "SHEETS_PERMISSION_DENIED")
 
     async def test_write_range_success(self) -> None:
@@ -786,12 +803,14 @@ class TestSheetsConnector(unittest.IsolatedAsyncioTestCase):
 
 class TestDocsConnector(unittest.IsolatedAsyncioTestCase):
     async def test_read_document_success(self) -> None:
-        mock_resp = _fake_response({
-            "documentId": "d1",
-            "title": "Doc",
-            "body": {"content": [{"paragraph": {"elements": [{"textRun": {"content": "Hello"}}]}}]},
-            "revisionId": "r1",
-        })
+        mock_resp = _fake_response(
+            {
+                "documentId": "d1",
+                "title": "Doc",
+                "body": {"content": [{"paragraph": {"elements": [{"textRun": {"content": "Hello"}}]}}]},
+                "revisionId": "r1",
+            }
+        )
         with patch("connectors.docs.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
             result = await DocsConnector().execute("read_document", {"document_id": "d1"}, "tok")
         self.assertEqual(result["title"], "Doc")
