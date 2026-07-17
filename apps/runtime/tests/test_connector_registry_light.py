@@ -1,4 +1,5 @@
 """Lightweight registry-wide connector tests (no I/O)."""
+
 from __future__ import annotations
 
 import re
@@ -11,6 +12,7 @@ from connectors.base import ConnectorError, IConnector
 
 # Dynamically build a lightweight test class for every registered connector.
 for _provider, _cls in sorted(REGISTRY.items()):
+
     def _make_test_class(cls, provider):
         class _TestConnector(unittest.TestCase):
             def test_instantiate(self) -> None:
@@ -29,6 +31,7 @@ for _provider, _cls in sorted(REGISTRY.items()):
                 inst = cls()
                 import asyncio
                 from unittest.mock import AsyncMock, MagicMock, patch
+
                 # Some connectors (e.g., jira) make pre-flight HTTP calls before the
                 # operation match block. Mock request_with_rate_limit so those checks
                 # don't hit the network while still asserting unsupported ops raise.
@@ -81,14 +84,12 @@ class TestRegistryMeta(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[3]
         prompt_path = repo_root / "apps" / "web" / "lib" / "genesis" / "prompt.ts"
         prompt = prompt_path.read_text(encoding="utf-8")
-        body = prompt.split(
-            "const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {", 1
-        )[1].split("\n};", 1)[0]
+        body = prompt.split("const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {", 1)[1].split("\n};", 1)[0]
         matches = list(re.finditer(r"^  ([a-z][a-z0-9_]*): \{", body, re.M))
         chunks: dict[str, str] = {}
         for index, match in enumerate(matches):
             end = matches[index + 1].start() if index + 1 < len(matches) else len(body)
-            chunks[match.group(1)] = body[match.start():end]
+            chunks[match.group(1)] = body[match.start() : end]
 
         self.assertEqual(set(REGISTRY), set(chunks))
 
@@ -108,9 +109,9 @@ class TestRegistryMeta(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[3]
         catalog_path = repo_root / "apps" / "web" / "lib" / "connectors" / "catalog.ts"
         catalog = catalog_path.read_text(encoding="utf-8")
-        body = catalog.split(
-            "export const CONNECTOR_OPERATIONS: Record<string, string[]> = {", 1
-        )[1].split("\n};", 1)[0]
+        body = catalog.split("export const CONNECTOR_OPERATIONS: Record<string, string[]> = {", 1)[1].split("\n};", 1)[
+            0
+        ]
 
         for match in re.finditer(r"^  ([a-z][a-z0-9_]*): \[([^\]]*)\]", body, re.M):
             provider = match.group(1)

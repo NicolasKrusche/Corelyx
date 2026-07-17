@@ -1,4 +1,5 @@
 """Supabase connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.supabase.com/v1"
 class SupabaseConnector(IConnector):
     """
     Supabase connector for: query_table, insert_record.
-    
+
     API Base: supabase
     """
-    
+
     provider = "supabase"
-    supported_operations = [
-        "query_table",
-        "insert_record"
-    ]
+    supported_operations = ["query_table", "insert_record"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class SupabaseConnector(IConnector):
                         f"Supabase does not support '{operation}'",
                     )
 
-
-    async def _query_table(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_table(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute query_table operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/query_table",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/query_table",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _insert_record(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _insert_record(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute insert_record operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/insert_record",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/insert_record",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

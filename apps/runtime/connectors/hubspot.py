@@ -1,4 +1,5 @@
 """HubSpot native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -55,13 +56,13 @@ class HubSpotConnector(IConnector):
                         f"HubSpot does not support operation '{operation}'",
                     )
 
-    async def _list_contacts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         props = params.get("properties", ["firstname", "lastname", "email", "phone"])
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/crm/v3/objects/contacts",
+            client,
+            "GET",
+            f"{_BASE}/crm/v3/objects/contacts",
             headers=headers,
             params={"limit": limit, "properties": ",".join(props)},
         )
@@ -72,25 +73,23 @@ class HubSpotConnector(IConnector):
             "paging": data.get("paging"),
         }
 
-    async def _get_contact(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_contact(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         contact_id = params.get("contact_id")
         email = params.get("email")
         if not contact_id and not email:
-            raise ConnectorError(
-                "MISSING_PARAM", "get_contact requires 'contact_id' or 'email'"
-            )
+            raise ConnectorError("MISSING_PARAM", "get_contact requires 'contact_id' or 'email'")
         if email and not contact_id:
             r = await request_with_rate_limit(
-                client, "GET",
+                client,
+                "GET",
                 f"{_BASE}/crm/v3/objects/contacts/{email}",
                 headers=headers,
                 params={"idProperty": "email", "properties": "firstname,lastname,email,phone,company"},
             )
         else:
             r = await request_with_rate_limit(
-                client, "GET",
+                client,
+                "GET",
                 f"{_BASE}/crm/v3/objects/contacts/{contact_id}",
                 headers=headers,
                 params={"properties": "firstname,lastname,email,phone,company"},
@@ -98,9 +97,7 @@ class HubSpotConnector(IConnector):
         _raise_for_status(r, "get_contact")
         return _flatten_hs_object(r.json())
 
-    async def _create_contact(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_contact(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         email = params.get("email")
         if not email:
             raise ConnectorError("MISSING_PARAM", "create_contact requires 'email'")
@@ -109,15 +106,16 @@ class HubSpotConnector(IConnector):
             if params.get(field):
                 properties[field] = str(params[field])
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/crm/v3/objects/contacts",
-            headers=headers, json={"properties": properties},
+            client,
+            "POST",
+            f"{_BASE}/crm/v3/objects/contacts",
+            headers=headers,
+            json={"properties": properties},
         )
         _raise_for_status(r, "create_contact")
         return _flatten_hs_object(r.json())
 
-    async def _update_contact(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _update_contact(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         contact_id = params.get("contact_id")
         if not contact_id:
             raise ConnectorError("MISSING_PARAM", "update_contact requires 'contact_id'")
@@ -126,19 +124,22 @@ class HubSpotConnector(IConnector):
             if params.get(field) is not None:
                 properties[field] = str(params[field])
         r = await request_with_rate_limit(
-            client, "PATCH", f"{_BASE}/crm/v3/objects/contacts/{contact_id}",
-            headers=headers, json={"properties": properties},
+            client,
+            "PATCH",
+            f"{_BASE}/crm/v3/objects/contacts/{contact_id}",
+            headers=headers,
+            json={"properties": properties},
         )
         _raise_for_status(r, "update_contact")
         return _flatten_hs_object(r.json())
 
-    async def _list_deals(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_deals(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         props = params.get("properties", ["dealname", "amount", "dealstage", "closedate"])
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/crm/v3/objects/deals",
+            client,
+            "GET",
+            f"{_BASE}/crm/v3/objects/deals",
             headers=headers,
             params={"limit": limit, "properties": ",".join(props)},
         )
@@ -149,9 +150,7 @@ class HubSpotConnector(IConnector):
             "paging": data.get("paging"),
         }
 
-    async def _create_deal(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_deal(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         deal_name = params.get("deal_name")
         if not deal_name:
             raise ConnectorError("MISSING_PARAM", "create_deal requires 'deal_name'")
@@ -160,15 +159,16 @@ class HubSpotConnector(IConnector):
             if params.get(field) is not None:
                 properties[field] = str(params[field])
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/crm/v3/objects/deals",
-            headers=headers, json={"properties": properties},
+            client,
+            "POST",
+            f"{_BASE}/crm/v3/objects/deals",
+            headers=headers,
+            json={"properties": properties},
         )
         _raise_for_status(r, "create_deal")
         return _flatten_hs_object(r.json())
 
-    async def _update_deal(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _update_deal(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         deal_id = params.get("deal_id")
         if not deal_id:
             raise ConnectorError("MISSING_PARAM", "update_deal requires 'deal_id'")
@@ -178,8 +178,11 @@ class HubSpotConnector(IConnector):
                 key = "dealname" if field == "deal_name" else field
                 properties[key] = str(params[field])
         r = await request_with_rate_limit(
-            client, "PATCH", f"{_BASE}/crm/v3/objects/deals/{deal_id}",
-            headers=headers, json={"properties": properties},
+            client,
+            "PATCH",
+            f"{_BASE}/crm/v3/objects/deals/{deal_id}",
+            headers=headers,
+            json={"properties": properties},
         )
         _raise_for_status(r, "update_deal")
         return _flatten_hs_object(r.json())

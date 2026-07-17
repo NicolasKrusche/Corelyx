@@ -1,4 +1,5 @@
 """YouTube native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,9 +47,7 @@ class YoutubeConnector(IConnector):
                         f"YouTube does not support operation '{operation}'",
                     )
 
-    async def _list_videos(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_videos(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {
             "part": params.get("part", "snippet,contentDetails,statistics"),
             "maxResults": int(params.get("max_results", 10)),
@@ -56,9 +55,7 @@ class YoutubeConnector(IConnector):
         }
         if params.get("channel_id"):
             query["channelId"] = params["channel_id"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/videos", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/videos", headers=headers, params=query)
         _raise_for_status(r, "list_videos")
         data = r.json()
         return {
@@ -74,9 +71,7 @@ class YoutubeConnector(IConnector):
             "next_page_token": data.get("nextPageToken"),
         }
 
-    async def _get_video(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_video(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         video_id = params.get("video_id")
         if not video_id:
             raise ConnectorError("MISSING_PARAM", "get_video requires 'video_id'")
@@ -84,9 +79,7 @@ class YoutubeConnector(IConnector):
             "part": params.get("part", "snippet,contentDetails,statistics"),
             "id": video_id,
         }
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/videos", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/videos", headers=headers, params=query)
         _raise_for_status(r, "get_video")
         data = r.json()
         items = data.get("items", [])
@@ -102,9 +95,7 @@ class YoutubeConnector(IConnector):
             "statistics": item.get("statistics", {}),
         }
 
-    async def _list_channels(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_channels(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {
             "part": "snippet,statistics",
             "mine": True,
@@ -112,9 +103,7 @@ class YoutubeConnector(IConnector):
         if params.get("channel_id"):
             del query["mine"]
             query["id"] = params["channel_id"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/channels", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/channels", headers=headers, params=query)
         _raise_for_status(r, "list_channels")
         data = r.json()
         return {
@@ -129,9 +118,7 @@ class YoutubeConnector(IConnector):
             ]
         }
 
-    async def _get_channel_analytics(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_channel_analytics(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         # Uses YouTube Analytics API
         analytics_base = "https://youtubeanalytics.googleapis.com/v2"
         query: dict[str, Any] = {
@@ -141,9 +128,7 @@ class YoutubeConnector(IConnector):
             "endDate": params.get("end_date", "2024-12-31"),
             "dimensions": params.get("dimensions", "day"),
         }
-        r = await request_with_rate_limit(
-            client, "GET", f"{analytics_base}/reports", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{analytics_base}/reports", headers=headers, params=query)
         _raise_for_status(r, "get_channel_analytics")
         data = r.json()
         return {

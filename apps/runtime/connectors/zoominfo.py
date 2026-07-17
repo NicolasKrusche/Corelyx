@@ -1,4 +1,5 @@
 """ZoomInfo native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -40,31 +41,38 @@ class ZoomInfoConnector(IConnector):
                         f"ZoomInfo does not support operation '{operation}'",
                     )
 
-    async def _search_contacts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
-        # Placeholder - ZoomInfo API for searching contacts
+    async def _search_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query = params.get("query", "")
         if not query:
             raise ConnectorError("MISSING_PARAM", "search_contacts requires 'query'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/search/contact",
+            client,
+            "POST",
+            f"{_BASE}/search/contact",
             headers=headers,
-            params={"q": query, "page": params.get("page", 1)},
+            json={
+                "personName": query,
+                "page": params.get("page", 1),
+                "rpp": params.get("per_page", 25),
+            },
         )
         _raise_for_status(r, "search_contacts")
         return r.json()
 
-    async def _get_company_intelligence(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_company_intelligence(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         company_name = params.get("company_name")
         if not company_name:
             raise ConnectorError("MISSING_PARAM", "get_company_intelligence requires 'company_name'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/lookup/company",
+            client,
+            "POST",
+            f"{_BASE}/search/company",
             headers=headers,
-            params={"name": company_name},
+            json={
+                "companyName": company_name,
+                "page": params.get("page", 1),
+                "rpp": params.get("per_page", 10),
+            },
         )
         _raise_for_status(r, "get_company_intelligence")
         return r.json()

@@ -1,4 +1,5 @@
 """Lusha connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.lusha.com/v1"
 class LushaConnector(IConnector):
     """
     Lusha connector for: enrich_lead, verify_email.
-    
+
     API Base: lusha
     """
-    
+
     provider = "lusha"
-    supported_operations = [
-        "enrich_lead",
-        "verify_email"
-    ]
+    supported_operations = ["enrich_lead", "verify_email"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class LushaConnector(IConnector):
                         f"Lusha does not support '{operation}'",
                     )
 
-
-    async def _enrich_lead(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _enrich_lead(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute enrich_lead operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/enrich_lead",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/enrich_lead",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _verify_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _verify_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute verify_email operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/verify_email",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/verify_email",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

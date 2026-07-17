@@ -114,7 +114,7 @@ function BillingToggle({
       <button
         type="button"
         onClick={() => onChange(true)}
-        aria-label="Yearly (2 months free)"
+        aria-label="Yearly (save up to 30%)"
         className={cn(
           "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
           isYearly
@@ -127,7 +127,7 @@ function BillingToggle({
           aria-hidden="true"
           className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold leading-none text-primary"
         >
-          2 months free
+          save up to 30%
         </span>
       </button>
     </div>
@@ -137,6 +137,9 @@ function BillingToggle({
 function PlanCard({ plan, isYearly }: { plan: Plan; isYearly: boolean }) {
   const Icon = plan.icon;
   const displayPrice = isYearly ? eur(plan.yearlyMonthly) : eur(plan.price);
+  const buttonText = plan.buttonText.startsWith("Start for ")
+    ? `Start for ${displayPrice}`
+    : plan.buttonText;
 
   return (
     <div
@@ -184,7 +187,7 @@ function PlanCard({ plan, isYearly }: { plan: Plan; isYearly: boolean }) {
         variant={plan.popular ? "default" : "outline"}
         className={cn("mt-5 w-full rounded-lg", plan.popular && "shadow-[0_0_28px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.55)]")}
       >
-        <Link href={plan.href}>{plan.buttonText}</Link>
+        <Link href={plan.href}>{buttonText}</Link>
       </Button>
 
       <ul className="mt-6 space-y-2.5 border-t border-border/60 pt-5">

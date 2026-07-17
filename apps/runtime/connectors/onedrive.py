@@ -1,4 +1,5 @@
 """OneDrive connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.onedrive.com/v1"
 class OnedriveConnector(IConnector):
     """
     OneDrive connector for: list_files, upload_file.
-    
+
     API Base: onedrive
     """
-    
+
     provider = "onedrive"
-    supported_operations = [
-        "list_files",
-        "upload_file"
-    ]
+    supported_operations = ["list_files", "upload_file"]
 
     async def execute(
         self,
@@ -47,10 +45,7 @@ class OnedriveConnector(IConnector):
                         f"OneDrive does not support '{operation}'",
                     )
 
-
-    async def _list_files(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_files(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_files operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -58,29 +53,33 @@ class OnedriveConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/files", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/files",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),
             "total": data.get("total", 0),
         }
 
-    async def _upload_file(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _upload_file(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute upload_file operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/upload_file",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/upload_file",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

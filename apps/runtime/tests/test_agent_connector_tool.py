@@ -1,4 +1,5 @@
 """Tests for the runtime-native corelyx.call_connector agent tool."""
+
 from __future__ import annotations
 
 import unittest
@@ -6,7 +7,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from engine.executor import _connector_op_is_write
 from tests.test_comprehensive_nodes_and_connections import _executor, _node, _program
-from schema import OAuthConnectionConfig
 
 
 def _agent_executor():
@@ -22,8 +22,16 @@ def _agent_executor():
 
 class ConnectorOpClassifierTests(unittest.TestCase):
     def test_read_prefixes_are_reads(self):
-        for op in ["get_thread", "list_channels", "search_messages", "fetch_user",
-                   "find_contact", "query_events", "retrieve_file", "check_status"]:
+        for op in [
+            "get_thread",
+            "list_channels",
+            "search_messages",
+            "fetch_user",
+            "find_contact",
+            "query_events",
+            "retrieve_file",
+            "check_status",
+        ]:
             self.assertFalse(_connector_op_is_write(op), op)
 
     def test_other_ops_are_writes(self):
@@ -122,7 +130,8 @@ class ConnectorToolDryRunTests(unittest.IsolatedAsyncioTestCase):
         with patch("engine.executor.get_connector", return_value=connector):
             res = await ex._execute_agent_connector_tool(
                 {"connection": "slack:main", "operation": "send_message", "params": {"text": "hi"}},
-                "a1", "write",
+                "a1",
+                "write",
             )
         self.assertTrue(res["ok"])
         self.assertTrue(res["simulated"])
@@ -173,7 +182,8 @@ class ConnectorToolExecutionTests(unittest.IsolatedAsyncioTestCase):
         with patch("engine.executor.get_connector", return_value=connector):
             res = await ex._execute_agent_connector_tool(
                 {"connection": "slack:main", "operation": "send_message", "params": {"text": "hi"}},
-                "a1", "read_write",
+                "a1",
+                "read_write",
             )
         self.assertTrue(res["ok"])
         self.assertEqual(res["result"], {"ts": "123"})
@@ -181,6 +191,7 @@ class ConnectorToolExecutionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_connector_error_surfaced(self):
         from connectors.base import ConnectorError
+
         ex = _agent_executor()
         connector = Mock()
         connector.supported_operations = ["send_message"]

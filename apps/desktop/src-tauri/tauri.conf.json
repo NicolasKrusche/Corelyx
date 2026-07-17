@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self' https://corelyx.app https://www.corelyx.app; connect-src 'self' ipc: http://ipc.localhost https://corelyx.app https://www.corelyx.app wss://corelyx.app wss://www.corelyx.app; img-src 'self' asset: http://asset.localhost https: data: blob:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https://corelyx.app https://www.corelyx.app; font-src 'self' https: data:; frame-src https://corelyx.app https://www.corelyx.app",
       "capabilities": ["main-capability"]
     }
   },

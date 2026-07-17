@@ -1,4 +1,5 @@
 """Amplitude connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.amplitude.com/v1"
 class AmplitudeConnector(IConnector):
     """
     Amplitude connector for: get_event_segmentation, list_users.
-    
+
     API Base: amplitude
     """
-    
+
     provider = "amplitude"
-    supported_operations = [
-        "get_event_segmentation",
-        "list_users"
-    ]
+    supported_operations = ["get_event_segmentation", "list_users"]
 
     async def execute(
         self,
@@ -47,23 +45,21 @@ class AmplitudeConnector(IConnector):
                         f"Amplitude does not support '{operation}'",
                     )
 
-
-    async def _get_event_segmentation(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_event_segmentation(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_event_segmentation operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_event_segmentation",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_event_segmentation",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _list_users(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_users(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_users operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -71,14 +67,17 @@ class AmplitudeConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/users", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/users",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),

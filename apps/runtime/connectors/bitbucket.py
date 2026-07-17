@@ -1,4 +1,5 @@
 """Bitbucket native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -49,9 +50,7 @@ class BitbucketConnector(IConnector):
                         f"Bitbucket does not support '{operation}'",
                     )
 
-    async def _list_repos(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_repos(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         workspace = params.get("workspace")
         if not workspace:
             raise ConnectorError("MISSING_PARAM", "list_repos requires 'workspace'")
@@ -77,9 +76,7 @@ class BitbucketConnector(IConnector):
             ]
         }
 
-    async def _list_pull_requests(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_pull_requests(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         workspace = params.get("workspace")
         repo_slug = params.get("repo_slug")
         if not workspace or not repo_slug:
@@ -113,9 +110,7 @@ class BitbucketConnector(IConnector):
             ]
         }
 
-    async def _create_pull_request(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_pull_request(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         workspace = params.get("workspace")
         repo_slug = params.get("repo_slug")
         title = params.get("title")
@@ -149,15 +144,11 @@ class BitbucketConnector(IConnector):
             "url": result["links"]["html"]["href"],
         }
 
-    async def _list_issues(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_issues(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         workspace = params.get("workspace")
         repo_slug = params.get("repo_slug")
         if not workspace or not repo_slug:
-            raise ConnectorError(
-                "MISSING_PARAM", "list_issues requires 'workspace' and 'repo_slug'"
-            )
+            raise ConnectorError("MISSING_PARAM", "list_issues requires 'workspace' and 'repo_slug'")
         r = await request_with_rate_limit(
             client,
             "GET",
@@ -180,9 +171,7 @@ class BitbucketConnector(IConnector):
             ]
         }
 
-    async def _create_issue(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_issue(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         workspace = params.get("workspace")
         repo_slug = params.get("repo_slug")
         title = params.get("title")

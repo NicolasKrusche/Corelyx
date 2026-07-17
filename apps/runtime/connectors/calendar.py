@@ -1,4 +1,5 @@
 """Google Calendar native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,9 +47,7 @@ class CalendarConnector(IConnector):
                         f"Google Calendar does not support operation '{operation}'",
                     )
 
-    async def _list_events(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_events(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         calendar_id = params.get("calendar_id", "primary")
         query: dict[str, Any] = {"maxResults": int(params.get("max_results", 25))}
         if params.get("time_min"):
@@ -60,8 +59,11 @@ class CalendarConnector(IConnector):
         query["singleEvents"] = "true"
         query["orderBy"] = "startTime"
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/calendars/{calendar_id}/events",
-            headers=headers, params=query,
+            client,
+            "GET",
+            f"{_BASE}/calendars/{calendar_id}/events",
+            headers=headers,
+            params=query,
         )
         _raise_for_status(r, "list_events")
         data = r.json()
@@ -78,15 +80,15 @@ class CalendarConnector(IConnector):
         ]
         return {"events": events, "next_page_token": data.get("nextPageToken")}
 
-    async def _get_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         event_id = params.get("event_id")
         calendar_id = params.get("calendar_id", "primary")
         if not event_id:
             raise ConnectorError("MISSING_PARAM", "get_event requires 'event_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/calendars/{calendar_id}/events/{event_id}",
+            client,
+            "GET",
+            f"{_BASE}/calendars/{calendar_id}/events/{event_id}",
             headers=headers,
         )
         _raise_for_status(r, "get_event")
@@ -103,16 +105,12 @@ class CalendarConnector(IConnector):
             "html_link": e.get("htmlLink"),
         }
 
-    async def _create_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         summary = params.get("summary")
         start = params.get("start")
         end = params.get("end")
         if not summary or not start or not end:
-            raise ConnectorError(
-                "MISSING_PARAM", "create_event requires 'summary', 'start', and 'end'"
-            )
+            raise ConnectorError("MISSING_PARAM", "create_event requires 'summary', 'start', and 'end'")
         calendar_id = params.get("calendar_id", "primary")
         body: dict[str, Any] = {"summary": summary, "start": start, "end": end}
         if params.get("description"):
@@ -122,7 +120,9 @@ class CalendarConnector(IConnector):
         if params.get("attendees"):
             body["attendees"] = [{"email": a} for a in params["attendees"]]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/calendars/{calendar_id}/events",
+            client,
+            "POST",
+            f"{_BASE}/calendars/{calendar_id}/events",
             headers={**headers, "Content-Type": "application/json"},
             json=body,
         )
@@ -130,9 +130,7 @@ class CalendarConnector(IConnector):
         e = r.json()
         return {"id": e.get("id"), "html_link": e.get("htmlLink"), "status": e.get("status")}
 
-    async def _update_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _update_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         event_id = params.get("event_id")
         calendar_id = params.get("calendar_id", "primary")
         if not event_id:
@@ -144,7 +142,9 @@ class CalendarConnector(IConnector):
         if params.get("attendees"):
             body["attendees"] = [{"email": a} for a in params["attendees"]]
         r = await request_with_rate_limit(
-            client, "PATCH", f"{_BASE}/calendars/{calendar_id}/events/{event_id}",
+            client,
+            "PATCH",
+            f"{_BASE}/calendars/{calendar_id}/events/{event_id}",
             headers={**headers, "Content-Type": "application/json"},
             json=body,
         )
@@ -152,15 +152,15 @@ class CalendarConnector(IConnector):
         e = r.json()
         return {"id": e.get("id"), "html_link": e.get("htmlLink"), "status": e.get("status")}
 
-    async def _delete_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _delete_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         event_id = params.get("event_id")
         calendar_id = params.get("calendar_id", "primary")
         if not event_id:
             raise ConnectorError("MISSING_PARAM", "delete_event requires 'event_id'")
         r = await request_with_rate_limit(
-            client, "DELETE", f"{_BASE}/calendars/{calendar_id}/events/{event_id}",
+            client,
+            "DELETE",
+            f"{_BASE}/calendars/{calendar_id}/events/{event_id}",
             headers=headers,
         )
         if r.status_code not in (200, 204):

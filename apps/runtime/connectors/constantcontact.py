@@ -1,4 +1,5 @@
 """Constant Contact native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,20 +47,19 @@ class ConstantContactConnector(IConnector):
                         f"Constant Contact does not support '{operation}'",
                     )
 
-    async def _list_contacts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 500))
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/contacts", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/contacts",
+            headers=headers,
             params={"limit": limit},
         )
         _raise_for_status(r, "list_contacts")
         return {"contacts": r.json().get("contacts", [])}
 
-    async def _create_contact(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_contact(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         email = params.get("email")
         if not email:
             raise ConnectorError("MISSING_PARAM", "create_contact requires 'email'")
@@ -74,23 +74,26 @@ class ConstantContactConnector(IConnector):
         if params.get("list_memberships"):
             body["list_memberships"] = params["list_memberships"]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/contacts", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/contacts",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_contact")
         return r.json()
 
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/emails", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/emails",
+            headers=headers,
         )
         _raise_for_status(r, "list_campaigns")
         return {"campaigns": r.json().get("campaigns", [])}
 
-    async def _create_campaign(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_campaign(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         name = params.get("name")
         subject = params.get("subject", "")
         if not name:
@@ -109,7 +112,11 @@ class ConstantContactConnector(IConnector):
             ],
         }
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/emails", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/emails",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_campaign")
         return r.json()

@@ -1,4 +1,5 @@
 """Google Analytics connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.googleanalytics.com/v1"
 class GoogleanalyticsConnector(IConnector):
     """
     Google Analytics connector for: query_report, get_metrics.
-    
+
     API Base: googleanalytics
     """
-    
+
     provider = "googleanalytics"
-    supported_operations = [
-        "query_report",
-        "get_metrics"
-    ]
+    supported_operations = ["query_report", "get_metrics"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class GoogleanalyticsConnector(IConnector):
                         f"Google Analytics does not support '{operation}'",
                     )
 
-
-    async def _query_report(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_report(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute query_report operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/query_report",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/query_report",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _get_metrics(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_metrics(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_metrics operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_metrics",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_metrics",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

@@ -76,6 +76,8 @@ function hasAnyAuth(source: string): boolean {
     /verifyHmac\s*\(/,
     /timingSafeEqual\s*\(/,
     /verifyWebhookSignature\s*\(/,
+    /verifyTypeformSignature\s*\(/,
+    /verifyHubSpotV1Signature\s*\(/,
     /WEBHOOK_SIGNATURE_HEADER/,
     // Stripe
     /stripe\.webhooks\.constructEvent/,
@@ -151,7 +153,7 @@ function hasTenantScoping(source: string): boolean {
     /webhook[_-]?secret/i,
     /x-hub-signature/i,
     /x-slack-signature/i,
-    /x-typeform-signature/i,
+    /(?:x-)?typeform-signature/i,
     /x-hubspot-signature/i,
     /x-asana-hook-secret/i,
     /x-goog-channel-(?:id|token)|x-goog-resource-id/i,

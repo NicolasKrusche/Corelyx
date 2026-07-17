@@ -1,4 +1,5 @@
 """Tests for #3 web_fetch and #4 capability scoping on agents."""
+
 from __future__ import annotations
 
 import unittest
@@ -28,6 +29,7 @@ def _resp(status=200, text="hello", headers=None):
 
 # ─── #3 web_fetch ─────────────────────────────────────────────────────────────
 
+
 class WebFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_requires_url(self):
         ex = _agent_executor()
@@ -49,12 +51,16 @@ class WebFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_fetches_and_strips_html(self):
         ex = _agent_executor()
         client = Mock()
-        client.request = AsyncMock(return_value=_resp(
-            text="<html><head><style>x{}</style></head><body><h1>Hi</h1><p>There</p></body></html>",
-            headers={"content-type": "text/html; charset=utf-8"},
-        ))
-        with patch("engine.executor._validate_outbound_url", return_value=None), \
-             patch("engine.executor._get_llm_client", return_value=client):
+        client.request = AsyncMock(
+            return_value=_resp(
+                text="<html><head><style>x{}</style></head><body><h1>Hi</h1><p>There</p></body></html>",
+                headers={"content-type": "text/html; charset=utf-8"},
+            )
+        )
+        with (
+            patch("engine.executor._validate_outbound_url", return_value=None),
+            patch("engine.executor._get_llm_client", return_value=client),
+        ):
             res = await ex._execute_agent_web_fetch({"url": "https://example.com"})
         self.assertTrue(res["ok"])
         self.assertNotIn("<", res["result"]["content"])
@@ -64,13 +70,17 @@ class WebFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_follows_redirect_and_revalidates(self):
         ex = _agent_executor()
         client = Mock()
-        client.request = AsyncMock(side_effect=[
-            _resp(status=302, headers={"location": "https://example.com/final"}),
-            _resp(status=200, text="done", headers={"content-type": "text/plain"}),
-        ])
+        client.request = AsyncMock(
+            side_effect=[
+                _resp(status=302, headers={"location": "https://example.com/final"}),
+                _resp(status=200, text="done", headers={"content-type": "text/plain"}),
+            ]
+        )
         validate = Mock(return_value=None)
-        with patch("engine.executor._validate_outbound_url", validate), \
-             patch("engine.executor._get_llm_client", return_value=client):
+        with (
+            patch("engine.executor._validate_outbound_url", validate),
+            patch("engine.executor._get_llm_client", return_value=client),
+        ):
             res = await ex._execute_agent_web_fetch({"url": "https://example.com"})
         self.assertTrue(res["ok"])
         self.assertEqual(res["result"]["content"], "done")
@@ -80,8 +90,10 @@ class WebFetchTests(unittest.IsolatedAsyncioTestCase):
         ex = _agent_executor()
         client = Mock()
         client.request = AsyncMock(return_value=_resp(text="A" * 50000))
-        with patch("engine.executor._validate_outbound_url", return_value=None), \
-             patch("engine.executor._get_llm_client", return_value=client):
+        with (
+            patch("engine.executor._validate_outbound_url", return_value=None),
+            patch("engine.executor._get_llm_client", return_value=client),
+        ):
             res = await ex._execute_agent_web_fetch({"url": "https://example.com"})
         self.assertTrue(res["result"]["truncated"])
         self.assertEqual(len(res["result"]["content"]), 20000)
@@ -95,6 +107,7 @@ class StripHtmlTests(unittest.TestCase):
 
 
 # ─── #4 capability scoping ────────────────────────────────────────────────────
+
 
 class CapabilityScopeTests(unittest.IsolatedAsyncioTestCase):
     async def test_read_only_blocks_write_connector_op(self):

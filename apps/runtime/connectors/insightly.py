@@ -1,4 +1,5 @@
 """Insightly native connector."""
+
 from __future__ import annotations
 
 import base64
@@ -51,8 +52,7 @@ class InsightlyConnector(IConnector):
 
     async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/Contacts", headers=headers,
-            params={"top": int(params.get("limit", 50))}
+            client, "GET", f"{_BASE}/Contacts", headers=headers, params={"top": int(params.get("limit", 50))}
         )
         _raise_for_status(r, "list_contacts")
         return {"contacts": r.json()}
@@ -73,8 +73,7 @@ class InsightlyConnector(IConnector):
 
     async def _list_opportunities(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/Opportunities", headers=headers,
-            params={"top": int(params.get("limit", 50))}
+            client, "GET", f"{_BASE}/Opportunities", headers=headers, params={"top": int(params.get("limit", 50))}
         )
         _raise_for_status(r, "list_opportunities")
         return {"opportunities": r.json()}

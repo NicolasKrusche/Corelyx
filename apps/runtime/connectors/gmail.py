@@ -1,4 +1,5 @@
 """Gmail native connector."""
+
 from __future__ import annotations
 
 import asyncio
@@ -66,9 +67,7 @@ class GmailConnector(IConnector):
                         f"Gmail does not support operation '{operation}'",
                     )
 
-    async def _list_emails(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_emails(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query = str(params.get("query", ""))
         max_results = int(params.get("max_results", 10))
         r = await request_with_rate_limit(
@@ -88,9 +87,7 @@ class GmailConnector(IConnector):
             "next_page_token": data.get("nextPageToken"),
         }
 
-    async def _list_threads(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_threads(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query = str(params.get("query", ""))
         max_results = int(params.get("max_results", 10))
         r = await request_with_rate_limit(
@@ -110,9 +107,7 @@ class GmailConnector(IConnector):
             "next_page_token": data.get("nextPageToken"),
         }
 
-    async def _search(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _search(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query = str(params.get("query", "")).strip()
         # Empty query is valid — falls back to listing all messages (same as list_emails).
         return await self._list_emails(
@@ -124,9 +119,7 @@ class GmailConnector(IConnector):
             },
         )
 
-    async def _read_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _read_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         if not message_id:
             raise ConnectorError(
@@ -150,9 +143,7 @@ class GmailConnector(IConnector):
         body_text, body_html, attachments = _extract_text_and_attachments(payload, message_id)
 
         include_attachments = bool(params.get("include_attachments", False))
-        max_inline_bytes = int(
-            params.get("attachment_inline_max_bytes", _INLINE_ATTACHMENT_MAX_BYTES)
-        )
+        max_inline_bytes = int(params.get("attachment_inline_max_bytes", _INLINE_ATTACHMENT_MAX_BYTES))
 
         if include_attachments and attachments:
             for attachment in attachments:
@@ -160,9 +151,7 @@ class GmailConnector(IConnector):
                 if not attachment_id:
                     continue
                 try:
-                    content_bytes = await self._fetch_attachment_bytes(
-                        client, headers, message_id, str(attachment_id)
-                    )
+                    content_bytes = await self._fetch_attachment_bytes(client, headers, message_id, str(attachment_id))
                 except ConnectorError as exc:
                     attachment["fetch_error"] = exc.message
                     continue
@@ -193,9 +182,7 @@ class GmailConnector(IConnector):
             "attachment_count": len(attachments),
         }
 
-    async def _get_attachment(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_attachment(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         attachment_id = params.get("attachment_id")
         if not message_id or not attachment_id:
@@ -203,9 +190,7 @@ class GmailConnector(IConnector):
                 "MISSING_PARAM",
                 "get_attachment requires 'message_id' and 'attachment_id'",
             )
-        content_bytes = await self._fetch_attachment_bytes(
-            client, headers, str(message_id), str(attachment_id)
-        )
+        content_bytes = await self._fetch_attachment_bytes(client, headers, str(message_id), str(attachment_id))
         result = {
             "message_id": message_id,
             "attachment_id": attachment_id,
@@ -216,9 +201,7 @@ class GmailConnector(IConnector):
             result["text"] = content_bytes.decode("utf-8", errors="replace")
         return result
 
-    async def _send_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         to = params.get("to")
         subject = str(params.get("subject", ""))
         body = str(params.get("body", ""))
@@ -255,11 +238,7 @@ class GmailConnector(IConnector):
                 else:
                     continue
 
-                major, minor = (
-                    mime_type.split("/", 1)
-                    if "/" in mime_type
-                    else ("application", "octet-stream")
-                )
+                major, minor = mime_type.split("/", 1) if "/" in mime_type else ("application", "octet-stream")
                 part = MIMEBase(major, minor)
                 part.set_payload(content_bytes)
                 encoders.encode_base64(part)
@@ -283,9 +262,7 @@ class GmailConnector(IConnector):
         result = r.json()
         return {"message_id": result.get("id"), "thread_id": result.get("threadId")}
 
-    async def _archive_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _archive_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         if not message_id:
             raise ConnectorError("MISSING_PARAM", "archive_email requires 'message_id'")
@@ -333,9 +310,7 @@ class GmailConnector(IConnector):
         _raise_for_status(r, "archive_email")
         return {"message_id": message_id, "archived": True}
 
-    async def _delete_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _delete_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         if not message_id:
             raise ConnectorError("MISSING_PARAM", "delete_email requires 'message_id'")
@@ -362,9 +337,7 @@ class GmailConnector(IConnector):
         _raise_for_status(r, "delete_email")
         return {"message_id": message_id, "deleted": True, "permanent": False}
 
-    async def _resolve_label_names(
-        self, client: httpx.AsyncClient, headers: dict, names: list[str]
-    ) -> list[str]:
+    async def _resolve_label_names(self, client: httpx.AsyncClient, headers: dict, names: list[str]) -> list[str]:
         """Resolve label names to Gmail label IDs, creating missing labels automatically."""
         if not names:
             return []
@@ -379,7 +352,10 @@ class GmailConnector(IConnector):
                 # Create the label automatically
                 print(f"[gmail] creating label '{name}'", flush=True)
                 cr = await request_with_rate_limit(
-                    client, "POST", f"{_BASE}/labels", headers=headers,
+                    client,
+                    "POST",
+                    f"{_BASE}/labels",
+                    headers=headers,
                     json={"name": name, "labelListVisibility": "labelShow", "messageListVisibility": "show"},
                 )
                 _raise_for_status(cr, "create_label")
@@ -388,9 +364,7 @@ class GmailConnector(IConnector):
             ids.append(label_id)
         return ids
 
-    async def _label_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _label_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         message_id = params.get("message_id")
         if not message_id:
             raise ConnectorError("MISSING_PARAM", "label_email requires 'message_id'")
@@ -405,12 +379,18 @@ class GmailConnector(IConnector):
 
         # Names contain spaces or aren't all-caps system IDs → resolve to IDs
         def _needs_resolve(labels: list) -> bool:
-            return any(not str(l).isupper() or " " in str(l) for l in labels)
+            return any(not str(label).isupper() or " " in str(label) for label in labels)
 
-        add_ids = await self._resolve_label_names(client, headers, [str(l) for l in add_raw]) \
-            if _needs_resolve(add_raw) else [str(l) for l in add_raw]
-        remove_ids = await self._resolve_label_names(client, headers, [str(l) for l in remove_raw]) \
-            if _needs_resolve(remove_raw) else [str(l) for l in remove_raw]
+        add_ids = (
+            await self._resolve_label_names(client, headers, [str(label) for label in add_raw])
+            if _needs_resolve(add_raw)
+            else [str(label) for label in add_raw]
+        )
+        remove_ids = (
+            await self._resolve_label_names(client, headers, [str(label) for label in remove_raw])
+            if _needs_resolve(remove_raw)
+            else [str(label) for label in remove_raw]
+        )
 
         # Gmail rejects a modify call with no label changes ("No label ... updates
         # provided", 400). Surface a clear, actionable error instead of the raw
@@ -475,9 +455,7 @@ def _is_transient_precondition(r: httpx.Response) -> bool:
     if str(error.get("status", "")).upper() == "FAILED_PRECONDITION":
         return True
     return any(
-        str(e.get("reason", "")).lower() == "failedprecondition"
-        for e in error.get("errors", [])
-        if isinstance(e, dict)
+        str(e.get("reason", "")).lower() == "failedprecondition" for e in error.get("errors", []) if isinstance(e, dict)
     )
 
 
@@ -493,9 +471,7 @@ async def _get_with_precondition_retry(
     delay = 0.5
     r: httpx.Response | None = None
     for attempt in range(1, max_attempts + 1):
-        r = await request_with_rate_limit(
-            client, "GET", url, headers=headers, params=params
-        )
+        r = await request_with_rate_limit(client, "GET", url, headers=headers, params=params)
         if attempt >= max_attempts or not _is_transient_precondition(r):
             return r
         await asyncio.sleep(delay + random.uniform(0, 0.25))

@@ -1,4 +1,5 @@
 """Klaviyo native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -50,33 +51,28 @@ class KlaviyoConnector(IConnector):
                         f"Klaviyo does not support '{operation}'",
                     )
 
-    async def _list_lists(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_lists(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(client, "GET", f"{_BASE}/lists", headers=headers)
         _raise_for_status(r, "list_lists")
         return {"lists": r.json().get("data", [])}
 
-    async def _add_profile_to_list(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _add_profile_to_list(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         list_id = params.get("list_id")
         profile_id = params.get("profile_id")
         if not list_id or not profile_id:
-            raise ConnectorError(
-                "MISSING_PARAM", "add_profile_to_list requires 'list_id' and 'profile_id'"
-            )
+            raise ConnectorError("MISSING_PARAM", "add_profile_to_list requires 'list_id' and 'profile_id'")
         body = {"data": [{"type": "profile", "id": profile_id}]}
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/lists/{list_id}/relationships/profiles",
-            headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/lists/{list_id}/relationships/profiles",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "add_profile_to_list")
         return {"added": True, "list_id": list_id, "profile_id": profile_id}
 
-    async def _create_profile(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_profile(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         email = params.get("email")
         if not email:
             raise ConnectorError("MISSING_PARAM", "create_profile requires 'email'")
@@ -86,14 +82,16 @@ class KlaviyoConnector(IConnector):
                 attributes[field] = params[field]
         body = {"data": {"type": "profile", "attributes": attributes}}
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/profiles", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/profiles",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_profile")
         return r.json().get("data", {})
 
-    async def _track_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _track_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         event_name = params.get("event")
         email = params.get("email")
         if not event_name or not email:
@@ -109,16 +107,21 @@ class KlaviyoConnector(IConnector):
             }
         }
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/events", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/events",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "track_event")
         return {"tracked": True, "event": event_name}
 
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/campaigns", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/campaigns",
+            headers=headers,
             params={"filter": "equals(messages.channel,'email')"},
         )
         _raise_for_status(r, "list_campaigns")

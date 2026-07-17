@@ -1,4 +1,5 @@
 """GitHub native connector."""
+
 from __future__ import annotations
 
 import base64
@@ -51,9 +52,7 @@ class GitHubConnector(IConnector):
                         f"GitHub does not support operation '{operation}'",
                     )
 
-    async def _create_issue(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_issue(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         owner, repo, title = params.get("owner"), params.get("repo"), params.get("title")
         if not owner or not repo or not title:
             raise ConnectorError("MISSING_PARAM", "create_issue requires 'owner', 'repo', 'title'")
@@ -79,9 +78,7 @@ class GitHubConnector(IConnector):
             "title": result.get("title"),
         }
 
-    async def _comment_on_issue(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _comment_on_issue(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         owner = params.get("owner")
         repo = params.get("repo")
         issue_number = params.get("issue_number")
@@ -102,9 +99,7 @@ class GitHubConnector(IConnector):
         result = r.json()
         return {"comment_id": result.get("id"), "url": result.get("html_url")}
 
-    async def _list_prs(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_prs(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         owner, repo = params.get("owner"), params.get("repo")
         if not owner or not repo:
             raise ConnectorError("MISSING_PARAM", "list_prs requires 'owner' and 'repo'")
@@ -133,16 +128,12 @@ class GitHubConnector(IConnector):
             ]
         }
 
-    async def _get_pr_diff(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_pr_diff(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         owner = params.get("owner")
         repo = params.get("repo")
         pr_number = params.get("pr_number")
         if not owner or not repo or not pr_number:
-            raise ConnectorError(
-                "MISSING_PARAM", "get_pr_diff requires 'owner', 'repo', 'pr_number'"
-            )
+            raise ConnectorError("MISSING_PARAM", "get_pr_diff requires 'owner', 'repo', 'pr_number'")
         diff_headers = {**headers, "Accept": "application/vnd.github.diff"}
         r = await request_with_rate_limit(
             client,
@@ -153,9 +144,7 @@ class GitHubConnector(IConnector):
         _raise_for_status(r, "get_pr_diff")
         return {"diff": r.text, "pr_number": pr_number}
 
-    async def _push_file(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _push_file(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         owner = params.get("owner")
         repo = params.get("repo")
         path = params.get("path")

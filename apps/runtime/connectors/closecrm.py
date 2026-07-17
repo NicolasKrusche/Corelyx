@@ -1,4 +1,5 @@
 """Close CRM native connector."""
+
 from __future__ import annotations
 
 import base64
@@ -54,8 +55,7 @@ class CloseCRMConnector(IConnector):
 
     async def _list_leads(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/lead/", headers=headers,
-            params={"_limit": int(params.get("limit", 50))}
+            client, "GET", f"{_BASE}/lead/", headers=headers, params={"_limit": int(params.get("limit", 50))}
         )
         _raise_for_status(r, "list_leads")
         data = r.json()
@@ -89,8 +89,7 @@ class CloseCRMConnector(IConnector):
 
     async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/contact/", headers=headers,
-            params={"_limit": int(params.get("limit", 50))}
+            client, "GET", f"{_BASE}/contact/", headers=headers, params={"_limit": int(params.get("limit", 50))}
         )
         _raise_for_status(r, "list_contacts")
         data = r.json()
@@ -103,7 +102,11 @@ class CloseCRMConnector(IConnector):
         if not lead_id:
             raise ConnectorError("MISSING_PARAM", "create_activity requires 'lead_id'")
         body: dict[str, Any] = {"lead_id": lead_id, "note": note}
-        url_map = {"Note": f"{_BASE}/activity/note/", "Call": f"{_BASE}/activity/call/", "Email": f"{_BASE}/activity/email/"}
+        url_map = {
+            "Note": f"{_BASE}/activity/note/",
+            "Call": f"{_BASE}/activity/call/",
+            "Email": f"{_BASE}/activity/email/",
+        }
         url = url_map.get(activity_type, f"{_BASE}/activity/note/")
         r = await request_with_rate_limit(client, "POST", url, headers=headers, json=body)
         _raise_for_status(r, "create_activity")

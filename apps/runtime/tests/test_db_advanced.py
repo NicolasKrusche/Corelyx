@@ -13,6 +13,7 @@ import db as db_module
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 class _QueryBuilder:
     """Minimal chainable stand-in for the Supabase query builder."""
 
@@ -45,6 +46,7 @@ def _make_db():
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class GetDbTests(unittest.TestCase):
     @patch.dict(
         os.environ,
@@ -72,15 +74,11 @@ class GetDbTests(unittest.TestCase):
 
 class CreateRunTests(unittest.TestCase):
     def _run(self, db, trigger_payload=None):
-        return asyncio.run(
-            db_module.create_run(db, "prog-1", "user-1", "manual", trigger_payload)
-        )
+        return asyncio.run(db_module.create_run(db, "prog-1", "user-1", "manual", trigger_payload))
 
     def test_create_run_success(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"id": "run-1", "status": "running"}]
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"id": "run-1", "status": "running"}])
         result = self._run(db, trigger_payload={"key": "value"})
         self.assertEqual(result["id"], "run-1")
         db.table.assert_called_once_with("runs")
@@ -111,9 +109,7 @@ class UpdateRunTests(unittest.TestCase):
 
     def test_update_run_success(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"id": "run-1"}], error=None
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"id": "run-1"}], error=None)
         self._run(db, status="completed")
         db.table.assert_called_with("runs")
         db.table.return_value.update.assert_called_once_with({"status": "completed"})
@@ -257,17 +253,13 @@ class UpdateNodeExecutionTests(unittest.TestCase):
 
     def test_update_node_execution_success(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"id": "ne-1"}], error=None
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"id": "ne-1"}], error=None)
         self._run(db, status="completed")
         db.table.assert_called_with("node_executions")
 
     def test_update_node_execution_with_input_payload(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"id": "ne-1"}], error=None
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"id": "ne-1"}], error=None)
         self._run(db, input_payload={"email": "test@example.com"})
         call_kwargs = db.table.return_value.update.call_args[0][0]
         self.assertIn("input_hash", call_kwargs)
@@ -275,9 +267,7 @@ class UpdateNodeExecutionTests(unittest.TestCase):
 
     def test_update_node_execution_with_output_payload(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"id": "ne-1"}], error=None
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"id": "ne-1"}], error=None)
         self._run(db, output_payload={"result": "ok"})
         call_kwargs = db.table.return_value.update.call_args[0][0]
         self.assertIn("output_hash", call_kwargs)
@@ -318,9 +308,7 @@ class GetExistingLockTests(unittest.TestCase):
 
     def test_get_existing_lock_found(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data={"id": "lock-1", "locked_by_run_id": "run-1"}
-        )
+        db.table.return_value.execute.return_value = MagicMock(data={"id": "lock-1", "locked_by_run_id": "run-1"})
         result = self._run(db)
         self.assertEqual(result["id"], "lock-1")
 
@@ -470,9 +458,7 @@ class GetCredentialTests(unittest.TestCase):
         mock_get_db.return_value = mock_db
         result = asyncio.run(db_module.get_credential("ref-1", "user-1"))
         self.assertEqual(result, {"secret": "shh"})
-        mock_db.rpc.assert_called_once_with(
-            "get_decrypted_secret", {"secret_name": "ref-1_user-1"}
-        )
+        mock_db.rpc.assert_called_once_with("get_decrypted_secret", {"secret_name": "ref-1_user-1"})
 
     @patch("db.get_db")
     def test_get_credential_not_found_raises(self, mock_get_db):
@@ -499,33 +485,25 @@ class GetUserRunPlanTests(unittest.TestCase):
 
     def test_get_user_run_plan_unlimited(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"tier": "unlimited", "is_admin": False}]
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"tier": "unlimited", "is_admin": False}])
         plan = self._run(db)
         self.assertEqual(plan, "unlimited")
 
     def test_get_user_run_plan_admin(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"tier": "free", "is_admin": True}]
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"tier": "free", "is_admin": True}])
         plan = self._run(db)
         self.assertEqual(plan, "unlimited")
 
     def test_get_user_run_plan_paid(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"tier": "pro", "is_admin": False}]
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"tier": "pro", "is_admin": False}])
         plan = self._run(db)
         self.assertEqual(plan, "paid")
 
     def test_get_user_run_plan_free(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"tier": "free", "is_admin": False}]
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"tier": "free", "is_admin": False}])
         plan = self._run(db)
         self.assertEqual(plan, "free")
 
@@ -554,9 +532,7 @@ class GetModelAccessTierTests(unittest.TestCase):
         profile_query.execute.return_value = MagicMock(data=profile_rows)
         workspace_query = _QueryBuilder()
         workspace_query.execute.return_value = MagicMock(data=workspace_rows)
-        db.table.side_effect = lambda table: (
-            profile_query if table == "profiles" else workspace_query
-        )
+        db.table.side_effect = lambda table: profile_query if table == "profiles" else workspace_query
         return db
 
     def test_uses_workspace_tier_for_members(self):
@@ -596,17 +572,13 @@ class IsProcessingRestrictedTests(unittest.TestCase):
 
     def test_is_processing_restricted_true(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"processing_restricted": True}]
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"processing_restricted": True}])
         result = self._run(db)
         self.assertTrue(result)
 
     def test_is_processing_restricted_false(self):
         db = _make_db()
-        db.table.return_value.execute.return_value = MagicMock(
-            data=[{"processing_restricted": False}]
-        )
+        db.table.return_value.execute.return_value = MagicMock(data=[{"processing_restricted": False}])
         result = self._run(db)
         self.assertFalse(result)
 
@@ -660,7 +632,7 @@ class EnqueueFileOperationDeviceAuthTests(unittest.IsolatedAsyncioTestCase):
         db = _make_db()
         db.table.return_value.execute.side_effect = [
             MagicMock(data=[{"id": "device-1", "platform": "windows"}]),  # ownership check passes
-            MagicMock(data=[{"id": "op-1"}]),      # file_operations insert
+            MagicMock(data=[{"id": "op-1"}]),  # file_operations insert
         ]
         row = await self._enqueue(db, "device-1")
         self.assertEqual(row["id"], "op-1")

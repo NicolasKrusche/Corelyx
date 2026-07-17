@@ -1,4 +1,5 @@
 """Ramp connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.ramp.com/v1"
 class RampConnector(IConnector):
     """
     Ramp connector for: list_transactions, get_card.
-    
+
     API Base: ramp
     """
-    
+
     provider = "ramp"
-    supported_operations = [
-        "list_transactions",
-        "get_card"
-    ]
+    supported_operations = ["list_transactions", "get_card"]
 
     async def execute(
         self,
@@ -47,10 +45,7 @@ class RampConnector(IConnector):
                         f"Ramp does not support '{operation}'",
                     )
 
-
-    async def _list_transactions(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_transactions(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_transactions operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -58,29 +53,33 @@ class RampConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/transactions", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/transactions",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),
             "total": data.get("total", 0),
         }
 
-    async def _get_card(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_card(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_card operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_card",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_card",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

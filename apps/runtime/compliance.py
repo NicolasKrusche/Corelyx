@@ -194,8 +194,7 @@ def get_provider(provider_id: str | None) -> ProviderPolicy:
 def provider_leaves_eea(provider: ProviderPolicy) -> bool:
     region = provider.default_region.lower()
     return any(
-        marker in region
-        for marker in ("united states", "global", "provider-managed", "unknown", "customer-configured")
+        marker in region for marker in ("united states", "global", "provider-managed", "unknown", "customer-configured")
     )
 
 
@@ -258,9 +257,7 @@ def load_workspace_policy(db: Any, workspace_id: str | None) -> dict[str, Any]:
         # resetting compliance_mode/data_region to defaults.
         pii_mode = "auto"
         try:
-            pii_result = (
-                db.table("workspaces").select("pii_mode").eq("id", workspace_id).limit(1).execute()
-            )
+            pii_result = db.table("workspaces").select("pii_mode").eq("id", workspace_id).limit(1).execute()
             pii_rows = pii_result.data or []
             if pii_rows and pii_rows[0].get("pii_mode") in ("auto", "standard", "strict"):
                 pii_mode = pii_rows[0]["pii_mode"]
@@ -298,21 +295,11 @@ def load_workspace_policy(db: Any, workspace_id: str | None) -> dict[str, Any]:
 
 def load_program_connection_providers(db: Any, program_id: str) -> dict[str, str]:
     try:
-        link_result = (
-            db.table("program_connections")
-            .select("connection_id")
-            .eq("program_id", program_id)
-            .execute()
-        )
+        link_result = db.table("program_connections").select("connection_id").eq("program_id", program_id).execute()
         connection_ids = [row["connection_id"] for row in (link_result.data or [])]
         if not connection_ids:
             return {}
-        conn_result = (
-            db.table("connections")
-            .select("id, name, provider")
-            .in_("id", connection_ids)
-            .execute()
-        )
+        conn_result = db.table("connections").select("id, name, provider").in_("id", connection_ids).execute()
         providers: dict[str, str] = {}
         for row in conn_result.data or []:
             provider = normalize_provider_id(row.get("provider"))

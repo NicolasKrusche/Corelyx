@@ -1,4 +1,5 @@
 """Stripe native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -52,12 +53,12 @@ class StripeConnector(IConnector):
                         f"Stripe does not support '{operation}'",
                     )
 
-    async def _list_customers(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_customers(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/customers",
+            client,
+            "GET",
+            f"{_BASE}/customers",
             headers=headers,
             params={"limit": limit},
         )
@@ -65,9 +66,7 @@ class StripeConnector(IConnector):
         data = r.json()
         return {"customers": data.get("data", []), "has_more": data.get("has_more", False)}
 
-    async def _create_customer(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_customer(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         body: dict[str, str] = {}
         for field in ("email", "name", "phone", "description"):
             if params.get(field):
@@ -75,22 +74,24 @@ class StripeConnector(IConnector):
         if not body.get("email"):
             raise ConnectorError("MISSING_PARAM", "create_customer requires 'email'")
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/customers",
+            client,
+            "POST",
+            f"{_BASE}/customers",
             headers=headers,
             data=body,
         )
         _raise_for_status(r, "create_customer")
         return r.json()
 
-    async def _list_payments(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_payments(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         query_params: dict[str, Any] = {"limit": limit}
         if params.get("customer"):
             query_params["customer"] = params["customer"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/payment_intents",
+            client,
+            "GET",
+            f"{_BASE}/payment_intents",
             headers=headers,
             params=query_params,
         )
@@ -98,15 +99,15 @@ class StripeConnector(IConnector):
         data = r.json()
         return {"payments": data.get("data", []), "has_more": data.get("has_more", False)}
 
-    async def _create_payment_link(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_payment_link(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         price_id = params.get("price_id")
         quantity = int(params.get("quantity", 1))
         if not price_id:
             raise ConnectorError("MISSING_PARAM", "create_payment_link requires 'price_id'")
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/payment_links",
+            client,
+            "POST",
+            f"{_BASE}/payment_links",
             headers=headers,
             data={
                 "line_items[0][price]": price_id,
@@ -116,9 +117,7 @@ class StripeConnector(IConnector):
         _raise_for_status(r, "create_payment_link")
         return r.json()
 
-    async def _list_subscriptions(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_subscriptions(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         query_params: dict[str, Any] = {"limit": limit}
         if params.get("customer"):
@@ -126,7 +125,9 @@ class StripeConnector(IConnector):
         if params.get("status"):
             query_params["status"] = params["status"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/subscriptions",
+            client,
+            "GET",
+            f"{_BASE}/subscriptions",
             headers=headers,
             params=query_params,
         )
@@ -134,14 +135,14 @@ class StripeConnector(IConnector):
         data = r.json()
         return {"subscriptions": data.get("data", []), "has_more": data.get("has_more", False)}
 
-    async def _retrieve_invoice(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _retrieve_invoice(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         invoice_id = params.get("invoice_id")
         if not invoice_id:
             raise ConnectorError("MISSING_PARAM", "retrieve_invoice requires 'invoice_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/invoices/{invoice_id}",
+            client,
+            "GET",
+            f"{_BASE}/invoices/{invoice_id}",
             headers=headers,
         )
         _raise_for_status(r, "retrieve_invoice")

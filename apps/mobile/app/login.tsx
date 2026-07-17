@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAuth } from "@/lib/auth";
 import { Button, Screen } from "@/components/ui";
@@ -14,10 +14,8 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // In local dev the server returns the code so we can pre-fill it (no email).
-  useEffect(() => {
-    if (pending2fa && devCode) setCode(devCode);
-  }, [pending2fa, devCode]);
+  // In local dev the server returns the code so it can be used without email.
+  const displayedCode = code || devCode || "";
 
   async function onSignIn() {
     setError(null);
@@ -35,7 +33,7 @@ export default function Login() {
     setError(null);
     setBusy(true);
     try {
-      await submitTwoFactor(code);
+      await submitTwoFactor(displayedCode);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Verification failed.");
     } finally {
@@ -78,11 +76,11 @@ export default function Login() {
               placeholderTextColor={colors.textFaint}
               keyboardType="number-pad"
               maxLength={6}
-              value={code}
+              value={displayedCode}
               onChangeText={setCode}
             />
             {error ? <Text style={[font.tiny, { color: colors.danger, marginBottom: spacing.sm }]}>{error}</Text> : null}
-            <Button label="Verify & continue" onPress={onVerify} loading={busy} disabled={code.length !== 6} />
+            <Button label="Verify & continue" onPress={onVerify} loading={busy} disabled={displayedCode.length !== 6} />
             <View style={{ height: spacing.sm }} />
             <Button label="Back" variant="ghost" onPress={() => { setCode(""); setError(null); void cancelPending(); }} />
           </>

@@ -131,20 +131,19 @@ impl WatcherManager {
 
     fn make_watcher(&self, root: &Path) -> Result<RecommendedWatcher, String> {
         let queue = Arc::clone(&self.queue);
-        let mut watcher =
-            notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
-                if let Ok(event) = res {
-                    if let Ok(mut q) = queue.lock() {
-                        if q.len() < MAX_QUEUED_RAW_EVENTS {
-                            q.push_back(RawFsEvent {
-                                kind: event.kind,
-                                paths: event.paths,
-                            });
-                        }
+        let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
+            if let Ok(event) = res {
+                if let Ok(mut q) = queue.lock() {
+                    if q.len() < MAX_QUEUED_RAW_EVENTS {
+                        q.push_back(RawFsEvent {
+                            kind: event.kind,
+                            paths: event.paths,
+                        });
                     }
                 }
-            })
-            .map_err(|e| e.to_string())?;
+            }
+        })
+        .map_err(|e| e.to_string())?;
         watcher
             .watch(root, RecursiveMode::Recursive)
             .map_err(|e| e.to_string())?;
@@ -346,7 +345,10 @@ mod tests {
     #[test]
     fn star_does_not_cross_separator() {
         assert!(!matches_any_pattern(&["*.pdf".to_string()], "sub/evil.pdf"));
-        assert!(!matches_any_pattern(&["*.pdf".to_string()], "sub\\evil.pdf"));
+        assert!(!matches_any_pattern(
+            &["*.pdf".to_string()],
+            "sub\\evil.pdf"
+        ));
     }
 
     #[test]
@@ -360,12 +362,24 @@ mod tests {
     fn classify_maps_kinds() {
         use notify::event::{CreateKind, RemoveKind};
         let p = Path::new("whatever.txt");
-        assert_eq!(classify(&EventKind::Create(CreateKind::Any), p), Some("created"));
-        assert_eq!(classify(&EventKind::Remove(RemoveKind::Any), p), Some("deleted"));
         assert_eq!(
-            classify(&EventKind::Modify(ModifyKind::Data(notify::event::DataChange::Any)), p),
+            classify(&EventKind::Create(CreateKind::Any), p),
+            Some("created")
+        );
+        assert_eq!(
+            classify(&EventKind::Remove(RemoveKind::Any), p),
+            Some("deleted")
+        );
+        assert_eq!(
+            classify(
+                &EventKind::Modify(ModifyKind::Data(notify::event::DataChange::Any)),
+                p
+            ),
             Some("modified")
         );
-        assert_eq!(classify(&EventKind::Access(notify::event::AccessKind::Any), p), None);
+        assert_eq!(
+            classify(&EventKind::Access(notify::event::AccessKind::Any), p),
+            None
+        );
     }
 }

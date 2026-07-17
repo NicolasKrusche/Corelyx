@@ -22,7 +22,7 @@ function RootNavigator() {
     } else if (status === "signed_in" && inAuthGroup) {
       router.replace("/inbox");
     }
-  }, [status, segments]);
+  }, [status, segments, router]);
 
   // Handle a 2FA push tapped from the background/quit state.
   useEffect(() => {
@@ -47,7 +47,7 @@ function RootNavigator() {
       }
     });
     return () => sub.remove();
-  }, [status]);
+  }, [status, router]);
 
   // Always render the navigator so routes have an outlet from first frame — a
   // conditional non-navigator return here is what makes expo-router fall through

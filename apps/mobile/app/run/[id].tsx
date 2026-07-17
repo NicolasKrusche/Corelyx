@@ -56,7 +56,7 @@ export default function RunDetailScreen() {
   }, [id]);
 
   useEffect(() => {
-    load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   // Poll every 3s while the run is non-terminal; clean up on unmount / when it finishes.

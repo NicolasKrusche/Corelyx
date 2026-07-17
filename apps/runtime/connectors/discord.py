@@ -1,4 +1,5 @@
 """Discord native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,9 +47,7 @@ class DiscordConnector(IConnector):
                         f"Discord does not support operation '{operation}'",
                     )
 
-    async def _send_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         channel_id = params.get("channel_id")
         content = params.get("content", "")
         if not channel_id:
@@ -72,9 +71,7 @@ class DiscordConnector(IConnector):
             "timestamp": data.get("timestamp"),
         }
 
-    async def _list_channels(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_channels(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         guild_id = params.get("guild_id")
         if not guild_id:
             raise ConnectorError("MISSING_PARAM", "list_channels requires 'guild_id'")
@@ -98,9 +95,7 @@ class DiscordConnector(IConnector):
             ]
         }
 
-    async def _get_guild_members(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_guild_members(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         guild_id = params.get("guild_id")
         if not guild_id:
             raise ConnectorError("MISSING_PARAM", "get_guild_members requires 'guild_id'")

@@ -7,11 +7,6 @@
     "scheme": "corelyx",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#131315"
-    },
     "ios": {
       "bundleIdentifier": "app.corelyx.mobile",
       "supportsTablet": true,
@@ -30,6 +25,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#131315"
+        }
+      ],
       [
         "expo-notifications",
         {

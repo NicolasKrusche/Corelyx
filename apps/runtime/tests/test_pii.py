@@ -20,9 +20,7 @@ class PiiSanitizerTests(unittest.TestCase):
         self.assertTrue(result.redacted)
 
     def test_redacts_secrets_destructively_and_pseudonymizes_ids(self) -> None:
-        result = sanitize_text_for_llm(
-            "token=sk-12345678901234567890, ssn 123-45-6789, iban DE89370400440532013000"
-        )
+        result = sanitize_text_for_llm("token=sk-12345678901234567890, ssn 123-45-6789, iban DE89370400440532013000")
 
         self.assertIn("token=[REDACTED_SECRET]", result.value)
         self.assertIn("[NATIONAL_ID_1]", result.value)

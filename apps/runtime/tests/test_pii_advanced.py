@@ -27,7 +27,7 @@ class SanitizeTextCreditCardTests(unittest.TestCase):
 
 class SanitizeTextSecretTests(unittest.TestCase):
     def test_redacts_api_key_assignment(self) -> None:
-        result = sanitize_text_for_llm('api_key=abc1234567890123456789')
+        result = sanitize_text_for_llm("api_key=abc1234567890123456789")
         self.assertIn("api_key=[REDACTED_SECRET]", result.value)
         self.assertNotIn("abc1234567890123456789", result.value)
 
@@ -136,6 +136,7 @@ class SanitizeValueTests(unittest.TestCase):
     def test_unsupported_type_returns_unchanged(self) -> None:
         class Custom:
             pass
+
         obj = Custom()
         result = sanitize_value_for_llm(obj)
         self.assertIs(result.value, obj)

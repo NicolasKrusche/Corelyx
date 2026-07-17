@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from cors_config import (
     CORS_ALLOWED_HEADERS,
     CORS_ALLOWED_METHODS,
-    CORS_ORIGINS_ENV,
     DEFAULT_CORS_ORIGINS,
     DEV_CORS_ORIGINS,
     PRODUCTION_ENV_NAMES,
-    RUNTIME_CORS_ALLOWED_ORIGINS_ENV,
     _env_value,
     _split_csv,
     _unique,
@@ -136,9 +134,7 @@ class TestGetCorsAllowedOrigins(unittest.TestCase):
         self.assertEqual(result, [*DEFAULT_CORS_ORIGINS, *DEV_CORS_ORIGINS])
 
     def test_production_excludes_dev_origins(self) -> None:
-        result = get_cors_allowed_origins(
-            {"RUNTIME_ENV": "production", "NEXT_PUBLIC_APP_URL": "https://corelyx.app"}
-        )
+        result = get_cors_allowed_origins({"RUNTIME_ENV": "production", "NEXT_PUBLIC_APP_URL": "https://corelyx.app"})
         for dev in DEV_CORS_ORIGINS:
             self.assertNotIn(dev, result)
 

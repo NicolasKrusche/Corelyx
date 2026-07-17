@@ -1,4 +1,5 @@
 """GoCardless connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.gocardless.com/v1"
 class GocardlessConnector(IConnector):
     """
     GoCardless connector for: list_payments, create_mandate.
-    
+
     API Base: gocardless
     """
-    
+
     provider = "gocardless"
-    supported_operations = [
-        "list_payments",
-        "create_mandate"
-    ]
+    supported_operations = ["list_payments", "create_mandate"]
 
     async def execute(
         self,
@@ -47,10 +45,7 @@ class GocardlessConnector(IConnector):
                         f"GoCardless does not support '{operation}'",
                     )
 
-
-    async def _list_payments(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_payments(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_payments operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -58,32 +53,36 @@ class GocardlessConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/payments", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/payments",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),
             "total": data.get("total", 0),
         }
 
-    async def _create_mandate(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_mandate(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute create_mandate operation."""
         if not params:
             raise ConnectorError("MISSING_PARAM", "request body required")
-        
+
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/mandate",
-            headers=headers, json=params,
+            client,
+            "POST",
+            f"{_BASE}/mandate",
+            headers=headers,
+            json=params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

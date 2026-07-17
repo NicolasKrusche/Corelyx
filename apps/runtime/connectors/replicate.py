@@ -1,4 +1,5 @@
 """Replicate connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.replicate.com/v1"
 class ReplicateConnector(IConnector):
     """
     Replicate connector for: run_model, list_models.
-    
+
     API Base: replicate
     """
-    
+
     provider = "replicate"
-    supported_operations = [
-        "run_model",
-        "list_models"
-    ]
+    supported_operations = ["run_model", "list_models"]
 
     async def execute(
         self,
@@ -47,23 +45,21 @@ class ReplicateConnector(IConnector):
                         f"Replicate does not support '{operation}'",
                     )
 
-
-    async def _run_model(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _run_model(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute run_model operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/run_model",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/run_model",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _list_models(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_models(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_models operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -71,14 +67,17 @@ class ReplicateConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/models", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/models",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),

@@ -1,4 +1,5 @@
 """Resend connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.resend.com/v1"
 class ResendConnector(IConnector):
     """
     Resend connector for: send_email, list_emails.
-    
+
     API Base: resend
     """
-    
+
     provider = "resend"
-    supported_operations = [
-        "send_email",
-        "list_emails"
-    ]
+    supported_operations = ["send_email", "list_emails"]
 
     async def execute(
         self,
@@ -47,23 +45,21 @@ class ResendConnector(IConnector):
                         f"Resend does not support '{operation}'",
                     )
 
-
-    async def _send_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute send_email operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send_email",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/send_email",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _list_emails(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_emails(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_emails operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -71,14 +67,17 @@ class ResendConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/emails", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/emails",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),

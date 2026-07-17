@@ -42,12 +42,8 @@ class SafeExpressionsTests(unittest.TestCase):
                 {"n8": {"is_invoice": False}},
             )
         )
-        self.assertTrue(
-            evaluate_condition("data.get('missing')==null", {})
-        )
-        self.assertFalse(
-            evaluate_condition("data.get('flag', false)", {})
-        )
+        self.assertTrue(evaluate_condition("data.get('missing')==null", {}))
+        self.assertFalse(evaluate_condition("data.get('flag', false)", {}))
 
     def test_any_and_all_builtins_are_allowed(self) -> None:
         # Genesis emits Python-style conditions using any()/all(); the sandbox

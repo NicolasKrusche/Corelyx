@@ -1,4 +1,5 @@
 """Paddle native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,14 +47,14 @@ class PaddleConnector(IConnector):
                         f"Paddle does not support '{operation}'",
                     )
 
-    async def _list_products(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_products(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query_params: dict[str, Any] = {"per_page": int(params.get("per_page", 20))}
         if params.get("status"):
             query_params["status"] = params["status"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/products",
+            client,
+            "GET",
+            f"{_BASE}/products",
             headers=headers,
             params=query_params,
         )
@@ -64,16 +65,16 @@ class PaddleConnector(IConnector):
             "meta": data.get("meta", {}),
         }
 
-    async def _list_subscriptions(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_subscriptions(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query_params: dict[str, Any] = {"per_page": int(params.get("per_page", 20))}
         if params.get("status"):
             query_params["status"] = params["status"]
         if params.get("customer_id"):
             query_params["customer_id"] = params["customer_id"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/subscriptions",
+            client,
+            "GET",
+            f"{_BASE}/subscriptions",
             headers=headers,
             params=query_params,
         )
@@ -84,16 +85,16 @@ class PaddleConnector(IConnector):
             "meta": data.get("meta", {}),
         }
 
-    async def _list_transactions(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_transactions(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query_params: dict[str, Any] = {"per_page": int(params.get("per_page", 20))}
         if params.get("customer_id"):
             query_params["customer_id"] = params["customer_id"]
         if params.get("status"):
             query_params["status"] = params["status"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/transactions",
+            client,
+            "GET",
+            f"{_BASE}/transactions",
             headers=headers,
             params=query_params,
         )
@@ -104,14 +105,14 @@ class PaddleConnector(IConnector):
             "meta": data.get("meta", {}),
         }
 
-    async def _get_customer(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_customer(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         customer_id = params.get("customer_id")
         if not customer_id:
             raise ConnectorError("MISSING_PARAM", "get_customer requires 'customer_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/customers/{customer_id}",
+            client,
+            "GET",
+            f"{_BASE}/customers/{customer_id}",
             headers=headers,
         )
         _raise_for_status(r, "get_customer")

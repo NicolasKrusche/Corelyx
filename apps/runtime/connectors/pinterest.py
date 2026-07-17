@@ -1,4 +1,5 @@
 """Pinterest native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,17 +47,13 @@ class PinterestConnector(IConnector):
                         f"Pinterest does not support operation '{operation}'",
                     )
 
-    async def _list_boards(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_boards(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {
             "page_size": int(params.get("page_size", 25)),
         }
         if params.get("bookmark"):
             query["bookmark"] = params["bookmark"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/boards", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/boards", headers=headers, params=query)
         _raise_for_status(r, "list_boards")
         data = r.json()
         return {
@@ -72,9 +69,7 @@ class PinterestConnector(IConnector):
             "bookmark": data.get("bookmark"),
         }
 
-    async def _create_pin(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_pin(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         board_id = params.get("board_id")
         if not board_id:
             raise ConnectorError("MISSING_PARAM", "create_pin requires 'board_id'")
@@ -90,9 +85,7 @@ class PinterestConnector(IConnector):
             body["description"] = params["description"]
         if params.get("link"):
             body["link"] = params["link"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/pins", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/pins", headers=headers, json=body)
         _raise_for_status(r, "create_pin")
         data = r.json()
         return {
@@ -101,9 +94,7 @@ class PinterestConnector(IConnector):
             "created_at": data.get("created_at"),
         }
 
-    async def _get_board_pins(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_board_pins(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         board_id = params.get("board_id")
         if not board_id:
             raise ConnectorError("MISSING_PARAM", "get_board_pins requires 'board_id'")
@@ -122,9 +113,7 @@ class PinterestConnector(IConnector):
             "bookmark": data.get("bookmark"),
         }
 
-    async def _get_analytics(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_analytics(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {
             "start_date": params.get("start_date", "2024-01-01"),
             "end_date": params.get("end_date", "2024-12-31"),

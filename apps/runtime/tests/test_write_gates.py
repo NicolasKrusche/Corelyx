@@ -1,6 +1,7 @@
 """Tests for the connector write gates: default-deny scope enforcement,
 mandatory approval for destructive operations, approval_required-mode write
 approvals, and dry-run write simulation."""
+
 from __future__ import annotations
 
 import os
@@ -29,8 +30,21 @@ def _mock_db() -> Mock:
     db = Mock()
     builder = Mock()
     for method in [
-        "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike",
-        "in_", "is_", "order", "limit", "range", "match", "select",
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "like",
+        "ilike",
+        "in_",
+        "is_",
+        "order",
+        "limit",
+        "range",
+        "match",
+        "select",
     ]:
         getattr(builder, method).return_value = builder
     builder.execute.return_value = Mock(data=[])
@@ -82,15 +96,23 @@ def _executor(node: SchemaNode, execution_mode: str = "autonomous", dry_run: boo
     executor.edges_from = {}
     executor._connection_name_to_id = {}
     telemetry = {
-        "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
-        "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost_usd": 0.0,
+        "connector_api_calls": 0,
+        "model_call_count": 0,
     }
     executor._node_telemetry = {node.id: dict(telemetry)}
     executor._run_telemetry = dict(telemetry)
     executor._limiter = Mock()
     for method in [
-        "check_node_limit", "check_execution_time", "check_llm_call",
-        "check_llm_tokens", "check_cost", "check_connector_call",
+        "check_node_limit",
+        "check_execution_time",
+        "check_llm_call",
+        "check_llm_tokens",
+        "check_cost",
+        "check_connector_call",
     ]:
         setattr(executor._limiter, method, Mock())
     executor.dry_run = dry_run
@@ -129,8 +151,10 @@ class TestScopeDefaultDeny(unittest.IsolatedAsyncioTestCase):
         executor = _executor(node)
         connector = Mock()
         connector.execute = AsyncMock(return_value={"sent": True})
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
             with self.assertRaises(ExecutionError) as ctx:
                 await executor._execute_connection(node, {})
         self.assertEqual(ctx.exception.code, "SCOPE_DENIED")
@@ -141,8 +165,10 @@ class TestScopeDefaultDeny(unittest.IsolatedAsyncioTestCase):
         executor = _executor(node)
         connector = Mock()
         connector.execute = AsyncMock(return_value={"sent": True})
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
             result = await executor._execute_connection(node, {})
         self.assertEqual(result["sent"], True)
 
@@ -152,8 +178,10 @@ class TestScopeDefaultDeny(unittest.IsolatedAsyncioTestCase):
         executor = _executor(node)
         connector = Mock()
         connector.execute = AsyncMock(return_value={"emails": []})
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
             result = await executor._execute_connection(node, {})
         self.assertEqual(result["emails"], [])
 
@@ -165,9 +193,11 @@ class TestDestructiveApprovalGate(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"deleted": True})
         approval = AsyncMock(return_value=True)
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", approval):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", approval),
+        ):
             result = await executor._execute_connection(node, {})
         approval.assert_awaited_once()
         self.assertIn("Destructive action approval required", approval.await_args.args[2])
@@ -178,9 +208,11 @@ class TestDestructiveApprovalGate(unittest.IsolatedAsyncioTestCase):
         executor = _executor(node)
         connector = Mock()
         connector.execute = AsyncMock(return_value={"deleted": True})
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", AsyncMock(return_value=False)):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", AsyncMock(return_value=False)),
+        ):
             result = await executor._execute_connection(node, {})
         self.assertEqual(result, {})
         connector.execute.assert_not_awaited()
@@ -191,9 +223,11 @@ class TestDestructiveApprovalGate(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"sent": True})
         approval = AsyncMock(return_value=True)
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", approval):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", approval),
+        ):
             await executor._execute_connection(node, {})
         approval.assert_not_awaited()
 
@@ -205,9 +239,11 @@ class TestApprovalRequiredMode(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"sent": True})
         approval = AsyncMock(return_value=True)
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", approval):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", approval),
+        ):
             result = await executor._execute_connection(node, {})
         approval.assert_awaited_once()
         self.assertEqual(result["sent"], True)
@@ -218,9 +254,11 @@ class TestApprovalRequiredMode(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"emails": []})
         approval = AsyncMock(return_value=True)
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", approval):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", approval),
+        ):
             await executor._execute_connection(node, {})
         approval.assert_not_awaited()
 
@@ -234,9 +272,11 @@ class TestBulkWriteThreshold(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"sent": True})
         approval = AsyncMock(return_value=True)
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", approval):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", approval),
+        ):
             # Writes up to and including the threshold run without approval.
             for _ in range(BULK_WRITE_APPROVAL_THRESHOLD):
                 await executor._execute_connection(node, {})
@@ -257,9 +297,11 @@ class TestBulkWriteThreshold(unittest.IsolatedAsyncioTestCase):
         executor._write_ops_executed = BULK_WRITE_APPROVAL_THRESHOLD
         connector = Mock()
         connector.execute = AsyncMock(return_value={"sent": True})
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", AsyncMock(return_value=False)):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", AsyncMock(return_value=False)),
+        ):
             result = await executor._execute_connection(node, {})
         self.assertEqual(result, {})
         connector.execute.assert_not_awaited()
@@ -272,9 +314,11 @@ class TestBulkWriteThreshold(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"deleted": True})
         approval = AsyncMock(return_value=True)
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", approval):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", approval),
+        ):
             result = await executor._execute_connection(node, {})
         approval.assert_awaited_once()
         self.assertIn("Destructive action approval required", approval.await_args.args[2])
@@ -288,9 +332,11 @@ class TestDryRunWritePreview(unittest.IsolatedAsyncioTestCase):
         connector = Mock()
         connector.execute = AsyncMock(return_value={"deleted": True})
         approval = AsyncMock(return_value=True)
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_request_step_approval", approval):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_request_step_approval", approval),
+        ):
             result = await executor._execute_connection(node, {})
         self.assertTrue(result["simulated"])
         self.assertEqual(result["operation"], "delete_email")
@@ -302,8 +348,10 @@ class TestDryRunWritePreview(unittest.IsolatedAsyncioTestCase):
         executor = _executor(node, dry_run=True)
         connector = Mock()
         connector.execute = AsyncMock(return_value={"emails": [{"id": "1"}]})
-        with patch("engine.executor.get_connector", return_value=connector), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()):
+        with (
+            patch("engine.executor.get_connector", return_value=connector),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
             result = await executor._execute_connection(node, {})
         self.assertEqual(result["emails"], [{"id": "1"}])
 

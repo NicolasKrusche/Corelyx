@@ -1,10 +1,9 @@
 """Comprehensive tests for apps/runtime/internal_auth.py."""
+
 from __future__ import annotations
 
-import base64
 import json
 import os
-import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -376,33 +375,25 @@ class VerifyInternalServiceTokenTests(unittest.TestCase):
     @patch.object(ia, "_get_internal_service_secret", return_value=b"secret")
     def test_bad_types_in_claims(self, _mock: MagicMock) -> None:
         # subject as int
-        payload_segment = ia._b64url_encode(
-            json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "sub": 123}).encode()
-        )
+        payload_segment = ia._b64url_encode(json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "sub": 123}).encode())
         signature = ia._sign_payload_segment(payload_segment, b"secret")
         token = f"{payload_segment}.{signature}"
         self.assertIsNone(ia.verify_internal_service_token_claims(token, "aud", now_seconds=1000))
 
         # htm as int
-        payload_segment = ia._b64url_encode(
-            json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "htm": 123}).encode()
-        )
+        payload_segment = ia._b64url_encode(json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "htm": 123}).encode())
         signature = ia._sign_payload_segment(payload_segment, b"secret")
         token = f"{payload_segment}.{signature}"
         self.assertIsNone(ia.verify_internal_service_token_claims(token, "aud", now_seconds=1000))
 
         # path as int
-        payload_segment = ia._b64url_encode(
-            json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "path": 123}).encode()
-        )
+        payload_segment = ia._b64url_encode(json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "path": 123}).encode())
         signature = ia._sign_payload_segment(payload_segment, b"secret")
         token = f"{payload_segment}.{signature}"
         self.assertIsNone(ia.verify_internal_service_token_claims(token, "aud", now_seconds=1000))
 
         # bh as int
-        payload_segment = ia._b64url_encode(
-            json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "bh": 123}).encode()
-        )
+        payload_segment = ia._b64url_encode(json.dumps({"aud": "aud", "iat": 1000, "exp": 1030, "bh": 123}).encode())
         signature = ia._sign_payload_segment(payload_segment, b"secret")
         token = f"{payload_segment}.{signature}"
         self.assertIsNone(ia.verify_internal_service_token_claims(token, "aud", now_seconds=1000))

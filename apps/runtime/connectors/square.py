@@ -1,4 +1,5 @@
 """Square native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -50,28 +51,28 @@ class SquareConnector(IConnector):
                         f"Square does not support '{operation}'",
                     )
 
-    async def _list_transactions(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_transactions(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         location_id = params.get("location_id")
         if not location_id:
             raise ConnectorError("MISSING_PARAM", "list_transactions requires 'location_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/locations/{location_id}/transactions",
+            client,
+            "GET",
+            f"{_BASE}/locations/{location_id}/transactions",
             headers=headers,
         )
         _raise_for_status(r, "list_transactions")
         data = r.json()
         return {"transactions": data.get("transactions", [])}
 
-    async def _list_customers(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_customers(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query_params: dict[str, Any] = {"limit": int(params.get("limit", 20))}
         if params.get("cursor"):
             query_params["cursor"] = params["cursor"]
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/customers",
+            client,
+            "GET",
+            f"{_BASE}/customers",
             headers=headers,
             params=query_params,
         )
@@ -79,30 +80,29 @@ class SquareConnector(IConnector):
         data = r.json()
         return {"customers": data.get("customers", []), "cursor": data.get("cursor")}
 
-    async def _create_customer(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_customer(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         body: dict[str, Any] = {}
         for field in ("given_name", "family_name", "email_address", "phone_number", "note"):
             if params.get(field):
                 body[field] = str(params[field])
         if not body.get("email_address") and not body.get("given_name"):
-            raise ConnectorError(
-                "MISSING_PARAM", "create_customer requires 'email_address' or 'given_name'"
-            )
+            raise ConnectorError("MISSING_PARAM", "create_customer requires 'email_address' or 'given_name'")
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/customers",
-            headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/customers",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_customer")
         return r.json().get("customer", r.json())
 
-    async def _list_catalog(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_catalog(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         types = params.get("types", "ITEM,ITEM_VARIATION,CATEGORY")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/catalog/list",
+            client,
+            "GET",
+            f"{_BASE}/catalog/list",
             headers=headers,
             params={"types": types},
         )
@@ -110,9 +110,7 @@ class SquareConnector(IConnector):
         data = r.json()
         return {"objects": data.get("objects", []), "cursor": data.get("cursor")}
 
-    async def _list_orders(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_orders(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         location_ids = params.get("location_ids", [])
         if not location_ids:
             raise ConnectorError("MISSING_PARAM", "list_orders requires 'location_ids'")
@@ -121,8 +119,11 @@ class SquareConnector(IConnector):
             "limit": int(params.get("limit", 20)),
         }
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/orders/search",
-            headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/orders/search",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "list_orders")
         data = r.json()

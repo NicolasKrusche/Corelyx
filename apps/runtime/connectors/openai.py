@@ -1,4 +1,5 @@
 """OpenAI connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.openai.com/v1"
 class OpenaiConnector(IConnector):
     """
     OpenAI connector for: create_completion, create_embedding.
-    
+
     API Base: openai
     """
-    
+
     provider = "openai"
-    supported_operations = [
-        "create_completion",
-        "create_embedding"
-    ]
+    supported_operations = ["create_completion", "create_embedding"]
 
     async def execute(
         self,
@@ -47,35 +45,36 @@ class OpenaiConnector(IConnector):
                         f"OpenAI does not support '{operation}'",
                     )
 
-
-    async def _create_completion(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_completion(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute create_completion operation."""
         if not params:
             raise ConnectorError("MISSING_PARAM", "request body required")
-        
+
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/completion",
-            headers=headers, json=params,
+            client,
+            "POST",
+            f"{_BASE}/completion",
+            headers=headers,
+            json=params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _create_embedding(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_embedding(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute create_embedding operation."""
         if not params:
             raise ConnectorError("MISSING_PARAM", "request body required")
-        
+
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/embedding",
-            headers=headers, json=params,
+            client,
+            "POST",
+            f"{_BASE}/embedding",
+            headers=headers,
+            json=params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

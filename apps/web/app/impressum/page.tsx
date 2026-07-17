@@ -123,8 +123,8 @@ export default async function ImpressumPage() {
               Company register
             </p>
             <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              <p>Company register number: {legalIdentity.companyRegisterNo || "Not applicable / not configured"}</p>
-              <p>Commercial court: {legalIdentity.commercialCourt || "Not applicable / not configured"}</p>
+              <p>Company register number: {legalIdentity.companyRegisterNo || "Not applicable"}</p>
+              <p>Commercial court: {legalIdentity.commercialCourt || "Not applicable"}</p>
             </div>
           </section>
 
@@ -133,7 +133,7 @@ export default async function ImpressumPage() {
               VAT identification number
             </p>
             <div className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              <p>VAT ID: {legalIdentity.vatId || "Not applicable / not configured"}</p>
+              <p>VAT ID: {legalIdentity.vatId || "Not applicable"}</p>
             </div>
           </section>
 

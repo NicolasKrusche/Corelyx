@@ -1,10 +1,11 @@
 """Comprehensive tests for engine.circuit_breaker."""
+
 from __future__ import annotations
 
 import asyncio
 import time
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from engine.circuit_breaker import (
     CircuitBreaker,

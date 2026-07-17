@@ -1,4 +1,5 @@
 """Final core module gap tests pushing coverage toward 100%."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,12 +9,11 @@ import time
 import unittest
 from datetime import datetime, timezone
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 
 from connectors.rate_limit import _parse_retry_after_seconds, request_with_rate_limit
-from connectors.base import ConnectorError
 from db import (
     _looks_like_missing_column_error,
     apply_execution_log_policy,
@@ -33,6 +33,7 @@ from schema import _bounded_float, _bounded_int, _parse_retry, parse_schema
 
 # ── connectors/rate_limit.py ───────────────────────────────────────────────
 
+
 class TestParseRetryAfterSeconds(unittest.TestCase):
     def test_retry_after_numeric(self) -> None:
         resp = Mock()
@@ -40,7 +41,7 @@ class TestParseRetryAfterSeconds(unittest.TestCase):
         self.assertEqual(_parse_retry_after_seconds(resp), 5.0)
 
     def test_retry_after_http_date(self) -> None:
-        future = (datetime.now(timezone.utc) + __import__("datetime").timedelta(seconds=10))
+        future = datetime.now(timezone.utc) + __import__("datetime").timedelta(seconds=10)
         resp = Mock()
         resp.headers = {"Retry-After": future.strftime("%a, %d %b %Y %H:%M:%S GMT")}
         result = _parse_retry_after_seconds(resp)
@@ -95,8 +96,7 @@ class TestRequestWithRateLimit(unittest.IsolatedAsyncioTestCase):
     async def test_request_error_exhausted(self) -> None:
         client = Mock()
         client.request = AsyncMock(side_effect=httpx.RequestError("timeout"))
-        with patch("connectors.rate_limit.asyncio.sleep", new=AsyncMock()), \
-             self.assertRaises(httpx.RequestError):
+        with patch("connectors.rate_limit.asyncio.sleep", new=AsyncMock()), self.assertRaises(httpx.RequestError):
             await request_with_rate_limit(client, "GET", "http://test.com", max_attempts=1)
 
     async def test_429_retry_then_success(self) -> None:
@@ -141,7 +141,9 @@ class TestRequestWithRateLimit(unittest.IsolatedAsyncioTestCase):
         resp.status_code = 418
         resp.headers = {}
         client.request = AsyncMock(return_value=resp)
-        result = await request_with_rate_limit(client, "GET", "http://test.com", max_attempts=1, retryable_statuses={418})
+        result = await request_with_rate_limit(
+            client, "GET", "http://test.com", max_attempts=1, retryable_statuses={418}
+        )
         self.assertEqual(result.status_code, 418)
 
     async def test_max_attempts_zero(self) -> None:
@@ -151,6 +153,7 @@ class TestRequestWithRateLimit(unittest.IsolatedAsyncioTestCase):
 
 
 # ── db.py ─────────────────────────────────────────────────────────────────
+
 
 class TestDbHelpers(unittest.TestCase):
     def test_get_execution_log_verbosity_invalid(self) -> None:
@@ -166,6 +169,7 @@ class TestDbHelpers(unittest.TestCase):
 
     def test_safe_metadata_key_non_string(self) -> None:
         from db import _safe_metadata_key
+
         self.assertEqual(_safe_metadata_key(123), "123")
 
     def test_summarize_payload_metadata_depth_exceeded(self) -> None:
@@ -183,6 +187,7 @@ class TestDbHelpers(unittest.TestCase):
     def test_hash_payload_json_error(self) -> None:
         class Unserializable:
             pass
+
         result = hash_payload(Unserializable())
         self.assertTrue(isinstance(result, str) and len(result) == 64)
 
@@ -223,21 +228,41 @@ class TestDbHelpers(unittest.TestCase):
 
     def test_cleanup_stale_locks_orphaned_datetime_parse(self) -> None:
         from db import cleanup_stale_locks
+
         db = Mock()
         builder = Mock()
-        for method in ["delete", "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in_", "is_", "order", "limit", "range", "match", "select"]:
+        for method in [
+            "delete",
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "in_",
+            "is_",
+            "order",
+            "limit",
+            "range",
+            "match",
+            "select",
+        ]:
             getattr(builder, method).return_value = builder
         call_count = 0
+
         def _exec_side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            if call_count == 1:   # delete().lt().execute()
+            if call_count == 1:  # delete().lt().execute()
                 return Mock(data=[])
-            if call_count == 2:   # select("id, locked_by_run_id").execute()
+            if call_count == 2:  # select("id, locked_by_run_id").execute()
                 return Mock(data=[{"id": "l1", "locked_by_run_id": "r1"}])
-            if call_count == 3:   # runs select().in_().execute()
+            if call_count == 3:  # runs select().in_().execute()
                 return Mock(data=[{"id": "r1", "status": "running", "started_at": "invalid-date"}])
             return Mock(data=[])
+
         builder.execute = Mock(side_effect=_exec_side_effect)
         db.table.return_value = builder
         result = asyncio.run(cleanup_stale_locks(db))
@@ -245,11 +270,30 @@ class TestDbHelpers(unittest.TestCase):
 
     def test_cleanup_stale_locks_orphaned_datetime_success(self) -> None:
         from db import cleanup_stale_locks
+
         db = Mock()
         builder = Mock()
-        for method in ["delete", "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in_", "is_", "order", "limit", "range", "match", "select"]:
+        for method in [
+            "delete",
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "in_",
+            "is_",
+            "order",
+            "limit",
+            "range",
+            "match",
+            "select",
+        ]:
             getattr(builder, method).return_value = builder
         call_count = 0
+
         def _exec_side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -262,6 +306,7 @@ class TestDbHelpers(unittest.TestCase):
             if call_count == 4:
                 return Mock(data=[{"id": "l1"}])
             return Mock(data=[])
+
         builder.execute = Mock(side_effect=_exec_side_effect)
         db.table.return_value = builder
         result = asyncio.run(cleanup_stale_locks(db))
@@ -276,15 +321,16 @@ class TestDbHelpers(unittest.TestCase):
 
     def test_get_active_cron_workflows_no_cron(self) -> None:
         db = Mock()
-        db.table.return_value.select.return_value.execute.return_value = Mock(data=[
-            {"id": "p1", "schema": {"nodes": [{"type": "trigger.manual"}]}}
-        ])
+        db.table.return_value.select.return_value.execute.return_value = Mock(
+            data=[{"id": "p1", "schema": {"nodes": [{"type": "trigger.manual"}]}}]
+        )
         with patch("db.get_db", return_value=db):
             result = asyncio.run(get_active_cron_workflows())
         self.assertEqual(result, [])
 
 
 # ── compliance.py ──────────────────────────────────────────────────────────
+
 
 class TestComplianceHelpers(unittest.TestCase):
     def test_provider_leaves_eea_united_states(self) -> None:
@@ -305,6 +351,7 @@ class TestComplianceHelpers(unittest.TestCase):
 
 # ── cors_config.py ─────────────────────────────────────────────────────────
 
+
 class TestCorsConfig(unittest.TestCase):
     def test_production_with_star_raises(self) -> None:
         with self.assertRaises(RuntimeError):
@@ -317,31 +364,40 @@ class TestCorsConfig(unittest.TestCase):
 
 # ── internal_auth.py ───────────────────────────────────────────────────────
 
+
 class TestInternalAuthHelpers(unittest.TestCase):
     def test_verify_empty_segments(self) -> None:
         result = verify_internal_service_token_claims("token", "next:test")
         self.assertIsNone(result)
 
     def test_verify_json_loads_exception(self) -> None:
-        with patch("internal_auth._get_internal_service_secret", return_value="secret"), \
-             patch("internal_auth._sign_payload_segment", return_value="sig"), \
-             patch("internal_auth.hmac.compare_digest", return_value=True), \
-             patch("internal_auth._b64url_decode", return_value=b"not-json"):
+        with (
+            patch("internal_auth._get_internal_service_secret", return_value="secret"),
+            patch("internal_auth._sign_payload_segment", return_value="sig"),
+            patch("internal_auth.hmac.compare_digest", return_value=True),
+            patch("internal_auth._b64url_decode", return_value=b"not-json"),
+        ):
             result = verify_internal_service_token_claims("payload.sig", "next:test")
         self.assertIsNone(result)
 
     def test_verify_non_int_iat(self) -> None:
-        with patch("internal_auth._get_internal_service_secret", return_value="secret"), \
-             patch("internal_auth._sign_payload_segment", return_value="sig"), \
-             patch("internal_auth.hmac.compare_digest", return_value=True), \
-             patch("internal_auth._b64url_decode", return_value=json.dumps({
-                 "aud": "next:test", "iat": "not-int", "exp": 9999999999, "sub": "user-1"
-             }).encode()):
+        with (
+            patch("internal_auth._get_internal_service_secret", return_value="secret"),
+            patch("internal_auth._sign_payload_segment", return_value="sig"),
+            patch("internal_auth.hmac.compare_digest", return_value=True),
+            patch(
+                "internal_auth._b64url_decode",
+                return_value=json.dumps(
+                    {"aud": "next:test", "iat": "not-int", "exp": 9999999999, "sub": "user-1"}
+                ).encode(),
+            ),
+        ):
             result = verify_internal_service_token_claims("payload.sig", "next:test")
         self.assertIsNone(result)
 
 
 # ── main.py ────────────────────────────────────────────────────────────────
+
 
 class TestMainModuleLoad(unittest.TestCase):
     def test_missing_secret_warning(self) -> None:
@@ -355,6 +411,7 @@ class TestMainModuleLoad(unittest.TestCase):
 
 
 # ── schema.py ───────────────────────────────────────────────────────────────
+
 
 class TestSchemaValidationHelpers(unittest.TestCase):
     def test_bounded_int_non_int(self) -> None:
@@ -379,7 +436,14 @@ class TestSchemaValidationHelpers(unittest.TestCase):
             "program_name": "Test",
             "execution_mode": "autonomous",
             "nodes": [
-                {"id": "n1", "type": "trigger", "config": {"trigger_type": "manual"}, "label": "T", "description": "", "position": {}}
+                {
+                    "id": "n1",
+                    "type": "trigger",
+                    "config": {"trigger_type": "manual"},
+                    "label": "T",
+                    "description": "",
+                    "position": {},
+                }
             ],
             "edges": [],
             "triggers": [],
@@ -392,15 +456,33 @@ class TestSchemaValidationHelpers(unittest.TestCase):
 
 # ── engine/executor.py remaining gaps ──────────────────────────────────────
 
+
 class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
     async def test_call_llm_anthropic_error_paths(self) -> None:
         from engine.executor import ProgramExecutor
-        schema = parse_schema({
-            "version": "1.0", "program_id": "p", "program_name": "T",
-            "execution_mode": "autonomous",
-            "nodes": [{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}, "label": "T", "description": "", "position": {}}],
-            "edges": [], "triggers": [], "version_history": [], "metadata": {},
-        })
+
+        schema = parse_schema(
+            {
+                "version": "1.0",
+                "program_id": "p",
+                "program_name": "T",
+                "execution_mode": "autonomous",
+                "nodes": [
+                    {
+                        "id": "t",
+                        "type": "trigger",
+                        "config": {"trigger_type": "manual"},
+                        "label": "T",
+                        "description": "",
+                        "position": {},
+                    }
+                ],
+                "edges": [],
+                "triggers": [],
+                "version_history": [],
+                "metadata": {},
+            }
+        )
         executor = ProgramExecutor.__new__(ProgramExecutor)
         executor.schema = schema
         executor.run_id = "r1"
@@ -418,8 +500,12 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
         executor._connection_name_to_id = {}
         executor._node_telemetry = {}
         executor._run_telemetry = {
-            "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
-            "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "connector_api_calls": 0,
+            "model_call_count": 0,
         }
         executor._limiter = Mock()
         executor._limiter.check_node_limit = Mock()
@@ -432,20 +518,30 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
         executor.dry_run = False
 
         from schema import AgentConfig, RetryConfig
+
         cfg = AgentConfig(
-            model="claude-3-haiku", api_key_ref="platform", system_prompt="hi",
-            input_schema=None, output_schema=None, requires_approval=False,
-            approval_timeout_hours=24.0, scope_required=None, scope_access="read",
-            retry=RetryConfig(1, "none", 0.0, False), tools=[],
+            model="claude-3-haiku",
+            api_key_ref="platform",
+            system_prompt="hi",
+            input_schema=None,
+            output_schema=None,
+            requires_approval=False,
+            approval_timeout_hours=24.0,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False),
+            tools=[],
         )
 
         resp = Mock()
         resp.is_success = False
         resp.status_code = 500
         resp.text = "Internal Server Error"
-        with patch("engine.executor._get_llm_client") as mock_client, \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.os.environ.get", return_value=None):
+        with (
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.os.environ.get", return_value=None),
+        ):
             mock_client.return_value.post = AsyncMock(return_value=resp)
             with self.assertRaises(Exception) as ctx:
                 await executor._call_llm(cfg, "key", "anthropic", {}, "n1")
@@ -453,12 +549,29 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
 
     async def test_call_llm_openai_error_paths(self) -> None:
         from engine.executor import ProgramExecutor
-        schema = parse_schema({
-            "version": "1.0", "program_id": "p", "program_name": "T",
-            "execution_mode": "autonomous",
-            "nodes": [{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}, "label": "T", "description": "", "position": {}}],
-            "edges": [], "triggers": [], "version_history": [], "metadata": {},
-        })
+
+        schema = parse_schema(
+            {
+                "version": "1.0",
+                "program_id": "p",
+                "program_name": "T",
+                "execution_mode": "autonomous",
+                "nodes": [
+                    {
+                        "id": "t",
+                        "type": "trigger",
+                        "config": {"trigger_type": "manual"},
+                        "label": "T",
+                        "description": "",
+                        "position": {},
+                    }
+                ],
+                "edges": [],
+                "triggers": [],
+                "version_history": [],
+                "metadata": {},
+            }
+        )
         executor = ProgramExecutor.__new__(ProgramExecutor)
         executor.schema = schema
         executor.run_id = "r1"
@@ -476,8 +589,12 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
         executor._connection_name_to_id = {}
         executor._node_telemetry = {}
         executor._run_telemetry = {
-            "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
-            "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "connector_api_calls": 0,
+            "model_call_count": 0,
         }
         executor._limiter = Mock()
         executor._limiter.check_node_limit = Mock()
@@ -490,20 +607,30 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
         executor.dry_run = False
 
         from schema import AgentConfig, RetryConfig
+
         cfg = AgentConfig(
-            model="gpt-4o", api_key_ref="platform", system_prompt="hi",
-            input_schema=None, output_schema=None, requires_approval=False,
-            approval_timeout_hours=24.0, scope_required=None, scope_access="read",
-            retry=RetryConfig(1, "none", 0.0, False), tools=[],
+            model="gpt-4o",
+            api_key_ref="platform",
+            system_prompt="hi",
+            input_schema=None,
+            output_schema=None,
+            requires_approval=False,
+            approval_timeout_hours=24.0,
+            scope_required=None,
+            scope_access="read",
+            retry=RetryConfig(1, "none", 0.0, False),
+            tools=[],
         )
 
         resp = Mock()
         resp.is_success = True
         resp.text = ""
         resp.json.return_value = {"choices": []}
-        with patch("engine.executor._get_llm_client") as mock_client, \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.os.environ.get", return_value=None):
+        with (
+            patch("engine.executor._get_llm_client") as mock_client,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.os.environ.get", return_value=None),
+        ):
             mock_client.return_value.post = AsyncMock(return_value=resp)
             with self.assertRaises(Exception) as ctx:
                 await executor._call_llm(cfg, "key", "openai", {}, "n1")
@@ -511,12 +638,29 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
 
     async def test_resolve_http_oauth_token_invalid_hostname(self) -> None:
         from engine.executor import ProgramExecutor, ExecutionError
-        schema = parse_schema({
-            "version": "1.0", "program_id": "p", "program_name": "T",
-            "execution_mode": "autonomous",
-            "nodes": [{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}, "label": "T", "description": "", "position": {}}],
-            "edges": [], "triggers": [], "version_history": [], "metadata": {},
-        })
+
+        schema = parse_schema(
+            {
+                "version": "1.0",
+                "program_id": "p",
+                "program_name": "T",
+                "execution_mode": "autonomous",
+                "nodes": [
+                    {
+                        "id": "t",
+                        "type": "trigger",
+                        "config": {"trigger_type": "manual"},
+                        "label": "T",
+                        "description": "",
+                        "position": {},
+                    }
+                ],
+                "edges": [],
+                "triggers": [],
+                "version_history": [],
+                "metadata": {},
+            }
+        )
         executor = ProgramExecutor.__new__(ProgramExecutor)
         executor.schema = schema
         executor.run_id = "r1"
@@ -534,8 +678,12 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
         executor._connection_name_to_id = {}
         executor._node_telemetry = {}
         executor._run_telemetry = {
-            "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
-            "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "connector_api_calls": 0,
+            "model_call_count": 0,
         }
         executor._limiter = Mock()
         executor._agent_credentials = None
@@ -544,20 +692,39 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
         node = Mock()
         node.connection = "gmail"
         node.id = "conn-1"
-        with patch.object(executor, "_resolve_connection_id", return_value="conn-id-1"), \
-             patch.object(executor, "_provider_for_connection", return_value="gmail"):
+        with (
+            patch.object(executor, "_resolve_connection_id", return_value="conn-id-1"),
+            patch.object(executor, "_provider_for_connection", return_value="gmail"),
+        ):
             with self.assertRaises(ExecutionError) as ctx:
                 await executor._resolve_http_oauth_token(node, {}, "https://evil.com/api")
             self.assertEqual(ctx.exception.code, "HTTP_OAUTH_TARGET_INVALID")
 
     async def test_wait_for_approval_timeout(self) -> None:
         from engine.executor import ProgramExecutor, ExecutionError
-        schema = parse_schema({
-            "version": "1.0", "program_id": "p", "program_name": "T",
-            "execution_mode": "autonomous",
-            "nodes": [{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}, "label": "T", "description": "", "position": {}}],
-            "edges": [], "triggers": [], "version_history": [], "metadata": {},
-        })
+
+        schema = parse_schema(
+            {
+                "version": "1.0",
+                "program_id": "p",
+                "program_name": "T",
+                "execution_mode": "autonomous",
+                "nodes": [
+                    {
+                        "id": "t",
+                        "type": "trigger",
+                        "config": {"trigger_type": "manual"},
+                        "label": "T",
+                        "description": "",
+                        "position": {},
+                    }
+                ],
+                "edges": [],
+                "triggers": [],
+                "version_history": [],
+                "metadata": {},
+            }
+        )
         executor = ProgramExecutor.__new__(ProgramExecutor)
         executor.schema = schema
         executor.run_id = "r1"
@@ -575,8 +742,12 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
         executor._connection_name_to_id = {}
         executor._node_telemetry = {}
         executor._run_telemetry = {
-            "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
-            "estimated_cost_usd": 0.0, "connector_api_calls": 0, "model_call_count": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "connector_api_calls": 0,
+            "model_call_count": 0,
         }
         executor._limiter = Mock()
         executor._agent_credentials = None
@@ -584,15 +755,33 @@ class TestExecutorRemainingPaths(unittest.IsolatedAsyncioTestCase):
 
         db = Mock()
         builder = Mock()
-        for method in ["eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in_", "is_", "order", "limit", "range", "match", "select"]:
+        for method in [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "like",
+            "ilike",
+            "in_",
+            "is_",
+            "order",
+            "limit",
+            "range",
+            "match",
+            "select",
+        ]:
             getattr(builder, method).return_value = builder
         builder.execute.return_value = Mock(data=[])
         db.table = Mock(return_value=builder)
         executor.db = db
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.time.time", side_effect=[0.0, 0.1, 3601.0, 3601.0, 3601.0]), \
-             patch("engine.executor.asyncio.Event") as mock_event:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.time.time", side_effect=[0.0, 0.1, 3601.0, 3601.0, 3601.0]),
+            patch("engine.executor.asyncio.Event") as mock_event,
+        ):
             ev = Mock()
             ev.wait = AsyncMock(side_effect=asyncio.TimeoutError)
             ev.set = Mock()

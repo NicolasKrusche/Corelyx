@@ -141,11 +141,7 @@ def redact_secrets(value: Any, _depth: int = 0) -> Any:
         return value
     if isinstance(value, dict):
         return {
-            k: (
-                _REDACTED_PLACEHOLDER
-                if isinstance(k, str) and is_secret_key(k)
-                else redact_secrets(v, _depth + 1)
-            )
+            k: (_REDACTED_PLACEHOLDER if isinstance(k, str) and is_secret_key(k) else redact_secrets(v, _depth + 1))
             for k, v in value.items()
         }
     if isinstance(value, list):
@@ -258,13 +254,7 @@ def get_user_run_plan(db: Client, user_id: str) -> str:
     if not user_id:
         return "free"
     try:
-        result = (
-            db.table("profiles")
-            .select("tier, is_admin")
-            .eq("id", user_id)
-            .limit(1)
-            .execute()
-        )
+        result = db.table("profiles").select("tier, is_admin").eq("id", user_id).limit(1).execute()
         rows = result.data or []
         if not rows:
             return "free"
@@ -289,26 +279,14 @@ def get_model_access_tier(db: Client, user_id: str, workspace_id: str | None = N
         return "free"
 
     try:
-        profile_result = (
-            db.table("profiles")
-            .select("tier, is_admin")
-            .eq("id", user_id)
-            .limit(1)
-            .execute()
-        )
+        profile_result = db.table("profiles").select("tier, is_admin").eq("id", user_id).limit(1).execute()
         profile_rows = profile_result.data or []
         profile = profile_rows[0] if profile_rows else {}
         if profile.get("is_admin") is True:
             return "unlimited"
 
         if workspace_id:
-            workspace_result = (
-                db.table("workspaces")
-                .select("tier")
-                .eq("id", workspace_id)
-                .limit(1)
-                .execute()
-            )
+            workspace_result = db.table("workspaces").select("tier").eq("id", workspace_id).limit(1).execute()
             workspace_rows = workspace_result.data or []
             workspace_tier = workspace_rows[0].get("tier") if workspace_rows else None
             return workspace_tier if workspace_tier in _MODEL_ACCESS_TIERS else "free"
@@ -329,13 +307,7 @@ def get_user_priority_tier(db: Client, user_id: str) -> bool:
     if not user_id:
         return False
     try:
-        result = (
-            db.table("profiles")
-            .select("tier, is_admin")
-            .eq("id", user_id)
-            .limit(1)
-            .execute()
-        )
+        result = db.table("profiles").select("tier, is_admin").eq("id", user_id).limit(1).execute()
         rows = result.data or []
         if not rows:
             return False
@@ -348,13 +320,7 @@ def get_user_priority_tier(db: Client, user_id: str) -> bool:
 
 
 def is_processing_restricted(db: Client, user_id: str) -> bool:
-    result = (
-        db.table("profiles")
-        .select("processing_restricted")
-        .eq("id", user_id)
-        .limit(1)
-        .execute()
-    )
+    result = db.table("profiles").select("processing_restricted").eq("id", user_id).limit(1).execute()
     rows = result.data or []
     if not rows:
         return False
@@ -419,34 +385,19 @@ async def update_run(db: Client, run_id: str, **kwargs: Any) -> None:
 
 async def get_run_status(db: Client, run_id: str) -> str:
     """Fetch the current status of a run (for cancellation checks)."""
-    result = (
-        db.table("runs")
-        .select("status")
-        .eq("id", run_id)
-        .single()
-        .execute()
-    )
+    result = db.table("runs").select("status").eq("id", run_id).single().execute()
     return result.data.get("status", "unknown")
 
 
 async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
     # No DB-level unique constraint on (run_id, node_id), so check first to
     # avoid creating duplicate rows on re-dispatch (e.g. Skip trigger flow).
-    existing = (
-        db.table("node_executions")
-        .select("*")
-        .eq("run_id", run_id)
-        .eq("node_id", node_id)
-        .limit(1)
-        .execute()
-    )
+    existing = db.table("node_executions").select("*").eq("run_id", run_id).eq("node_id", node_id).limit(1).execute()
     if existing.data:
         return existing.data[0]
     try:
         result = (
-            db.table("node_executions")
-            .insert({"run_id": run_id, "node_id": node_id, "status": "pending"})
-            .execute()
+            db.table("node_executions").insert({"run_id": run_id, "node_id": node_id, "status": "pending"}).execute()
         )
         if result.data:
             return result.data[0]
@@ -455,22 +406,13 @@ async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
         if not ("unique" in err or "duplicate" in err or "23505" in err):
             raise
     # Racy re-check: another writer may have inserted between our select and insert
-    recheck = (
-        db.table("node_executions")
-        .select("*")
-        .eq("run_id", run_id)
-        .eq("node_id", node_id)
-        .limit(1)
-        .execute()
-    )
+    recheck = db.table("node_executions").select("*").eq("run_id", run_id).eq("node_id", node_id).limit(1).execute()
     if not recheck.data:
         raise RuntimeError(f"node_execution row missing after conflict (run={run_id}, node={node_id})")
     return recheck.data[0]
 
 
-async def update_node_execution(
-    db: Client, run_id: str, node_id: str, **kwargs: Any
-) -> None:
+async def update_node_execution(db: Client, run_id: str, node_id: str, **kwargs: Any) -> None:
     status = kwargs.get("status")
     if not isinstance(status, str):
         status = None
@@ -486,24 +428,12 @@ async def update_node_execution(
         kwargs["output_payload"] = apply_execution_log_policy(kwargs["output_payload"], status=status)
     fallback_columns = TELEMETRY_COLUMNS | COMPLIANCE_COLUMNS
     try:
-        result = (
-            db.table("node_executions")
-            .update(kwargs)
-            .eq("run_id", run_id)
-            .eq("node_id", node_id)
-            .execute()
-        )
+        result = db.table("node_executions").update(kwargs).eq("run_id", run_id).eq("node_id", node_id).execute()
     except Exception as exc:
         if any(k in fallback_columns for k in kwargs) and _looks_like_missing_column_error(exc, fallback_columns):
             fallback = {k: v for k, v in kwargs.items() if k not in fallback_columns}
             if fallback and fallback != kwargs:
-                (
-                    db.table("node_executions")
-                    .update(fallback)
-                    .eq("run_id", run_id)
-                    .eq("node_id", node_id)
-                    .execute()
-                )
+                (db.table("node_executions").update(fallback).eq("run_id", run_id).eq("node_id", node_id).execute())
                 print(
                     f"[db] WARNING: update_node_execution compliance metadata skipped (run={run_id}, node={node_id})",
                     flush=True,
@@ -513,13 +443,7 @@ async def update_node_execution(
     if hasattr(result, "error") and result.error and any(k in fallback_columns for k in kwargs):
         fallback = {k: v for k, v in kwargs.items() if k not in fallback_columns}
         if fallback and fallback != kwargs:
-            retry = (
-                db.table("node_executions")
-                .update(fallback)
-                .eq("run_id", run_id)
-                .eq("node_id", node_id)
-                .execute()
-            )
+            retry = db.table("node_executions").update(fallback).eq("run_id", run_id).eq("node_id", node_id).execute()
             if not (hasattr(retry, "error") and retry.error):
                 print(
                     f"[db] WARNING: update_node_execution telemetry skipped (run={run_id}, node={node_id})",
@@ -530,9 +454,7 @@ async def update_node_execution(
         print(f"[db] WARNING: update_node_execution failed (run={run_id}, node={node_id}): {result.error}", flush=True)
 
 
-async def create_approval(
-    db: Client, node_execution_id: str, user_id: str, context: dict
-) -> dict:
+async def create_approval(db: Client, node_execution_id: str, user_id: str, context: dict) -> dict:
     safe_context = redact_secrets(context)
     payload = {
         "node_execution_id": node_execution_id,
@@ -579,16 +501,12 @@ async def get_approval(db: Client, node_execution_id: str) -> Optional[dict]:
 LOCK_TTL_MINUTES = 30
 
 
-async def acquire_resource_lock(
-    db: Client, run_id: str, resource_type: str, resource_id: str
-) -> bool:
+async def acquire_resource_lock(db: Client, run_id: str, resource_type: str, resource_id: str) -> bool:
     """
     Try to acquire a resource lock. Returns True if acquired, False if conflict.
     Uses INSERT with ON CONFLICT DO NOTHING to be atomic.
     """
-    expires_at = (
-        datetime.now(timezone.utc) + timedelta(minutes=LOCK_TTL_MINUTES)
-    ).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=LOCK_TTL_MINUTES)).isoformat()
 
     try:
         result = (
@@ -618,9 +536,7 @@ async def release_run_locks(db: Client, run_id: str) -> None:
     db.table("resource_locks").delete().eq("locked_by_run_id", run_id).execute()
 
 
-async def get_existing_lock(
-    db: Client, resource_type: str, resource_id: str
-) -> Optional[dict]:
+async def get_existing_lock(db: Client, resource_type: str, resource_id: str) -> Optional[dict]:
     """Check if a resource is currently locked (and not expired)."""
     now = datetime.now(timezone.utc).isoformat()
     result = (
@@ -705,9 +621,7 @@ async def cleanup_stale_locks(db: Client) -> int:
 
 async def get_credential(ref: str, user_id: str) -> dict:
     db = get_db()
-    result = db.rpc("get_decrypted_secret", {
-        "secret_name": f"{ref}_{user_id}"
-    }).execute()
+    result = db.rpc("get_decrypted_secret", {"secret_name": f"{ref}_{user_id}"}).execute()
     if not result.data:
         raise ValueError(f"Credential '{ref}' not found for user")
     return result.data
@@ -751,10 +665,7 @@ def resolve_default_device(db: Client, workspace_id: str) -> Optional[str]:
         )
     except Exception:
         return None
-    rows = [
-        r for r in (result.data or [])
-        if r.get("platform") in _FILE_OP_CAPABLE_PLATFORMS
-    ]
+    rows = [r for r in (result.data or []) if r.get("platform") in _FILE_OP_CAPABLE_PLATFORMS]
     if not rows:
         return None
 
@@ -809,9 +720,7 @@ async def enqueue_file_operation(
     if owned.data[0].get("platform") not in _FILE_OP_CAPABLE_PLATFORMS:
         raise ValueError("Target device cannot execute file operations.")
 
-    expires_at = (
-        datetime.now(timezone.utc) + timedelta(minutes=max(1, ttl_minutes))
-    ).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=max(1, ttl_minutes))).isoformat()
     payload = {
         "run_id": run_id,
         "node_execution_id": node_execution_id,
@@ -825,9 +734,7 @@ async def enqueue_file_operation(
     }
     result = db.table("file_operations").insert(payload).execute()
     if not result.data:
-        raise RuntimeError(
-            f"DB insert for file_operation (run={run_id}, op={op_type}) returned no data"
-        )
+        raise RuntimeError(f"DB insert for file_operation (run={run_id}, op={op_type}) returned no data")
     return result.data[0]
 
 
@@ -843,9 +750,11 @@ async def get_active_cron_workflows() -> list:
         for node in nodes:
             if node.get("type") == "trigger.cron":
                 config = node.get("config") or {}
-                cron_workflows.append({
-                    "id": row["id"],
-                    "cron_expression": config.get("cron_expression", "0 * * * *"),
-                })
+                cron_workflows.append(
+                    {
+                        "id": row["id"],
+                        "cron_expression": config.get("cron_expression", "0 * * * *"),
+                    }
+                )
                 break
     return cron_workflows

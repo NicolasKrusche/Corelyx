@@ -79,9 +79,7 @@ class NarrowToInputSchemaTests(unittest.TestCase):
 
     def test_object_schema_without_properties_is_ignored(self) -> None:
         self.assertEqual(_narrow_to_input_schema(GMAIL_INPUT, {"type": "object"}), GMAIL_INPUT)
-        self.assertEqual(
-            _narrow_to_input_schema(GMAIL_INPUT, {"type": "object", "properties": {}}), GMAIL_INPUT
-        )
+        self.assertEqual(_narrow_to_input_schema(GMAIL_INPUT, {"type": "object", "properties": {}}), GMAIL_INPUT)
 
     def test_declared_but_absent_field_is_not_invented(self) -> None:
         schema = {

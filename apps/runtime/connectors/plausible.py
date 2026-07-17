@@ -1,4 +1,5 @@
 """Plausible connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.plausible.com/v1"
 class PlausibleConnector(IConnector):
     """
     Plausible connector for: get_stats, query_breakdown.
-    
+
     API Base: plausible
     """
-    
+
     provider = "plausible"
-    supported_operations = [
-        "get_stats",
-        "query_breakdown"
-    ]
+    supported_operations = ["get_stats", "query_breakdown"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class PlausibleConnector(IConnector):
                         f"Plausible does not support '{operation}'",
                     )
 
-
-    async def _get_stats(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_stats(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_stats operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_stats",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_stats",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _query_breakdown(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_breakdown(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute query_breakdown operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/query_breakdown",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/query_breakdown",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

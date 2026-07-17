@@ -38,9 +38,10 @@ per-device token and exchanges work over two endpoints:
 - **Read vs read/write grants** are enforced per operation.
 - **Revocable.** Revoke a device from Corelyx → Settings → Devices; its token is
   rejected immediately and its in-flight ops are cancelled.
-- The device token is stored locally in the app config dir (0600 on Unix).
-  *TODO (hardening): back it with the OS keychain — macOS Keychain / Windows
-  Credential Manager.*
+- The device token is stored in the operating system credential vault (Windows
+  Credential Manager, macOS Keychain, or Secret Service on Linux). The JSON
+  config contains only the server URL and friendly device name. Existing
+  plaintext configs are migrated automatically on the next successful launch.
 
 ## Project layout
 
@@ -143,7 +144,6 @@ remains for advanced/headless use.
 ## Not yet in Phase 1 (tracked for later)
 
 - Tray icon with live status (loop + status struct are already in place).
-- OS keychain token storage.
 - Realtime push instead of polling (latency optimisation; the runtime already
   has the Realtime+poll wait on its side).
 - Native OS folder-picker for granting folders from inside the app (today the

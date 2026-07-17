@@ -1,4 +1,5 @@
 """Copper CRM native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -55,8 +56,7 @@ class CopperConnector(IConnector):
 
     async def _list_contacts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/people/search", headers=headers,
-            json={"page_size": int(params.get("limit", 50))}
+            client, "POST", f"{_BASE}/people/search", headers=headers, json={"page_size": int(params.get("limit", 50))}
         )
         _raise_for_status(r, "list_contacts")
         return {"contacts": r.json()}
@@ -74,8 +74,11 @@ class CopperConnector(IConnector):
 
     async def _list_opportunities(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/opportunities/search", headers=headers,
-            json={"page_size": int(params.get("limit", 50))}
+            client,
+            "POST",
+            f"{_BASE}/opportunities/search",
+            headers=headers,
+            json={"page_size": int(params.get("limit", 50))},
         )
         _raise_for_status(r, "list_opportunities")
         return {"opportunities": r.json()}

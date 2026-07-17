@@ -1,4 +1,5 @@
 """Semrush connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.semrush.com/v1"
 class SemrushConnector(IConnector):
     """
     Semrush connector for: get_domain_analytics, get_keywords.
-    
+
     API Base: semrush
     """
-    
+
     provider = "semrush"
-    supported_operations = [
-        "get_domain_analytics",
-        "get_keywords"
-    ]
+    supported_operations = ["get_domain_analytics", "get_keywords"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class SemrushConnector(IConnector):
                         f"Semrush does not support '{operation}'",
                     )
 
-
-    async def _get_domain_analytics(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_domain_analytics(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_domain_analytics operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_domain_analytics",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_domain_analytics",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _get_keywords(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_keywords(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_keywords operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_keywords",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_keywords",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

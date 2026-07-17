@@ -1,4 +1,5 @@
 """Typeform native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -40,15 +41,11 @@ class TypeformConnector(IConnector):
                         f"Typeform does not support operation '{operation}'",
                     )
 
-    async def _list_forms(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_forms(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {"page_size": int(params.get("page_size", 25))}
         if params.get("search"):
             query["search"] = params["search"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/forms", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/forms", headers=headers, params=query)
         _raise_for_status(r, "list_forms")
         data = r.json()
         forms = [
@@ -62,21 +59,14 @@ class TypeformConnector(IConnector):
         ]
         return {"forms": forms, "total_items": data.get("total_items")}
 
-    async def _get_form(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_form(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         form_id = params.get("form_id")
         if not form_id:
             raise ConnectorError("MISSING_PARAM", "get_form requires 'form_id'")
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/forms/{form_id}", headers=headers
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/forms/{form_id}", headers=headers)
         _raise_for_status(r, "get_form")
         form = r.json()
-        fields = [
-            {"id": f.get("id"), "title": f.get("title"), "type": f.get("type")}
-            for f in form.get("fields", [])
-        ]
+        fields = [{"id": f.get("id"), "title": f.get("title"), "type": f.get("type")} for f in form.get("fields", [])]
         return {
             "id": form.get("id"),
             "title": form.get("title"),
@@ -84,9 +74,7 @@ class TypeformConnector(IConnector):
             "settings": form.get("settings", {}),
         }
 
-    async def _get_responses(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_responses(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         form_id = params.get("form_id")
         if not form_id:
             raise ConnectorError("MISSING_PARAM", "get_responses requires 'form_id'")
@@ -98,8 +86,11 @@ class TypeformConnector(IConnector):
         if params.get("completed") is not None:
             query["completed"] = str(params["completed"]).lower()
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/forms/{form_id}/responses",
-            headers=headers, params=query,
+            client,
+            "GET",
+            f"{_BASE}/forms/{form_id}/responses",
+            headers=headers,
+            params=query,
         )
         _raise_for_status(r, "get_responses")
         data = r.json()

@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from schema import parse_schema
@@ -21,17 +19,32 @@ def _mock_db() -> Mock:
     db = Mock()
     builder = Mock()
     for method in [
-        "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike",
-        "in_", "is_", "order", "limit", "range", "match", "select",
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "like",
+        "ilike",
+        "in_",
+        "is_",
+        "order",
+        "limit",
+        "range",
+        "match",
+        "select",
     ]:
         getattr(builder, method).return_value = builder
     builder.execute.return_value = Mock(data=[])
     builder.single.return_value = builder
     db.table = Mock(return_value=builder)
-    db.channel = Mock(return_value=Mock(
-        on_postgres_changes=Mock(return_value=Mock(subscribe=Mock(return_value=None))),
-        unsubscribe=Mock(return_value=None),
-    ))
+    db.channel = Mock(
+        return_value=Mock(
+            on_postgres_changes=Mock(return_value=Mock(subscribe=Mock(return_value=None))),
+            unsubscribe=Mock(return_value=None),
+        )
+    )
     return db
 
 
@@ -89,11 +102,13 @@ def _make_executor(schema) -> ProgramExecutor:
 
 def _patch_llm_to_preserve_input(original: dict) -> Mock:
     """Return a mock _call_llm that merges original trigger keys with a summary."""
+
     async def _mock_call_llm(cfg, api_key, provider, input_data, node_id, deduct_credits=False):
         return {
             "summary": "Genesis comprehensive test summary",
             **{k: v for k, v in original.items() if k not in ("text",)},
         }
+
     return Mock(side_effect=_mock_call_llm)
 
 
@@ -149,7 +164,10 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
     async def test_program_metadata_correct(self) -> None:
         """Metadata fields must match expected values."""
         meta = self.raw_program["metadata"]
-        self.assertEqual(meta["description"], "Comprehensive test program created from scratch covering every node type, step logic, connection auth type, edge type, and visual node.")
+        self.assertEqual(
+            meta["description"],
+            "Comprehensive test program created from scratch covering every node type, step logic, connection auth type, edge type, and visual node.",
+        )
         self.assertEqual(self.raw_program["program_name"], "Genesis Comprehensive Node and Connection Test")
         self.assertEqual(self.raw_program["version"], "1.0")
         self.assertFalse(meta["is_active"])
@@ -184,14 +202,23 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
     async def test_note_node_config(self) -> None:
         """Note node must have content and color."""
         note_raw = next(n for n in self.raw_program["nodes"] if n["id"] == "note_1")
-        self.assertEqual(note_raw["config"]["content"], "This program tests every supported node type, edge type, HTTP auth method, and OAuth connection pattern.")
+        self.assertEqual(
+            note_raw["config"]["content"],
+            "This program tests every supported node type, edge type, HTTP auth method, and OAuth connection pattern.",
+        )
         self.assertEqual(note_raw["config"]["color"], "yellow")
 
     async def test_group_node_config(self) -> None:
         """Group node must contain correct child IDs."""
         group_raw = next(n for n in self.raw_program["nodes"] if n["id"] == "group_1")
         child_ids = set(group_raw["config"]["childIds"])
-        expected = {"conn_http_get", "conn_http_post", "conn_http_basic", "conn_http_api_key_header", "conn_http_api_key_query"}
+        expected = {
+            "conn_http_get",
+            "conn_http_post",
+            "conn_http_basic",
+            "conn_http_api_key_header",
+            "conn_http_api_key_query",
+        }
         self.assertEqual(child_ids, expected)
         self.assertEqual(group_raw["config"]["color"], "blue")
 
@@ -227,19 +254,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
             "items": [{"id": 1, "name": "Z"}, {"id": 2, "name": "A"}, {"id": 1, "name": "Z"}],
         }
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -266,21 +296,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200, {"url": "https://httpbin.org/test"})
         llm_response = _mock_llm_chat_response("agent task summary")
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -311,22 +344,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         mock_connector = Mock()
         mock_connector.execute = AsyncMock(return_value={"ok": True})
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=mock_connector), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=mock_connector),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -348,19 +384,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(self.program)
         trigger_payload = {"value": -200, "text": "Filter block test", "raw_json": "[]", "items": []}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -381,22 +420,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         mock_connector = Mock()
         mock_connector.execute = AsyncMock(return_value={"ok": True})
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=mock_connector), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=mock_connector),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -415,21 +457,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200)
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -452,22 +497,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         mock_connector = Mock()
         mock_connector.execute = AsyncMock(return_value={"ok": True})
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=mock_connector), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=mock_connector),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -490,22 +538,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         mock_connector = Mock()
         mock_connector.execute = AsyncMock(return_value={"ok": True})
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=mock_connector), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=mock_connector),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -520,19 +571,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(self.program)
         trigger_payload = {"value": 20, "text": "format", "raw_json": "[]", "items": []}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -548,19 +602,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(self.program)
         trigger_payload = {"value": 20, "text": "parse", "raw_json": '{"key":"val"}', "items": []}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -580,19 +637,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
             "items": [{"id": 1, "name": "Z"}, {"id": 2, "name": "A"}, {"id": 1, "name": "Z"}],
         }
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -613,19 +673,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
             "items": [{"id": 1, "name": "Z"}, {"id": 2, "name": "A"}, {"id": 1, "name": "Z"}],
         }
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -643,21 +706,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200)
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -682,21 +748,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200, {"args": {"test": "value"}})
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -718,21 +787,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200, {"json": {"key": "value"}})
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -754,21 +826,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200)
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -790,21 +865,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200)
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -826,21 +904,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200)
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -862,22 +943,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         mock_connector = Mock()
         mock_connector.execute = AsyncMock(return_value={"ok": True})
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=mock_connector), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="gmail")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=mock_connector),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -896,22 +980,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         mock_connector = Mock()
         mock_connector.execute = AsyncMock(return_value={"ts": "123", "channel": "#general"})
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="slack")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=mock_connector), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="slack")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=mock_connector),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -930,19 +1017,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(self.program)
         trigger_payload = {"value": 20, "text": "agent", "raw_json": "[]", "items": []}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -959,21 +1049,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200)
         llm_response = _mock_llm_chat_response("agent task summary")
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -998,19 +1091,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(self.program)
         trigger_payload = {"value": 20, "text": "test", "raw_json": "[]", "items": []}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()) as create_exec, \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()) as create_exec,
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -1034,21 +1130,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(404, text="Not Found")
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -1068,22 +1167,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(self.program)
         trigger_payload = {"value": 0, "text": "missing connector", "raw_json": "[]", "items": []}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="unknown")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=None), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="unknown")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=None),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -1108,22 +1210,25 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         mock_connector = Mock()
         mock_connector.execute = AsyncMock(side_effect=_token_side_effect)
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch.object(executor, "_provider_for_connection", Mock(return_value="slack")), \
-             patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")), \
-             patch("engine.executor.get_connector", return_value=mock_connector), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_provider_for_connection", Mock(return_value="slack")),
+            patch.object(executor, "_fetch_oauth_token", AsyncMock(return_value="fake-oauth-token")),
+            patch("engine.executor.get_connector", return_value=mock_connector),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -1141,21 +1246,24 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         http_response = _mock_http_response(200)
         llm_response = _mock_llm_chat_response()
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)), \
-             patch("engine.executor._get_llm_client") as mock_llm_client, \
-             patch("httpx.AsyncClient") as mock_http_client:
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+            patch("engine.executor._get_llm_client") as mock_llm_client,
+            patch("httpx.AsyncClient") as mock_http_client,
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -1181,19 +1289,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
             executor._record_telemetry(node_id, model_call_count=1)
             return {"summary": "test"}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", Mock(side_effect=_tracking_llm)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", Mock(side_effect=_tracking_llm)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -1215,19 +1326,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
             "items": [{"id": 1, "name": "Z"}, {"id": 2, "name": "A"}, {"id": 1, "name": "Z"}],
         }
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit
@@ -1250,19 +1364,22 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(self.program)
         trigger_payload = {"value": 20, "text": "carry through", "raw_json": "[]", "items": []}
 
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")), \
-             patch("engine.executor.cleanup_stale_locks", new=AsyncMock()), \
-             patch("engine.executor.update_node_execution", new=AsyncMock()), \
-             patch("engine.executor.create_node_execution", new=AsyncMock()), \
-             patch.object(executor, "_acquire_program_locks", new=AsyncMock()), \
-             patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))), \
-             patch.object(executor, "_enforce_provider_policy", new=AsyncMock()), \
-             patch.object(executor, "_check_platform_credits", new=AsyncMock()), \
-             patch("engine.executor.get_llm_circuit") as mock_llm_circuit, \
-             patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.cleanup_stale_locks", new=AsyncMock()),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.create_node_execution", new=AsyncMock()),
+            patch.object(executor, "_acquire_program_locks", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("fake-key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch("engine.executor.get_llm_circuit") as mock_llm_circuit,
+            patch.object(executor, "_call_llm", _patch_llm_to_preserve_input(trigger_payload)),
+        ):
 
             async def _circuit_call(fn, *args, **kwargs):
                 return await fn(*args)
+
             circuit = Mock()
             circuit.call = AsyncMock(side_effect=_circuit_call)
             mock_llm_circuit.return_value = circuit

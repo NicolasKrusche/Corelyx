@@ -16,6 +16,7 @@ Read operations never include attachment *bytes* (only metadata) and body text
 is what flows downstream; the runtime pseudonymises it before any LLM sees it,
 exactly like the other email connectors.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -58,9 +59,7 @@ class ThunderbirdConnector(IConnector):
         "flag_message",
     ]
 
-    async def execute(
-        self, operation: str, params: dict[str, Any], access_token: str
-    ) -> dict[str, Any]:
+    async def execute(self, operation: str, params: dict[str, Any], access_token: str) -> dict[str, Any]:
         creds = _parse_credentials(access_token)
         p = params or {}
         if operation == "list_folders":
@@ -88,9 +87,7 @@ class ThunderbirdConnector(IConnector):
             return await asyncio.to_thread(_set_flag, creds, p, r"\Seen", False)
         if operation == "flag_message":
             return await asyncio.to_thread(_set_flag, creds, p, r"\Flagged", not _truthy(p.get("unflag")))
-        raise ConnectorError(
-            "UNSUPPORTED_OPERATION", f"Thunderbird does not support '{operation}'"
-        )
+        raise ConnectorError("UNSUPPORTED_OPERATION", f"Thunderbird does not support '{operation}'")
 
 
 # ── Credentials ───────────────────────────────────────────────────────────────
@@ -98,8 +95,13 @@ class ThunderbirdConnector(IConnector):
 
 class _Creds:
     __slots__ = (
-        "imap_host", "imap_port", "smtp_host", "smtp_port",
-        "username", "password", "security",
+        "imap_host",
+        "imap_port",
+        "smtp_host",
+        "smtp_port",
+        "username",
+        "password",
+        "security",
     )
 
     def __init__(self, data: dict[str, Any]) -> None:
@@ -124,9 +126,7 @@ def _parse_credentials(access_token: str) -> _Creds:
         ) from exc
     creds = _Creds(data)
     if not creds.imap_host or not creds.username:
-        raise ConnectorError(
-            "BAD_CREDENTIALS", "Email connection is missing a host or username."
-        )
+        raise ConnectorError("BAD_CREDENTIALS", "Email connection is missing a host or username.")
     return creds
 
 
@@ -179,9 +179,7 @@ def _list_messages(creds: _Creds, p: dict[str, Any], criteria: list[str] | None)
 
 
 def _fetch_header(client: imaplib.IMAP4, uid: bytes) -> dict[str, Any] | None:
-    typ, data = client.uid(
-        "fetch", uid, "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)])"
-    )
+    typ, data = client.uid("fetch", uid, "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)])")
     if typ != "OK" or not data or not isinstance(data[0], tuple):
         return None
     flags_raw = data[0][0] or b""
@@ -229,13 +227,13 @@ def _get_message(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
 def _build_search(p: dict[str, Any]) -> list[str]:
     """Translate friendly params into IMAP SEARCH tokens (all-criteria = AND)."""
     out: list[str] = []
-    if (v := _clean(p.get("from"))):
+    if v := _clean(p.get("from")):
         out += ["FROM", _quote(v)]
-    if (v := _clean(p.get("subject"))):
+    if v := _clean(p.get("subject")):
         out += ["SUBJECT", _quote(v)]
-    if (v := _clean(p.get("text"))):
+    if v := _clean(p.get("text")):
         out += ["TEXT", _quote(v)]
-    if (v := _clean(p.get("since"))):
+    if v := _clean(p.get("since")):
         out += ["SINCE", v]  # expects DD-Mon-YYYY
     if str(p.get("unseen_only") or "").lower() in ("1", "true", "yes"):
         out += ["UNSEEN"]
@@ -348,13 +346,13 @@ def _send_email(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
     msg = EmailMessage()
     msg["From"] = _clean(p.get("from")) or creds.username
     msg["To"] = ", ".join(to)
-    if (cc := _addr_list(p.get("cc"))):
+    if cc := _addr_list(p.get("cc")):
         msg["Cc"] = ", ".join(cc)
     msg["Subject"] = _clean(p.get("subject")) or "(no subject)"
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid()
     msg.set_content(str(p.get("body") or ""))
-    if (html := _clean(p.get("html"))):
+    if html := _clean(p.get("html")):
         msg.add_alternative(html, subtype="html")
 
     recipients = to + _addr_list(p.get("cc")) + _addr_list(p.get("bcc"))
@@ -400,11 +398,13 @@ def _extract_body(msg: Message) -> tuple[str, str | None, list[dict[str, Any]]]:
         filename = part.get_filename()
         if "attachment" in disposition.lower() or filename:
             payload = part.get_payload(decode=True) or b""
-            attachments.append({
-                "filename": _hdr(filename) if filename else "attachment",
-                "content_type": ctype,
-                "size": len(payload),
-            })
+            attachments.append(
+                {
+                    "filename": _hdr(filename) if filename else "attachment",
+                    "content_type": ctype,
+                    "size": len(payload),
+                }
+            )
             continue
         if ctype == "text/plain":
             text_parts.append(_decode_part(part))

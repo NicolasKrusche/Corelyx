@@ -1,4 +1,5 @@
 """Mailchimp native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -51,21 +52,20 @@ class MailchimpConnector(IConnector):
                         f"Mailchimp does not support '{operation}'",
                     )
 
-    async def _list_audiences(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _list_audiences(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         count = int(params.get("count", 10))
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/lists", headers=headers,
+            client,
+            "GET",
+            f"{base}/lists",
+            headers=headers,
             params={"count": count},
         )
         _raise_for_status(r, "list_audiences")
         data = r.json()
         return {"audiences": data.get("lists", []), "total_items": data.get("total_items", 0)}
 
-    async def _add_member(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _add_member(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         list_id = params.get("list_id")
         email = params.get("email")
         if not list_id or not email:
@@ -77,53 +77,57 @@ class MailchimpConnector(IConnector):
         if params.get("merge_fields"):
             body["merge_fields"] = params["merge_fields"]
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/lists/{list_id}/members", headers=headers, json=body,
+            client,
+            "POST",
+            f"{base}/lists/{list_id}/members",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "add_member")
         return r.json()
 
-    async def _update_member(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _update_member(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         list_id = params.get("list_id")
         subscriber_hash = params.get("subscriber_hash")
         if not list_id or not subscriber_hash:
-            raise ConnectorError(
-                "MISSING_PARAM", "update_member requires 'list_id' and 'subscriber_hash'"
-            )
+            raise ConnectorError("MISSING_PARAM", "update_member requires 'list_id' and 'subscriber_hash'")
         body: dict[str, Any] = {}
         for field in ("status", "merge_fields", "tags"):
             if params.get(field):
                 body[field] = params[field]
         r = await request_with_rate_limit(
-            client, "PATCH",
+            client,
+            "PATCH",
             f"{base}/lists/{list_id}/members/{subscriber_hash}",
-            headers=headers, json=body,
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "update_member")
         return r.json()
 
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         count = int(params.get("count", 10))
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/campaigns", headers=headers,
+            client,
+            "GET",
+            f"{base}/campaigns",
+            headers=headers,
             params={"count": count},
         )
         _raise_for_status(r, "list_campaigns")
         data = r.json()
         return {"campaigns": data.get("campaigns", []), "total_items": data.get("total_items", 0)}
 
-    async def _send_campaign(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, base: str
-    ) -> dict:
+    async def _send_campaign(self, client: httpx.AsyncClient, headers: dict, params: dict, base: str) -> dict:
         campaign_id = params.get("campaign_id")
         if not campaign_id:
             raise ConnectorError("MISSING_PARAM", "send_campaign requires 'campaign_id'")
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/campaigns/{campaign_id}/actions/send",
-            headers=headers, json={},
+            client,
+            "POST",
+            f"{base}/campaigns/{campaign_id}/actions/send",
+            headers=headers,
+            json={},
         )
         _raise_for_status(r, "send_campaign")
         return {"sent": True, "campaign_id": campaign_id}

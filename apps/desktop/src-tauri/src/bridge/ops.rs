@@ -32,19 +32,26 @@ pub fn grants_from_dtos(dtos: &[GrantDto]) -> Vec<Grant> {
     dtos.iter()
         .map(|d| Grant {
             root: PathBuf::from(&d.path),
-            permission: Permission::from_str(&d.permission),
+            permission: d.permission.parse().unwrap_or(Permission::Read),
         })
         .collect()
 }
 
 /// Run one operation. Returns its result + any rollback snapshots on success, or
 /// a human-readable error string on failure (reported back as status:"error").
-pub fn execute(op: &Operation, grants: &[Grant], store: &SnapshotStore) -> Result<ExecOutcome, String> {
+pub fn execute(
+    op: &Operation,
+    grants: &[Grant],
+    store: &SnapshotStore,
+) -> Result<ExecOutcome, String> {
     // Restore is keyed by snapshot ref, not a path — handle it before the
     // generic path extraction the other ops share.
     if op.op_type == "restore" {
         let result = restore(op, grants, store)?;
-        return Ok(ExecOutcome { result, snapshots: Vec::new() });
+        return Ok(ExecOutcome {
+            result,
+            snapshots: Vec::new(),
+        });
     }
 
     let path = arg_str(op, "path").ok_or_else(|| "missing 'path'".to_string())?;
@@ -65,7 +72,10 @@ pub fn execute(op: &Operation, grants: &[Grant], store: &SnapshotStore) -> Resul
         other => Err(format!("unsupported operation '{other}'")),
     }?;
 
-    Ok(ExecOutcome { result, snapshots: snaps })
+    Ok(ExecOutcome {
+        result,
+        snapshots: snaps,
+    })
 }
 
 fn arg_str<'a>(op: &'a Operation, key: &str) -> Option<&'a str> {
@@ -183,7 +193,11 @@ fn delete(
         }
     }
     if meta.is_dir() {
-        let recursive = op.args.get("recursive").and_then(Value::as_bool).unwrap_or(false);
+        let recursive = op
+            .args
+            .get("recursive")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         if recursive {
             fs::remove_dir_all(&target).map_err(io)?;
         } else {
@@ -305,7 +319,7 @@ fn io(e: std::io::Error) -> String {
 /// Minimal base64 encoder (avoids a dependency) for returning binary file reads.
 fn base64_encode(bytes: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b = [
             chunk[0],
@@ -353,7 +367,7 @@ mod tests {
         }
     }
 
-    fn store_for(dir: &PathBuf) -> SnapshotStore {
+    fn store_for(dir: &Path) -> SnapshotStore {
         SnapshotStore::new(dir)
     }
 
@@ -367,7 +381,10 @@ mod tests {
         }]);
         let file = dir.join("note.txt");
         let w = execute(
-            &op("write", json!({ "path": file.to_string_lossy(), "content": "hello" })),
+            &op(
+                "write",
+                json!({ "path": file.to_string_lossy(), "content": "hello" }),
+            ),
             &grants,
             &store,
         )
@@ -393,7 +410,10 @@ mod tests {
         }]);
         let file = dir.join("x.txt");
         let err = execute(
-            &op("write", json!({ "path": file.to_string_lossy(), "content": "no" })),
+            &op(
+                "write",
+                json!({ "path": file.to_string_lossy(), "content": "no" }),
+            ),
             &grants,
             &store,
         )
@@ -413,18 +433,28 @@ mod tests {
 
         // Create, then overwrite — the overwrite must snapshot the prior bytes.
         execute(
-            &op("write", json!({ "path": file.to_string_lossy(), "content": "v1" })),
+            &op(
+                "write",
+                json!({ "path": file.to_string_lossy(), "content": "v1" }),
+            ),
             &grants,
             &store,
         )
         .unwrap();
         let over = execute(
-            &op("write", json!({ "path": file.to_string_lossy(), "content": "v2-clobbered" })),
+            &op(
+                "write",
+                json!({ "path": file.to_string_lossy(), "content": "v2-clobbered" }),
+            ),
             &grants,
             &store,
         )
         .unwrap();
-        assert_eq!(over.snapshots.len(), 1, "overwrite should snapshot prior state");
+        assert_eq!(
+            over.snapshots.len(),
+            1,
+            "overwrite should snapshot prior state"
+        );
         assert!(over.snapshots[0].existed);
         let snap_ref = over.snapshots[0].reference.clone();
         assert_eq!(fs::read_to_string(&file).unwrap(), "v2-clobbered");
@@ -447,7 +477,10 @@ mod tests {
 
         // Writing a brand-new file snapshots its non-existence.
         let created = execute(
-            &op("write", json!({ "path": file.to_string_lossy(), "content": "new" })),
+            &op(
+                "write",
+                json!({ "path": file.to_string_lossy(), "content": "new" }),
+            ),
             &grants,
             &store,
         )
@@ -458,7 +491,10 @@ mod tests {
 
         // Restoring that snapshot undoes the creation.
         execute(
-            &op("restore", json!({ "ref": created.snapshots[0].reference.clone() })),
+            &op(
+                "restore",
+                json!({ "ref": created.snapshots[0].reference.clone() }),
+            ),
             &grants,
             &store,
         )

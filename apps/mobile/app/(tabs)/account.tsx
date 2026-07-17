@@ -184,7 +184,7 @@ export default function Account() {
           <Card>
             <Text style={font.title}>Connections</Text>
             {connections === null ? (
-              <Text style={[font.muted, { marginTop: spacing.sm }]}>Couldn't load connections.</Text>
+              <Text style={[font.muted, { marginTop: spacing.sm }]}>Couldn&apos;t load connections.</Text>
             ) : connections.length === 0 ? (
               <Text style={[font.muted, { marginTop: spacing.sm }]}>No connections yet.</Text>
             ) : (
@@ -228,7 +228,7 @@ export default function Account() {
           <Card>
             <Text style={font.title}>Devices</Text>
             {devices === null ? (
-              <Text style={[font.muted, { marginTop: spacing.sm }]}>Couldn't load devices.</Text>
+              <Text style={[font.muted, { marginTop: spacing.sm }]}>Couldn&apos;t load devices.</Text>
             ) : devices.length === 0 ? (
               <Text style={[font.muted, { marginTop: spacing.sm }]}>No devices registered.</Text>
             ) : (

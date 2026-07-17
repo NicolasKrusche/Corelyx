@@ -1,17 +1,32 @@
 """Targeted connector tests to push coverage from 70-99% to 100%."""
+
 from __future__ import annotations
 
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from connectors.base import ConnectorError
-from connectors.gmail import GmailConnector, _decode_base64url, _extract_text_and_attachments, _header, _raise_for_status as _gmail_raise
-from connectors.notion import NotionConnector, _extract_database_id, _format_property, _hex32_to_uuid, _infer_notion_type, _map_simple_fields, _remap_explicit_properties, _truncate_rich_text
+from connectors.gmail import (
+    GmailConnector,
+    _decode_base64url,
+    _extract_text_and_attachments,
+    _header,
+    _raise_for_status as _gmail_raise,
+)
+from connectors.notion import (
+    NotionConnector,
+    _extract_database_id,
+    _format_property,
+    _hex32_to_uuid,
+    _infer_notion_type,
+    _map_simple_fields,
+    _remap_explicit_properties,
+    _truncate_rich_text,
+)
 from connectors.github import GitHubConnector
 from connectors.drive import DriveConnector
 from connectors.calendar import CalendarConnector
 from connectors.docs import DocsConnector, _extract_plain_text
-from connectors.sheets import SheetsConnector
 from connectors.slack import SlackConnector
 from connectors.hubspot import HubSpotConnector
 from connectors.jira import JiraConnector
@@ -44,6 +59,7 @@ def _fake_response(json_data=None, status_code=200, text="", raise_json_error=Fa
 # ────────────────────────────────────────────────────────────────
 # Gmail
 # ────────────────────────────────────────────────────────────────
+
 
 class TestGmailConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_send_email_with_all_options(self):
@@ -97,71 +113,77 @@ class TestGmailConnectorFinal(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["text"], "Hello World")
 
     async def test_read_email_with_attachments(self):
-        msg_resp = _fake_response({
-            "id": "msg1",
-            "threadId": "t1",
-            "historyId": "h1",
-            "snippet": "snip",
-            "payload": {
-                "headers": [
-                    {"name": "Subject", "value": "Hello"},
-                    {"name": "From", "value": "a@b.com"},
-                    {"name": "To", "value": "c@d.com"},
-                ],
-                "mimeType": "multipart/mixed",
-                "parts": [
-                    {
-                        "mimeType": "text/plain",
-                        "body": {"data": "SGVsbG8=", "size": 5},
-                    },
-                    {
-                        "mimeType": "text/html",
-                        "body": {"data": "PGh0bWw+", "size": 6},
-                    },
-                    {
-                        "mimeType": "application/pdf",
-                        "filename": "doc.pdf",
-                        "body": {"attachmentId": "att1", "size": 1024},
-                        "headers": [{"name": "Content-ID", "value": "<cid1>"}],
-                    },
-                ],
-            },
-            "labelIds": ["INBOX"],
-        })
+        msg_resp = _fake_response(
+            {
+                "id": "msg1",
+                "threadId": "t1",
+                "historyId": "h1",
+                "snippet": "snip",
+                "payload": {
+                    "headers": [
+                        {"name": "Subject", "value": "Hello"},
+                        {"name": "From", "value": "a@b.com"},
+                        {"name": "To", "value": "c@d.com"},
+                    ],
+                    "mimeType": "multipart/mixed",
+                    "parts": [
+                        {
+                            "mimeType": "text/plain",
+                            "body": {"data": "SGVsbG8=", "size": 5},
+                        },
+                        {
+                            "mimeType": "text/html",
+                            "body": {"data": "PGh0bWw+", "size": 6},
+                        },
+                        {
+                            "mimeType": "application/pdf",
+                            "filename": "doc.pdf",
+                            "body": {"attachmentId": "att1", "size": 1024},
+                            "headers": [{"name": "Content-ID", "value": "<cid1>"}],
+                        },
+                    ],
+                },
+                "labelIds": ["INBOX"],
+            }
+        )
         att_resp = _fake_response({"data": "SGVsbG8gV29ybGQ="})
         with patch(
             "connectors.gmail.request_with_rate_limit",
             new=AsyncMock(side_effect=[msg_resp, att_resp]),
         ):
             result = await GmailConnector().execute(
-                "read_email", {"message_id": "msg1", "include_attachments": True, "attachment_inline_max_bytes": 1024}, "tok"
+                "read_email",
+                {"message_id": "msg1", "include_attachments": True, "attachment_inline_max_bytes": 1024},
+                "tok",
             )
         self.assertEqual(result["attachment_count"], 1)
         self.assertTrue(result["attachments"][0]["is_inline"])
 
     async def test_read_email_attachment_fetch_error(self):
-        msg_resp = _fake_response({
-            "id": "msg1",
-            "threadId": "t1",
-            "historyId": "h1",
-            "snippet": "snip",
-            "payload": {
-                "headers": [
-                    {"name": "Subject", "value": "Hello"},
-                    {"name": "From", "value": "a@b.com"},
-                    {"name": "To", "value": "c@d.com"},
-                ],
-                "mimeType": "multipart/mixed",
-                "parts": [
-                    {
-                        "mimeType": "application/pdf",
-                        "filename": "doc.pdf",
-                        "body": {"attachmentId": "att1", "size": 1024},
-                    },
-                ],
-            },
-            "labelIds": ["INBOX"],
-        })
+        msg_resp = _fake_response(
+            {
+                "id": "msg1",
+                "threadId": "t1",
+                "historyId": "h1",
+                "snippet": "snip",
+                "payload": {
+                    "headers": [
+                        {"name": "Subject", "value": "Hello"},
+                        {"name": "From", "value": "a@b.com"},
+                        {"name": "To", "value": "c@d.com"},
+                    ],
+                    "mimeType": "multipart/mixed",
+                    "parts": [
+                        {
+                            "mimeType": "application/pdf",
+                            "filename": "doc.pdf",
+                            "body": {"attachmentId": "att1", "size": 1024},
+                        },
+                    ],
+                },
+                "labelIds": ["INBOX"],
+            }
+        )
         err_resp = _fake_response(status_code=404, text="Not found")
         with patch(
             "connectors.gmail.request_with_rate_limit",
@@ -173,35 +195,39 @@ class TestGmailConnectorFinal(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Not found", result["attachments"][0]["fetch_error"])
 
     async def test_read_email_attachment_truncated(self):
-        msg_resp = _fake_response({
-            "id": "msg1",
-            "threadId": "t1",
-            "historyId": "h1",
-            "snippet": "snip",
-            "payload": {
-                "headers": [
-                    {"name": "Subject", "value": "Hello"},
-                    {"name": "From", "value": "a@b.com"},
-                    {"name": "To", "value": "c@d.com"},
-                ],
-                "mimeType": "multipart/mixed",
-                "parts": [
-                    {
-                        "mimeType": "application/pdf",
-                        "filename": "doc.pdf",
-                        "body": {"attachmentId": "att1", "size": 1024},
-                    },
-                ],
-            },
-            "labelIds": ["INBOX"],
-        })
+        msg_resp = _fake_response(
+            {
+                "id": "msg1",
+                "threadId": "t1",
+                "historyId": "h1",
+                "snippet": "snip",
+                "payload": {
+                    "headers": [
+                        {"name": "Subject", "value": "Hello"},
+                        {"name": "From", "value": "a@b.com"},
+                        {"name": "To", "value": "c@d.com"},
+                    ],
+                    "mimeType": "multipart/mixed",
+                    "parts": [
+                        {
+                            "mimeType": "application/pdf",
+                            "filename": "doc.pdf",
+                            "body": {"attachmentId": "att1", "size": 1024},
+                        },
+                    ],
+                },
+                "labelIds": ["INBOX"],
+            }
+        )
         att_resp = _fake_response({"data": "SGVsbG8gV29ybGQ="})
         with patch(
             "connectors.gmail.request_with_rate_limit",
             new=AsyncMock(side_effect=[msg_resp, att_resp]),
         ):
             result = await GmailConnector().execute(
-                "read_email", {"message_id": "msg1", "include_attachments": True, "attachment_inline_max_bytes": 1}, "tok"
+                "read_email",
+                {"message_id": "msg1", "include_attachments": True, "attachment_inline_max_bytes": 1},
+                "tok",
             )
         self.assertTrue(result["attachments"][0]["truncated"])
 
@@ -275,6 +301,7 @@ class TestGmailConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Notion
 # ────────────────────────────────────────────────────────────────
 
+
 class TestNotionConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_create_page_redirect_non_uuid(self):
         search_resp = _fake_response({"results": [{"id": "db1", "title": [{"plain_text": "My DB"}]}]})
@@ -312,7 +339,9 @@ class TestNotionConnectorFinal(unittest.IsolatedAsyncioTestCase):
             new=AsyncMock(side_effect=[schema_err, page_resp]),
         ):
             result = await NotionConnector().execute(
-                "create_database_entry", {"database_id": "33fac82c-a3d4-80ca-95cd-f8b2ef72b2af", "_title": "Hello"}, "tok"
+                "create_database_entry",
+                {"database_id": "33fac82c-a3d4-80ca-95cd-f8b2ef72b2af", "_title": "Hello"},
+                "tok",
             )
         self.assertEqual(result["page_id"], "page1")
 
@@ -347,10 +376,14 @@ class TestNotionConnectorFinal(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.exception.code, "NOTION_PARSE_ERROR")
 
     def test_extract_database_id_uuid(self):
-        self.assertEqual(_extract_database_id("33fac82c-a3d4-80ca-95cd-f8b2ef72b2af"), "33fac82c-a3d4-80ca-95cd-f8b2ef72b2af")
+        self.assertEqual(
+            _extract_database_id("33fac82c-a3d4-80ca-95cd-f8b2ef72b2af"), "33fac82c-a3d4-80ca-95cd-f8b2ef72b2af"
+        )
 
     def test_extract_database_id_hex32(self):
-        self.assertEqual(_extract_database_id("33fac82ca3d480ca95cdf8b2ef72b2af"), "33fac82c-a3d4-80ca-95cd-f8b2ef72b2af")
+        self.assertEqual(
+            _extract_database_id("33fac82ca3d480ca95cdf8b2ef72b2af"), "33fac82c-a3d4-80ca-95cd-f8b2ef72b2af"
+        )
 
     def test_extract_database_id_url(self):
         self.assertEqual(
@@ -382,7 +415,16 @@ class TestNotionConnectorFinal(unittest.IsolatedAsyncioTestCase):
             "Custom": {"type": "url"},
         }
         result = _map_simple_fields(
-            {"_title": "Hello", "_body": "World", "_status": "Done", "_select": "A", "_date": "2024-01-01", "_number": "42", "_done": "true", "_custom": "http://x"},
+            {
+                "_title": "Hello",
+                "_body": "World",
+                "_status": "Done",
+                "_select": "A",
+                "_date": "2024-01-01",
+                "_number": "42",
+                "_done": "true",
+                "_custom": "http://x",
+            },
             schema,
         )
         self.assertIn("Name", result)
@@ -429,6 +471,7 @@ class TestNotionConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # GitHub
 # ────────────────────────────────────────────────────────────────
 
+
 class TestGitHubConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_create_issue_labels_and_assignees(self):
         mock = _fake_response({"number": 1, "html_url": "u", "title": "Bug"})
@@ -443,7 +486,9 @@ class TestGitHubConnectorFinal(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["assignees"], ["a"])
 
     async def test_push_file_content_base64(self):
-        mock = _fake_response({"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}})
+        mock = _fake_response(
+            {"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}}
+        )
         with patch("connectors.github.request_with_rate_limit", new=AsyncMock(return_value=mock)):
             result = await GitHubConnector().execute(
                 "push_file",
@@ -461,7 +506,9 @@ class TestGitHubConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     async def test_push_file_overwrite_fetch_existing(self):
         get_resp = _fake_response({"sha": "oldsha"})
-        put_resp = _fake_response({"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}})
+        put_resp = _fake_response(
+            {"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}}
+        )
         with patch(
             "connectors.github.request_with_rate_limit",
             new=AsyncMock(side_effect=[get_resp, put_resp]),
@@ -475,7 +522,9 @@ class TestGitHubConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     async def test_push_file_overwrite_fetch_existing_404(self):
         get_resp = _fake_response(status_code=404)
-        put_resp = _fake_response({"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}})
+        put_resp = _fake_response(
+            {"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}}
+        )
         with patch(
             "connectors.github.request_with_rate_limit",
             new=AsyncMock(side_effect=[get_resp, put_resp]),
@@ -488,7 +537,9 @@ class TestGitHubConnectorFinal(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["sha"], "abc")
 
     async def test_push_file_with_author_and_committer(self):
-        mock = _fake_response({"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}})
+        mock = _fake_response(
+            {"content": {"path": "f.txt", "sha": "abc", "html_url": "u"}, "commit": {"sha": "def", "html_url": "v"}}
+        )
         with patch("connectors.github.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
             await GitHubConnector().execute(
                 "push_file",
@@ -513,6 +564,7 @@ class TestGitHubConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Drive
 # ────────────────────────────────────────────────────────────────
 
+
 class TestDriveConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_files_folder_id(self):
         mock = _fake_response({"files": []})
@@ -530,7 +582,7 @@ class TestDriveConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     async def test_upload_file_parent_id(self):
         mock = _fake_response({"id": "f1", "name": "test.txt", "webViewLink": "u"})
-        with patch("connectors.drive.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
+        with patch("connectors.drive.request_with_rate_limit", new=AsyncMock(return_value=mock)):
             await DriveConnector().execute(
                 "upload_file", {"name": "test.txt", "content_base64": "SGVsbG8=", "parent_id": "pid"}, "tok"
             )
@@ -539,6 +591,7 @@ class TestDriveConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_404(self):
         from connectors.drive import _raise_for_status as _drive_raise
+
         r = _fake_response(status_code=404)
         with self.assertRaises(ConnectorError) as ctx:
             _drive_raise(r, "test")
@@ -549,12 +602,15 @@ class TestDriveConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Calendar
 # ────────────────────────────────────────────────────────────────
 
+
 class TestCalendarConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_events_time_min_max_query(self):
         mock = _fake_response({"items": [], "nextPageToken": None})
         with patch("connectors.calendar.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
             await CalendarConnector().execute(
-                "list_events", {"calendar_id": "primary", "time_min": "2024-01-01", "time_max": "2024-12-31", "query": "meeting"}, "tok"
+                "list_events",
+                {"calendar_id": "primary", "time_min": "2024-01-01", "time_max": "2024-12-31", "query": "meeting"},
+                "tok",
             )
         params = m.call_args.kwargs["params"]
         self.assertEqual(params["timeMin"], "2024-01-01")
@@ -595,6 +651,7 @@ class TestCalendarConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Docs
 # ────────────────────────────────────────────────────────────────
 
+
 class TestDocsConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_create_document_with_content(self):
         create_resp = _fake_response({"documentId": "d2", "title": "New Doc"})
@@ -607,11 +664,14 @@ class TestDocsConnectorFinal(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["document_id"], "d2")
 
     def test_extract_plain_text_continue(self):
-        result = _extract_plain_text({"body": {"content": [{"paragraph": {"elements": [{"textRun": {"content": "Hi"}}]}}, {"paragraph": None}]}})
+        result = _extract_plain_text(
+            {"body": {"content": [{"paragraph": {"elements": [{"textRun": {"content": "Hi"}}]}}, {"paragraph": None}]}}
+        )
         self.assertEqual(result, "Hi")
 
     def test_raise_for_status_404(self):
         from connectors.docs import _raise_for_status as _docs_raise
+
         r = _fake_response(status_code=404)
         with self.assertRaises(ConnectorError) as ctx:
             _docs_raise(r, "test")
@@ -622,9 +682,11 @@ class TestDocsConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Sheets
 # ────────────────────────────────────────────────────────────────
 
+
 class TestSheetsConnectorFinal(unittest.IsolatedAsyncioTestCase):
     def test_raise_for_status_403(self):
         from connectors.sheets import _raise_for_status as _sheets_raise
+
         r = _fake_response(status_code=403)
         with self.assertRaises(ConnectorError) as ctx:
             _sheets_raise(r, "test")
@@ -634,6 +696,7 @@ class TestSheetsConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # ────────────────────────────────────────────────────────────────
 # Slack
 # ────────────────────────────────────────────────────────────────
+
 
 class TestSlackConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_blocks(self):
@@ -647,6 +710,7 @@ class TestSlackConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_401(self):
         from connectors.slack import _raise_for_status as _slack_raise
+
         r = _fake_response(status_code=401)
         with self.assertRaises(ConnectorError) as ctx:
             _slack_raise(r, "test")
@@ -656,6 +720,7 @@ class TestSlackConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # ────────────────────────────────────────────────────────────────
 # HubSpot
 # ────────────────────────────────────────────────────────────────
+
 
 class TestHubSpotConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_get_contact_by_email(self):
@@ -668,6 +733,7 @@ class TestHubSpotConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_404(self):
         from connectors.hubspot import _raise_for_status as _hubspot_raise
+
         r = _fake_response(status_code=404)
         with self.assertRaises(ConnectorError) as ctx:
             _hubspot_raise(r, "test")
@@ -677,6 +743,7 @@ class TestHubSpotConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # ────────────────────────────────────────────────────────────────
 # Jira
 # ────────────────────────────────────────────────────────────────
+
 
 class TestJiraConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_unsupported_operation(self):
@@ -705,6 +772,7 @@ class TestJiraConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Outlook
 # ────────────────────────────────────────────────────────────────
 
+
 class TestOutlookConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_emails_filter(self):
         mock = _fake_response({"value": []})
@@ -726,6 +794,7 @@ class TestOutlookConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # ────────────────────────────────────────────────────────────────
 # Asana
 # ────────────────────────────────────────────────────────────────
+
 
 class TestAsanaConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_projects_workspace_id(self):
@@ -757,13 +826,21 @@ class TestAsanaConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Airtable
 # ────────────────────────────────────────────────────────────────
 
+
 class TestAirtableConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_records_view_filter_sort(self):
         mock = _fake_response({"records": [], "offset": None})
         with patch("connectors.airtable.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
             await AirtableConnector().execute(
                 "list_records",
-                {"base_id": "b1", "table_name": "t1", "view": "Grid", "filter_formula": "{Name}='A'", "sort_field": "Name", "sort_direction": "desc"},
+                {
+                    "base_id": "b1",
+                    "table_name": "t1",
+                    "view": "Grid",
+                    "filter_formula": "{Name}='A'",
+                    "sort_field": "Name",
+                    "sort_direction": "desc",
+                },
                 "tok",
             )
         params = m.call_args.kwargs["params"]
@@ -774,6 +851,7 @@ class TestAirtableConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_401(self):
         from connectors.airtable import _raise_for_status as _airtable_raise
+
         r = _fake_response(status_code=401)
         with self.assertRaises(ConnectorError) as ctx:
             _airtable_raise(r, "test")
@@ -781,6 +859,7 @@ class TestAirtableConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_422(self):
         from connectors.airtable import _raise_for_status as _airtable_raise
+
         r = _fake_response(status_code=422)
         with self.assertRaises(ConnectorError) as ctx:
             _airtable_raise(r, "test")
@@ -791,12 +870,15 @@ class TestAirtableConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Reddit
 # ────────────────────────────────────────────────────────────────
 
+
 class TestRedditConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_submit_post_link_kind(self):
         mock = _fake_response({"success": True, "jquery": []})
         with patch("connectors.reddit.request_with_rate_limit", new=AsyncMock(return_value=mock)):
             result = await RedditConnector().execute(
-                "submit_post", {"subreddit": "test", "title": "Link", "kind": "link", "url": "https://example.com"}, "tok"
+                "submit_post",
+                {"subreddit": "test", "title": "Link", "kind": "link", "url": "https://example.com"},
+                "tok",
             )
         self.assertTrue(result["success"])
 
@@ -810,22 +892,19 @@ class TestRedditConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_get_subreddit_posts_after(self):
         mock = _fake_response({"data": {"children": [], "after": "a1"}})
         with patch("connectors.reddit.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
-            await RedditConnector().execute(
-                "get_subreddit_posts", {"subreddit": "test", "after": "a0"}, "tok"
-            )
+            await RedditConnector().execute("get_subreddit_posts", {"subreddit": "test", "after": "a0"}, "tok")
         params = m.call_args.kwargs["params"]
         self.assertEqual(params["after"], "a0")
 
     async def test_get_comments_empty_data(self):
         mock = _fake_response({"data": {"children": []}})
         with patch("connectors.reddit.request_with_rate_limit", new=AsyncMock(return_value=mock)):
-            result = await RedditConnector().execute(
-                "get_comments", {"subreddit": "test", "post_id": "p1"}, "tok"
-            )
+            result = await RedditConnector().execute("get_comments", {"subreddit": "test", "post_id": "p1"}, "tok")
         self.assertEqual(result["comments"], [])
 
     def test_raise_for_status_403(self):
         from connectors.reddit import _raise_for_status as _reddit_raise
+
         r = _fake_response(status_code=403)
         with self.assertRaises(ConnectorError) as ctx:
             _reddit_raise(r, "test")
@@ -836,18 +915,18 @@ class TestRedditConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Salesforce
 # ────────────────────────────────────────────────────────────────
 
+
 class TestSalesforceConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_unsupported_operation(self):
         with self.assertRaises(ConnectorError) as ctx:
-            await SalesforceConnector().execute(
-                "delete_record", {"instance_url": "https://sf.salesforce.com"}, "tok"
-            )
+            await SalesforceConnector().execute("delete_record", {"instance_url": "https://sf.salesforce.com"}, "tok")
         self.assertEqual(ctx.exception.code, "UNSUPPORTED_OPERATION")
 
 
 # ────────────────────────────────────────────────────────────────
 # Bitbucket
 # ────────────────────────────────────────────────────────────────
+
 
 class TestBitbucketConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_create_pull_request_description(self):
@@ -866,6 +945,7 @@ class TestBitbucketConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Telegram
 # ────────────────────────────────────────────────────────────────
 
+
 class TestTelegramConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_send_photo(self):
         mock = _fake_response({"ok": True, "result": {"message_id": 1, "chat": {"id": 123}}})
@@ -878,7 +958,12 @@ class TestTelegramConnectorFinal(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["caption"], "Hi")
 
     async def test_get_chat(self):
-        mock = _fake_response({"ok": True, "result": {"id": 123, "type": "private", "title": "Chat", "username": "user", "description": "Desc"}})
+        mock = _fake_response(
+            {
+                "ok": True,
+                "result": {"id": 123, "type": "private", "title": "Chat", "username": "user", "description": "Desc"},
+            }
+        )
         with patch("connectors.telegram.request_with_rate_limit", new=AsyncMock(return_value=mock)):
             result = await TelegramConnector().execute("get_chat", {"chat_id": 123}, "tok")
         self.assertEqual(result["username"], "user")
@@ -892,6 +977,7 @@ class TestTelegramConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_400(self):
         from connectors.telegram import _raise_for_status as _telegram_raise
+
         r = _fake_response(status_code=400)
         with self.assertRaises(ConnectorError) as ctx:
             _telegram_raise(r, "test")
@@ -902,9 +988,12 @@ class TestTelegramConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # Teams
 # ────────────────────────────────────────────────────────────────
 
+
 class TestTeamsConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_channels(self):
-        mock = _fake_response({"value": [{"id": "c1", "displayName": "General", "description": "Desc", "membershipType": "standard"}]})
+        mock = _fake_response(
+            {"value": [{"id": "c1", "displayName": "General", "description": "Desc", "membershipType": "standard"}]}
+        )
         with patch("connectors.teams.request_with_rate_limit", new=AsyncMock(return_value=mock)):
             result = await TeamsConnector().execute("list_channels", {"team_id": "t1"}, "tok")
         self.assertEqual(result["channels"][0]["display_name"], "General")
@@ -913,7 +1002,9 @@ class TestTeamsConnectorFinal(unittest.IsolatedAsyncioTestCase):
         mock = _fake_response({"id": "c1", "displayName": "New Channel", "description": "Desc"})
         with patch("connectors.teams.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
             result = await TeamsConnector().execute(
-                "create_channel", {"team_id": "t1", "display_name": "New Channel", "description": "Desc", "membership_type": "private"}, "tok"
+                "create_channel",
+                {"team_id": "t1", "display_name": "New Channel", "description": "Desc", "membership_type": "private"},
+                "tok",
             )
         self.assertEqual(result["channel_id"], "c1")
         body = m.call_args.kwargs["json"]
@@ -922,6 +1013,7 @@ class TestTeamsConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_400(self):
         from connectors.teams import _raise_for_status as _teams_raise
+
         r = _fake_response(status_code=400)
         with self.assertRaises(ConnectorError) as ctx:
             _teams_raise(r, "test")
@@ -931,6 +1023,7 @@ class TestTeamsConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # ────────────────────────────────────────────────────────────────
 # GoogleChat
 # ────────────────────────────────────────────────────────────────
+
 
 class TestGoogleChatConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_send_message_cards(self):
@@ -951,6 +1044,7 @@ class TestGoogleChatConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_401(self):
         from connectors.googlechat import _raise_for_status as _googlechat_raise
+
         r = _fake_response(status_code=401)
         with self.assertRaises(ConnectorError) as ctx:
             _googlechat_raise(r, "test")
@@ -961,13 +1055,20 @@ class TestGoogleChatConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # WhatsApp
 # ────────────────────────────────────────────────────────────────
 
+
 class TestWhatsAppConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_send_template_message(self):
         mock = _fake_response({"messages": [{"id": "wamid.1"}]})
         with patch("connectors.whatsapp.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
             result = await WhatsappConnector().execute(
                 "send_template_message",
-                {"phone_number_id": "pn1", "to": "123", "template_name": "hello", "language_code": "en_US", "components": [{"type": "body"}]},
+                {
+                    "phone_number_id": "pn1",
+                    "to": "123",
+                    "template_name": "hello",
+                    "language_code": "en_US",
+                    "components": [{"type": "body"}],
+                },
                 "tok",
             )
         self.assertEqual(result["message_id"], "wamid.1")
@@ -976,6 +1077,7 @@ class TestWhatsAppConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_401(self):
         from connectors.whatsapp import _raise_for_status as _whatsapp_raise
+
         r = _fake_response(status_code=401)
         with self.assertRaises(ConnectorError) as ctx:
             _whatsapp_raise(r, "test")
@@ -985,6 +1087,7 @@ class TestWhatsAppConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # ────────────────────────────────────────────────────────────────
 # Stripe
 # ────────────────────────────────────────────────────────────────
+
 
 class TestStripeConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_customers(self):
@@ -1006,7 +1109,9 @@ class TestStripeConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_create_payment_link(self):
         mock = _fake_response({"id": "plink_1"})
         with patch("connectors.stripe.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
-            result = await StripeConnector().execute("create_payment_link", {"price_id": "price_1", "quantity": 2}, "tok")
+            result = await StripeConnector().execute(
+                "create_payment_link", {"price_id": "price_1", "quantity": 2}, "tok"
+            )
         self.assertEqual(result["id"], "plink_1")
         data = m.call_args.kwargs["data"]
         self.assertEqual(data["line_items[0][price]"], "price_1")
@@ -1015,7 +1120,9 @@ class TestStripeConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_list_subscriptions(self):
         mock = _fake_response({"data": [], "has_more": False})
         with patch("connectors.stripe.request_with_rate_limit", new=AsyncMock(return_value=mock)) as m:
-            result = await StripeConnector().execute("list_subscriptions", {"customer": "cus_1", "status": "active"}, "tok")
+            result = await StripeConnector().execute(
+                "list_subscriptions", {"customer": "cus_1", "status": "active"}, "tok"
+            )
         params = m.call_args.kwargs["params"]
         self.assertEqual(params["customer"], "cus_1")
         self.assertEqual(params["status"], "active")
@@ -1031,6 +1138,7 @@ class TestStripeConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_401(self):
         from connectors.stripe import _raise_for_status as _stripe_raise
+
         r = _fake_response(status_code=401)
         with self.assertRaises(ConnectorError) as ctx:
             _stripe_raise(r, "test")
@@ -1038,6 +1146,7 @@ class TestStripeConnectorFinal(unittest.IsolatedAsyncioTestCase):
 
     def test_raise_for_status_404(self):
         from connectors.stripe import _raise_for_status as _stripe_raise
+
         r = _fake_response(status_code=404)
         with self.assertRaises(ConnectorError) as ctx:
             _stripe_raise(r, "test")
@@ -1048,11 +1157,14 @@ class TestStripeConnectorFinal(unittest.IsolatedAsyncioTestCase):
 # OpenAI
 # ────────────────────────────────────────────────────────────────
 
+
 class TestOpenAIConnectorFinal(unittest.IsolatedAsyncioTestCase):
     async def test_create_embedding(self):
         mock = _fake_response({"object": "list"})
         with patch("connectors.openai.request_with_rate_limit", new=AsyncMock(return_value=mock)):
-            result = await OpenaiConnector().execute("create_embedding", {"model": "text-embedding-3", "input": "hello"}, "tok")
+            result = await OpenaiConnector().execute(
+                "create_embedding", {"model": "text-embedding-3", "input": "hello"}, "tok"
+            )
         self.assertEqual(result["object"], "list")
 
     async def test_create_embedding_missing_param(self):
@@ -1064,7 +1176,9 @@ class TestOpenAIConnectorFinal(unittest.IsolatedAsyncioTestCase):
         mock = _fake_response(status_code=400, text="Bad request")
         with patch("connectors.openai.request_with_rate_limit", new=AsyncMock(return_value=mock)):
             with self.assertRaises(ConnectorError) as ctx:
-                await OpenaiConnector().execute("create_embedding", {"model": "text-embedding-3", "input": "hello"}, "tok")
+                await OpenaiConnector().execute(
+                    "create_embedding", {"model": "text-embedding-3", "input": "hello"}, "tok"
+                )
         self.assertEqual(ctx.exception.code, "API_ERROR")
 
 

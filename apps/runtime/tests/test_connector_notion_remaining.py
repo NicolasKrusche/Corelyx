@@ -1,4 +1,5 @@
 """Remaining Notion connector coverage tests."""
+
 from __future__ import annotations
 
 import unittest
@@ -64,7 +65,7 @@ class TestNotionRemaining(unittest.IsolatedAsyncioTestCase):
     async def test_query_database_filter_retry_on_unknown_property(self):
         error_mock = _fake_response(
             status_code=400,
-            text='{"message": "Could not find property with name \"Foo\""}',
+            text='{"message": "Could not find property with name "Foo""}',
             json_data={"message": 'Could not find property with name "Foo"'},
         )
         success_mock = _fake_response({"results": [{"id": "page1"}], "has_more": False})
@@ -123,9 +124,7 @@ class TestNotionRemaining(unittest.IsolatedAsyncioTestCase):
                 "append_to_page",
                 {
                     "page_id": "p1",
-                    "blocks": [
-                        {"type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Hi"}}]}}
-                    ],
+                    "blocks": [{"type": "heading_2", "heading_2": {"rich_text": [{"text": {"content": "Hi"}}]}}],
                 },
                 "tok",
             )
@@ -140,9 +139,7 @@ class TestNotionRemaining(unittest.IsolatedAsyncioTestCase):
 
     async def test_search_via_find_or_create_database(self):
         """Internal search used by _find_or_create_database when a name is passed."""
-        search_resp = _fake_response(
-            {"results": [{"id": "db1", "title": [{"plain_text": "Tasks"}]}]}
-        )
+        search_resp = _fake_response({"results": [{"id": "db1", "title": [{"plain_text": "Tasks"}]}]})
         schema_resp = _fake_response({"properties": {"Name": {"type": "title"}}})
         page_resp = _fake_response({"id": "page1", "url": "https://notion.so/page1"})
         with patch(
@@ -204,9 +201,7 @@ class TestNotionRemaining(unittest.IsolatedAsyncioTestCase):
 
     async def test_create_page_non_uuid_parent_redirect(self):
         """Non-UUID parent_id is intercepted and redirected to create_database_entry."""
-        search_resp = _fake_response(
-            {"results": [{"id": "db1", "title": [{"plain_text": "My Database"}]}]}
-        )
+        search_resp = _fake_response({"results": [{"id": "db1", "title": [{"plain_text": "My Database"}]}]})
         schema_resp = _fake_response({"properties": {"Name": {"type": "title"}}})
         page_resp = _fake_response({"id": "page1", "url": "https://notion.so/page1"})
         with patch(
@@ -253,9 +248,7 @@ class TestNotionRemaining(unittest.IsolatedAsyncioTestCase):
 
     # ── Bonus: create_database_entry edge cases ────────────────────────
     async def test_create_database_entry_user_assigned_fallback(self):
-        search_db_resp = _fake_response(
-            {"results": [{"id": "db1", "title": [{"plain_text": "Corelyx Tasks"}]}]}
-        )
+        search_db_resp = _fake_response({"results": [{"id": "db1", "title": [{"plain_text": "Corelyx Tasks"}]}]})
         schema_resp = _fake_response({"properties": {"Name": {"type": "title"}}})
         page_resp = _fake_response({"id": "page1", "url": "https://notion.so/page1"})
         with patch(
@@ -281,9 +274,7 @@ class TestNotionRemaining(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.exception.code, "NO_ACCESSIBLE_PAGE")
 
     async def test_create_database_entry_explicit_properties(self):
-        schema_resp = _fake_response(
-            {"properties": {"Status": {"type": "status"}, "Name": {"type": "title"}}}
-        )
+        schema_resp = _fake_response({"properties": {"Status": {"type": "status"}, "Name": {"type": "title"}}})
         page_resp = _fake_response({"id": "page1", "url": "https://notion.so/page1"})
         with patch(
             "connectors.notion.request_with_rate_limit",

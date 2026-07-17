@@ -1,4 +1,5 @@
 """Trello native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -53,18 +54,14 @@ class TrelloConnector(IConnector):
                         f"Trello does not support operation '{operation}'",
                     )
 
-    async def _list_boards(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict
-    ) -> dict:
+    async def _list_boards(self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict) -> dict:
         r = await request_with_rate_limit(
             client, "GET", f"{_BASE}/members/me/boards", headers=headers, params={**auth, "fields": "id,name,desc,url"}
         )
         _raise_for_status(r, "list_boards")
         return {"boards": r.json()}
 
-    async def _list_cards(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict
-    ) -> dict:
+    async def _list_cards(self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict) -> dict:
         board_id = params.get("board_id")
         if not board_id:
             raise ConnectorError("MISSING_PARAM", "list_cards requires 'board_id'")
@@ -74,9 +71,7 @@ class TrelloConnector(IConnector):
         _raise_for_status(r, "list_cards")
         return {"cards": r.json()}
 
-    async def _create_card(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict
-    ) -> dict:
+    async def _create_card(self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict) -> dict:
         list_id = params.get("list_id")
         name = params.get("name")
         if not list_id or not name:
@@ -91,9 +86,7 @@ class TrelloConnector(IConnector):
         data = r.json()
         return {"id": data.get("id"), "url": data.get("url"), "name": data.get("name")}
 
-    async def _update_card(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict
-    ) -> dict:
+    async def _update_card(self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict) -> dict:
         card_id = params.get("card_id")
         if not card_id:
             raise ConnectorError("MISSING_PARAM", "update_card requires 'card_id'")
@@ -105,9 +98,7 @@ class TrelloConnector(IConnector):
         _raise_for_status(r, "update_card")
         return {"updated": True, "card_id": card_id}
 
-    async def _list_lists(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict
-    ) -> dict:
+    async def _list_lists(self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict) -> dict:
         board_id = params.get("board_id")
         if not board_id:
             raise ConnectorError("MISSING_PARAM", "list_lists requires 'board_id'")
@@ -117,9 +108,7 @@ class TrelloConnector(IConnector):
         _raise_for_status(r, "list_lists")
         return {"lists": r.json()}
 
-    async def _add_comment(
-        self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict
-    ) -> dict:
+    async def _add_comment(self, client: httpx.AsyncClient, headers: dict, params: dict, auth: dict) -> dict:
         card_id = params.get("card_id")
         text = params.get("text", "")
         if not card_id:

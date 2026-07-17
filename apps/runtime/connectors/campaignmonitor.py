@@ -1,4 +1,5 @@
 """Campaign Monitor connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.campaignmonitor.com/v1"
 class CampaignmonitorConnector(IConnector):
     """
     Campaign Monitor connector for: list_campaigns, get_campaign.
-    
+
     API Base: campaignmonitor
     """
-    
+
     provider = "campaignmonitor"
-    supported_operations = [
-        "list_campaigns",
-        "get_campaign"
-    ]
+    supported_operations = ["list_campaigns", "get_campaign"]
 
     async def execute(
         self,
@@ -47,10 +45,7 @@ class CampaignmonitorConnector(IConnector):
                         f"Campaign Monitor does not support '{operation}'",
                     )
 
-
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_campaigns operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -58,29 +53,33 @@ class CampaignmonitorConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/campaigns", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/campaigns",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),
             "total": data.get("total", 0),
         }
 
-    async def _get_campaign(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_campaign(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_campaign operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_campaign",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_campaign",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

@@ -1,4 +1,5 @@
 """Mixpanel connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.mixpanel.com/v1"
 class MixpanelConnector(IConnector):
     """
     Mixpanel connector for: query_data, track_event.
-    
+
     API Base: mixpanel
     """
-    
+
     provider = "mixpanel"
-    supported_operations = [
-        "query_data",
-        "track_event"
-    ]
+    supported_operations = ["query_data", "track_event"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class MixpanelConnector(IConnector):
                         f"Mixpanel does not support '{operation}'",
                     )
 
-
-    async def _query_data(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _query_data(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute query_data operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/query_data",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/query_data",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _track_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _track_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute track_event operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/track_event",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/track_event",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

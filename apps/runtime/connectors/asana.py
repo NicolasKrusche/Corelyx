@@ -1,4 +1,5 @@
 """Asana native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -53,25 +54,19 @@ class AsanaConnector(IConnector):
                         f"Asana does not support operation '{operation}'",
                     )
 
-    async def _list_projects(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_projects(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         query: dict[str, Any] = {
             "opt_fields": "gid,name,color,archived,created_at",
             "limit": int(params.get("limit", 50)),
         }
         if params.get("workspace_id"):
             query["workspace"] = params["workspace_id"]
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/projects", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/projects", headers=headers, params=query)
         _raise_for_status(r, "list_projects")
         data = r.json()
         return {"projects": data.get("data", [])}
 
-    async def _list_tasks(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_tasks(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         project_id = params.get("project_id")
         if not project_id:
             raise ConnectorError("MISSING_PARAM", "list_tasks requires 'project_id'")
@@ -82,35 +77,29 @@ class AsanaConnector(IConnector):
         }
         if params.get("completed") is not None:
             query["completed"] = str(params["completed"]).lower()
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/tasks", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/tasks", headers=headers, params=query)
         _raise_for_status(r, "list_tasks")
         return {"tasks": r.json().get("data", [])}
 
-    async def _get_task(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_task(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         task_id = params.get("task_id")
         if not task_id:
             raise ConnectorError("MISSING_PARAM", "get_task requires 'task_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/tasks/{task_id}",
+            client,
+            "GET",
+            f"{_BASE}/tasks/{task_id}",
             headers=headers,
             params={"opt_fields": "gid,name,completed,due_on,assignee.name,notes,projects.name,tags.name"},
         )
         _raise_for_status(r, "get_task")
         return r.json().get("data", {})
 
-    async def _create_task(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _create_task(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         name = params.get("name")
         project_id = params.get("project_id")
         if not name or not project_id:
-            raise ConnectorError(
-                "MISSING_PARAM", "create_task requires 'name' and 'project_id'"
-            )
+            raise ConnectorError("MISSING_PARAM", "create_task requires 'name' and 'project_id'")
         body: dict[str, Any] = {"name": name, "projects": [project_id]}
         if params.get("notes"):
             body["notes"] = params["notes"]
@@ -119,16 +108,17 @@ class AsanaConnector(IConnector):
         if params.get("assignee"):
             body["assignee"] = params["assignee"]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/tasks",
-            headers=headers, json={"data": body},
+            client,
+            "POST",
+            f"{_BASE}/tasks",
+            headers=headers,
+            json={"data": body},
         )
         _raise_for_status(r, "create_task")
         data = r.json().get("data", {})
         return {"task_id": data.get("gid"), "name": data.get("name")}
 
-    async def _update_task(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _update_task(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         task_id = params.get("task_id")
         if not task_id:
             raise ConnectorError("MISSING_PARAM", "update_task requires 'task_id'")
@@ -137,22 +127,26 @@ class AsanaConnector(IConnector):
             if params.get(field) is not None:
                 body[field] = params[field]
         r = await request_with_rate_limit(
-            client, "PUT", f"{_BASE}/tasks/{task_id}",
-            headers=headers, json={"data": body},
+            client,
+            "PUT",
+            f"{_BASE}/tasks/{task_id}",
+            headers=headers,
+            json={"data": body},
         )
         _raise_for_status(r, "update_task")
         data = r.json().get("data", {})
         return {"task_id": data.get("gid"), "name": data.get("name")}
 
-    async def _complete_task(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _complete_task(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         task_id = params.get("task_id")
         if not task_id:
             raise ConnectorError("MISSING_PARAM", "complete_task requires 'task_id'")
         r = await request_with_rate_limit(
-            client, "PUT", f"{_BASE}/tasks/{task_id}",
-            headers=headers, json={"data": {"completed": True}},
+            client,
+            "PUT",
+            f"{_BASE}/tasks/{task_id}",
+            headers=headers,
+            json={"data": {"completed": True}},
         )
         _raise_for_status(r, "complete_task")
         data = r.json().get("data", {})

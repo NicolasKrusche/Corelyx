@@ -75,7 +75,7 @@ export default function RunsScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   const onRefresh = useCallback(() => {

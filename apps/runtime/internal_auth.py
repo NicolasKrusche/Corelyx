@@ -45,9 +45,7 @@ def _get_internal_service_secret(audience: str) -> bytes:
     if shared_secret and _allows_shared_secret_fallback():
         return shared_secret.encode("utf-8")
 
-    raise RuntimeError(
-        f"Missing scoped internal auth secret {_scoped_secret_env_name(audience)}"
-    )
+    raise RuntimeError(f"Missing scoped internal auth secret {_scoped_secret_env_name(audience)}")
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -80,9 +78,7 @@ def create_internal_service_token(
     body: bytes | str | None = None,
 ) -> str:
     if ttl_seconds <= 0 or ttl_seconds > _MAX_TOKEN_LIFETIME_SECONDS:
-        raise ValueError(
-            f"Internal service token ttl_seconds must be between 1 and {_MAX_TOKEN_LIFETIME_SECONDS}"
-        )
+        raise ValueError(f"Internal service token ttl_seconds must be between 1 and {_MAX_TOKEN_LIFETIME_SECONDS}")
 
     issued_at = now_seconds if now_seconds is not None else int(time.time())
     payload: dict[str, Any] = {
@@ -100,12 +96,8 @@ def create_internal_service_token(
         payload["path"] = path
     if body is not None:
         payload["bh"] = _body_hash(body)
-    payload_segment = _b64url_encode(
-        json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    )
-    signature = _sign_payload_segment(
-        payload_segment, _get_internal_service_secret(audience)
-    )
+    payload_segment = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signature = _sign_payload_segment(payload_segment, _get_internal_service_secret(audience))
     return f"{payload_segment}.{signature}"
 
 
@@ -139,14 +131,17 @@ def verify_internal_service_token(
     path: str | None = None,
     body: bytes | str | None = None,
 ) -> bool:
-    return verify_internal_service_token_claims(
-        token,
-        expected_audience,
-        now_seconds=now_seconds,
-        method=method,
-        path=path,
-        body=body,
-    ) is not None
+    return (
+        verify_internal_service_token_claims(
+            token,
+            expected_audience,
+            now_seconds=now_seconds,
+            method=method,
+            path=path,
+            body=body,
+        )
+        is not None
+    )
 
 
 def verify_internal_service_token_claims(
@@ -166,9 +161,7 @@ def verify_internal_service_token_claims(
     if not payload_segment or not received_signature:
         return None
 
-    expected_signature = _sign_payload_segment(
-        payload_segment, _get_internal_service_secret(expected_audience)
-    )
+    expected_signature = _sign_payload_segment(payload_segment, _get_internal_service_secret(expected_audience))
     if not hmac.compare_digest(received_signature, expected_signature):
         return None
 

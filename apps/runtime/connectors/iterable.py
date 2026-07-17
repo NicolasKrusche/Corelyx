@@ -1,4 +1,5 @@
 """Iterable connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.iterable.com/v1"
 class IterableConnector(IConnector):
     """
     Iterable connector for: track_event, get_user.
-    
+
     API Base: iterable
     """
-    
+
     provider = "iterable"
-    supported_operations = [
-        "track_event",
-        "get_user"
-    ]
+    supported_operations = ["track_event", "get_user"]
 
     async def execute(
         self,
@@ -47,29 +45,30 @@ class IterableConnector(IConnector):
                         f"Iterable does not support '{operation}'",
                     )
 
-
-    async def _track_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _track_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute track_event operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/track_event",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/track_event",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()
 
-    async def _get_user(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_user(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_user operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_user",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_user",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

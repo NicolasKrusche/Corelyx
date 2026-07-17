@@ -1,4 +1,5 @@
 """Customer.io native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,9 +47,7 @@ class CustomerIOConnector(IConnector):
                         f"Customer.io does not support '{operation}'",
                     )
 
-    async def _identify_customer(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _identify_customer(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         identifier = params.get("id") or params.get("email")
         if not identifier:
             raise ConnectorError("MISSING_PARAM", "identify_customer requires 'id' or 'email'")
@@ -58,15 +57,16 @@ class CustomerIOConnector(IConnector):
         if params.get("attributes"):
             body.update(params["attributes"])
         r = await request_with_rate_limit(
-            client, "PUT", f"{_BASE}/customers/{identifier}",
-            headers=headers, json=body,
+            client,
+            "PUT",
+            f"{_BASE}/customers/{identifier}",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "identify_customer")
         return {"identified": True, "id": identifier}
 
-    async def _track_event(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _track_event(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         customer_id = params.get("customer_id")
         event_name = params.get("event")
         if not customer_id or not event_name:
@@ -75,15 +75,16 @@ class CustomerIOConnector(IConnector):
         if params.get("data"):
             body["data"] = params["data"]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/customers/{customer_id}/events",
-            headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/customers/{customer_id}/events",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "track_event")
         return {"tracked": True, "event": event_name}
 
-    async def _send_email(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_email(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         to = params.get("to")
         transactional_message_id = params.get("transactional_message_id")
         if not to or not transactional_message_id:
@@ -98,16 +99,21 @@ class CustomerIOConnector(IConnector):
         if params.get("message_data"):
             body["message_data"] = params["message_data"]
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/send/email", headers=headers, json=body,
+            client,
+            "POST",
+            f"{_BASE}/send/email",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "send_email")
         return r.json()
 
-    async def _list_campaigns(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_campaigns(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/campaigns", headers=headers,
+            client,
+            "GET",
+            f"{_BASE}/campaigns",
+            headers=headers,
         )
         _raise_for_status(r, "list_campaigns")
         return {"campaigns": r.json().get("campaigns", [])}

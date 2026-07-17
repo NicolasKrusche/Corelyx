@@ -1,4 +1,5 @@
 """Aircall connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,15 +15,12 @@ _BASE = "https://api.aircall.com/v1"
 class AircallConnector(IConnector):
     """
     Aircall connector for: list_calls, get_call_details.
-    
+
     API Base: aircall
     """
-    
+
     provider = "aircall"
-    supported_operations = [
-        "list_calls",
-        "get_call_details"
-    ]
+    supported_operations = ["list_calls", "get_call_details"]
 
     async def execute(
         self,
@@ -47,10 +45,7 @@ class AircallConnector(IConnector):
                         f"Aircall does not support '{operation}'",
                     )
 
-
-    async def _list_calls(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_calls(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute list_calls operation."""
         limit = int(params.get("limit", 50))
         offset = int(params.get("offset", 0))
@@ -58,29 +53,33 @@ class AircallConnector(IConnector):
         for key in ["filter", "sort", "search"]:
             if key in params:
                 query_params[key] = params[key]
-        
+
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/calls", 
-            headers=headers, params=query_params,
+            client,
+            "GET",
+            f"{_BASE}/calls",
+            headers=headers,
+            params=query_params,
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         data = r.json()
         return {
             "items": data.get("data", []) or data.get("items", []),
             "total": data.get("total", 0),
         }
 
-    async def _get_call_details(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_call_details(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         """Execute get_call_details operation."""
         r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/get_call_details",
-            headers=headers, json=params or {},
+            client,
+            "POST",
+            f"{_BASE}/get_call_details",
+            headers=headers,
+            json=params or {},
         )
         if r.status_code >= 400:
             raise ConnectorError("API_ERROR", r.text)
-        
+
         return r.json()

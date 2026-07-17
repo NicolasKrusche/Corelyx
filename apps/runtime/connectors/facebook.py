@@ -1,4 +1,5 @@
 """Facebook Pages native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,9 +47,7 @@ class FacebookConnector(IConnector):
                         f"Facebook does not support operation '{operation}'",
                     )
 
-    async def _post_to_page(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _post_to_page(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         page_id = params.get("page_id")
         message = params.get("message", "")
         if not page_id:
@@ -58,16 +57,12 @@ class FacebookConnector(IConnector):
             body["link"] = params["link"]
         if params.get("published") is not None:
             body["published"] = params["published"]
-        r = await request_with_rate_limit(
-            client, "POST", f"{_BASE}/{page_id}/feed", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{_BASE}/{page_id}/feed", headers=headers, json=body)
         _raise_for_status(r, "post_to_page")
         data = r.json()
         return {"post_id": data.get("id")}
 
-    async def _get_page_posts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_page_posts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         page_id = params.get("page_id")
         if not page_id:
             raise ConnectorError("MISSING_PARAM", "get_page_posts requires 'page_id'")
@@ -75,9 +70,7 @@ class FacebookConnector(IConnector):
             "fields": params.get("fields", "id,message,created_time,full_picture"),
             "limit": int(params.get("limit", 10)),
         }
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/{page_id}/posts", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/{page_id}/posts", headers=headers, params=query)
         _raise_for_status(r, "get_page_posts")
         data = r.json()
         return {
@@ -85,9 +78,7 @@ class FacebookConnector(IConnector):
             "next": data.get("paging", {}).get("next"),
         }
 
-    async def _get_page_insights(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_page_insights(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         page_id = params.get("page_id")
         if not page_id:
             raise ConnectorError("MISSING_PARAM", "get_page_insights requires 'page_id'")
@@ -95,16 +86,12 @@ class FacebookConnector(IConnector):
             "metric": params.get("metric", "page_impressions,page_engaged_users"),
             "period": params.get("period", "day"),
         }
-        r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/{page_id}/insights", headers=headers, params=query
-        )
+        r = await request_with_rate_limit(client, "GET", f"{_BASE}/{page_id}/insights", headers=headers, params=query)
         _raise_for_status(r, "get_page_insights")
         data = r.json()
         return {"insights": data.get("data", [])}
 
-    async def _reply_to_comment(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _reply_to_comment(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         comment_id = params.get("comment_id")
         message = params.get("message", "")
         if not comment_id:

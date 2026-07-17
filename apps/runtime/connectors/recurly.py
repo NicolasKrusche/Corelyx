@@ -1,4 +1,5 @@
 """Recurly native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -47,12 +48,12 @@ class RecurlyConnector(IConnector):
                         f"Recurly does not support '{operation}'",
                     )
 
-    async def _list_subscriptions(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_subscriptions(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/subscriptions",
+            client,
+            "GET",
+            f"{_BASE}/subscriptions",
             headers=headers,
             params={"limit": limit},
         )
@@ -60,25 +61,25 @@ class RecurlyConnector(IConnector):
         data = r.json()
         return {"subscriptions": data.get("data", []), "has_more": data.get("has_more", False)}
 
-    async def _get_subscription(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_subscription(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         subscription_id = params.get("subscription_id")
         if not subscription_id:
             raise ConnectorError("MISSING_PARAM", "get_subscription requires 'subscription_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/subscriptions/{subscription_id}",
+            client,
+            "GET",
+            f"{_BASE}/subscriptions/{subscription_id}",
             headers=headers,
         )
         _raise_for_status(r, "get_subscription")
         return r.json()
 
-    async def _list_accounts(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_accounts(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/accounts",
+            client,
+            "GET",
+            f"{_BASE}/accounts",
             headers=headers,
             params={"limit": limit},
         )
@@ -86,15 +87,15 @@ class RecurlyConnector(IConnector):
         data = r.json()
         return {"accounts": data.get("data", []), "has_more": data.get("has_more", False)}
 
-    async def _list_invoices(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_invoices(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         limit = int(params.get("limit", 20))
         query_params: dict[str, Any] = {"limit": limit}
         if params.get("account_id"):
             return await self._list_account_invoices(client, headers, params)
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/invoices",
+            client,
+            "GET",
+            f"{_BASE}/invoices",
             headers=headers,
             params=query_params,
         )
@@ -102,13 +103,13 @@ class RecurlyConnector(IConnector):
         data = r.json()
         return {"invoices": data.get("data", []), "has_more": data.get("has_more", False)}
 
-    async def _list_account_invoices(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _list_account_invoices(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         account_id = params["account_id"]
         limit = int(params.get("limit", 20))
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/accounts/{account_id}/invoices",
+            client,
+            "GET",
+            f"{_BASE}/accounts/{account_id}/invoices",
             headers=headers,
             params={"limit": limit},
         )
@@ -119,6 +120,7 @@ class RecurlyConnector(IConnector):
 
 def _encode_key(api_key: str) -> str:
     import base64
+
     return base64.b64encode(f"{api_key}:".encode()).decode()
 
 

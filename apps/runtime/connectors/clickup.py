@@ -1,4 +1,5 @@
 """ClickUp native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -54,8 +55,7 @@ class ClickUpConnector(IConnector):
         if not list_id:
             raise ConnectorError("MISSING_PARAM", "list_tasks requires 'list_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{_BASE}/list/{list_id}/task", headers=headers,
-            params={"page": params.get("page", 0)}
+            client, "GET", f"{_BASE}/list/{list_id}/task", headers=headers, params={"page": params.get("page", 0)}
         )
         _raise_for_status(r, "list_tasks")
         data = r.json()
@@ -97,7 +97,9 @@ class ClickUpConnector(IConnector):
             if not teams:
                 raise ConnectorError("CLICKUP_NO_TEAMS", "No ClickUp teams found for this user")
             team_id = teams[0]["id"]
-        r = await request_with_rate_limit(client, "GET", f"{_BASE}/team/{team_id}/space", headers=headers, params={"archived": False})
+        r = await request_with_rate_limit(
+            client, "GET", f"{_BASE}/team/{team_id}/space", headers=headers, params={"archived": False}
+        )
         _raise_for_status(r, "list_spaces")
         return {"spaces": r.json().get("spaces", [])}
 

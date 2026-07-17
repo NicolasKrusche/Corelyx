@@ -1,4 +1,5 @@
 """Zoho Projects native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -57,9 +58,7 @@ class ZohoProjectsConnector(IConnector):
         project_id = params.get("project_id")
         if not project_id:
             raise ConnectorError("MISSING_PARAM", "list_tasks requires 'project_id'")
-        r = await request_with_rate_limit(
-            client, "GET", f"{base}/{project_id}/tasks/", headers=headers
-        )
+        r = await request_with_rate_limit(client, "GET", f"{base}/{project_id}/tasks/", headers=headers)
         _raise_for_status(r, "list_tasks")
         return {"tasks": r.json().get("tasks", [])}
 
@@ -72,9 +71,7 @@ class ZohoProjectsConnector(IConnector):
         for field in ("description", "due_date", "priority"):
             if params.get(field) is not None:
                 body[field] = params[field]
-        r = await request_with_rate_limit(
-            client, "POST", f"{base}/{project_id}/tasks/", headers=headers, json=body
-        )
+        r = await request_with_rate_limit(client, "POST", f"{base}/{project_id}/tasks/", headers=headers, json=body)
         _raise_for_status(r, "create_task")
         data = r.json()
         return {"task": data.get("tasks", [{}])[0] if data.get("tasks") else {}}

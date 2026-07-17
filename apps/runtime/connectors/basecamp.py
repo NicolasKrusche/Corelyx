@@ -1,4 +1,5 @@
 """Basecamp native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -89,7 +90,11 @@ class BasecampConnector(IConnector):
         if params.get("due_on"):
             body["due_on"] = params["due_on"]
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/buckets/{project_id}/todolists/{todolist_id}/todos.json", headers=headers, json=body
+            client,
+            "POST",
+            f"{base}/buckets/{project_id}/todolists/{todolist_id}/todos.json",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_todo")
         data = r.json()
@@ -101,7 +106,10 @@ class BasecampConnector(IConnector):
         if not project_id or not message_board_id:
             raise ConnectorError("MISSING_PARAM", "list_messages requires 'project_id' and 'message_board_id'")
         r = await request_with_rate_limit(
-            client, "GET", f"{base}/buckets/{project_id}/message_boards/{message_board_id}/messages.json", headers=headers
+            client,
+            "GET",
+            f"{base}/buckets/{project_id}/message_boards/{message_board_id}/messages.json",
+            headers=headers,
         )
         _raise_for_status(r, "list_messages")
         return {"messages": r.json()}
@@ -116,8 +124,11 @@ class BasecampConnector(IConnector):
         if params.get("content"):
             body["content"] = params["content"]
         r = await request_with_rate_limit(
-            client, "POST", f"{base}/buckets/{project_id}/message_boards/{message_board_id}/messages.json",
-            headers=headers, json=body
+            client,
+            "POST",
+            f"{base}/buckets/{project_id}/message_boards/{message_board_id}/messages.json",
+            headers=headers,
+            json=body,
         )
         _raise_for_status(r, "create_message")
         data = r.json()

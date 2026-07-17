@@ -57,8 +57,7 @@ def get_cors_allowed_origins(
     values = os.environ if env is None else env
     is_production = is_production_environment(values)
     configured_origins = _split_csv(
-        _env_value(values, CORS_ORIGINS_ENV)
-        or _env_value(values, RUNTIME_CORS_ALLOWED_ORIGINS_ENV)
+        _env_value(values, CORS_ORIGINS_ENV) or _env_value(values, RUNTIME_CORS_ALLOWED_ORIGINS_ENV)
     )
 
     origins = list(DEFAULT_CORS_ORIGINS)
@@ -68,17 +67,13 @@ def get_cors_allowed_origins(
         for origin in configured_origins:
             if origin == "*":
                 if is_production:
-                    raise RuntimeError(
-                        f"{CORS_ORIGINS_ENV} must not include '*' in production"
-                    )
+                    raise RuntimeError(f"{CORS_ORIGINS_ENV} must not include '*' in production")
                 origins.append(origin)
                 continue
             try:
                 origins.append(normalize_cors_origin(origin))
             except ValueError as exc:
-                raise RuntimeError(
-                    f"{CORS_ORIGINS_ENV} contains invalid origin {origin!r}: {exc}"
-                ) from exc
+                raise RuntimeError(f"{CORS_ORIGINS_ENV} contains invalid origin {origin!r}: {exc}") from exc
         return _unique(origins)
 
     for name in ("NEXT_PUBLIC_APP_URL", "NEXTJS_INTERNAL_URL"):
@@ -89,14 +84,10 @@ def get_cors_allowed_origins(
             origins.append(normalize_cors_origin(value))
         except ValueError as exc:
             if is_production:
-                raise RuntimeError(
-                    f"{name} must be an absolute http(s) URL when used for runtime CORS"
-                ) from exc
+                raise RuntimeError(f"{name} must be an absolute http(s) URL when used for runtime CORS") from exc
 
     if is_production and not origins:
-        raise RuntimeError(
-            f"Set {CORS_ORIGINS_ENV} or NEXT_PUBLIC_APP_URL before running the runtime in production"
-        )
+        raise RuntimeError(f"Set {CORS_ORIGINS_ENV} or NEXT_PUBLIC_APP_URL before running the runtime in production")
 
     return _unique(origins)
 

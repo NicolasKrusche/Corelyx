@@ -1,4 +1,5 @@
 """WhatsApp Business native connector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -43,9 +44,7 @@ class WhatsappConnector(IConnector):
                         f"WhatsApp does not support operation '{operation}'",
                     )
 
-    async def _send_text_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_text_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         phone_number_id = params.get("phone_number_id")
         to = params.get("to")
         text = params.get("text", "")
@@ -76,9 +75,7 @@ class WhatsappConnector(IConnector):
             "to": to,
         }
 
-    async def _send_template_message(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _send_template_message(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         phone_number_id = params.get("phone_number_id")
         to = params.get("to")
         template_name = params.get("template_name")
@@ -115,9 +112,7 @@ class WhatsappConnector(IConnector):
             "template": template_name,
         }
 
-    async def _get_phone_number_id(
-        self, client: httpx.AsyncClient, headers: dict, params: dict
-    ) -> dict:
+    async def _get_phone_number_id(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         waba_id = params.get("waba_id")
         if not waba_id:
             raise ConnectorError("MISSING_PARAM", "get_phone_number_id requires 'waba_id'")

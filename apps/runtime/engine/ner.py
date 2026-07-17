@@ -48,9 +48,7 @@ def _build_gliner_detector() -> Optional[NameDetector]:
     model = GLiNER.from_pretrained(model_name)
 
     def detect(text: str) -> list[str]:
-        entities = model.predict_entities(
-            text[:_MAX_DETECTION_CHARS], ["person"], threshold=0.5
-        )
+        entities = model.predict_entities(text[:_MAX_DETECTION_CHARS], ["person"], threshold=0.5)
         return [e["text"] for e in entities if e.get("text")]
 
     return detect
