@@ -45,6 +45,13 @@ export interface ApiKey {
   provider: string;
 }
 
+export interface PlatformAgentModel {
+  id: string;
+  label: string;
+  sublabel: string;
+  tier: "free" | "standard" | "premium";
+}
+
 export interface SidebarConnection {
   id: string;
   name: string;
@@ -57,6 +64,8 @@ interface NodeSidebarProps {
   schema: ProgramSchema;
   programId: string;
   apiKeys: ApiKey[];
+  byokAllowed: boolean;
+  platformModels: PlatformAgentModel[];
   connections: SidebarConnection[];
   validationResult?: ValidationResult | null;
   /** Execution data keyed by node_id, populated from the latest run. */
@@ -860,7 +869,7 @@ type CreditData = {
   total: number | null;
 };
 
-function CorelyxKeyPanel() {
+function CorelyxKeyPanel({ usesCredits }: { usesCredits: boolean }) {
   const [credits, setCredits] = useState<CreditData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -873,8 +882,8 @@ function CorelyxKeyPanel() {
 
   const total = credits?.total;
   const isUnlimited = total === null;
-  const isLow = !isUnlimited && typeof total === "number" && total < 1_000;
-  const isEmpty = !isUnlimited && typeof total === "number" && total <= 0;
+  const isLow = usesCredits && !isUnlimited && typeof total === "number" && total < 1_000;
+  const isEmpty = usesCredits && !isUnlimited && typeof total === "number" && total <= 0;
 
   return (
     <div className={cn(
@@ -887,14 +896,16 @@ function CorelyxKeyPanel() {
     )}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold text-foreground">Corelyx Platform Key</span>
-        <a
-          href="/plan"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
-        >
-          Buy credits
-        </a>
+        {usesCredits && (
+          <a
+            href="/plan"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
+          >
+            Buy credits
+          </a>
+        )}
       </div>
 
       <div className="space-y-1 text-muted-foreground">
@@ -912,6 +923,11 @@ function CorelyxKeyPanel() {
         )}
       </div>
 
+      {!usesCredits && (
+        <p className="font-medium text-emerald-600 dark:text-emerald-400">
+          This model is free to use and does not consume credits.
+        </p>
+      )}
       {isEmpty && (
         <p className="text-destructive font-medium">Credits exhausted — this node won&apos;t run.</p>
       )}
@@ -934,19 +950,38 @@ type AgentTab = "model" | "prompt" | "retry";
 function AgentSidebar({
   config,
   apiKeys,
+  byokAllowed,
+  platformModels,
   onUpdate,
 }: {
   config: AgentConfig;
   apiKeys: ApiKey[];
+  byokAllowed: boolean;
+  platformModels: PlatformAgentModel[];
   onUpdate: (patch: Partial<AgentConfig>) => void;
 }) {
   const [tab, setTab] = useState<AgentTab>("model");
 
   const isPlatformKey = config.api_key_ref === "platform";
   const selectedKey = isPlatformKey ? null : apiKeys.find((k) => k.id === config.api_key_ref);
+  const isOpenRouterKey = selectedKey?.provider === "openrouter";
+  const platformModelIds = platformModels.map((model) => model.id);
   const providerPresets = isPlatformKey
-    ? (MODEL_PRESETS["openrouter"] ?? [])
+    ? platformModelIds
     : (MODEL_PRESETS[selectedKey?.provider ?? ""] ?? []);
+  const showOpenRouterDropdown = isPlatformKey || isOpenRouterKey;
+  const openRouterOptions = isPlatformKey
+    ? platformModelIds
+    : byokAllowed
+      ? (MODEL_PRESETS.openrouter ?? [])
+      : [];
+  const configuredModel = config.model === "__USER_ASSIGNED__" ? "" : config.model;
+  const modelSelectValue = isPlatformKey && configuredModel === "openai/gpt-oss-120b:free"
+    ? "openai/gpt-oss-120b"
+    : configuredModel;
+  const configuredModelIsListed = openRouterOptions.includes(modelSelectValue);
+  const platformModelUsesCredits =
+    platformModels.find((model) => model.id === modelSelectValue)?.tier !== "free";
   const datalistId = "agent-model-presets";
 
   const tabs: { id: AgentTab; label: string }[] = [
@@ -986,41 +1021,80 @@ function AgentSidebar({
               onChange={(e) => {
                 const keyId = e.target.value || "__USER_ASSIGNED__";
                 const updates: Partial<AgentConfig> = { api_key_ref: keyId };
-                if (config.model === "__USER_ASSIGNED__" && keyId !== "__USER_ASSIGNED__") {
-                  const presets = keyId === "platform"
-                    ? (MODEL_PRESETS["openrouter"] ?? [])
-                    : (MODEL_PRESETS[apiKeys.find((k) => k.id === keyId)?.provider ?? ""] ?? []);
-                  if (presets.length > 0) updates.model = presets[0];
+                if (keyId === "platform") {
+                  if (!platformModelIds.includes(modelSelectValue) && platformModelIds[0]) {
+                    updates.model = platformModelIds[0];
+                  }
+                } else if (config.model === "__USER_ASSIGNED__" && keyId !== "__USER_ASSIGNED__") {
+                  const presets = MODEL_PRESETS[apiKeys.find((k) => k.id === keyId)?.provider ?? ""] ?? [];
+                  if (presets[0]) updates.model = presets[0];
                 }
                 onUpdate(updates);
               }}
             >
               <option value="">— Select API Key —</option>
               <option value="platform">Corelyx Platform Key (credits)</option>
-              {apiKeys.map((k) => (
+              {!byokAllowed && selectedKey && (
+                <option value={selectedKey.id} disabled>
+                  {selectedKey.name} ({selectedKey.provider}) - Solo required
+                </option>
+              )}
+              {byokAllowed && apiKeys.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.name} ({k.provider})
                 </option>
               ))}
             </Select>
+            {!byokAllowed && (
+              <p className="text-[11px] text-muted-foreground">
+                Personal API keys require the Solo plan or higher.
+              </p>
+            )}
           </FieldGroup>
 
-          {isPlatformKey && <CorelyxKeyPanel />}
+          {isPlatformKey && <CorelyxKeyPanel usesCredits={platformModelUsesCredits} />}
 
           <FieldGroup label="Model" htmlFor="agent-model" helpKey="model">
-            {providerPresets.length > 0 && (
-              <datalist id={datalistId}>
-                {providerPresets.map((m) => <option key={m} value={m} />)}
-              </datalist>
+            {showOpenRouterDropdown ? (
+              <Select
+                id="agent-model"
+                value={modelSelectValue}
+                disabled={!isPlatformKey && !byokAllowed}
+                onChange={(e) => onUpdate({ model: e.target.value || "__USER_ASSIGNED__" })}
+              >
+                {!configuredModel && <option value="">Select model</option>}
+                {modelSelectValue && !configuredModelIsListed && (
+                  <option value={modelSelectValue} disabled={isPlatformKey || !byokAllowed}>
+                    {modelSelectValue}{isPlatformKey ? " - unavailable on this plan" : " - current model"}
+                  </option>
+                )}
+                {isPlatformKey
+                  ? platformModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label} - {model.sublabel}
+                      </option>
+                    ))
+                  : openRouterOptions.map((model) => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
+              </Select>
+            ) : (
+              <>
+                {providerPresets.length > 0 && (
+                  <datalist id={datalistId}>
+                    {providerPresets.map((m) => <option key={m} value={m} />)}
+                  </datalist>
+                )}
+                <Input
+                  id="agent-model"
+                  list={providerPresets.length > 0 ? datalistId : undefined}
+                  placeholder="e.g. claude-sonnet-4-6"
+                  value={configuredModel}
+                  onChange={(e) => onUpdate({ model: e.target.value || "__USER_ASSIGNED__" })}
+                />
+              </>
             )}
-            <Input
-              id="agent-model"
-              list={providerPresets.length > 0 ? datalistId : undefined}
-              placeholder="e.g. claude-sonnet-4-6"
-              value={config.model === "__USER_ASSIGNED__" ? "" : config.model}
-              onChange={(e) => onUpdate({ model: e.target.value || "__USER_ASSIGNED__" })}
-            />
-            {providerPresets.length > 0 && (
+            {!showOpenRouterDropdown && providerPresets.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
                 {providerPresets.map((m) => (
                   <button
@@ -2522,6 +2596,8 @@ export function NodeSidebar({
   schema,
   programId,
   apiKeys,
+  byokAllowed,
+  platformModels,
   connections,
   validationResult,
   nodeExecutions,
@@ -2646,6 +2722,8 @@ export function NodeSidebar({
             <AgentSidebar
               config={node.config as AgentConfig}
               apiKeys={apiKeys}
+              byokAllowed={byokAllowed}
+              platformModels={platformModels}
               onUpdate={(patch) => handleConfigUpdate(patch as Record<string, unknown>)}
             />
           )}

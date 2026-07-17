@@ -201,7 +201,38 @@ class AgentMarkupTests(unittest.TestCase):
         ex._limiter = Mock()
         ex._agent_capabilities = {}
         ex._agent_billing_platform = True
-        self.assertEqual(ex._record_agent_llm_usage("a1", "m", self._usage(0.0)), 0)
+        self.assertEqual(
+            ex._record_agent_llm_usage("a1", "openai/gpt-oss-120b", self._usage(0.0123)),
+            0,
+        )
+
+
+class AgentModelAccessTests(unittest.TestCase):
+    def test_free_tier_allows_only_the_free_platform_model(self):
+        ex = _agent_executor()
+        ex.model_access_tier = "free"
+        ex._enforce_agent_model_access("platform", "openai/gpt-oss-120b", "a1")
+
+        with self.assertRaises(ExecutionError) as ctx:
+            ex._enforce_agent_model_access("platform", "openai/gpt-4o-mini", "a1")
+        self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
+
+    def test_free_tier_blocks_byok(self):
+        ex = _agent_executor()
+        ex.model_access_tier = "free"
+        with self.assertRaises(ExecutionError) as ctx:
+            ex._enforce_agent_model_access("saved-key", "openai/gpt-4o", "a1")
+        self.assertEqual(ctx.exception.code, "BYOK_PLAN_REQUIRED")
+
+    def test_solo_allows_byok_and_standard_platform_models(self):
+        ex = _agent_executor()
+        ex.model_access_tier = "plus"
+        ex._enforce_agent_model_access("saved-key", "vendor/custom-model", "a1")
+        ex._enforce_agent_model_access("platform", "openai/gpt-4o-mini", "a1")
+
+        with self.assertRaises(ExecutionError) as ctx:
+            ex._enforce_agent_model_access("platform", "openai/gpt-4o", "a1")
+        self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
 
 
 if __name__ == "__main__":
