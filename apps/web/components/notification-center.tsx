@@ -147,7 +147,13 @@ const ALERT_DOT: Record<Alert["kind"], string> = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
+export function NotificationCenter({
+  isDark = true,
+  sidebarCollapseSignal,
+}: {
+  isDark?: boolean;
+  sidebarCollapseSignal: number;
+}) {
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [inboxItems, setInboxItems] = useState<AppNotification[]>([]);
@@ -226,6 +232,12 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
     return () => window.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  // The sidebar reports each collapse, including repeated mouse-leave events.
+  // Close the floating panel so it cannot remain detached from the icon rail.
+  useEffect(() => {
+    setOpen(false);
+  }, [sidebarCollapseSignal]);
+
   function toggle() {
     if (!open) {
       markRead();
@@ -292,6 +304,8 @@ export function NotificationCenter({ isDark = true }: { isDark?: boolean }) {
       {open && (
         <div
           ref={panelRef}
+          role="dialog"
+          aria-label="Notifications"
           className={cn(
             "fixed bottom-4 left-[14.5rem] z-[150] w-80 overflow-hidden rounded-2xl border border-border shadow-2xl",
             "bg-popover text-popover-foreground"
