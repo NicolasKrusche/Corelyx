@@ -1730,7 +1730,7 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     eyebrow: "Migration guide",
     headline: "Relay.app is shutting down. Here's how to move your workflows to Corelyx.",
     summary:
-      "Relay.app has announced it is winding down: free accounts lose access on August 15, 2026, and paying customers on September 14, 2026. Relay lets you export each workflow as JSON plus a plain-language AI prompt describing what it does — and Corelyx can rebuild a workflow directly from that same kind of prompt using Genesis, its built-in AI workflow generator.",
+      "Relay.app has announced it is winding down: free accounts lose access on August 15, 2026, and paying customers on September 14, 2026. Corelyx has a one-click Relay importer: drop the .zip Relay gives you and it rebuilds each workflow here as a draft, reading only the workflow definitions (your run history never leaves your machine) and giving you a single checklist to reconnect your apps.",
     definition:
       "A Relay.app migration is the process of exporting workflows, sequences, run history, and connected-app context from Relay before account deletion, then rebuilding the equivalent automation on another platform using either the exported workflow JSON or the AI-prompt description Relay provides for each workflow.",
     audience: "Relay.app users, RevOps and automation owners, and IT/procurement teams that need a working replacement before the September 14, 2026 shutdown deadline.",
@@ -1740,12 +1740,12 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     keyPoints: [
       "Relay.app free accounts lose access on August 15, 2026; paying customers keep access through September 14, 2026, with bonus steps and AI credits during the transition.",
       "Relay's export gives you workflow/sequence JSON, an AI-prompt description of each workflow, run history, and tables as CSV — but Relay recommends no specific replacement platform.",
-      "Corelyx's Genesis generator builds a working workflow directly from a plain-language description, so the AI prompt Relay exports for each workflow can be pasted straight into Corelyx to rebuild it.",
+      "Corelyx's one-click Relay importer reads the export .zip and rebuilds each workflow as a reviewable draft; for a single workflow you can also paste Relay's build prompt or workflow JSON directly.",
       "Do this before the deadline: Relay deletes stored credentials and tokens for connected apps when accounts are removed, so reconnecting each app early avoids a scramble later.",
     ],
     implementationSteps: [
-      { name: "Export from Relay now", text: "In Relay, export each workflow/sequence/MCP server as JSON and copy the AI-prompt description Relay generates for it. Export run history and any tables as CSV while they're still available." },
-      { name: "Rebuild with Genesis", text: "In Corelyx, paste each exported AI prompt into Genesis to generate the equivalent workflow. Review the generated schema, triggers, and connector steps before enabling it." },
+      { name: "Export from Relay now", text: "In Relay, open Export workspace data and download the .zip Relay emails you. It contains each workflow's definition plus a plain-language build prompt. Export run history and tables as CSV too if you need them." },
+      { name: "Import into Corelyx", text: "Drop the .zip into Corelyx's Relay importer. It rebuilds every workflow as a draft — reading only the definitions, never your run history — and gives you one checklist of apps to reconnect. For a single workflow you can instead paste its build prompt or JSON." },
       { name: "Reconnect your apps", text: "Reconnect the third-party accounts your workflows depend on through Corelyx's OAuth connectors before Relay's stored tokens are deleted, so nothing is left half-migrated." },
       { name: "Add approval gates where it matters", text: "For any workflow that sends messages, changes records, or takes a customer-facing action, add a human approval step before going live — Relay treated this as custom logic; Corelyx treats it as a first-class workflow step." },
       { name: "Run both in parallel briefly", text: "Keep the Relay workflow running (if still active) alongside the new Corelyx version for a short overlap window, then cut over once outputs match." },
@@ -1756,7 +1756,7 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       rows: [
         ["Platform status", "Actively developed", "Shutting down — free Aug 15, 2026; paid Sep 14, 2026"],
         ["Rebuild from a description", "Genesis generates a working workflow from a plain-language prompt", "Exports an AI prompt per workflow for use in another tool"],
-        ["Native workflow import", "JSON import for Corelyx's own schema, with automatic connection matching", "N/A — exports its own JSON and prompt formats for migrating out"],
+        ["Native workflow import", "One-click Relay importer: drop the export .zip to rebuild every workflow as a draft, plus JSON import for Corelyx's own schema", "N/A — exports its own JSON and prompt formats for migrating out"],
         ["Human approval gates", "Built-in workflow step with state, timeout, and role", "Available as an agent step; not a first-class runtime gate"],
         ["Credential storage", "Server-side Vault references; tokens never reach frontend responses", "Provider tokens deleted from Relay once the account is removed"],
         ["MCP support", "Runtime connectors usable as workflow steps", "Custom MCP servers and external MCP tool calls inside workflows"],
@@ -1772,7 +1772,7 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
     ],
     faqs: [
       { question: "When does Relay.app actually shut down?", answer: "Free accounts lose access on August 15, 2026. Paying customers keep access through September 14, 2026, with extra steps and AI credits during that window." },
-      { question: "Can I automatically import a Relay.app workflow into Corelyx?", answer: "There's no one-click Relay import today. The practical path is to take the AI-prompt description Relay exports for each workflow and paste it into Corelyx's Genesis generator, which builds the equivalent workflow from that description." },
+      { question: "Can I automatically import a Relay.app workflow into Corelyx?", answer: "Yes. Corelyx has a one-click Relay importer: export your workspace .zip from Relay, drop it into Corelyx, and it rebuilds each workflow as a reviewable draft — reading only the workflow definitions, not your run history. For a single workflow you can also paste Relay's build prompt or workflow JSON. After import you reconnect each app once (Relay deletes its stored logins) and activate." },
       { question: "What happens to my Relay.app credentials and connections?", answer: "Relay deletes stored credentials and tokens for connected apps when an account is removed. Reconnect the same apps in Corelyx ahead of time rather than waiting until the deadline." },
       { question: "Is Corelyx a like-for-like replacement for Relay.app?", answer: "For workflows built around triggers, connector actions, and AI steps, yes. Corelyx additionally treats human approval and audit evidence as first-class workflow concepts, which is a meaningful difference if your Relay workflows touch customer data or take irreversible actions." },
     ],
@@ -1781,6 +1781,7 @@ Evidence required: model/provider metadata, exception reason, reviewer, decision
       { href: "/compare/corelyx-vs-make", label: "Corelyx vs Make", description: "Compare scenario automation with EU AI governance workflows." },
       commonLinks.templates,
       commonLinks.integrations,
+      { href: "/migrate/relay", label: "Import from Relay", description: "One-click importer: drop your Relay export .zip and rebuild every workflow as a draft." },
       { href: "/programs/import", label: "Import a workflow", description: "Bring an existing workflow schema into Corelyx." },
     ],
   },

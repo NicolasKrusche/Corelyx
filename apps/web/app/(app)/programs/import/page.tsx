@@ -114,6 +114,14 @@ export default function ImportProgramPage() {
         </p>
       </div>
 
+      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+        <p className="font-medium">Coming from Relay.app?</p>
+        <p className="text-muted-foreground mt-0.5">
+          Use the one-click importer instead — drop your Relay export .zip and we&apos;ll rebuild every workflow as a draft.{" "}
+          <Link href="/migrate/relay" className="font-medium text-primary hover:underline">Migrate from Relay →</Link>
+        </p>
+      </div>
+
       {!result ? (
         <Card>
           <CardHeader>
