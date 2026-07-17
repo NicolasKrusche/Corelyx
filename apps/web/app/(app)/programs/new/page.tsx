@@ -740,6 +740,13 @@ function NewProgramPageInner() {
             >
               Import
             </button>
+            <button
+              type="button"
+              onClick={() => router.push("/migrate/relay")}
+              className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary transition-all duration-200 hover:bg-primary/10 active:scale-95"
+            >
+              From Relay.app
+            </button>
           </div>
           {scratchCreateError && (
             <p className="text-xs text-red-300">{scratchCreateError}</p>
