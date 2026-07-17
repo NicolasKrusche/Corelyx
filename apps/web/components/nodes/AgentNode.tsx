@@ -7,6 +7,7 @@ import { Bot } from "lucide-react";
 import { NodeShell, NodeHandle, SourceAddHandle, type NodeBadge } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, AgentConfig } from "@flowos/schema";
+import { previewNodeOutput } from "@/lib/genesis/node-preview";
 
 interface AgentNodeData {
   label: string;
@@ -47,6 +48,7 @@ export function AgentNode({ id, data, selected }: NodeProps) {
         error={nodeData.errors?.[0]?.message}
         warning={nodeData.warnings?.[0]?.message}
         questionPin={(data as { genesisQuestion?: string | null }).genesisQuestion}
+        outputPreview={config ? previewNodeOutput({ type: "agent", config, connection: nodeData.connection }) : null}
       />
 
       <SourceAddHandle nodeId={id} accent="purple" />

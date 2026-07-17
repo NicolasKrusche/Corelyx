@@ -18,6 +18,7 @@ import {
 import { NodeShell, NodeHandle, SourceAddHandle } from "./NodeShell";
 import type { NodeValidationState, ValidationError, ValidationWarning } from "@/lib/validation";
 import type { NodeStatus, StepConfig } from "@flowos/schema";
+import { previewNodeOutput } from "@/lib/genesis/node-preview";
 
 interface StepNodeData {
   label: string;
@@ -74,6 +75,7 @@ export function StepNode({ id, data, selected }: NodeProps) {
         error={nodeData.errors?.[0]?.message}
         warning={nodeData.warnings?.[0]?.message}
         questionPin={(data as { genesisQuestion?: string | null }).genesisQuestion}
+        outputPreview={nodeData.config ? previewNodeOutput({ type: "step", config: nodeData.config }) : null}
       />
 
       <SourceAddHandle nodeId={id} accent="sky" />

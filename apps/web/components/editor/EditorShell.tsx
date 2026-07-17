@@ -1547,6 +1547,21 @@ export function EditorShell({
     [programId, linkedConnections, allConnections]
   );
 
+  // Prefill the "Edit with AI" panel with a refinement and open it. Fired by the
+  // sidebar's "Try instead" connector alternatives — the user still reviews and
+  // applies the edit, so nothing changes without their click.
+  const handleRequestAiEdit = useCallback(
+    (prompt: string) => {
+      setAiEditPrompt(prompt);
+      setAiEditError(null);
+      setShowAiEdit(true);
+      setShowPalette(false);
+      setShowRawSchema(false);
+      if (apiKeys.length === 0) setAiEditMode("platform");
+    },
+    [apiKeys.length]
+  );
+
   // ── Node execution inspector state ───────────────────────────────────────
 
   // ── Run log drawer state ──────────────────────────────────────────────────
@@ -2564,6 +2579,7 @@ export function EditorShell({
             nodeExecutions={nodeExecutions}
             lastRunId={lastRunId}
             onUpdate={handleSidebarUpdate}
+            onRequestAiEdit={handleRequestAiEdit}
             onClose={() => dispatch({ type: "SELECT_NODE", nodeId: null })}
             onDelete={(nodeId) => {
               dispatch({ type: "REMOVE_NODE", nodeId });

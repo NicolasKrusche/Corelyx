@@ -191,6 +191,18 @@ export interface NodeShellProps {
   warning?: string;
   /** Genesis V2: open clarifying question pinned to this node. */
   questionPin?: string | null;
+  /**
+   * Compact sketch of the node's output shape, e.g. "emails: [{ id, threadId }]".
+   * Rendered as an always-on "→ output" line so the graph reads as a data
+   * pipeline. See lib/genesis/node-preview.
+   */
+  outputPreview?: string | null;
+  /**
+   * Inline quick-edit controls, rendered inside the card below the preview.
+   * Node components pass this only when the node is selected, so the canvas
+   * stays uncluttered until you focus a node.
+   */
+  footer?: React.ReactNode;
 }
 
 function badgeClasses(tone: NodeBadge["tone"]): string {
@@ -215,6 +227,8 @@ export function NodeShell({
   error,
   warning,
   questionPin,
+  outputPreview,
+  footer,
 }: NodeShellProps) {
   const a = ACCENT[accent];
 
@@ -295,6 +309,65 @@ export function NodeShell({
 
       {error && <p className="mt-2 text-[10px] font-medium text-red-600 dark:text-red-400">{error}</p>}
       {!error && warning && <p className="mt-2 text-[10px] font-medium text-yellow-600 dark:text-yellow-400">{warning}</p>}
+
+      {/* Output preview — always on, so the graph reads as a data pipeline. */}
+      {outputPreview && (
+        <div className="mt-2 flex items-start gap-1 border-t border-black/[0.06] pt-1.5 dark:border-white/[0.07]">
+          <span className={cn("mt-px text-[10px] font-bold leading-none", a.text)} aria-hidden>→</span>
+          <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground/80" title={outputPreview}>
+            {outputPreview}
+          </span>
+        </div>
+      )}
+
+      {/* Inline quick-edit — passed by node components only when selected. */}
+      {footer && (
+        <div className="nodrag nopan mt-2 border-t border-black/[0.06] pt-2 dark:border-white/[0.07]">
+          {footer}
+        </div>
+      )}
     </div>
+  );
+}
+
+// ─── Inline quick-edit select ─────────────────────────────────────────────────
+// A compact labelled dropdown for editing one key field right on the node card.
+// Stops pointer/key events from reaching the canvas so React Flow doesn't drag,
+// pan, or treat typing as a shortcut while the user interacts with it.
+
+export function InlineSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-0.5 block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <select
+        className={cn(
+          "nodrag nopan w-full cursor-pointer rounded-md px-1.5 py-1 text-[11px] text-foreground outline-none",
+          "border border-black/10 bg-white focus:border-primary/50 dark:border-white/15 dark:bg-zinc-900",
+        )}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
