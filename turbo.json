@@ -4,6 +4,19 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "APP_ENV",
+        "INNGEST_EVENT_KEY",
+        "INNGEST_SIGNING_KEY",
+        "LEGAL_ADDRESS_LINE_1",
+        "LEGAL_CITY",
+        "LEGAL_COUNTRY",
+        "LEGAL_ENTITY_NAME",
+        "LEGAL_POSTAL_CODE",
+        "LEGAL_REPRESENTATIVE",
+        "LEGAL_RESPONSIBLE_PERSON",
+        "VERCEL_ENV"
+      ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
