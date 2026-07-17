@@ -127,6 +127,10 @@ const PUBLIC_ROUTES = [
   "/api/status",
   "/download",
   "/api/desktop/",
+  // The APK download proxy serves an installer, not user data — it must work in
+  // a phone browser with no session (the route itself says "public by design",
+  // but without this entry the middleware bounced it to /login).
+  "/api/mobile/apk",
   "/maintenance",
   "/privacy",
   "/terms",

@@ -19,6 +19,7 @@ export interface Database {
           is_admin: boolean;
           genesis_uses_this_month: number;
           genesis_month_reset_at: string | null;
+          bonus_genesis_uses: number;
           processing_restricted: boolean;
           processing_restricted_at: string | null;
           processing_restriction_reason: string | null;
@@ -38,6 +39,7 @@ export interface Database {
           is_admin?: boolean;
           genesis_uses_this_month?: number;
           genesis_month_reset_at?: string | null;
+          bonus_genesis_uses?: number;
           processing_restricted?: boolean;
           processing_restricted_at?: string | null;
           processing_restriction_reason?: string | null;
@@ -57,6 +59,7 @@ export interface Database {
           is_admin?: boolean;
           genesis_uses_this_month?: number;
           genesis_month_reset_at?: string | null;
+          bonus_genesis_uses?: number;
           processing_restricted?: boolean;
           processing_restricted_at?: string | null;
           processing_restriction_reason?: string | null;
@@ -868,6 +871,7 @@ export interface Database {
           is_beta_tester: boolean;
           genesis_uses_this_month: number;
           genesis_month_reset_at: string | null;
+          bonus_genesis_uses: number;
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
           created_at: string;
@@ -883,6 +887,7 @@ export interface Database {
           is_beta_tester?: boolean;
           genesis_uses_this_month?: number;
           genesis_month_reset_at?: string | null;
+          bonus_genesis_uses?: number;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           created_at?: string;
@@ -898,6 +903,7 @@ export interface Database {
           is_beta_tester?: boolean;
           genesis_uses_this_month?: number;
           genesis_month_reset_at?: string | null;
+          bonus_genesis_uses?: number;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           created_at?: string;

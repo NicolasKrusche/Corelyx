@@ -201,6 +201,42 @@ export function validatePostGenesis(
       warning("WARN_002", node.id, `${node.label} has no system prompt`, "Add a system prompt to define what this agent should do");
   });
 
+  // ─── WARN_005: agent output fields read downstream but never declared ─────
+  //
+  // The failure this catches is silent end to end. output_schema is what tells
+  // the model which keys to emit; without it the agent answers in prose, the
+  // runtime stores that as {"text": "..."}, and a filter reading
+  // data['nX'].get('is_important') just gets its default. Every row drops, the
+  // nodes behind the filter are skipped, and the run still reports success — so
+  // nothing looks broken except the missing output.
+  //
+  // ERR_010 above only covers edge.data_mapping and gives up when output_schema
+  // is null, which is precisely the broken case, so check the real reference
+  // sites: filter/branch conditions, transforms, format templates and connector
+  // params.
+  execNodes.forEach((node) => {
+    if (node.type !== "agent") return;
+    const agentNode = node as AgentNode;
+    const referenced = referencedFieldsFor(node.id, execNodes);
+    if (referenced.size === 0) return;
+
+    const outputSchema = agentNode.config.output_schema;
+    const undeclared = [...referenced].filter(
+      (field) => !outputSchema || !schemaHasField(outputSchema, field)
+    );
+    if (undeclared.length === 0) return;
+
+    const list = undeclared.map((f) => `"${f}"`).join(", ");
+    warning(
+      "WARN_005",
+      node.id,
+      `Later nodes read ${list} from ${node.label}, but it does not promise to return ${undeclared.length === 1 ? "that field" : "those fields"}`,
+      outputSchema
+        ? `Add ${undeclared.join(", ")} to this agent's output schema.`
+        : `Set this agent's output schema to return ${undeclared.join(", ")}. Without it the agent replies in prose, those reads fall back to their defaults, and everything downstream is skipped without an error.`
+    );
+  });
+
   // Connection nodes with an operation set must have all required params filled.
   // Genesis uses "__USER_ASSIGNED__" as a sentinel for unknown resource IDs.
   execNodes.forEach((node) => {
@@ -322,6 +358,45 @@ function detectCycles(nodes: Node[], edges: Edge[]): string[][] {
   });
 
   return cycles;
+}
+
+// ─── Downstream Field References ───────────────────────────────────────────
+
+/** Every string in a node config, without JSON-escaping the quotes we match on. */
+function collectStrings(value: unknown, out: string[]): void {
+  if (typeof value === "string") out.push(value);
+  else if (Array.isArray(value)) value.forEach((v) => collectStrings(v, out));
+  else if (value && typeof value === "object") Object.values(value).forEach((v) => collectStrings(v, out));
+}
+
+/**
+ * Field names other nodes read off `nodeId`, in either supported form:
+ * Python-ish access in step conditions and transforms —
+ * `data['n6'].get('is_important')`, `data['n6']['summary']` — and `{{n6.summary}}`
+ * placeholders in format templates and connector params.
+ */
+function referencedFieldsFor(nodeId: string, nodes: Node[]): Set<string> {
+  const fields = new Set<string>();
+  const id = nodeId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const patterns = [
+    new RegExp(`data\\[\\s*['"]${id}['"]\\s*\\]\\s*\\.\\s*get\\(\\s*['"]([\\w-]+)['"]`, "g"),
+    new RegExp(`data\\[\\s*['"]${id}['"]\\s*\\]\\s*\\[\\s*['"]([\\w-]+)['"]\\s*\\]`, "g"),
+    new RegExp(`\\{\\{\\s*${id}\\.([\\w-]+)`, "g"),
+  ];
+
+  for (const node of nodes) {
+    if (node.id === nodeId) continue;
+    const strings: string[] = [];
+    collectStrings(node.config, strings);
+    for (const text of strings) {
+      for (const pattern of patterns) {
+        pattern.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = pattern.exec(text)) !== null) fields.add(match[1]!);
+      }
+    }
+  }
+  return fields;
 }
 
 // ─── Schema Field Check ────────────────────────────────────────────────────

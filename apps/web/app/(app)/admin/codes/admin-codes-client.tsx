@@ -11,6 +11,7 @@ const CODE_TYPES = [
   { value: "solo_trial",     label: "Solo — Trial (days)" },
   { value: "team_trial",     label: "Team — Trial (days)" },
   { value: "run_credits",    label: "Run Credits (+N runs)" },
+  { value: "genesis_uses",   label: "Genesis Uses (+N one-time)" },
 ] as const;
 
 type CodeType = typeof CODE_TYPES[number]["value"];
@@ -25,7 +26,7 @@ interface CodeRow {
   code: string;
   label: string | null;
   type: CodeType;
-  value: { days?: number; runs?: number } | null;
+  value: { days?: number; runs?: number; uses?: number } | null;
   locked_to_email: string | null;
   max_uses: number | null;
   uses_count: number;
@@ -48,11 +49,13 @@ const TYPE_COLORS: Record<CodeType, string> = {
   solo_trial:     "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   team_trial:     "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
   run_credits:    "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
+  genesis_uses:   "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
 };
 
 function codeValueLabel(row: CodeRow): string {
   if (row.type === "solo_trial" || row.type === "team_trial") return `${row.value?.days ?? 30}d trial`;
   if (row.type === "run_credits") return `+${row.value?.runs ?? 100} runs`;
+  if (row.type === "genesis_uses") return `+${row.value?.uses ?? 15} Genesis`;
   return "lifetime";
 }
 
@@ -83,6 +86,7 @@ export function AdminCodesClient() {
   const [customCode, setCustomCode] = useState("");
   const [trialDays, setTrialDays] = useState("30");
   const [runAmount, setRunAmount] = useState("100");
+  const [genesisUses, setGenesisUses] = useState("15");
   const [maxUses, setMaxUses] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [lockedEmail, setLockedEmail] = useState("");
@@ -130,6 +134,7 @@ export function AdminCodesClient() {
     const value =
       (type === "solo_trial" || type === "team_trial") ? { days: parseInt(trialDays, 10) } :
       type === "run_credits" ? { runs: parseInt(runAmount, 10) } :
+      type === "genesis_uses" ? { uses: parseInt(genesisUses, 10) } :
       undefined;
 
     const res = await fetch("/api/admin/codes", {
@@ -245,6 +250,20 @@ export function AdminCodesClient() {
                     value={runAmount} onChange={(e) => setRunAmount(e.target.value)}
                     className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                   />
+                </div>
+              )}
+              {type === "genesis_uses" && (
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Number of Genesis generations</label>
+                  <input
+                    type="number" min="1"
+                    value={genesisUses} onChange={(e) => setGenesisUses(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    One-time grant on top of the plan&apos;s monthly allowance — spent only after that
+                    allowance runs out, and not renewed each month. Set an expiry below to time-box a campaign.
+                  </p>
                 </div>
               )}
 

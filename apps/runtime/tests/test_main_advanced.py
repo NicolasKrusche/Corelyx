@@ -79,7 +79,24 @@ class TestHealthEndpoint(unittest.IsolatedAsyncioTestCase):
     async def test_health(self) -> None:
         response = client.get("/health")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"status": "ok"})
+        body = response.json()
+        self.assertEqual(body["status"], "ok")
+        # `commit` answers "did the redeploy land?" without host logs. No commit
+        # env var is injected under test, so it reports the honest fallback.
+        self.assertEqual(body["commit"], "unknown")
+
+    async def test_health_reports_the_deployed_commit(self) -> None:
+        sha = "aaa065bb5e4b9f2c1d0e"
+        with patch.object(main_module, "_DEPLOYED_COMMIT", sha):
+            body = client.get("/health").json()
+        # Short SHA so it diffs directly against `git rev-parse --short=12`.
+        self.assertEqual(body["commit"], "aaa065bb5e4b")
+
+    async def test_health_never_leaks_configuration(self) -> None:
+        # The route is public and unauthenticated: liveness and version only.
+        with patch.object(main_module, "_DEPLOYED_COMMIT", "deadbeefcafe"):
+            body = client.get("/health").json()
+        self.assertEqual(set(body), {"status", "commit"})
 
 
 class TestExecuteEndpointAuth(unittest.IsolatedAsyncioTestCase):
