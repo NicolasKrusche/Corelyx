@@ -53,8 +53,7 @@ export function HeroSignalScene() {
     tl.to(q(".hero-content"), { y: -80, opacity: 0, filter: "blur(10px)", ease: "power2.in", duration: 1.2 }, 0)
       .to(q(".hero-signal"), { scale: 1.5, opacity: 0.15, ease: "power2.in", duration: 1.6 }, 0)
       .to(q(".hero-fragments"), { opacity: 1, ease: "power2.out", duration: 1 }, 0.3)
-      .to(q(".hero-frag"), { x: (i) => (i % 2 ? 1 : -1) * (120 + i * 30), y: (i) => (i % 3 - 1) * 120, opacity: 1, scale: 1, ease: "power2.out", duration: 1.4, stagger: 0.03 }, 0.3)
-      .to(q(".scroll-cue"), { opacity: 0, duration: 0.4 }, 0);
+      .to(q(".hero-frag"), { x: (i) => (i % 2 ? 1 : -1) * (120 + i * 30), y: (i) => (i % 3 - 1) * 120, opacity: 1, scale: 1, ease: "power2.out", duration: 1.4, stagger: 0.03 }, 0.3);
   }, { enabled: !reduced });
 
   return (
@@ -145,16 +144,6 @@ export function HeroSignalScene() {
             Explore platform
             <ArrowRight className="h-4 w-4" />
           </Link>
-        </div>
-      </div>
-
-      {/* scroll cue */}
-      <div className="scroll-cue absolute bottom-8 left-1/2 z-10 -translate-x-1/2">
-        <div className="flex flex-col items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">Scroll</span>
-          <span className="relative flex h-9 w-5 items-start justify-center rounded-full border border-white/20">
-            <span className="mt-1.5 h-1.5 w-1.5 animate-bounce rounded-full bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
-          </span>
         </div>
       </div>
     </PinnedScene>

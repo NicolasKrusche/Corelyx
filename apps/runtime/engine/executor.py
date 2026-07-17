@@ -87,8 +87,12 @@ EXECUTABLE_NODE_TYPES = {"trigger", "agent", "agent_task", "step", "connection"}
 # in place. The runtime must never forward it to the vault — treat it as the
 # shared platform key so the run still has a usable credential.
 USER_ASSIGNED_SENTINEL = "__USER_ASSIGNED__"
-# Mirrors apps/web/lib/genesis/request.ts PLATFORM_DEFAULT_MODEL.
-PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b:free"
+# Mirrors apps/web/lib/genesis/request.ts PLATFORM_DEFAULT_MODEL. OpenRouter
+# retired the old `:free` variant; the unsuffixed model is its replacement.
+PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b"
+LEGACY_PLATFORM_MODEL_ALIASES: dict[str, str] = {
+    "openai/gpt-oss-120b:free": PLATFORM_DEFAULT_MODEL,
+}
 
 # Best-effort price catalog used when the provider response does not include
 # explicit cost fields. Rates are USD per 1M tokens.
@@ -139,9 +143,7 @@ PLATFORM_MARKUP = 10.0
 CREDITS_PER_USD = 1000
 
 OPENROUTER_PLATFORM_FALLBACK_MODELS: tuple[str, ...] = (
-    "qwen/qwen3-coder:free",
-    "openai/gpt-oss-120b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
+    PLATFORM_DEFAULT_MODEL,
 )
 
 RETRYABLE_LLM_STATUS_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
@@ -415,6 +417,11 @@ def _unique_model_candidates(requested_model: str, fallback_models: tuple[str, .
         if model and model not in candidates:
             candidates.append(model)
     return candidates
+
+
+def _normalize_platform_model(model: str) -> str:
+    """Map retired platform model IDs stored in older workflow schemas."""
+    return LEGACY_PLATFORM_MODEL_ALIASES.get(model, model)
 
 
 def _llm_error_status_code(error: Exception | str) -> int | None:
@@ -1834,6 +1841,8 @@ class ProgramExecutor:
         if cfg.model == USER_ASSIGNED_SENTINEL:
             cfg.model = PLATFORM_DEFAULT_MODEL
         use_platform_key = api_key_ref == "platform"
+        if use_platform_key:
+            cfg.model = _normalize_platform_model(cfg.model)
 
         # Check platform credit balance before fetching the key
         if use_platform_key and self.user_id:
@@ -2152,6 +2161,8 @@ class ProgramExecutor:
             if model == USER_ASSIGNED_SENTINEL:
                 model = PLATFORM_DEFAULT_MODEL
             use_platform_key = ref == "platform"
+            if use_platform_key:
+                model = _normalize_platform_model(model)
 
             try:
                 if use_platform_key and self.user_id:
