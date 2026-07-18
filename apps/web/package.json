@@ -21,7 +21,7 @@
     "@flowos/schema": "workspace:*",
     "@number-flow/react": "^0.6.0",
     "@radix-ui/react-avatar": "^1.1.11",
-    "@react-three/fiber": "8.18.0",
+    "@react-three/fiber": "^9.6.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.43.4",
     "@tiptap/core": "^3.23.6",
