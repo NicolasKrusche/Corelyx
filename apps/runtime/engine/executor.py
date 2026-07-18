@@ -102,45 +102,32 @@ LEGACY_PLATFORM_MODEL_ALIASES: dict[str, str] = {
     "openai/gpt-oss-120b:free": PLATFORM_DEFAULT_MODEL,
 }
 
-# Mirrors apps/web/lib/genesis/request.ts PLATFORM_MODEL_CATALOG. These are the
-# Corelyx Platform Key models available at each workspace tier; BYOK remains
-# unrestricted for Solo+ because the customer pays their provider directly.
+# Mirrors apps/web/lib/genesis/request.ts PLATFORM_MODEL_CATALOG (via
+# getAllowedPlatformModels): free -> standard/Solo -> premium/Team+. These are
+# the Corelyx Platform Key models available at each workspace tier; BYOK
+# remains unrestricted for Solo+ because the customer pays their provider
+# directly. The web enforces the same table at manual-run dispatch
+# (apps/web/lib/agent-model-access.ts) — keep the two in sync. The "unlimited"
+# tier (top plan and admins) has no model ceiling and bypasses this table on
+# both sides — see _enforce_agent_model_access.
+_STANDARD_PLATFORM_MODELS: frozenset[str] = frozenset(
+    {
+        PLATFORM_DEFAULT_MODEL,
+        "anthropic/claude-3-haiku",
+        "openai/gpt-4o-mini",
+    }
+)
+_PREMIUM_PLATFORM_MODELS: frozenset[str] = _STANDARD_PLATFORM_MODELS | frozenset(
+    {
+        "anthropic/claude-sonnet-4.6",
+        "openai/gpt-4o",
+    }
+)
 PLATFORM_MODELS_BY_ACCESS_TIER: dict[str, frozenset[str]] = {
     "free": frozenset({PLATFORM_DEFAULT_MODEL, "openai/gpt-oss-120b"}),
-    "plus": frozenset(
-        {
-            PLATFORM_DEFAULT_MODEL,
-            "anthropic/claude-3-haiku",
-            "openai/gpt-4o-mini",
-        }
-    ),
-    "pro": frozenset(
-        {
-            PLATFORM_DEFAULT_MODEL,
-            "anthropic/claude-3-haiku",
-            "openai/gpt-4o-mini",
-            "anthropic/claude-sonnet-4.6",
-            "openai/gpt-4o",
-        }
-    ),
-    "builder": frozenset(
-        {
-            PLATFORM_DEFAULT_MODEL,
-            "anthropic/claude-3-haiku",
-            "openai/gpt-4o-mini",
-            "anthropic/claude-sonnet-4.6",
-            "openai/gpt-4o",
-        }
-    ),
-    "unlimited": frozenset(
-        {
-            PLATFORM_DEFAULT_MODEL,
-            "anthropic/claude-3-haiku",
-            "openai/gpt-4o-mini",
-            "anthropic/claude-sonnet-4.6",
-            "openai/gpt-4o",
-        }
-    ),
+    "plus": _STANDARD_PLATFORM_MODELS,
+    "pro": _PREMIUM_PLATFORM_MODELS,
+    "builder": _PREMIUM_PLATFORM_MODELS,
 }
 
 # Best-effort price catalog used when the provider response does not include
@@ -1217,6 +1204,12 @@ class ProgramExecutor:
         tier = getattr(self, "model_access_tier", None)
         if tier is None:
             return
+        if tier == "unlimited":
+            # Top plan and admins carry no model ceiling (matching the
+            # "no resource ceiling at all" semantics of get_user_run_plan):
+            # any model the platform key can serve is permitted — usage still
+            # bills against included credits — and BYOK is unrestricted.
+            return
         if tier not in PLATFORM_MODELS_BY_ACCESS_TIER:
             tier = "free"
 
@@ -1236,7 +1229,6 @@ class ProgramExecutor:
                 "plus": "Solo",
                 "pro": "Team",
                 "builder": "Scale",
-                "unlimited": "Unlimited",
             }
             raise ExecutionError(
                 "PLATFORM_MODEL_PLAN_REQUIRED",

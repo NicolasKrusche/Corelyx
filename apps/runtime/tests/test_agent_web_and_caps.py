@@ -247,6 +247,34 @@ class AgentModelAccessTests(unittest.TestCase):
             ex._enforce_agent_model_access("platform", "openai/gpt-4o", "a1")
         self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
 
+    def test_unlimited_tier_has_no_platform_model_ceiling(self):
+        """Top plan and admins resolve to "unlimited", which carries no model
+        ceiling anywhere else (run limits, credits, priority) — regression for
+        the prod cron runs that failed with 'google/gemini-2.5-flash is not
+        available ... on the Unlimited plan' after the gate shipped."""
+        ex = _agent_executor()
+        ex.model_access_tier = "unlimited"
+        ex._enforce_agent_model_access("platform", "google/gemini-2.5-flash", "a1")
+        ex._enforce_agent_model_access("platform", "vendor/any-future-model", "a1")
+        ex._enforce_agent_model_access("saved-key", "vendor/custom-model", "a1")
+
+    def test_metered_tiers_keep_the_catalog_ceiling(self):
+        """Below "unlimited", platform-key models stay restricted to the
+        catalog mirror — BYOK-only editor presets (e.g. gemini-2.5-flash) and
+        premium upsell models are rejected with the plan-gate error."""
+        for tier, model in (
+            ("free", "google/gemini-2.5-flash"),
+            ("plus", "google/gemini-2.5-flash"),
+            ("plus", "anthropic/claude-sonnet-4.6"),
+            ("builder", "google/gemini-2.5-flash"),
+        ):
+            with self.subTest(tier=tier, model=model):
+                ex = _agent_executor()
+                ex.model_access_tier = tier
+                with self.assertRaises(ExecutionError) as ctx:
+                    ex._enforce_agent_model_access("platform", model, "a1")
+                self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
+
 
 if __name__ == "__main__":
     unittest.main()

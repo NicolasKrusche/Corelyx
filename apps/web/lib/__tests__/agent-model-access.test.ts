@@ -98,4 +98,22 @@ describe("Agent model plan access", () => {
       getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-4o"), "pro")
     ).toBeNull();
   });
+
+  it("blocks non-catalog models on metered plans", () => {
+    expect(
+      getAgentModelAccessIssue(schemaWithAgent("platform", "google/gemini-2.5-flash"), "builder")
+        ?.code
+    ).toBe("PLATFORM_MODEL_PLAN_REQUIRED");
+  });
+
+  it("puts no model ceiling on the unlimited plan", () => {
+    // Mirrors the runtime's _enforce_agent_model_access bypass — regression for
+    // the cron runs that failed with "not available ... on the Unlimited plan".
+    expect(
+      getAgentModelAccessIssue(schemaWithAgent("platform", "google/gemini-2.5-flash"), "unlimited")
+    ).toBeNull();
+    expect(
+      getAgentModelAccessIssue(schemaWithAgent("platform", "vendor/any-future-model"), "unlimited")
+    ).toBeNull();
+  });
 });
