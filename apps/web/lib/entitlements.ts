@@ -59,7 +59,8 @@ export interface PlanEntitlements {
   includedAiCredits: number | null;
 
   // Which tier of platform Genesis models the user can access
-  // "free"     → only OpenRouter's current free models
+  // "free"     → only the platform default model (see PLATFORM_DEFAULT_MODEL),
+  //              bounded by includedAiCredits below rather than model choice
   // "standard" → every OpenRouter model (Solo)
   // "premium"  → every OpenRouter model (Team / Scale; more included credits)
   genesisPlatformModelTier: "free" | "standard" | "premium";
@@ -86,7 +87,12 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     localFiles: false,
     maxTeamSeats: 1,
     maxWorkspaces: 1,
-    includedAiCredits: 0,
+    // 500 credits = ~$0.05 of real provider cost at full use (see the markup
+    // note above) — OpenRouter's own free-tier models were dropped platform-
+    // wide for getting rate-limited too quickly, so Free plan now runs the
+    // same real model as everyone else, just bounded by this small allowance
+    // instead of unlimited free-router calls.
+    includedAiCredits: 500,
     genesisPlatformModelTier: "free",
     genesisV2: false,
   },

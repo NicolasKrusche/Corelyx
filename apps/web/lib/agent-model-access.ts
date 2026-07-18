@@ -70,7 +70,7 @@ export function getAgentModelAccessIssue(
         nodeId: node.id,
         message:
           `Model "${model}" is not available for Agent node "${node.label}" ` +
-          "with the Corelyx Platform Key on the Free plan. Choose a free OpenRouter model or upgrade your plan.",
+          `with the Corelyx Platform Key on the Free plan. Choose the default model (${PLATFORM_DEFAULT_MODEL}) or upgrade your plan.`,
       };
     }
   }

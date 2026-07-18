@@ -3,7 +3,6 @@ import { z } from "zod";
 import {
   AGENT_PLATFORM_DEFAULT_MODEL,
   PLATFORM_DEFAULT_MODEL,
-  isFreeOpenRouterModel,
 } from "@/lib/genesis/platform-models";
 
 export {
@@ -93,7 +92,6 @@ export function isGenesisRefinementRequest(request: {
 // non-free gpt-oss-120b slug is load-balanced across ~20 providers and costs
 // a fraction of a cent — a genuinely reliable fallback, not just a cheap one.
 export const OPENROUTER_FALLBACK_MODELS = ["openai/gpt-oss-120b"] as const;
-export const OPENROUTER_FREE_FALLBACK_MODELS = [PLATFORM_DEFAULT_MODEL] as const;
 
 export const KEY_PROVIDER_PRIORITY: Record<string, number> = {
   anthropic: 0,
@@ -175,11 +173,7 @@ export function getModelCandidates(provider: string, requestedModel: string): st
     return [requestedModel];
   }
 
-  const fallbacks = isFreeOpenRouterModel(requestedModel)
-    ? OPENROUTER_FREE_FALLBACK_MODELS
-    : OPENROUTER_FALLBACK_MODELS;
-
-  return [requestedModel, ...fallbacks].filter(
+  return [requestedModel, ...OPENROUTER_FALLBACK_MODELS].filter(
     (candidate, index, candidates) => Boolean(candidate) && candidates.indexOf(candidate) === index
   );
 }
