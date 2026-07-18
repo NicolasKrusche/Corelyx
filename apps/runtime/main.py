@@ -19,12 +19,14 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from cors_config import (
     CORS_ALLOWED_HEADERS,
     CORS_ALLOWED_METHODS,
     get_cors_allowed_origins,
+    is_production_environment,
 )
 from db import (
     get_db,
@@ -41,6 +43,7 @@ from connectors.introspection import (
     supports_introspection,
 )
 from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
+from engine.circuit_breaker import list_known_circuits, reset_all_circuits
 from compliance import (
     load_program_connection_providers,
     load_workspace_policy,
@@ -78,9 +81,16 @@ for _audience in _REQUIRED_SECRETS:
 
 _nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "").strip()
 if not _nextjs_url or "localhost" in _nextjs_url:
+    # In production this isn't just a misconfiguration warning: the cron
+    # heartbeat (_cron_tick) and OAuth token fetches silently target
+    # localhost inside the container — nothing listens there, so cron
+    # triggers never fire and there's no other startup signal. Route this to
+    # stderr at ERROR level in production so it doesn't get lost in stdout.
+    _prod = is_production_environment()
     print(
-        f"[runtime] WARNING: NEXTJS_INTERNAL_URL={_nextjs_url!r} — "
-        "set this to your Vercel deployment URL in Railway or OAuth token fetches will fail"
+        f"[runtime] {'ERROR' if _prod else 'WARNING'}: NEXTJS_INTERNAL_URL={_nextjs_url!r} — "
+        "set this to your Vercel deployment URL in Railway or the cron heartbeat and OAuth token fetches will fail",
+        file=sys.stderr if _prod else sys.stdout,
     )
 else:
     print(f"[runtime] NEXTJS_INTERNAL_URL={_nextjs_url}")
@@ -219,6 +229,12 @@ async def trigger_workflow(workflow_id: str) -> None:
 # sweep (safe to overlap with the Inngest scheduler when that is configured).
 
 _cron_tick_failures = 0
+_cron_tick_last_success_at: datetime | None = None
+
+# Consecutive failed ticks (~1/min) before /health flips to unhealthy so
+# Railway's healthcheck/restart policy actually reacts instead of staying
+# green through a total, indefinite heartbeat outage.
+_HEARTBEAT_UNHEALTHY_THRESHOLD = 5
 
 
 def _cron_tick_endpoint(configured_url: str, path: str) -> str:
@@ -254,7 +270,7 @@ def _safe_cron_redirect(source_url: str, location: str, path: str) -> str | None
 
 
 async def _cron_tick() -> None:
-    global _cron_tick_failures
+    global _cron_tick_failures, _cron_tick_last_success_at
     nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000")
     path = "/api/internal/cron/tick"
     body = "{}"
@@ -292,13 +308,19 @@ async def _cron_tick() -> None:
         if _cron_tick_failures > 0:
             print(f"[runtime] Cron heartbeat recovered after {_cron_tick_failures} failed tick(s)")
         _cron_tick_failures = 0
+        _cron_tick_last_success_at = datetime.now(timezone.utc)
         data = res.json()
         if isinstance(data, dict) and data.get("fired"):
             print(f"[runtime] Cron tick fired {data['fired']} trigger(s)")
     except Exception as exc:  # log the first failure and then every 10th, not every minute
         _cron_tick_failures += 1
         if _cron_tick_failures == 1 or _cron_tick_failures % 10 == 0:
-            print(f"[runtime] Cron heartbeat failed ({_cron_tick_failures}x): {exc}")
+            unhealthy = _cron_tick_failures >= _HEARTBEAT_UNHEALTHY_THRESHOLD
+            print(
+                f"[runtime] {'ERROR' if unhealthy else 'WARNING'}: Cron heartbeat failed "
+                f"({_cron_tick_failures}x consecutive): {exc}",
+                file=sys.stderr if unhealthy else sys.stdout,
+            )
 
 
 @asynccontextmanager
@@ -698,8 +720,8 @@ _DEPLOYED_COMMIT = (
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    """Liveness, plus which commit is actually serving.
+async def health() -> JSONResponse:
+    """Liveness, plus which commit is actually serving and cron heartbeat health.
 
     This used to return {"status": "ok"} alone, which made "did the redeploy
     land?" unanswerable without digging through host logs — and several fixes
@@ -709,11 +731,75 @@ async def health() -> dict[str, str]:
         curl -s $RUNTIME_URL/health | jq -r .commit
         git rev-parse --short=12 origin/main
 
-    Deliberately just the SHA: this route is public and unauthenticated, so it
-    reports what is running, never how it is configured. "unknown" means the
-    host injected no commit env var (e.g. a local runtime), not that it is stale.
+    It also reports the cron heartbeat's health. The heartbeat (_cron_tick)
+    calls the web app every 60s to fire due cron triggers; if NEXTJS_INTERNAL_URL
+    is misconfigured (e.g. falls back to localhost inside the container) those
+    calls fail with nothing listening on the other end and cron-triggered
+    workflows silently never run. Once failures cross the threshold this
+    returns 503 so Railway's own healthcheck/restart policy actually reacts
+    instead of staying green through an indefinite heartbeat outage.
+
+    Deliberately no error text or configured URLs in the payload: this route is
+    public and unauthenticated, so it reports what is running, never how it is
+    configured. "unknown" means the host injected no commit env var (e.g. a
+    local runtime), not that it is stale.
     """
-    return {
-        "status": "ok",
+    heartbeat_unhealthy = _cron_tick_failures >= _HEARTBEAT_UNHEALTHY_THRESHOLD
+    payload = {
+        "status": "degraded" if heartbeat_unhealthy else "ok",
         "commit": _DEPLOYED_COMMIT[:12] if _DEPLOYED_COMMIT else "unknown",
+        "heartbeat_last_success_at": (
+            _cron_tick_last_success_at.isoformat() if _cron_tick_last_success_at else None
+        ),
+        "heartbeat_consecutive_failures": _cron_tick_failures,
     }
+    return JSONResponse(payload, status_code=503 if heartbeat_unhealthy else 200)
+
+
+async def _verify_internal_caller(request: Request, x_internal_service_token: str | None, audience: str) -> None:
+    """Shared internal-auth check for the admin-only circuit endpoints below —
+    same pattern as /introspect, scoped to its own audience."""
+    if not x_internal_service_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    raw_body = await request.body()
+    try:
+        claims = verify_internal_service_token_claims(
+            x_internal_service_token,
+            audience,
+            method=request.method,
+            path=request.url.path,
+            body=raw_body,
+        )
+    except RuntimeError as exc:
+        print(f"[runtime] {audience} auth misconfigured: {exc}")
+        raise HTTPException(status_code=500, detail="Runtime auth is not configured")
+    if claims is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.get("/circuits")
+async def circuit_states(
+    request: Request,
+    x_internal_service_token: str | None = Header(default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER),
+) -> dict[str, Any]:
+    """Real circuit-breaker state for the admin dashboard.
+
+    The dashboard used to render hardcoded mock data that always showed every
+    circuit as healthy — actively misleading during a real incident. This
+    reveals operational failure counts (not user data) so it's still
+    internal-auth-gated rather than public like /health.
+    """
+    await _verify_internal_caller(request, x_internal_service_token, "runtime:circuits")
+    return {"circuits": [cb.to_dict() for cb in list_known_circuits()]}
+
+
+@app.post("/circuits/reset")
+async def reset_circuits(
+    request: Request,
+    x_internal_service_token: str | None = Header(default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER),
+) -> dict[str, Any]:
+    """Manually reset every circuit breaker back to CLOSED — the admin
+    dashboard's "Reset All Circuits" action, previously a disabled no-op."""
+    await _verify_internal_caller(request, x_internal_service_token, "runtime:circuits")
+    reset_all_circuits()
+    return {"ok": True}

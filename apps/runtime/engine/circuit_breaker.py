@@ -6,6 +6,7 @@ Prevents cascading failures when services are down.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, TypeVar
 
@@ -55,6 +56,20 @@ class CircuitBreaker:
     @property
     def state(self) -> CircuitState:
         return self._state
+
+    def to_dict(self) -> dict[str, Any]:
+        """Snapshot for the admin dashboard — real state, not the counts a caller tracked separately."""
+        return {
+            "name": self.name,
+            "state": self._state.value.upper(),
+            "failure_count": self._failure_count,
+            "success_count": self._success_count,
+            "last_failure_at": (
+                datetime.fromtimestamp(self._last_failure_time, tz=timezone.utc).isoformat()
+                if self._last_failure_time
+                else None
+            ),
+        }
 
     def can_execute(self) -> bool:
         """Check if a call should be allowed through."""
@@ -154,6 +169,13 @@ def get_circuit_breaker(name: str) -> CircuitBreaker:
 def reset_all_circuits() -> None:
     """Reset all circuit breakers (useful for testing)."""
     _circuit_breakers.clear()
+
+
+def list_known_circuits() -> list["CircuitBreaker"]:
+    """The pre-defined circuits, eagerly instantiated so an admin dashboard
+    sees a clean CLOSED baseline for a circuit that's never tripped, instead
+    of it being absent from the response."""
+    return [get_llm_circuit(), get_oauth_token_circuit(), get_vault_circuit()]
 
 
 # Pre-defined circuit breakers for known services

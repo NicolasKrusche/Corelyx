@@ -121,8 +121,18 @@ export async function POST(
     if (!nextRunAt) return apiError("Invalid five-field cron expression or timezone", 400);
   }
 
-  if (type === "program" && !config.source_program_id) {
-    return apiError("Program trigger requires config.source_program_id", 400);
+  if (type === "program") {
+    if (!config.source_program_id || typeof config.source_program_id !== "string") {
+      return apiError("Program trigger requires config.source_program_id", 400);
+    }
+    // Otherwise a trigger can be wired to fire off ANY program's completion in the
+    // whole database — including ones this user/workspace has no access to — by
+    // guessing or having previously observed its UUID. Require at least view
+    // access, the same bar as reading the source program's own trigger list.
+    const sourceAccess = await getProgramAccess(config.source_program_id, user.id);
+    if (!canView(sourceAccess)) {
+      return apiError("source_program_id must refer to a program you have access to", 403);
+    }
   }
 
   const serviceClient = createServiceClient();

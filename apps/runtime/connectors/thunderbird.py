@@ -22,8 +22,10 @@ from __future__ import annotations
 import asyncio
 import email
 import imaplib
+import ipaddress
 import json
 import smtplib
+import socket
 from email.header import decode_header, make_header
 from email.message import EmailMessage, Message
 from email.utils import formatdate, make_msgid, parseaddr
@@ -130,10 +132,42 @@ def _parse_credentials(access_token: str) -> _Creds:
     return creds
 
 
+# ── SSRF guard ────────────────────────────────────────────────────────────────
+#
+# Unlike the HTTP-based connectors — which route every outbound call through
+# executor.py's SSRF-safe fetcher — Thunderbird talks raw IMAP/SMTP sockets
+# directly to a user-supplied host, with no equivalent guard. Block hosts that
+# resolve to a private/loopback/link-local address so a shared connection
+# can't be pointed at internal infrastructure to get a banner/timing signal
+# back through connector error messages.
+
+
+def _reject_internal_host(host: str, purpose: str) -> None:
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as exc:
+        raise ConnectorError("DNS_RESOLUTION_FAILED", f"Could not resolve the {purpose} host: {host}") from exc
+    for info in infos:
+        addr = ipaddress.ip_address(info[4][0])
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_multicast
+            or addr.is_reserved
+            or addr.is_unspecified
+        ):
+            raise ConnectorError(
+                "INTERNAL_HOST_BLOCKED",
+                f"The {purpose} host resolves to a private/internal address and cannot be used.",
+            )
+
+
 # ── IMAP ──────────────────────────────────────────────────────────────────────
 
 
 def _imap_connect(creds: _Creds) -> imaplib.IMAP4:
+    _reject_internal_host(creds.imap_host, "IMAP")
     try:
         if creds.security == "starttls":
             client: imaplib.IMAP4 = imaplib.IMAP4(creds.imap_host, creds.imap_port)
@@ -342,6 +376,7 @@ def _send_email(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
         raise ConnectorError("MISSING_PARAM", "send_email requires 'to'.")
     if not creds.smtp_host:
         raise ConnectorError("BAD_CREDENTIALS", "No SMTP host configured for sending.")
+    _reject_internal_host(creds.smtp_host, "SMTP")
 
     msg = EmailMessage()
     msg["From"] = _clean(p.get("from")) or creds.username

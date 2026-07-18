@@ -6,6 +6,8 @@ search helpers and auto-registration — the parts that carry the bugs.
 
 import email
 import json
+import socket
+from unittest.mock import patch
 
 import pytest
 
@@ -20,6 +22,7 @@ from connectors.thunderbird import (
     _hdr,
     _parse_credentials,
     _parse_folder_name,
+    _reject_internal_host,
 )
 
 
@@ -27,6 +30,26 @@ def test_registered_and_discovered():
     assert REGISTRY.get("thunderbird") is ThunderbirdConnector
     assert isinstance(get_connector("thunderbird"), ThunderbirdConnector)
     assert "send_email" in ThunderbirdConnector.supported_operations
+
+
+def test_reject_internal_host_blocks_loopback_and_private_ips():
+    with pytest.raises(ConnectorError):
+        _reject_internal_host("127.0.0.1", "IMAP")
+    with pytest.raises(ConnectorError):
+        _reject_internal_host("10.0.0.5", "SMTP")
+    with pytest.raises(ConnectorError):
+        _reject_internal_host("localhost", "IMAP")
+
+
+def test_reject_internal_host_allows_public_address():
+    with patch.object(tb.socket, "getaddrinfo", return_value=[(2, 1, 6, "", ("93.184.216.34", 0))]):
+        _reject_internal_host("example.com", "IMAP")  # should not raise
+
+
+def test_reject_internal_host_surfaces_dns_failure():
+    with patch.object(tb.socket, "getaddrinfo", side_effect=socket.gaierror("boom")):
+        with pytest.raises(ConnectorError):
+            _reject_internal_host("does-not-resolve.invalid", "SMTP")
 
 
 def test_parse_credentials_defaults_ports_from_security():

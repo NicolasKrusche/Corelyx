@@ -92,10 +92,32 @@ class TestHealthEndpoint(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["commit"], "aaa065bb5e4b")
 
     async def test_health_never_leaks_configuration(self) -> None:
-        # The route is public and unauthenticated: liveness and version only.
+        # The route is public and unauthenticated: liveness, version, and
+        # heartbeat health only — never error text or configured URLs.
         with patch.object(main_module, "_DEPLOYED_COMMIT", "deadbeefcafe"):
             body = client.get("/health").json()
-        self.assertEqual(set(body), {"status", "commit"})
+        self.assertEqual(
+            set(body),
+            {"status", "commit", "heartbeat_last_success_at", "heartbeat_consecutive_failures"},
+        )
+
+    async def test_health_reports_degraded_after_sustained_heartbeat_failures(self) -> None:
+        with (
+            patch.object(main_module, "_cron_tick_failures", main_module._HEARTBEAT_UNHEALTHY_THRESHOLD),
+            patch.object(main_module, "_cron_tick_last_success_at", None),
+        ):
+            response = client.get("/health")
+        self.assertEqual(response.status_code, 503)
+        body = response.json()
+        self.assertEqual(body["status"], "degraded")
+        self.assertEqual(body["heartbeat_consecutive_failures"], main_module._HEARTBEAT_UNHEALTHY_THRESHOLD)
+        self.assertIsNone(body["heartbeat_last_success_at"])
+
+    async def test_health_ok_below_heartbeat_failure_threshold(self) -> None:
+        with patch.object(main_module, "_cron_tick_failures", main_module._HEARTBEAT_UNHEALTHY_THRESHOLD - 1):
+            response = client.get("/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
 
 
 class TestExecuteEndpointAuth(unittest.IsolatedAsyncioTestCase):

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
+import { writeAppLog } from "@/lib/app-logs";
 
 type GrantRow = {
   id: string;
@@ -33,5 +34,16 @@ export async function GET(
     .order("created_at", { ascending: false });
 
   if (error) return apiError("Failed to fetch grants", 500);
+
+  await writeAppLog(service, {
+    userId: user.id,
+    level: "info",
+    source: "Admin",
+    event: "admin.support.grants_viewed",
+    status: "completed",
+    message: `Admin viewed access grants for support ticket ${ticketId}.`,
+    details: { ticket_id: ticketId, grant_count: (data ?? []).length },
+  });
+
   return NextResponse.json({ grants: (data ?? []) as GrantRow[] });
 }

@@ -67,6 +67,20 @@ export async function PATCH(
   };
   if (requestedConfig) updates.config = effectiveConfig;
 
+  // Same gap as trigger creation: a "program" trigger's source_program_id must
+  // stay something this user can access — otherwise it can be silently
+  // rewritten post-creation to chain off a program the user has no access to.
+  if (currentTrigger.type === "program" && requestedConfig) {
+    const sourceProgramId = effectiveConfig.source_program_id;
+    if (!sourceProgramId || typeof sourceProgramId !== "string") {
+      return apiError("Program trigger requires config.source_program_id", 400);
+    }
+    const sourceAccess = await getProgramAccess(sourceProgramId, user.id);
+    if (!canView(sourceAccess)) {
+      return apiError("source_program_id must refer to a program you have access to", 403);
+    }
+  }
+
   let nextRunAt: string | null | undefined;
   if (currentTrigger.type === "cron") {
     if (body.is_active === false) {
