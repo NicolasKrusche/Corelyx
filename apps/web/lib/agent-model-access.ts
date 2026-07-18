@@ -31,6 +31,12 @@ export function getAgentModelAccessIssue(
   schema: ProgramSchema,
   tier: Tier
 ): AgentModelAccessIssue | null {
+  // The top plan (and admin accounts, which resolve to "unlimited") carries no
+  // model ceiling: any platform-key model is permitted, billed against
+  // included credits. Mirrors the runtime's _enforce_agent_model_access bypass
+  // so manual runs and replays agree with cron-dispatched runs.
+  if (tier === "unlimited") return null;
+
   const entitlements = getEntitlements(tier);
   const allowedPlatformModels = new Set(
     getAllowedPlatformModels(entitlements.genesisPlatformModelTier).map((model) => model.id)
