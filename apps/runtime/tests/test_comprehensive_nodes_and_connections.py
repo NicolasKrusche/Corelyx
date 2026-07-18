@@ -1300,7 +1300,7 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
             result = await executor._execute_node(node, {"question": "What is 6*7?"})
 
         self.assertEqual(result["answer"], 42)
-        self.assertEqual(client.post.await_args.kwargs["json"]["model"], "openai/gpt-oss-120b")
+        self.assertEqual(client.post.await_args.kwargs["json"]["model"], "openrouter/free")
 
     async def test_agent_node_requires_approval_in_supervised_mode(self) -> None:
         node = _node(

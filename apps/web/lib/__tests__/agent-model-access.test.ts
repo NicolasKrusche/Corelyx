@@ -58,13 +58,16 @@ function schemaWithAgent(apiKeyRef: string, model: string): ProgramSchema {
 describe("Agent model plan access", () => {
   it("allows the free Corelyx platform model on the Free plan", () => {
     expect(
-      getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-oss-120b"), "free")
+      getAgentModelAccessIssue(schemaWithAgent("platform", "openrouter/free"), "free")
     ).toBeNull();
   });
 
-  it("accepts the legacy free platform alias", () => {
+  it("migrates both legacy Free defaults to the free router", () => {
     expect(
       getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-oss-120b:free"), "free")
+    ).toBeNull();
+    expect(
+      getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-oss-120b"), "free")
     ).toBeNull();
   });
 
@@ -84,13 +87,16 @@ describe("Agent model plan access", () => {
     expect(issue?.code).toBe("BYOK_PLAN_REQUIRED");
   });
 
-  it("allows standard platform models on Solo but not premium models", () => {
+  it("allows every paid OpenRouter model on Solo and higher", () => {
     expect(
       getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-4o-mini"), "plus")
     ).toBeNull();
     expect(
-      getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-4o"), "plus")?.code
-    ).toBe("PLATFORM_MODEL_PLAN_REQUIRED");
+      getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-4o"), "plus")
+    ).toBeNull();
+    expect(
+      getAgentModelAccessIssue(schemaWithAgent("platform", "vendor/new-model"), "plus")
+    ).toBeNull();
   });
 
   it("allows premium platform models on Team", () => {
@@ -99,11 +105,10 @@ describe("Agent model plan access", () => {
     ).toBeNull();
   });
 
-  it("blocks non-catalog models on metered plans", () => {
+  it("allows future OpenRouter models on Scale", () => {
     expect(
       getAgentModelAccessIssue(schemaWithAgent("platform", "google/gemini-2.5-flash"), "builder")
-        ?.code
-    ).toBe("PLATFORM_MODEL_PLAN_REQUIRED");
+    ).toBeNull();
   });
 
   it("puts no model ceiling on the unlimited plan", () => {

@@ -209,16 +209,14 @@ class AgentMarkupTests(unittest.TestCase):
         ex._agent_billing_platform = False
         self.assertEqual(ex._record_agent_llm_usage("a1", "m", self._usage(0.0123)), 0)
 
-    def test_default_platform_model_bills_credits_like_any_other(self):
-        """The retired ":free" slug's absorb-cost exemption is gone: the default
-        platform model bills by actual provider cost like every other model."""
+    def test_free_platform_model_returns_zero_credits(self):
         ex = _agent_executor()
         ex._limiter = Mock()
         ex._agent_capabilities = {}
         ex._agent_billing_platform = True
         self.assertEqual(
-            ex._record_agent_llm_usage("a1", "openai/gpt-oss-120b", self._usage(0.0123)),
-            123,
+            ex._record_agent_llm_usage("a1", "openrouter/free", self._usage(0.0123)),
+            0,
         )
 
 
@@ -226,7 +224,8 @@ class AgentModelAccessTests(unittest.TestCase):
     def test_free_tier_allows_only_the_free_platform_model(self):
         ex = _agent_executor()
         ex.model_access_tier = "free"
-        ex._enforce_agent_model_access("platform", "openai/gpt-oss-120b", "a1")
+        ex._enforce_agent_model_access("platform", "openrouter/free", "a1")
+        ex._enforce_agent_model_access("platform", "qwen/qwen3-coder:free", "a1")
 
         with self.assertRaises(ExecutionError) as ctx:
             ex._enforce_agent_model_access("platform", "openai/gpt-4o-mini", "a1")
@@ -239,15 +238,13 @@ class AgentModelAccessTests(unittest.TestCase):
             ex._enforce_agent_model_access("saved-key", "openai/gpt-4o", "a1")
         self.assertEqual(ctx.exception.code, "BYOK_PLAN_REQUIRED")
 
-    def test_solo_allows_byok_and_standard_platform_models(self):
+    def test_solo_allows_byok_and_every_paid_platform_model(self):
         ex = _agent_executor()
         ex.model_access_tier = "plus"
         ex._enforce_agent_model_access("saved-key", "vendor/custom-model", "a1")
         ex._enforce_agent_model_access("platform", "openai/gpt-4o-mini", "a1")
-
-        with self.assertRaises(ExecutionError) as ctx:
-            ex._enforce_agent_model_access("platform", "openai/gpt-4o", "a1")
-        self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
+        ex._enforce_agent_model_access("platform", "openai/gpt-4o", "a1")
+        ex._enforce_agent_model_access("platform", "vendor/new-openrouter-model", "a1")
 
     def test_unlimited_tier_has_no_platform_model_ceiling(self):
         """Top plan and admins resolve to "unlimited", which carries no model
@@ -260,22 +257,12 @@ class AgentModelAccessTests(unittest.TestCase):
         ex._enforce_agent_model_access("platform", "vendor/any-future-model", "a1")
         ex._enforce_agent_model_access("saved-key", "vendor/custom-model", "a1")
 
-    def test_metered_tiers_keep_the_catalog_ceiling(self):
-        """Below "unlimited", platform-key models stay restricted to the
-        catalog mirror — BYOK-only editor presets (e.g. gemini-2.5-flash) and
-        premium upsell models are rejected with the plan-gate error."""
-        for tier, model in (
-            ("free", "google/gemini-2.5-flash"),
-            ("plus", "google/gemini-2.5-flash"),
-            ("plus", "anthropic/claude-sonnet-4.6"),
-            ("builder", "google/gemini-2.5-flash"),
-        ):
-            with self.subTest(tier=tier, model=model):
+    def test_every_paid_tier_allows_future_openrouter_models(self):
+        for tier in ("plus", "pro", "builder", "unlimited"):
+            with self.subTest(tier=tier):
                 ex = _agent_executor()
                 ex.model_access_tier = tier
-                with self.assertRaises(ExecutionError) as ctx:
-                    ex._enforce_agent_model_access("platform", model, "a1")
-                self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
+                ex._enforce_agent_model_access("platform", "vendor/future-model", "a1")
 
 
 if __name__ == "__main__":

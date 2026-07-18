@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { getUserTier } from "@/lib/limits";
 import { getEntitlements } from "@/lib/entitlements";
-import { PLATFORM_MODEL_CATALOG, getAllowedPlatformModels, PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/request";
+import { getAllowedPlatformModels, PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/request";
+import { getOpenRouterModelCatalog } from "@/lib/genesis/openrouter-models";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
 
 /**
@@ -20,15 +21,16 @@ export async function GET() {
   const tier = await getUserTier(user.id);
   const ent = getEntitlements(tier);
   const modelTier = ent.genesisPlatformModelTier;
+  const catalog = await getOpenRouterModelCatalog();
 
   // Dev accounts get every platform model unlocked (run on the funded platform
   // key) so they can test with a capable model without a personal billing tier.
   const isDev = await hasTechnicalAccess(user.id, user.email);
   const allowedIds = isDev
-    ? new Set(PLATFORM_MODEL_CATALOG.map((m) => m.id))
-    : new Set(getAllowedPlatformModels(modelTier).map((m) => m.id));
+    ? new Set(catalog.map((m) => m.id))
+    : new Set(getAllowedPlatformModels(modelTier, catalog).map((m) => m.id));
 
-  const models = PLATFORM_MODEL_CATALOG.map((m) => ({
+  const models = catalog.map((m) => ({
     ...m,
     locked: !allowedIds.has(m.id),
   }));
@@ -38,7 +40,9 @@ export async function GET() {
     // Devs default to a strong model (funded platform key) so V2 testing gets a
     // model that actually leverages the introspected data and emits clarifying
     // questions — Haiku is too weak for that. Without having to pick one.
-    defaultModel: isDev ? "anthropic/claude-sonnet-4.6" : PLATFORM_DEFAULT_MODEL,
+    defaultModel: isDev && allowedIds.has("anthropic/claude-sonnet-4.6")
+      ? "anthropic/claude-sonnet-4.6"
+      : PLATFORM_DEFAULT_MODEL,
     models,
     // Genesis V2 access = dev (testing) OR the top plan(s); the client shows the
     // V2 toggle only when true.

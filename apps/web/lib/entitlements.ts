@@ -59,9 +59,9 @@ export interface PlanEntitlements {
   includedAiCredits: number | null;
 
   // Which tier of platform Genesis models the user can access
-  // "free"     → only free/open-weight models (Qwen3 Coder)
-  // "standard" → + Claude 3 Haiku, GPT-4o Mini  (Solo)
-  // "premium"  → + Claude Sonnet, GPT-4o         (Team / Scale)
+  // "free"     → only OpenRouter's current free models
+  // "standard" → every OpenRouter model (Solo)
+  // "premium"  → every OpenRouter model (Team / Scale; more included credits)
   genesisPlatformModelTier: "free" | "standard" | "premium";
 
   // Genesis V2 (live connector introspection, patch-based edits, clarifying

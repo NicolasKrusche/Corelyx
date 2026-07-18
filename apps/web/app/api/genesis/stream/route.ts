@@ -60,7 +60,6 @@ import {
   GenesisRequestSchema,
   getAllowedPlatformModels,
   getMissingConnectionIds,
-  PLATFORM_MODEL_CATALOG,
   getModelCandidates,
   getProviderBaseURL,
   isGenesisRefinementRequest,
@@ -78,6 +77,7 @@ import {
   type GenesisApiKeyRow,
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
+import { getOpenRouterModelCatalog } from "@/lib/genesis/openrouter-models";
 import { getUserTier } from "@/lib/limits";
 import { getEntitlements } from "@/lib/entitlements";
 
@@ -133,10 +133,13 @@ export async function POST(request: Request) {
   // V2 access = dev (testing) OR the top plan(s) (entitlements.genesisV2). isDev
   // also unlocks all platform models (below), so a dev can test with a capable
   // model on the funded platform key without a personal billing tier.
-  const isDev = await hasTechnicalAccess(userId, user.email);
+  const [isDev, userTier] = await Promise.all([
+    hasTechnicalAccess(userId, user.email),
+    getUserTier(userId),
+  ]);
   const v2Enabled =
     parsed.data.genesis_v2 === true &&
-    (isDev || getEntitlements(await getUserTier(userId)).genesisV2);
+    (isDev || getEntitlements(userTier).genesisV2);
   // Make the gate decision visible in stdout so "did V2 run?" is answerable
   // without a DB round-trip. requested vs enabled distinguishes "toggle off" from
   // "toggle on but not a dev".
@@ -161,16 +164,20 @@ export async function POST(request: Request) {
   // locked to the default. BYOK path: `model` is always required by the schema.
   let model: string;
   if (usePlatformKey) {
+    const catalog = await getOpenRouterModelCatalog();
     const requestedModel = parsed.data.model;
     if (requestedModel && requestedModel !== PLATFORM_MODEL) {
       // Validate the requested model against the user's tier — dev accounts may
       // use any catalog model (same unlock as /api/genesis/models).
       const allowed = isDev
-        ? PLATFORM_MODEL_CATALOG
-        : getAllowedPlatformModels(getEntitlements(await getUserTier(userId)).genesisPlatformModelTier);
+        ? catalog
+        : getAllowedPlatformModels(
+            getEntitlements(userTier).genesisPlatformModelTier,
+            catalog
+          );
       if (!allowed.some((m) => m.id === requestedModel)) {
         return apiError(
-          `Model "${requestedModel}" is not available on your current plan. Upgrade to Solo or higher to access premium models.`,
+          `Model "${requestedModel}" is not available on your current plan. Upgrade to Solo or higher to access paid models.`,
           403
         );
       }

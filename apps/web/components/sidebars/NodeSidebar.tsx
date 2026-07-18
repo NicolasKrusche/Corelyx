@@ -879,21 +879,26 @@ type CreditData = {
   total: number | null;
 };
 
-function CorelyxKeyPanel() {
+function CorelyxKeyPanel({ usesCredits }: { usesCredits: boolean }) {
   const [credits, setCredits] = useState<CreditData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!usesCredits) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     fetch("/api/credits/balance")
       .then((r) => r.ok ? r.json() as Promise<CreditData> : null)
       .then((data) => { setCredits(data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [usesCredits]);
 
   const total = credits?.total;
   const isUnlimited = total === null;
-  const isLow = !isUnlimited && typeof total === "number" && total < 1_000;
-  const isEmpty = !isUnlimited && typeof total === "number" && total <= 0;
+  const isLow = usesCredits && !isUnlimited && typeof total === "number" && total < 1_000;
+  const isEmpty = usesCredits && !isUnlimited && typeof total === "number" && total <= 0;
 
   return (
     <div className={cn(
@@ -906,30 +911,40 @@ function CorelyxKeyPanel() {
     )}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold text-foreground">Corelyx Platform Key</span>
-        <a
-          href="/plan"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
-        >
-          Buy credits
-        </a>
-      </div>
-
-      <div className="space-y-1 text-muted-foreground">
-        <div className="flex items-center justify-between">
-          <span>Available balance</span>
-          <span className={cn("font-medium tabular-nums", isEmpty ? "text-destructive" : "text-foreground")}>
-            {loading ? "..." : isUnlimited ? "Unlimited" : `${formatCredits(total as number)} credits`}
-          </span>
-        </div>
-        {credits && !isUnlimited && (credits.availablePurchased ?? 0) > 0 && (
-          <div className="flex items-center justify-between">
-            <span>Purchased</span>
-            <span className="tabular-nums">{formatCredits(credits.availablePurchased)}</span>
-          </div>
+        {usesCredits && (
+          <a
+            href="/plan"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
+          >
+            Buy credits
+          </a>
         )}
       </div>
+
+      {usesCredits && (
+        <div className="space-y-1 text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>Available balance</span>
+            <span className={cn("font-medium tabular-nums", isEmpty ? "text-destructive" : "text-foreground")}>
+              {loading ? "..." : isUnlimited ? "Unlimited" : `${formatCredits(total as number)} credits`}
+            </span>
+          </div>
+          {credits && !isUnlimited && (credits.availablePurchased ?? 0) > 0 && (
+            <div className="flex items-center justify-between">
+              <span>Purchased</span>
+              <span className="tabular-nums">{formatCredits(credits.availablePurchased)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!usesCredits && (
+        <p className="font-medium text-emerald-600 dark:text-emerald-400">
+          This model is free to use and does not consume credits.
+        </p>
+      )}
 
       {isEmpty && (
         <p className="text-destructive font-medium">Credits exhausted — this node won&apos;t run.</p>
@@ -939,8 +954,9 @@ function CorelyxKeyPanel() {
       )}
 
       <p className="text-muted-foreground/70 leading-relaxed">
-        All providers supported (OpenAI, Anthropic, Groq, Google, and more) via a single key.
-        Credits reset monthly with your plan.
+        {usesCredits
+          ? "Paid model usage is billed from your platform credits, which reset monthly with your plan."
+          : "Free model availability and rate limits are managed by OpenRouter."}
       </p>
     </div>
   );
@@ -979,10 +995,16 @@ function AgentSidebar({
       ? (MODEL_PRESETS.openrouter ?? [])
       : [];
   const configuredModel = config.model === "__USER_ASSIGNED__" ? "" : config.model;
-  const modelSelectValue = isPlatformKey && configuredModel === "openai/gpt-oss-120b:free"
-    ? "openai/gpt-oss-120b"
+  const shouldMigrateLegacyFreeModel = isPlatformKey && (
+    configuredModel === "openai/gpt-oss-120b:free" ||
+    (configuredModel === "openai/gpt-oss-120b" && !platformModelIds.includes(configuredModel))
+  );
+  const modelSelectValue = shouldMigrateLegacyFreeModel && platformModelIds.includes("openrouter/free")
+    ? "openrouter/free"
     : configuredModel;
   const configuredModelIsListed = openRouterOptions.includes(modelSelectValue);
+  const platformModelUsesCredits =
+    platformModels.find((model) => model.id === modelSelectValue)?.tier !== "free";
   const datalistId = "agent-model-presets";
 
   const tabs: { id: AgentTab; label: string }[] = [
@@ -1053,7 +1075,7 @@ function AgentSidebar({
             )}
           </FieldGroup>
 
-          {isPlatformKey && <CorelyxKeyPanel />}
+          {isPlatformKey && <CorelyxKeyPanel usesCredits={platformModelUsesCredits} />}
 
           <FieldGroup label="Model" htmlFor="agent-model" helpKey="model">
             {showOpenRouterDropdown ? (

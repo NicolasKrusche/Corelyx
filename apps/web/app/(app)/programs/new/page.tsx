@@ -17,6 +17,7 @@ import { writeClientLog } from "@/lib/client-logs";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { useGenesisJob } from "@/components/genesis/genesis-job-provider";
 import { AiIdentityBadge } from "@/components/ai-transparency";
+import { PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/platform-models";
 
 type Connection = {
   id: string;
@@ -198,7 +199,7 @@ function NewProgramPageInner() {
   const connectionsTouchedRef = useRef(false);
   // Platform model picker — loaded on mount, shown in BoltStyleChat bottom bar
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
-  const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>("openai/gpt-oss-120b");
+  const [selectedPlatformModel, setSelectedPlatformModel] = useState<string>(PLATFORM_DEFAULT_MODEL);
   // True once the user explicitly picks a model in the platform picker. When set,
   // generation uses the platform key with that model instead of silently
   // preferring an auto-selected BYOK key (which ignored the picker entirely).
@@ -270,7 +271,7 @@ function NewProgramPageInner() {
         if (!data) return;
         const models = (data.models ?? []) as PlatformModel[];
         setPlatformModels(models);
-        setSelectedPlatformModel(data.defaultModel ?? "openai/gpt-oss-120b");
+        setSelectedPlatformModel(data.defaultModel ?? PLATFORM_DEFAULT_MODEL);
         setV2Available(data.v2Available === true);
       })
       .catch(() => { /* non-fatal — stays on default free model */ });

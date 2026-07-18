@@ -77,6 +77,7 @@ import {
   type GenesisApiKeyRow,
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
+import { getOpenRouterModelCatalog } from "@/lib/genesis/openrouter-models";
 import { getUserTier } from "@/lib/limits";
 import { getEntitlements } from "@/lib/entitlements";
 
@@ -126,7 +127,8 @@ export async function POST(request: Request) {
   let model: string;
   if (usePlatformKey) {
     const ent = getEntitlements(userTier);
-    const allowedModels = getAllowedPlatformModels(ent.genesisPlatformModelTier);
+    const catalog = await getOpenRouterModelCatalog();
+    const allowedModels = getAllowedPlatformModels(ent.genesisPlatformModelTier, catalog);
     const allowedIds = new Set(allowedModels.map((m) => m.id));
     const requestedModel = parsed.data.model;
     model = requestedModel && allowedIds.has(requestedModel) ? requestedModel : PLATFORM_DEFAULT_MODEL;

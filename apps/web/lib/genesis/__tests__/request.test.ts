@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   GenesisRequestSchema,
+  OPENROUTER_FREE_FALLBACK_MODELS,
   OPENROUTER_FALLBACK_MODELS,
-  PLATFORM_MODEL_CATALOG,
+  PLATFORM_DEFAULT_MODEL,
   getMissingConnectionIds,
   getModelCandidates,
   sortApiKeyFallbacks,
@@ -72,17 +73,19 @@ describe("genesis request helpers", () => {
     expect(getModelCandidates("openrouter", "openai/gpt-oss-120b")).toEqual([
       "openai/gpt-oss-120b",
     ]);
+    expect(getModelCandidates("openrouter", "qwen/qwen3-coder:free")).toEqual([
+      "qwen/qwen3-coder:free",
+      "openrouter/free",
+    ]);
   });
 
-  it("uses current OpenRouter slugs for platform model options", () => {
-    const ids = PLATFORM_MODEL_CATALOG.map((model) => model.id);
-    expect(ids).toContain("anthropic/claude-sonnet-4.6");
-    expect(ids).not.toContain("anthropic/claude-sonnet-4-6");
+  it("keeps free and paid OpenRouter fallback chains separated", () => {
+    expect(PLATFORM_DEFAULT_MODEL).toBe("openrouter/free");
     // The fallback chain must never point at an OpenRouter ":free" slug —
     // those are served by a small pool of upstream providers with their own
     // rate limits and proved unreliable in practice (see OPENROUTER_FALLBACK_MODELS).
     expect(OPENROUTER_FALLBACK_MODELS.every((id) => !id.endsWith(":free"))).toBe(true);
-    expect(ids.every((id) => !id.endsWith(":free"))).toBe(true);
+    expect(OPENROUTER_FREE_FALLBACK_MODELS).toEqual(["openrouter/free"]);
   });
 
   it("keeps the minimum description length for new workflow generation", () => {
