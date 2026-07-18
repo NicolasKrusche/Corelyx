@@ -50,6 +50,7 @@ from db import (
     get_existing_lock,
     get_run_status,
     resolve_default_device,
+    touch_run_watcher_heartbeat,
     update_node_execution,
 )
 from engine.safe_expressions import (
@@ -1166,6 +1167,19 @@ class ProgramExecutor:
         limits = get_run_limits().get_limits_for_plan(plan)
         self._limiter = RunLimiter(limits, run_id)
         self._limiter.start()
+
+    def active_execution_seconds(self) -> float:
+        """Wall-clock execution time so far, excluding time paused on a
+        human/device suspend-resume wait. Used by main.py's run watchdog."""
+        return self._limiter.active_elapsed()
+
+    def active_execution_limit_seconds(self) -> float | None:
+        """The plan's max_execution_time ceiling (None = unlimited)."""
+        return self._limiter.limits.get("max_execution_time")
+
+    def is_paused_for_human_input(self) -> bool:
+        """True while blocked inside an approval / ask_user / file-op wait."""
+        return self._limiter.is_paused
 
     @property
     def _pii(self) -> PseudonymizationSession:
@@ -2971,7 +2985,9 @@ class ProgramExecutor:
 
         deadline = time.time() + timeout_seconds
         fallback_interval = 15.0
+        self._limiter.pause()
         try:
+            await touch_run_watcher_heartbeat(self.db, self.run_id)
             while time.time() < deadline:
                 if await get_run_status(self.db, self.run_id) == "cancelled":
                     raise CancellationError()
@@ -2994,7 +3010,9 @@ class ProgramExecutor:
                     continue
                 finally:
                     resolved.clear()
+                    await touch_run_watcher_heartbeat(self.db, self.run_id)
         finally:
+            self._limiter.resume()
             if channel is not None:
                 try:
                     channel.unsubscribe()
@@ -4518,7 +4536,9 @@ class ProgramExecutor:
 
         deadline = time.time() + timeout_seconds
         fallback_interval = 10.0
+        self._limiter.pause()
         try:
+            await touch_run_watcher_heartbeat(self.db, self.run_id)
             while time.time() < deadline:
                 if await get_run_status(self.db, self.run_id) == "cancelled":
                     raise CancellationError()
@@ -4545,7 +4565,9 @@ class ProgramExecutor:
                     continue
                 finally:
                     resolved.clear()
+                    await touch_run_watcher_heartbeat(self.db, self.run_id)
         finally:
+            self._limiter.resume()
             if channel is not None:
                 try:
                     channel.unsubscribe()
@@ -4579,7 +4601,16 @@ class ProgramExecutor:
         )
 
     async def _request_step_approval(self, node: SchemaNode, input_data: dict, reason: str) -> bool:
-        """Insert approval row and poll until resolved (up to timeout)."""
+        """Insert approval row and poll until resolved (up to timeout).
+
+        Idempotent against re-dispatch: a run can land back here after a
+        runtime restart (the run-reaper's orphan sweep re-dispatches runs
+        whose live watcher went away) with this node's approval already
+        decided, or still pending from before the restart. Re-running the
+        create_approval insert in either case would ask the same question
+        twice -- confusing when already decided, and orphaning the original
+        row when still pending. Reuse the existing row instead.
+        """
         result = (
             self.db.table("node_executions")
             .select("id")
@@ -4589,6 +4620,43 @@ class ProgramExecutor:
             .execute()
         )
         node_exec_id: str = result.data["id"]
+
+        existing_row: dict[str, Any] | None = None
+        try:
+            existing = (
+                self.db.table("approvals")
+                .select("id, status, context, created_at")
+                .eq("node_execution_id", node_exec_id)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            existing_rows = existing.data
+            if isinstance(existing_rows, list) and existing_rows and isinstance(existing_rows[0], dict):
+                existing_row = existing_rows[0]
+        except Exception:
+            existing_row = None
+
+        if existing_row and existing_row.get("status") in ("approved", "rejected"):
+            return existing_row["status"] == "approved"
+
+        if existing_row and existing_row.get("status") == "pending":
+            await update_node_execution(self.db, self.run_id, node.id, status="waiting_approval")
+            context = existing_row.get("context") or {}
+            try:
+                timeout_hours = float(context.get("timeout_hours"))
+            except (TypeError, ValueError):
+                timeout_hours = 24.0
+            elapsed_seconds = 0.0
+            created_at_raw = existing_row.get("created_at")
+            if created_at_raw:
+                try:
+                    created_at = datetime.fromisoformat(str(created_at_raw).replace("Z", "+00:00"))
+                    elapsed_seconds = (datetime.now(timezone.utc) - created_at).total_seconds()
+                except (TypeError, ValueError):
+                    elapsed_seconds = 0.0
+            remaining_seconds = max(0.0, timeout_hours * 3600 - elapsed_seconds)
+            return await self._wait_for_approval_decision(node_exec_id, remaining_seconds)
 
         await update_node_execution(self.db, self.run_id, node.id, status="waiting_approval")
 
@@ -4666,7 +4734,13 @@ class ProgramExecutor:
         deadline = time.time() + timeout_seconds
         fallback_interval = 30.0
 
+        # Exclude this wait from the run's max_execution_time budget (see
+        # RunLimiter.pause) -- it's blocked on a human, not doing work -- and
+        # keep a liveness heartbeat so a reconciliation sweep can tell this
+        # run is actively watched vs. orphaned by a crashed/redeployed process.
+        self._limiter.pause()
         try:
+            await touch_run_watcher_heartbeat(self.db, self.run_id)
             while time.time() < deadline:
                 # Check for cancellation during approval wait. This is run-level
                 # state, not approval state, and stays intentionally infrequent.
@@ -4692,12 +4766,14 @@ class ProgramExecutor:
                     continue
                 finally:
                     changed.clear()
+                    await touch_run_watcher_heartbeat(self.db, self.run_id)
 
                 if decision["status"] == "approved":
                     return True
                 if decision["status"] == "rejected":
                     return False
         finally:
+            self._limiter.resume()
             if channel is not None:
                 try:
                     channel.unsubscribe()

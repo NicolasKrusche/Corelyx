@@ -10,11 +10,27 @@ import {
 /* Stuck-run reaper: recovers runs orphaned by a crashed runtime process.
 
    A run's own try/finally normally marks it completed/failed when execution
-   ends — including on its internal RUN_TIMEOUT_SECONDS (600s) timeout. If the
-   runtime process itself dies mid-run (crash, OOM, deploy restart), that
-   finally never runs and the row is stuck at status "running" forever with
-   no other process able to notice. This sweep finds those and re-dispatches
-   them to the runtime, or gives up after MAX_REAP_ATTEMPTS.
+   ends — including on its internal *active-execution-time* ceiling (a single
+   node hung outside a human/device wait; see RUN_TIMEOUT_SECONDS in
+   apps/runtime/main.py). If the runtime process itself dies mid-run (crash,
+   OOM, deploy restart), that finally never runs and the row is stuck at
+   status "running" forever with no other process able to notice. This sweep
+   finds those and re-dispatches them to the runtime, or gives up after
+   MAX_REAP_ATTEMPTS.
+
+   Not stuck, just waiting: a run can also sit "running" for a long time
+   entirely legitimately — blocked on a Human Approval gate, an agent
+   corelyx.ask_user question, or a desktop file-operation wait, any of which
+   may run for hours (approval_timeout_hours defaults to 24h). The runtime
+   distinguishes "still being watched" from "orphaned" via
+   runs.watcher_heartbeat_at, touched every ~10-30s by the live wait loop
+   (apps/runtime/engine/executor.py). A run with a fresh heartbeat is left
+   alone regardless of started_at age; only a stale-or-missing heartbeat past
+   REAP_THRESHOLD_MS is treated as orphaned. Re-dispatching an orphaned
+   approval-wait is safe against asking the same question twice or losing an
+   already-decided answer: ProgramExecutor._request_step_approval checks for
+   an existing approval row before creating one, reusing a still-pending row
+   or returning an already-decided one immediately.
 
    Rides the same 60s heartbeat as the cron sweep (see cron-sweep.ts) — no new
    scheduler. Reused, not recreated: the SAME run row is re-dispatched (unlike
@@ -28,12 +44,26 @@ import {
    step-level checkpointing, so a re-dispatched run restarts the workflow from
    its first node, not from where it crashed. Any side effect the first
    (crashed) attempt already completed (an email sent, a Stripe charge, a
-   webhook fired) can happen again. That's an inherent limit of recovering
-   without durable per-step state — acceptable for "your run didn't just
-   vanish," not a promise of exactly-once execution. */
+   webhook fired) can happen again — the approval-idempotency above avoids
+   duplicating an approval *decision*, but upstream nodes that already ran
+   still re-run. That's an inherent limit of recovering without durable
+   per-step state — acceptable for "your run didn't just vanish," not a
+   promise of exactly-once execution. */
 
 const REAP_THRESHOLD_MS = 15 * 60 * 1000; // well past the runtime's own 600s run timeout
 const MAX_REAP_ATTEMPTS = 2;
+
+// A run legitimately blocked on a Human Approval gate, an agent
+// corelyx.ask_user question, or a desktop file-operation wait can sit
+// "running" for hours or days -- that's not stuck, it's waiting on a human
+// or a device. The runtime touches watcher_heartbeat_at every ~10-30s while
+// a live process is actually watching for that decision (see
+// ProgramExecutor._wait_for_approval_decision et al). A heartbeat within
+// this window (several multiples of the slowest wait's poll interval) means
+// someone is still watching; only a stale-or-missing heartbeat past
+// REAP_THRESHOLD_MS means the watching process died (crash/redeploy) and
+// this run needs the reaper's recovery.
+const WATCHER_HEARTBEAT_FRESH_MS = 90 * 1000;
 
 // Tiers reaped first — matches apps/runtime/db.py's get_user_priority_tier
 // (profile tier only), so "priority recovery" means the same thing on both
@@ -61,6 +91,7 @@ type StuckRun = {
   triggered_by: string;
   started_at: string;
   reap_attempts: number;
+  watcher_heartbeat_at: string | null;
 };
 
 /**
@@ -188,16 +219,40 @@ export async function sweepStuckRuns(logger: Logger = console): Promise<RunReape
   const result: RunReaperResult = { checked: 0, reaped: 0, gaveUp: 0, skipped: 0 };
 
   const threshold = new Date(Date.now() - REAP_THRESHOLD_MS).toISOString();
-  const { data: stuckRaw, error: stuckError } = await (db as any)
+  const baseColumns = "id, program_id, user_id, trigger_payload, triggered_by, started_at, reap_attempts";
+  let { data: stuckRaw, error: stuckError } = await (db as any)
     .from("runs")
-    .select("id, program_id, user_id, trigger_payload, triggered_by, started_at, reap_attempts")
+    .select(`${baseColumns}, watcher_heartbeat_at`)
     .eq("status", "running")
     .lt("started_at", threshold);
 
+  if (stuckError && /watcher_heartbeat_at/.test(stuckError.message ?? "")) {
+    // Migration 20260718120000_run_watcher_heartbeat.sql not applied yet on
+    // this DB — fall back to the pre-heartbeat query. Every run is then
+    // treated as unwatched (conservative: may reap a legitimately-paused
+    // approval wait), matching this reaper's behavior before the heartbeat
+    // was introduced.
+    const fallback = await (db as any)
+      .from("runs")
+      .select(baseColumns)
+      .eq("status", "running")
+      .lt("started_at", threshold);
+    stuckRaw = (fallback.data ?? []).map((r: Record<string, unknown>) => ({ ...r, watcher_heartbeat_at: null }));
+    stuckError = fallback.error;
+  }
+
   if (stuckError) throw new Error(`Run reaper DB error: ${stuckError.message}`);
 
-  const stuck = (stuckRaw ?? []) as StuckRun[];
-  result.checked = stuck.length;
+  const allStuck = (stuckRaw ?? []) as StuckRun[];
+  result.checked = allStuck.length;
+  if (allStuck.length === 0) return result;
+
+  const heartbeatCutoff = Date.now() - WATCHER_HEARTBEAT_FRESH_MS;
+  const stuck = allStuck.filter((run) => {
+    const watched = run.watcher_heartbeat_at && new Date(run.watcher_heartbeat_at).getTime() > heartbeatCutoff;
+    if (watched) result.skipped++;
+    return !watched;
+  });
   if (stuck.length === 0) return result;
 
   const userIds = [...new Set(stuck.map((r) => r.user_id).filter((id): id is string => Boolean(id)))];

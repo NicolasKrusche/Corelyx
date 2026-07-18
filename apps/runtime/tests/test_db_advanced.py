@@ -190,6 +190,29 @@ class GetRunStatusTests(unittest.TestCase):
             self._run(db)
 
 
+class TouchRunWatcherHeartbeatTests(unittest.TestCase):
+    """touch_run_watcher_heartbeat is called from inside long approval/
+    ask_user/file-op waits (see engine/executor.py) -- it must never raise,
+    even if the column is missing (migration not yet applied) or the DB call
+    otherwise fails, since that would abort the wait it's meant to be a
+    best-effort side channel for."""
+
+    def _run(self, db):
+        return asyncio.run(db_module.touch_run_watcher_heartbeat(db, "run-1"))
+
+    def test_touch_heartbeat_success(self):
+        db = _make_db()
+        self._run(db)
+        db.table.assert_called_with("runs")
+        update_call = db.table.return_value.update.call_args
+        self.assertIn("watcher_heartbeat_at", update_call.args[0])
+
+    def test_touch_heartbeat_swallows_db_error(self):
+        db = _make_db()
+        db.table.return_value.execute.side_effect = RuntimeError("column watcher_heartbeat_at does not exist")
+        self._run(db)  # must not raise
+
+
 class CreateNodeExecutionTests(unittest.TestCase):
     def _run(self, db):
         return asyncio.run(db_module.create_node_execution(db, "run-1", "node-1"))
