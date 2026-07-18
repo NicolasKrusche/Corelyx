@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, createServiceClient } from "@/lib/api";
 import { isAdmin } from "@/lib/admin";
 import { createServerClient } from "@/lib/supabase/server";
+import { writeAppLog } from "@/lib/app-logs";
 
 const TEAM_ROLES = ["founder", "dev", "support", "marketing"] as const;
 type TeamRole = (typeof TEAM_ROLES)[number];
@@ -92,6 +93,17 @@ export async function PATCH(request: Request) {
     .eq("is_admin", true);
 
   if (error) return apiError(error.message, 500);
+
+  await writeAppLog(service, {
+    userId: admin.id,
+    level: "warning",
+    source: "Admin",
+    event: "admin.team.role_changed",
+    status: "completed",
+    message: `Admin changed team_role of user ${parsed.data.user_id} to ${parsed.data.team_role ?? "none"}.`,
+    details: { target_user_id: parsed.data.user_id, team_role: parsed.data.team_role },
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -130,6 +142,16 @@ export async function POST(request: Request) {
     .eq("id", found.id);
 
   if (error) return apiError(error.message, 500);
+
+  await writeAppLog(service, {
+    userId: admin.id,
+    level: "warning",
+    source: "Admin",
+    event: "admin.team.member_added",
+    status: "completed",
+    message: `Admin granted admin access to ${parsed.data.email} (team_role: ${parsed.data.team_role ?? "none"}).`,
+    details: { target_user_id: found.id, target_email: parsed.data.email, team_role: parsed.data.team_role },
+  });
 
   // Return the new member
   const { data: profile } = await service
@@ -174,5 +196,16 @@ export async function DELETE(request: Request) {
     .eq("id", parsed.data.user_id);
 
   if (error) return apiError(error.message, 500);
+
+  await writeAppLog(service, {
+    userId: admin.id,
+    level: "warning",
+    source: "Admin",
+    event: "admin.team.member_removed",
+    status: "completed",
+    message: `Admin revoked admin access from user ${parsed.data.user_id}.`,
+    details: { target_user_id: parsed.data.user_id },
+  });
+
   return NextResponse.json({ ok: true });
 }

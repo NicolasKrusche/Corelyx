@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, createServiceClient, getAuthUser, writeNotification } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
 import { isUserAdmin } from "@/lib/admin-auth";
+import { writeAppLog } from "@/lib/app-logs";
 
 const TRIAGE_ROLES = ["support", "founder"] as const;
 
@@ -65,6 +66,19 @@ export async function PATCH(
     .eq("id", id);
 
   if (error) return apiError(error.message, 500);
+
+  const previousAssignee = (ticketBefore as { assigned_to?: string | null } | null)?.assigned_to ?? null;
+  if ("assigned_to" in parsed.data && parsed.data.assigned_to !== previousAssignee) {
+    await writeAppLog(db, {
+      userId: user.id,
+      level: "info",
+      source: "Admin",
+      event: "admin.support.ticket_reassigned",
+      status: "completed",
+      message: `Admin reassigned support ticket ${id} from ${previousAssignee ?? "unassigned"} to ${parsed.data.assigned_to ?? "unassigned"}.`,
+      details: { ticket_id: id, previous_assignee: previousAssignee, new_assignee: parsed.data.assigned_to ?? null },
+    });
+  }
 
   // Notify the newly assigned team member (fire-and-forget)
   const newAssignee = parsed.data.assigned_to;

@@ -15,8 +15,42 @@ from engine.circuit_breaker import (
     get_oauth_token_circuit,
     get_vault_circuit,
     get_circuit_breaker,
+    list_known_circuits,
     reset_all_circuits,
 )
+
+
+class TestCircuitBreakerToDict(unittest.TestCase):
+    def test_to_dict_reports_closed_baseline(self):
+        cb = CircuitBreaker("svc")
+        d = cb.to_dict()
+        self.assertEqual(d, {
+            "name": "svc",
+            "state": "CLOSED",
+            "failure_count": 0,
+            "success_count": 0,
+            "last_failure_at": None,
+        })
+
+    def test_to_dict_reports_failure_state(self):
+        cb = CircuitBreaker("svc", failure_threshold=1)
+        cb.record_failure()
+        d = cb.to_dict()
+        self.assertEqual(d["state"], "OPEN")
+        self.assertEqual(d["failure_count"], 1)
+        self.assertIsInstance(d["last_failure_at"], str)
+
+
+class TestListKnownCircuits(unittest.TestCase):
+    def setUp(self):
+        reset_all_circuits()
+
+    def tearDown(self):
+        reset_all_circuits()
+
+    def test_lists_all_three_known_circuits_even_when_untouched(self):
+        names = {cb.name for cb in list_known_circuits()}
+        self.assertEqual(names, {"llm_proxy", "oauth_token", "vault"})
 
 
 class TestCircuitBreakerInit(unittest.TestCase):

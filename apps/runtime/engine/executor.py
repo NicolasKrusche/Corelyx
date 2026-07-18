@@ -46,7 +46,6 @@ from db import (
     create_approval,
     create_node_execution,
     enqueue_file_operation,
-    get_credential,
     get_db,
     get_existing_lock,
     get_run_status,
@@ -1507,6 +1506,18 @@ class ProgramExecutor:
                     state[edge.to] = output
                     visited.add(edge.to)
 
+                    # A failed-open retry path (fail_program_on_exhaust=False)
+                    # returns a NODE_ERROR_KEY-tagged output instead of raising,
+                    # so this node never hits the `except ExecutionError` branch
+                    # below. Without this, the run's overall status came out
+                    # "completed" even though a node genuinely failed — no
+                    # failure email, no security-sentinel event, no downstream
+                    # program-trigger cascade. Track it the same way the raising
+                    # path already does: keep walking the graph, but still fail
+                    # the run once the walk finishes.
+                    if isinstance(output, dict) and isinstance(output.get(NODE_ERROR_KEY), str) and output[NODE_ERROR_KEY]:
+                        failures.append(ExecutionError("NODE_FAILED_CONTINUED", output[NODE_ERROR_KEY], edge.to))
+
                     # Only explicit control-flow nodes may halt descendants.
                     # Connector output is data and must never control execution.
                     is_filtered_out = (
@@ -1922,20 +1933,6 @@ class ProgramExecutor:
                 output = await self._execute_agent(node, input_data)
             elif node.type == "agent_task":
                 output = await self._execute_agent_task(node, input_data)
-            elif node.type.startswith("agent"):
-                cfg = node.config
-                api_key_ref = getattr(cfg, "api_key_ref", None)
-                credentials = None
-                if api_key_ref and api_key_ref != "__USER_ASSIGNED__":
-                    credentials = await get_credential(api_key_ref, self.user_id)
-                # Legacy agent.* nodes do not expose usage metadata here, so we
-                # at least track call volume.
-                self._record_telemetry(node.id, model_call_count=1)
-                output = await run_agent(
-                    cfg.__dict__ if hasattr(cfg, "__dict__") else {},
-                    input_data,
-                    credentials,
-                )
             elif node.type == "step":
                 output = await self._execute_step(node, input_data)
             elif node.type == "connection":

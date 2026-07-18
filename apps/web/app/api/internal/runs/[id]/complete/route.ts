@@ -15,6 +15,7 @@ import { getProcessingRestriction } from "@/lib/compliance";
 import { recordTriggerEvent } from "@/lib/trigger-events";
 import { serverLog } from "@/lib/server-log";
 import { isAnySecurityLocked, recordSecurityEvent } from "@/lib/security/sentinel";
+import { canView, getProgramAccess } from "@/lib/workspaces";
 
 /**
  * POST /api/internal/runs/[id]/complete
@@ -244,6 +245,19 @@ export async function POST(
             conflict_policy: string;
           };
           const prog = downProgram as unknown as DownProgramRow;
+
+          // Defense in depth alongside the create/update route checks: the
+          // trigger's source_program_id is only validated against the
+          // *creating* user's access at write time. Re-check here against the
+          // downstream program's *current* owner in case workspace membership
+          // or the source program's visibility changed since — otherwise a
+          // stale trigger keeps silently firing off a program its owner can no
+          // longer see.
+          const sourceAccess = await getProgramAccess(program_id, prog.user_id);
+          if (!canView(sourceAccess)) {
+            recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Source program no longer accessible" });
+            continue;
+          }
 
           const restriction = await getProcessingRestriction(prog.user_id, db);
           if (restriction.restricted) continue;

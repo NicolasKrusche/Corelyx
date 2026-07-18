@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
+import { writeAppLog } from "@/lib/app-logs";
 
 // GET /api/admin/grants/[grantId]
 // Returns program details + recent runs for a valid active grant.
@@ -43,6 +44,17 @@ export async function GET(
     .eq("program_id", g.program_id)
     .order("created_at", { ascending: false })
     .limit(10);
+
+  await writeAppLog(service, {
+    userId: user.id,
+    level: "info",
+    source: "Admin",
+    event: "admin.grant.viewed",
+    status: "completed",
+    message: `Admin viewed program ${g.program_id} under support grant ${grantId}.`,
+    programId: g.program_id,
+    details: { grant_id: grantId, grant_user_id: g.user_id },
+  });
 
   return NextResponse.json({ program, runs: runs ?? [], grant: { id: grantId, expires_at: g.expires_at, user_id: g.user_id } });
 }
