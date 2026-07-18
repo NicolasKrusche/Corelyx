@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import unittest
 from typing import Any
@@ -433,6 +434,28 @@ class TestNotifyComplete(unittest.IsolatedAsyncioTestCase):
             instance.post = AsyncMock(side_effect=ConnectionError("down"))
             mock_client.return_value = instance
             await _notify_complete("r1", "p1", "u1", "completed")
+
+    async def test_includes_error_message_when_provided(self) -> None:
+        with patch("httpx.AsyncClient") as mock_client:
+            instance = Mock()
+            instance.__aenter__ = AsyncMock(return_value=instance)
+            instance.__aexit__ = AsyncMock(return_value=None)
+            instance.post = AsyncMock(return_value=Mock(status_code=200))
+            mock_client.return_value = instance
+            await _notify_complete("r1", "p1", "u1", "failed", "boom")
+            sent_body = json.loads(instance.post.call_args.kwargs["content"])
+        self.assertEqual(sent_body["error_message"], "boom")
+
+    async def test_omits_error_message_when_none(self) -> None:
+        with patch("httpx.AsyncClient") as mock_client:
+            instance = Mock()
+            instance.__aenter__ = AsyncMock(return_value=instance)
+            instance.__aexit__ = AsyncMock(return_value=None)
+            instance.post = AsyncMock(return_value=Mock(status_code=200))
+            mock_client.return_value = instance
+            await _notify_complete("r1", "p1", "u1", "completed")
+            sent_body = json.loads(instance.post.call_args.kwargs["content"])
+        self.assertNotIn("error_message", sent_body)
 
 
 class TestTriggerWorkflow(unittest.IsolatedAsyncioTestCase):

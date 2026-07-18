@@ -3491,6 +3491,18 @@ class ProgramExecutor:
                         await self._record_connector_source(connection_ref)
                     return {"ok": True, "result": result}
                 except ConnectorError as retry_exc:
+                    # Refresh token was rejected too — same as the workflow-node
+                    # OAuth path (_execute_connection): mark the connection
+                    # invalid so pre-flight blocks future runs and the
+                    # Connections page prompts reconnect. Without this an
+                    # agent kept calling a dead connection every run while
+                    # is_valid stayed true.
+                    try:
+                        self.db.table("connections").update({"is_valid": False}).eq(
+                            "id", connection_id
+                        ).execute()
+                    except Exception:
+                        pass  # best-effort
                     return {"ok": False, "error": f"{retry_exc.code}: {retry_exc.message}"}
             return {"ok": False, "error": f"{exc.code}: {exc.message}"}
         except Exception as exc:
@@ -4240,6 +4252,19 @@ class ProgramExecutor:
             params.setdefault("api_key", resolved_auth_value)
 
         timeout_seconds = cfg.timeout_seconds if cfg.timeout_seconds else 30.0
+
+        # A retried POST/PUT/PATCH that already succeeded on the far end
+        # (timeout on the response, not the request) would otherwise be
+        # resubmitted verbatim on the next attempt. The key is derived from
+        # (run_id, node_id) — stable across every retry of this node's request
+        # within this run, so a provider that honors Idempotency-Key collapses
+        # the duplicate instead of, say, sending the email or creating the
+        # record twice. Never overrides a key the user configured themselves.
+        if method in {"POST", "PUT", "PATCH"}:
+            headers.setdefault(
+                "Idempotency-Key",
+                hashlib.sha256(f"{self.run_id}:{node.id}".encode()).hexdigest(),
+            )
 
         request_body = None
         if cfg.body:
