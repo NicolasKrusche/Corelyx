@@ -61,10 +61,12 @@ export function isGenesisRefinementRequest(request: {
 
 // ─── Platform model catalog ───────────────────────────────────────────────────
 // Models available when using the Corelyx platform key (via OpenRouter).
-// "free" tier models cost nothing; "paid" tier models are billed against the
-// user's includedAiCredits. All IDs are OpenRouter model strings.
+// The tier controls plan ACCESS only — every model is billed against the
+// user's includedAiCredits by actual provider cost (there is no free-billing
+// model since the ":free" slug was retired for the reliable paid slug).
+// All IDs are OpenRouter model strings.
 
-// "free"     → Qwen3 Coder only (Free plan)
+// "free"     → GPT OSS 120B only (Free plan)
 // "standard" → + Claude 3 Haiku, GPT-4o Mini (Solo)
 // "premium"  → + Claude Sonnet 4.6, GPT-4o   (Team / Scale)
 export type PlatformModelTier = "free" | "standard" | "premium";
@@ -82,12 +84,11 @@ export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
     // a single upstream provider with its own tight rate limits (independent
     // of this account's tier) and was unreliable in practice (frequent 429s).
     // This slug is load-balanced across ~20 providers on OpenRouter and costs
-    // a fraction of a cent per generation — negligible enough that the tier
-    // stays free to the user; we just no longer pass that cost through as
-    // reliability risk.
+    // a fraction of a cent per generation, billed as credits like any other
+    // platform model.
     id: "openai/gpt-oss-120b",
     label: "GPT OSS 120B",
-    sublabel: "Free · Fast",
+    sublabel: "Fast · Low cost",
     tier: "free",
   },
   {

@@ -209,14 +209,16 @@ class AgentMarkupTests(unittest.TestCase):
         ex._agent_billing_platform = False
         self.assertEqual(ex._record_agent_llm_usage("a1", "m", self._usage(0.0123)), 0)
 
-    def test_free_model_returns_zero_credits(self):
+    def test_default_platform_model_bills_credits_like_any_other(self):
+        """The retired ":free" slug's absorb-cost exemption is gone: the default
+        platform model bills by actual provider cost like every other model."""
         ex = _agent_executor()
         ex._limiter = Mock()
         ex._agent_capabilities = {}
         ex._agent_billing_platform = True
         self.assertEqual(
             ex._record_agent_llm_usage("a1", "openai/gpt-oss-120b", self._usage(0.0123)),
-            0,
+            123,
         )
 
 

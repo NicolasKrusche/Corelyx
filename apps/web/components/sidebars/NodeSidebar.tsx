@@ -23,7 +23,9 @@ import type {
   RetryConfig,
 } from "@flowos/schema";
 import type { ValidationResult, ValidationError, ValidationWarning } from "@/lib/validation";
-import { explainNode, getNodeAlternatives } from "@/lib/genesis/explain";
+import { explainNode, getNodeAlternatives, describeCron } from "@/lib/genesis/explain";
+import { nextFiveFieldCronRun } from "@/lib/cron-expression";
+import { LocalDateTime } from "@/components/ui/local-date-time";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   OPERATION_PARAM_FIELDS,
@@ -877,7 +879,7 @@ type CreditData = {
   total: number | null;
 };
 
-function CorelyxKeyPanel({ usesCredits }: { usesCredits: boolean }) {
+function CorelyxKeyPanel() {
   const [credits, setCredits] = useState<CreditData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -890,8 +892,8 @@ function CorelyxKeyPanel({ usesCredits }: { usesCredits: boolean }) {
 
   const total = credits?.total;
   const isUnlimited = total === null;
-  const isLow = usesCredits && !isUnlimited && typeof total === "number" && total < 1_000;
-  const isEmpty = usesCredits && !isUnlimited && typeof total === "number" && total <= 0;
+  const isLow = !isUnlimited && typeof total === "number" && total < 1_000;
+  const isEmpty = !isUnlimited && typeof total === "number" && total <= 0;
 
   return (
     <div className={cn(
@@ -904,16 +906,14 @@ function CorelyxKeyPanel({ usesCredits }: { usesCredits: boolean }) {
     )}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-semibold text-foreground">Corelyx Platform Key</span>
-        {usesCredits && (
-          <a
-            href="/plan"
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
-          >
-            Buy credits
-          </a>
-        )}
+        <a
+          href="/plan"
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
+        >
+          Buy credits
+        </a>
       </div>
 
       <div className="space-y-1 text-muted-foreground">
@@ -931,11 +931,6 @@ function CorelyxKeyPanel({ usesCredits }: { usesCredits: boolean }) {
         )}
       </div>
 
-      {!usesCredits && (
-        <p className="font-medium text-emerald-600 dark:text-emerald-400">
-          This model is free to use and does not consume credits.
-        </p>
-      )}
       {isEmpty && (
         <p className="text-destructive font-medium">Credits exhausted — this node won&apos;t run.</p>
       )}
@@ -988,8 +983,6 @@ function AgentSidebar({
     ? "openai/gpt-oss-120b"
     : configuredModel;
   const configuredModelIsListed = openRouterOptions.includes(modelSelectValue);
-  const platformModelUsesCredits =
-    platformModels.find((model) => model.id === modelSelectValue)?.tier !== "free";
   const datalistId = "agent-model-presets";
 
   const tabs: { id: AgentTab; label: string }[] = [
@@ -1060,7 +1053,7 @@ function AgentSidebar({
             )}
           </FieldGroup>
 
-          {isPlatformKey && <CorelyxKeyPanel usesCredits={platformModelUsesCredits} />}
+          {isPlatformKey && <CorelyxKeyPanel />}
 
           <FieldGroup label="Model" htmlFor="agent-model" helpKey="model">
             {showOpenRouterDropdown ? (
@@ -1266,6 +1259,49 @@ function AgentSidebar({
 
 // ─── Trigger sidebar ──────────────────────────────────────────────────────────
 
+/**
+ * Live feedback under the cron fields: what the expression means and when it
+ * fires next, in the viewer's local time. Cron expressions are written in the
+ * schedule's own timezone (usually UTC), so without this the saved schedule
+ * only surfaces later, on other pages, already converted to local time — which
+ * reads like a display bug ("I typed 1:02, it shows 3:02 AM"). Uses the same
+ * parser as the server-side trigger sync, so what it previews is exactly what
+ * will be scheduled — including flagging expressions the server would reject.
+ */
+function CronSchedulePreview({ expression, timezone }: { expression: string; timezone: string }) {
+  const trimmed = (expression ?? "").trim();
+  if (!trimmed) {
+    return (
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Five fields: minute, hour, day of month, month, weekday — e.g.{" "}
+        <span className="font-mono">0 9 * * 1-5</span> runs weekdays at 09:00.
+      </p>
+    );
+  }
+  const nextIso = nextFiveFieldCronRun(trimmed, timezone);
+  if (!nextIso) {
+    return (
+      <p role="alert" className="text-[11px] leading-relaxed text-destructive">
+        Invalid schedule — check the cron expression (five fields: minute hour
+        day month weekday) and the timezone. The trigger will not fire until
+        this is fixed.
+      </p>
+    );
+  }
+  return (
+    <div className="rounded-md bg-muted/60 px-2.5 py-2 text-[11px] leading-relaxed text-muted-foreground space-y-0.5">
+      <p>Runs {describeCron(trimmed, timezone?.trim() || "UTC")}.</p>
+      <p>
+        Next run:{" "}
+        <span className="font-medium text-foreground">
+          <LocalDateTime value={nextIso} fallback="…" withTitle />
+        </span>{" "}
+        in your local time.
+      </p>
+    </div>
+  );
+}
+
 function TriggerSidebar({
   config,
   onUpdate,
@@ -1310,6 +1346,8 @@ function TriggerSidebar({
               onChange={(e) => onUpdate({ ...config, expression: e.target.value })}
             />
           </FieldGroup>
+
+          <CronSchedulePreview expression={config.expression} timezone={config.timezone} />
 
           {/* Presets */}
           <div>
