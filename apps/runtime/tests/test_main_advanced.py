@@ -21,6 +21,8 @@ os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_CREDITS", "secret-credi
 os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_AGENT_TOOLS", "secret-tools")
 os.environ.setdefault("INTERNAL_SERVICE_AUTH_SECRET_NEXT_CRON_TICK", "secret-cron")
 
+import asyncio
+
 import main as main_module
 from main import (
     ExecuteRequest,
@@ -28,6 +30,7 @@ from main import (
     _notify_complete,
     _retention_expiry,
     _run_program,
+    _run_with_active_timeout,
     app,
     parse_cron,
     trigger_workflow,
@@ -354,6 +357,61 @@ class TestRunProgram(unittest.IsolatedAsyncioTestCase):
             executor.retention_expiry = "2026-01-01T00:00:00+00:00"
             mock_executor_cls.return_value = executor
             await _run_program(schema, "r1", "p1", "u1", {"x": 1})
+
+
+class _FakeApprovalExecutor:
+    """Stands in for ProgramExecutor in _run_with_active_timeout tests: a
+    controllable active_execution_seconds()/is_paused_for_human_input()
+    pair plus a real coroutine for execute(), instead of a Mock (whose
+    execute() would resolve on the very first event-loop tick, before the
+    watchdog's polling loop ever gets to run)."""
+
+    def __init__(self, sleep_seconds: float, *, paused: bool, limit_seconds: float | None) -> None:
+        self._sleep_seconds = sleep_seconds
+        self._paused = paused
+        self._limit_seconds = limit_seconds
+
+    async def execute(self, trigger_payload: Any) -> str:
+        await asyncio.sleep(self._sleep_seconds)
+        return "done"
+
+    def active_execution_seconds(self) -> float:
+        # Deliberately far over any sane limit -- the paused/unlimited tests
+        # assert the watchdog does NOT cancel despite this.
+        return 10_000.0
+
+    def active_execution_limit_seconds(self) -> float | None:
+        return self._limit_seconds
+
+    def is_paused_for_human_input(self) -> bool:
+        return self._paused
+
+
+class TestRunWithActiveTimeout(unittest.IsolatedAsyncioTestCase):
+    """Covers the bug: a run blocked on a Human Approval gate (or
+    corelyx.ask_user, or a file-operation wait) must not be killed by the
+    active-execution watchdog just because the wait is long -- only a node
+    hung *outside* such a wait, with no plan-level max_execution_time left,
+    should be cancelled."""
+
+    async def test_paused_run_is_not_cancelled_even_over_budget(self) -> None:
+        executor = _FakeApprovalExecutor(sleep_seconds=0.08, paused=True, limit_seconds=0.01)
+        with patch.object(main_module, "_WATCHDOG_POLL_SECONDS", 0.02):
+            result = await _run_with_active_timeout(executor, {})
+        self.assertEqual(result, "done")
+
+    async def test_unpaused_run_over_budget_is_cancelled(self) -> None:
+        executor = _FakeApprovalExecutor(sleep_seconds=5.0, paused=False, limit_seconds=0.01)
+        with patch.object(main_module, "_WATCHDOG_POLL_SECONDS", 0.02):
+            with self.assertRaises(asyncio.TimeoutError) as ctx:
+                await _run_with_active_timeout(executor, {})
+        self.assertIn("0.01", str(ctx.exception))
+
+    async def test_unlimited_plan_never_cancels(self) -> None:
+        executor = _FakeApprovalExecutor(sleep_seconds=0.05, paused=False, limit_seconds=None)
+        with patch.object(main_module, "_WATCHDOG_POLL_SECONDS", 0.02):
+            result = await _run_with_active_timeout(executor, {})
+        self.assertEqual(result, "done")
 
 
 class TestNotifyComplete(unittest.IsolatedAsyncioTestCase):

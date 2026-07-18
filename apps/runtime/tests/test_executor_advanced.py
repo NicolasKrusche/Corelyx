@@ -705,10 +705,127 @@ class TestManualSupervisedMode(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(schema)
         # Simulate DB returning empty rows so the loop times out quickly
         executor.db.table("approvals").select().eq().limit().execute.return_value = Mock(data=[])
-        with patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")):
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.touch_run_watcher_heartbeat", new=AsyncMock()),
+        ):
             with self.assertRaises(ExecutionError) as ctx:
                 await executor._wait_for_approval_decision("ne-1", timeout_seconds=0.1)
         self.assertEqual(ctx.exception.code, "APPROVAL_TIMEOUT")
+
+    async def test_wait_for_approval_decision_pauses_and_resumes_limiter(self) -> None:
+        """The run's active-execution clock must be paused for the whole wait
+        and resumed once it resolves -- this is what lets main.py's watchdog
+        avoid killing a legitimately long approval wait (see main.py's
+        _run_with_active_timeout / RunLimiter.pause)."""
+        schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
+        executor = _make_executor(schema)
+        executor.db.table("approvals").select().eq().limit().execute.return_value = Mock(
+            data=[{"status": "approved"}]
+        )
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.touch_run_watcher_heartbeat", new=AsyncMock()) as mock_heartbeat,
+        ):
+            result = await executor._wait_for_approval_decision("ne-1", timeout_seconds=5)
+        self.assertTrue(result)
+        executor._limiter.pause.assert_called_once()
+        executor._limiter.resume.assert_called_once()
+        mock_heartbeat.assert_awaited()
+
+    def _table_dispatch_db(self, responses: dict[str, Any]) -> Mock:
+        """A DB mock that returns a distinct fluent builder per table name,
+        unlike _mock_db()'s single shared builder -- needed here because the
+        idempotency check reads from both node_executions and approvals in
+        the same call and each must see its own canned response."""
+        builders: dict[str, Mock] = {}
+        for table_name, execute_return in responses.items():
+            builder = Mock()
+            for method in ["eq", "order", "limit", "select", "single", "in_"]:
+                getattr(builder, method).return_value = builder
+            builder.execute.return_value = execute_return
+            builders[table_name] = builder
+        db = Mock()
+        db.table = Mock(side_effect=lambda name: builders[name])
+        return db
+
+    async def test_request_step_approval_reuses_decided_approval(self) -> None:
+        """Re-dispatch after a runtime restart lands back on an approval-gate
+        node whose approval was already decided while orphaned. Must return
+        the existing decision immediately, not ask again."""
+        schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
+        executor = _make_executor(schema)
+        executor.db = self._table_dispatch_db(
+            {
+                "node_executions": Mock(data={"id": "ne-1"}),
+                "approvals": Mock(data=[{"id": "a-1", "status": "approved", "context": {}, "created_at": None}]),
+            }
+        )
+        with (
+            patch("engine.executor.create_approval", new=AsyncMock()) as mock_create,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_wait_for_approval_decision", new=AsyncMock()) as mock_wait,
+        ):
+            approved = await executor._request_step_approval(executor.node_map["t"], {}, "test reason")
+        self.assertTrue(approved)
+        mock_create.assert_not_awaited()
+        mock_wait.assert_not_awaited()
+
+    async def test_request_step_approval_resumes_pending_approval(self) -> None:
+        """A still-pending approval from before a restart is resumed on the
+        same row, not duplicated."""
+        schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
+        executor = _make_executor(schema)
+        executor.db = self._table_dispatch_db(
+            {
+                "node_executions": Mock(data={"id": "ne-1"}),
+                "approvals": Mock(
+                    data=[{"id": "a-1", "status": "pending", "context": {"timeout_hours": 24}, "created_at": None}]
+                ),
+            }
+        )
+        with (
+            patch("engine.executor.create_approval", new=AsyncMock()) as mock_create,
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch.object(executor, "_wait_for_approval_decision", new=AsyncMock(return_value=True)) as mock_wait,
+        ):
+            approved = await executor._request_step_approval(executor.node_map["t"], {}, "test reason")
+        self.assertTrue(approved)
+        mock_create.assert_not_awaited()
+        mock_wait.assert_awaited_once()
+        self.assertEqual(mock_wait.call_args.args[0], "ne-1")
+
+    async def test_wait_for_agent_answer_pauses_and_resumes_limiter(self) -> None:
+        schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
+        executor = _make_executor(schema)
+        executor.db.table("approvals").select().eq().limit().execute.return_value = Mock(
+            data=[{"status": "approved", "decision_note": "go ahead"}]
+        )
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.touch_run_watcher_heartbeat", new=AsyncMock()) as mock_heartbeat,
+        ):
+            answer = await executor._wait_for_agent_answer("approval-1", timeout_seconds=5)
+        self.assertEqual(answer, "go ahead")
+        executor._limiter.pause.assert_called_once()
+        executor._limiter.resume.assert_called_once()
+        mock_heartbeat.assert_awaited()
+
+    async def test_wait_for_file_operation_pauses_and_resumes_limiter(self) -> None:
+        schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
+        executor = _make_executor(schema)
+        executor.db.table("file_operations").select().eq().limit().execute.return_value = Mock(
+            data=[{"status": "done", "result": {"ok": True}, "error": None}]
+        )
+        with (
+            patch("engine.executor.get_run_status", new=AsyncMock(return_value="running")),
+            patch("engine.executor.touch_run_watcher_heartbeat", new=AsyncMock()) as mock_heartbeat,
+        ):
+            outcome = await executor._wait_for_file_operation("op-1", timeout_seconds=5, node_id="n1")
+        self.assertEqual(outcome["status"], "done")
+        executor._limiter.pause.assert_called_once()
+        executor._limiter.resume.assert_called_once()
+        mock_heartbeat.assert_awaited()
 
 
 # ─────────────────────────────────────────────────────────────

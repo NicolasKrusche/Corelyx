@@ -160,6 +160,50 @@ class RunLimiterExecutionTimeTests(unittest.TestCase):
         limiter.check_execution_time()
 
 
+class RunLimiterPauseResumeTests(unittest.TestCase):
+    """Time spent inside a human/device suspend-resume wait (approval gate,
+    corelyx.ask_user, file operation) must not count toward
+    max_execution_time -- those waits have their own, much longer,
+    independently-enforced timeouts."""
+
+    def test_paused_time_excluded_from_active_elapsed(self) -> None:
+        limiter = RunLimiter({"max_execution_time": 1}, "run-1")
+        limiter.start()
+        limiter.pause()
+        time.sleep(0.05)
+        # Still paused after well past the 1s limit's magnitude relative to
+        # the sleep -- check_execution_time must not raise while paused.
+        limiter.check_execution_time()
+        limiter.resume()
+        self.assertLess(limiter.active_elapsed(), 0.03)
+
+    def test_check_execution_time_exceeded_after_resume_accounts_for_pause(self) -> None:
+        limiter = RunLimiter({"max_execution_time": 0.02}, "run-1")
+        limiter.start()
+        limiter.pause()
+        time.sleep(0.05)  # would blow the 0.02s budget if counted
+        limiter.resume()
+        # Paused time was excluded, so we're still under budget immediately after resume.
+        limiter.check_execution_time()
+
+    def test_overlapping_pauses_only_resume_once_all_end(self) -> None:
+        limiter = RunLimiter({"max_execution_time": 1}, "run-1")
+        limiter.start()
+        limiter.pause()
+        limiter.pause()
+        self.assertTrue(limiter.is_paused)
+        limiter.resume()
+        self.assertTrue(limiter.is_paused)  # one outstanding pause remains
+        limiter.resume()
+        self.assertFalse(limiter.is_paused)
+
+    def test_resume_without_pause_is_a_noop(self) -> None:
+        limiter = RunLimiter({"max_execution_time": 1}, "run-1")
+        limiter.start()
+        limiter.resume()  # must not raise or go negative
+        self.assertFalse(limiter.is_paused)
+
+
 class RunLimiterUsageTests(unittest.TestCase):
     def test_get_usage(self) -> None:
         limiter = RunLimiter(

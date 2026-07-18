@@ -123,11 +123,57 @@ class RunLimiter:
         self.connector_calls = 0
         self.start_time: Optional[float] = None
 
+        # Time spent legitimately blocked on a human/device suspend-resume
+        # wait (approval gate, corelyx.ask_user, file operation) does not
+        # count against max_execution_time -- those waits have their own,
+        # much longer, independently-enforced timeouts. _pause_depth is a
+        # counter rather than a bool so overlapping waits (e.g. concurrent
+        # loop-body iterations each awaiting their own approval) only resume
+        # the clock once every wait has ended.
+        self._pause_depth = 0
+        self._paused_at: Optional[float] = None
+        self._total_paused: float = 0.0
+
     def start(self) -> None:
         """Mark run start time."""
         import time
 
         self.start_time = time.time()
+
+    @property
+    def is_paused(self) -> bool:
+        return self._pause_depth > 0
+
+    def pause(self) -> None:
+        """Stop counting elapsed time -- call before a long human/device wait."""
+        import time
+
+        self._pause_depth += 1
+        if self._pause_depth == 1:
+            self._paused_at = time.time()
+
+    def resume(self) -> None:
+        """Resume counting elapsed time once a long human/device wait ends."""
+        import time
+
+        if self._pause_depth == 0:
+            return
+        self._pause_depth -= 1
+        if self._pause_depth == 0 and self._paused_at is not None:
+            self._total_paused += time.time() - self._paused_at
+            self._paused_at = None
+
+    def active_elapsed(self) -> float:
+        """Wall-clock time since start, minus time spent paused for HITL/device waits."""
+        import time
+
+        if self.start_time is None:
+            return 0.0
+        now = time.time()
+        paused = self._total_paused
+        if self._paused_at is not None:
+            paused += now - self._paused_at
+        return max(0.0, (now - self.start_time) - paused)
 
     def check_node_limit(self) -> None:
         """Check and increment node execution count."""
@@ -167,16 +213,17 @@ class RunLimiter:
             raise RunLimitExceeded(f"Run exceeded maximum connector calls ({limit}).")
 
     def check_execution_time(self) -> None:
-        """Check if execution time exceeded."""
-        import time
-
+        """Check if active execution time exceeded (paused/waiting time excluded)."""
         if self.start_time is None:
             return
         limit = self.limits.get("max_execution_time")
         if limit is None:
             return
-        elapsed = time.time() - self.start_time
-        if elapsed > limit:
+        if self.is_paused:
+            # Currently blocked on a human/device wait -- that has its own,
+            # separately-enforced timeout. Don't fail the run out from under it.
+            return
+        if self.active_elapsed() > limit:
             raise RunLimitExceeded(f"Run exceeded maximum execution time ({limit}s).")
 
     def get_usage(self) -> dict:

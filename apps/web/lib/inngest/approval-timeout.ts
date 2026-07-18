@@ -21,8 +21,19 @@ type PendingApproval = {
 /**
  * Inngest function: runs every minute.
  * Finds pending approvals whose timeout has elapsed and auto-rejects them,
- * then fails the associated node_execution so the runtime polling loop
- * sees the rejection and unblocks (treating it as a rejection).
+ * then fails the associated node_execution.
+ *
+ * Two independent paths pick this rejection up and unblock the run: the
+ * runtime's live wait loop (ProgramExecutor._wait_for_approval_decision)
+ * polls approvals.status directly and returns within its own fallback
+ * interval if the process that dispatched the run is still up; if it isn't
+ * (crash/redeploy — see runs.watcher_heartbeat_at going stale), the
+ * run-reaper sweep (apps/web/lib/run-reaper.ts) re-dispatches the run, which
+ * lands back on this same now-rejected approval row and fails the node
+ * immediately instead of asking again. Either way the run resolves without
+ * needing a single asyncio task to stay alive for the full timeout window —
+ * apps/runtime/main.py's RUN_TIMEOUT_SECONDS only bounds *active* execution
+ * time and does not apply while a node is parked in an approval wait.
  *
  * Timeout is read from approval.context.timeout_hours (stored by the runtime
  * executor). Falls back to DEFAULT_TIMEOUT_HOURS (24h) for older approvals.

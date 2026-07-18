@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -596,7 +597,42 @@ async def introspect_connections(
     return {"descriptors": descriptors, "errors": errors}
 
 
-RUN_TIMEOUT_SECONDS = 600  # 10 minutes max per run
+RUN_TIMEOUT_SECONDS = 600  # 10 minutes max *active* execution per run (plan tiers may raise this — see RunLimiter)
+_WATCHDOG_POLL_SECONDS = 5.0
+
+
+async def _run_with_active_timeout(executor: ProgramExecutor, trigger_payload: Optional[dict[str, Any]]) -> None:
+    """Run executor.execute(), bounding only *active* execution time.
+
+    A flat asyncio.wait_for around the whole run would also kill a workflow
+    that's correctly, harmlessly blocked on a Human Approval gate, an agent
+    corelyx.ask_user question, or a desktop file-operation wait — those
+    suspend/resume points pause the executor's RunLimiter clock (see
+    ProgramExecutor.is_paused_for_human_input) and have their own, much
+    longer, independently-enforced timeouts (approval_timeout_hours,
+    FILE_OPERATION_TIMEOUT_SECONDS). This watchdog only cancels the run for
+    time spent *outside* those waits — e.g. a single node hung on a stuck
+    network call — which per-node RunLimiter checks can't catch on their own.
+    """
+    task = asyncio.ensure_future(executor.execute(trigger_payload))
+    try:
+        while True:
+            done, _pending = await asyncio.wait({task}, timeout=_WATCHDOG_POLL_SECONDS)
+            if task in done:
+                return task.result()
+            limit = executor.active_execution_limit_seconds()
+            if (
+                limit is not None
+                and not executor.is_paused_for_human_input()
+                and executor.active_execution_seconds() > limit
+            ):
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+                raise asyncio.TimeoutError(f"Run exceeded maximum active execution time ({limit}s)")
+    except asyncio.CancelledError:
+        task.cancel()
+        raise
 
 
 async def _notify_complete(run_id: str, program_id: str, user_id: str, status: str) -> None:
@@ -655,10 +691,10 @@ async def _run_program(
         bulk_write_approval_threshold=policy.get("bulk_write_approval_threshold", 25),
     )
     try:
-        await asyncio.wait_for(executor.execute(trigger_payload), timeout=RUN_TIMEOUT_SECONDS)
+        await _run_with_active_timeout(executor, trigger_payload)
         final_status = "completed"
-    except asyncio.TimeoutError:
-        error_message = f"Run exceeded maximum execution time ({RUN_TIMEOUT_SECONDS}s)"
+    except asyncio.TimeoutError as e:
+        error_message = str(e) or f"Run exceeded maximum execution time ({RUN_TIMEOUT_SECONDS}s)"
     except ExecutionError as e:
         error_message = e.message
     except Exception as e:

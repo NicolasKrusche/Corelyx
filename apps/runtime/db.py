@@ -389,6 +389,24 @@ async def get_run_status(db: Client, run_id: str) -> str:
     return result.data.get("status", "unknown")
 
 
+async def touch_run_watcher_heartbeat(db: Client, run_id: str) -> None:
+    """Best-effort liveness signal written by a live suspend/resume wait loop
+    (approval, corelyx.ask_user, file operation) at each poll iteration.
+
+    Lets a reconciliation sweep (apps/web/lib/run-reaper.ts) tell "a process
+    is actively watching this paused run" apart from "the process that was
+    watching it died (crash/redeploy) and nothing will ever notice the
+    decision." Never allowed to fail the wait it's called from -- a missing
+    column (migration not yet applied) or a transient DB error just means the
+    reaper falls back to treating the run as unwatched, which is the safe
+    direction to fail in.
+    """
+    try:
+        db.table("runs").update({"watcher_heartbeat_at": "now()"}).eq("id", run_id).execute()
+    except Exception as exc:
+        print(f"[db] WARNING: could not update watcher heartbeat for run {run_id}: {exc}", flush=True)
+
+
 async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
     # No DB-level unique constraint on (run_id, node_id), so check first to
     # avoid creating duplicate rows on re-dispatch (e.g. Skip trigger flow).
