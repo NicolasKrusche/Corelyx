@@ -182,11 +182,16 @@ describe("ENTITLEMENTS record", () => {
     // us, so a future change to these numbers is a deliberate one.
     const realCostUsd = (credits: number) => credits / 10 / 1000;
 
-    expect(ENTITLEMENTS.free.includedAiCredits).toBe(0);
+    // Free plan carries a small allowance now too — OpenRouter's own free-tier
+    // models were dropped platform-wide (they got rate-limited too quickly),
+    // so Free plan runs the same real default model as everyone else, bounded
+    // by this instead of being restricted to free model choice.
+    expect(realCostUsd(ENTITLEMENTS.free.includedAiCredits!)).toBeCloseTo(0.05);
     expect(realCostUsd(ENTITLEMENTS.plus.includedAiCredits!)).toBeCloseTo(0.25);
     expect(realCostUsd(ENTITLEMENTS.pro.includedAiCredits!)).toBeCloseTo(1);
     expect(realCostUsd(ENTITLEMENTS.builder.includedAiCredits!)).toBeCloseTo(1.5);
 
+    expect(ENTITLEMENTS.free.includedAiCredits!).toBeLessThan(ENTITLEMENTS.plus.includedAiCredits!);
     expect(ENTITLEMENTS.plus.includedAiCredits!).toBeLessThan(ENTITLEMENTS.pro.includedAiCredits!);
     expect(ENTITLEMENTS.pro.includedAiCredits!).toBeLessThan(ENTITLEMENTS.builder.includedAiCredits!);
     expect(ENTITLEMENTS.unlimited.includedAiCredits).toBeNull();

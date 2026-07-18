@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PLATFORM_DEFAULT_MODEL,
   getAllowedPlatformModels,
   isFreeOpenRouterModel,
   isPlatformModelAllowed,
@@ -12,37 +13,40 @@ const catalog = toPlatformModelCatalog([
     id: "vendor/paid-model",
     name: "Vendor: Paid Model",
     context_length: 128_000,
-    pricing: { prompt: "0.000001", completion: "0.000002" },
   },
   {
     id: "vendor/free-model:free",
     name: "Vendor: Free Model (free)",
     context_length: 64_000,
-    pricing: { prompt: "0", completion: "0" },
   },
   {
-    // Zero token prices alone do not make a per-request or multimodal model a
-    // free OpenRouter variant. OpenRouter's documented IDs are authoritative.
     id: "vendor/per-request-model",
     name: "Vendor: Per Request",
-    pricing: { prompt: "0", completion: "0" },
   },
   {
     id: "openrouter/free",
     name: "Free Models Router",
     context_length: 200_000,
-    pricing: { prompt: "0", completion: "0" },
+  },
+  {
+    id: PLATFORM_DEFAULT_MODEL,
+    name: "Platform Default",
+    context_length: 128_000,
   },
 ]);
 
 describe("OpenRouter platform model catalog", () => {
-  it("keeps every valid model returned by OpenRouter", () => {
-    expect(catalog.map((model) => model.id)).toEqual([
-      "openrouter/free",
-      "vendor/free-model:free",
-      "vendor/paid-model",
-      "vendor/per-request-model",
-    ]);
+  it("excludes OpenRouter's own free-tier models entirely — they proved unreliable", () => {
+    expect(catalog.map((model) => model.id)).not.toContain("openrouter/free");
+    expect(catalog.map((model) => model.id)).not.toContain("vendor/free-model:free");
+    expect(catalog.map((model) => model.id)).toEqual(
+      expect.arrayContaining(["vendor/paid-model", "vendor/per-request-model", PLATFORM_DEFAULT_MODEL])
+    );
+  });
+
+  it("sorts the remaining catalog alphabetically", () => {
+    const labels = catalog.map((model) => model.label);
+    expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })));
   });
 
   it("recognizes only documented free model IDs", () => {
@@ -51,22 +55,20 @@ describe("OpenRouter platform model catalog", () => {
     expect(isFreeOpenRouterModel("vendor/per-request-model")).toBe(false);
   });
 
-  it("gives Free users only free models and every paid plan the full catalog", () => {
+  it("restricts Free plan to only the platform default model; every paid plan gets the full catalog", () => {
     expect(getAllowedPlatformModels("free", catalog).map((model) => model.id)).toEqual([
-      "openrouter/free",
-      "vendor/free-model:free",
+      PLATFORM_DEFAULT_MODEL,
     ]);
     expect(getAllowedPlatformModels("standard", catalog)).toEqual(catalog);
     expect(getAllowedPlatformModels("premium", catalog)).toEqual(catalog);
     expect(isPlatformModelAllowed("any/new-openrouter-model", "standard")).toBe(true);
+    expect(isPlatformModelAllowed("any/new-openrouter-model", "free")).toBe(false);
   });
 
-  it("adds useful pricing and context metadata", () => {
+  it("shows only context length — never a free/paid label or per-token price", () => {
     expect(catalog.find((model) => model.id === "vendor/paid-model")?.sublabel)
-      .toBe("Paid · $1/M input · $2/M output · 128K context");
-    expect(catalog.find((model) => model.id === "openrouter/free")?.sublabel)
-      .toBe("Free · 200K context");
+      .toBe("128K context");
     expect(catalog.find((model) => model.id === "vendor/per-request-model")?.sublabel)
-      .toBe("Paid · Usage-based pricing");
+      .toBe("");
   });
 });

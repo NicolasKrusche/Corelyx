@@ -87,15 +87,18 @@ EXECUTABLE_NODE_TYPES = {"trigger", "agent", "agent_task", "step", "connection"}
 # in place. The runtime must never forward it to the vault — treat it as the
 # shared platform key so the run still has a usable credential.
 USER_ASSIGNED_SENTINEL = "__USER_ASSIGNED__"
-# Mirrors apps/web/lib/genesis/platform-models.ts PLATFORM_DEFAULT_MODEL. The
-# router selects only from OpenRouter's currently available free models.
-PLATFORM_DEFAULT_MODEL = "openrouter/free"
+# Mirrors apps/web/lib/genesis/platform-models.ts PLATFORM_DEFAULT_MODEL.
+# OpenRouter's own free-tier models (":free" slugs, "openrouter/free") proved
+# unreliable in practice — small/rotating upstream provider pools that get
+# rate-limited quickly — so the platform no longer offers them at all. Every
+# plan, including Free, now runs on this same real (billed) model; Free plan
+# is bounded by a small included credit allowance instead of model choice.
+PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini"
 
-# Mirrors apps/web/lib/genesis/request.ts AGENT_PLATFORM_DEFAULT_MODEL. Agents
-# are a tool-calling loop, so they need a dependable tool-caller —
-# PLATFORM_DEFAULT_MODEL does not call tools reliably. Agents are Solo+, so this
-# model is permitted for them.
-AGENT_PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini"
+# Mirrors apps/web/lib/genesis/request.ts AGENT_PLATFORM_DEFAULT_MODEL — kept as
+# a separate name since agents were historically pinned to this for reliable
+# tool-calling; now intentionally the same model as PLATFORM_DEFAULT_MODEL.
+AGENT_PLATFORM_DEFAULT_MODEL = PLATFORM_DEFAULT_MODEL
 LEGACY_PLATFORM_MODEL_ALIASES: dict[str, str] = {
     "openai/gpt-oss-120b:free": PLATFORM_DEFAULT_MODEL,
 }
@@ -156,7 +159,6 @@ CREDITS_PER_USD = 1000
 # or small pool of upstream providers with their own rate limits, and live checks
 # showed one at 0% uptime and another single-provider-throttled.
 OPENROUTER_PLATFORM_FALLBACK_MODELS: tuple[str, ...] = ("openai/gpt-oss-120b",)
-OPENROUTER_FREE_FALLBACK_MODELS: tuple[str, ...] = (PLATFORM_DEFAULT_MODEL,)
 
 RETRYABLE_LLM_STATUS_CODES = {408, 409, 425, 429, 500, 502, 503, 504}
 
@@ -454,18 +456,12 @@ def _unique_model_candidates(requested_model: str, fallback_models: tuple[str, .
 
 def _normalize_platform_model(model: str, access_tier: str | None = None) -> str:
     """Map retired platform model IDs stored in older workflow schemas."""
-    # The former Free default was actually a paid slug subsidized by Corelyx.
-    # Existing Free workflows migrate to the real free router at execution time;
-    # paid workspaces may still deliberately select that paid model.
+    # A prior Free default was actually a paid slug subsidized by Corelyx.
+    # Existing Free workflows migrate to the current platform default at
+    # execution time; paid workspaces may still deliberately select that model.
     if access_tier == "free" and model == "openai/gpt-oss-120b":
         return PLATFORM_DEFAULT_MODEL
     return LEGACY_PLATFORM_MODEL_ALIASES.get(model, model)
-
-
-def _is_free_platform_model(model: str) -> bool:
-    """Whether OpenRouter identifies the selected model as free."""
-    normalized = _normalize_platform_model(model)
-    return normalized == PLATFORM_DEFAULT_MODEL or normalized.endswith(":free")
 
 
 def _llm_error_status_code(error: Exception | str) -> int | None:
@@ -1208,11 +1204,11 @@ class ProgramExecutor:
             return
 
         normalized_model = _normalize_platform_model(model, tier)
-        if tier == "free" and not _is_free_platform_model(normalized_model):
+        if tier == "free" and normalized_model != PLATFORM_DEFAULT_MODEL:
             raise ExecutionError(
                 "PLATFORM_MODEL_PLAN_REQUIRED",
                 f"Model '{normalized_model}' is not available with the Corelyx Platform Key "
-                "on the Free plan. Choose a free OpenRouter model or upgrade your plan.",
+                f"on the Free plan. Choose the default model ({PLATFORM_DEFAULT_MODEL}) or upgrade your plan.",
                 node_id,
             )
 
@@ -2040,9 +2036,7 @@ class ProgramExecutor:
 
         self._enforce_agent_model_access(api_key_ref, cfg.model, node.id)
 
-        # Genuine OpenRouter free variants must remain runnable for Free plans,
-        # which intentionally have no included platform-credit balance.
-        if use_platform_key and self.user_id and not _is_free_platform_model(cfg.model):
+        if use_platform_key and self.user_id:
             await self._check_platform_credits()
 
         # Fetch API key from Next.js internal endpoint (keeps key off this service)
@@ -2197,12 +2191,7 @@ class ProgramExecutor:
                 node_id,
             )
 
-        fallback_models = (
-            OPENROUTER_FREE_FALLBACK_MODELS
-            if _is_free_platform_model(cfg.model)
-            else OPENROUTER_PLATFORM_FALLBACK_MODELS
-        )
-        model_candidates = _unique_model_candidates(cfg.model, fallback_models)
+        model_candidates = _unique_model_candidates(cfg.model, OPENROUTER_PLATFORM_FALLBACK_MODELS)
         if len(model_candidates) == 1:
             return await self._with_retry(
                 lambda: self._call_llm(cfg, api_key, provider, input_data, node_id, deduct_credits=deduct_credits),
@@ -2372,7 +2361,7 @@ class ProgramExecutor:
 
             try:
                 self._enforce_agent_model_access(ref, model, node.id)
-                if use_platform_key and self.user_id and not _is_free_platform_model(model):
+                if use_platform_key and self.user_id:
                     await self._check_platform_credits()
                 api_key, provider = await self._fetch_api_key(ref)
             except ExecutionError as e:
@@ -3066,7 +3055,6 @@ class ProgramExecutor:
         billed_credits = 0
         if (
             billing_platform
-            and not _is_free_platform_model(model)
             and estimated_cost_usd
             and getattr(self, "user_id", None)
         ):
@@ -3731,7 +3719,7 @@ class ProgramExecutor:
         self._limiter.check_cost(estimated_cost_usd)
 
         billed_credits = 0
-        if deduct_credits and not _is_free_platform_model(cfg.model) and estimated_cost_usd and self.user_id:
+        if deduct_credits and estimated_cost_usd and self.user_id:
             billed_credits = math.ceil(estimated_cost_usd * PLATFORM_MARKUP * CREDITS_PER_USD)
             await self._deduct_platform_credits(billed_credits)
 

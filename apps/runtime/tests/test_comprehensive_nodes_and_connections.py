@@ -15,7 +15,7 @@ from schema import (
     TriggerConfig,
     parse_schema,
 )
-from engine.executor import ExecutionError, ProgramExecutor
+from engine.executor import PLATFORM_DEFAULT_MODEL, ExecutionError, ProgramExecutor
 from connectors import REGISTRY, get_connector
 from connectors.base import IConnector, ConnectorError
 
@@ -1300,7 +1300,7 @@ class AgentNodeTests(unittest.IsolatedAsyncioTestCase):
             result = await executor._execute_node(node, {"question": "What is 6*7?"})
 
         self.assertEqual(result["answer"], 42)
-        self.assertEqual(client.post.await_args.kwargs["json"]["model"], "openrouter/free")
+        self.assertEqual(client.post.await_args.kwargs["json"]["model"], PLATFORM_DEFAULT_MODEL)
 
     async def test_agent_node_requires_approval_in_supervised_mode(self) -> None:
         node = _node(

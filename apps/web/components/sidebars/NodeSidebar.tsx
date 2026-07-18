@@ -24,6 +24,7 @@ import type {
 } from "@flowos/schema";
 import type { ValidationResult, ValidationError, ValidationWarning } from "@/lib/validation";
 import { explainNode, getNodeAlternatives, describeCron } from "@/lib/genesis/explain";
+import { PLATFORM_DEFAULT_MODEL } from "@/lib/genesis/platform-models";
 import { nextFiveFieldCronRun } from "@/lib/cron-expression";
 import { LocalDateTime } from "@/components/ui/local-date-time";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -999,8 +1000,8 @@ function AgentSidebar({
     configuredModel === "openai/gpt-oss-120b:free" ||
     (configuredModel === "openai/gpt-oss-120b" && !platformModelIds.includes(configuredModel))
   );
-  const modelSelectValue = shouldMigrateLegacyFreeModel && platformModelIds.includes("openrouter/free")
-    ? "openrouter/free"
+  const modelSelectValue = shouldMigrateLegacyFreeModel && platformModelIds.includes(PLATFORM_DEFAULT_MODEL)
+    ? PLATFORM_DEFAULT_MODEL
     : configuredModel;
   const configuredModelIsListed = openRouterOptions.includes(modelSelectValue);
   const platformModelUsesCredits =

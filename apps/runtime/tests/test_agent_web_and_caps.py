@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from engine.executor import ExecutionError, _strip_html_to_text
+from engine.executor import PLATFORM_DEFAULT_MODEL, ExecutionError, _strip_html_to_text
 from tests.test_comprehensive_nodes_and_connections import _executor, _node, _program
 
 
@@ -209,27 +209,36 @@ class AgentMarkupTests(unittest.TestCase):
         ex._agent_billing_platform = False
         self.assertEqual(ex._record_agent_llm_usage("a1", "m", self._usage(0.0123)), 0)
 
-    def test_free_platform_model_returns_zero_credits(self):
+    def test_legacy_free_model_slug_still_bills_normally(self):
+        # OpenRouter's own free-tier models were dropped platform-wide (they
+        # got rate-limited too quickly) — there is no more free-model billing
+        # bypass. A schema that still references an old ":free" slug is billed
+        # like any other model, not exempted.
         ex = _agent_executor()
         ex._limiter = Mock()
         ex._agent_capabilities = {}
         ex._agent_billing_platform = True
         self.assertEqual(
             ex._record_agent_llm_usage("a1", "openrouter/free", self._usage(0.0123)),
-            0,
+            123,
         )
 
 
 class AgentModelAccessTests(unittest.TestCase):
-    def test_free_tier_allows_only_the_free_platform_model(self):
+    def test_free_tier_allows_only_the_platform_default_model(self):
+        # Free plan now runs the same real default model as everyone else
+        # (see PLATFORM_DEFAULT_MODEL), bounded by its small included-credit
+        # allowance instead of being restricted to OpenRouter's own free
+        # models — those were dropped platform-wide for getting rate-limited
+        # too quickly.
         ex = _agent_executor()
         ex.model_access_tier = "free"
-        ex._enforce_agent_model_access("platform", "openrouter/free", "a1")
-        ex._enforce_agent_model_access("platform", "qwen/qwen3-coder:free", "a1")
+        ex._enforce_agent_model_access("platform", PLATFORM_DEFAULT_MODEL, "a1")
 
-        with self.assertRaises(ExecutionError) as ctx:
-            ex._enforce_agent_model_access("platform", "openai/gpt-4o-mini", "a1")
-        self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
+        for blocked_model in ("openrouter/free", "qwen/qwen3-coder:free", "anthropic/claude-sonnet-4.6"):
+            with self.assertRaises(ExecutionError) as ctx:
+                ex._enforce_agent_model_access("platform", blocked_model, "a1")
+            self.assertEqual(ctx.exception.code, "PLATFORM_MODEL_PLAN_REQUIRED")
 
     def test_free_tier_blocks_byok(self):
         ex = _agent_executor()

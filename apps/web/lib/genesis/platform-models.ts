@@ -8,13 +8,16 @@ export type PlatformModelOption = {
 };
 
 /**
- * OpenRouter's free router is a more durable default than a single free model:
- * it automatically selects from the free models that are currently available.
+ * OpenRouter's own free-tier models (":free" slugs, "openrouter/free") proved
+ * unreliable in practice — small/rotating upstream provider pools that get
+ * rate-limited quickly — so the platform no longer offers them at all. Every
+ * plan, including Free, now runs on this same real (billed) model; Free plan
+ * is bounded by a small included credit allowance instead of model choice.
  */
-export const PLATFORM_DEFAULT_MODEL = "openrouter/free";
+export const PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini";
 
-/** Agent tool loops are a paid feature and need a dependable tool-calling model. */
-export const AGENT_PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini";
+/** Agents were pinned to this separately for reliable tool-calling; now the same as the platform default. */
+export const AGENT_PLATFORM_DEFAULT_MODEL = PLATFORM_DEFAULT_MODEL;
 
 /**
  * Used only when OpenRouter's model catalog is temporarily unavailable. The
@@ -23,42 +26,43 @@ export const AGENT_PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini";
 export const PLATFORM_MODEL_FALLBACK_CATALOG: PlatformModelOption[] = [
   {
     id: PLATFORM_DEFAULT_MODEL,
-    label: "Free Models Router",
-    sublabel: "Free · Automatically selects an available free model",
-    tier: "free",
-  },
-  {
-    id: AGENT_PLATFORM_DEFAULT_MODEL,
     label: "OpenAI: GPT-4o Mini",
-    sublabel: "Paid · Fast and affordable",
+    sublabel: "Fast and affordable",
     tier: "standard",
   },
   {
     id: "anthropic/claude-sonnet-4.6",
     label: "Anthropic: Claude Sonnet 4.6",
-    sublabel: "Paid · High quality",
+    sublabel: "High quality",
     tier: "standard",
   },
 ];
 
-/** OpenRouter documents `:free` and `openrouter/free` as its free model IDs. */
+/**
+ * OpenRouter documents `:free` and `openrouter/free` as its free model IDs.
+ * Used only to filter these out of the catalog we ever show or select —
+ * not exposed as a selectable "free" model tier anymore.
+ */
 export function isFreeOpenRouterModel(modelId: string): boolean {
-  return modelId === PLATFORM_DEFAULT_MODEL || modelId.endsWith(":free");
+  return modelId === "openrouter/free" || modelId.endsWith(":free");
 }
 
 /**
- * All paid Corelyx plans may use every paid OpenRouter model. Plan differences
- * are expressed through included credits, not an artificial model allowlist.
+ * All paid Corelyx plans may use every model in the catalog. Plan differences
+ * are expressed through included credits, not an artificial model allowlist —
+ * except Free plan, which is restricted to the one default model (see
+ * isPlatformModelAllowed) since it doesn't carry a full credit allowance.
  */
-export function getPlatformModelTier(modelId: string): PlatformModelTier {
-  return isFreeOpenRouterModel(modelId) ? "free" : "standard";
+export function getPlatformModelTier(_modelId: string): PlatformModelTier {
+  return "standard";
 }
 
+/** Free plan may only use the platform default model, bounded by its small included-credit allowance. */
 export function isPlatformModelAllowed(
   modelId: string,
   accessTier: PlatformModelTier
 ): boolean {
-  return accessTier !== "free" || isFreeOpenRouterModel(modelId);
+  return accessTier !== "free" || modelId === PLATFORM_DEFAULT_MODEL;
 }
 
 export function getAllowedPlatformModels(
@@ -72,10 +76,6 @@ type OpenRouterModel = {
   id?: unknown;
   name?: unknown;
   context_length?: unknown;
-  pricing?: {
-    prompt?: unknown;
-    completion?: unknown;
-  } | null;
 };
 
 function formatContextLength(value: unknown): string | null {
@@ -88,28 +88,8 @@ function formatContextLength(value: unknown): string | null {
   return `${value} context`;
 }
 
-function formatPerMillion(value: unknown): string | null {
-  const perToken = typeof value === "string" ? Number(value) : value;
-  if (typeof perToken !== "number" || !Number.isFinite(perToken) || perToken < 0) return null;
-  const perMillion = perToken * 1_000_000;
-  if (perMillion === 0) return "$0";
-  if (perMillion < 0.01) return `$${perMillion.toFixed(3)}`;
-  if (perMillion < 1) return `$${perMillion.toFixed(2)}`;
-  return `$${perMillion.toFixed(2).replace(/\.00$/, "")}`;
-}
-
-function buildSublabel(model: OpenRouterModel, tier: PlatformModelTier): string {
-  const context = formatContextLength(model.context_length);
-  if (tier === "free") return ["Free", context].filter(Boolean).join(" · ");
-
-  const prompt = formatPerMillion(model.pricing?.prompt);
-  const completion = formatPerMillion(model.pricing?.completion);
-  const price = prompt === "$0" && completion === "$0"
-    ? "Usage-based pricing"
-    : prompt && completion
-      ? `${prompt}/M input · ${completion}/M output`
-      : "Variable pricing";
-  return ["Paid", price, context].filter(Boolean).join(" · ");
+function buildSublabel(model: OpenRouterModel): string {
+  return formatContextLength(model.context_length) ?? "";
 }
 
 /** Convert the complete OpenRouter `/models` payload into UI-safe options. */
@@ -120,17 +100,16 @@ export function toPlatformModelCatalog(models: unknown): PlatformModelOption[] {
   for (const raw of models as OpenRouterModel[]) {
     if (typeof raw?.id !== "string" || !raw.id.trim()) continue;
     const id = raw.id.trim();
-    const tier = getPlatformModelTier(id);
+    // OpenRouter's own free-tier variants are excluded outright — see
+    // PLATFORM_DEFAULT_MODEL's comment. Nobody selects these anymore.
+    if (isFreeOpenRouterModel(id)) continue;
     byId.set(id, {
       id,
       label: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : id,
-      sublabel: buildSublabel(raw, tier),
-      tier,
+      sublabel: buildSublabel(raw),
+      tier: "standard",
     });
   }
 
-  return [...byId.values()].sort((a, b) => {
-    if (a.tier !== b.tier) return a.tier === "free" ? -1 : 1;
-    return a.label.localeCompare(b.label, "en", { sensitivity: "base" });
-  });
+  return [...byId.values()].sort((a, b) => a.label.localeCompare(b.label, "en", { sensitivity: "base" }));
 }

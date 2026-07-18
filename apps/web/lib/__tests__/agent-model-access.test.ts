@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProgramSchema } from "@flowos/schema";
 
 import { getAgentModelAccessIssue } from "../agent-model-access";
+import { PLATFORM_DEFAULT_MODEL } from "../genesis/platform-models";
 
 function schemaWithAgent(apiKeyRef: string, model: string): ProgramSchema {
   return {
@@ -56,13 +57,16 @@ function schemaWithAgent(apiKeyRef: string, model: string): ProgramSchema {
 }
 
 describe("Agent model plan access", () => {
-  it("allows the free Corelyx platform model on the Free plan", () => {
+  it("allows the platform default model on the Free plan", () => {
+    // OpenRouter's own free-tier models were dropped platform-wide (they got
+    // rate-limited too quickly) — Free plan now runs the same real default
+    // model as everyone else, bounded by its small included-credit allowance.
     expect(
-      getAgentModelAccessIssue(schemaWithAgent("platform", "openrouter/free"), "free")
+      getAgentModelAccessIssue(schemaWithAgent("platform", PLATFORM_DEFAULT_MODEL), "free")
     ).toBeNull();
   });
 
-  it("migrates both legacy Free defaults to the free router", () => {
+  it("migrates both legacy Free defaults to the platform default model", () => {
     expect(
       getAgentModelAccessIssue(schemaWithAgent("platform", "openai/gpt-oss-120b:free"), "free")
     ).toBeNull();
@@ -71,9 +75,9 @@ describe("Agent model plan access", () => {
     ).toBeNull();
   });
 
-  it("blocks paid Corelyx models on the Free plan", () => {
+  it("blocks other paid Corelyx models on the Free plan", () => {
     const issue = getAgentModelAccessIssue(
-      schemaWithAgent("platform", "openai/gpt-4o-mini"),
+      schemaWithAgent("platform", "openai/gpt-4o"),
       "free"
     );
     expect(issue?.code).toBe("PLATFORM_MODEL_PLAN_REQUIRED");
