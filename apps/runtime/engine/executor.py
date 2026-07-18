@@ -485,11 +485,6 @@ def _normalize_platform_model(model: str) -> str:
     return LEGACY_PLATFORM_MODEL_ALIASES.get(model, model)
 
 
-def _is_free_platform_model(model: str) -> bool:
-    """Whether Corelyx absorbs the provider cost instead of billing credits."""
-    return _normalize_platform_model(model) in PLATFORM_MODELS_BY_ACCESS_TIER["free"]
-
-
 def _llm_error_status_code(error: Exception | str) -> int | None:
     match = re.search(r"LLM API error\s+(\d{3})", str(error))
     if not match:
@@ -2061,8 +2056,10 @@ class ProgramExecutor:
 
         self._enforce_agent_model_access(api_key_ref, cfg.model, node.id)
 
-        # Check platform credit balance before fetching the key
-        if use_platform_key and self.user_id and not _is_free_platform_model(cfg.model):
+        # Check platform credit balance before fetching the key. Every platform
+        # model bills credits by actual provider cost — the retired ":free"
+        # slug's absorb-cost exemption is gone.
+        if use_platform_key and self.user_id:
             await self._check_platform_credits()
 
         # Fetch API key from Next.js internal endpoint (keeps key off this service)
@@ -2385,7 +2382,7 @@ class ProgramExecutor:
 
             try:
                 self._enforce_agent_model_access(ref, model, node.id)
-                if use_platform_key and self.user_id and not _is_free_platform_model(model):
+                if use_platform_key and self.user_id:
                     await self._check_platform_credits()
                 api_key, provider = await self._fetch_api_key(ref)
             except ExecutionError as e:
@@ -3075,7 +3072,6 @@ class ProgramExecutor:
         billed_credits = 0
         if (
             billing_platform
-            and not _is_free_platform_model(model)
             and estimated_cost_usd
             and getattr(self, "user_id", None)
         ):
@@ -3728,7 +3724,7 @@ class ProgramExecutor:
         self._limiter.check_cost(estimated_cost_usd)
 
         billed_credits = 0
-        if deduct_credits and not _is_free_platform_model(cfg.model) and estimated_cost_usd and self.user_id:
+        if deduct_credits and estimated_cost_usd and self.user_id:
             billed_credits = math.ceil(estimated_cost_usd * PLATFORM_MARKUP * CREDITS_PER_USD)
             await self._deduct_platform_credits(billed_credits)
 
