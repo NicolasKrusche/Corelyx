@@ -9,6 +9,7 @@ import { getProgramAccess, canView } from "@/lib/workspaces";
 import { getUserTier } from "@/lib/limits";
 import { getEntitlements } from "@/lib/entitlements";
 import { getAllowedPlatformModels } from "@/lib/genesis/request";
+import { getOpenRouterModelCatalog } from "@/lib/genesis/openrouter-models";
 
 export default async function EditorPage({
   params,
@@ -89,7 +90,11 @@ export default async function EditorPage({
 
   const tier = await getUserTier(user.id, access.workspaceId);
   const entitlements = getEntitlements(tier);
-  const platformModels = getAllowedPlatformModels(entitlements.genesisPlatformModelTier).map(
+  const platformCatalog = await getOpenRouterModelCatalog();
+  const platformModels = getAllowedPlatformModels(
+    entitlements.genesisPlatformModelTier,
+    platformCatalog
+  ).map(
     ({ id: modelId, label, sublabel, tier: modelTier }) => ({
       id: modelId,
       label,

@@ -2,7 +2,7 @@ import type { ProgramSchema } from "@flowos/schema";
 
 import { getEntitlements, type Tier } from "@/lib/entitlements";
 import {
-  getAllowedPlatformModels,
+  isPlatformModelAllowed,
   PLATFORM_DEFAULT_MODEL,
 } from "@/lib/genesis/request";
 
@@ -16,7 +16,8 @@ export type AgentModelAccessIssue = {
   message: string;
 };
 
-export function normalizePlatformModel(model: string): string {
+export function normalizePlatformModel(model: string, freePlan = false): string {
+  if (freePlan && model === "openai/gpt-oss-120b") return PLATFORM_DEFAULT_MODEL;
   return LEGACY_PLATFORM_MODEL_ALIASES[model] ?? model;
 }
 
@@ -38,9 +39,6 @@ export function getAgentModelAccessIssue(
   if (tier === "unlimited") return null;
 
   const entitlements = getEntitlements(tier);
-  const allowedPlatformModels = new Set(
-    getAllowedPlatformModels(entitlements.genesisPlatformModelTier).map((model) => model.id)
-  );
 
   for (const node of schema.nodes) {
     if (node.type !== "agent" && node.type !== "agent_task") continue;
@@ -63,18 +61,16 @@ export function getAgentModelAccessIssue(
 
     const configuredModel = node.config.model;
     const model = normalizePlatformModel(
-      configuredModel === "__USER_ASSIGNED__" ? PLATFORM_DEFAULT_MODEL : configuredModel
+      configuredModel === "__USER_ASSIGNED__" ? PLATFORM_DEFAULT_MODEL : configuredModel,
+      entitlements.genesisPlatformModelTier === "free"
     );
-    if (!allowedPlatformModels.has(model)) {
-      const availableModels = getAllowedPlatformModels(entitlements.genesisPlatformModelTier)
-        .map((option) => option.label)
-        .join(", ");
+    if (!isPlatformModelAllowed(model, entitlements.genesisPlatformModelTier)) {
       return {
         code: "PLATFORM_MODEL_PLAN_REQUIRED",
         nodeId: node.id,
         message:
           `Model "${model}" is not available for Agent node "${node.label}" ` +
-          `with the Corelyx Platform Key on the current plan. Choose ${availableModels} or upgrade your plan.`,
+          "with the Corelyx Platform Key on the Free plan. Choose a free OpenRouter model or upgrade your plan.",
       };
     }
   }

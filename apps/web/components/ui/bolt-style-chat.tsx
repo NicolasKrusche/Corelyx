@@ -13,6 +13,7 @@ import {
   Lock,
   Paperclip,
   Plus,
+  Search,
   SendHorizontal,
   Sparkles,
   Zap,
@@ -53,10 +54,17 @@ export function ModelSelector({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [upgradeMsg, setUpgradeMsg] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   if (models.length === 0) return null
 
   const selected = models.find((m) => m.id === selectedModelId) ?? models.find((m) => !m.locked) ?? models[0]
+  const normalizedQuery = query.trim().toLowerCase()
+  const filteredModels = normalizedQuery
+    ? models.filter((model) =>
+        `${model.label} ${model.id}`.toLowerCase().includes(normalizedQuery)
+      )
+    : models
 
   const handleClick = (model: PlatformModel) => {
     if (model.locked) {
@@ -73,7 +81,7 @@ export function ModelSelector({
     <div className='relative'>
       <button
         type='button'
-        onClick={() => { setIsOpen(!isOpen); setUpgradeMsg(null) }}
+        onClick={() => { setIsOpen(!isOpen); setUpgradeMsg(null); setQuery('') }}
         className='flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground active:scale-95'
       >
         {modelIcon(selected.id)}
@@ -84,42 +92,58 @@ export function ModelSelector({
       {isOpen && (
         <>
           <div className='fixed inset-0 z-40' onClick={() => setIsOpen(false)} />
-          <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 min-w-[240px] overflow-hidden rounded-xl border border-border bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl duration-200'>
+          <div className='animate-in slide-in-from-bottom-2 fade-in absolute bottom-full left-0 z-50 mb-2 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl duration-200'>
             <div className='p-1.5'>
               <div className='px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60'>
-                Select Model
+                Select Model · {models.length} available
               </div>
 
-              {models.map((model) => (
-                <button
-                  key={model.id}
-                  type='button'
-                  onClick={() => handleClick(model)}
-                  className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
-                    model.locked
-                      ? 'cursor-pointer opacity-60 hover:opacity-80 hover:bg-accent/30'
-                      : selected.id === model.id
-                        ? 'bg-accent text-foreground'
-                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                  }`}
-                >
-                  <div className='flex items-center gap-3'>
-                    <div className='flex-shrink-0'>
-                      {model.locked
-                        ? <Lock className='size-4 text-muted-foreground/50' />
-                        : modelIcon(model.id)
-                      }
+              <div className='relative mb-1.5'>
+                <Search className='pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60' />
+                <input
+                  type='search'
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder='Search models or providers…'
+                  className='h-9 w-full rounded-lg border border-border bg-background/70 pl-8 pr-3 text-xs text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/60'
+                />
+              </div>
+
+              <div className='max-h-[min(420px,55vh)] overflow-y-auto pr-0.5'>
+                {filteredModels.map((model) => (
+                  <button
+                    key={model.id}
+                    type='button'
+                    onClick={() => handleClick(model)}
+                    className={`w-full rounded-lg px-2.5 py-2 text-left transition-all duration-150 ${
+                      model.locked
+                        ? 'cursor-pointer opacity-60 hover:opacity-80 hover:bg-accent/30'
+                        : selected.id === model.id
+                          ? 'bg-accent text-foreground'
+                          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                    }`}
+                  >
+                    <div className='flex items-center gap-3'>
+                      <div className='flex-shrink-0'>
+                        {model.locked
+                          ? <Lock className='size-4 text-muted-foreground/50' />
+                          : modelIcon(model.id)
+                        }
+                      </div>
+                      <div className='min-w-0 flex-1'>
+                        <span className='block truncate text-sm font-medium'>{model.label}</span>
+                        <p className='truncate text-[11px] text-muted-foreground/70'>{model.sublabel}</p>
+                      </div>
+                      {!model.locked && selected.id === model.id && (
+                        <Check className='size-4 flex-shrink-0 text-primary' />
+                      )}
                     </div>
-                    <div className='min-w-0 flex-1'>
-                      <span className='text-sm font-medium'>{model.label}</span>
-                      <p className='text-[11px] text-muted-foreground/70'>{model.sublabel}</p>
-                    </div>
-                    {!model.locked && selected.id === model.id && (
-                      <Check className='size-4 flex-shrink-0 text-primary' />
-                    )}
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+                {filteredModels.length === 0 && (
+                  <p className='px-3 py-6 text-center text-xs text-muted-foreground'>No models found.</p>
+                )}
+              </div>
 
               {upgradeMsg && (
                 <div className='mx-1.5 mb-1 mt-1 rounded-lg bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400'>

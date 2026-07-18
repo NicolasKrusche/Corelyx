@@ -1,5 +1,21 @@
 import type { ProgramSchema } from "@flowos/schema";
 import { z } from "zod";
+import {
+  AGENT_PLATFORM_DEFAULT_MODEL,
+  PLATFORM_DEFAULT_MODEL,
+  isFreeOpenRouterModel,
+} from "@/lib/genesis/platform-models";
+
+export {
+  AGENT_PLATFORM_DEFAULT_MODEL,
+  PLATFORM_DEFAULT_MODEL,
+  getAllowedPlatformModels,
+  getPlatformModelTier,
+  isFreeOpenRouterModel,
+  isPlatformModelAllowed,
+  type PlatformModelOption,
+  type PlatformModelTier,
+} from "@/lib/genesis/platform-models";
 
 export type GenesisConnectionRow = {
   id: string;
@@ -60,81 +76,9 @@ export function isGenesisRefinementRequest(request: {
 }
 
 // ─── Platform model catalog ───────────────────────────────────────────────────
-// Models available when using the Corelyx platform key (via OpenRouter).
-// The tier controls plan ACCESS only — every model is billed against the
-// user's includedAiCredits by actual provider cost (there is no free-billing
-// model since the ":free" slug was retired for the reliable paid slug).
-// All IDs are OpenRouter model strings.
-
-// "free"     → GPT OSS 120B only (Free plan)
-// "standard" → + Claude 3 Haiku, GPT-4o Mini (Solo)
-// "premium"  → + Claude Sonnet 4.6, GPT-4o   (Team / Scale)
-export type PlatformModelTier = "free" | "standard" | "premium";
-
-export type PlatformModelOption = {
-  id: string;
-  label: string;
-  sublabel: string;
-  tier: PlatformModelTier; // minimum tier required to use this model
-};
-
-export const PLATFORM_MODEL_CATALOG: PlatformModelOption[] = [
-  {
-    // Deliberately NOT the ":free" OpenRouter slug — that variant is served by
-    // a single upstream provider with its own tight rate limits (independent
-    // of this account's tier) and was unreliable in practice (frequent 429s).
-    // This slug is load-balanced across ~20 providers on OpenRouter and costs
-    // a fraction of a cent per generation, billed as credits like any other
-    // platform model.
-    id: "openai/gpt-oss-120b",
-    label: "GPT OSS 120B",
-    sublabel: "Fast · Low cost",
-    tier: "free",
-  },
-  {
-    id: "anthropic/claude-3-haiku",
-    label: "Claude 3 Haiku",
-    sublabel: "Fast · Efficient",
-    tier: "standard",
-  },
-  {
-    id: "openai/gpt-4o-mini",
-    label: "GPT-4o Mini",
-    sublabel: "Fast · Affordable",
-    tier: "standard",
-  },
-  {
-    id: "anthropic/claude-sonnet-4.6",
-    label: "Claude Sonnet 4.6",
-    sublabel: "Best quality",
-    tier: "premium",
-  },
-  {
-    id: "openai/gpt-4o",
-    label: "GPT-4o",
-    sublabel: "Powerful",
-    tier: "premium",
-  },
-];
-
-/** The model ID used when the user hasn't picked one (free tier default). */
-export const PLATFORM_DEFAULT_MODEL = "openai/gpt-oss-120b";
-
-/**
- * Platform model for agent tool-loops (agent_task) when running on the platform
- * key. Agents are a tool-calling loop, so they need a reliable tool-caller — the
- * free default does not call tools dependably. gpt-4o-mini is cheap, fast, and a
- * solid tool-caller; agents are Solo+ (standard tier), so this model is permitted.
- */
-export const AGENT_PLATFORM_DEFAULT_MODEL = "openai/gpt-4o-mini";
-
-/** Returns allowed models for a given platform tier (all models whose tier ≤ userTier). */
-export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModelOption[] {
-  const ORDER: PlatformModelTier[] = ["free", "standard", "premium"];
-  const userLevel = ORDER.indexOf(tier);
-  return PLATFORM_MODEL_CATALOG.filter((m) => ORDER.indexOf(m.tier) <= userLevel);
-}
-
+// The live platform catalog is loaded from OpenRouter by openrouter-models.ts.
+// Free users receive only OpenRouter's free IDs; every paid plan can use the
+// complete paid catalog and is billed through platform credits.
 // ─── OpenRouter fallback chain ────────────────────────────────────────────────
 
 // OpenRouter models tried, in order, when the requested model fails. Used
@@ -149,6 +93,7 @@ export function getAllowedPlatformModels(tier: PlatformModelTier): PlatformModel
 // non-free gpt-oss-120b slug is load-balanced across ~20 providers and costs
 // a fraction of a cent — a genuinely reliable fallback, not just a cheap one.
 export const OPENROUTER_FALLBACK_MODELS = ["openai/gpt-oss-120b"] as const;
+export const OPENROUTER_FREE_FALLBACK_MODELS = [PLATFORM_DEFAULT_MODEL] as const;
 
 export const KEY_PROVIDER_PRIORITY: Record<string, number> = {
   anthropic: 0,
@@ -230,7 +175,11 @@ export function getModelCandidates(provider: string, requestedModel: string): st
     return [requestedModel];
   }
 
-  return [requestedModel, ...OPENROUTER_FALLBACK_MODELS].filter(
+  const fallbacks = isFreeOpenRouterModel(requestedModel)
+    ? OPENROUTER_FREE_FALLBACK_MODELS
+    : OPENROUTER_FALLBACK_MODELS;
+
+  return [requestedModel, ...fallbacks].filter(
     (candidate, index, candidates) => Boolean(candidate) && candidates.indexOf(candidate) === index
   );
 }

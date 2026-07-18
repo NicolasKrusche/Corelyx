@@ -32,7 +32,6 @@ import {
   GENESIS_TEMPERATURE,
   KEY_DEFAULT_MODELS,
   PLATFORM_DEFAULT_MODEL,
-  PLATFORM_MODEL_CATALOG,
   getModelCandidates,
   getProviderBaseURL,
   mapExecutionMode,
@@ -41,6 +40,7 @@ import {
   type GenesisApiKeyRow,
   type GenesisConnectionRow,
 } from "@/lib/genesis/request";
+import { getOpenRouterModelCatalog } from "@/lib/genesis/openrouter-models";
 import {
   buildCapabilitySection,
   fetchConnectionCapabilities,
@@ -165,7 +165,8 @@ export async function POST(
     // real, currently-offered model (older programs may carry unverified,
     // model-reported text from before this was server-stamped).
     const generatedModel = (program.schema as { metadata?: { genesis_model?: string } }).metadata?.genesis_model;
-    model = generatedModel && PLATFORM_MODEL_CATALOG.some((m) => m.id === generatedModel)
+    const catalog = await getOpenRouterModelCatalog();
+    model = generatedModel && catalog.some((m) => m.id === generatedModel)
       ? generatedModel
       : PLATFORM_DEFAULT_MODEL;
   } else {
