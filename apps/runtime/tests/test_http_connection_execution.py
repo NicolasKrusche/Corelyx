@@ -90,6 +90,7 @@ def _oauth_node() -> SchemaNode:
 def _executor() -> ProgramExecutor:
     executor = ProgramExecutor.__new__(ProgramExecutor)
     executor.node_map = {}
+    executor.run_id = "run-1"
     executor._record_telemetry = Mock()
     return executor
 
@@ -118,8 +119,78 @@ class HttpConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
         validate_url.assert_called_once_with("https://api.example.com/messages/message-1/trash")
         self.assertEqual(result["url"], "https://api.example.com/messages/message-1/trash")
         self.assertEqual(clients[0].request_kwargs["params"], {"message": "message-1"})
-        self.assertEqual(clients[0].request_kwargs["headers"], {"X-Message": "message-1"})
+        sent_headers = clients[0].request_kwargs["headers"]
+        self.assertEqual(sent_headers["X-Message"], "message-1")
+        self.assertIn("Idempotency-Key", sent_headers)
         self.assertEqual(clients[0].request_kwargs["json"], {"message_id": "message-1"})
+
+    async def test_idempotency_key_stable_across_retries_of_same_node(self) -> None:
+        # A retried POST that already succeeded on the far end (response
+        # timeout, not request failure) must not be resubmitted as a fresh,
+        # distinguishable request — the key has to be identical every attempt.
+        executor = _executor()
+        node = _http_node()
+        clients: list[_Client] = []
+
+        def client_factory(*args, **kwargs):
+            client = _Client(*args, **kwargs)
+            clients.append(client)
+            return client
+
+        with (
+            patch("engine.executor._validate_outbound_url"),
+            patch("engine.executor.httpx.AsyncClient", client_factory),
+        ):
+            await executor._execute_http_connection(node, node.config, {"n4": {"email": {"id": "message-1"}}})
+            await executor._execute_http_connection(node, node.config, {"n4": {"email": {"id": "message-1"}}})
+
+        key_1 = clients[0].request_kwargs["headers"]["Idempotency-Key"]
+        key_2 = clients[1].request_kwargs["headers"]["Idempotency-Key"]
+        self.assertEqual(key_1, key_2)
+
+    async def test_idempotency_key_differs_per_node(self) -> None:
+        executor = _executor()
+        node_a = _http_node()
+        node_b = _http_node()
+        node_b.id = "http-2"
+        clients: list[_Client] = []
+
+        def client_factory(*args, **kwargs):
+            client = _Client(*args, **kwargs)
+            clients.append(client)
+            return client
+
+        with (
+            patch("engine.executor._validate_outbound_url"),
+            patch("engine.executor.httpx.AsyncClient", client_factory),
+        ):
+            await executor._execute_http_connection(node_a, node_a.config, {"n4": {"email": {"id": "message-1"}}})
+            await executor._execute_http_connection(node_b, node_b.config, {"n4": {"email": {"id": "message-1"}}})
+
+        self.assertNotEqual(
+            clients[0].request_kwargs["headers"]["Idempotency-Key"],
+            clients[1].request_kwargs["headers"]["Idempotency-Key"],
+        )
+
+    async def test_idempotency_key_not_added_for_get(self) -> None:
+        executor = _executor()
+        node = _http_node()
+        node.config.method = "GET"
+        node.config.body = None
+        clients: list[_Client] = []
+
+        def client_factory(*args, **kwargs):
+            client = _Client(*args, **kwargs)
+            clients.append(client)
+            return client
+
+        with (
+            patch("engine.executor._validate_outbound_url"),
+            patch("engine.executor.httpx.AsyncClient", client_factory),
+        ):
+            await executor._execute_http_connection(node, node.config, {"n4": {"email": {"id": "message-1"}}})
+
+        self.assertNotIn("Idempotency-Key", clients[0].request_kwargs["headers"])
 
     async def test_fetches_linked_oauth_token_for_http_fallback(self) -> None:
         executor = _executor()

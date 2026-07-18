@@ -161,7 +161,7 @@ async def trigger_workflow(workflow_id: str) -> None:
             retention_expiry=retention_expiry,
             completed_at="now()",
         )
-        await _notify_complete(run_id, workflow_id, user_id, "failed")
+        await _notify_complete(run_id, workflow_id, user_id, "failed", "Processing is restricted for this account.")
         return
     final_status = "failed"
     error_message: str | None = None
@@ -185,7 +185,7 @@ async def trigger_workflow(workflow_id: str) -> None:
                 retention_expiry=retention_expiry,
                 completed_at="now()",
             )
-            await _notify_complete(run_id, workflow_id, user_id, "failed")
+            await _notify_complete(run_id, workflow_id, user_id, "failed", policy_blocks[0]["reason"])
             return
         executor = ProgramExecutor(
             schema,
@@ -220,7 +220,7 @@ async def trigger_workflow(workflow_id: str) -> None:
             **telemetry,
         )
         await release_run_locks(db, run_id)
-        await _notify_complete(run_id, workflow_id, user_id, final_status)
+        await _notify_complete(run_id, workflow_id, user_id, final_status, error_message)
 
 
 # ── Cron heartbeat: runtime → web ────────────────────────────────────────────
@@ -635,14 +635,23 @@ async def _run_with_active_timeout(executor: ProgramExecutor, trigger_payload: O
         raise
 
 
-async def _notify_complete(run_id: str, program_id: str, user_id: str, status: str) -> None:
-    """Notify Next.js that a run has finished — fires inter-program triggers."""
+async def _notify_complete(
+    run_id: str, program_id: str, user_id: str, status: str, error_message: str | None = None
+) -> None:
+    """Notify Next.js that a run has finished — fires inter-program triggers
+    and, on failure, the run-failure email (which needs error_message to say
+    anything more useful than "your run failed")."""
     nextjs_url = os.environ.get("NEXTJS_INTERNAL_URL", "http://localhost:3000")
     try:
         import httpx
 
         body = json.dumps(
-            {"program_id": program_id, "user_id": user_id, "status": status},
+            {
+                "program_id": program_id,
+                "user_id": user_id,
+                "status": status,
+                **({"error_message": error_message} if error_message else {}),
+            },
             separators=(",", ":"),
         )
         async with httpx.AsyncClient(timeout=10) as client:
@@ -712,7 +721,7 @@ async def _run_program(
         )
         await release_run_locks(db, run_id)
         # Notify Next.js — fires inter-program triggers for completed runs
-        await _notify_complete(run_id, program_id, user_id, final_status)
+        await _notify_complete(run_id, program_id, user_id, final_status, error_message)
 
 
 async def _run_program_gated(

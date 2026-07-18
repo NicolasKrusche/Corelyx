@@ -203,6 +203,61 @@ class ConnectorToolExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(res["ok"])
         self.assertIn("RATE_LIMITED", res["error"])
 
+    async def test_token_expired_retry_succeeds(self):
+        from connectors.base import ConnectorError
+
+        ex = _agent_executor()
+        ex._fetch_oauth_token = AsyncMock(side_effect=["token", "fresh-token"])
+        connector = Mock()
+        connector.supported_operations = ["send_message"]
+        connector.execute = AsyncMock(
+            side_effect=[ConnectorError("TOKEN_EXPIRED", "expired"), {"ts": "123"}]
+        )
+        with patch("engine.executor.get_connector", return_value=connector):
+            res = await ex._execute_agent_connector_tool(
+                {"connection": "slack:main", "operation": "send_message", "params": {"text": "hi"}},
+                "a1",
+                "write",
+            )
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["result"], {"ts": "123"})
+        ex._fetch_oauth_token.assert_awaited_with("conn-1", force_refresh=True)
+
+    async def test_token_expired_retry_also_fails_marks_connection_invalid(self):
+        # Mirrors the workflow-node OAuth path (_execute_connection): if the
+        # forced-refresh retry also fails, the connection must be marked
+        # is_valid=False — otherwise an agent keeps calling a dead connection
+        # every run while it still shows as valid everywhere else.
+        from connectors.base import ConnectorError
+
+        ex = _agent_executor()
+        ex._fetch_oauth_token = AsyncMock(side_effect=["token", "fresh-token"])
+        ex.db = Mock()
+        ex.db.table = Mock(
+            return_value=Mock(
+                update=Mock(return_value=Mock(eq=Mock(return_value=Mock(execute=Mock(return_value=Mock(data=[]))))))
+            )
+        )
+        connector = Mock()
+        connector.supported_operations = ["send_message"]
+        connector.execute = AsyncMock(
+            side_effect=[
+                ConnectorError("TOKEN_EXPIRED", "expired"),
+                ConnectorError("TOKEN_EXPIRED", "still expired"),
+            ]
+        )
+        with patch("engine.executor.get_connector", return_value=connector):
+            res = await ex._execute_agent_connector_tool(
+                {"connection": "slack:main", "operation": "send_message", "params": {"text": "hi"}},
+                "a1",
+                "write",
+            )
+        self.assertFalse(res["ok"])
+        self.assertIn("TOKEN_EXPIRED", res["error"])
+        ex.db.table.assert_any_call("connections")
+        ex.db.table.return_value.update.assert_called_once_with({"is_valid": False})
+        ex.db.table.return_value.update.return_value.eq.assert_called_once_with("id", "conn-1")
+
 
 if __name__ == "__main__":
     unittest.main()
