@@ -8,12 +8,16 @@ const FROM = process.env.FROM_EMAIL ?? "Corelyx <noreply@corelyx.app>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.corelyx.app";
 
 interface SendEmailOptions {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
+  from?: string;
+  cc?: string | string[];
+  bcc?: string | string[];
+  replyTo?: string;
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailOptions): Promise<void> {
+export async function sendEmail({ to, subject, html, from, cc, bcc, replyTo }: SendEmailOptions): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY not set — skipping email send");
@@ -26,7 +30,15 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions): Promis
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
+    body: JSON.stringify({
+      from: from ?? FROM,
+      to,
+      subject,
+      html,
+      ...(cc ? { cc } : {}),
+      ...(bcc ? { bcc } : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+    }),
     cache: "no-store",
   });
 
@@ -881,7 +893,7 @@ export async function sendDsrFollowUpNotificationEmail({
   });
 }
 
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
