@@ -7,7 +7,7 @@ import { sendEmail, escapeHtml } from "@/lib/email";
 // The known Corelyx sending identities — all on the corelyx.app domain, which
 // is the one verified in Resend. Keep in sync with addresses referenced
 // elsewhere (lib/email.ts FROM default, lib/legal.ts LEGAL_EMAIL).
-export const KNOWN_SENDERS = [
+const KNOWN_SENDERS = [
   "noreply@corelyx.app",
   "support@corelyx.app",
   "legal@corelyx.app",
