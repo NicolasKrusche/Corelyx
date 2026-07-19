@@ -7,10 +7,17 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Supply-chain cooldown: wait before opening PRs (matches .npmrc minimum-release-age)
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "npm"
+    # pnpm supply-chain hardening (mirrors .npmrc): require packages to be
+    # published >= 7 days before install.
+    allow:
+      - dependency-type: "direct"
     # Auto-merge patch + minor versions when CI is green
     groups:
       npm-minor-patch:
@@ -24,6 +31,8 @@ updates:
     directory: "/apps/runtime"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -33,6 +42,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "github-actions"
