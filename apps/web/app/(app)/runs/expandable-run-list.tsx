@@ -117,10 +117,10 @@ export function ExpandableRunList({ runs }: { runs: RunRow[] }) {
               {formatWhen(run.started_at ?? run.created_at)}
             </span>
             <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/50">
-              {run.triggered_by?.includes("schedule") ? (
+              {run.triggered_by === "cron" ? (
                 <><svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0 text-muted-foreground/30"><path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1ZM8 5a.75.75 0 0 0-.75.75v2.5c0 .28.16.537.415.657l2 1a.75.75 0 0 0 .67-1.344L8.75 7.9V5.75A.75.75 0 0 0 8 5Z"/></svg> schedule</>
               ) : (
-                <><svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0 text-muted-foreground/30"><path d="M2 2.75C2 1.784 2.784 1 3.75 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 10h-.5a.75.75 0 0 0 0 1.5h.5A3.25 3.25 0 0 0 15.5 8.25v-5.5A3.25 3.25 0 0 0 12.25 0h-8.5A3.25 3.25 0 0 0 .5 3.25v5.5A3.25 3.25 0 0 0 3.75 12h.5a.75.75 0 0 0 0-1.5h-.5C3.093 10.5 2.5 9.907 2.5 9.25v-.5H8a.75.75 0 0 0 0-1.5H2.5V2.75Z"/></svg> manual</>
+                <><svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0 text-muted-foreground/30"><path d="M2 2.75C2 1.784 2.784 1 3.75 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 10h-.5a.75.75 0 0 0 0 1.5h.5A3.25 3.25 0 0 0 15.5 8.25v-5.5A3.25 3.25 0 0 0 12.25 0h-8.5A3.25 3.25 0 0 0 .5 3.25v5.5A3.25 3.25 0 0 0 3.75 12h.5a.75.75 0 0 0 0-1.5h-.5C3.093 10.5 2.5 9.907 2.5 9.25v-.5H8a.75.75 0 0 0 0-1.5H2.5V2.75Z"/></svg> {run.triggered_by?.split(":")[0] || "manual"}</>
               )}
             </span>
             <span className="hidden sm:block text-right font-mono text-[11px] text-muted-foreground/50 tabular-nums">

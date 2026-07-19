@@ -82,6 +82,7 @@ UNIVERSAL NODE FIELDS (all required):
 
 POSITIONS: trigger at x:100 y:200. Each next node x+=320. Branches: y±220.
 GRAPH RULES: exactly 1 trigger, no isolated executable nodes, every non-trigger/non-note/non-group node needs an incoming edge. Use as many executable nodes as the task genuinely requires — but do not pad the graph with unnecessary steps.
+  ⚠ INDEPENDENT ACTIONS FAN OUT, THEY DO NOT CHAIN: if two or more nodes each act on the SAME upstream data independently (e.g. "save to Notion" AND "post to Slack" from the same processed item), wire BOTH with a direct edge from that shared upstream node — never connect one action's output into the other action's input just because they end up in the same visual group. Chaining unrelated side-effect nodes serially means the second one's only input becomes the first one's return value, silently losing every field the second node's template/params reference.
 
 TRIGGER NODE (connection: always null):
   manual: {"trigger_type":"manual"}
@@ -103,7 +104,7 @@ Since connector operations aren't resolved yet, write your best-effort expressio
   loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}
   branch: {"logic_type":"branch","conditions":[{"condition":"data['n1'].get('x')==True","target_node_id":"n5"}],"default_branch":"n6"}
   delay: {"logic_type":"delay","seconds":3600}
-  format: {"logic_type":"format","template":"Subject: {subject}","output_key":"text"}
+  format: {"logic_type":"format","template":"Subject: {n2[subject]}","output_key":"text"}  ← format uses str.format_map, not data[...]: bare {field} only works if the DIRECT upstream node emits that key; anything from further back needs {node_id[field]}, e.g. {n5[subject]}.
   parse: {"logic_type":"parse","input_key":"raw","format":"json|csv|lines"}
   deduplicate: {"logic_type":"deduplicate","key":"id"}
   sort: {"logic_type":"sort","key":"created_at","order":"asc|desc"}

@@ -590,6 +590,7 @@ CANONICAL OUTPUT: Every generated or refined workflow must include the complete 
 
 POSITIONS: trigger at x:100 y:200. Each next node x+=320. Branches: y±220.
 GRAPH RULES: exactly 1 trigger, no isolated executable nodes, every non-trigger/non-note/non-group node needs an incoming edge. Use as many executable nodes as the task genuinely requires (there is no fixed node limit) — but do not pad the graph with unnecessary steps.
+  ⚠ INDEPENDENT ACTIONS FAN OUT, THEY DO NOT CHAIN: if two or more downstream nodes each act on the SAME upstream data independently (e.g. "save to Notion" AND "post to Slack" from the same processed item), wire BOTH with a direct edge from that shared upstream node — do not connect one action's output node into the other's input just because they're drawn in the same visual group. Chaining unrelated actions serially means the second action's only input becomes the first action's return value (e.g. a Notion page_id), silently losing every field the second action's template/params actually reference. Only chain node A → node B when B genuinely consumes A's output.
 
 TRIGGER NODE (connection: always null):
   manual: {"trigger_type":"manual"}
@@ -614,7 +615,8 @@ Literals are PYTHON: True/False/None — never lowercase true/false/null and nev
   loop: {"logic_type":"loop","over":"data['n2']['items']","item_var":"item"}  → if this is node n3 with item_var:"email", downstream uses data['n3']['email']['id'] or {{n3.email.id}}. item_var name becomes the key under the loop node ID.
   branch: {"logic_type":"branch","conditions":[{"condition":"data['n1'].get('x')==True","target_node_id":"n5"}],"default_branch":"n6"}
   delay: {"logic_type":"delay","seconds":3600}
-  format: {"logic_type":"format","template":"Subject: {subject}","output_key":"text"}
+  format: {"logic_type":"format","template":"Subject: {n2[subject]}","output_key":"text"}
+    ⚠ format templates use Python str.format_map — braces are NOT {{node_id.field}}, they are bare {field} or {node_id[field]}. A bare {field} only resolves if the node's DIRECT incoming edge source emits that exact top-level key. Any field that lives on an earlier node (e.g. an agent/connection several steps upstream) MUST be addressed as {node_id[field]}, e.g. {n5[subject]}, {n6[summary]} — never assume it "flows through" intermediate nodes.
   parse: {"logic_type":"parse","input_key":"raw","format":"json|csv|lines"}
   deduplicate: {"logic_type":"deduplicate","key":"id"}
   sort: {"logic_type":"sort","key":"created_at","order":"asc|desc"}
@@ -701,7 +703,7 @@ CHECKLIST before output:
   7. Gmail list_emails/search output is stubs ({id,threadId} only). Before any branch/filter/agent that checks subject, from, body, or labels: filter(non-empty) → loop → read_email → then use data['read_node']['subject'] etc. NEVER check email metadata on the loop item itself.
   8. Every operation with REQUIRED params has them filled (use "__USER_ASSIGNED__" for unknown resource IDs).
   9. {{expressions}} have exactly two braces: {{n1.field}}. 10. version_history:[].
-  11. filter/loop/branch conditions ALWAYS use scoped access: data['n2'].get('field') — NEVER the flat data.get('field'). The flat merge is unreliable.
+  11. filter/loop/branch conditions ALWAYS use scoped access: data['n2'].get('field') — NEVER the flat data.get('field'). The flat merge is unreliable. format templates: same rule in format_map syntax — use {node_id[field]} for any field not emitted by the format node's direct incoming edge; never assume a bare {field} survives more than one hop.
   12. Gmail: NEVER generate HTTP label-creation nodes (POST /gmail/v1/users/me/labels). Use label_email with plain names; document manual label setup in a note node.
 
 AMBIGUITY RULES — resolve, don't reject:

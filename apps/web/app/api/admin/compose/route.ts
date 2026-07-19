@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, getAuthUser } from "@/lib/api";
 import { isAdmin } from "@/lib/admin";
 import { sendEmail, escapeHtml } from "@/lib/email";
+import { redactSecretText } from "@/lib/redaction";
 
 // The known Corelyx sending identities — all on the corelyx.app domain, which
 // is the one verified in Resend. Keep in sync with addresses referenced
@@ -62,7 +63,12 @@ export async function POST(request: Request) {
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#111827;white-space:pre-wrap;line-height:1.6;">${escapeHtml(body)}</div>`,
     });
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : "Failed to send email", 502);
+    // Deliberately not apiError: it masks all >=500 messages behind a generic
+    // "Internal server error", but this is an admin-only surface where the
+    // operator needs the provider's actual rejection (e.g. domain not
+    // verified). Secrets are still scrubbed.
+    const message = err instanceof Error ? err.message : "Failed to send email";
+    return NextResponse.json({ error: redactSecretText(message) }, { status: 502 });
   }
 
   return NextResponse.json({ sent: true });
