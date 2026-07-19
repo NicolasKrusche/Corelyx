@@ -49,7 +49,7 @@ jobs:
       # The action reads the pinned pnpm version from packageManager instead.
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: pnpm
