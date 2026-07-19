@@ -1,0 +1,25 @@
+# Corelyx Semgrep ignore (Task #2: Semgrep SAST Pipeline Fix, Schritt 3)
+# Exclude generated / vendored / test-fixtures from SAST to cut false positives.
+# Keep this minimal — only ignore what is genuinely not first-party source.
+
+# Build artifacts & generated code
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/generated/
+
+# Vendored dependencies
+**/vendor/
+
+# Test fixtures that intentionally contain unsafe-looking sample payloads
+**/tests/fixtures/
+**/__fixtures__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+
+# Lockfiles & docs
+**/package-lock.json
+**/pnpm-lock.yaml
+**/*.md
