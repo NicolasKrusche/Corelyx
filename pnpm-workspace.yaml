@@ -11,3 +11,9 @@ packages:
   # stays out of the JS workspace/CI — same precedent as apps/desktop.
   - "!apps/mobile"
   - "packages/*"
+
+# pnpm supply-chain hardening (mirrors .npmrc). Read by pnpm v10 + Semgrep p/ci.
+pnpm:
+  blockExoticSubdeps: true
+  minimumReleaseAge: 10080
+  trustPolicy: no-downgrade
