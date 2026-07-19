@@ -1,0 +1,19 @@
+# Corelyx CODEOWNERS (Task #1: GitHub Governance & CI/CD Hardening, Score 9.2)
+# Schritt 6 — Review ownership for branch protection
+
+# Core engineering team owns the runtime-critical surfaces
+*       @NicolasKrusche
+
+# Schema is the product contract — changes need core review
+packages/schema/        @NicolasKrusche
+packages/db/            @NicolasKrusche
+
+# App surfaces
+apps/web/               @NicolasKrusche
+apps/runtime/           @NicolasKrusche
+apps/mobile/            @NicolasKrusche
+apps/desktop/           @NicolasKrusche
+
+# CI / security config
+.github/                @NicolasKrusche
+.npmrc                  @NicolasKrusche
