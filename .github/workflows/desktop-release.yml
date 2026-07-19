@@ -47,7 +47,7 @@ jobs:
       # No `version:` here — it conflicts with the `packageManager` field pinned
       # in package.json (pnpm/action-setup errors on ERR_PNPM_BAD_PM_VERSION).
       # The action reads the pinned pnpm version from packageManager instead.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
