@@ -279,7 +279,10 @@ function triggerRecord(node: TriggerNode) {
   return {
     node_id: node.id,
     type: node.config.trigger_type,
-    is_active: true,
+    // Browse programs are drafts until the user assigns every placeholder.
+    // Keeping the canonical trigger state paused prevents a page-load sync
+    // from scheduling an unconfigured copy.
+    is_active: false,
     last_fired: null,
     next_scheduled: null,
   };

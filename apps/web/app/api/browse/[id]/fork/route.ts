@@ -5,6 +5,7 @@ import { ProgramSchemaZ } from "@flowos/schema";
 import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { findPremadeBrowseProgram } from "@/lib/browse-programs";
+import { withAllSchemaTriggersPaused } from "@/lib/triggers/schema-trigger-state";
 import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 import { ensureUserProvisioned } from "@/lib/auth/provisioning";
 
@@ -77,11 +78,13 @@ export async function POST(
   const now = new Date().toISOString();
 
   const forkedName = source.name;
-  const forkedSchema: ProgramSchema = {
-    ...schema,
-    program_name: forkedName,
-    updated_at: now,
-  };
+  const forkedSchema = withAllSchemaTriggersPaused(
+    {
+      ...schema,
+      program_name: forkedName,
+    } as unknown as Record<string, unknown>,
+    now
+  ) as unknown as ProgramSchema;
 
   // Auto-link connections the user already has by name
   type ConnectionRow = { id: string; name: string; provider: string; scopes: string[] | null };

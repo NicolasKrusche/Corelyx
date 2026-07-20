@@ -11,6 +11,7 @@ describe("browse premade programs", () => {
       expect(parsed.success, program.id).toBe(true);
       expect(program.node_summary.total).toBe(program.schema?.nodes.length);
       expect(program.node_summary.connections_needed.length).toBeGreaterThan(0);
+      expect(program.schema?.triggers.every((trigger) => trigger.is_active === false)).toBe(true);
     }
   });
 });
