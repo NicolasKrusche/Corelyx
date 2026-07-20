@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   schemaTriggerNodeId,
+  withAllSchemaTriggersPaused,
   withSchemaTriggerActiveState,
 } from "@/lib/triggers/schema-trigger-state";
 
@@ -61,5 +62,26 @@ describe("schema trigger state", () => {
       false,
       null
     )).toBeNull();
+  });
+
+  it("pauses every trigger when copying a workflow", () => {
+    const source = {
+      ...schema,
+      metadata: { is_active: true, description: "Published source" },
+      triggers: [
+        schema.triggers[0],
+        { node_id: "trigger-2", type: "webhook", is_active: true, next_scheduled: null },
+      ],
+    };
+
+    const paused = withAllSchemaTriggersPaused(source, "2026-07-20T16:00:00.000Z");
+
+    expect(paused.updated_at).toBe("2026-07-20T16:00:00.000Z");
+    expect(paused.metadata).toEqual({ is_active: false, description: "Published source" });
+    expect(paused.triggers).toEqual([
+      { ...schema.triggers[0], is_active: false, next_scheduled: null },
+      { node_id: "trigger-2", type: "webhook", is_active: false, next_scheduled: null },
+    ]);
+    expect(source.triggers[0]?.is_active).toBe(true);
   });
 });
