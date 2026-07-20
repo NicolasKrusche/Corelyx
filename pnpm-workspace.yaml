@@ -13,7 +13,8 @@ packages:
   - "packages/*"
 
 # pnpm supply-chain hardening (mirrors .npmrc). Read by pnpm v10 + Semgrep p/ci.
-pnpm:
-  blockExoticSubdeps: true
-  minimumReleaseAge: 10080
-  trustPolicy: no-downgrade
+# NOTE: pnpm v10 reads these as TOP-LEVEL settings in pnpm-workspace.yaml
+# (NOT nested under a `pnpm:` key). Semgrep p/ci also anchors on top-level keys.
+blockExoticSubdeps: true
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
