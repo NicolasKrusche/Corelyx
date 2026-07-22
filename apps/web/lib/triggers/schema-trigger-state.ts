@@ -12,6 +12,30 @@ export function schemaTriggerNodeId(config: unknown): string | null {
 }
 
 /**
+ * Return a fork-safe copy of a workflow schema. Browse sources may have live
+ * trigger state, but a user's new copy must remain paused until they finish
+ * assigning credentials and required operation parameters.
+ */
+export function withAllSchemaTriggersPaused(
+  schema: JsonObject,
+  updatedAt: string = new Date().toISOString()
+): JsonObject {
+  const states = Array.isArray(schema.triggers) ? schema.triggers : [];
+  const metadata = isRecord(schema.metadata) ? schema.metadata : {};
+
+  return {
+    ...schema,
+    triggers: states.map((state) =>
+      isRecord(state)
+        ? { ...state, is_active: false, next_scheduled: null }
+        : state
+    ),
+    metadata: { ...metadata, is_active: false },
+    updated_at: updatedAt,
+  };
+}
+
+/**
  * Return a new canonical workflow schema with one trigger's active state
  * changed. The linked trigger node must still exist; otherwise the DB row is
  * stale and callers should refuse the mutation instead of inventing a schema

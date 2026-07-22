@@ -15,6 +15,11 @@ _HEADERS_BASE = {
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
 }
+_USER_ASSIGNED_SENTINEL = "__USER_ASSIGNED__"
+
+
+def _is_configured(value: Any) -> bool:
+    return value is not None and str(value).strip() not in {"", _USER_ASSIGNED_SENTINEL}
 
 
 class GitHubConnector(IConnector):
@@ -101,8 +106,11 @@ class GitHubConnector(IConnector):
 
     async def _list_prs(self, client: httpx.AsyncClient, headers: dict, params: dict) -> dict:
         owner, repo = params.get("owner"), params.get("repo")
-        if not owner or not repo:
-            raise ConnectorError("MISSING_PARAM", "list_prs requires 'owner' and 'repo'")
+        if not _is_configured(owner) or not _is_configured(repo):
+            raise ConnectorError(
+                "MISSING_PARAM",
+                "list_prs requires a configured GitHub repository. Choose the repository in this node before running it.",
+            )
         state = params.get("state", "open")
         per_page = int(params.get("per_page", 30))
         r = await request_with_rate_limit(
