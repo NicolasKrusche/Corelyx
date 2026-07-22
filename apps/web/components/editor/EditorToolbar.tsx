@@ -45,6 +45,8 @@ interface EditorToolbarProps {
   /** Step debugger — only shown when enableAdvancedEditor is true. */
   showDebugger?: boolean;
   onToggleDebugger?: () => void;
+  /** Simulation mode — visual dry-run with mock data. */
+  onSimulation?: () => void;
 }
 
 // ─── Icons (inline SVG, no icon library dep) ─────────────────────────────────
@@ -392,6 +394,24 @@ export function EditorToolbar({
         </svg>
         Edit with AI
       </Button>
+
+      {/* Simulation Mode */}
+      {onSimulation && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onSimulation}
+          className="gap-1.5 border-purple/40 text-purple hover:bg-purple/10 hover:border-purple/60"
+          title="Run visual simulation with mock data"
+          data-tour="editor-simulation"
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
+            <path d="M8 2l1.5 3L13 6.5 9.5 8 8 11.5 6.5 8 3 6.5 6.5 5z" strokeLinejoin="round" />
+            <circle cx="8" cy="8" r="3" strokeDasharray="8 4" />
+          </svg>
+          Simulate
+        </Button>
+      )}
 
       {/* Raw schema editor toggle — only visible when user has developer mode on */}
       {onToggleRawSchema && (

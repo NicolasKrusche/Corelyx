@@ -32,6 +32,12 @@
     },
     "clean": {
       "cache": false
+    },
+    "codegen": {
+      "dependsOn": ["@flowos/schema#codegen"],
+      "inputs": ["packages/schema/generated/schema.json"],
+      "outputs": ["apps/runtime/generated/models.py"],
+      "command": ["python", "apps/runtime/scripts/codegen.py"]
     }
   }
 }

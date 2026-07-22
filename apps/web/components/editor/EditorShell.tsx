@@ -44,6 +44,7 @@ import { EventEdge } from "@/components/edges/EventEdge";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
 import { RunLogDrawer } from "@/components/editor/RunLogDrawer";
+import { SimulationPanel } from "@/components/editor/SimulationPanel";
 import { NodeSidebar } from "@/components/sidebars/NodeSidebar";
 import type { ApiKey, PlatformAgentModel } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
@@ -436,6 +437,7 @@ export function EditorShell({
   const [showAiEdit, setShowAiEdit] = React.useState(false);
   const [showRawSchema, setShowRawSchema] = React.useState(false);
   const [showDebugger, setShowDebugger] = React.useState(false);
+  const [showSimulation, setShowSimulation] = React.useState(false);
   const [rawSchemaEnabled] = useRawSchemaMode();
   const [contextMenu, setContextMenu] = React.useState<EditorContextMenu>(null);
   const [contextAddPosition, setContextAddPosition] = React.useState<{ x: number; y: number } | null>(null);
@@ -2268,10 +2270,11 @@ export function EditorShell({
           }
         }}
         onAutoLayout={handleAutoLayout}
-        layoutDirection={layoutDirection}
-        onTestWebhook={() => setShowWebhookTest(true)}
-        showRawSchema={rawSchemaEnabled && showRawSchema}
-        onToggleRawSchema={rawSchemaEnabled ? () => {
+                layoutDirection={layoutDirection}
+                onTestWebhook={() => setShowWebhookTest(true)}
+                showRawSchema={rawSchemaEnabled && showRawSchema}
+                onToggleDebugger={() => setShowDebugger(!showDebugger)}
+                onSimulation={() => setShowSimulation(true)}
           const opening = !showRawSchema;
           setShowRawSchema(opening);
           if (opening) { setShowPalette(false); setShowAiEdit(false); }
@@ -2280,6 +2283,13 @@ export function EditorShell({
         onToggleDebugger={enableAdvancedEditor ? () => {
           setShowDebugger((v) => !v);
         } : undefined}
+        onSimulation={() => {
+          setShowSimulation(true);
+          setShowPalette(false);
+          setShowAiEdit(false);
+          setShowRawSchema(false);
+          setShowHistory(false);
+        }}
       />
 
       {/* Node palette panel — slides in from left */}
@@ -2597,6 +2607,27 @@ export function EditorShell({
             onClose={() => setShowDebugger(false)}
             onFocusNode={(nodeId) => {
               dispatch({ type: "SELECT_NODE", nodeId });
+            }}
+          />
+        )}
+
+        {/* Simulation panel */}
+        {showSimulation && (
+          <SimulationPanel
+            programId={programId}
+            programSchema={{
+              nodes: state.schema.nodes,
+              edges: state.schema.edges,
+            }}
+            onClose={() => setShowSimulation(false)}
+            onRunSimulation={async (triggerPayload) => {
+              const res = await fetch(`/api/programs/${programId}/simulate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ trigger_payload: triggerPayload }),
+              });
+              if (!res.ok) throw new Error("Simulation failed");
+              return res.json();
             }}
           />
         )}

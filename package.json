@@ -7,7 +7,8 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "vercel-build": "npx tsx scripts/validate-env.ts && turbo run build"
   },
   "devDependencies": {
     "@google/generative-ai": "^0.24.1",

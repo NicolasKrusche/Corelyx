@@ -346,7 +346,13 @@ export const config = {
   // images). Narrowing the matcher keeps middleware CPU off high-frequency,
   // non-app traffic. Deliberately not excluding .js/.css/.json/.txt/.xml so no
   // dynamic route handler is accidentally dropped.
+  //
+  // Build-time skip: Vercel builds run with VERCEL_ENV=production but no
+  // request headers. Middleware is invoked during prerendering for dynamic
+  // routes. The matcher below ensures getUser() is never called during build
+  // because build-time requests don't match any route that needs auth.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf|webmanifest)$).*)",
+    "/api/webhooks/auth-session",
   ],
 };
