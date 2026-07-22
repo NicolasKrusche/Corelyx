@@ -18,6 +18,7 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react'
+import { getVisibleModelSelectorOptions } from './model-selector-options'
 
 export interface PlatformModel {
   id: string
@@ -59,12 +60,7 @@ export function ModelSelector({
   if (models.length === 0) return null
 
   const selected = models.find((m) => m.id === selectedModelId) ?? models.find((m) => !m.locked) ?? models[0]
-  const normalizedQuery = query.trim().toLowerCase()
-  const filteredModels = normalizedQuery
-    ? models.filter((model) =>
-        `${model.label} ${model.id}`.toLowerCase().includes(normalizedQuery)
-      )
-    : models
+  const visibleModels = getVisibleModelSelectorOptions(models, query)
 
   const handleClick = (model: PlatformModel) => {
     if (model.locked) {
@@ -110,7 +106,7 @@ export function ModelSelector({
               </div>
 
               <div className='max-h-[min(420px,55vh)] overflow-y-auto pr-0.5'>
-                {filteredModels.map((model) => (
+                {visibleModels.map((model) => (
                   <button
                     key={model.id}
                     type='button'
@@ -140,7 +136,7 @@ export function ModelSelector({
                     </div>
                   </button>
                 ))}
-                {filteredModels.length === 0 && (
+                {visibleModels.length === 0 && (
                   <p className='px-3 py-6 text-center text-xs text-muted-foreground'>No models found.</p>
                 )}
               </div>

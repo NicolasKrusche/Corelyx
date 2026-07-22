@@ -386,6 +386,24 @@ class TestGitHubConnector(unittest.IsolatedAsyncioTestCase):
             await GitHubConnector().execute("list_prs", {"owner": "o"}, "tok")
         self.assertEqual(ctx.exception.code, "MISSING_PARAM")
 
+    async def test_list_prs_rejects_unassigned_repository_without_api_call(self) -> None:
+        request = AsyncMock()
+        with patch("connectors.github.request_with_rate_limit", new=request):
+            with self.assertRaises(ConnectorError) as ctx:
+                await GitHubConnector().execute(
+                    "list_prs",
+                    {
+                        "owner": "__USER_ASSIGNED__",
+                        "repo": "__USER_ASSIGNED__",
+                        "state": "open",
+                    },
+                    "tok",
+                )
+
+        self.assertEqual(ctx.exception.code, "MISSING_PARAM")
+        self.assertIn("Choose the repository", ctx.exception.message)
+        request.assert_not_awaited()
+
     async def test_list_prs_http_error(self) -> None:
         mock_resp = _fake_response(status_code=401, text="Unauthorized")
         with patch("connectors.github.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
