@@ -7,6 +7,7 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import type { Edge, Node } from "@flowos/schema";
 import { RunGraphFlow } from "./run-graph-flow";
 import { AiGeneratedContentNotice } from "@/components/ai-transparency";
+import { TimelineScrubber } from "@/components/runs/TimelineScrubber";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -229,6 +230,7 @@ export function RunLogLive({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevTerminalRef = useRef(false);
   const supabase = createBrowserClient();
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
 
   const isTerminal = TERMINAL.has(runStatus);
 
@@ -330,6 +332,10 @@ export function RunLogLive({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTerminal]);
 
+  // Determine whether to show the timeline scrubber:
+  // terminal run with more than 1 node execution
+  const showScrubber = isTerminal && execs.length > 1;
+
   return (
     <div className="space-y-6">
       {/* ── Run overview — same React Flow graph as the editor ────────────── */}
@@ -350,8 +356,18 @@ export function RunLogLive({
           )}
         </div>
 
-        <RunGraphFlow nodeMap={nodeMap} edges={edges} execs={execs} />
+        <RunGraphFlow nodeMap={nodeMap} edges={edges} execs={execs} highlightedNodeId={highlightedNodeId} />
       </section>
+
+      {/* ── Timeline Scrubber (only when terminal + multiple execs) ──── */}
+      {showScrubber && (
+        <TimelineScrubber
+          execs={execs}
+          nodeMap={nodeMap}
+          highlightedNodeId={highlightedNodeId}
+          onHighlight={setHighlightedNodeId}
+        />
+      )}
 
       {/* ── Node executions detail ─────────────────────────────────────────── */}
       <section className="space-y-3">

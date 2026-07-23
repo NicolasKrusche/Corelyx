@@ -16,15 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.2.2
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.0.4
         with:
           node-version: "22.13"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        uses: pnpm/action-setup@a3252b78dba8afc09747ad794d6cb9aa5331c5a6 # v4.0.0
         with:
           version: 9.15.9
 
@@ -35,7 +35,7 @@ jobs:
         run: pnpm audit --audit-level high
 
       - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.3.0
         with:
           python-version: "3.11"
 
@@ -59,24 +59,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Semgrep
-        run: python -m pip install --upgrade pip "semgrep==1.89.0"
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.2.2
 
       - name: Run Semgrep
-        # --error fails the build on findings. pnpm supply-chain hardening
-        # (block-exotic-subdeps, minimum-release-age, no-downgrade trust-policy)
-        # is enforced via .npmrc (pnpm's real config source). The p/ci pnpm
-        # rules match legacy key locations and are false-positives here, so they
-        # are excluded; enforcement is unchanged.
-        run: semgrep scan --config p/ci --error --metrics=off \
-          --exclude-rule "package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age" \
-          --exclude-rule "package_managers.pnpm.pnpm-trust-policy.pnpm-trust-policy" \
-          --exclude-rule "package_managers.pnpm.pnpm-block-exotic-sub-dependencies.pnpm-block-exotic-sub-dependencies" \
-          --exclude-rule "package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age" .
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1.89.0
+        with:
+          config: p/ci
+          version: "1.89.0"
+          extraArgs: >
+            --error
+            --metrics=off
+            --exclude-rule "package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age"
+            --exclude-rule "package_managers.pnpm.pnpm-trust-policy.pnpm-trust-policy"
+            --exclude-rule "package_managers.pnpm.pnpm-block-exotic-sub-dependencies.pnpm-block-exotic-sub-dependencies"
+            --exclude-rule "package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age"
+        env:
+          SEMGREP_SEND_METRICS: "off"

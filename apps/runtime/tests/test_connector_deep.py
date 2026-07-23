@@ -1,6 +1,32 @@
 """Deep connector tests for under-tested native connectors."""
 
 from __future__ import annotations
+import sys as _sys
+import types as _types
+from unittest.mock import MagicMock as _MagicMock
+
+for _m in list(_sys.modules):
+    if _m.startswith("connectors.") or _m == "engine.executor":
+        del _sys.modules[_m]
+
+if "connectors" not in _sys.modules or not getattr(_sys.modules.get("connectors"), "_is_stub", False):
+    _base = _types.ModuleType("connectors.base")
+    class _CE(Exception):
+        def __init__(self, code="", message=""):
+            super().__init__(message)
+            self.code = code
+            self.message = message
+    _base.ConnectorError = _CE
+    _base.IConnector = type("IConnector", (), {})
+    _conn = _types.ModuleType("connectors")
+    _conn._is_stub = True
+    _conn.get_connector = _MagicMock(return_value=None)
+    _conn.REGISTRY = {}
+    _conn.IConnector = _base.IConnector
+    _conn.ConnectorError = _CE
+    _sys.modules["connectors"] = _conn
+    _sys.modules["connectors.base"] = _base
+
 
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch

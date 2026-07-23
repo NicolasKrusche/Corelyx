@@ -31,6 +31,8 @@ interface EditorToolbarProps {
   onBack: () => void;
   showPalette: boolean;
   onTogglePalette: () => void;
+  showSmartPalette: boolean;
+  onToggleSmartPalette: () => void;
   onHistory: () => void;
   onAiEdit: () => void;
   /** Re-arrange all nodes with the deterministic auto-layout in the given direction. */
@@ -47,6 +49,8 @@ interface EditorToolbarProps {
   onToggleDebugger?: () => void;
   /** Simulation mode — visual dry-run with mock data. */
   onSimulation?: () => void;
+  /** Execution replay — read-only review of past runs. */
+  onReplay?: () => void;
 }
 
 // ─── Icons (inline SVG, no icon library dep) ─────────────────────────────────
@@ -152,6 +156,8 @@ export function EditorToolbar({
   onBack,
   showPalette,
   onTogglePalette,
+  showSmartPalette,
+  onToggleSmartPalette,
   onHistory,
   onAiEdit,
   onAutoLayout,
@@ -161,6 +167,8 @@ export function EditorToolbar({
   onToggleRawSchema,
   showDebugger,
   onToggleDebugger,
+  onSimulation,
+  onReplay,
 }: EditorToolbarProps) {
   const hasErrors = validationResult && !validationResult.valid;
   const isValid = validationResult?.valid === true;
@@ -288,6 +296,20 @@ export function EditorToolbar({
         </svg>
         Add node
       </Button>
+      {/* Smart palette toggle */}
+      <Button
+        variant={showSmartPalette ? "default" : "outline"}
+        size="sm"
+        onClick={onToggleSmartPalette}
+        className="gap-1.5"
+        title="Smart palette — context-aware node suggestions"
+      >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
+          <path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9.5 4.5 11.5l.5-3.5L2.5 5.5 6 5z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Smart
+      </Button>
+
 
       <Sep />
 
@@ -410,6 +432,24 @@ export function EditorToolbar({
             <circle cx="8" cy="8" r="3" strokeDasharray="8 4" />
           </svg>
           Simulate
+        </Button>
+      )}
+
+      {/* Execution Replay — read-only review of past runs */}
+      {onReplay && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onReplay}
+          className="gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/60"
+          title="Replay past execution (read-only)"
+          data-tour="editor-replay"
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M8 4.5V8l2.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Replay
         </Button>
       )}
 

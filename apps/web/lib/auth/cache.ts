@@ -13,10 +13,10 @@ interface CacheEntry {
 }
 
 interface AuthCache {
-  get(key: string): CacheEntry | null;
-  set(key: string, entry: CacheEntry): void;
-  delete(key: string): void;
-  clear(): void;
+  get(key: string): Promise<CacheEntry | null>;
+  set(key: string, entry: CacheEntry): Promise<void>;
+  delete(key: string): Promise<void>;
+  clear(): Promise<void>;
 }
 
 // ─── In-Memory Cache (Edge-compatible) ────────────────────────────────────
@@ -24,7 +24,7 @@ interface AuthCache {
 const memoryCache = new Map<string, CacheEntry>();
 
 const memoryAuthCache: AuthCache = {
-  get(key: string) {
+  async get(key: string) {
     const entry = memoryCache.get(key);
     if (!entry) return null;
     if (Date.now() > entry.expiresAt) {
@@ -33,13 +33,13 @@ const memoryAuthCache: AuthCache = {
     }
     return entry;
   },
-  set(key: string, entry: CacheEntry) {
+  async set(key: string, entry: CacheEntry) {
     memoryCache.set(key, entry);
   },
-  delete(key: string) {
+  async delete(key: string) {
     memoryCache.delete(key);
   },
-  clear() {
+  async clear() {
     memoryCache.clear();
   },
 };
@@ -48,9 +48,9 @@ const memoryAuthCache: AuthCache = {
 
 let redisClient: {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string, px: number): Promise<void>;
-  del(key: string): Promise<void>;
-  flushall(): Promise<void>;
+  set(key: string, value: string, opts?: { px?: number }): Promise<string | null>;
+  del(key: string): Promise<number>;
+  flushall(): Promise<string>;
 } | null = null;
 
 async function getRedisClient() {
@@ -76,7 +76,7 @@ const redisAuthCache: AuthCache = {
   async get(key: string) {
     const client = await getRedisClient();
     if (!client) return null;
-    const data = await client.get<string>(`auth:cache:${key}`);
+    const data = await client.get(`auth:cache:${key}`);
     if (!data) return null;
     try {
       const entry = JSON.parse(data) as CacheEntry;
@@ -287,7 +287,7 @@ export async function getUserWithCache(): Promise<{ id: string; email?: string; 
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         },
       },

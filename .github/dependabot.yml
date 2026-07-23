@@ -1,49 +1,56 @@
-# Corelyx Dependabot config (Task #1: GitHub Governance, Schritt 5)
-# Enables security alerts + auto-triage (low/medium) + auto-merge for patch/minor with green CI
+# Corelyx Dependabot config
+# Groups updates into: actions, python-patch, npm-patch
 
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    # Supply-chain cooldown: wait before opening PRs (matches .npmrc minimum-release-age)
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "npm"
-    # pnpm supply-chain hardening (mirrors .npmrc): require packages to be
-    # published >= 7 days before install.
-    allow:
-      - dependency-type: "direct"
-    # Auto-merge patch + minor versions when CI is green
-    groups:
-      npm-minor-patch:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-
-  - package-ecosystem: "pip"
-    directory: "/apps/runtime"
-    schedule:
-      interval: "weekly"
-    cooldown:
-      default-days: 7
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "python"
-
+  # GitHub Actions ecosystem
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      default-days: 7
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      actions:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 7
+
+  # Python ecosystem (apps/runtime)
+  - package-ecosystem: "pip"
+    directory: "/apps/runtime"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 7
+
+  # npm ecosystem (monorepo root)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "npm"
+    open-pull-requests-limit: 10
+    allow:
+      - dependency-type: "direct"
+    groups:
+      npm-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    cooldown:
+      default-days: 7

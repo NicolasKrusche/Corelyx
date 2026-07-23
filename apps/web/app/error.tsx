@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -12,9 +13,8 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   const t = useTranslations("errors");
-  // Log to console in development; in production this would go to Sentry/similar
   useEffect(() => {
-    console.error("[error boundary]", error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

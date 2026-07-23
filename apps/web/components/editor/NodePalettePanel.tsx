@@ -4,6 +4,12 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { PROVIDER_ICON_URL } from "@/lib/provider-icons";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
+import {
+  loadConnectorManifest,
+  searchOperations,
+  type ConnectorManifest,
+  type SearchResult,
+} from "@/lib/genesis/connector-manifest";
 
 // ─── Variant type — exported so EditorShell + Toolbar can share it ────────────
 
@@ -484,10 +490,32 @@ interface NodePalettePanelProps {
 export function NodePalettePanel({ onAdd, onDragStart, onClose, enableAdvancedEditor = false }: NodePalettePanelProps) {
   const [search, setSearch] = React.useState("");
   const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(() => new Set());
+  const [manifest, setManifest] = React.useState<ConnectorManifest | null>(null);
+  const [operationResults, setOperationResults] = React.useState<SearchResult[]>([]);
+
+  // Load manifest on mount
+  React.useEffect(() => {
+    loadConnectorManifest().then(setManifest);
+  }, []);
+
   const visibleCategories = enableAdvancedEditor
     ? CATEGORIES
     : CATEGORIES.filter((cat) => cat.id !== "annotations");
   const normalizedSearch = search.trim().toLowerCase();
+
+  // Search operations from manifest when typing (debounced)
+  React.useEffect(() => {
+    if (!manifest || !normalizedSearch || normalizedSearch.length < 2) {
+      setOperationResults([]);
+      return;
+    }
+
+    void (async () => {
+      const results = await searchOperations(normalizedSearch, 10);
+      setOperationResults(results);
+    })();
+  }, [manifest, normalizedSearch]);
+
   const filteredCategories = visibleCategories
     .map((cat) => ({
       ...cat,
@@ -556,6 +584,56 @@ export function NodePalettePanel({ onAdd, onDragStart, onClose, enableAdvancedEd
 
       {/* Scrollable categories */}
       <div className="flex-1 overflow-y-auto py-2">
+        {/* Operation search results from manifest */}
+        {operationResults.length > 0 && (
+          <div className="mb-2 border-b border-border pb-2">
+            <div className="px-3 py-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-700 dark:text-purple-400">
+                Operations
+              </span>
+            </div>
+            <div className="px-2 space-y-0.5">
+              {operationResults.map((result) => (
+                <button
+                  key={`${result.provider}-${result.operation}`}
+                  type="button"
+                  onClick={() => {
+                    onAdd({
+                      type: "connection",
+                      subtype: result.provider as ConnectionSubtype,
+                    });
+                    onClose();
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-left",
+                    "hover:bg-accent transition-colors group cursor-pointer"
+                  )}
+                >
+                  {/* Icon badge */}
+                  <span
+                    className={cn(
+                      "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+                      "bg-purple-500/15 text-purple-700 dark:text-purple-400"
+                    )}
+                  >
+                    <ProviderIcon provider={result.provider} />
+                  </span>
+
+                  {/* Text */}
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground leading-tight truncate">
+                      {result.provider}: {result.operation}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 line-clamp-1">
+                      {result.description ?? `Tier ${result.tier} operation`}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {filteredCategories.map((cat) => {
           const isExpanded = Boolean(normalizedSearch) || expandedCategories.has(cat.id);
           return (

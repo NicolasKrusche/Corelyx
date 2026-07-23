@@ -1,0 +1,47 @@
+{
+  "$schema": "https://grafana.com/docs/k6/latest/using-k6/k6-json-config/",
+  "description": "Corelyx Load Test: 100 Concurrent Workflow Runs",
+  "ext": {
+    "loadimpact": {
+      "name": "corelyx-concurrent-runs",
+      "projectID": 1
+    }
+  },
+  "options": {
+    "setupTimeout": "60s",
+    "teardownTimeout": "60s",
+    "noConnectionReuse": false,
+    "userAgent": "CorelyxLoadTest/1.0",
+    "insecureSkipTLSVerify": false,
+    "scenarios": {
+      "concurrent_runs": {
+        "executor": "ramping-vus",
+        "startVUs": 0,
+        "stages": [
+          { "duration": "30s", "target": 100 },
+          { "duration": "2m", "target": 100 },
+          { "duration": "30s", "target": 0 }
+        ],
+        "gracefulRampDown": "30s",
+        "exec": "workflowRun"
+      }
+    },
+    "thresholds": {
+      "http_req_duration": [
+        "p(95)<5000"
+      ],
+      "http_req_failed": [
+        "rate<0.05"
+      ],
+      "http_reqs": [
+        "rate>5"
+      ],
+      "checks": [
+        "rate>0.95"
+      ]
+    }
+  },
+  "scripts": [
+    "scripts/workflow-run.js"
+  ]
+}

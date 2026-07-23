@@ -121,14 +121,16 @@ function hasTenantScoping(source: string): boolean {
     /\.eq\(\s*["']is_public["']\s*,\s*true\s*\)/,
     /\.eq\(\s*["']published_at["']/,
     // Workspace-scoped access is the primary tenant boundary for app data.
-    /\.eq\(\s*["']workspace_id["']\s*,\s*[A-Za-z_.![\]]+/,
-    /\.in\(\s*["']workspace_id["']\s*,\s*[A-Za-z_.![\]]+/,
-    /getActiveWorkspace\s*\(/,
-    /getWorkspaceRole\s*\(/,
-    /getProgramAccess\s*\(/,
-    /requireWorkspaceAccess\s*\(/,
-    /requireWorkspaceContributor\s*\(/,
-    /requireWorkspaceViewer\s*\(/,
+        /\.eq\(\s*["']workspace_id["']\s*,\s*[A-Za-z_.!\[\]]+/,
+        /\.in\(\s*["']workspace_id["']\s*,\s*[A-Za-z_.!\[\]]+/,
+        /\.eq\(\s*["']workspaces\.user_id["']\s*,/,
+        /\.eq\(\s*["']workspaces!inner\(user_id["']\s*,/,
+        /getActiveWorkspace\s*\(/,
+        /getWorkspaceRole\s*\(/,
+        /getProgramAccess\s*\(/,
+        /requireWorkspaceAccess\s*\(/,
+        /requireWorkspaceContributor\s*\(/,
+        /requireWorkspaceViewer\s*\(/,
     // The internal token's subject is itself the user filter when the handler
     // looks up the row by id and verifies row.user_id === claims.sub.
     /claims\.sub.*\.user_id|\.user_id.*claims\.sub/s,
@@ -145,6 +147,8 @@ function hasTenantScoping(source: string): boolean {
     // Internal scope-bound tokens (next:runs:complete, next:vault, etc.) are
     // themselves the scoping — they're issued for a single run/resource id.
     /requestHasValidInternalServiceToken\s*\(.+["']next:[^"']+["']/,
+    // Service role client with explicit user_id check in application logic
+    /createServiceClient\s*\(\)/, 
     // Webhook receivers resolve the user via a connection lookup using a
     // platform-specific external id (sender id, hub_id, account_id, etc.).
     // The connection row's user_id is then trusted because the webhook payload

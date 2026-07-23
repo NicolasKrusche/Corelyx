@@ -19,6 +19,7 @@ import {
   FileJson,
   FileText,
   History,
+  BarChart3,
   Loader2,
   Network,
   RefreshCw,
@@ -340,6 +341,12 @@ export default async function ProgramPage({ params }: { params: Promise<{ id: st
               <Link href={`/programs/${id}/triggers`}>
                 <Zap className="h-4 w-4" />
                 Triggers
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="h-9">
+              <Link href={`/programs/${id}/analytics`}>
+                <BarChart3 className="h-4 w-4" />
+                Analytics
               </Link>
             </Button>
             {userCanEdit && (

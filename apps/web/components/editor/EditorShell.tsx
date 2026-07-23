@@ -45,10 +45,12 @@ import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { VersionHistoryPanel } from "@/components/editor/VersionHistoryPanel";
 import { RunLogDrawer } from "@/components/editor/RunLogDrawer";
 import { SimulationPanel } from "@/components/editor/SimulationPanel";
+import { ExecutionReplayPanel } from "@/components/editor/ExecutionReplayPanel";
 import { NodeSidebar } from "@/components/sidebars/NodeSidebar";
 import type { ApiKey, PlatformAgentModel } from "@/components/sidebars/NodeSidebar";
 import { NodePalettePanel } from "@/components/editor/NodePalettePanel";
 import type { NodeVariant, TriggerSubtype, StepSubtype, NoteColor } from "@/components/editor/NodePalettePanel";
+import { SmartNodePalette } from "@/components/editor/SmartNodePalette";
 import { AiEditPanel } from "@/components/editor/AiEditPanel";
 import type { PlatformModel } from "@/components/ui/bolt-style-chat";
 import { EditorTour } from "@/components/editor/editor-tour";
@@ -66,6 +68,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { PreFlightCheck } from "@/lib/validation/pre-flight";
+import type { FixSuggestion } from "@/lib/genesis/fixit";
+import FixItModal from "@/components/editor/FixItModal";
 import type { ComplianceCheck } from "@/lib/compliance/workflow";
 import { useTheme } from "@/components/theme-provider";
 import { GenesisQuestionPanel } from "@/components/genesis/question-panel";
@@ -434,10 +438,13 @@ export function EditorShell({
 
   const [showHistory, setShowHistory] = React.useState(false);
   const [showPalette, setShowPalette] = React.useState(false);
+  const [showSmartPalette, setShowSmartPalette] = React.useState(false);
   const [showAiEdit, setShowAiEdit] = React.useState(false);
   const [showRawSchema, setShowRawSchema] = React.useState(false);
   const [showDebugger, setShowDebugger] = React.useState(false);
   const [showSimulation, setShowSimulation] = React.useState(false);
+  const [showReplay, setShowReplay] = React.useState(false);
+  const [replayNodeStatuses, setReplayNodeStatuses] = React.useState<Record<string, string>>({});
   const [rawSchemaEnabled] = useRawSchemaMode();
   const [contextMenu, setContextMenu] = React.useState<EditorContextMenu>(null);
   const [contextAddPosition, setContextAddPosition] = React.useState<{ x: number; y: number } | null>(null);
@@ -498,6 +505,12 @@ export function EditorShell({
   const [isComplianceBlock, setIsComplianceBlock] = React.useState(false);
   const [applyingFixNodeId, setApplyingFixNodeId] = React.useState<string | null>(null);
   const [acknowledgingProvider, setAcknowledgingProvider] = React.useState<string | null>(null);
+
+  // ── FixIt modal state ────────────────────────────────────────────────────
+  const [showFixItModal, setShowFixItModal] = React.useState(false);
+  const [fixSuggestions, setFixSuggestions] = React.useState<FixSuggestion[] | null>(null);
+  const [loadingFixSuggestions, setLoadingFixSuggestions] = React.useState(false);
+  const [applyingFixSuggestion, setApplyingFixSuggestion] = React.useState(false);
 
   useEffect(() => {
     if (!validationNotice) return;
@@ -908,6 +921,105 @@ export function EditorShell({
   // The user validates explicitly via the Validate button (handleValidate),
   // which uses the current linkedConnections state. This avoids false-positive
   // errors stamped on nodes before the user has interacted with the editor.
+
+  // ── FixIt: request AI fix suggestions for validation errors ─────────────
+  const handleRequestFixSuggestions = useCallback(async () => {
+    if (!preFlightChecks) return;
+    setLoadingFixSuggestions(true);
+    setFixSuggestions(null);
+    try {
+      // Collect all errors from failed checks
+      const errors = preFlightChecks
+        .filter((c) => c.status === "fail")
+        .flatMap((c) =>
+          c.failures.map((f) => ({
+            code: c.code,
+            severity: "blocking" as const,
+            node_id: f.node_id ?? null,
+            edge_id: null,
+            message: f.message,
+            fix_suggestion: f.fix_suggestion,
+          }))
+        );
+
+      const res = await fetch(`/api/programs/${programId}/fixit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ errors }),
+      });
+
+      if (!res.ok) {
+        setFixSuggestions([]);
+        return;
+      }
+
+      const data = (await res.json()) as {
+        suggestions?: FixSuggestion[];
+        error?: string;
+      };
+      setFixSuggestions(data.suggestions ?? []);
+    } catch {
+      setFixSuggestions([]);
+    } finally {
+      setLoadingFixSuggestions(false);
+    }
+  }, [preFlightChecks, programId]);
+
+  const handleApplyFixSuggestion = useCallback(
+    async (suggestion: FixSuggestion) => {
+      setApplyingFixSuggestion(true);
+      try {
+        // Apply the JSON patch server-side and re-validate
+        const res = await fetch(`/api/programs/${programId}/preflight/fix`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            remediation: {
+              type: "apply_json_patch",
+              patch: suggestion.patch,
+              description: suggestion.description,
+            },
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(
+            (err as { error?: string }).error ?? "Failed to apply fix"
+          );
+        }
+
+        const data = (await res.json()) as {
+          schema?: ProgramSchema;
+          schema_version?: number;
+          validation?: { checks?: PreFlightCheck[] };
+        };
+
+        if (typeof data.schema_version === "number") {
+          schemaVersionRef.current = data.schema_version;
+        }
+        if (data.schema) {
+          dispatch({ type: "RESTORE_VERSION", schema: data.schema });
+        }
+        const nextChecks = data.validation?.checks ?? [];
+        const remaining = nextChecks.filter((c) => c.status === "fail");
+        setPreFlightChecks(remaining.length > 0 ? nextChecks : null);
+        return data;
+      } finally {
+        setApplyingFixSuggestion(false);
+      }
+    },
+    [programId]
+  );
+
+  // Open the FixIt modal when pre-flight checks fail
+  React.useEffect(() => {
+    if (preFlightChecks && preFlightChecks.some((c) => c.status === "fail")) {
+      setShowFixItModal(true);
+      // Reset suggestions when new errors appear
+      setFixSuggestions(null);
+    }
+  }, [preFlightChecks]);
 
   const duplicateNode = useCallback(
     (nodeId: string, position?: { x: number; y: number }) => {
@@ -1425,6 +1537,7 @@ export function EditorShell({
         addNodeAtPosition(variant, contextAddPosition);
         setContextAddPosition(null);
         setShowPalette(false);
+        setShowSmartPalette(false);
         return;
       }
 
@@ -1558,6 +1671,7 @@ export function EditorShell({
       setAiEditError(null);
       setShowAiEdit(true);
       setShowPalette(false);
+      setShowSmartPalette(false);
       setShowRawSchema(false);
       if (apiKeys.length === 0) setAiEditMode("platform");
     },
@@ -2250,12 +2364,21 @@ export function EditorShell({
           setShowPalette((v) => !v);
           if (showHistory) setShowHistory(false);
           if (showAiEdit) setShowAiEdit(false);
+          setShowSmartPalette(false);
+        }}
+        showSmartPalette={showSmartPalette}
+        onToggleSmartPalette={() => {
+          setShowSmartPalette((v) => !v);
+          setShowPalette(false);
+          if (showHistory) setShowHistory(false);
+          if (showAiEdit) setShowAiEdit(false);
         }}
         onHistory={() => {
           setShowHistory((prev) => !prev);
           if (!showHistory) {
             dispatch({ type: "SELECT_NODE", nodeId: null });
             setShowPalette(false);
+            setShowSmartPalette(false);
           }
         }}
         onAiEdit={() => {
@@ -2270,14 +2393,13 @@ export function EditorShell({
           }
         }}
         onAutoLayout={handleAutoLayout}
-                layoutDirection={layoutDirection}
-                onTestWebhook={() => setShowWebhookTest(true)}
-                showRawSchema={rawSchemaEnabled && showRawSchema}
-                onToggleDebugger={() => setShowDebugger(!showDebugger)}
-                onSimulation={() => setShowSimulation(true)}
+        layoutDirection={layoutDirection}
+        onTestWebhook={() => setShowWebhookTest(true)}
+        showRawSchema={rawSchemaEnabled && showRawSchema}
+        onToggleRawSchema={rawSchemaEnabled ? () => {
           const opening = !showRawSchema;
           setShowRawSchema(opening);
-          if (opening) { setShowPalette(false); setShowAiEdit(false); }
+          if (opening) { setShowPalette(false); setShowAiEdit(false); setShowSmartPalette(false); }
         } : undefined}
         showDebugger={enableAdvancedEditor && showDebugger}
         onToggleDebugger={enableAdvancedEditor ? () => {
@@ -2286,9 +2408,20 @@ export function EditorShell({
         onSimulation={() => {
           setShowSimulation(true);
           setShowPalette(false);
+          setShowSmartPalette(false);
           setShowAiEdit(false);
           setShowRawSchema(false);
           setShowHistory(false);
+          setShowReplay(false);
+        }}
+        onReplay={() => {
+          setShowReplay(true);
+          setShowPalette(false);
+          setShowSmartPalette(false);
+          setShowAiEdit(false);
+          setShowRawSchema(false);
+          setShowHistory(false);
+          setShowSimulation(false);
         }}
       />
 
@@ -2301,6 +2434,16 @@ export function EditorShell({
           enableAdvancedEditor={enableAdvancedEditor}
         />
       )}
+      {/* Smart context-aware node palette */}
+      {showSmartPalette && !isMobile && (
+        <SmartNodePalette
+          selectedNode={state.schema.nodes.find((n) => n.id === state.selectedNodeId) ?? null}
+          onAdd={handleAddNode}
+          onDragStart={handlePaletteDragStart}
+          onClose={() => setShowSmartPalette(false)}
+        />
+      )}
+
 
       {/* AI edit panel — slides in from left */}
       {showAiEdit && !isMobile && (
@@ -2616,8 +2759,8 @@ export function EditorShell({
           <SimulationPanel
             programId={programId}
             programSchema={{
-              nodes: state.schema.nodes,
-              edges: state.schema.edges,
+              nodes: state.schema.nodes as unknown as { id: string; type: string; label: string; position: { x: number; y: number }; status: string; config?: Record<string, unknown> }[],
+              edges: state.schema.edges as unknown as { id: string; from_node: string; to: string; type: string }[],
             }}
             onClose={() => setShowSimulation(false)}
             onRunSimulation={async (triggerPayload) => {
@@ -2629,6 +2772,22 @@ export function EditorShell({
               if (!res.ok) throw new Error("Simulation failed");
               return res.json();
             }}
+          />
+        )}
+
+        {/* Execution replay panel — read-only review of past runs */}
+        {showReplay && (
+          <ExecutionReplayPanel
+            programId={programId}
+            programSchema={{
+              nodes: state.schema.nodes as unknown as { id: string; type: string; label: string; position: { x: number; y: number }; status: string; config?: Record<string, unknown> }[],
+              edges: state.schema.edges as unknown as { id: string; from_node: string; to: string; type: string }[],
+            }}
+            onClose={() => {
+              setShowReplay(false);
+              setReplayNodeStatuses({});
+            }}
+            onNodeStatusUpdate={setReplayNodeStatuses}
           />
         )}
 

@@ -1,0 +1,58 @@
+{
+  "provider": "slack",
+  "description": "Slack connector contract — messaging and channel operations via Slack Web API",
+  "operations": [
+    {
+      "name": "send_message",
+      "input_fields": [
+        {"name": "channel", "type": "string", "required": true, "description": "Channel ID or name"},
+        {"name": "text", "type": "string", "required": false, "description": "Message text"},
+        {"name": "blocks", "type": "array", "required": false, "description": "Block Kit blocks"}
+      ],
+      "output_fields": [
+        {"name": "ts", "type": "string", "required": false, "description": "Message timestamp"},
+        {"name": "channel", "type": "string", "required": false},
+        {"name": "message", "type": "object", "required": false}
+      ],
+      "required_input_fields": ["channel"],
+      "optional_input_fields": ["text", "blocks"]
+    },
+    {
+      "name": "read_channel",
+      "input_fields": [
+        {"name": "channel", "type": "string", "required": true},
+        {"name": "limit", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "messages", "type": "array", "required": false},
+        {"name": "has_more", "type": "boolean", "required": false}
+      ],
+      "required_input_fields": ["channel"],
+      "optional_input_fields": ["limit"]
+    },
+    {
+      "name": "list_channels",
+      "input_fields": [
+        {"name": "limit", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "channels", "type": "array", "required": false}
+      ],
+      "required_input_fields": [],
+      "optional_input_fields": ["limit"]
+    },
+    {
+      "name": "create_channel",
+      "input_fields": [
+        {"name": "name", "type": "string", "required": true},
+        {"name": "is_private", "type": "boolean", "required": false}
+      ],
+      "output_fields": [
+        {"name": "channel_id", "type": "string", "required": false},
+        {"name": "name", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["name"],
+      "optional_input_fields": ["is_private"]
+    }
+  ]
+}

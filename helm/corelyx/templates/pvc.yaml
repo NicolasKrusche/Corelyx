@@ -1,0 +1,33 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "corelyx.fullname" . }}-postgres-data
+  labels:
+    {{- include "corelyx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: {{ .Values.postgres.storageClass | default "" }}
+{{- end }}
+{{- if .Values.redis.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "corelyx.fullname" . }}-redis-data
+  labels:
+    {{- include "corelyx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: {{ .Values.redis.storageClass | default "" }}
+{{- end }}

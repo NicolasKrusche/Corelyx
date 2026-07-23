@@ -1,0 +1,120 @@
+{
+  "provider": "redis",
+  "description": "Redis connector contract — key/value and list operations via redis.asyncio",
+  "operations": [
+    {
+      "name": "get",
+      "input_fields": [
+        {"name": "key", "type": "string", "required": true, "description": "Key to retrieve"}
+      ],
+      "output_fields": [
+        {"name": "key", "type": "string", "required": false},
+        {"name": "value", "type": "string", "required": false},
+        {"name": "exists", "type": "boolean", "required": false}
+      ],
+      "required_input_fields": ["key"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "set",
+      "input_fields": [
+        {"name": "key", "type": "string", "required": true},
+        {"name": "value", "type": "string", "required": false},
+        {"name": "ex", "type": "integer", "required": false, "description": "Expire time in seconds"},
+        {"name": "px", "type": "integer", "required": false, "description": "Expire time in milliseconds"},
+        {"name": "nx", "type": "boolean", "required": false, "description": "Only set if not exists"},
+        {"name": "xx", "type": "boolean", "required": false, "description": "Only set if exists"}
+      ],
+      "output_fields": [
+        {"name": "key", "type": "string", "required": false},
+        {"name": "value", "type": "string", "required": false},
+        {"name": "set", "type": "boolean", "required": false}
+      ],
+      "required_input_fields": ["key"],
+      "optional_input_fields": ["value", "ex", "px", "nx", "xx"]
+    },
+    {
+      "name": "delete",
+      "input_fields": [
+        {"name": "keys", "type": "array", "required": true, "description": "One or more keys to delete"}
+      ],
+      "output_fields": [
+        {"name": "keys", "type": "array", "required": false},
+        {"name": "deleted_count", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["keys"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "exists",
+      "input_fields": [
+        {"name": "keys", "type": "array", "required": true, "description": "One or more keys to check"}
+      ],
+      "output_fields": [
+        {"name": "keys", "type": "array", "required": false},
+        {"name": "exists_count", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["keys"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "incr",
+      "input_fields": [
+        {"name": "key", "type": "string", "required": true},
+        {"name": "amount", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "key", "type": "string", "required": false},
+        {"name": "value", "type": "integer", "required": false},
+        {"name": "incremented_by", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["key"],
+      "optional_input_fields": ["amount"]
+    },
+    {
+      "name": "lpush",
+      "input_fields": [
+        {"name": "key", "type": "string", "required": true},
+        {"name": "values", "type": "array", "required": true}
+      ],
+      "output_fields": [
+        {"name": "key", "type": "string", "required": false},
+        {"name": "values", "type": "array", "required": false},
+        {"name": "list_length", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["key", "values"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "rpush",
+      "input_fields": [
+        {"name": "key", "type": "string", "required": true},
+        {"name": "values", "type": "array", "required": true}
+      ],
+      "output_fields": [
+        {"name": "key", "type": "string", "required": false},
+        {"name": "values", "type": "array", "required": false},
+        {"name": "list_length", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["key", "values"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "lrange",
+      "input_fields": [
+        {"name": "key", "type": "string", "required": true},
+        {"name": "start", "type": "integer", "required": false},
+        {"name": "end", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "key", "type": "string", "required": false},
+        {"name": "start", "type": "integer", "required": false},
+        {"name": "end", "type": "integer", "required": false},
+        {"name": "values", "type": "array", "required": false},
+        {"name": "count", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["key"],
+      "optional_input_fields": ["start", "end"]
+    }
+  ]
+}

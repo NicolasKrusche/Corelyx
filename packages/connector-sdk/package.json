@@ -1,0 +1,45 @@
+{
+  "name": "@flowos/connector-sdk",
+  "version": "0.1.0",
+  "description": "SDK for building Corelyx connectors — schema helpers, auth providers, operation handlers, and manifest generation.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./cli": {
+      "types": "./src/cli/index.ts",
+      "default": "./src/cli/index.ts"
+    }
+  },
+  "bin": {
+    "corelyx-connector": "./src/cli/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "generate-manifest": "node --loader ts-node/esm src/cli/index.ts generate-manifest",
+    "connector:init": "node --loader ts-node/esm src/cli/index.ts init",
+    "connector:test": "node --loader ts-node/esm src/cli/index.ts test",
+    "connector:build": "node --loader ts-node/esm src/cli/index.ts build"
+  },
+  "dependencies": {
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.5"
+  },
+  "peerDependencies": {},
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "license": "UNLICENSED",
+  "private": true
+}

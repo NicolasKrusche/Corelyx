@@ -2,19 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
+import time
 import ipaddress
 import json
 import math
 import os
 import re
 import socket
-import time
 from datetime import datetime, timedelta, timezone
 from dataclasses import replace
 import html as _html_module
 from urllib.parse import urljoin, urlsplit
 from typing import Any, Callable
 
+import structlog
 import httpx
 from langgraph.graph import StateGraph
 from langchain_anthropic import ChatAnthropic
@@ -66,6 +68,9 @@ from engine.circuit_breaker import (
     get_llm_circuit,
     get_oauth_token_circuit,
 )
+from engine.streaming import EventStream, StreamEventType, StreamingExecutor, create_stream, remove_stream
+from engine.checkpointing import CheckpointStore, should_checkpoint
+from engine.parallel import DependencyResolver, ParallelExecutor, ParallelExecutionError
 from engine.run_limits import (
     RunLimitExceeded,
     RunLimiter,
@@ -74,8 +79,11 @@ from engine.run_limits import (
 from engine.credential_lock import (
     get_token_refresh_manager,
 )
+from engine.tracing import async_span, get_tracer
 from internal_auth import build_internal_service_headers
 from compliance import get_provider, policy_block_reason, provider_for_model
+
+log = structlog.get_logger("engine.executor")
 
 TelemetryPayload = dict[str, int | float]
 EXECUTABLE_NODE_TYPES = {"trigger", "agent", "agent_task", "step", "connection"}
@@ -1095,6 +1103,10 @@ class ProgramExecutor:
         dry_run: bool = False,
         pii_mode: str = "auto",
         bulk_write_approval_threshold: int = BULK_WRITE_APPROVAL_THRESHOLD,
+        stream: EventStream | None = None,
+        enable_checkpointing: bool = True,
+        enable_parallel_execution: bool = True,
+        max_parallel_concurrent: int = 10,
     ) -> None:
         self.schema = schema
         self.run_id = run_id
@@ -1103,6 +1115,15 @@ class ProgramExecutor:
         self.execution_mode = execution_mode
         self.conflict_policy = conflict_policy
         self.workspace_id = workspace_id
+        # Streaming support
+        self._stream = stream
+        # Checkpointing support
+        self._enable_checkpointing = enable_checkpointing
+        self._checkpoint_store = CheckpointStore(run_id) if enable_checkpointing else None
+        # Parallel execution support
+        self._enable_parallel = enable_parallel_execution
+        self._parallel_executor = ParallelExecutor(max_concurrent=max_parallel_concurrent) if enable_parallel_execution else None
+        self._dep_resolver = DependencyResolver(schema) if enable_parallel_execution else None
         # None is kept for backwards-compatible direct construction in isolated
         # tests. Production entrypoints always pass the resolved workspace tier.
         self.model_access_tier = model_access_tier
@@ -1176,6 +1197,41 @@ class ProgramExecutor:
     def is_paused_for_human_input(self) -> bool:
         """True while blocked inside an approval / ask_user / file-op wait."""
         return self._limiter.is_paused
+    async def emit_event(
+        self,
+        event_type: StreamEventType,
+        node_id: str | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> None:
+        """Emit a streaming event if streaming is enabled."""
+        if self._stream:
+            from engine.streaming import StreamEvent
+            event = StreamEvent(
+                event_type=event_type,
+                run_id=self._stream.run_id,
+                node_id=node_id,
+                data=data or {},
+            )
+            await self._stream.emit(event)
+
+    async def _save_checkpoint(
+        self,
+        node_id: str,
+        state: dict[str, Any],
+        visited: set[str],
+        queue: list[str],
+    ) -> None:
+        """Save a checkpoint if checkpointing is enabled."""
+        if self._checkpoint_store and self._enable_checkpointing:
+            try:
+                await self._checkpoint_store.save_checkpoint(
+                    node_id=node_id,
+                    state=state,
+                    visited_nodes=visited,
+                    queue_nodes=queue,
+                )
+            except Exception as e:
+                print(f"[checkpoint] WARNING: Could not save checkpoint: {e}", flush=True)
 
     @property
     def _pii(self) -> PseudonymizationSession:
@@ -1902,95 +1958,131 @@ class ProgramExecutor:
         return resolved
 
     async def _execute_node(self, node: SchemaNode, input_data: dict) -> dict:
-        # Check run limits before executing
-        self._limiter.check_node_limit()
-        self._limiter.check_execution_time()
-
-        # input_data includes full state keyed by node ID (for expression resolution),
-        # but logging the entire state to the DB causes oversized payloads and
-        # httpx [Errno 22] on Windows. Log only the "real" input fields — strip
-        # the node-ID keys that were added by _resolve_input layer 2.
-        log_input = {k: v for k, v in input_data.items() if k not in self.node_map and k != "loop_id"}
-        await update_node_execution(
-            self.db,
-            self.run_id,
-            node.id,
-            status="running",
-            started_at="now()",
-            input_payload=log_input,
-            data_region=self.data_region,
-            retention_expiry=self.retention_expiry,
+        node_start = time.monotonic()
+        log.info(
+            "node.start",
+            node_id=node.id,
+            node_type=node.type,
+            run_id=self.run_id,
         )
 
-        # In manual mode: pause each node and wait for step-through approval
-        if self.execution_mode == "manual" and node.type != "trigger":
-            approved = await self._request_step_approval(node, input_data, "Manual step-through")
-            if not approved:
-                await update_node_execution(
-                    self.db,
-                    self.run_id,
-                    node.id,
-                    status="skipped",
-                    completed_at="now()",
-                    data_region=self.data_region,
-                    retention_expiry=self.retention_expiry,
-                    **self._node_telemetry_payload(node.id),
-                )
-                return {}
+        async with async_span(
+            f"node.{node.type}",
+            attributes={
+                "node.id": node.id,
+                "node.type": node.type,
+                "run.id": self.run_id,
+                "program.id": self.program_id,
+            },
+        ):
+            # Check run limits before executing
+            self._limiter.check_node_limit()
+            self._limiter.check_execution_time()
 
-        try:
-            if node.type == "agent":
-                output = await self._execute_agent(node, input_data)
-            elif node.type == "agent_task":
-                output = await self._execute_agent_task(node, input_data)
-            elif node.type == "step":
-                output = await self._execute_step(node, input_data)
-            elif node.type == "connection":
-                output = await self._execute_connection(node, input_data)
-            else:
-                output = input_data  # trigger: pass through
-
-            # A persistently-hallucinating agent attaches a non-fatal groundedness
-            # warning. Lift it onto the node record (so the UI flags it) and strip
-            # it from the data payload so it never leaks to downstream nodes.
-            groundedness_warnings: list[str] = []
-            if isinstance(output, dict) and GROUNDEDNESS_WARNING_KEY in output:
-                warning = output[GROUNDEDNESS_WARNING_KEY]
-                if isinstance(warning, str):
-                    groundedness_warnings = [warning]
-                output = {k: v for k, v in output.items() if k != GROUNDEDNESS_WARNING_KEY}
-
-            # A failed-open retry path (fail_program_on_exhaust=False) returns a
-            # NODE_ERROR_KEY-tagged output instead of raising. Keep the row
-            # visibly failed with the provider error — the run continues, but
-            # the step must not read as a clean success.
-            node_error: str | None = None
-            if isinstance(output, dict):
-                tagged_error = output.get(NODE_ERROR_KEY)
-                if isinstance(tagged_error, str) and tagged_error:
-                    node_error = tagged_error
-
+            # input_data includes full state keyed by node ID (for expression resolution),
+            # but logging the entire state to the DB causes oversized payloads and
+            # httpx [Errno 22] on Windows. Log only the "real" input fields — strip
+            # the node-ID keys that were added by _resolve_input layer 2.
+            log_input = {k: v for k, v in input_data.items() if k not in self.node_map and k != "loop_id"}
             await update_node_execution(
                 self.db,
                 self.run_id,
                 node.id,
-                status="failed" if node_error else "completed",
-                completed_at="now()",
-                output_payload=output,
-                # None clears any error recorded by an earlier retry attempt so
-                # a node that ultimately succeeded does not display a stale
-                # failure.
-                error_message=node_error,
-                block_warning_reasons=groundedness_warnings,
+                status="running",
+                started_at="now()",
+                input_payload=log_input,
                 data_region=self.data_region,
                 retention_expiry=self.retention_expiry,
-                **self._node_telemetry_payload(node.id),
             )
-            return output
-        except ExecutionError:
-            raise
-        except Exception as e:
-            raise ExecutionError("NODE_FAILED", str(e), node.id) from e
+
+            # In manual mode: pause each node and wait for step-through approval
+            if self.execution_mode == "manual" and node.type != "trigger":
+                approved = await self._request_step_approval(node, input_data, "Manual step-through")
+                if not approved:
+                    await update_node_execution(
+                        self.db,
+                        self.run_id,
+                        node.id,
+                        status="skipped",
+                        completed_at="now()",
+                        data_region=self.data_region,
+                        retention_expiry=self.retention_expiry,
+                        **self._node_telemetry_payload(node.id),
+                    )
+                    return {}
+
+            try:
+                if node.type == "agent":
+                    output = await self._execute_agent(node, input_data)
+                elif node.type == "agent_task":
+                    output = await self._execute_agent_task(node, input_data)
+                elif node.type == "step":
+                    output = await self._execute_step(node, input_data)
+                elif node.type == "connection":
+                    output = await self._execute_connection(node, input_data)
+                else:
+                    output = input_data  # trigger: pass through
+
+                # A persistently-hallucinating agent attaches a non-fatal groundedness
+                # warning. Lift it onto the node record (so the UI flags it) and strip
+                # it from the data payload so it never leaks to downstream nodes.
+                groundedness_warnings: list[str] = []
+                if isinstance(output, dict) and GROUNDEDNESS_WARNING_KEY in output:
+                    warning = output[GROUNDEDNESS_WARNING_KEY]
+                    if isinstance(warning, str):
+                        groundedness_warnings = [warning]
+                    output = {k: v for k, v in output.items() if k != GROUNDEDNESS_WARNING_KEY}
+
+                # A failed-open retry path (fail_program_on_exhaust=False) returns a
+                # NODE_ERROR_KEY-tagged output instead of raising. Keep the row
+                # visibly failed with the provider error — the run continues, but
+                # the step must not read as a clean success.
+                node_error: str | None = None
+                if isinstance(output, dict):
+                    tagged_error = output.get(NODE_ERROR_KEY)
+                    if isinstance(tagged_error, str) and tagged_error:
+                        node_error = tagged_error
+
+                duration_ms = round((time.monotonic() - node_start) * 1000, 1)
+                log.info(
+                    "node.complete",
+                    node_id=node.id,
+                    node_type=node.type,
+                    run_id=self.run_id,
+                    status="failed" if node_error else "completed",
+                    duration_ms=duration_ms,
+                )
+
+                await update_node_execution(
+                    self.db,
+                    self.run_id,
+                    node.id,
+                    status="failed" if node_error else "completed",
+                    completed_at="now()",
+                    output_payload=output,
+                    # None clears any error recorded by an earlier retry attempt so
+                    # a node that ultimately succeeded does not display a stale
+                    # failure.
+                    error_message=node_error,
+                    block_warning_reasons=groundedness_warnings,
+                    data_region=self.data_region,
+                    retention_expiry=self.retention_expiry,
+                    **self._node_telemetry_payload(node.id),
+                )
+                return output
+            except ExecutionError:
+                raise
+            except Exception as e:
+                duration_ms = round((time.monotonic() - node_start) * 1000, 1)
+                log.error(
+                    "node.failed",
+                    node_id=node.id,
+                    node_type=node.type,
+                    run_id=self.run_id,
+                    error=str(e)[:300],
+                    duration_ms=duration_ms,
+                )
+                raise ExecutionError("NODE_FAILED", str(e), node.id) from e
 
     async def _execute_agent(self, node: SchemaNode, input_data: dict) -> dict:
         cfg: AgentConfig = node.config  # type: ignore[assignment]
@@ -3469,6 +3561,7 @@ class ProgramExecutor:
                 await self._screen_read_for_critical(provider_id, operation, result)
             return {"ok": True, "result": result}
         except ConnectorError as exc:
+            log.warning("connector.error", provider=provider_id, operation=operation, error=exc.message)
             if exc.code == "TOKEN_EXPIRED":
                 # Cached token rejected — force a refresh and retry once.
                 try:
@@ -3556,11 +3649,15 @@ class ProgramExecutor:
         deduct_credits: bool = False,
     ) -> dict:
         """Call the LLM via LiteLLM-compatible API."""
+        llm_start = time.monotonic()
         if not api_key:
+            log.error("llm.key_missing", node_id=node_id, provider=provider)
             raise ExecutionError(
                 "API_KEY_MISSING", f"No API key available for provider '{provider}' — check your key configuration"
             )
         litellm_url = os.environ.get("LITELLM_URL")
+
+        log.info("llm.call", node_id=node_id, model=cfg.model, provider=provider)
 
         PROVIDER_URLS: dict[str, str] = {
             "groq": "https://api.groq.com/openai/v1",

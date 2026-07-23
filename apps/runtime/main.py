@@ -5,18 +5,20 @@ import contextlib
 import json
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Optional
 from urllib.parse import urljoin, urlsplit
 
+import structlog
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # Force UTF-8 stdout/stderr on Windows so Unicode chars in log output don't crash
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,6 +47,7 @@ from connectors.introspection import (
 )
 from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
 from engine.circuit_breaker import list_known_circuits, reset_all_circuits
+from engine.usage_tracker import track_usage
 from compliance import (
     load_program_connection_providers,
     load_workspace_policy,
@@ -60,6 +63,9 @@ from internal_auth import (
 from schema import ProgramSchema, parse_schema
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
+
+log = structlog.get_logger("runtime.main")
+
 
 # Validate required auth secrets at startup so misconfiguration surfaces in
 # Railway logs immediately rather than silently on the first execute request.
@@ -220,6 +226,33 @@ async def trigger_workflow(workflow_id: str) -> None:
             **telemetry,
         )
         await release_run_locks(db, run_id)
+        # Track billing usage for cron-triggered runs
+        if executor and telemetry:
+            try:
+                org_id_val: str | None = None
+                if program_data.get("workspace_id"):
+                    ws_data = db.table("workspaces").select("org_id").eq("id", program_data["workspace_id"]).maybeSingle().execute()
+                    if ws_data.data:
+                        org_id_val = ws_data.data.get("org_id")
+                if not org_id_val:
+                    prof_data = db.table("profiles").select("org_id").eq("id", user_id).maybeSingle().execute()
+                    if prof_data.data:
+                        org_id_val = prof_data.data.get("org_id")
+                await track_usage(
+                    run_id=run_id,
+                    org_id=org_id_val,
+                    user_id=user_id,
+                    started_at=datetime.now(timezone.utc) - timedelta(seconds=60),
+                    completed_at=datetime.now(timezone.utc),
+                    total_tokens=telemetry.get("total_tokens", 0),
+                    prompt_tokens=telemetry.get("prompt_tokens", 0),
+                    completion_tokens=telemetry.get("completion_tokens", 0),
+                    estimated_cost_usd=telemetry.get("estimated_cost_usd", 0.0),
+                    model=None,
+                    billing="platform",
+                )
+            except Exception:
+                pass
         await _notify_complete(run_id, workflow_id, user_id, final_status, error_message)
 
 
@@ -420,7 +453,9 @@ async def execute_program(
     x_internal_service_token: str | None = Header(default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER),
 ) -> dict[str, str]:
     raw_body = await request.body()
+    req_start = time.monotonic()
     if not x_internal_service_token:
+        log.warning("execute.missing_token")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
@@ -720,6 +755,81 @@ async def _run_program(
             **executor.run_telemetry_payload(),
         )
         await release_run_locks(db, run_id)
+        # Track billing usage for this run
+        telemetry = executor.run_telemetry_payload()
+        started_at_val = None
+        try:
+            run_data = (
+                db.table("runs")
+                .select("started_at")
+                .eq("id", run_id)
+                .maybeSingle()
+                .execute()
+            )
+            if run_data.data and run_data.data.get("started_at"):
+                started_at_val = datetime.fromisoformat(
+                    run_data.data["started_at"].replace("Z", "+00:00")
+                )
+        except Exception:
+            pass
+        # Resolve org_id from workspace or profile
+        org_id_val: str | None = None
+        if workspace_id:
+            try:
+                ws_data = (
+                    db.table("workspaces")
+                    .select("org_id")
+                    .eq("id", workspace_id)
+                    .maybeSingle()
+                    .execute()
+                )
+                if ws_data.data:
+                    org_id_val = ws_data.data.get("org_id")
+            except Exception:
+                pass
+        if not org_id_val:
+            try:
+                prof_data = (
+                    db.table("profiles")
+                    .select("org_id")
+                    .eq("id", user_id)
+                    .maybeSingle()
+                    .execute()
+                )
+                if prof_data.data:
+                    org_id_val = prof_data.data.get("org_id")
+            except Exception:
+                pass
+        # Determine billing mode (byok if user has own key configured)
+        billing_mode = "platform"
+        try:
+            prof_tier = (
+                db.table("profiles")
+                .select("tier")
+                .eq("id", user_id)
+                .maybeSingle()
+                .execute()
+            )
+            if prof_tier.data and prof_tier.data.get("tier") in ("byok", "builder"):
+                billing_mode = "byok"
+        except Exception:
+            pass
+        try:
+            await track_usage(
+                run_id=run_id,
+                org_id=org_id_val,
+                user_id=user_id,
+                started_at=started_at_val,
+                completed_at=datetime.now(timezone.utc),
+                total_tokens=telemetry.get("total_tokens", 0),
+                prompt_tokens=telemetry.get("prompt_tokens", 0),
+                completion_tokens=telemetry.get("completion_tokens", 0),
+                estimated_cost_usd=telemetry.get("estimated_cost_usd", 0.0),
+                model=None,
+                billing=billing_mode,
+            )
+        except Exception:
+            pass  # Best-effort: never block run completion
         # Notify Next.js — fires inter-program triggers for completed runs
         await _notify_complete(run_id, program_id, user_id, final_status, error_message)
 
@@ -848,3 +958,156 @@ async def reset_circuits(
     await _verify_internal_caller(request, x_internal_service_token, "runtime:circuits")
     reset_all_circuits()
     return {"ok": True}
+
+
+class RunReplayFromNodeRequest(BaseModel):
+    """Request payload for /execute-from-node."""
+
+    run_id: str
+    start_node_id: str
+    start_input: dict[str, Any] = {}
+    upstream_outputs: dict[str, dict[str, Any]] = {}
+    original_run_id: str
+    trigger_payload: Optional[dict[str, Any]] = None
+    connections: dict[str, str] = {}
+
+
+@app.post("/execute-from-node")
+async def execute_from_node(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    x_internal_service_token: str | None = Header(default=None, alias=INTERNAL_SERVICE_TOKEN_HEADER),
+) -> dict[str, str]:
+    """Re-execute a workflow starting from a specific node with edited input.
+
+    Accepts the same auth as /execute. The caller (Next.js web app) pre-computes
+    upstream_outputs from the original run's node_executions so the runtime does
+    not need an extra DB lookup.
+    """
+    raw_body = await request.body()
+    if not x_internal_service_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        has_valid_token = verify_internal_service_token(
+            x_internal_service_token,
+            "runtime:execute",
+            method=request.method,
+            path=request.url.path,
+            body=raw_body,
+        )
+    except RuntimeError as exc:
+        if "INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_EXECUTE" in str(exc):
+            print(f"[runtime] Execute-from-node auth misconfigured: {exc}")
+            raise HTTPException(status_code=500, detail="Runtime auth is not configured")
+        raise
+
+    if not has_valid_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        body = RunReplayFromNodeRequest.model_validate_json(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid replay-from-node payload")
+
+    # Load run + program from DB (S15: ignore caller-supplied program data)
+    db = get_db()
+    run_lookup = db.table("runs").select("id, program_id, status").eq("id", body.run_id).limit(1).execute()
+    run_rows = run_lookup.data or []
+    if not run_rows:
+        raise HTTPException(status_code=404, detail="Run not found")
+    run_row = run_rows[0]
+    if run_row.get("status") not in _DISPATCHABLE_RUN_STATUSES:
+        raise HTTPException(status_code=409, detail="Run is not dispatchable")
+
+    program_id_db: str = run_row["program_id"]
+    program_lookup = (
+        db.table("programs")
+        .select("id, user_id, schema, workspace_id, schema_version")
+        .eq("id", program_id_db)
+        .limit(1)
+        .execute()
+    )
+    program_rows = program_lookup.data or []
+    if not program_rows:
+        raise HTTPException(status_code=404, detail="Program not found")
+    program_row = program_rows[0]
+    user_id_db: str = program_row["user_id"]
+    if is_processing_restricted(db, user_id_db):
+        raise HTTPException(status_code=423, detail="Processing is restricted for this account.")
+    schema = parse_schema(program_row.get("schema") or {})
+    workspace_policy = load_workspace_policy(db, program_row.get("workspace_id"))
+
+    background_tasks.add_task(
+        _run_replay_from_node,
+        schema,
+        body.run_id,
+        program_id_db,
+        user_id_db,
+        body.start_node_id,
+        body.start_input,
+        body.upstream_outputs,
+        body.original_run_id,
+        body.connections,
+        program_row.get("workspace_id"),
+        workspace_policy,
+    )
+    return {"status": "started", "run_id": body.run_id}
+
+
+async def _run_replay_from_node(
+    schema: ProgramSchema,
+    run_id: str,
+    program_id: str,
+    user_id: str,
+    start_node_id: str,
+    start_input: dict[str, Any],
+    upstream_outputs: dict[str, dict[str, Any]],
+    original_run_id: str,
+    connection_name_to_id: dict[str, str] | None = None,
+    workspace_id: str | None = None,
+    workspace_policy: dict[str, Any] | None = None,
+) -> None:
+    """Background task: run replay_from_node behind the concurrency gate."""
+    from engine.replay_from_node import replay_from_node as _replay
+
+    async with _acquire_run_slot(is_priority=False):
+        db = get_db()
+        final_status = "failed"
+        error_message: str | None = None
+        try:
+            failures = await _replay(
+                schema,
+                run_id,
+                program_id,
+                user_id,
+                start_node_id,
+                start_input,
+                upstream_outputs,
+                original_run_id,
+                connection_name_to_id=connection_name_to_id,
+                workspace_id=workspace_id,
+                workspace_policy=workspace_policy,
+            )
+            if failures:
+                error_message = str(failures[0]) if failures else None
+                final_status = "failed"
+            else:
+                final_status = "completed"
+        except asyncio.TimeoutError as e:
+            error_message = str(e) or "Replay exceeded maximum execution time"
+        except ExecutionError as e:
+            error_message = e.message
+        except Exception as e:
+            error_message = str(e)
+        finally:
+            await update_run(
+                db,
+                run_id,
+                status=final_status,
+                error_message=error_message,
+                completed_at="now()",
+            )
+            await release_run_locks(db, run_id)
+            await _notify_complete(run_id, program_id, user_id, final_status, error_message)
+

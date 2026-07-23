@@ -6,19 +6,73 @@ from typing import Any
 
 import httpx
 
-from .base import IConnector, ConnectorError
+from .base import ConnectorError
 from .rate_limit import request_with_rate_limit
+from .sdk.base import BaseConnector
+from .sdk.types import FieldKind, FieldSchema, OperationSchema
 
 _BASE = "https://slack.com/api"
 
 
-class SlackConnector(IConnector):
+class SlackConnector(BaseConnector):
     provider = "slack"
+    base_url = "https://slack.com/api"
     supported_operations = [
         "send_message",
         "read_channel",
         "list_channels",
         "create_channel",
+    ]
+
+    _operation_schemas = [
+        OperationSchema(
+            name="send_message",
+            description="Send a message to a Slack channel",
+            input_fields=[
+                FieldSchema(name="channel", kind=FieldKind.STRING, required=True, description="Channel ID or name"),
+                FieldSchema(name="text", kind=FieldKind.STRING, description="Message text"),
+                FieldSchema(name="blocks", kind=FieldKind.ARRAY, description="Block Kit blocks"),
+            ],
+            output_fields=[
+                FieldSchema(name="ts", kind=FieldKind.STRING, description="Message timestamp"),
+                FieldSchema(name="channel", kind=FieldKind.STRING),
+                FieldSchema(name="message", kind=FieldKind.OBJECT),
+            ],
+        ),
+        OperationSchema(
+            name="read_channel",
+            description="Read messages from a Slack channel",
+            input_fields=[
+                FieldSchema(name="channel", kind=FieldKind.STRING, required=True),
+                FieldSchema(name="limit", kind=FieldKind.INTEGER, default=20),
+            ],
+            output_fields=[
+                FieldSchema(name="messages", kind=FieldKind.ARRAY),
+                FieldSchema(name="has_more", kind=FieldKind.BOOLEAN),
+            ],
+        ),
+        OperationSchema(
+            name="list_channels",
+            description="List accessible Slack channels",
+            input_fields=[
+                FieldSchema(name="limit", kind=FieldKind.INTEGER, default=100),
+            ],
+            output_fields=[
+                FieldSchema(name="channels", kind=FieldKind.ARRAY),
+            ],
+        ),
+        OperationSchema(
+            name="create_channel",
+            description="Create a new Slack channel",
+            input_fields=[
+                FieldSchema(name="name", kind=FieldKind.STRING, required=True),
+                FieldSchema(name="is_private", kind=FieldKind.BOOLEAN, default=False),
+            ],
+            output_fields=[
+                FieldSchema(name="channel_id", kind=FieldKind.STRING),
+                FieldSchema(name="name", kind=FieldKind.STRING),
+            ],
+        ),
     ]
 
     async def execute(

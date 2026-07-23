@@ -1,0 +1,496 @@
+/**
+ * Failure Analysis Engine
+ *
+ * Analyzes node_execution errors from a failed run and produces structured
+ * root-cause analysis with fix suggestions. This is the AI-native USP vs
+ * n8n/Make/Zapier which only show raw error logs.
+ */
+
+// ─── Types ─────────────────────────────────────────────────────────────────
+
+export type ErrorCategory =
+  | "api_rate_limit"
+  | "auth_expired"
+  | "data_format_mismatch"
+  | "timeout"
+  | "schema_validation"
+  | "connection_not_found"
+  | "api_key_invalid"
+  | "permission_denied"
+  | "network_error"
+  | "unknown";
+
+export type FixType = "auto_fix" | "manual_fix" | "reconnect";
+
+export interface FixSuggestion {
+  type: FixType;
+  title: string;
+  description: string;
+  action_url?: string; // deep-link for auto-fix / reconnect
+  action_label?: string;
+}
+
+export interface NodeAnalysis {
+  node_id: string;
+  node_label: string;
+  node_type: string;
+  error_category: ErrorCategory;
+  error_message: string;
+  root_cause: string;
+  fix_suggestions: FixSuggestion[];
+  confidence: number; // 0–1
+}
+
+export interface FailureAnalysis {
+  run_id: string;
+  overall_category: ErrorCategory;
+  root_cause_summary: string;
+  nodes: NodeAnalysis[];
+  fix_suggestions: FixSuggestion[];
+  analyzed_at: string;
+}
+
+export interface NodeExecutionError {
+  node_id: string;
+  node_label?: string;
+  node_type?: string;
+  error_message: string | null;
+  input_payload?: unknown;
+  output_payload?: unknown;
+  retry_count?: number | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+// ─── Error Classification Rules ────────────────────────────────────────────
+
+interface ClassificationRule {
+  test: (msg: string) => boolean;
+  category: ErrorCategory;
+  rootCause: (msg: string) => string;
+  fixes: (nodeId: string) => FixSuggestion[];
+  confidence: number;
+}
+
+const CLASSIFICATION_RULES: ClassificationRule[] = [
+  // API rate limit
+  {
+    test: (m) => /rate.?limit|too many requests|429|throttl/i.test(m),
+    category: "api_rate_limit",
+    rootCause: () =>
+      "The API provider has rate-limited this request. This typically happens when the workflow makes too many calls in a short window.",
+    fixes: (nodeId) => [
+      {
+        type: "manual_fix",
+        title: "Add a delay step before this node",
+        description:
+          "Insert a Delay node with 10–30 seconds between API calls to stay within the provider's rate limit.",
+      },
+      {
+        type: "manual_fix",
+        title: "Reduce retry intensity",
+        description:
+          "Lower the retry count or increase backoff time on this node to avoid hammering the API.",
+      },
+    ],
+    confidence: 0.95,
+  },
+
+  // Auth expired
+  {
+    test: (m) =>
+      /token.?expired|could not be refreshed|unauthorized|401|auth.*fail|please reconnect/i.test(
+        m,
+      ),
+    category: "auth_expired",
+    rootCause: () =>
+      "The OAuth token or API key for this connection has expired and could not be refreshed automatically.",
+    fixes: (nodeId) => [
+      {
+        type: "reconnect",
+        title: "Reconnect this integration",
+        description:
+          "Navigate to Connections and reconnect the expired integration to get a fresh token.",
+        action_url: "/connections",
+        action_label: "Go to Connections →",
+      },
+    ],
+    confidence: 0.95,
+  },
+
+  // Permission denied
+  {
+    test: (m) =>
+      /permission.?denied|read.?only access|write permission|forbidden|403/i.test(m),
+    category: "permission_denied",
+    rootCause: () =>
+      "The connection or API key lacks the required permissions to perform this operation.",
+    fixes: (nodeId) => [
+      {
+        type: "manual_fix",
+        title: "Check connection scopes",
+        description:
+          "Verify the connection has read/write access as needed. You may need to reconnect with the correct scopes.",
+        action_url: "/connections",
+        action_label: "Go to Connections →",
+      },
+    ],
+    confidence: 0.9,
+  },
+
+  // Connection not found
+  {
+    test: (m) => /connection.*not found|missing connection|no linked connection/i.test(m),
+    category: "connection_not_found",
+    rootCause: () =>
+      "The connection referenced by this node no longer exists or hasn't been linked to this program.",
+    fixes: (nodeId) => [
+      {
+        type: "manual_fix",
+        title: "Link or create a connection",
+        description:
+          "Go to the node settings and select a valid connection for this step.",
+        action_url: "/connections",
+        action_label: "Manage Connections →",
+      },
+    ],
+    confidence: 0.95,
+  },
+
+  // API key invalid
+  {
+    test: (m) =>
+      /api.?key.*(not found|invalid|missing|revoked)|invalid.*api.?key/i.test(m),
+    category: "api_key_invalid",
+    rootCause: () =>
+      "The API key used by this node is missing, invalid, or has been revoked.",
+    fixes: (nodeId) => [
+      {
+        type: "manual_fix",
+        title: "Update the API key",
+        description:
+          "Go to API Keys settings and add or replace the key used by this node.",
+        action_url: "/api-keys",
+        action_label: "Go to API Keys →",
+      },
+    ],
+    confidence: 0.95,
+  },
+
+  // Timeout
+  {
+    test: (m) =>
+      /timeout|timed? ?out|deadline exceeded|504|gateway timeout/i.test(m),
+    category: "timeout",
+    rootCause: () =>
+      "The operation exceeded the allowed time limit. The upstream service may be slow or the data volume too large.",
+    fixes: (nodeId) => [
+      {
+        type: "manual_fix",
+        title: "Increase timeout",
+        description:
+          "If this is an HTTP node, increase the timeout_seconds in the node configuration.",
+      },
+      {
+        type: "manual_fix",
+        title: "Reduce data volume",
+        description:
+          "Add a Filter or Limit step before this node to reduce the payload size.",
+      },
+    ],
+    confidence: 0.85,
+  },
+
+  // Schema validation / data format
+  {
+    test: (m) =>
+      /schema.?valid|invalid.*input|expected.*type|field.*required|malformed|unexpected token|json.?parse|type.?mismatch/i.test(
+        m,
+      ),
+    category: "schema_validation",
+    rootCause: () =>
+      "The data passed to this node does not match the expected format. An upstream node may have returned unexpected output.",
+    fixes: (nodeId) => [
+      {
+        type: "manual_fix",
+        title: "Check upstream node output",
+        description:
+          "Open the Output tab of the preceding node to see what data was actually produced.",
+      },
+      {
+        type: "manual_fix",
+        title: "Add a Transform step",
+        description:
+          "Insert a Transform step to reshape the data into the expected format before this node.",
+      },
+    ],
+    confidence: 0.8,
+  },
+
+  // Network errors
+  {
+    test: (m) =>
+      /ECONNREFUSED|ENOTFOUND|network.?error|fetch.?failed|ECONNRESET|ETIMEDOUT|dns.?lookup/i.test(
+        m,
+      ),
+    category: "network_error",
+    rootCause: () =>
+      "A network-level error prevented the connection to the external service. The service may be temporarily down or unreachable.",
+    fixes: (nodeId) => [
+      {
+        type: "manual_fix",
+        title: "Retry later",
+        description:
+          "This may be a temporary network issue. Try running the workflow again in a few minutes.",
+      },
+    ],
+    confidence: 0.7,
+  },
+];
+
+// ─── Classification Engine ─────────────────────────────────────────────────
+
+function classifyError(
+  errorMessage: string,
+): { category: ErrorCategory; rootCause: string; fixes: FixSuggestion[]; confidence: number } {
+  for (const rule of CLASSIFICATION_RULES) {
+    if (rule.test(errorMessage)) {
+      return {
+        category: rule.category,
+        rootCause: rule.rootCause(errorMessage),
+        fixes: rule.fixes(""),
+        confidence: rule.confidence,
+      };
+    }
+  }
+
+  return {
+    category: "unknown",
+    rootCause:
+      "An unexpected error occurred. Review the error message and node input/output for more details.",
+    fixes: [
+      {
+        type: "manual_fix",
+        title: "Check node configuration",
+        description:
+          "Review the node settings and ensure all required fields are filled correctly.",
+      },
+      {
+        type: "manual_fix",
+        title: "View full error details",
+        description:
+          "Copy the error message and search for it in the provider's documentation or support forum.",
+      },
+    ],
+    confidence: 0.3,
+  };
+}
+
+// ─── LLM-Powered Root Cause Generation ─────────────────────────────────────
+
+function buildAnalysisPrompt(
+  runId: string,
+  runError: string | null,
+  failedExecs: NodeExecutionError[],
+  nodeMap: Record<string, { label?: string; type?: string }>,
+): string {
+  const execSummaries = failedExecs
+    .map((e) => {
+      const node = nodeMap[e.node_id];
+      const label = e.node_label ?? node?.label ?? e.node_id;
+      const type = e.node_type ?? node?.type ?? "unknown";
+      return [
+        `- Node: "${label}" (${type}, id: ${e.node_id})`,
+        `  Error: ${e.error_message ?? "N/A"}`,
+        `  Retry count: ${e.retry_count ?? 0}`,
+      ].join("\n");
+    })
+    .join("\n");
+
+  return [
+    "You are analyzing a failed workflow run. Given the run-level error and per-node execution errors, provide:",
+    "1. A concise root cause summary (1–2 sentences) identifying the most likely primary cause of failure.",
+    "2. For each failed node, a 1-sentence root cause and whether it matches: api_rate_limit, auth_expired, data_format_mismatch, timeout, schema_validation, connection_not_found, api_key_invalid, permission_denied, network_error, or unknown.",
+    "",
+    `Run ID: ${runId}`,
+    `Run-level error: ${runError ?? "none"}`,
+    "",
+    "Failed node executions:",
+    execSummaries || "(no per-node errors recorded)",
+  ].join("\n");
+}
+
+/**
+ * Uses the LLM (via the runtime's internal model) to generate a richer root
+ * cause analysis. Falls back to rule-based classification if LLM is unavailable.
+ *
+ * This function is exported for use in the API route. It requires the
+ * createServiceClient from @/lib/api — callers pass it in to avoid circular deps.
+ */
+export async function generateLLMAnalysis(
+  dbClient: { from: (table: string) => { select: (...cols: string[]) => any; eq: (col: string, val: string) => any; single: () => Promise<{ data: unknown; error: unknown }> } },
+  runId: string,
+  runError: string | null,
+  failedExecs: NodeExecutionError[],
+  nodeMap: Record<string, { label?: string; type?: string }>,
+): Promise<FailureAnalysis> {
+  const analyzedAt = new Date().toISOString();
+
+  // Try LLM analysis if available
+  let llmResult: { summary?: string; nodeCategories?: Record<string, { category: string; rootCause: string; confidence: number }> } | null = null;
+
+  try {
+    const prompt = buildAnalysisPrompt(runId, runError, failedExecs, nodeMap);
+    const runtimeUrl = process.env.RUNTIME_URL ?? process.env.NEXT_PUBLIC_RUNTIME_URL;
+
+    if (runtimeUrl) {
+      const res = await fetch(`${runtimeUrl}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          model: "fast", // use fast/cheap model for analysis
+          max_tokens: 800,
+        }),
+        signal: AbortSignal.timeout(10_000), // 10s timeout
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as { text?: string };
+        if (data.text) {
+          // Parse structured output from LLM
+          const summaryMatch = data.text.match(/(?:root.?cause|summary)[:\s]*["']?([^"'\n]+)/i);
+          llmResult = {
+            summary: summaryMatch?.[1]?.trim(),
+          };
+        }
+      }
+    }
+  } catch {
+    // LLM unavailable — fall back to rule-based classification
+  }
+
+  // Rule-based classification for each failed node
+  const nodeAnalyses: NodeAnalysis[] = failedExecs.map((exec) => {
+    const node = nodeMap[exec.node_id];
+    const label = exec.node_label ?? node?.label ?? exec.node_id;
+    const type = exec.node_type ?? node?.type ?? "unknown";
+    const msg = exec.error_message ?? "Unknown error";
+
+    const classification = classifyError(msg);
+
+    // Override with LLM category if available
+    const llmNode = llmResult?.nodeCategories?.[exec.node_id];
+    const category = (llmNode?.category as ErrorCategory) ?? classification.category;
+    const rootCause = llmNode?.rootCause ?? classification.rootCause;
+    const confidence = llmNode?.confidence ?? classification.confidence;
+
+    return {
+      node_id: exec.node_id,
+      node_label: label,
+      node_type: type,
+      error_category: category,
+      error_message: msg,
+      root_cause: rootCause,
+      fix_suggestions: classification.fixes.map((f) => ({
+        ...f,
+        node_id: exec.node_id,
+      })),
+      confidence,
+    };
+  });
+
+  // Derive overall category from the highest-confidence failure
+  const sortedByConfidence = [...nodeAnalyses].sort((a, b) => b.confidence - a.confidence);
+  const overallCategory = sortedByConfidence[0]?.error_category ?? "unknown";
+
+  // Aggregate unique fix suggestions
+  const seenTitles = new Set<string>();
+  const allFixes: FixSuggestion[] = [];
+  for (const na of nodeAnalyses) {
+    for (const fix of na.fix_suggestions) {
+      if (!seenTitles.has(fix.title)) {
+        seenTitles.add(fix.title);
+        allFixes.push(fix);
+      }
+    }
+  }
+
+  // Overall summary
+  const summaryPrefix = llmResult?.summary
+    ? llmResult.summary
+    : `This run failed because ${sortedByConfidence.length === 1 ? `node "${sortedByConfidence[0].node_label}" encountered a ${overallCategory.replace(/_/g, " ")} error` : `${sortedByConfidence.length} nodes encountered errors`}.`;
+
+  return {
+    run_id: runId,
+    overall_category: overallCategory,
+    root_cause_summary: summaryPrefix,
+    nodes: nodeAnalyses,
+    fix_suggestions: allFixes,
+    analyzed_at: analyzedAt,
+  };
+}
+
+/**
+ * Lightweight rule-based analysis (no LLM). Used when the API endpoint
+ * cannot reach the runtime or when a fast response is needed.
+ */
+export function analyzeFailure(
+  runId: string,
+  runError: string | null,
+  failedExecs: NodeExecutionError[],
+  nodeMap: Record<string, { label?: string; type?: string }>,
+): FailureAnalysis {
+  const analyzedAt = new Date().toISOString();
+
+  const nodeAnalyses: NodeAnalysis[] = failedExecs.map((exec) => {
+    const node = nodeMap[exec.node_id];
+    const label = exec.node_label ?? node?.label ?? exec.node_id;
+    const type = exec.node_type ?? node?.type ?? "unknown";
+    const msg = exec.error_message ?? runError ?? "Unknown error";
+
+    const classification = classifyError(msg);
+
+    return {
+      node_id: exec.node_id,
+      node_label: label,
+      node_type: type,
+      error_category: classification.category,
+      error_message: msg,
+      root_cause: classification.rootCause,
+      fix_suggestions: classification.fixes.map((f) => ({
+        ...f,
+      })),
+      confidence: classification.confidence,
+    };
+  });
+
+  const sortedByConfidence = [...nodeAnalyses].sort((a, b) => b.confidence - a.confidence);
+  const overallCategory = sortedByConfidence[0]?.error_category ?? "unknown";
+
+  const seenTitles = new Set<string>();
+  const allFixes: FixSuggestion[] = [];
+  for (const na of nodeAnalyses) {
+    for (const fix of na.fix_suggestions) {
+      if (!seenTitles.has(fix.title)) {
+        seenTitles.add(fix.title);
+        allFixes.push(fix);
+      }
+    }
+  }
+
+  const summaryPrefix = runError
+    ? `Run failed: ${runError.slice(0, 200)}`
+    : sortedByConfidence.length === 1
+      ? `Node "${sortedByConfidence[0].node_label}" failed with a ${overallCategory.replace(/_/g, " ")} error.`
+      : `${sortedByConfidence.length} nodes encountered errors.`;
+
+  return {
+    run_id: runId,
+    overall_category: overallCategory,
+    root_cause_summary: summaryPrefix,
+    nodes: nodeAnalyses,
+    fix_suggestions: allFixes,
+    analyzed_at: analyzedAt,
+  };
+}

@@ -1,0 +1,167 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Corelyx — Development Docker Compose Stack
+# Usage: cp .env.example .env && docker compose -f docker-compose.dev.yml up
+# Features: hot-reload, debug ports, seed data
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ─── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-corelyx}
+      POSTGRES_USER: ${POSTGRES_USER:-corelyx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/00-init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-corelyx} -d ${POSTGRES_DB:-corelyx}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - backend
+      - frontend
+
+  # ─── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - backend
+      - frontend
+
+  # ─── Runtime (FastAPI + LangGraph) — with hot-reload ────────────────────────
+  runtime:
+    build:
+      context: .
+      dockerfile: apps/runtime/Dockerfile
+      target: builder
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: "8002"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-corelyx}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-corelyx}
+      SUPABASE_URL: http://postgres:5432
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME: ${INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME:-}
+      RUNTIME_ENV: development
+      NODE_ENV: development
+    volumes:
+      - ./apps/runtime:/app
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+    ports:
+      - "8002:8002"
+      - "5678:5678"   # Python debugger (debugpy)
+    networks:
+      - backend
+      - frontend
+
+  # ─── Web (Next.js) — with hot-reload ────────────────────────────────────────
+  web:
+    image: node:20-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_RUNTIME_URL: http://localhost:8002
+      RUNTIME_URL: http://runtime:8002
+      RUNTIME_INTERNAL_URL: http://runtime:8002
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://localhost:8000}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-corelyx}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-corelyx}
+      INNGEST_EVENT_KEY: ${INNGEST_EVENT_KEY:-}
+      INNGEST_SIGNING_KEY: ${INNGEST_SIGNING_KEY:-}
+      INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME: ${INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME:-}
+    working_dir: /app
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules:/app/node_modules
+    command: sh -c "pnpm install --frozen-lockfile 2>/dev/null || pnpm install && pnpm run dev --hostname 0.0.0.0"
+    ports:
+      - "3000:3000"
+      - "9229:9229"   # Node.js inspector
+    networks:
+      - frontend
+
+  # ─── Inngest (development) ──────────────────────────────────────────────────
+  inngest:
+    image: inngest/inaugust:latest
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    environment:
+      INNGEST_SIGNING_KEY: ${INNGEST_SIGNING_KEY:-}
+      INNGEST_EVENT_KEY: ${INNGEST_EVENT_KEY:-}
+    command: ["serve", "-u", "http://web:3000/api/inngest"]
+    ports:
+      - "8288:8288"
+    networks:
+      - frontend
+
+  # ─── Seed Data ───────────────────────────────────────────────────────────────
+  seed:
+    image: node:20-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-corelyx}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-corelyx}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://localhost:8000}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+    working_dir: /app
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+    command: sh -c "pnpm install --frozen-lockfile 2>/dev/null || pnpm install && pnpm run seed"
+    networks:
+      - backend
+    profiles:
+      - seed
+
+# ─── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  web_node_modules:
+    driver: local
+
+# ─── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge

@@ -46,14 +46,22 @@ const edgeTypes = {
 
 type ExecStatus = string; // "pending" | "running" | "completed" | "failed" | ...
 
-function schemaNodeToRfNode(node: Node, execStatus?: ExecStatus): ReactFlowNode {
+const HIGHLIGHT_STYLE: React.CSSProperties = {
+  outline: "3px solid rgba(59,130,246,0.85)",
+  outlineOffset: "4px",
+  borderRadius: "14px",
+};
+
+function schemaNodeToRfNode(node: Node, execStatus?: ExecStatus, highlighted?: boolean): ReactFlowNode {
   const cfg = node.config as Record<string, unknown>;
   const style =
     node.type === "group"
       ? { width: (cfg.width as number) ?? 400, height: (cfg.height as number) ?? 300 }
       : node.type === "note"
         ? { width: 200, height: 120 }
-        : undefined;
+        : highlighted
+          ? HIGHLIGHT_STYLE
+          : undefined;
 
   return {
     id: node.id,
@@ -105,9 +113,10 @@ interface RunGraphFlowProps {
   nodeMap: Record<string, Node>;
   edges: Edge[];
   execs: NodeExecInfo[];
+  highlightedNodeId?: string | null;
 }
 
-export function RunGraphFlow({ nodeMap, edges, execs }: RunGraphFlowProps) {
+export function RunGraphFlow({ nodeMap, edges, execs, highlightedNodeId }: RunGraphFlowProps) {
   const { base } = useTheme();
   const isDark = base === "dark";
 
@@ -133,11 +142,21 @@ export function RunGraphFlow({ nodeMap, edges, execs }: RunGraphFlowProps) {
     setRfNodes((prev) =>
       prev.map((n) => {
         const status = statusByNode.get(n.id);
-        if (!status || n.data.status === status) return n;
-        return { ...n, data: { ...n.data, status } };
+        const isHighlighted = highlightedNodeId === n.id;
+        const prevHighlighted = (n.style as React.CSSProperties | undefined)?.outline != null;
+
+        // Skip if nothing changed
+        if ((!status || n.data.status === status) && isHighlighted === prevHighlighted) return n;
+
+        const newStyle = isHighlighted ? HIGHLIGHT_STYLE : undefined;
+        return {
+          ...n,
+          data: { ...n.data, ...(status ? { status } : {}) },
+          style: newStyle,
+        };
       })
     );
-  }, [execs]);
+  }, [execs, highlightedNodeId]);
 
   // Also re-seed if nodeMap structure changes (e.g. navigating between runs)
   useEffect(() => {

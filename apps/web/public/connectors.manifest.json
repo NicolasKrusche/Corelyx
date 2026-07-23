@@ -1,0 +1,4958 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-07-23T19:47:31.974071",
+  "connector_count": 209,
+  "connectors": {
+    "activecampaign": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "acuityscheduling": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Acuity Scheduling operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "adyen": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Adyen operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "ahrefs": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Ahrefs operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "aircall": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Aircall operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "airtable": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "amplitude": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Amplitude operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "apollo": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "asana": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "auth0": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Auth0 operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "awss3": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a AWS S3 operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "bamboohr": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a BambooHR operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "basecamp": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "beehiiv": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Beehiiv operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "bitbucket": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "box": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Box operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "braintree": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Braintree operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "braze": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Braze operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "brevo": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "brex": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Brex operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "buffer": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "calendar": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "calendly": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Calendly operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "campaignmonitor": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Campaign Monitor operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "canva": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Canva operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "chargebee": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "circleci": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a CircleCI operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "clearbit": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Clearbit operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "clickup": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "clockify": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Clockify operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "closecrm": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "cloudflare": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Cloudflare operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "cloudinary": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Cloudinary operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "coda": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "cohere": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Cohere operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "confluence": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Confluence operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "constantcontact": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "contentful": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Contentful operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "convertkit": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "copper": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "crisp": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Crisp operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "customerio": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "datadog": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Datadog operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "deel": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Deel operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "dialpad": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Dialpad operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "digitalocean": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a DigitalOcean operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "discord": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "docs": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "docusign": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a DocuSign operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "doodle": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Doodle operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "drift": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Drift operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "drip": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "drive": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "dropbox": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Dropbox operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "eventbrite": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Eventbrite operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "evernote": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Evernote operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "expensify": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Expensify operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "facebook": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "figma": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Figma operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "firebase": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Firebase operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "framer": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Framer operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "freshbooks": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a FreshBooks operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "freshdesk": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Freshdesk operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "freshsales": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "freshservice": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Freshservice operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "front": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Front operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "fullstory": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a FullStory operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "ghost": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Ghost operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "github": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "gitlab": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "gmail": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "visit",
+          "description": "",
+          "parameters": [
+            {
+              "name": "part",
+              "type": "Name(id='dict', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 2
+    },
+    "gocardless": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a GoCardless operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "googleanalytics": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Google Analytics operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "googlechat": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "googleforms": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Google Forms operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "gorgias": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Gorgias operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "grafana": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Grafana operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "greenhouse": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Greenhouse operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "gusto": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Gusto operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "harvest": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Harvest operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "health_monitor": {
+      "operations": [
+        {
+          "name": "compute_backoff",
+          "description": "Compute exponential backoff delay in seconds.",
+          "parameters": [
+            {
+              "name": "retry_count",
+              "type": "Name(id='int', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "compute_next_retry_at",
+          "description": "Compute the UTC timestamp when the next retry should occur.",
+          "parameters": [
+            {
+              "name": "retry_count",
+              "type": "Name(id='int', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "close",
+          "description": "Clean up HTTP client resources.",
+          "parameters": []
+        },
+        {
+          "name": "check_connector",
+          "description": "Run a health check on a single connector and store the result.",
+          "parameters": [
+            {
+              "name": "connector_name",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "workspace_id",
+              "type": "BinOp(left=Name(id='str', ctx=Load()), op=BitOr(), right=Constant(value=None))"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "check_type",
+              "type": "Name(id='CheckType', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "check_all",
+          "description": "Run health checks on all (or specified) connectors for a workspace.",
+          "parameters": [
+            {
+              "name": "workspace_id",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "connector_names",
+              "type": "BinOp(left=Subscript(value=Name(id='list', ctx=Load()), slice=Name(id='str', ctx=Load()), ctx=Load()), op=BitOr(), right=Constant(value=None))"
+            }
+          ]
+        },
+        {
+          "name": "get_health_status",
+          "description": "Retrieve the latest health status for all connectors from the database.",
+          "parameters": [
+            {
+              "name": "workspace_id",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "get_pending_retries",
+          "description": "Get connectors that have a pending retry scheduled.",
+          "parameters": [
+            {
+              "name": "workspace_id",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 7
+    },
+    "heap": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Heap operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "height": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "hellosign": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Dropbox Sign operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "helpscout": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Help Scout operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "heroku": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Heroku operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "hibob": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a HiBob operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "hootsuite": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "hotjar": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Hotjar operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "http_generic": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "hubspot": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "hubstaff": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Hubstaff operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "hunter": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Hunter.io operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "insightly": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "instagram": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "intercom": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Intercom operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "introspection": {
+      "operations": [
+        {
+          "name": "fetch_connection_token",
+          "description": "Fetch a valid OAuth access token from the web app.",
+          "parameters": [
+            {
+              "name": "connection_id",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "user_id",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "introspect_gmail",
+          "description": "",
+          "parameters": [
+            {
+              "name": "client",
+              "type": "Attribute(value=Name(id='httpx', ctx=Load()), attr='AsyncClient', ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "introspect_slack",
+          "description": "",
+          "parameters": [
+            {
+              "name": "client",
+              "type": "Attribute(value=Name(id='httpx', ctx=Load()), attr='AsyncClient', ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "introspect_notion",
+          "description": "",
+          "parameters": [
+            {
+              "name": "client",
+              "type": "Attribute(value=Name(id='httpx', ctx=Load()), attr='AsyncClient', ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "supports_introspection",
+          "description": "",
+          "parameters": [
+            {
+              "name": "provider",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "introspect_connection",
+          "description": "Introspect one connection: fetch token, then metadata. Raises IntrospectionError.",
+          "parameters": [
+            {
+              "name": "provider",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "connection_id",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "user_id",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 6
+    },
+    "invision": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a InVision operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "iterable": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Iterable operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "jira": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "jotform": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Jotform operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "jumpcloud": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a JumpCloud operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "keap": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Keap operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "klaviyo": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "kustomer": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Kustomer operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "lattice": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Lattice operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "lemonsqueezy": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Lemon Squeezy operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "lever": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Lever operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "linear": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "linkedin": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a LinkedIn operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "loom": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Loom operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "luma": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Luma operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "lusha": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Lusha operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "mailchimp": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "miro": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Miro operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "mixpanel": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Mixpanel operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "mollie": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Mollie operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "monday": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "mux": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Mux operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "netlify": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Netlify operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "netsuite": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a NetSuite operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "newrelic": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a New Relic operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "nifty": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "notion": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        },
+        {
+          "name": "first_of",
+          "description": "",
+          "parameters": []
+        }
+      ],
+      "operation_count": 2
+    },
+    "nuclino": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Nuclino operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "nutshell": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Nutshell operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "okta": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Okta operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "onedrive": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a OneDrive operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "onenote": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a OneNote operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "openai": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a OpenAI operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "openphone": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a OpenPhone operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "opsgenie": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a OpsGenie operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "outlook": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "paddle": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "pagerduty": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a PagerDuty operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "pandadoc": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a PandaDoc operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "paperform": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Paperform operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "paypal": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "personio": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Personio operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "pinecone": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Pinecone operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "pinterest": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "pipedrive": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Pipedrive operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "plausible": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Plausible operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "postgresql": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "posthog": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a PostHog operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "postmark": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Postmark operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "prismic": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Prismic operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "quickbooks": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a QuickBooks operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "ramp": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Ramp operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "recurly": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "reddit": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "redis": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "render": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Render operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "replicate": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Replicate operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "resend": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Resend operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "ringcentral": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a RingCentral operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "rippling": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Rippling operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "rocketchat": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "rudderstack": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a RudderStack operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "salesforce": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "sanity": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Sanity operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "segment": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Segment operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "semrush": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Semrush operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "sendgrid": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "sentry": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Sentry operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "servicenow": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a ServiceNow operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "sheets": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "shopify": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Shopify operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "simplybook": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a SimplyBook.me operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "slack": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "smartsheet": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "square": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "storyblok": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Storyblok operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "stripe": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "supabase": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Supabase operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "surveymonkey": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a SurveyMonkey operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "tally": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Tally operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "teams": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "teamwork": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "telegram": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "telnyx": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Telnyx operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "thunderbird": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "tiktok": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "todoist": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "toggl": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Toggl operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "trello": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "twilio": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Twilio operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "twitter": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a X (Twitter) operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "typeform": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "vercel": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Vercel operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "vimeo": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Vimeo operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "vonage": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Vonage operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "webex": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "webflow": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Webflow operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "webhook": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "whatsapp": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "wistia": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Wistia operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "wordpress": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a WordPress operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "workable": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Workable operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "workday": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Workday operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "wrike": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "xero": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Xero operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "youtube": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "zendesk": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Zendesk operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "zeplin": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Zeplin operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "zohocrm": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "zohoprojects": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "zoom": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "Execute a Zoom operation.",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    },
+    "zoominfo": {
+      "operations": [
+        {
+          "name": "execute",
+          "description": "",
+          "parameters": [
+            {
+              "name": "operation",
+              "type": "Name(id='str', ctx=Load())"
+            },
+            {
+              "name": "params",
+              "type": "Subscript(value=Name(id='dict', ctx=Load()), slice=Tuple(elts=[Name(id='str', ctx=Load()), Name(id='Any', ctx=Load())], ctx=Load()), ctx=Load())"
+            },
+            {
+              "name": "access_token",
+              "type": "Name(id='str', ctx=Load())"
+            }
+          ]
+        }
+      ],
+      "operation_count": 1
+    }
+  }
+}

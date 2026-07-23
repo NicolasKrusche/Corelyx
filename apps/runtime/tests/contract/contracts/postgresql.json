@@ -1,0 +1,77 @@
+{
+  "provider": "postgresql",
+  "description": "PostgreSQL connector contract — database query/execute operations with connection pooling and SSL",
+  "operations": [
+    {
+      "name": "connect",
+      "input_fields": [
+        {"name": "connection", "type": "object", "required": true, "description": "Connection params (host, port, user, password, database)"}
+      ],
+      "output_fields": [
+        {"name": "connected", "type": "boolean", "required": false},
+        {"name": "version", "type": "string", "required": false},
+        {"name": "pool_size", "type": "integer", "required": false},
+        {"name": "pool_idle", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["connection"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "query",
+      "input_fields": [
+        {"name": "query", "type": "string", "required": true, "description": "SQL SELECT query"},
+        {"name": "params", "type": "array", "required": false, "description": "Query parameters"},
+        {"name": "limit", "type": "integer", "required": false, "description": "Row limit"}
+      ],
+      "output_fields": [
+        {"name": "rows", "type": "array", "required": false},
+        {"name": "row_count", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["query"],
+      "optional_input_fields": ["params", "limit"]
+    },
+    {
+      "name": "execute",
+      "input_fields": [
+        {"name": "query", "type": "string", "required": true, "description": "SQL INSERT/UPDATE/DELETE/DDL statement"},
+        {"name": "params", "type": "array", "required": false}
+      ],
+      "output_fields": [
+        {"name": "command", "type": "string", "required": false},
+        {"name": "row_count", "type": "integer", "required": false},
+        {"name": "status", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["query"],
+      "optional_input_fields": ["params"]
+    },
+    {
+      "name": "list_tables",
+      "input_fields": [
+        {"name": "schema", "type": "string", "required": false, "description": "Database schema (default: public)"}
+      ],
+      "output_fields": [
+        {"name": "tables", "type": "array", "required": false},
+        {"name": "count", "type": "integer", "required": false}
+      ],
+      "required_input_fields": [],
+      "optional_input_fields": ["schema"]
+    },
+    {
+      "name": "describe_table",
+      "input_fields": [
+        {"name": "table_name", "type": "string", "required": true},
+        {"name": "schema", "type": "string", "required": false}
+      ],
+      "output_fields": [
+        {"name": "table_name", "type": "string", "required": false},
+        {"name": "schema", "type": "string", "required": false},
+        {"name": "columns", "type": "array", "required": false},
+        {"name": "primary_keys", "type": "array", "required": false},
+        {"name": "foreign_keys", "type": "array", "required": false},
+        {"name": "indexes", "type": "array", "required": false}
+      ],
+      "required_input_fields": ["table_name"],
+      "optional_input_fields": ["schema"]
+    }
+  ]
+}

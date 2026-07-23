@@ -80,12 +80,28 @@ export const TriggerConfigZ = z.discriminatedUnion("trigger_type", [
 
 // ─── NODE BASE ────────────────────────────────────────────────────────────
 
+/**
+ * AI-generated explainability metadata for a node.
+ * Supports AI Act Art. 14/50 compliance (transparency obligation).
+ */
+const NodeMetadataZ = z.object({
+  genesis_reasoning: z
+    .object({
+      reasoning: z.string(),
+      alternatives: z.array(z.string()),
+      confidence: z.number().min(0).max(1),
+    })
+    .optional(),
+  generated_at: z.string().optional(),
+});
+
 const NodeBaseZ = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   description: z.string(),
   position: z.object({ x: z.number(), y: z.number() }),
   status: NodeStatusZ,
+  metadata: NodeMetadataZ.optional(),
 });
 
 // ─── TRIGGER NODE ─────────────────────────────────────────────────────────

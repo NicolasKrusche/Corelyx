@@ -22,6 +22,18 @@ type ConnectorDef = {
  * Tier 3: Stub only ("provider: op1, op2, ..."). Rarely used.
  */
 export const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
+  http: {
+    tier: 1,
+    stub: `HTTP: make_request`,
+    full: `HTTP (generic REST/GraphQL connector — no fixed base URL):
+  make_request: params={url(REQUIRED),method?:"GET|POST|PUT|PATCH|DELETE",headers?:{key:value},body?:object|string,query_params?:{key:value},auth_type?:"none|bearer|api_key|oauth2",auth_config?:object,timeout?:number,max_retries?:number} → output:{status_code:int,headers:{...},body:any}
+    ⚠ url must start with http:// or https://.
+    ⚠ auth_type + auth_config handle credentials server-side — never hardcode tokens in the node config.
+    ⚠ body is sent as JSON for POST/PUT/PATCH. For raw string bodies pass a string.
+    ⚠ Supports exponential backoff retry for transient failures (429, 5xx).
+    ⚠ auth_config keys by auth_type: bearer→{token}, api_key→{key, header_name?, location?}, oauth2→{access_token}.
+    ⚠ Use this for any API not covered by a native connector. GraphQL: POST with Content-Type: application/json and query/mutation body.`,
+  },
   gmail: {
     tier: 1,
     stub: `GMAIL: list_emails/search, read_email, send_email, archive_email, delete_email, label_email, list_threads, get_attachment`,
@@ -300,7 +312,51 @@ export const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   instagram: { tier: 3, stub: `INSTAGRAM: get_media, post_image, get_insights, get_comments` },
   klaviyo: { tier: 3, stub: `KLAVIYO: list_lists, add_profile_to_list, create_profile, track_event, list_campaigns` },
   http_generic: { tier: 3, stub: `HTTP_GENERIC: request` },
-  webhook: { tier: 3, stub: `WEBHOOK: receive` },
+  webhook: {
+    tier: 1,
+    stub: `WEBHOOK: receive, verify_signature, infer_schema`,
+    full: `WEBHOOK (Generic Inbound Webhook Trigger):
+  receive: params={payload:object(REQUIRED),method?:string,headers?:object,query_params?:object,source?:string,timestamp?:string}
+    → output:{<all payload fields promoted>,_webhook:{method,source,timestamp,query_params,content_type,field_count},_raw_<wrapper_key>?:object}
+    ⚠ The receive operation flattens the webhook payload so downstream nodes
+    can access top-level fields directly via data['nX']['field_name']. The
+    _webhook metadata object contains request context. If the payload has a
+    nested wrapper (data/body/event/resource/object), it is also available
+    as _raw_<key>.
+    ⚠ Use this as the FIRST node in a webhook-triggered workflow to access
+    the raw payload. The webhook trigger node automatically feeds the payload
+    into the workflow — this operation is for when you need to transform or
+    filter the payload before downstream processing.
+  verify_signature: params={body:string(REQUIRED),signature:string(REQUIRED),secret:string(REQUIRED),algorithm?:string,signature_prefix?:string,timestamp?:string,tolerance_seconds?:number}
+    → output:{verified:boolean,reason:string,algorithm:string}
+    Internal-only: HMAC verification happens at the API route layer before
+    the runtime is invoked. This operation is provided for custom signature
+    schemes or secondary verification within a workflow.
+  infer_schema: params={payload:object(REQUIRED),depth?:number}
+    → output:{schema:object,fields:string[],field_count:number}
+    Introspects a JSON payload and produces a JSON Schema (draft-07) with
+    field paths. Useful for agent nodes that need to understand webhook
+    payload structure. Internal-only: not exposed to Genesis as a workflow
+    building block.
+
+  WEBHOOK TRIGGER CONFIGURATION:
+  When creating a webhook trigger, Genesis emits:
+    {"trigger_type":"webhook","endpoint_id":"<uuid>","method":"POST"}
+  The inbound webhook URL is:
+    POST /api/webhooks/inbound?endpoint_id=<endpoint_uuid>
+  Required headers on incoming requests:
+    x-webhook-signature: v1=<hmac-sha256-hex>
+    x-webhook-timestamp: <unix-seconds>
+  Signing: HMAC-SHA256 of "<timestamp>.<body>" using the endpoint's
+  signing secret. Signature is verified with timing-safe comparison.
+  Timestamp tolerance: 300 seconds (configurable per endpoint).`,
+    gapReference: `WEBHOOK gaps:
+    Multiple webhook sources → create separate webhook triggers (one per source) and fan out from a common downstream node.
+    Webhook with custom auth → use HTTP connection node with auth_type:"none" and verify manually in an agent node.
+    Webhook response customization → the inbound route returns {run_id, status:"running"} (202). For custom responses, use an agent node that calls corelyx.report_to_user after processing.
+    Webhook payload validation → add a filter step after the trigger with a condition checking required fields: data['n1'].get('required_field') is not None.
+    Retry/queue webhooks → the inbound route handles deduplication and conflict policies automatically via the trigger's conflict_policy.`,
+  },
   linear: { tier: 3, stub: `LINEAR: list_issues, create_issue, update_issue, list_projects, get_issue` },
   postgresql: { tier: 3, stub: `POSTGRESQL: connect, query, execute, list_tables, describe_table` },
   redis: { tier: 3, stub: `REDIS: get, set, delete, exists, incr, lpush, rpush, lrange` },
@@ -468,6 +524,9 @@ export const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
 /**
  * Build connector operations section based on selected providers.
  * Tier 1 (full detail) always included. Tier 2/3 only if explicitly selected.
+ * Tier 1 (full detail) always included. Tier 2/3 only if explicitly selected.
+ *
+ * @param selectedProviders - Providers to include (null = all tier 1)
  */
 function buildConnectorOperationsSection(
   selectedProviders: string[] | null
@@ -505,6 +564,9 @@ function buildConnectorOperationsSection(
 
 /**
  * Build gap reference section based on selected providers.
+ * Build gap reference section based on selected providers.
+ *
+ * @param selectedProviders - Providers to include (null = all tier 1)
  */
 function buildGapReferenceSection(
   selectedProviders: string[] | null
@@ -543,6 +605,12 @@ function buildGapReferenceSection(
 /**
  * Build the full Genesis system prompt, optionally filtered by selected connectors.
  * Pass userTier to enable plan-aware agent node guidance.
+ *
+ * @param selectedProviders - Providers to include (null = all tier 1)
+ * @param userTier - User's subscription tier
+ * @param capabilitySection - Live capabilities section
+ * @param capabilitySection - Live capabilities section
+ * @param options - Additional options
  */
 export function buildGenesisSystemPrompt(
   selectedProviders: string[] | null = null,
@@ -747,6 +815,9 @@ Do NOT output any other format. Do NOT wrap in markdown.`;
  * System prompt for generating a one-time agent. Tuned to be fast to produce yet
  * thorough: the agent runs once, so it must anticipate edge cases and handle
  * errors gracefully in a single pass.
+ *
+ * @param selectedProviders - Providers to include (null = all tier 1)
+ * @param selectedProviders - Providers to include (null = all tier 1)
  */
 export function buildAgentSystemPrompt(
   selectedProviders: string[] | null = null
