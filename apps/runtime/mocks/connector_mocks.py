@@ -151,7 +151,7 @@ MOCK_RESPONSES: dict[str, dict[str, dict[str, Any]]] = {
         "write_range": {"spreadsheetId": "mock_sheet_id", "updatedRange": "Sheet1!A1", "updatedRows": 1, "updatedColumns": 3, "updatedCells": 3},
         "append_row": {"spreadsheetId": "mock_sheet_id", "updatedRange": "Sheet1!A4:C4", "updatedRows": 1, "updatedColumns": 3, "updatedCells": 3},
         "list_sheets": {"sheets": [{"properties": {"sheetId": 0, "title": "Sheet1"}}, {"properties": {"sheetId": 1, "title": "Sheet2"}}]},
-        "create_sheet": {"spreadsheetId": "mock_sheet_id", "replies": [{"addSheet": {"properties": {"sheetId": 2, "title": "NewSheet"}}}}]},
+        "create_sheet": {"spreadsheetId": "mock_sheet_id", "replies": [{"addSheet": {"properties": {"sheetId": 2, "title": "NewSheet"}}}]},
         "clear_range": {"spreadsheetId": "mock_sheet_id", "clearedRange": "Sheet1!A1:C3"},
     },
     "airtable": {
@@ -306,8 +306,11 @@ def get_mock_response(provider: str, operation: str, input_params: dict | None =
 
     # Special handling for HTTP generic - can simulate based on input
     if provider_lower == "http_generic" and operation_lower == "request":
+        params = input_params or {}
         mock = DEFAULT_MOCK_RESPONSE.copy()
-        mock["data"] = {"mock": True, "method": input_params.get("method", "GET"), "url": input_params.get("url", "")}
+        mock["status_code"] = 200
+        mock["headers"] = {"content-type": "application/json"}
+        mock["data"] = {"mock": True, "method": params.get("method", "GET"), "url": params.get("url", "")}
         return mock
 
     if provider_lower in MOCK_RESPONSES and operation_lower in MOCK_RESPONSES[provider_lower]:

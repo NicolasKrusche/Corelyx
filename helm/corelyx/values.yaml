@@ -1,0 +1,129 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Corelyx Helm Chart — Default Values
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# -- Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# ─── Web Service ───────────────────────────────────────────────────────────────
+web:
+  replicaCount: 2
+  image:
+    repository: corelyx/web
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# ─── Runtime Service ──────────────────────────────────────────────────────────
+runtime:
+  replicaCount: 2
+  image:
+    repository: corelyx/runtime
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8002
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# ─── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: corelyx.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: web
+          port: 3000
+    - host: runtime.corelyx.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: runtime
+          port: 8002
+  tls:
+    - secretName: corelyx-tls
+      hosts:
+        - corelyx.example.com
+        - runtime.corelyx.example.com
+
+# ─── PostgreSQL ────────────────────────────────────────────────────────────────
+postgres:
+  enabled: true
+  host: ""
+  port: 5432
+  database: corelyx
+  # Set via secret: postgresSecret
+  existingSecret: ""
+
+# ─── Redis ─────────────────────────────────────────────────────────────────────
+redis:
+  enabled: true
+  host: ""
+  port: 6379
+  existingSecret: ""
+
+# ─── Application Configuration ────────────────────────────────────────────────
+config:
+  appUrl: "https://corelyx.example.com"
+  runtimeUrl: "https://runtime.corelyx.example.com"
+  supabaseUrl: ""
+  supabaseAnonKey: ""
+  sentryDsn: ""
+  sentryTraceSampleRate: "0.1"
+
+# ─── Secrets (reference existing K8s secrets) ─────────────────────────────────
+secrets:
+  # Name of existing K8s Secret containing:
+  #   SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY,
+  #   INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY, INTERNAL_SERVICE_AUTH_SECRET_*
+  existingSecret: "corelyx-secrets"
+
+# ─── Service Account ──────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: corelyx
+
+# ─── Pod Disruption Budget ────────────────────────────────────────────────────
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# ─── Node Affinity / Tolerations ──────────────────────────────────────────────
+nodeSelector: {}
+tolerations: []
+affinity: {}

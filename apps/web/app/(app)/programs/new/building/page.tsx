@@ -28,6 +28,13 @@ import {
   type GenesisJobEdge,
 } from "@/components/genesis/genesis-job-provider";
 import { GenesisQuestionPanel } from "@/components/genesis/question-panel";
+import { RefinementPanel } from "@/components/genesis/RefinementPanel";
+import {
+  createRefinementSession,
+  canRefine,
+  type RefinementSession,
+} from "@/lib/genesis/refinement";
+import type { ProgramSchema, Node } from "@flowos/schema";
 
 const NODE_TYPES = {
   trigger: TriggerNode,
@@ -122,6 +129,13 @@ function BuildingCanvas() {
   const [answerError, setAnswerError] = useState<string | null>(null);
   const [questionsDismissed, setQuestionsDismissed] = useState(false);
 
+  // ── Refinement state ──
+  const [refinementSession, setRefinementSession] = useState<RefinementSession | null>(null);
+  const [refinementBusy, setRefinementBusy] = useState(false);
+  const [refinementError, setRefinementError] = useState<string | null>(null);
+  const [refinementResultSchema, setRefinementResultSchema] = useState<ProgramSchema | null>(null);
+  const [refinementPanelOpen, setRefinementPanelOpen] = useState(false);
+
   // Track whether we ever had a job so a brief render gap (start() → navigate)
   // doesn't bounce us straight back to /programs/new.
   const sawJobRef = useRef(false);
@@ -137,18 +151,19 @@ function BuildingCanvas() {
   }, [job, router]);
 
   // When the generation finishes while the user is watching, open the program —
-  // unless it raised clarifying questions: those anchor to the canvas right
-  // here, and answering (or dismissing) is what releases the navigation. The
-  // session persists server-side either way, so leaving loses nothing.
+  // unless they clicked "Refine" or raised clarifying questions: those anchor
+  // to the canvas right here, and answering (or dismissing) is what releases
+  // the navigation. The session persists server-side either way, so leaving
+  // loses nothing.
   const hasOpenQuestions =
     (job?.clarifications.length ?? 0) > 0 && !questionsDismissed;
   useEffect(() => {
-    if (job?.done && job.programId && !hasOpenQuestions && answerBusyNodeId === null) {
+    if (job?.done && job.programId && !hasOpenQuestions && answerBusyNodeId === null && !refinementPanelOpen) {
       const id = job.programId;
       clear();
       router.replace(`/programs/${id}`);
     }
-  }, [job?.done, job?.programId, hasOpenQuestions, answerBusyNodeId, clear, router]);
+  }, [job?.done, job?.programId, hasOpenQuestions, answerBusyNodeId, refinementPanelOpen, clear, router]);
 
   const handleAnswer = useCallback(
     async (nodeId: string, answer: string) => {
@@ -183,6 +198,35 @@ function BuildingCanvas() {
       }
     },
     [job?.sessionId, job?.keyContext, applyClarificationResult]
+  );
+
+  const handleRefine = useCallback(() => {
+    if (!job?.programId || !job?.nodes?.length) return;
+    if (refinementSession && !canRefine(refinementSession)) return;
+
+    // If no session yet, create one from the current job state
+    if (!refinementSession) {
+      const initialSchema = jobToSchema(job);
+      const session = createRefinementSession({
+        programId: job.programId,
+        originalDescription: "",
+        connectionIds: [],
+        initialSchema,
+        model: "platform",
+      });
+      setRefinementSession(session);
+    }
+    setRefinementPanelOpen(true);
+  }, [job, refinementSession]);
+
+  const handleRefineApply = useCallback(
+    (schema: ProgramSchema) => {
+      if (!job?.programId) return;
+      // Apply the refined schema: navigate to the program editor
+      clear();
+      router.replace(`/programs/${job.programId}`);
+    },
+    [job?.programId, clear, router]
   );
 
   const { nodes, edges } = useMemo(() => {
@@ -268,6 +312,17 @@ function BuildingCanvas() {
                 Skip questions — open program
               </Button>
             )}
+            {!error && job?.done && job.programId && !hasOpenQuestions && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={handleRefine}
+                disabled={refinementSession !== null && !canRefine(refinementSession)}
+              >
+                Refine
+              </Button>
+            )}
           </div>
           {error && (
             <div className="mt-3 space-y-2">
@@ -303,6 +358,24 @@ function BuildingCanvas() {
         </div>
       )}
 
+      {/* Refinement panel — shown when user clicks "Refine" */}
+      {refinementPanelOpen && !error && (
+        <div className="absolute right-4 top-24 z-10">
+          <RefinementPanel
+            session={refinementSession}
+            onUpdateSession={setRefinementSession}
+            onApply={handleRefineApply}
+            onDismiss={() => setRefinementPanelOpen(false)}
+            busy={refinementBusy}
+            setBusy={setRefinementBusy}
+            error={refinementError}
+            setError={setRefinementError}
+            latestResultSchema={refinementResultSchema}
+            setLatestResultSchema={setRefinementResultSchema}
+          />
+        </div>
+      )}
+
       {/* Thoughts panel */}
       {thoughts.length > 0 && !error && (
         <div className="pointer-events-auto absolute left-4 bottom-4 z-10 max-w-sm rounded-xl border glass-card px-4 py-3 shadow-lg">
@@ -333,4 +406,60 @@ function Spinner() {
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
   );
+}
+
+/**
+ * Convert the Genesis job state (nodes + edges) into a minimal ProgramSchema
+ * that can be sent to the refinement API. The schema is reconstructed from
+ * the streaming build state so the refinement loop has full context.
+ */
+function jobToSchema(job: {
+  programId: string | null;
+  programName: string;
+  nodes: GenesisJobNode[];
+  edges: GenesisJobEdge[];
+}): ProgramSchema {
+  const now = new Date().toISOString();
+  return {
+    version: "1.0",
+    program_id: job.programId ?? "__REFINEMENT__",
+    program_name: job.programName || "Refined Program",
+    created_at: now,
+    updated_at: now,
+    execution_mode: "autonomous",
+    nodes: job.nodes.map((n) => ({
+      id: n.id,
+      type: n.type,
+      label: n.label ?? n.id,
+      description: n.description ?? "",
+      connection: n.connection ?? null,
+      config: (n.config ?? {}) as Record<string, unknown>,
+      position: n.position ?? { x: 0, y: 0 },
+      status: "idle" as const,
+      errors: [],
+      warnings: [],
+    })) as unknown as Node[],
+    edges: job.edges.map((e) => ({
+      id: e.id,
+      from: e.from,
+      to: e.to,
+      type: (e.type ?? "data_flow") as "data_flow" | "control_flow" | "event_subscription",
+      label: e.label ?? null,
+      data_mapping: null,
+      condition: null,
+      validationErrors: [],
+    })),
+    triggers: [],
+    version_history: [],
+    metadata: {
+      description: "",
+      genesis_model: "platform",
+      genesis_timestamp: now,
+      tags: [],
+      is_active: false,
+      last_run_id: null,
+      last_run_status: null,
+      last_run_timestamp: null,
+    },
+  };
 }

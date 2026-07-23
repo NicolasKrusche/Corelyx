@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import time
 from dataclasses import dataclass, field
@@ -12,8 +13,17 @@ from typing import Any
 from mocks.connector_mocks import get_mock_response, get_supported_operations
 from schema import ProgramSchema, SchemaNode
 from engine.safe_expressions import evaluate_condition, evaluate_expression, SafeExpressionError
-from connectors import get_connector
-from connectors.base import ConnectorError
+
+
+def _config_to_dict(config: Any) -> dict[str, Any]:
+    """Convert a config object (dataclass or dict) to a plain dict."""
+    if config is None:
+        return {}
+    if isinstance(config, dict):
+        return config
+    if dataclasses.is_dataclass(config) and not isinstance(config, type):
+        return dataclasses.asdict(config)
+    return {}
 
 
 @dataclass
@@ -95,24 +105,30 @@ class SimulationEngine:
             input_data = self.trigger_payload.copy()
         else:
             # Get edge mappings for this node
+            has_explicit_mapping = False
             for edge in self.edges:
                 if edge.to == node.id and edge.from_node in upstream_outputs:
                     source_output = upstream_outputs[edge.from_node]
-                    mapping = edge.mapping or {}
+                    mapping = edge.data_mapping or {}
 
-                    # Apply data flow mapping
-                    for target_key, source_expr in mapping.items():
-                        try:
-                            if isinstance(source_expr, str) and source_expr.startswith("{{") and source_expr.endswith("}}"):
-                                # Expression mapping
-                                expr = source_expr[2:-2].strip()
-                                input_data[target_key] = evaluate_expression(expr, source_output)
-                            else:
-                                # Direct field mapping
-                                input_data[target_key] = source_output.get(source_expr)
-                        except SafeExpressionError as e:
-                            self.errors.append(f"Mapping error for edge {edge.id}: {e}")
-                            input_data[target_key] = None
+                    if mapping:
+                        has_explicit_mapping = True
+                        # Apply explicit data flow mapping
+                        for target_key, source_expr in mapping.items():
+                            try:
+                                if isinstance(source_expr, str) and source_expr.startswith("{{") and source_expr.endswith("}}"):
+                                    # Expression mapping
+                                    expr = source_expr[2:-2].strip()
+                                    input_data[target_key] = evaluate_expression(expr, source_output)
+                                else:
+                                    # Direct field mapping
+                                    input_data[target_key] = source_output.get(source_expr)
+                            except SafeExpressionError as e:
+                                self.errors.append(f"Mapping error for edge {edge.id}: {e}")
+                                input_data[target_key] = None
+                    else:
+                        # No explicit mapping — merge upstream output directly
+                        input_data.update(source_output)
 
         # Add node config as potential input
         if node.config:
@@ -122,9 +138,11 @@ class SimulationEngine:
 
     def _simulate_connection_node(self, node: SchemaNode, input_data: dict[str, Any]) -> dict[str, Any]:
         """Simulate a connection node execution using mock data."""
-        config = node.config or {}
-        provider = config.get("provider") or config.get("connector_type")
-        operation = config.get("operation") or config.get("method", "list")
+        cfg = _config_to_dict(node.config)
+        # Prefer the node-level connection field (the actual provider slug),
+        # then fall back to config-level identifiers.
+        provider = getattr(node, "connection", None) or cfg.get("provider") or cfg.get("connector_type")
+        operation = cfg.get("operation") or cfg.get("method", "list")
 
         if provider == "http" or provider == "http_generic":
             provider = "http_generic"
@@ -133,7 +151,7 @@ class SimulationEngine:
             return {"error": "No provider specified in connection config", "status": "failed"}
 
         # Get mock response
-        mock_response = get_mock_response(provider, operation, config)
+        mock_response = get_mock_response(provider, operation, cfg)
 
         return {
             "status_code": mock_response.get("status_code", 200),
@@ -144,9 +162,9 @@ class SimulationEngine:
 
     def _simulate_agent_node(self, node: SchemaNode, input_data: dict[str, Any]) -> dict[str, Any]:
         """Simulate an agent node execution."""
-        config = node.config or {}
-        system_prompt = config.get("system_prompt", "")
-        model = config.get("model", "gpt-4o-mini")
+        cfg = _config_to_dict(node.config)
+        system_prompt = cfg.get("system_prompt", "")
+        model = cfg.get("model", "gpt-4o-mini")
 
         # Mock agent response based on input
         input_text = json.dumps(input_data) if input_data else "No input"
@@ -161,11 +179,11 @@ class SimulationEngine:
 
     def _simulate_step_node(self, node: SchemaNode, input_data: dict[str, Any]) -> dict[str, Any]:
         """Simulate a step node (transform, filter, branch, etc.)."""
-        config = node.config or {}
-        logic_type = config.get("logic_type", "transform")
+        cfg = _config_to_dict(node.config)
+        logic_type = cfg.get("logic_type", "transform")
 
         if logic_type == "transform":
-            transformation = config.get("transformation", "")
+            transformation = cfg.get("transformation", "")
             try:
                 # Try to evaluate transformation as expression
                 if transformation:
@@ -175,7 +193,7 @@ class SimulationEngine:
             return {"result": f"[MOCK TRANSFORM] Input keys: {list(input_data.keys())}", "is_mock": True}
 
         elif logic_type == "filter":
-            condition = config.get("condition", "true")
+            condition = cfg.get("condition", "true")
             try:
                 passed = evaluate_condition(condition, input_data)
                 return {"passed": passed, "filtered_data": input_data if passed else None, "is_mock": True}
@@ -183,8 +201,8 @@ class SimulationEngine:
                 return {"passed": True, "filtered_data": input_data, "is_mock": True}
 
         elif logic_type == "branch":
-            conditions = config.get("conditions", [])
-            default_branch = config.get("default_branch", "default")
+            conditions = cfg.get("conditions", [])
+            default_branch = cfg.get("default_branch", "default")
             for cond in conditions:
                 try:
                     if evaluate_condition(cond.get("condition", "false"), input_data):
@@ -194,8 +212,8 @@ class SimulationEngine:
             return {"branch": default_branch, "data": input_data, "is_mock": True}
 
         elif logic_type == "loop":
-            over = config.get("over", "input.items")
-            item_var = config.get("item_var", "item")
+            over = cfg.get("over", "input.items")
+            item_var = cfg.get("item_var", "item")
             # For simulation, just return mock iteration info
             items = input_data.get("items", [{"mock": "item1"}, {"mock": "item2"}])
             return {
@@ -206,7 +224,7 @@ class SimulationEngine:
             }
 
         elif logic_type == "delay":
-            seconds = config.get("seconds", 1)
+            seconds = cfg.get("seconds", 1)
             return {"delayed_seconds": seconds, "resumed_at": datetime.now().isoformat(), "is_mock": True}
 
         elif logic_type in ("format", "parse", "deduplicate", "sort"):
@@ -216,17 +234,17 @@ class SimulationEngine:
 
     def _simulate_trigger_node(self, node: SchemaNode, input_data: dict[str, Any]) -> dict[str, Any]:
         """Simulate a trigger node."""
-        config = node.config or {}
-        trigger_type = config.get("trigger_type", "manual")
+        cfg = _config_to_dict(node.config)
+        trigger_type = cfg.get("trigger_type", "manual")
 
         if trigger_type == "webhook":
-            return {"webhook_data": self.trigger_payload, "endpoint_id": config.get("endpoint_id"), "is_mock": True}
+            return {"webhook_data": self.trigger_payload, "endpoint_id": cfg.get("endpoint_id"), "is_mock": True}
         elif trigger_type == "cron":
-            return {"triggered_at": datetime.now().isoformat(), "cron_expression": config.get("expression"), "is_mock": True}
+            return {"triggered_at": datetime.now().isoformat(), "cron_expression": cfg.get("expression"), "is_mock": True}
         elif trigger_type == "event":
-            return {"event_source": config.get("source"), "event_type": config.get("event"), "payload": self.trigger_payload, "is_mock": True}
+            return {"event_source": cfg.get("source"), "event_type": cfg.get("event"), "payload": self.trigger_payload, "is_mock": True}
         elif trigger_type == "program_output":
-            return {"source_program": config.get("source_program_id"), "output": self.trigger_payload, "is_mock": True}
+            return {"source_program": cfg.get("source_program_id"), "output": self.trigger_payload, "is_mock": True}
         else:  # manual
             return {"triggered_manually": True, "payload": self.trigger_payload, "is_mock": True}
 
@@ -250,9 +268,11 @@ class SimulationEngine:
             elif node.type == "trigger":
                 output = self._simulate_trigger_node(node, input_data)
             elif node.type == "note":
-                output = {"note": node.config.get("content", "") if node.config else "", "is_mock": True}
+                note_cfg = _config_to_dict(node.config)
+                output = {"note": note_cfg.get("content", ""), "is_mock": True}
             elif node.type == "group":
-                output = {"group_id": node.id, "child_count": len(node.config.get("childIds", [])) if node.config else 0, "is_mock": True}
+                group_cfg = _config_to_dict(node.config)
+                output = {"group_id": node.id, "child_count": len(group_cfg.get("childIds", [])), "is_mock": True}
             else:
                 output = {"error": f"Unknown node type: {node.type}", "is_mock": True}
 
@@ -333,7 +353,7 @@ class SimulationEngine:
 
             # Record edges traversed
             for edge in self.edges:
-                if edge.source == node_id and edge.target in executed:
+                if edge.from_node == node_id and edge.to in executed:
                     self.edges_traversed.append(
                         {
                             "edge_id": edge.id,

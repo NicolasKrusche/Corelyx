@@ -1,9 +1,12 @@
 """IConnector — base interface for all native connectors."""
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any
+
+import structlog
+
+log = structlog.get_logger("connectors")
 
 
 class ConnectorError(Exception):
@@ -27,11 +30,13 @@ class IConnector(ABC):
     @abstractmethod
     def provider(self) -> str:
         """Provider slug, e.g. 'gmail'."""
+        ...
 
     @property
     @abstractmethod
     def supported_operations(self) -> list[str]:
         """List of operation names this connector handles."""
+        ...
 
     @abstractmethod
     async def execute(
@@ -54,3 +59,4 @@ class IConnector(ABC):
         Raises:
             ConnectorError: on provider API errors or missing required params.
         """
+        ...

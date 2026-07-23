@@ -13,15 +13,18 @@ from typing import Any
 
 import httpx
 
-from .base import IConnector, ConnectorError
+from .base import ConnectorError
 from .rate_limit import request_with_rate_limit
+from .sdk.base import BaseConnector
+from .sdk.types import FieldKind, FieldSchema, OperationSchema
 
-_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
+_GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 _INLINE_ATTACHMENT_MAX_BYTES = 262_144  # 256 KB
 
 
-class GmailConnector(IConnector):
+class GmailConnector(BaseConnector):
     provider = "gmail"
+    base_url = "https://gmail.googleapis.com/gmail/v1/users/me"
     supported_operations = [
         "list_emails",
         "list_threads",
@@ -32,6 +35,63 @@ class GmailConnector(IConnector):
         "archive_email",
         "label_email",
         "delete_email",
+    ]
+
+    _operation_schemas = [
+        OperationSchema(
+            name="list_emails",
+            description="List emails matching a query",
+            input_fields=[
+                FieldSchema(name="query", kind=FieldKind.STRING, description="Gmail search query"),
+                FieldSchema(name="max_results", kind=FieldKind.INTEGER, default=10),
+            ],
+            output_fields=[
+                FieldSchema(name="emails", kind=FieldKind.ARRAY),
+                FieldSchema(name="next_page_token", kind=FieldKind.STRING),
+            ],
+        ),
+        OperationSchema(
+            name="read_email",
+            description="Read a single email by message ID",
+            input_fields=[
+                FieldSchema(name="message_id", kind=FieldKind.STRING, required=True),
+                FieldSchema(name="include_attachments", kind=FieldKind.BOOLEAN, default=False),
+            ],
+            output_fields=[
+                FieldSchema(name="subject", kind=FieldKind.STRING),
+                FieldSchema(name="from", kind=FieldKind.STRING),
+                FieldSchema(name="body_text", kind=FieldKind.STRING),
+                FieldSchema(name="attachments", kind=FieldKind.ARRAY),
+            ],
+        ),
+        OperationSchema(
+            name="send_email",
+            description="Send an email",
+            input_fields=[
+                FieldSchema(name="to", kind=FieldKind.STRING, required=True),
+                FieldSchema(name="subject", kind=FieldKind.STRING),
+                FieldSchema(name="body", kind=FieldKind.STRING),
+                FieldSchema(name="cc", kind=FieldKind.STRING),
+                FieldSchema(name="bcc", kind=FieldKind.STRING),
+            ],
+            output_fields=[
+                FieldSchema(name="message_id", kind=FieldKind.STRING),
+                FieldSchema(name="thread_id", kind=FieldKind.STRING),
+            ],
+        ),
+        OperationSchema(
+            name="delete_email",
+            description="Trash or permanently delete an email",
+            input_fields=[
+                FieldSchema(name="message_id", kind=FieldKind.STRING, required=True),
+                FieldSchema(name="permanent", kind=FieldKind.BOOLEAN, default=False),
+            ],
+            output_fields=[
+                FieldSchema(name="message_id", kind=FieldKind.STRING),
+                FieldSchema(name="deleted", kind=FieldKind.BOOLEAN),
+            ],
+            is_destructive=True,
+        ),
     ]
 
     async def execute(
@@ -73,7 +133,7 @@ class GmailConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "GET",
-            f"{_BASE}/messages",
+            f"{_GMAIL_BASE}/messages",
             headers=headers,
             params={"q": query, "maxResults": max_results},
         )
@@ -93,7 +153,7 @@ class GmailConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "GET",
-            f"{_BASE}/threads",
+            f"{_GMAIL_BASE}/threads",
             headers=headers,
             params={"q": query, "maxResults": max_results},
         )
@@ -130,7 +190,7 @@ class GmailConnector(IConnector):
 
         r = await _get_with_precondition_retry(
             client,
-            f"{_BASE}/messages/{message_id}",
+            f"{_GMAIL_BASE}/messages/{message_id}",
             headers=headers,
             params={"format": "full"},
         )
@@ -254,7 +314,7 @@ class GmailConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/messages/send",
+            f"{_GMAIL_BASE}/messages/send",
             headers=headers,
             json=payload,
         )
@@ -272,7 +332,7 @@ class GmailConnector(IConnector):
         # and removing INBOX from an already-archived one is a pointless write.
         meta = await _get_with_precondition_retry(
             client,
-            f"{_BASE}/messages/{message_id}",
+            f"{_GMAIL_BASE}/messages/{message_id}",
             headers=headers,
             params={"format": "minimal"},
         )
@@ -303,7 +363,7 @@ class GmailConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/messages/{message_id}/modify",
+            f"{_GMAIL_BASE}/messages/{message_id}/modify",
             headers=headers,
             json={"removeLabelIds": ["INBOX"]},
         )
@@ -322,7 +382,7 @@ class GmailConnector(IConnector):
             r = await request_with_rate_limit(
                 client,
                 "DELETE",
-                f"{_BASE}/messages/{message_id}",
+                f"{_GMAIL_BASE}/messages/{message_id}",
                 headers=headers,
             )
             _raise_for_status(r, "delete_email")
@@ -331,7 +391,7 @@ class GmailConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/messages/{message_id}/trash",
+            f"{_GMAIL_BASE}/messages/{message_id}/trash",
             headers=headers,
         )
         _raise_for_status(r, "delete_email")
@@ -342,7 +402,7 @@ class GmailConnector(IConnector):
         if not names:
             return []
         # Fetch all existing labels once
-        r = await request_with_rate_limit(client, "GET", f"{_BASE}/labels", headers=headers)
+        r = await request_with_rate_limit(client, "GET", f"{_GMAIL_BASE}/labels", headers=headers)
         _raise_for_status(r, "list_labels")
         existing = {lbl["name"].lower(): lbl["id"] for lbl in r.json().get("labels", [])}
         ids = []
@@ -354,7 +414,7 @@ class GmailConnector(IConnector):
                 cr = await request_with_rate_limit(
                     client,
                     "POST",
-                    f"{_BASE}/labels",
+                    f"{_GMAIL_BASE}/labels",
                     headers=headers,
                     json={"name": name, "labelListVisibility": "labelShow", "messageListVisibility": "show"},
                 )
@@ -413,7 +473,7 @@ class GmailConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/messages/{message_id}/modify",
+            f"{_GMAIL_BASE}/messages/{message_id}/modify",
             headers=headers,
             json=body,
         )
@@ -429,7 +489,7 @@ class GmailConnector(IConnector):
     ) -> bytes:
         r = await _get_with_precondition_retry(
             client,
-            f"{_BASE}/messages/{message_id}/attachments/{attachment_id}",
+            f"{_GMAIL_BASE}/messages/{message_id}/attachments/{attachment_id}",
             headers=headers,
         )
         _raise_for_status(r, "get_attachment")

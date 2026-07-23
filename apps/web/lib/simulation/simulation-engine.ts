@@ -2,6 +2,7 @@
  * TypeScript wrapper for the Python simulation engine.
  * This will be called from the Next.js API route.
  */
+import { getMockResponse } from "./mock-connectors";
 
 export interface NodeSimulationState {
   node_id: string;
@@ -135,52 +136,8 @@ export async function runProgramSimulation(
   const queue = [triggerNode.id];
 
   // Mock response generators
-  const getMockResponse = (provider: string, operation: string, config: Record<string, unknown>) => {
-    const mockResponses: Record<string, Record<string, unknown>> = {
-      gmail: {
-        list_emails: { emails: [{ id: "mock_1", threadId: "thread_1", subject: "Test Email", from: "sender@example.com", received_at: new Date().toISOString(), preview: "Preview...", is_read: false }] },
-        read_email: { id: "mock_1", subject: "Test Email", from: "sender@example.com", body: "Email body content", labels: ["INBOX"] },
-        send_email: { id: "sent_mock_1", threadId: "thread_sent" },
-      },
-      slack: {
-        send_message: { ts: "1234567890.123", channel: "C123456" },
-        list_channels: { channels: [{ id: "C123456", name: "general" }, { id: "C789012", name: "random" }] },
-      },
-      notion: {
-        create_database_entry: { id: "notion_mock_1", url: "https://notion.so/mock_1" },
-        query_database: { results: [{ id: "result_1", properties: {} }] },
-      },
-      github: {
-        create_issue: { number: 1, url: "https://github.com/owner/repo/issues/1" },
-        list_prs: { pull_requests: [] },
-      },
-      sheets: {
-        read_range: { range: "A1:C3", values: [["Header1", "Header2", "Header3"], ["Row1Col1", "Row1Col2", "Row1Col3"]] },
-        append_row: { updatedRange: "A4:C4", updatedRows: 1 },
-      },
-      http_generic: {
-        request: { status_code: 200, data: { mock: true, message: "HTTP Generic mock response" }, headers: { "content-type": "application/json" } },
-      },
-      postgresql: {
-        query: { rows: [{ id: 1, name: "Test" }, { id: 2, name: "Test 2" }], row_count: 2, columns: ["id", "name"] },
-        execute: { rows_affected: 1 },
-        list_tables: { tables: ["users", "orders", "products"] },
-      },
-      redis: {
-        get: { value: "mock_value", exists: true },
-        set: { ok: true },
-        incr: { value: 42 },
-      },
-    };
-
-    const providerLower = provider.toLowerCase().replace("http_generic", "http_generic");
-    const opLower = operation.toLowerCase();
-    
-    if (mockResponses[providerLower] && mockResponses[providerLower][opLower]) {
-      return mockResponses[providerLower][opLower];
-    }
-    return { mock: true, provider: providerLower, operation: opLower };
-  };
+  // Uses centralized mock registry from ./mock-connectors.ts
+  // getMockResponse returns a MockResponsePayload with data, status, latency, and cost info.
 
   // Execute nodes in topological order
   while (queue.length > 0) {
@@ -253,8 +210,8 @@ export async function runProgramSimulation(
       case "connection":
         const provider = (node.config.provider as string) || (node.config.connector_type as string) || "unknown";
         const operation = (node.config.operation as string) || (node.config.method as string) || "list";
-        outputData = getMockResponse(provider, operation, node.config);
-        outputData.is_mock = true;
+        const mockResult = getMockResponse(provider, operation, node.config);
+        outputData = { ...mockResult.data, is_mock: true };
         break;
 
       case "agent":

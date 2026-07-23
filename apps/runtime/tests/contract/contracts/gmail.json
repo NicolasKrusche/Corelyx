@@ -1,0 +1,129 @@
+{
+  "provider": "gmail",
+  "description": "Gmail connector contract — email operations via Gmail API v1",
+  "operations": [
+    {
+      "name": "list_emails",
+      "input_fields": [
+        {"name": "query", "type": "string", "required": false, "description": "Gmail search query"},
+        {"name": "max_results", "type": "integer", "required": false, "description": "Maximum number of results"}
+      ],
+      "output_fields": [
+        {"name": "emails", "type": "array", "required": false},
+        {"name": "next_page_token", "type": "string", "required": false}
+      ],
+      "required_input_fields": [],
+      "optional_input_fields": ["query", "max_results"]
+    },
+    {
+      "name": "list_threads",
+      "input_fields": [
+        {"name": "query", "type": "string", "required": false},
+        {"name": "max_results", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "threads", "type": "array", "required": false},
+        {"name": "next_page_token", "type": "string", "required": false}
+      ],
+      "required_input_fields": [],
+      "optional_input_fields": ["query", "max_results"]
+    },
+    {
+      "name": "search",
+      "input_fields": [
+        {"name": "query", "type": "string", "required": false},
+        {"name": "max_results", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "emails", "type": "array", "required": false},
+        {"name": "next_page_token", "type": "string", "required": false}
+      ],
+      "required_input_fields": [],
+      "optional_input_fields": ["query", "max_results"]
+    },
+    {
+      "name": "read_email",
+      "input_fields": [
+        {"name": "message_id", "type": "string", "required": true},
+        {"name": "include_attachments", "type": "boolean", "required": false}
+      ],
+      "output_fields": [
+        {"name": "subject", "type": "string", "required": false},
+        {"name": "from", "type": "string", "required": false},
+        {"name": "body_text", "type": "string", "required": false},
+        {"name": "attachments", "type": "array", "required": false}
+      ],
+      "required_input_fields": ["message_id"],
+      "optional_input_fields": ["include_attachments"]
+    },
+    {
+      "name": "send_email",
+      "input_fields": [
+        {"name": "to", "type": "string", "required": true},
+        {"name": "subject", "type": "string", "required": false},
+        {"name": "body", "type": "string", "required": false},
+        {"name": "cc", "type": "string", "required": false},
+        {"name": "bcc", "type": "string", "required": false}
+      ],
+      "output_fields": [
+        {"name": "message_id", "type": "string", "required": false},
+        {"name": "thread_id", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["to"],
+      "optional_input_fields": ["subject", "body", "cc", "bcc"]
+    },
+    {
+      "name": "delete_email",
+      "input_fields": [
+        {"name": "message_id", "type": "string", "required": true},
+        {"name": "permanent", "type": "boolean", "required": false}
+      ],
+      "output_fields": [
+        {"name": "message_id", "type": "string", "required": false},
+        {"name": "deleted", "type": "boolean", "required": false}
+      ],
+      "required_input_fields": ["message_id"],
+      "optional_input_fields": ["permanent"]
+    },
+    {
+      "name": "get_attachment",
+      "input_fields": [
+        {"name": "message_id", "type": "string", "required": true},
+        {"name": "attachment_id", "type": "string", "required": true}
+      ],
+      "output_fields": [
+        {"name": "message_id", "type": "string", "required": false},
+        {"name": "attachment_id", "type": "string", "required": false},
+        {"name": "size_bytes", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["message_id", "attachment_id"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "archive_email",
+      "input_fields": [
+        {"name": "message_id", "type": "string", "required": true}
+      ],
+      "output_fields": [
+        {"name": "message_id", "type": "string", "required": false},
+        {"name": "archived", "type": "boolean", "required": false}
+      ],
+      "required_input_fields": ["message_id"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "label_email",
+      "input_fields": [
+        {"name": "message_id", "type": "string", "required": true},
+        {"name": "add_label_names", "type": "array", "required": false},
+        {"name": "remove_label_names", "type": "array", "required": false}
+      ],
+      "output_fields": [
+        {"name": "message_id", "type": "string", "required": false},
+        {"name": "labels", "type": "array", "required": false}
+      ],
+      "required_input_fields": ["message_id"],
+      "optional_input_fields": ["add_label_names", "remove_label_names"]
+    }
+  ]
+}

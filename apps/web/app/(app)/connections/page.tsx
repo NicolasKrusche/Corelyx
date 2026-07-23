@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { ConnectorHealthDashboard } from "@/components/connections/ConnectorHealthDashboard";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
 import {
   getNextSecondaryConnectionName,
@@ -1583,6 +1584,16 @@ export default function ConnectionsPage() {
           })()
         )}
       </section>
+
+      {/* Connector Health Dashboard */}
+      {sortedConnections.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+            Connector Health
+          </h2>
+          <ConnectorHealthDashboard />
+        </section>
+      )}
 
       {/* API Key connection dialog — shown for providers that don't use OAuth2 redirect flows */}
       <Dialog

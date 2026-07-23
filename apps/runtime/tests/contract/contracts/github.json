@@ -1,0 +1,89 @@
+{
+  "provider": "github",
+  "description": "GitHub connector contract — issues, PRs, and file operations via GitHub REST API",
+  "operations": [
+    {
+      "name": "create_issue",
+      "input_fields": [
+        {"name": "owner", "type": "string", "required": true, "description": "Repository owner"},
+        {"name": "repo", "type": "string", "required": true, "description": "Repository name"},
+        {"name": "title", "type": "string", "required": true, "description": "Issue title"},
+        {"name": "body", "type": "string", "required": false, "description": "Issue body text"},
+        {"name": "labels", "type": "array", "required": false, "description": "Labels to apply"},
+        {"name": "assignees", "type": "array", "required": false, "description": "Users to assign"}
+      ],
+      "output_fields": [
+        {"name": "issue_number", "type": "integer", "required": false},
+        {"name": "url", "type": "string", "required": false},
+        {"name": "title", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["owner", "repo", "title"],
+      "optional_input_fields": ["body", "labels", "assignees"]
+    },
+    {
+      "name": "comment_on_issue",
+      "input_fields": [
+        {"name": "owner", "type": "string", "required": true},
+        {"name": "repo", "type": "string", "required": true},
+        {"name": "issue_number", "type": "integer", "required": true},
+        {"name": "body", "type": "string", "required": false}
+      ],
+      "output_fields": [
+        {"name": "comment_id", "type": "integer", "required": false},
+        {"name": "url", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["owner", "repo", "issue_number"],
+      "optional_input_fields": ["body"]
+    },
+    {
+      "name": "list_prs",
+      "input_fields": [
+        {"name": "owner", "type": "string", "required": true},
+        {"name": "repo", "type": "string", "required": true},
+        {"name": "state", "type": "string", "required": false},
+        {"name": "per_page", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "pull_requests", "type": "array", "required": false}
+      ],
+      "required_input_fields": ["owner", "repo"],
+      "optional_input_fields": ["state", "per_page"]
+    },
+    {
+      "name": "get_pr_diff",
+      "input_fields": [
+        {"name": "owner", "type": "string", "required": true},
+        {"name": "repo", "type": "string", "required": true},
+        {"name": "pr_number", "type": "integer", "required": true}
+      ],
+      "output_fields": [
+        {"name": "diff", "type": "string", "required": false},
+        {"name": "pr_number", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["owner", "repo", "pr_number"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "push_file",
+      "input_fields": [
+        {"name": "owner", "type": "string", "required": true},
+        {"name": "repo", "type": "string", "required": true},
+        {"name": "path", "type": "string", "required": true},
+        {"name": "message", "type": "string", "required": true},
+        {"name": "content", "type": "string", "required": false},
+        {"name": "content_base64", "type": "string", "required": false},
+        {"name": "branch", "type": "string", "required": false}
+      ],
+      "output_fields": [
+        {"name": "path", "type": "string", "required": false},
+        {"name": "sha", "type": "string", "required": false},
+        {"name": "url", "type": "string", "required": false},
+        {"name": "commit_sha", "type": "string", "required": false},
+        {"name": "commit_url", "type": "string", "required": false},
+        {"name": "branch", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["owner", "repo", "path", "message"],
+      "optional_input_fields": ["content", "content_base64", "branch"]
+    }
+  ]
+}

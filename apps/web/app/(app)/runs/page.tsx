@@ -8,6 +8,7 @@ import { RunsLiveButton, ExportRunsButton } from "./runs-toolbar";
 import { RunsFooter } from "./runs-footer";
 import { RunsSearch } from "./runs-search";
 import { ExpandableRunList } from "./expandable-run-list";
+import { NLQueryPanel } from "@/components/runs/NLQueryPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -246,6 +247,9 @@ export default async function RunsPage({
 
       {/* ── Search + date filter ── */}
       <RunsSearch currentQ={resolvedSearchParams.q ?? ""} currentSince={sinceParam} />
+
+      {/* ── Natural Language Query ── */}
+      <NLQueryPanel />
 
       {/* ── Stats cards ── */}
       {runs24h.length > 0 && (

@@ -7,6 +7,10 @@ import { RunLogLive } from "./run-log-live";
 import { StopRunButton } from "./stop-button";
 import { SkipTriggerButton } from "./skip-trigger-button";
 import { ReplayButton } from "./replay-button";
+import { FailureAnalysisPanel } from "@/components/runs/FailureAnalysisPanel";
+import { SaveAsTemplateButton } from "@/components/runs/SaveAsTemplateButton";
+import { ReplayFromNodeModal } from "@/components/runs/ReplayFromNodeModal";
+import { ExportRunButton } from "@/components/runs/ExportRunButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -238,6 +242,66 @@ export default async function RunLogPage({
           {["completed", "success", "failed", "cancelled"].includes(run.status) && (
             <ReplayButton runId={run.id} programId={id} />
           )}
+          {["completed", "success", "failed"].includes(run.status) && initialExecs.length > 1 && (
+            <ReplayFromNodeModal
+              runId={run.id}
+              programId={id}
+              nodeExecutions={initialExecs.map((e) => ({
+                node_id: e.node_id,
+                node_type: nodeMap[e.node_id]?.type ?? "unknown",
+                status: e.status,
+                input_payload: e.input_payload,
+              }))}
+              trigger={
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border border-border bg-background hover:bg-accent transition-colors"
+                >
+                  Replay from Node
+                </button>
+              }
+            />
+          )}
+          {["completed", "success"].includes(run.status) && (
+            <SaveAsTemplateButton runId={run.id} programName={prog.name} />
+          )}
+          {["completed", "success", "failed", "cancelled"].includes(run.status) && (
+            <ExportRunButton
+              runId={run.id}
+              programSchema={schema}
+              nodeExecutions={initialExecs.map((e) => ({
+                id: e.id,
+                node_id: e.node_id,
+                status: e.status,
+                input_payload: e.input_payload,
+                output_payload: e.output_payload,
+                error_message: e.error_message,
+                retry_count: e.retry_count,
+                started_at: e.started_at,
+                completed_at: e.completed_at,
+                prompt_tokens: e.prompt_tokens,
+                completion_tokens: e.completion_tokens,
+                total_tokens: e.total_tokens,
+                estimated_cost_usd: e.estimated_cost_usd,
+                connector_api_calls: e.connector_api_calls,
+                model_call_count: e.model_call_count,
+                created_at: e.created_at,
+              }))}
+              runMetadata={{
+                status: run.status,
+                triggered_by: run.triggered_by,
+                started_at: run.started_at,
+                completed_at: run.completed_at,
+                error_message: run.error_message,
+                total_tokens: run.total_tokens,
+                prompt_tokens: run.prompt_tokens,
+                completion_tokens: run.completion_tokens,
+                estimated_cost_usd: run.estimated_cost_usd,
+                connector_api_calls: run.connector_api_calls,
+                model_call_count: run.model_call_count,
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -298,6 +362,13 @@ export default async function RunLogPage({
           </div>
         )}
       </div>
+
+      {/* AI Failure Analysis */}
+      <FailureAnalysisPanel
+        runId={runId}
+        runStatus={run.status}
+        runErrorMessage={run.error_message}
+      />
 
       {/* Live node execution timeline */}
       <RunLogLive

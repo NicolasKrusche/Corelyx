@@ -1,0 +1,38 @@
+{
+  "provider": "http_generic",
+  "description": "HTTP Generic connector contract — arbitrary HTTP requests with auth and response parsing",
+  "operations": [
+    {
+      "name": "request",
+      "input_fields": [
+        {"name": "method", "type": "string", "required": false, "description": "HTTP method (GET, POST, PUT, DELETE, etc.)"},
+        {"name": "url", "type": "string", "required": true, "description": "Request URL"},
+        {"name": "headers", "type": "object", "required": false, "description": "Request headers"},
+        {"name": "params", "type": "object", "required": false, "description": "Query parameters"},
+        {"name": "body", "type": "string", "required": false, "description": "Raw request body"},
+        {"name": "json", "type": "object", "required": false, "description": "JSON request body"},
+        {"name": "form_data", "type": "object", "required": false, "description": "Form-encoded body"},
+        {"name": "auth_type", "type": "string", "required": false, "description": "Auth type: none, bearer, basic, api_key"},
+        {"name": "auth_token", "type": "string", "required": false, "description": "Bearer/API key token"},
+        {"name": "auth_username", "type": "string", "required": false, "description": "Basic auth username"},
+        {"name": "auth_password", "type": "string", "required": false, "description": "Basic auth password"},
+        {"name": "timeout", "type": "float", "required": false, "description": "Request timeout in seconds"},
+        {"name": "follow_redirects", "type": "boolean", "required": false},
+        {"name": "parse_response", "type": "boolean", "required": false},
+        {"name": "response_type", "type": "string", "required": false, "description": "Response parse type: json, text, bytes"}
+      ],
+      "output_fields": [
+        {"name": "status_code", "type": "integer", "required": false},
+        {"name": "headers", "type": "object", "required": false},
+        {"name": "url", "type": "string", "required": false},
+        {"name": "data", "type": "object", "required": false}
+      ],
+      "required_input_fields": ["url"],
+      "optional_input_fields": [
+        "method", "headers", "params", "body", "json", "form_data",
+        "auth_type", "auth_token", "auth_username", "auth_password",
+        "timeout", "follow_redirects", "parse_response", "response_type"
+      ]
+    }
+  ]
+}

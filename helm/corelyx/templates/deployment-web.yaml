@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "corelyx.fullname" . }}-web
+  labels:
+    {{- include "corelyx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "corelyx.web.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "corelyx.web.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "corelyx.serviceAccountName" . }}
+      containers:
+        - name: web
+          image: "{{ .Values.global.imageRegistry }}{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: NEXT_PUBLIC_APP_URL
+              value: {{ .Values.config.appUrl | quote }}
+            - name: NEXT_PUBLIC_RUNTIME_URL
+              value: {{ .Values.config.runtimeUrl | quote }}
+            - name: RUNTIME_URL
+              value: "http://{{ include "corelyx.fullname" . }}-runtime:{{ .Values.runtime.service.port }}"
+            - name: RUNTIME_INTERNAL_URL
+              value: "http://{{ include "corelyx.fullname" . }}-runtime:{{ .Values.runtime.service.port }}"
+            - name: NEXT_PUBLIC_SUPABASE_URL
+              value: {{ .Values.config.supabaseUrl | quote }}
+            - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+              value: {{ .Values.config.supabaseAnonKey | quote }}
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@{{ .Values.postgres.host }}:{{ .Values.postgres.port }}/{{ .Values.postgres.database }}"
+            {{- if .Values.secrets.existingSecret }}
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: SUPABASE_SERVICE_ROLE_KEY
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: OPENAI_API_KEY
+                  optional: true
+            - name: INNGEST_EVENT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: INNGEST_EVENT_KEY
+                  optional: true
+            - name: INNGEST_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: INNGEST_SIGNING_KEY
+                  optional: true
+            - name: INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME
+                  optional: true
+            {{- end }}
+            {{- if .Values.config.sentryDsn }}
+            - name: NEXT_PUBLIC_SENTRY_DSN
+              value: {{ .Values.config.sentryDsn | quote }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

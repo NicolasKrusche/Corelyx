@@ -18,3 +18,15 @@ datamodel-code-generator==0.28.1
 # structured identifiers only (engine/ner.py degrades gracefully).
 # gliner>=0.2.13            # best recall, multilingual PII-tuned (pulls torch)
 spacy>=3.7 ; python_version >= "3.11"   # lighter; also: python -m spacy download xx_ent_wiki_sm
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=1.4.0
+
+# Structured logging
+structlog>=24.4.0
+
+# OpenTelemetry tracing
+opentelemetry-api>=1.27.0
+opentelemetry-sdk>=1.27.0
+opentelemetry-exporter-otlp>=1.27.0

@@ -83,6 +83,26 @@ export interface NodeBase {
   description: string;
   position: { x: number; y: number };
   status: NodeStatus;
+  metadata?: NodeMetadata;
+}
+
+/**
+ * AI-generated explainability metadata attached to each node during Genesis
+ * generation. Stores why the AI chose this node, what alternatives were
+ * considered, and a confidence score. Supports AI Act Art. 14/50 compliance
+ * (transparency obligation for AI systems).
+ */
+export interface NodeMetadata {
+  genesis_reasoning?: {
+    /** Why this specific node was chosen for this position in the workflow */
+    reasoning: string;
+    /** Alternative nodes/connectors considered but not selected */
+    alternatives: string[];
+    /** Confidence score 0-1 indicating how certain the AI was about this choice */
+    confidence: number;
+  };
+  /** Timestamp when this metadata was generated */
+  generated_at?: string;
 }
 
 export type NodeStatus =

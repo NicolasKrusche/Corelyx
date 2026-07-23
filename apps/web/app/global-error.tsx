@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { friendlyErrorMessage } from "@/lib/friendly-errors";
 import { PersistentAiDisclosure } from "@/components/ai-transparency";
 
@@ -10,6 +12,10 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <html>
       <body className="flex min-h-screen flex-col items-center justify-center gap-4">

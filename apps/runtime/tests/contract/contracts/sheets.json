@@ -1,0 +1,87 @@
+{
+  "provider": "sheets",
+  "description": "Google Sheets connector contract — spreadsheet read/write operations via Sheets API v4",
+  "operations": [
+    {
+      "name": "read_range",
+      "input_fields": [
+        {"name": "spreadsheet_id", "type": "string", "required": true, "description": "Google Sheets spreadsheet ID"},
+        {"name": "range", "type": "string", "required": true, "description": "A1 notation range (e.g. Sheet1!A1:D10)"}
+      ],
+      "output_fields": [
+        {"name": "range", "type": "string", "required": false},
+        {"name": "values", "type": "array", "required": false},
+        {"name": "major_dimension", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["spreadsheet_id", "range"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "write_range",
+      "input_fields": [
+        {"name": "spreadsheet_id", "type": "string", "required": true},
+        {"name": "range", "type": "string", "required": true},
+        {"name": "values", "type": "array", "required": true, "description": "2D array of values"}
+      ],
+      "output_fields": [
+        {"name": "updated_range", "type": "string", "required": false},
+        {"name": "updated_rows", "type": "integer", "required": false},
+        {"name": "updated_cells", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["spreadsheet_id", "range", "values"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "append_row",
+      "input_fields": [
+        {"name": "spreadsheet_id", "type": "string", "required": true},
+        {"name": "range", "type": "string", "required": true},
+        {"name": "values", "type": "array", "required": true, "description": "Row values to append"}
+      ],
+      "output_fields": [
+        {"name": "updated_range", "type": "string", "required": false},
+        {"name": "updated_rows", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["spreadsheet_id", "range", "values"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "list_sheets",
+      "input_fields": [
+        {"name": "spreadsheet_id", "type": "string", "required": true}
+      ],
+      "output_fields": [
+        {"name": "sheets", "type": "array", "required": false}
+      ],
+      "required_input_fields": ["spreadsheet_id"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "create_sheet",
+      "input_fields": [
+        {"name": "spreadsheet_id", "type": "string", "required": true},
+        {"name": "title", "type": "string", "required": false},
+        {"name": "index", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "sheet_id", "type": "integer", "required": false},
+        {"name": "title", "type": "string", "required": false},
+        {"name": "index", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["spreadsheet_id"],
+      "optional_input_fields": ["title", "index"]
+    },
+    {
+      "name": "clear_range",
+      "input_fields": [
+        {"name": "spreadsheet_id", "type": "string", "required": true},
+        {"name": "range", "type": "string", "required": true}
+      ],
+      "output_fields": [
+        {"name": "cleared_range", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["spreadsheet_id", "range"],
+      "optional_input_fields": []
+    }
+  ]
+}

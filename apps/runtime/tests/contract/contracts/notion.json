@@ -1,0 +1,89 @@
+{
+  "provider": "notion",
+  "description": "Notion connector contract — page and database operations via Notion API v1",
+  "operations": [
+    {
+      "name": "read_page",
+      "input_fields": [
+        {"name": "page_id", "type": "string", "required": true, "description": "Notion page ID"}
+      ],
+      "output_fields": [
+        {"name": "page", "type": "object", "required": false},
+        {"name": "blocks", "type": "array", "required": false}
+      ],
+      "required_input_fields": ["page_id"],
+      "optional_input_fields": []
+    },
+    {
+      "name": "create_page",
+      "input_fields": [
+        {"name": "parent_id", "type": "string", "required": true, "description": "Parent page ID"},
+        {"name": "title", "type": "string", "required": false},
+        {"name": "content", "type": "string", "required": false}
+      ],
+      "output_fields": [
+        {"name": "page_id", "type": "string", "required": false},
+        {"name": "url", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["parent_id"],
+      "optional_input_fields": ["title", "content"]
+    },
+    {
+      "name": "append_to_page",
+      "input_fields": [
+        {"name": "page_id", "type": "string", "required": true},
+        {"name": "content", "type": "string", "required": false},
+        {"name": "blocks", "type": "array", "required": false}
+      ],
+      "output_fields": [
+        {"name": "page_id", "type": "string", "required": false},
+        {"name": "appended_blocks", "type": "integer", "required": false}
+      ],
+      "required_input_fields": ["page_id"],
+      "optional_input_fields": ["content", "blocks"]
+    },
+    {
+      "name": "query_database",
+      "input_fields": [
+        {"name": "database_id", "type": "string", "required": true},
+        {"name": "filter", "type": "object", "required": false},
+        {"name": "sorts", "type": "array", "required": false},
+        {"name": "page_size", "type": "integer", "required": false}
+      ],
+      "output_fields": [
+        {"name": "results", "type": "array", "required": false},
+        {"name": "has_more", "type": "boolean", "required": false}
+      ],
+      "required_input_fields": ["database_id"],
+      "optional_input_fields": ["filter", "sorts", "page_size"]
+    },
+    {
+      "name": "create_database_entry",
+      "input_fields": [
+        {"name": "database_id", "type": "string", "required": true},
+        {"name": "properties", "type": "object", "required": false}
+      ],
+      "output_fields": [
+        {"name": "page_id", "type": "string", "required": false},
+        {"name": "url", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["database_id"],
+      "optional_input_fields": ["properties"]
+    },
+    {
+      "name": "create_database",
+      "input_fields": [
+        {"name": "parent_page_id", "type": "string", "required": true},
+        {"name": "title", "type": "string", "required": false},
+        {"name": "properties", "type": "object", "required": false}
+      ],
+      "output_fields": [
+        {"name": "database_id", "type": "string", "required": false},
+        {"name": "url", "type": "string", "required": false},
+        {"name": "title", "type": "string", "required": false}
+      ],
+      "required_input_fields": ["parent_page_id"],
+      "optional_input_fields": ["title", "properties"]
+    }
+  ]
+}

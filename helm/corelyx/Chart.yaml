@@ -1,0 +1,16 @@
+apiVersion: v2
+name: corelyx
+description: Corelyx — Visual Agentic OS Helm Chart
+type: application
+version: 0.1.0
+appVersion: "0.0.1"
+keywords:
+  - corelyx
+  - agentic
+  - workflow
+  - langgraph
+  - nextjs
+maintainers:
+  - name: Nicolas Krusche
+  - name: Jan Steindl
+dependencies: []

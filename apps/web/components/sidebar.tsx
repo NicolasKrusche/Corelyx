@@ -1082,6 +1082,8 @@ export function Sidebar({
             icon={<RunsIcon />} badge={failedRuns} isDark={isDark} tourId="nav-runs" />
           <NavItem href="/approvals" label={tNav("approvals")} active={pathname.startsWith("/approvals")}
             icon={<BellIcon />} badge={pendingApprovals} isDark={isDark} tourId="nav-approvals" />
+          <NavItem href="/playground" label="Playground" active={pathname.startsWith("/playground")}
+            icon={<PlaygroundIcon />} isDark={isDark} tourId="nav-playground" />
         </div>
 
         {/* ── DATA ───────────────────────────────────────────────────────── */}
@@ -1089,6 +1091,8 @@ export function Sidebar({
         <div className="space-y-0.5">
           <NavItem href="/browse" label={tNav("browse")} active={pathname.startsWith("/browse")}
             icon={<BrowseIcon />} isDark={isDark} />
+          <NavItem href="/templates" label="Templates" active={pathname.startsWith("/templates")}
+            icon={<TemplatesIcon />} isDark={isDark} tourId="nav-templates" />
           <NavItem href="/connections" label={tNav("connections")} active={pathname.startsWith("/connections")}
             icon={<LinkIcon />} isDark={isDark} tourId="nav-connections" />
         </div>
@@ -1107,6 +1111,7 @@ export function Sidebar({
               <NavSubItem href="/governance/access" label={tSidebar("governanceNav.access")} active={pathname.startsWith("/governance/access")} isDark={isDark} />
               <NavSubItem href="/governance/ai-act" label={tSidebar("governanceNav.aiAct")} active={pathname.startsWith("/governance/ai-act")} isDark={isDark} />
               <NavSubItem href="/governance/exports" label={tSidebar("governanceNav.exports")} active={pathname.startsWith("/governance/exports")} isDark={isDark} />
+              <NavSubItem href="/compliance" label="AI Act Dashboard" active={pathname.startsWith("/compliance")} isDark={isDark} />
             </div>
           </div>
         </div>
@@ -3113,11 +3118,26 @@ function RunsIcon() {
     </svg>
   );
 }
+function PlaygroundIcon() {
+  // Beaker/flask — represents experimentation and testing
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-2.47 2.47a2.25 2.25 0 0 1-1.59.659H9.06a2.25 2.25 0 0 1-1.591-.659L5 14.5m14 0V6.75a2.25 2.25 0 0 0-2.25-2.25H7.25A2.25 2.25 0 0 0 5 6.75v7.75" />
+    </svg>
+  );
+}
 function BrowseIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 8.5 10 10l-1.5 5.5 5.5-1.5 1.5-5.5z" />
+    </svg>
+  );
+}
+function TemplatesIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
     </svg>
   );
 }

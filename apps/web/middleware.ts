@@ -6,6 +6,7 @@ import { applySecurityHeaders } from "@/lib/security-headers";
 import { maintenanceGate } from "@/lib/maintenance-middleware";
 import { looksLikeToken } from "@/lib/personal-tokens";
 import { isSessionExemptApiRoute } from "@/lib/session-exempt-api-routes";
+import { checkMiddlewareRateLimit, rateLimitExceededResponse } from "@/lib/middleware-rate-limit";
 
 // ─── Bearer token auth (personal API tokens) ──────────────────────────────────
 
@@ -200,6 +201,12 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.redirect(url);
     applySecurityHeaders(response.headers, nonce);
     return response;
+  }
+
+  // ── Rate limiting (before auth — blocks brute-force / abuse early) ────
+  const rateLimitResult = await checkMiddlewareRateLimit(request);
+  if (!rateLimitResult.allowed) {
+    return rateLimitExceededResponse(rateLimitResult);
   }
 
   // If Supabase isn't configured yet, allow all public routes through

@@ -1,47 +1,67 @@
 import { NextResponse } from "next/server";
-import { apiError, getAuthUser } from "@/lib/api";
-import { getStripeClient } from "@/lib/stripe";
+import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 
-// GET /api/billing/portal — create a Stripe Customer Portal session and redirect.
-// The portal lets users manage, upgrade, downgrade, or cancel their subscription.
-// Redirects to /plan if the user has no Stripe customer record (free tier).
+type LooseServiceClient = ReturnType<typeof createServiceClient> & {
+  from(table: string): any;
+};
+
+/**
+ * GET /api/billing/portal — Create a Stripe Customer Portal session
+ * and redirect to it.
+ */
 export async function GET(request: Request) {
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
-  if (!user.email) return apiError("Account email is required.", 400);
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
+  const { searchParams } = new URL(request.url);
+  const orgId = searchParams.get("org_id");
+  if (!orgId) return apiError("Missing org_id.", 400);
 
-  let stripe: ReturnType<typeof import("@/lib/stripe")["getStripeClient"]>;
-  try {
-    stripe = getStripeClient();
-  } catch {
-    return apiError("Billing is not configured.", 500);
+  const service = createServiceClient() as LooseServiceClient;
+
+  // Verify membership
+  const { data: membership } = await service
+    .from("org_memberships")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership) return apiError("Organization not found.", 404);
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    return apiError("Only owners and admins can access billing.", 403);
   }
 
-  const { data: customers } = await stripe.customers.list({
-    email: user.email,
-    limit: 10,
-  });
+  // Get Stripe customer ID
+  const { data: sub } = await service
+    .from("org_subscriptions")
+    .select("stripe_customer_id")
+    .eq("org_id", orgId)
+    .eq("status", "active")
+    .maybeSingle();
 
-  if (!customers.length) {
-    return NextResponse.redirect(`${base}/plan`, { status: 303 });
+  if (!sub?.stripe_customer_id) {
+    return apiError("No active Stripe customer found for this organization.", 404);
   }
 
-  // Prefer a customer that has an active subscription; fall back to the first one.
-  const customerWithSub = customers.find((c) => !c.deleted);
-  const customer = customerWithSub ?? customers[0];
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    return apiError("Stripe is not configured.", 500);
+  }
 
   try {
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeSecretKey);
+
     const session = await stripe.billingPortal.sessions.create({
-      customer: customer.id,
-      return_url: `${base}/plan?portal=done`,
+      customer: sub.stripe_customer_id,
+      return_url:
+        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/org/billing`,
     });
-    return NextResponse.redirect(session.url, { status: 303 });
+
+    return NextResponse.redirect(session.url);
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Could not open billing portal.";
-    // Likely cause: portal not configured in Stripe Dashboard
-    return apiError(message, 500);
+    console.error("Stripe portal error:", err);
+    return apiError("Failed to create portal session.", 500);
   }
 }

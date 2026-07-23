@@ -1,0 +1,48 @@
+{
+  "$schema": "https://grafana.com/docs/k6/latest/using-k6/k6-json-config/",
+  "description": "Corelyx Load Test: Webhook Burst (1000 requests in 10 seconds)",
+  "ext": {
+    "loadimpact": {
+      "name": "corelyx-webhook-burst",
+      "projectID": 1
+    }
+  },
+  "options": {
+    "setupTimeout": "30s",
+    "teardownTimeout": "30s",
+    "noConnectionReuse": false,
+    "userAgent": "CorelyxLoadTest/1.0",
+    "insecureSkipTLSVerify": false,
+    "scenarios": {
+      "webhook_burst": {
+        "executor": "ramping-arrival-rate",
+        "startRate": 0,
+        "timeUnit": "1s",
+        "preAllocatedVUs": 50,
+        "maxVUs": 200,
+        "stages": [
+          { "duration": "10s", "target": 100 },
+          { "duration": "5s", "target": 0 }
+        ],
+        "exec": "webhookBurst"
+      }
+    },
+    "thresholds": {
+      "http_req_duration": [
+        "p(95)<2000"
+      ],
+      "http_req_failed": [
+        "rate<0.02"
+      ],
+      "http_reqs": [
+        "rate>50"
+      ],
+      "checks": [
+        "rate>0.98"
+      ]
+    }
+  },
+  "scripts": [
+    "scripts/webhook-burst.js"
+  ]
+}

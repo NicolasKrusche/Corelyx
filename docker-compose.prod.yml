@@ -1,0 +1,167 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Corelyx — Production Docker Compose Stack
+# Usage: cp .env.example .env && docker compose -f docker-compose.prod.yml up -d
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ─── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-corelyx}
+      POSTGRES_USER: ${POSTGRES_USER:-corelyx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/00-init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-corelyx} -d ${POSTGRES_DB:-corelyx}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ─── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─── Runtime (FastAPI + LangGraph) ──────────────────────────────────────────
+  runtime:
+    build:
+      context: .
+      dockerfile: apps/runtime/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: "8002"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-corelyx}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-corelyx}
+      SUPABASE_URL: http://postgres:5432
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_EU_RESIDENCY: ${OPENAI_EU_RESIDENCY:-false}
+      LITELLM_PROXY_URL: ${LITELLM_PROXY_URL:-}
+      LITELLM_PROXY_KEY: ${LITELLM_PROXY_KEY:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME: ${INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME:-}
+      INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_TO_WEB: ${INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_TO_WEB:-}
+      RUNTIME_ENV: production
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ─── Web (Next.js) ──────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      runtime:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_RUNTIME_URL: ${NEXT_PUBLIC_RUNTIME_URL:-http://localhost:8002}
+      RUNTIME_URL: http://runtime:8002
+      RUNTIME_INTERNAL_URL: http://runtime:8002
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://localhost:8000}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-corelyx}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-corelyx}
+      INNGEST_EVENT_KEY: ${INNGEST_EVENT_KEY:-}
+      INNGEST_SIGNING_KEY: ${INNGEST_SIGNING_KEY:-}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+      INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME: ${INTERNAL_SERVICE_AUTH_SECRET_WEB_TO_RUNTIME:-}
+      INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_TO_WEB: ${INTERNAL_SERVICE_AUTH_SECRET_RUNTIME_TO_WEB:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    networks:
+      - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ─── Inngest (background jobs & triggers) ────────────────────────────────────
+  inngest:
+    image: inngest/inaugust:latest
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      INNGEST_SIGNING_KEY: ${INNGEST_SIGNING_KEY:-}
+      INNGEST_EVENT_KEY: ${INNGEST_EVENT_KEY:-}
+    command: ["serve", "-u", "http://web:3000/api/inngest"]
+    ports:
+      - "${INNGEST_PORT:-8288}:8288"
+    networks:
+      - frontend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8288/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# ─── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ─── Networks ──────────────────────────────────────────────────────────────────
+# backend: isolated network for runtime ↔ postgres/redis communication
+# frontend: network for web, runtime, and inngest
+networks:
+  backend:
+    driver: bridge
+    internal: true
+  frontend:
+    driver: bridge
