@@ -5,6 +5,7 @@ import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { getDefaultModelForProvider, validatePreFlight } from "@/lib/validation/pre-flight";
 import { canEdit, canView, getProgramAccess } from "@/lib/workspaces";
+import { applyJsonPatch, JsonPatchOpZ } from "@/lib/genesis/fixit";
 
 const remediationSchema = z.discriminatedUnion("type", [
   z.object({
@@ -14,6 +15,15 @@ const remediationSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("remove_invalid_edge"),
     edge_id: z.string().min(1),
+  }),
+  // AI Fix-It: apply an LLM-generated RFC 6902 JSON Patch. The patch is
+  // re-validated below against the full ProgramSchema before it is persisted,
+  // and the applier is sandboxed to nodes/edges, so a bad patch can only fail
+  // closed — it never writes a partially-mutated or off-graph schema.
+  z.object({
+    type: z.literal("apply_json_patch"),
+    patch: z.array(JsonPatchOpZ).min(1).max(50),
+    description: z.string().max(500).optional(),
   }),
 ]);
 
@@ -138,6 +148,30 @@ export async function POST(
     };
 
     changeSummary = `Pre-flight fix: assigned model and API key for node ${agentNode.id}`;
+  }
+
+  if (remediation.type === "apply_json_patch") {
+    const patched = applyJsonPatch(nextSchema, remediation.patch);
+    if (!patched.ok) {
+      return apiError(patched.error ?? "The AI fix could not be applied", 422);
+    }
+
+    // Re-validate the patched document against the full schema. This is the
+    // trust boundary: the LLM output is never persisted unless it still parses
+    // as a valid ProgramSchema.
+    const revalidated = ProgramSchemaZ.safeParse(patched.result);
+    if (!revalidated.success) {
+      return apiError("The AI fix produced an invalid workflow schema", 422);
+    }
+
+    nextSchema = {
+      ...(revalidated.data as ProgramSchema),
+      updated_at: new Date().toISOString(),
+    };
+
+    changeSummary = remediation.description
+      ? `Pre-flight AI fix: ${remediation.description}`
+      : "Pre-flight AI fix: applied schema patch";
   }
 
   const nextVersion = (program.schema_version ?? 0) + 1;
