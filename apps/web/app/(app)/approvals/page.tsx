@@ -13,6 +13,7 @@ type ApprovalRow = {
   node_execution_id: string;
   user_id: string;
   status: string;
+  sla_hours: number | null;
   context: {
     node_label?: string;
     input?: unknown;
@@ -55,6 +56,7 @@ export default async function ApprovalsPage() {
        node_execution_id,
        user_id,
        status,
+       sla_hours,
        context,
        decision_note,
        decided_at,

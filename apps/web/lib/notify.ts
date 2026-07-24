@@ -34,3 +34,35 @@ export async function notifyUserPush(
     console.error("[notify] push fan-out failed", err);
   }
 }
+
+/**
+ * Escalation-specific notification helper.
+ * Sends an urgent push notification to workspace admins when an approval
+ * breaches its SLA. Escalations are always-on (they use the "approvals"
+ * preference but at "high" priority).
+ */
+export async function notifyApprovalEscalation(
+  userId: string,
+  approvalId: string,
+  nodeLabel: string,
+  programName: string,
+  slaHours: number
+): Promise<void> {
+  try {
+    const tokens = await userPushTokens(userId);
+    if (tokens.length === 0) return;
+    await sendExpoPush({
+      to: tokens,
+      title: "Approval escalated — SLA breached",
+      body: `${nodeLabel} in ${programName} has exceeded its ${slaHours}h SLA and needs urgent attention.`,
+      data: {
+        kind: "approval_escalation",
+        approval_id: approvalId,
+        key: "approvals",
+      },
+      priority: "high",
+    });
+  } catch (err) {
+    console.error("[notify] escalation push failed", err);
+  }
+}
