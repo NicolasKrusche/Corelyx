@@ -23,6 +23,7 @@ import {
   Building2,
   Megaphone,
   Send,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,7 @@ export default async function AdminLayout({
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle, badge: openTicketCount },
     { href: "/admin/feedback", label: "Feedback", icon: MessageSquarePlus, badge: newFeedbackCount },
     { href: "/admin/compose", label: "Compose Email", icon: Send },
+    { href: "/admin/templates", label: "Template Review", icon: LayoutTemplate },
     { href: "/admin/codes", label: "Code Manager", icon: Ticket },
     { href: "/admin/posts", label: "Posts", icon: Newspaper },
     ...(isFounder ? [

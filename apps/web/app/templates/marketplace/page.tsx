@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TemplateCard, type Difficulty } from "@/components/templates/TemplateCard";
-import { TemplatePreview } from "@/components/templates/TemplatePreview";
+import { TemplateDetailModal } from "@/components/templates/TemplateDetailModal";
 import {
   CURATED_TEMPLATES,
   TEMPLATE_CATEGORIES,
@@ -28,9 +28,19 @@ type ApiTemplate = {
   thumbnail_url: string | null;
   is_public: boolean;
   created_at: string;
+  fork_count?: number;
 };
 
 const DIFFICULTY_FILTERS = ["all", "easy", "medium", "hard"] as const;
+
+type SortOption = "newest" | "oldest" | "name" | "popular";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  newest: "Newest First",
+  oldest: "Oldest First",
+  name: "Name A–Z",
+  popular: "Most Popular",
+};
 
 type ViewMode = "grid" | "list";
 
@@ -41,9 +51,10 @@ export default function TemplateMarketplacePage() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [activeDifficulty, setActiveDifficulty] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [selectedTemplate, setSelectedTemplate] = useState<ApiTemplate | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -81,35 +92,60 @@ export default function TemplateMarketplacePage() {
     const enrichedCurated = [...curatedMap.values()].map((t) => ({
       ...t,
       difficulty: t.difficulty,
-      // Add dummy fields for curated templates that don't come from DB
       genesis_prompt: "",
       program_json: null,
       thumbnail_url: null,
       is_public: true,
       created_at: new Date().toISOString(),
+      fork_count: 0,
     }));
 
     return [...enrichedCurated, ...dbTemplates];
   }, [templates]);
 
-  // Apply difficulty filter
+  // Apply filters + sort
   const filteredTemplates = useMemo(() => {
-    if (activeDifficulty === "all") return allTemplates;
-    return allTemplates.filter((t) => t.difficulty === activeDifficulty);
-  }, [allTemplates, activeDifficulty]);
+    let result = allTemplates;
+    if (activeDifficulty !== "all") {
+      result = result.filter((t) => t.difficulty === activeDifficulty);
+    }
+
+    const sorted = [...result];
+    switch (sortBy) {
+      case "newest":
+        sorted.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        break;
+      case "oldest":
+        sorted.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        break;
+      case "name":
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "popular":
+        sorted.sort((a, b) => (b.fork_count ?? 0) - (a.fork_count ?? 0));
+        break;
+    }
+
+    return sorted;
+  }, [allTemplates, activeDifficulty, sortBy]);
 
   const handlePreview = useCallback((template: ApiTemplate) => {
     setSelectedTemplate(template);
-    setPreviewOpen(true);
+    setDetailOpen(true);
   }, []);
 
-  const handleClosePreview = useCallback(() => {
-    setPreviewOpen(false);
-    // Delay clearing to allow close animation
+  const handleCloseDetail = useCallback(() => {
+    setDetailOpen(false);
     setTimeout(() => setSelectedTemplate(null), 200);
   }, []);
 
-  // Unique connectors across all templates for filtering
+  // Unique connectors across all templates for display
   const allConnectors = useMemo(() => {
     const connectorSet = new Set<string>();
     for (const tpl of filteredTemplates) {
@@ -131,6 +167,11 @@ export default function TemplateMarketplacePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/templates">
+            <Button variant="outline" size="sm">
+              ← Back to Gallery
+            </Button>
+          </Link>
           <Button
             variant={viewMode === "grid" ? "default" : "outline"}
             size="sm"
@@ -173,25 +214,39 @@ export default function TemplateMarketplacePage() {
         </div>
       </div>
 
-      {/* Difficulty Filter */}
-      <div className="flex flex-wrap gap-1.5">
-        {DIFFICULTY_FILTERS.map((diff) => (
-          <button
-            key={diff}
-            onClick={() => setActiveDifficulty(diff)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              activeDifficulty === diff
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }`}
+      {/* Difficulty + Sort Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          {DIFFICULTY_FILTERS.map((diff) => (
+            <button
+              key={diff}
+              onClick={() => setActiveDifficulty(diff)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                activeDifficulty === diff
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              {diff === "all"
+                ? "All Levels"
+                : `${diff === "easy" ? "🟢" : diff === "medium" ? "🟡" : "🔴"} ${DIFFICULTY_LABEL[diff as Difficulty]}`}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-muted-foreground">Sort:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="h-7 rounded-md border border-border bg-background px-2 text-xs outline-none focus:border-primary"
           >
-            {diff === "all"
-              ? "All Levels"
-              : `${diff === "easy" ? "🟢" : diff === "medium" ? "🟡" : "🔴"} ${
-                  DIFFICULTY_LABEL[diff as Difficulty]
-                }`}
-          </button>
-        ))}
+            {Object.entries(SORT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Connector Tags */}
@@ -225,9 +280,12 @@ export default function TemplateMarketplacePage() {
           }`}
         >
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className={`animate-pulse rounded-lg border bg-muted/50 ${
-              viewMode === "grid" ? "h-48" : "h-24"
-            }`} />
+            <div
+              key={i}
+              className={`animate-pulse rounded-lg border bg-muted/50 ${
+                viewMode === "grid" ? "h-48" : "h-24"
+              }`}
+            />
           ))}
         </div>
       ) : filteredTemplates.length === 0 ? (
@@ -283,11 +341,11 @@ export default function TemplateMarketplacePage() {
         </p>
       )}
 
-      {/* Preview Panel */}
-      <TemplatePreview
+      {/* Detail Modal */}
+      <TemplateDetailModal
         template={selectedTemplate}
-        open={previewOpen}
-        onClose={handleClosePreview}
+        open={detailOpen}
+        onClose={handleCloseDetail}
       />
     </div>
   );

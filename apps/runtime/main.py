@@ -12,6 +12,60 @@ from typing import Any, AsyncGenerator, Optional
 from urllib.parse import urljoin, urlsplit
 
 import structlog
+
+# ── Sentry initialization (must happen before any other imports) ────────────
+_SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if _SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+        sentry_sdk.init(
+            dsn=_SENTRY_DSN,
+            environment=os.environ.get("RAILWAY_ENVIRONMENT", os.environ.get("APP_ENV", "development")),
+            traces_sample_rate=0.1,
+            profiles_sample_rate=0.1,
+            # PII scrubbing — redact sensitive fields before sending to Sentry
+            before_send=lambda event, hint: _scrub_pii_from_sentry_event(event),
+            integrations=[FastApiIntegration()],
+        )
+        sentry_sdk.set_tags({"service": "corelyx-runtime"})
+    except Exception:
+        pass  # Never let Sentry init crash the runtime
+
+
+def _scrub_pii_from_sentry_event(event: dict) -> dict | None:
+    """Redact tokens, secrets, and passwords from Sentry events."""
+    sensitive_keys = {
+        "password", "token", "secret", "api_key", "apiKey",
+        "access_token", "accessToken", "authorization",
+        "SUPABASE_SERVICE_ROLE_KEY", "STRIPE_SECRET_KEY",
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+    }
+    # Scrub request headers
+    if event.get("request", {}).get("headers"):
+        for key in list(event["request"]["headers"].keys()):
+            if key.lower() in ("authorization", "cookie", "x-internal-service-token"):
+                event["request"]["headers"][key] = "[REDACTED]"
+    # Scrub exception values
+    for exc in event.get("exception", {}).get("values", []) or []:
+        if exc.get("value"):
+            import re
+            exc["value"] = (
+                re.sub(r"Bearer\s+[^\s\"]+", "Bearer [REDACTED]", exc["value"])
+                .replace(re.findall(r"sk-[a-zA-Z0-9]{20,}", exc["value"])[0] if re.findall(r"sk-[a-zA-Z0-9]{20,}", exc["value"]) else "", "sk-[REDACTED]")
+            )
+    # Scrub extra/context fields
+    for container in ("extra", "contexts"):
+        if event.get(container):
+            for key in list(event[container].keys()):
+                if any(sk in key.lower() for sk in sensitive_keys):
+                    event[container][key] = "[REDACTED]"
+                elif isinstance(event[container][key], dict):
+                    for subkey in list(event[container][key].keys()):
+                        if any(sk in subkey.lower() for sk in sensitive_keys):
+                            event[container][key][subkey] = "[REDACTED]"
+    return event
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # Force UTF-8 stdout/stderr on Windows so Unicode chars in log output don't crash
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -832,6 +886,45 @@ async def _run_program(
             pass  # Best-effort: never block run completion
         # Notify Next.js — fires inter-program triggers for completed runs
         await _notify_complete(run_id, program_id, user_id, final_status, error_message)
+
+        # Structured logging for run completion/failure events
+        telemetry = executor.run_telemetry_payload()
+        run_event = {
+            "event": f"run_{final_status}",
+            "run_id": run_id,
+            "program_id": program_id,
+            "user_id": user_id,
+            "status": final_status,
+            "total_tokens": telemetry.get("total_tokens", 0),
+            "prompt_tokens": telemetry.get("prompt_tokens", 0),
+            "completion_tokens": telemetry.get("completion_tokens", 0),
+            "estimated_cost_usd": telemetry.get("estimated_cost_usd", 0.0),
+            "model_call_count": telemetry.get("model_call_count", 0),
+            "connector_api_calls": telemetry.get("connector_api_calls", 0),
+        }
+        if error_message:
+            run_event["error_message"] = error_message[:500]
+        if final_status == "completed":
+            log.info("run_completed", **run_event)
+        else:
+            log.error("run_failed", **run_event)
+
+        # Emit metrics to the metrics table for aggregation
+        try:
+            db.table("metrics").insert({
+                "metric_name": f"run_{final_status}",
+                "value": telemetry.get("estimated_cost_usd", 0.0),
+                "tags": {
+                    "run_id": run_id,
+                    "program_id": program_id,
+                    "user_id": user_id,
+                    "total_tokens": telemetry.get("total_tokens", 0),
+                    "model_call_count": telemetry.get("model_call_count", 0),
+                    "status": final_status,
+                },
+            }).execute()
+        except Exception:
+            pass  # Best-effort: never block run completion
 
 
 async def _run_program_gated(

@@ -14,6 +14,7 @@ TELEMETRY_COLUMNS = {
     "estimated_cost_usd",
     "connector_api_calls",
     "model_call_count",
+    "token_usage",
 }
 
 COMPLIANCE_COLUMNS = {
