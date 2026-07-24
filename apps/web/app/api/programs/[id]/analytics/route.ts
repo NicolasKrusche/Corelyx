@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api.programs.analytics");
 
 type RunRow = {
   id: string;
@@ -55,7 +58,7 @@ export async function GET(
     const { data: runs, error: runsError } = runsResult;
 
     if (runsError) {
-      console.error("Error fetching runs:", runsError);
+      log.error({ error: runsError, programId: id }, "Error fetching runs");
       return new NextResponse("Internal Server Error", { status: 500 });
     }
 
@@ -75,7 +78,7 @@ export async function GET(
     const { data: nodeExecutions, error: nodeError } = nodeResult;
 
     if (nodeError) {
-      console.error("Error fetching node executions:", nodeError);
+      log.warn({ error: nodeError, programId: id }, "Error fetching node executions");
     }
 
     // Aggregate node costs
@@ -129,7 +132,7 @@ export async function GET(
       node_breakdown: nodeCostBreakdown,
     });
   } catch (error) {
-    console.error("Analytics API error:", error);
+    log.error({ error, programId: id }, "Analytics API error");
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

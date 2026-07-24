@@ -254,12 +254,24 @@ export function TemplatePreview({ template, open, onClose }: TemplatePreviewProp
         <div className="sticky bottom-0 border-t bg-background/95 p-4 backdrop-blur">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              Click &quot;Use Template&quot; to create a new program from this template.
+              Use the pre-built schema or let AI generate a fresh version.
             </p>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
+              {template.genesis_prompt && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    router.push(
+                      `/programs/new?prompt=${encodeURIComponent(template.genesis_prompt!)}`
+                    );
+                  }}
+                >
+                  🤖 Generate with AI
+                </Button>
+              )}
               <Button onClick={handleUseTemplate} disabled={using}>
                 {using ? "Creating…" : "Use Template"}
               </Button>

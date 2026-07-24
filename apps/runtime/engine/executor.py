@@ -1351,32 +1351,47 @@ class ProgramExecutor:
         }
         try:
             db.table("llm_usage_logs").insert(enriched_row).execute()
-            return
         except Exception as exc:
             if "could not find the table" in str(exc).lower():
-                # Table itself missing (migration 20260111120000 unapplied) —
-                # one warning per run, not one per LLM call.
                 self._llm_usage_logging_disabled = True
-                print(f"[llm-usage] WARNING: usage logging disabled for this run: {exc}", flush=True)
+                log.warning("llm_usage_logging_disabled", error=str(exc)[:200])
                 return
             if not _looks_like_missing_column_error(exc, billing_columns):
-                print(f"[llm-usage] WARNING: usage log insert failed: {exc}", flush=True)
+                log.warning("llm_usage_log_insert_failed", error=str(exc)[:200])
                 return
         # Billing columns not migrated yet (20260708120000): keep the base audit row.
         try:
             db.table("llm_usage_logs").insert(base_row).execute()
         except Exception as exc:
             self._llm_usage_logging_disabled = True
-            print(f"[llm-usage] WARNING: usage logging disabled for this run: {exc}", flush=True)
+            log.warning("llm_usage_logging_disabled", error=str(exc)[:200])
 
-    def _node_telemetry_payload(self, node_id: str) -> dict[str, int | float]:
+        # Capture token_usage JSONB for the node execution record
+        token_usage = {
+            "model": model,
+            "prompt_tokens": _non_negative_int(prompt_tokens),
+            "completion_tokens": _non_negative_int(completion_tokens),
+            "total_tokens": _non_negative_int(total_tokens),
+            "estimated_cost_usd": _round_cost(_non_negative_float(estimated_cost_usd)),
+            "source": source,
+        }
+        # Store on the node telemetry so it gets written to node_executions.token_usage
+        node_metrics = self._node_telemetry.setdefault(node_id, _empty_telemetry())
+        existing_usage = node_metrics.get("_token_usage_calls", [])
+        if isinstance(existing_usage, list):
+            existing_usage.append(token_usage)
+        else:
+            existing_usage = [token_usage]
+        node_metrics["_token_usage_calls"] = existing_usage
+
+    def _node_telemetry_payload(self, node_id: str) -> dict[str, Any]:
         metrics = self._node_telemetry.get(node_id, _empty_telemetry())
         prompt_tokens = _non_negative_int(metrics.get("prompt_tokens", 0))
         completion_tokens = _non_negative_int(metrics.get("completion_tokens", 0))
         total_tokens = _non_negative_int(metrics.get("total_tokens", 0))
         if total_tokens == 0:
             total_tokens = prompt_tokens + completion_tokens
-        return {
+        result: dict[str, Any] = {
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
@@ -1384,6 +1399,17 @@ class ProgramExecutor:
             "connector_api_calls": _non_negative_int(metrics.get("connector_api_calls", 0)),
             "model_call_count": _non_negative_int(metrics.get("model_call_count", 0)),
         }
+        # Include token_usage JSONB if captured from LLM calls
+        token_usage_calls = metrics.get("_token_usage_calls")
+        if isinstance(token_usage_calls, list) and token_usage_calls:
+            result["token_usage"] = {
+                "calls": token_usage_calls,
+                "total_prompt_tokens": prompt_tokens,
+                "total_completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+                "total_cost_usd": _round_cost(_non_negative_float(metrics.get("estimated_cost_usd", 0.0))),
+            }
+        return result
 
     def run_telemetry_payload(self) -> dict[str, int | float]:
         prompt_tokens = _non_negative_int(self._run_telemetry.get("prompt_tokens", 0))
