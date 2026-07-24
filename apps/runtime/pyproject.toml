@@ -18,6 +18,11 @@ httpx = "^0.28.0"
 pydantic = "^2.7.0"
 python-dotenv = "^1.0.0"
 apscheduler = "^3.10.0"
+structlog = ">=24.4.0"
+sentry-sdk = {version = ">=2.14.0", extras = ["fastapi"]}
+opentelemetry-api = ">=1.27.0"
+opentelemetry-sdk = ">=1.27.0"
+opentelemetry-exporter-otlp = ">=1.27.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.0.0"
