@@ -59,6 +59,16 @@ export type AnalyticsSummary = {
   totalDurationMs: number;
 };
 
+export type TokenUsageRow = {
+  nodeType: string;
+  totalPrompt: number;
+  totalCompletion: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  callCount: number;
+  modelsUsed: string[];
+};
+
 export type AnalyticsResult<T> = { data: T; degraded: boolean };
 
 // ---------------------------------------------------------------------------
@@ -269,6 +279,43 @@ export async function getModelComparison(
       .sort((a, b) => b.totalCostUsd - a.totalCostUsd),
     degraded: true,
   };
+}
+
+/**
+ * Token usage broken down by node type, sourced from the token_usage JSONB
+ * captured on node_executions (migration 20260724_token_usage_telemetry).
+ *
+ * Uses the program_token_usage_summary RPC (service-role only). When the
+ * migration has not been applied yet — or no node has recorded token_usage —
+ * this returns an empty, degraded result rather than throwing.
+ */
+export async function getTokenUsageSummary(
+  programId: string,
+): Promise<AnalyticsResult<TokenUsageRow[]>> {
+  const db = createServiceClient();
+
+  const { data, error } = await callRpc(db, "program_token_usage_summary", {
+    p_program_id: programId,
+  });
+
+  if (!error && Array.isArray(data)) {
+    return {
+      data: data.map((r: any) => ({
+        nodeType: r.node_type ?? "unknown",
+        totalPrompt: Number(r.total_prompt ?? 0),
+        totalCompletion: Number(r.total_completion ?? 0),
+        totalTokens: Number(r.total_tokens ?? 0),
+        totalCostUsd: Number(r.total_cost_usd ?? 0),
+        callCount: Number(r.call_count ?? 0),
+        modelsUsed: Array.isArray(r.models_used)
+          ? (r.models_used as unknown[]).map((m) => String(m))
+          : [],
+      })),
+      degraded: false,
+    };
+  }
+
+  return { data: [], degraded: true };
 }
 
 export async function getAnalyticsSummary(
