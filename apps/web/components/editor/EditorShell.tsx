@@ -68,7 +68,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { PreFlightCheck } from "@/lib/validation/pre-flight";
-import type { FixSuggestion } from "@/lib/genesis/fixit";
+import type { FixSuggestion, JsonPatchOp } from "@/lib/genesis/fixit";
 import FixItModal from "@/components/editor/FixItModal";
 import type { ComplianceCheck } from "@/lib/compliance/workflow";
 import { useTheme } from "@/components/theme-provider";
