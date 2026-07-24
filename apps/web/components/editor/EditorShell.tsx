@@ -2555,10 +2555,16 @@ export function EditorShell({
           nodesConnectable={!isMobile}
           elementsSelectable={!isMobile}
           fitView
-          fitViewOptions={{ padding: 0.15 }}
+          fitViewOptions={{ padding: 0.2 }}
+          // Perf: only mount nodes/edges inside the viewport. Big win at 50+ nodes.
+          onlyRenderVisibleElements
+          minZoom={0.1}
+          maxZoom={2}
           proOptions={{ hideAttribution: true }}
           defaultEdgeOptions={{
             type: "data_flow",
+            // Non-animated edges avoid a per-frame repaint of every edge path.
+            animated: false,
             markerEnd: { type: MarkerType.ArrowClosed },
           }}
           connectionLineStyle={{
@@ -2577,9 +2583,11 @@ export function EditorShell({
             }}
             bgColor={isDarkTheme ? "hsl(var(--card))" : "hsl(var(--background))"}
             nodeStrokeColor={isDarkTheme ? "#f8fafc" : "#ffffff"}
-            nodeStrokeWidth={isDarkTheme ? 2 : 1}
+            nodeStrokeWidth={2}
             nodeColor={(node) => minimapNodeColors[node.type ?? ""] ?? (isDarkTheme ? "#e5e7eb" : "#94a3b8")}
             maskColor={isDarkTheme ? "rgba(0, 0, 0, 0.35)" : "rgba(255, 255, 255, 0.55)"}
+            pannable
+            zoomable={false}
           />
         </ReactFlow>
         </NodeCanvasContext.Provider>
