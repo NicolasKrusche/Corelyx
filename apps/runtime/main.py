@@ -118,6 +118,11 @@ from schema import ProgramSchema, parse_schema
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
 
+# Configure structured logging (structlog JSON/console) before creating loggers.
+from logging_config import setup_logging  # noqa: E402
+
+setup_logging()
+
 log = structlog.get_logger("runtime.main")
 
 
@@ -413,6 +418,12 @@ async def _cron_tick() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # Initialise OpenTelemetry traces + metrics (non-fatal on failure).
+    from telemetry import setup_telemetry
+
+    setup_telemetry()
+    log.info("runtime.startup", otel_endpoint=bool(os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")))
+
     # The web sweep is the single owner of cron state, entitlements, atomic
     # claiming, and dispatch.  Do not also register per-workflow APScheduler
     # jobs here: that legacy path reads an obsolete schema shape and bypasses

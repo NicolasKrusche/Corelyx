@@ -82,6 +82,7 @@ from engine.credential_lock import (
 from engine.retry import RetryPolicy, RetryExecutor, create_retry_policy_for_node
 from engine.dead_letter import DeadLetterQueue, get_dead_letter_queue
 from engine.tracing import async_span, get_tracer
+from telemetry import record_node_execution
 from internal_auth import build_internal_service_headers
 from compliance import get_provider, policy_block_reason, provider_for_model
 
@@ -2121,6 +2122,18 @@ class ProgramExecutor:
                         data_region=self.data_region,
                         retention_expiry=self.retention_expiry,
                         **self._node_telemetry_payload(node.id),
+                    )
+
+                    # OTel metrics: node execution duration, tokens, and cost.
+                    node_metrics = self._node_telemetry_payload(node.id)
+                    record_node_execution(
+                        node_type=node.type,
+                        status="failed" if node_error else "completed",
+                        duration_ms=duration_ms,
+                        total_tokens=int(node_metrics.get("total_tokens", 0) or 0),
+                        cost_usd=float(node_metrics.get("estimated_cost_usd", 0.0) or 0.0),
+                        model_calls=int(node_metrics.get("model_call_count", 0) or 0),
+                        program_id=self.program_id,
                     )
                     return output
                 else:
