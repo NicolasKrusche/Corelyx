@@ -66,6 +66,7 @@ function hasAnyAuth(source: string): boolean {
   return [
     // Cookie / Bearer session auth
     /getAuthUser\s*\(/,
+    /getRequestUser\s*\(/,
     /\.auth\.getUser\s*\(/,
     /\.auth\.getSession\s*\(/,
     // Internal service-to-service tokens
