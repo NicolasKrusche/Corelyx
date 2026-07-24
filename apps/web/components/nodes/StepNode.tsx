@@ -55,7 +55,7 @@ const LOGIC_TYPE_ICON: Record<StepConfig["logic_type"], LucideIcon> = {
   sort: ArrowUpDown,
 };
 
-export function StepNode({ id, data, selected }: NodeProps) {
+function StepNodeImpl({ id, data, selected }: NodeProps) {
   const nodeData = data as unknown as StepNodeData;
   const logicType = nodeData.config?.logic_type as StepConfig["logic_type"] | undefined;
 
@@ -82,3 +82,9 @@ export function StepNode({ id, data, selected }: NodeProps) {
     </>
   );
 }
+
+// React Flow re-renders every custom node on any store change (drag, selection,
+// viewport). memo() with the default shallow prop compare limits re-renders to
+// when this node's own props (id/data/selected/…) actually change.
+export const StepNode = React.memo(StepNodeImpl);
+StepNode.displayName = "StepNode";

@@ -46,7 +46,7 @@ function isOAuthConnectionConfig(config: ConnectionConfig): config is OAuthConne
   return config.connector_type !== "http" && config.connector_type !== "file";
 }
 
-export function ConnectionNode({ id, data, selected }: NodeProps) {
+function ConnectionNodeImpl({ id, data, selected }: NodeProps) {
   const dispatch = useOptionalEditorDispatch();
   const nodeData = data as unknown as ConnectionNodeData;
   const httpConfig = isHttpConnectionConfig(nodeData.config) ? nodeData.config : null;
@@ -125,3 +125,9 @@ export function ConnectionNode({ id, data, selected }: NodeProps) {
     </>
   );
 }
+
+// React Flow re-renders every custom node on any store change (drag, selection,
+// viewport). memo() with the default shallow prop compare limits re-renders to
+// when this node's own props (id/data/selected/…) actually change.
+export const ConnectionNode = React.memo(ConnectionNodeImpl);
+ConnectionNode.displayName = "ConnectionNode";

@@ -12,7 +12,7 @@ function edgeColor(sourceStatus?: string, selected?: boolean): string {
   return "#6b7280";
 }
 
-export function ControlFlowEdge({
+function ControlFlowEdgeImpl({
   id,
   sourceX,
   sourceY,
@@ -70,3 +70,8 @@ export function ControlFlowEdge({
     </>
   );
 }
+// React Flow re-renders every custom edge on any store change (drag, selection,
+// viewport). memo() with the default shallow prop compare limits re-renders to
+// when this edge's own props (id/data/selected/…) actually change.
+export const ControlFlowEdge = React.memo(ControlFlowEdgeImpl);
+ControlFlowEdge.displayName = "ControlFlowEdge";

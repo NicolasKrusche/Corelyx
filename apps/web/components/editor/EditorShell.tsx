@@ -2560,6 +2560,9 @@ export function EditorShell({
           onlyRenderVisibleElements
           minZoom={0.1}
           maxZoom={2}
+          // Bound node drag area to a large but finite canvas to prevent
+          // nodes from being dragged into unreachable regions.
+          nodeExtent={[[-5000, -5000], [5000, 5000]]}
           proOptions={{ hideAttribution: true }}
           defaultEdgeOptions={{
             type: "data_flow",

@@ -48,7 +48,7 @@ const CRON_PRESETS: { value: string; label: string }[] = [
   { value: "0 0 1 * *", label: "Monthly 1st" },
 ];
 
-export function TriggerNode({ id, data, selected }: NodeProps) {
+function TriggerNodeImpl({ id, data, selected }: NodeProps) {
   const dispatch = useOptionalEditorDispatch();
   const nodeData = data as unknown as TriggerNodeData;
   const config = nodeData.config;
@@ -101,3 +101,9 @@ export function TriggerNode({ id, data, selected }: NodeProps) {
     </>
   );
 }
+
+// React Flow re-renders every custom node on any store change (drag, selection,
+// viewport). memo() with the default shallow prop compare limits re-renders to
+// when this node's own props (id/data/selected/…) actually change.
+export const TriggerNode = React.memo(TriggerNodeImpl);
+TriggerNode.displayName = "TriggerNode";

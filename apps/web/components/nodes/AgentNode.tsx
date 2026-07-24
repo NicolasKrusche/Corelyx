@@ -20,7 +20,7 @@ interface AgentNodeData {
   warnings: ValidationWarning[];
 }
 
-export function AgentNode({ id, data, selected }: NodeProps) {
+function AgentNodeImpl({ id, data, selected }: NodeProps) {
   const nodeData = data as unknown as AgentNodeData;
   const config = nodeData.config as AgentConfig | undefined;
   const isUnassigned = config?.model === "__USER_ASSIGNED__";
@@ -55,3 +55,9 @@ export function AgentNode({ id, data, selected }: NodeProps) {
     </>
   );
 }
+
+// React Flow re-renders every custom node on any store change (drag, selection,
+// viewport). memo() with the default shallow prop compare limits re-renders to
+// when this node's own props (id/data/selected/…) actually change.
+export const AgentNode = React.memo(AgentNodeImpl);
+AgentNode.displayName = "AgentNode";
