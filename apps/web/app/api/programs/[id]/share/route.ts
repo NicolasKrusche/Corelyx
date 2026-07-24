@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { writeAppLog } from "@/lib/app-logs";
+import { getTeamRole } from "@/lib/auth/team-context";
 import {
   PROGRAM_ROLES,
   PROGRAM_VISIBILITIES,
@@ -157,4 +159,115 @@ export async function PATCH(
   }
 
   return NextResponse.json({ ok: true });
+}
+
+// ── Team sharing (program_shares) ──────────────────────────────────────────────
+// POST/DELETE grant or revoke a whole team's access to this program. This is a
+// separate axis from the per-user program_memberships handled by GET/PATCH above.
+
+const ShareWithTeamSchema = z.object({
+  team_id: z.string().uuid(),
+  permission: z.enum(["view", "edit", "admin"]),
+});
+
+const UnshareTeamSchema = z.object({
+  team_id: z.string().uuid(),
+});
+
+/**
+ * POST /api/programs/[id]/share — Share this program with a team.
+ * The caller must be able to edit the program and be a member of the target team.
+ */
+export async function POST(
+  request: Request,
+  { params: routeParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await routeParams;
+  const user = await getAuthUser();
+  if (!user) return apiError("Unauthorized", 401);
+
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can share this program.", 403);
+
+  const parsed = ShareWithTeamSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return apiError(parsed.error.message, 400);
+
+  // Prevent sharing into teams the caller has no relationship with.
+  const teamRole = await getTeamRole(parsed.data.team_id, user.id);
+  if (!teamRole) return apiError("Team not found.", 404);
+
+  const service = createServiceClient() as LooseServiceClient;
+  const { data: share, error } = await service
+    .from("program_shares")
+    .upsert(
+      {
+        program_id: params.id,
+        team_id: parsed.data.team_id,
+        permission: parsed.data.permission,
+        shared_at: new Date().toISOString(),
+      } as never,
+      { onConflict: "program_id,team_id" }
+    )
+    .select("program_id, team_id, permission, shared_at")
+    .single();
+
+  if (error || !share) return apiError(error?.message ?? "Program could not be shared.", 500);
+
+  await writeAppLog(service, {
+    userId: user.id,
+    level: "info",
+    source: "Team",
+    event: "program.shared_with_team",
+    status: "completed",
+    message: "User shared a program with a team.",
+    details: { program_id: params.id, team_id: parsed.data.team_id, permission: parsed.data.permission },
+  });
+
+  return NextResponse.json({ share }, { status: 201 });
+}
+
+/**
+ * DELETE /api/programs/[id]/share — Stop sharing this program with a team.
+ * Accepts ?team_id=<uuid> or a JSON body { team_id }.
+ */
+export async function DELETE(
+  request: Request,
+  { params: routeParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await routeParams;
+  const user = await getAuthUser();
+  if (!user) return apiError("Unauthorized", 401);
+
+  const access = await getProgramAccess(params.id, user.id);
+  if (!canView(access)) return apiError("Program not found", 404);
+  if (!canEdit(access)) return apiError("Only program editors can change sharing.", 403);
+
+  const { searchParams } = new URL(request.url);
+  const queryTeamId = searchParams.get("team_id");
+  const parsed = UnshareTeamSchema.safeParse(
+    queryTeamId ? { team_id: queryTeamId } : await request.json().catch(() => null)
+  );
+  if (!parsed.success) return apiError(parsed.error.message, 400);
+
+  const service = createServiceClient() as LooseServiceClient;
+  const { error } = await service
+    .from("program_shares")
+    .delete()
+    .eq("program_id", params.id)
+    .eq("team_id", parsed.data.team_id);
+
+  if (error) return apiError(error.message, 500);
+
+  await writeAppLog(service, {
+    userId: user.id,
+    level: "info",
+    source: "Team",
+    event: "program.unshared_with_team",
+    status: "completed",
+    message: "User stopped sharing a program with a team.",
+    details: { program_id: params.id, team_id: parsed.data.team_id },
+  });
+
+  return NextResponse.json({ removed: true });
 }
