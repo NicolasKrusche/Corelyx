@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, ChevronDown, Clock } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  ChevronDown,
+  Clock,
+  AlertTriangle,
+  ArrowUpRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { friendlyResponseMessage } from "@/lib/friendly-errors";
 
@@ -12,6 +19,7 @@ type ApprovalRow = {
   node_execution_id: string;
   user_id: string;
   status: string;
+  sla_hours: number | null;
   context: {
     node_label?: string;
     input?: unknown;
@@ -37,6 +45,13 @@ type ApprovalRow = {
   };
 };
 
+type EscalationEntry = {
+  id: string;
+  escalation_reason: string;
+  escalated_to: string;
+  created_at: string;
+};
+
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -47,6 +62,16 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function formatTimeRemaining(ms: number) {
+  if (ms <= 0) return "SLA breached";
+  const totalMins = Math.floor(ms / 60000);
+  const hrs = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (hrs > 24) return `${Math.floor(hrs / 24)}d ${hrs % 24}h`;
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  return `${mins}m`;
+}
+
 export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
   const router = useRouter();
   const [note, setNote] = useState("");
@@ -54,6 +79,31 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
   const [decided, setDecided] = useState<"approved" | "rejected" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
+  const [escalating, setEscalating] = useState(false);
+  const [escalated, setEscalated] = useState(false);
+  const [escalations, setEscalations] = useState<EscalationEntry[]>([]);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [slaRemaining, setSlaRemaining] = useState<number | null>(null);
+
+  // SLA countdown
+  useEffect(() => {
+    const slaHours = approval.sla_hours ?? 24;
+    const createdAt = new Date(approval.created_at).getTime();
+    const deadline = createdAt + slaHours * 60 * 60 * 1000;
+
+    function tick() {
+      const remaining = deadline - Date.now();
+      setSlaRemaining(remaining);
+    }
+
+    tick();
+    const interval = setInterval(tick, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [approval.created_at, approval.sla_hours]);
+
+  const isSlaBreached = slaRemaining !== null && slaRemaining <= 0;
+  const isUrgent =
+    slaRemaining !== null && slaRemaining > 0 && slaRemaining < 3600000; // < 1 hour
 
   const programName =
     approval.node_executions?.runs?.programs?.name ?? "Unknown program";
@@ -62,6 +112,35 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
   const nodeLabel = approval.context?.node_label ?? approval.node_executions?.node_id;
   const reason = approval.context?.reason;
   const approver = approval.context?.approver;
+
+  // Fetch escalations when timeline is opened
+  const fetchTimeline = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/approvals/${approval.id}/timeline`);
+      if (res.ok) {
+        const data = await res.json();
+        const escEvents = (data.timeline ?? []).filter(
+          (e: { type: string }) => e.type === "escalated"
+        );
+        setEscalations(
+          escEvents.map((e: { id: string; timestamp: string; actor: string; details: Record<string, unknown> }) => ({
+            id: e.id,
+            escalation_reason: (e.details?.reason as string) ?? "unknown",
+            escalated_to: e.actor,
+            created_at: e.timestamp,
+          }))
+        );
+      }
+    } catch {
+      // Silently fail — escalation history is non-critical
+    }
+  }, [approval.id]);
+
+  useEffect(() => {
+    if (showTimeline && escalations.length === 0) {
+      void fetchTimeline();
+    }
+  }, [showTimeline, fetchTimeline, escalations.length]);
 
   async function decide(decision: "approved" | "rejected") {
     setSubmitting(decision);
@@ -87,6 +166,37 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
     }
   }
 
+  async function escalate() {
+    setEscalating(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/approvals/${approval.id}/escalate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: isSlaBreached ? "SLA breach" : "Manual escalation",
+        }),
+      });
+      if (res.ok) {
+        setEscalated(true);
+        window.dispatchEvent(new CustomEvent("approval-changed"));
+        router.refresh();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(
+          friendlyResponseMessage(
+            body as { error?: string },
+            "Could not escalate. Please try again."
+          )
+        );
+      }
+    } catch {
+      setError("Could not connect to escalate. Check your connection.");
+    } finally {
+      setEscalating(false);
+    }
+  }
+
   if (decided) {
     return (
       <div className="rounded-2xl border glass-card px-5 py-4 flex items-center gap-3">
@@ -105,6 +215,26 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
 
   return (
     <div className="rounded-2xl border glass-card overflow-hidden">
+      {/* SLA Breach Banner */}
+      {isSlaBreached && (
+        <div className="bg-red-500/10 border-b border-red-500/20 px-5 py-3 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+          <span className="text-xs font-medium text-red-400">
+            SLA breached — this approval has exceeded its {approval.sla_hours ?? 24}h deadline
+          </span>
+        </div>
+      )}
+
+      {/* Urgent Banner (< 1h remaining) */}
+      {!isSlaBreached && isUrgent && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-5 py-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+          <span className="text-xs font-medium text-amber-400">
+            SLA expiring soon — {formatTimeRemaining(slaRemaining ?? 0)} remaining
+          </span>
+        </div>
+      )}
+
       {/* Header bar */}
       <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
         <div className="flex items-start gap-3 min-w-0">
@@ -132,9 +262,27 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground/50">
-          <Clock className="h-3 w-3" />
-          {timeAgo(approval.created_at)}
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/50">
+            <Clock className="h-3 w-3" />
+            {timeAgo(approval.created_at)}
+          </div>
+          {/* SLA countdown */}
+          {slaRemaining !== null && (
+            <div
+              className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                isSlaBreached
+                  ? "bg-red-500/20 text-red-400"
+                  : isUrgent
+                    ? "bg-amber-500/20 text-amber-400"
+                    : "bg-white/[0.06] text-muted-foreground/60"
+              }`}
+            >
+              {isSlaBreached
+                ? "SLA breached"
+                : `${formatTimeRemaining(slaRemaining)} left`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -186,6 +334,38 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
         </div>
       )}
 
+      {/* Escalation History */}
+      {escalations.length > 0 && (
+        <div className="mx-5 mb-4">
+          <button
+            onClick={() => setShowTimeline((s) => !s)}
+            className="flex w-full items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          >
+            <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${showTimeline ? "rotate-180" : ""}`} />
+            <AlertTriangle className="h-3 w-3 text-amber-400" />
+            {escalations.length} escalation{escalations.length > 1 ? "s" : ""}
+          </button>
+          {showTimeline && (
+            <div className="mt-2 space-y-2">
+              {escalations.map((esc) => (
+                <div
+                  key={esc.id}
+                  className="rounded-xl bg-amber-500/[0.06] border border-amber-500/20 px-3.5 py-2.5"
+                >
+                  <p className="text-xs text-amber-400 font-medium">
+                    Escalated to {esc.escalated_to}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                    {esc.escalation_reason.replace("manual:", "")} ·{" "}
+                    {timeAgo(esc.created_at)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Divider */}
       <div className="mx-5 h-px bg-white/[0.06]" />
 
@@ -201,7 +381,7 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
 
         {error && <p className="text-xs text-destructive">{error}</p>}
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             onClick={() => decide("approved")}
             disabled={submitting !== null}
@@ -220,6 +400,20 @@ export function ApprovalCard({ approval }: { approval: ApprovalRow }) {
           >
             <XCircle className="h-3.5 w-3.5" />
             {submitting === "rejected" ? "Rejecting…" : "Reject"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={escalate}
+            disabled={escalating || escalated}
+            className="gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 hover:border-amber-500/50"
+          >
+            <ArrowUpRight className="h-3.5 w-3.5" />
+            {escalated
+              ? "Escalated"
+              : escalating
+                ? "Escalating…"
+                : "Escalate"}
           </Button>
         </div>
       </div>

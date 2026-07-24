@@ -191,6 +191,10 @@ export interface NodeShellProps {
   warning?: string;
   /** Genesis V2: open clarifying question pinned to this node. */
   questionPin?: string | null;
+  /** Number of unresolved review comments on this node. */
+  commentCount?: number;
+  /** Callback when the comment indicator is clicked. */
+  onCommentClick?: (nodeId: string) => void;
   /**
    * Compact sketch of the node's output shape, e.g. "emails: [{ id, threadId }]".
    * Rendered as an always-on "→ output" line so the graph reads as a data
@@ -227,6 +231,8 @@ export function NodeShell({
   error,
   warning,
   questionPin,
+  commentCount,
+  onCommentClick,
   outputPreview,
   footer,
 }: NodeShellProps) {
@@ -263,6 +269,19 @@ export function NodeShell({
       <div className="absolute right-2.5 top-2.5">
         <StatusIcon status={status} />
       </div>
+
+      {/* Comment indicator — below status indicator */}
+      {commentCount !== undefined && commentCount > 0 && (
+        <div className="absolute right-2 top-8 z-20">
+          <button
+            onClick={(e) => { e.stopPropagation(); onCommentClick?.(id as string); }}
+            className="flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full bg-blue-500 px-1 text-[8px] font-bold text-white shadow-sm transition-transform hover:scale-110"
+            title={`${commentCount} unresolved comment${commentCount !== 1 ? "s" : ""}`}
+          >
+            💬{commentCount}
+          </button>
+        </div>
+      )}
 
       {/* Genesis clarifying-question pin — the question itself is answered in
           the questions panel; the pin anchors it to the node it concerns. */}

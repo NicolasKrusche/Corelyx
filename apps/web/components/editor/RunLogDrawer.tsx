@@ -6,6 +6,8 @@ import type { Node as SchemaNode } from "@flowos/schema";
 import type { NodeExecutionData } from "./EditorShell";
 import { PanelResizeHandle } from "@/components/editor/PanelResizeHandle";
 import { AiGeneratedContentNotice } from "@/components/ai-transparency";
+import { ErrorRecoveryPanel } from "@/components/errors/ErrorRecoveryPanel";
+import type { DLQEntry } from "@/lib/errors/error-analysis";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -228,6 +230,9 @@ export function RunLogDrawer({
 
   // Height toggle
   const [expanded, setExpanded] = useState(false);
+  // Error recovery panel state
+  const [recoveryEntry, setRecoveryEntry] = useState<DLQEntry | null>(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Auto-scroll to bottom as new entries arrive
@@ -359,6 +364,56 @@ export function RunLogDrawer({
                     : <ErrorBlock message={exec.error_message} />
                 )}
 
+                {/* Recover button for failed nodes */}
+                {isFailed && exec.error_message && (
+                  <button
+                    onClick={async () => {
+                      setRecoveryLoading(true);
+                      try {
+                        // Fetch DLQ entry for this node
+                        const res = await fetch(`/api/programs/${programId}/errors/fix`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ error_id: nodeId }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          if (data.analysis) {
+                            setRecoveryEntry({
+                              id: data.analysis.dlq_entry_id,
+                              program_id: programId,
+                              run_id: runId,
+                              node_id: nodeId,
+                              node_type: node?.type ?? "unknown",
+                              node_config: {},
+                              input_data: {},
+                              error_message: exec.error_message,
+                              error_type: data.analysis.error_category,
+                              attempt_count: 0,
+                              retry_policy: {},
+                              created_at: exec.started_at ?? new Date().toISOString(),
+                              updated_at: new Date().toISOString(),
+                              retry_count: 0,
+                              status: "pending",
+                            });
+                          }
+                        }
+                      } catch {
+                        // Silently fail — user can try again
+                      } finally {
+                        setRecoveryLoading(false);
+                      }
+                    }}
+                    disabled={recoveryLoading}
+                    className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors mt-1"
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                      <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 13.5 1h-11Zm4.354 7.146a.75.75 0 1 1-1.06 1.06l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 1 1 1.06 1.06L6.56 8l1.294 1.146Zm3.354 0a.75.75 0 1 0-1.06 1.06L11.44 8l-1.294 1.146a.75.75 0 1 0 1.06 1.06l2-2a.75.75 0 0 0 0-1.06l-2-2Z" />
+                    </svg>
+                    {recoveryLoading ? "Analyzing…" : "Recover"}
+                  </button>
+                )}
+
                 {/* I/O */}
                 <JsonViewer label="▸ Input"  data={exec.input_payload} />
                 <JsonViewer label="▸ Output" data={exec.output_payload} />
@@ -373,6 +428,26 @@ export function RunLogDrawer({
           })
         )}
       </div>
+
+      {/* Error Recovery Panel — shown when a user clicks "Recover" */}
+      {recoveryEntry && (
+        <div className="px-4 py-3 border-t border-border shrink-0">
+          <ErrorRecoveryPanel
+            programId={programId}
+            runId={runId}
+            dlqEntry={recoveryEntry}
+            onReRun={() => {
+              setRecoveryEntry(null);
+            }}
+          />
+          <button
+            onClick={() => setRecoveryEntry(null)}
+            className="mt-2 text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }

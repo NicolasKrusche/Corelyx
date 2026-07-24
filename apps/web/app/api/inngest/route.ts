@@ -4,6 +4,7 @@ import { inngest } from "@/lib/inngest";
 import { cronRunner } from "@/lib/inngest/cron-runner";
 import { approvalNotifier } from "@/lib/inngest/approval-notifier";
 import { approvalTimeout } from "@/lib/inngest/approval-timeout";
+import { approvalSlaEscalation } from "@/lib/inngest/approval-sla-escalation";
 import { dataRetentionPurge } from "@/lib/inngest/data-retention";
 import { securityMonitor } from "@/lib/inngest/security-monitor";
 import { gmailWatchRenewer } from "@/lib/inngest/gmail-watch-renewer";
@@ -15,7 +16,7 @@ import { gmailWatchRenewer } from "@/lib/inngest/gmail-watch-renewer";
  */
 const handlers = serve({
   client: inngest,
-  functions: [cronRunner, approvalNotifier, approvalTimeout, dataRetentionPurge, securityMonitor, gmailWatchRenewer],
+  functions: [cronRunner, approvalNotifier, approvalTimeout, approvalSlaEscalation, dataRetentionPurge, securityMonitor, gmailWatchRenewer],
 });
 
 const productionEnvNames = ["NODE_ENV", "VERCEL_ENV", "APP_ENV"] as const;
