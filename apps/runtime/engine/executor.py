@@ -79,6 +79,8 @@ from engine.run_limits import (
 from engine.credential_lock import (
     get_token_refresh_manager,
 )
+from engine.retry import RetryPolicy, RetryExecutor, create_retry_policy_for_node
+from engine.dead_letter import DeadLetterQueue, get_dead_letter_queue
 from engine.tracing import async_span, get_tracer
 from internal_auth import build_internal_service_headers
 from compliance import get_provider, policy_block_reason, provider_for_model
@@ -2011,65 +2013,121 @@ class ProgramExecutor:
                     )
                     return {}
 
-            try:
+            # Create retry policy for this node
+            retry_policy = create_retry_policy_for_node(node.config, node.type)
+            
+            # Create retry executor
+            retry_executor = RetryExecutor(
+                policy=retry_policy,
+                node_id=node.id,
+                run_id=self.run_id,
+                node_type=node.type,
+                db=self.db,
+                update_node_execution=update_node_execution,
+                node_telemetry_fn=self._node_telemetry_payload,
+            )
+            
+            # Get dead letter queue for enqueueing on failure
+            dlq = get_dead_letter_queue()
+
+            async def execute_node_with_retry() -> dict:
+                """Execute the node with retry logic."""
                 if node.type == "agent":
-                    output = await self._execute_agent(node, input_data)
+                    return await self._execute_agent(node, input_data)
                 elif node.type == "agent_task":
-                    output = await self._execute_agent_task(node, input_data)
+                    return await self._execute_agent_task(node, input_data)
                 elif node.type == "step":
-                    output = await self._execute_step(node, input_data)
+                    return await self._execute_step(node, input_data)
                 elif node.type == "connection":
-                    output = await self._execute_connection(node, input_data)
+                    return await self._execute_connection(node, input_data)
                 else:
-                    output = input_data  # trigger: pass through
+                    return input_data  # trigger: pass through
 
-                # A persistently-hallucinating agent attaches a non-fatal groundedness
-                # warning. Lift it onto the node record (so the UI flags it) and strip
-                # it from the data payload so it never leaks to downstream nodes.
-                groundedness_warnings: list[str] = []
-                if isinstance(output, dict) and GROUNDEDNESS_WARNING_KEY in output:
-                    warning = output[GROUNDEDNESS_WARNING_KEY]
-                    if isinstance(warning, str):
-                        groundedness_warnings = [warning]
-                    output = {k: v for k, v in output.items() if k != GROUNDEDNESS_WARNING_KEY}
+            try:
+                retry_result = await retry_executor.execute(execute_node_with_retry)
+                
+                if retry_result.success:
+                    output = retry_result.result
+                    
+                    # A persistently-hallucinating agent attaches a non-fatal groundedness
+                    # warning. Lift it onto the node record (so the UI flags it) and strip
+                    # it from the data payload so it never leaks to downstream nodes.
+                    groundedness_warnings: list[str] = []
+                    if isinstance(output, dict) and GROUNDEDNESS_WARNING_KEY in output:
+                        warning = output[GROUNDEDNESS_WARNING_KEY]
+                        if isinstance(warning, str):
+                            groundedness_warnings = [warning]
+                        output = {k: v for k, v in output.items() if k != GROUNDEDNESS_WARNING_KEY}
 
-                # A failed-open retry path (fail_program_on_exhaust=False) returns a
-                # NODE_ERROR_KEY-tagged output instead of raising. Keep the row
-                # visibly failed with the provider error — the run continues, but
-                # the step must not read as a clean success.
-                node_error: str | None = None
-                if isinstance(output, dict):
-                    tagged_error = output.get(NODE_ERROR_KEY)
-                    if isinstance(tagged_error, str) and tagged_error:
-                        node_error = tagged_error
+                    # A failed-open retry path (fail_program_on_exhaust=False) returns a
+                    # NODE_ERROR_KEY-tagged output instead of raising. Keep the row
+                    # visibly failed with the provider error — the run continues, but
+                    # the step must not read as a clean success.
+                    node_error: str | None = None
+                    if isinstance(output, dict):
+                        tagged_error = output.get(NODE_ERROR_KEY)
+                        if isinstance(tagged_error, str) and tagged_error:
+                            node_error = tagged_error
 
-                duration_ms = round((time.monotonic() - node_start) * 1000, 1)
-                log.info(
-                    "node.complete",
-                    node_id=node.id,
-                    node_type=node.type,
-                    run_id=self.run_id,
-                    status="failed" if node_error else "completed",
-                    duration_ms=duration_ms,
-                )
+                    duration_ms = round((time.monotonic() - node_start) * 1000, 1)
+                    log.info(
+                        "node.complete",
+                        node_id=node.id,
+                        node_type=node.type,
+                        run_id=self.run_id,
+                        status="failed" if node_error else "completed",
+                        duration_ms=duration_ms,
+                        retry_count=retry_result.attempt_count - 1 if retry_result.was_retried else 0,
+                    )
 
-                await update_node_execution(
-                    self.db,
-                    self.run_id,
-                    node.id,
-                    status="failed" if node_error else "completed",
-                    completed_at="now()",
-                    output_payload=output,
-                    # None clears any error recorded by an earlier retry attempt so
-                    # a node that ultimately succeeded does not display a stale
-                    # failure.
-                    error_message=node_error,
-                    block_warning_reasons=groundedness_warnings,
-                    data_region=self.data_region,
-                    retention_expiry=self.retention_expiry,
-                    **self._node_telemetry_payload(node.id),
-                )
-                return output
+                    await update_node_execution(
+                        self.db,
+                        self.run_id,
+                        node.id,
+                        status="failed" if node_error else "completed",
+                        completed_at="now()",
+                        output_payload=output,
+                        # None clears any error recorded by an earlier retry attempt so
+                        # a node that ultimately succeeded does not display a stale
+                        # failure.
+                        error_message=node_error,
+                        block_warning_reasons=groundedness_warnings,
+                        data_region=self.data_region,
+                        retention_expiry=self.retention_expiry,
+                        **self._node_telemetry_payload(node.id),
+                    )
+                    return output
+                else:
+                    # Retries exhausted - enqueue to dead letter queue if fail_program_on_exhaust is False
+                    if not retry_policy.fail_program_on_exhaust:
+                        error = retry_result.error or Exception("Unknown error after retries")
+                        await dlq.enqueue(
+                            program_id=self.program_id,
+                            run_id=self.run_id,
+                            node_id=node.id,
+                            node_type=node.type,
+                            node_config=node.config.model_dump() if hasattr(node.config, 'model_dump') else {},
+                            input_data=log_input,
+                            error=error,
+                            attempt_count=retry_result.attempt_count,
+                            retry_policy={
+                                "max_attempts": retry_policy.max_attempts,
+                                "backoff_type": retry_policy.backoff_type.value,
+                                "backoff_base_seconds": retry_policy.backoff_base_seconds,
+                                "fail_program_on_exhaust": retry_policy.fail_program_on_exhaust,
+                                "timeout_per_attempt_seconds": retry_policy.timeout_per_attempt_seconds,
+                                "timeout_total_seconds": retry_policy.timeout_total_seconds,
+                            },
+                            metadata={
+                                "final_outcome": retry_result.final_outcome.value,
+                                "total_duration": retry_result.total_duration,
+                            },
+                        )
+                        # Return error-tagged output so run continues (failed-open)
+                        return {NODE_ERROR_KEY: f"[Retries exhausted - enqueued to DLQ] {str(error)}"}
+                    else:
+                        # fail_program_on_exhaust=True - raise ExecutionError to fail the run
+                        raise ExecutionError("MAX_RETRIES_EXHAUSTED", str(retry_result.error), node.id)
             except ExecutionError:
                 raise
             except Exception as e:
