@@ -129,6 +129,22 @@ services:
     networks:
       - frontend
 
+  # ─── LiteLLM Proxy (for BYOK testing) ──────────────────────────────────────
+  litellm:
+    image: ghcr.io/berriai/litellm:main
+    restart: unless-stopped
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-}
+      - LITELLM_MASTER_KEY_HASH=sha256
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    ports:
+      - "4000:4000"
+    networks:
+      - frontend
+    profiles:
+      - litellm
+
   # ─── Seed Data ───────────────────────────────────────────────────────────────
   seed:
     image: node:20-alpine
