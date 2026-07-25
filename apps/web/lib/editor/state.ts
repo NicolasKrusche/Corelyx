@@ -13,6 +13,13 @@ export interface EditorState {
   validationResult: ValidationResult | null;
   isDirty: boolean;
   isSaving: boolean;
+  /**
+   * Monotonic counter bumped on every schema-mutating action. A save captures
+   * this at snapshot time; MARK_SAVED only clears isDirty when the counter is
+   * unchanged, so edits made while a save is in flight are never marked "Saved"
+   * (and stay dirty for the next autosave).
+   */
+  dirtyCounter: number;
   /** States before current — pop to undo. */
   past: ProgramSchema[];
   /** States after current — pop to redo. Cleared on any new mutation. */
@@ -32,7 +39,7 @@ export type EditorAction =
   | { type: "SELECT_EDGE"; edgeId: string | null }
   | { type: "SET_VALIDATION"; result: ValidationResult }
   | { type: "SET_SAVING"; saving: boolean }
-  | { type: "MARK_SAVED" }
+  | { type: "MARK_SAVED"; savedCounter?: number }
   | { type: "UPDATE_PROGRAM_NAME"; name: string }
   | { type: "UNDO" }
   | { type: "REDO" }
@@ -73,7 +80,7 @@ function pushPast(
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
-export function editorReducer(state: EditorState, action: EditorAction): EditorState {
+function editorReducerBase(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     // ── Node mutations ──────────────────────────────────────────────────────
 
@@ -190,6 +197,14 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return { ...state, isSaving: action.saving };
 
     case "MARK_SAVED":
+      // Only clear isDirty when nothing changed since the save was snapshotted.
+      // If edits landed while the save was in flight (dirtyCounter advanced past
+      // the value captured at save start), keep isDirty so the next autosave
+      // persists them — otherwise those edits are silently dropped and the UI
+      // lies "Saved".
+      if (action.savedCounter !== undefined && action.savedCounter !== state.dirtyCounter) {
+        return { ...state, isSaving: false };
+      }
       return { ...state, isDirty: false, isSaving: false };
 
     case "UPDATE_PROGRAM_NAME": {
@@ -296,6 +311,21 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   }
 }
 
+/**
+ * Wraps the base reducer to maintain dirtyCounter. Every schema-mutating action
+ * produces a new schema object reference; when that happens we bump the counter.
+ * Non-mutating actions (selection, validation, save-state) keep the same schema
+ * reference and leave the counter untouched — so a save started at counter N can
+ * detect (via MARK_SAVED's savedCounter) whether any edit landed since.
+ */
+export function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  const next = editorReducerBase(state, action);
+  if (next.schema !== state.schema) {
+    return { ...next, dirtyCounter: state.dirtyCounter + 1 };
+  }
+  return next;
+}
+
 // ─── initialEditorState ───────────────────────────────────────────────────────
 
 export function initialEditorState(schema: ProgramSchema): EditorState {
@@ -306,6 +336,7 @@ export function initialEditorState(schema: ProgramSchema): EditorState {
     validationResult: null,
     isDirty: false,
     isSaving: false,
+    dirtyCounter: 0,
     past: [],
     future: [],
   };

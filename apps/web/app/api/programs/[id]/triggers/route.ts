@@ -62,16 +62,26 @@ export async function GET(
   }
 
   const triggers = (data ?? []) as unknown as TriggerRow[];
+
+  // The token-bearing webhook URL and the derived HMAC signing secret are the
+  // credentials for firing this program's webhook. A viewer (canView but not
+  // canEdit) cannot run the program, so handing them either would be a privilege
+  // escalation: they could forge a valid signed POST and trigger runs. Reveal
+  // both only to editors; viewers get neither.
+  const editable = canEdit(access);
   const includeSigningSecret =
+    editable &&
     new URL(request.url).searchParams.get("include_webhook_signing_secret") === "true";
 
   // Build webhook metadata server-side and only reveal the signing secret on opt-in reads.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const enriched = triggers.map((trigger) =>
-    enrichWebhookTriggerForClient(trigger, appUrl, {
-      includeSigningSecret,
-    })
-  );
+  const enriched = triggers.map((trigger) => {
+    const client = enrichWebhookTriggerForClient(trigger, appUrl, { includeSigningSecret });
+    if (!editable) {
+      return { ...client, webhook_url: null, webhook_signing: null };
+    }
+    return client;
+  });
 
   return NextResponse.json({ triggers: enriched });
 }

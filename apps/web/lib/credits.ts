@@ -132,26 +132,36 @@ export async function deductUserCredits(userId: string, amountCredits: number): 
   // Admins and unlimited-tier users are never charged.
   if (row.isAdmin || includedCredits === null) return true;
 
+  // Reset the monthly included allowance if the month rolled over — the RPC
+  // reads included_credits_used and must see the reset value.
   const includedUsed = await maybeResetIncluded(userId, row);
+
+  if (row.storage === "credits") {
+    // The DB function computes the included/purchased split under the row lock
+    // (migration 20260724120000). Pass only the total and the plan's included
+    // limit, so two concurrent deductions can't both claim the same included
+    // remainder from a stale snapshot and spuriously fail the second one.
+    const { data, error: rpcError } = await (service as RpcClient).rpc("deduct_user_credits_raw", {
+      p_user_id: userId,
+      p_amount: amountCredits,
+      p_included_limit: includedCredits,
+    });
+    if (rpcError) throw new Error(rpcError.message);
+    return data === true;
+  }
+
+  // Legacy USD-denominated fallback (only reached on databases that predate the
+  // credit-unit migration). Compute the split in the app for the old DECIMAL RPC.
   const currentPurchased = Math.max(0, row.purchasedCredits);
   const availableIncluded = Math.max(0, includedCredits - includedUsed);
   if (availableIncluded + currentPurchased < amountCredits) return false;
-
   const fromIncluded = Math.min(amountCredits, availableIncluded);
   const fromPurchased = amountCredits - fromIncluded;
-  const args = row.storage === "credits"
-    ? {
-        p_user_id: userId,
-        p_add_to_included: fromIncluded,
-        p_sub_from_purchased: fromPurchased,
-        p_included_limit: includedCredits,
-      }
-    : {
-        p_user_id: userId,
-        p_add_to_included: fromIncluded / LEGACY_CREDITS_PER_USD,
-        p_sub_from_purchased: fromPurchased / LEGACY_CREDITS_PER_USD,
-      };
-  const { data, error: rpcError } = await (service as RpcClient).rpc("deduct_user_credits_raw", args);
+  const { data, error: rpcError } = await (service as RpcClient).rpc("deduct_user_credits_raw", {
+    p_user_id: userId,
+    p_add_to_included: fromIncluded / LEGACY_CREDITS_PER_USD,
+    p_sub_from_purchased: fromPurchased / LEGACY_CREDITS_PER_USD,
+  });
   if (rpcError) throw new Error(rpcError.message);
   return data === true;
 }

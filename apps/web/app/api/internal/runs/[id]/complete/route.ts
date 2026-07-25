@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { sendRunFailureEmail, sendAgentReportEmail } from "@/lib/email";
 import { notifyUserPush } from "@/lib/notify";
 import { isNotificationEnabled } from "@/lib/notification-prefs";
+import { checkRunLimit, checkTriggerAccess } from "@/lib/limits";
 import { requestHasValidInternalServiceToken } from "@/lib/internal-auth";
 import { getRuntimeUrl } from "@/lib/runtime-url";
 import {
@@ -135,11 +136,12 @@ export async function POST(
             });
           }
           // Push mirrors the email (self-gated on the push channel pref).
-          void notifyUserPush(user_id, "agent_reports", {
+          // after() so it survives the post-response serverless freeze.
+          after(() => notifyUserPush(user_id, "agent_reports", {
             title: `${agentName} finished`,
             body: (report?.title ?? "Your agent completed its run.").slice(0, 140),
             data: { kind: "agent_report", program_id, run_id: params.id },
-          });
+          }));
         } catch {
           serverLog({ level: "error", event: "runs.complete.agent_report_email_failed", message: "Agent report notification email could not be sent." });
         }
@@ -199,23 +201,30 @@ export async function POST(
         });
       }
       // Push mirrors the email (self-gated on the push channel pref).
-      void notifyUserPush(user_id, "run_failures", {
+      // after() so it survives the post-response serverless freeze.
+      after(() => notifyUserPush(user_id, "run_failures", {
         title: "Run failed",
         body: `${programName} failed${error_message ? `: ${String(error_message).slice(0, 100)}` : ""}`,
         data: { kind: "run_failure", run_id: params.id, program_id },
-      });
+      }));
     } catch (err) {
       serverLog({ level: "error", event: "runs.complete.failure_email_send_failed", message: "Run failure notification email could not be sent." });
     }
   }
 
   // ── 2. Find downstream program triggers ───────────────────────────────────
-  if (status === "completed") {
+  if (status === "completed" && program_id) {
+    // Filter by source_program_id server-side (config->>source_program_id): an
+    // unfiltered scan truncates at PostgREST's 1000-row default once there are
+    // that many active program triggers platform-wide, silently dropping some
+    // users' chains. The jsonb filter narrows to just this program's downstream
+    // triggers, so nothing is lost.
     const { data: downstreamTriggers } = await db
       .from("triggers")
       .select("id, program_id, config")
       .eq("type", "program")
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .eq("config->>source_program_id", program_id);
 
     if (downstreamTriggers && downstreamTriggers.length > 0) {
       type TriggerRow = { id: string; program_id: string; config: Record<string, unknown> };
@@ -230,7 +239,7 @@ export async function POST(
           // Fetch downstream program schema
           const { data: downProgram } = await db
             .from("programs")
-            .select("id, schema, user_id, execution_mode, is_active, conflict_policy")
+            .select("id, schema, user_id, workspace_id, execution_mode, is_active, conflict_policy")
             .eq("id", trigger.program_id)
             .eq("is_active", true)
             .single();
@@ -241,6 +250,7 @@ export async function POST(
             id: string;
             schema: unknown;
             user_id: string;
+            workspace_id: string;
             execution_mode: string;
             conflict_policy: string;
           };
@@ -255,7 +265,7 @@ export async function POST(
           // longer see.
           const sourceAccess = await getProgramAccess(program_id, prog.user_id);
           if (!canView(sourceAccess)) {
-            recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Source program no longer accessible" });
+            after(() => recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Source program no longer accessible" }));
             continue;
           }
 
@@ -269,7 +279,23 @@ export async function POST(
               { scopeType: "user", scopeId: prog.user_id },
             ])
           ) {
-            recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Security lock active" });
+            after(() => recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Security lock active" }));
+            continue;
+          }
+
+          // Entitlement + run-limit gates, mirroring every other fire path
+          // (cron/webhook/event). Program (chained) triggers are Team-gated and
+          // still subject to the owner's monthly run limit — without re-checking
+          // here, a downgraded user's chains keep firing forever and blow past
+          // the run cap.
+          const triggerAccess = await checkTriggerAccess(prog.user_id, "program", prog.workspace_id);
+          if (!triggerAccess.allowed) {
+            after(() => recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Program triggers require Team plan or higher" }));
+            continue;
+          }
+          const runLimit = await checkRunLimit(prog.user_id, prog.workspace_id);
+          if (!runLimit.allowed) {
+            after(() => recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: "Monthly run limit reached" }));
             continue;
           }
 
@@ -283,7 +309,7 @@ export async function POST(
 
           if (activeRuns && activeRuns.length > 0) {
             if (prog.conflict_policy === "skip" || prog.conflict_policy === "fail") {
-              recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: `Conflict policy: ${prog.conflict_policy}` });
+              after(() => recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, source: "program", status: "skipped", message: `Conflict policy: ${prog.conflict_policy}` }));
               continue; // Skip or fail — don't fire downstream
             }
             // queue: proceed (runtime will queue)
@@ -376,7 +402,7 @@ export async function POST(
             .update({ last_fired_at: new Date().toISOString() } as never)
             .eq("id", trigger.id);
 
-          recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "program", status: "dispatched" });
+          after(() => recordTriggerEvent({ triggerId: trigger.id, programId: trigger.program_id, runId, source: "program", status: "dispatched" }));
         }
       }
     }

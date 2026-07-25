@@ -71,8 +71,11 @@ export async function POST(
 
   const now = new Date().toISOString();
 
-  // Update approval
-  const { error: updateApprovalError } = await serviceClient
+  // Update approval — guarded on status = 'pending' so the check above and this
+  // write are atomic. Without it, an approve (dashboard) and a reject (email
+  // link) firing near-simultaneously could both pass the pending check and both
+  // apply, leaving contradictory audit entries. The loser matches zero rows.
+  const { data: updatedApproval, error: updateApprovalError } = await serviceClient
     .from("approvals")
     .update({
       status: decision,
@@ -86,9 +89,13 @@ export async function POST(
         decision_note: note ?? null,
       },
     } as unknown as never)
-    .eq("id", approvalId);
+    .eq("id", approvalId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
 
   if (updateApprovalError) return apiError(updateApprovalError.message, 500);
+  if (!updatedApproval) return apiError("Approval has already been decided", 409);
 
   // Update node_execution status
   const nodeExecStatus = decision === "approved" ? "running" : "failed";

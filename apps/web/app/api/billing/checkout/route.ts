@@ -114,6 +114,27 @@ export async function POST(request: Request) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/plan?checkout=success`,
       cancel_url: `${baseUrl}/plan?checkout=cancelled`,
+      // Consumer withdrawal-right disclosure (FAGG § 18 / Art. 16(m) Directive
+      // 2011/83/EU). Paid features become available immediately, so we surface —
+      // directly above the pay button — that the customer requests immediate
+      // performance and acknowledges losing the 14-day right of withdrawal once
+      // the service has been fully performed. `custom_text.submit` needs no
+      // Stripe Dashboard configuration, so this acknowledgment always renders.
+      custom_text: {
+        submit: {
+          message:
+            "By subscribing you request that Corelyx starts providing the paid service immediately and acknowledge that your 14-day right of withdrawal is lost once the service has been fully performed (§ 18 FAGG / Art. 16(m) Directive 2011/83/EU). You can cancel anytime in account settings; see our Terms of Service for details.",
+        },
+      },
+      // Optional Stripe-recorded Terms-of-Service acceptance. `terms_of_service:
+      // "required"` only works when a Terms of Service URL is configured under
+      // Stripe Dashboard → Settings → Public details; without it Stripe rejects
+      // the session. It is therefore opt-in via STRIPE_TOS_CONSENT so an
+      // unconfigured account can never break checkout — set it to "true" once
+      // /terms is registered as the Dashboard ToS URL.
+      ...(process.env.STRIPE_TOS_CONSENT === "true"
+        ? { consent_collection: { terms_of_service: "required" as const } }
+        : {}),
       ...(welcomeCouponId
         ? { discounts: [{ coupon: welcomeCouponId }] }
         : { allow_promotion_codes: true }),
@@ -124,6 +145,9 @@ export async function POST(request: Request) {
         requested_tier: tier,
         requested_interval: interval,
         checkout_payment_method: paymentMethod,
+        // Records that the immediate-performance / withdrawal-waiver
+        // acknowledgment above was presented at checkout (FAGG § 18).
+        withdrawal_ack: "immediate_performance_requested",
       },
       subscription_data: {
         metadata: {

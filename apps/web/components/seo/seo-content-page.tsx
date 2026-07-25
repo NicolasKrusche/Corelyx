@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import type { SeoPage } from "@/lib/seo/content";
 import { SITE_URL } from "@/lib/seo/content";
 import { SeoAuthButton } from "@/components/seo/seo-auth-button";
+import { buildBreadcrumbItems } from "@/components/seo/breadcrumb";
 
 const RETRIEVAL_KEYWORDS = [
   "best EU AI automation platform",
@@ -106,6 +107,14 @@ function answerEngineFaqs(page: SeoPage) {
 
 export function createSeoMetadata(page: SeoPage): Metadata {
   const url = `${SITE_URL}${page.path}`;
+  
+  // Generate dynamic OG image URL with title, section, and eyebrow
+  const ogImageParams = new URLSearchParams({
+    title: page.headline.substring(0, 80), // Truncate for readability
+    section: page.section,
+    eyebrow: page.eyebrow,
+  });
+  const ogImageUrl = `/api/og?${ogImageParams.toString()}`;
 
   return {
     // SEO page titles already carry their own branding — bypass the root
@@ -127,7 +136,7 @@ export function createSeoMetadata(page: SeoPage): Metadata {
       siteName: "Corelyx",
       images: [
         {
-          url: "/pictures/og-image.png",
+          url: ogImageUrl,
           width: 1200,
           height: 630,
           alt: `${page.shortTitle} - Corelyx compliance-first AI workflow automation`,
@@ -138,27 +147,13 @@ export function createSeoMetadata(page: SeoPage): Metadata {
       card: "summary_large_image",
       title: page.title,
       description: page.description,
-      images: ["/pictures/og-image.png"],
+      images: [ogImageUrl],
     },
   };
 }
 
 function buildBreadcrumbs(page: SeoPage) {
-  const parts = page.path.split("/").filter(Boolean);
-  const crumbs = [{ name: "Home", item: SITE_URL }];
-  let current = "";
-
-  for (const part of parts) {
-    current += `/${part}`;
-    const label = part
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-    crumbs.push({ name: label, item: `${SITE_URL}${current}` });
-  }
-
-  crumbs[crumbs.length - 1].name = page.shortTitle;
-  return crumbs;
+  return buildBreadcrumbItems(page.path, page.shortTitle);
 }
 
 function isIndexPage(page: SeoPage) {
@@ -230,7 +225,7 @@ function buildJsonLd(page: SeoPage) {
           "@type": "ListItem",
           position: index + 1,
           name: crumb.name,
-          item: crumb.item,
+          item: crumb.href,
         })),
       },
       {
@@ -337,16 +332,31 @@ function BreadcrumbNav({ page }: { page: SeoPage }) {
 
   return (
     <nav aria-label="Breadcrumb" className="mb-8 text-xs text-muted-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: breadcrumbs.map((crumb, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              name: crumb.name,
+              item: `${SITE_URL}${crumb.href}`,
+            })),
+          }),
+        }}
+      />
       <ol className="flex flex-wrap items-center gap-2">
         {breadcrumbs.map((crumb, index) => {
           const isLast = index === breadcrumbs.length - 1;
           return (
-            <li key={crumb.item} className="flex items-center gap-2">
+            <li key={crumb.href} className="flex items-center gap-2">
               {index > 0 && <span aria-hidden="true">/</span>}
               {isLast ? (
-                <span className="text-foreground">{crumb.name}</span>
+                <span className="text-foreground" aria-current="page">{crumb.name}</span>
               ) : (
-                <Link href={new URL(crumb.item).pathname || "/"} className="hover:text-foreground">
+                <Link href={crumb.href} className="hover:text-foreground">
                   {crumb.name}
                 </Link>
               )}

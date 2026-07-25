@@ -52,6 +52,42 @@ describe("editorReducer title rename", () => {
   });
 });
 
+describe("editorReducer save-in-flight dirty tracking", () => {
+  it("clears dirty on MARK_SAVED when nothing changed since the save started", () => {
+    let state = initialEditorState(baseSchema);
+    state = editorReducer(state, { type: "UPDATE_PROGRAM_NAME", name: "First" });
+    // A save captures the counter at snapshot time, then completes.
+    const savedCounter = state.dirtyCounter;
+    state = editorReducer(state, { type: "MARK_SAVED", savedCounter });
+    expect(state.isDirty).toBe(false);
+    expect(state.isSaving).toBe(false);
+  });
+
+  it("keeps dirty when an edit lands while the save is in flight", () => {
+    let state = initialEditorState(baseSchema);
+    state = editorReducer(state, { type: "UPDATE_PROGRAM_NAME", name: "First" });
+    const savedCounter = state.dirtyCounter; // snapshot the in-flight save
+
+    // Edit lands mid-save → dirtyCounter advances past savedCounter.
+    state = editorReducer(state, { type: "UPDATE_PROGRAM_NAME", name: "Second" });
+    expect(state.dirtyCounter).not.toBe(savedCounter);
+
+    // The stale save resolves — it must NOT clear dirty, or the second edit is lost.
+    state = editorReducer(state, { type: "MARK_SAVED", savedCounter });
+    expect(state.isDirty).toBe(true);
+    expect(state.isSaving).toBe(false);
+  });
+
+  it("only bumps dirtyCounter on schema-mutating actions", () => {
+    let state = initialEditorState(baseSchema);
+    const start = state.dirtyCounter;
+    state = editorReducer(state, { type: "SELECT_NODE", nodeId: "n1" });
+    expect(state.dirtyCounter).toBe(start);
+    state = editorReducer(state, { type: "UPDATE_PROGRAM_NAME", name: "Changed" });
+    expect(state.dirtyCounter).toBe(start + 1);
+  });
+});
+
 function OptionalDispatchProbe() {
   const dispatch = useOptionalEditorDispatch();
   return React.createElement("span", null, dispatch ? "editable" : "read-only");

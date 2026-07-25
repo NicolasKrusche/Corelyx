@@ -543,6 +543,18 @@ export async function POST(request: Request) {
               });
               break keyAttemptLoop;
             } catch (err) {
+              // The EU compliance filter aborted this call (hard block). Stop
+              // immediately with the friendly reason instead of grinding every
+              // remaining model/key against an already-aborted signal — which
+              // would stream misleading "trying fallback model" statuses and
+              // ultimately surface the raw AbortError. The outer catch maps this
+              // to EU_COMPLIANCE_BLOCKED (complianceBlockReason is set).
+              if (complianceBlockReason || ac.signal.aborted) {
+                throw new Error(
+                  `This workflow was blocked by EU compliance: ${complianceBlockReason ?? "the request was blocked."}`
+                );
+              }
+
               // A credit/auth error means the KEY is dead — trying its other
               // models would fail identically, so don't. Skip straight to the
               // next key (or fail) instead of grinding the fallback chain.

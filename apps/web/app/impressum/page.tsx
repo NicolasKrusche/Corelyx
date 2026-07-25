@@ -46,7 +46,7 @@ export default async function ImpressumPage() {
         <div className="space-y-6">
           <section className="rounded-2xl border border-border bg-card/60 p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-              Provider information according to DDG Section 5
+              Provider information according to ECG Section 5 and MedienG Section 25
             </p>
             <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted-foreground">
               <div>

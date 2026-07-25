@@ -24,6 +24,25 @@ export const metadata: Metadata = {
   openGraph: { url: "https://www.corelyx.app/privacy" },
 };
 
+// Cloudflare Turnstile is a bot/abuse-protection service used on public forms
+// (e.g. signup). It is not part of the code-backed provider registry consumed by
+// this page's shared `coreServiceProviders`, so it is disclosed here explicitly.
+const turnstileProvider: ProcessorEntry = {
+  name: "Cloudflare (Turnstile)",
+  role: "Processor / bot and abuse protection",
+  activation: "Only on abuse-protected public forms (e.g. signup) when enabled",
+  purpose:
+    "Distinguishes humans from automated abuse on public forms such as signup, using a privacy-preserving CAPTCHA challenge instead of tracking cookies.",
+  categories:
+    "IP address, coarse browser and device signals, challenge interaction data, and the resulting Turnstile verification token.",
+  legalBasis:
+    "Art. 6(1)(f) GDPR — our legitimate interest in preventing spam, fraud, and automated abuse of the service.",
+  dataLocation:
+    "Processed on Cloudflare's global edge network. Cloudflare states Turnstile does not use the data for cross-site tracking or advertising.",
+  transferNotes:
+    "Where processing occurs outside the EEA, the Cloudflare DPA and its Standard Contractual Clauses apply as the transfer safeguard. Turnstile is active only when configured for the deployment.",
+};
+
 const sections = [
   { id: "overview", title: "1. Overview" },
   { id: "controller", title: "2. Controller" },
@@ -264,6 +283,7 @@ export default async function PrivacyPage() {
                 {coreServiceProviders.map((entry) => (
                   <ProcessorCard key={entry.name} entry={entry} />
                 ))}
+                <ProcessorCard entry={turnstileProvider} />
               </div>
               <div className="mt-8 border-t border-border/30" />
             </section>

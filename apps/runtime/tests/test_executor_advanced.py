@@ -705,7 +705,9 @@ class TestManualSupervisedMode(unittest.IsolatedAsyncioTestCase):
     async def test_request_step_approval_and_wait_approved(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
-        executor.db.table("node_executions").select().eq().single().execute.return_value = Mock(data={"id": "ne-1"})
+        executor.db.table("node_executions").select().eq().order().limit().execute.return_value = Mock(
+            data=[{"id": "ne-1"}]
+        )
         with (
             patch("engine.executor.create_approval", new=AsyncMock()),
             patch("engine.executor.update_node_execution", new=AsyncMock()),
@@ -717,7 +719,9 @@ class TestManualSupervisedMode(unittest.IsolatedAsyncioTestCase):
     async def test_request_step_approval_and_wait_rejected(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])
         executor = _make_executor(schema)
-        executor.db.table("node_executions").select().eq().single().execute.return_value = Mock(data={"id": "ne-1"})
+        executor.db.table("node_executions").select().eq().order().limit().execute.return_value = Mock(
+            data=[{"id": "ne-1"}]
+        )
         with (
             patch("engine.executor.create_approval", new=AsyncMock()),
             patch("engine.executor.update_node_execution", new=AsyncMock()),
@@ -783,7 +787,7 @@ class TestManualSupervisedMode(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(schema)
         executor.db = self._table_dispatch_db(
             {
-                "node_executions": Mock(data={"id": "ne-1"}),
+                "node_executions": Mock(data=[{"id": "ne-1"}]),
                 "approvals": Mock(data=[{"id": "a-1", "status": "approved", "context": {}, "created_at": None}]),
             }
         )
@@ -804,7 +808,7 @@ class TestManualSupervisedMode(unittest.IsolatedAsyncioTestCase):
         executor = _make_executor(schema)
         executor.db = self._table_dispatch_db(
             {
-                "node_executions": Mock(data={"id": "ne-1"}),
+                "node_executions": Mock(data=[{"id": "ne-1"}]),
                 "approvals": Mock(
                     data=[{"id": "a-1", "status": "pending", "context": {"timeout_hours": 24}, "created_at": None}]
                 ),
@@ -861,12 +865,19 @@ class TestManualSupervisedMode(unittest.IsolatedAsyncioTestCase):
 
 class TestCancellation(unittest.IsolatedAsyncioTestCase):
     async def test_cancelled_during_execution(self) -> None:
+        # Two chained steps so the run makes two loop iterations: the first
+        # (s1) sees "running" and executes, then the cancellation is detected at
+        # the top of the second iteration before s2 runs.
         schema = _simple_schema(
             [
                 {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
-                {"id": "s", "type": "step", "config": {"logic_type": "delay", "extra": {"seconds": 0}}},
+                {"id": "s1", "type": "step", "config": {"logic_type": "delay", "extra": {"seconds": 0}}},
+                {"id": "s2", "type": "step", "config": {"logic_type": "delay", "extra": {"seconds": 0}}},
             ],
-            [{"id": "e1", "from": "t", "to": "s", "type": "data_flow"}],
+            [
+                {"id": "e1", "from": "t", "to": "s1", "type": "data_flow"},
+                {"id": "e2", "from": "s1", "to": "s2", "type": "data_flow"},
+            ],
         )
         executor = _make_executor(schema)
         with (
@@ -1160,6 +1171,86 @@ class TestAgentExecutionPaths(unittest.IsolatedAsyncioTestCase):
             mock_client.return_value.post = AsyncMock(return_value=llm_response)
             result = await executor._execute_agent_task(executor.node_map["at"], {})
         self.assertEqual(result["summary"], "done")
+
+    def _agent_task_schema(self):
+        return _simple_schema(
+            [
+                {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+                {
+                    "id": "at",
+                    "type": "agent_task",
+                    "config": {
+                        "objective": "test",
+                        "model": "gpt-4o",
+                        "api_key_ref": "k1",
+                        "max_iterations": 2,
+                        "requires_approval": False,
+                        "scope_access": "write",
+                        "retry": {
+                            "max_attempts": 1,
+                            "backoff": "none",
+                            "backoff_base_seconds": 0,
+                            "fail_program_on_exhaust": False,
+                        },
+                    },
+                },
+            ],
+            [{"id": "e1", "from": "t", "to": "at", "type": "data_flow"}],
+        )
+
+    async def test_agent_task_does_not_fall_through_after_a_tool_ran(self) -> None:
+        # R9: once a tool call executed under a credential, a mid-loop key error
+        # must FAIL the node, not restart the loop on the next key (which would
+        # re-execute completed writes, e.g. re-send an email).
+        executor = _make_executor(self._agent_task_schema())
+        executor._agent_credentials = [{"ref": "k1", "model": "gpt-4o"}, {"ref": "k2", "model": "gpt-4o"}]
+        executor._agent_tool_calls_made = 0
+
+        async def fake_loop(*_a, **_k):
+            executor._agent_tool_calls_made += 1  # a tool executed under this key
+            raise ExecutionError("AGENT_TASK_LLM_ERROR", "OpenRouter: Insufficient credits", "at")
+
+        loop_mock = AsyncMock(side_effect=fake_loop)
+        with (
+            patch.object(executor, "_enforce_agent_model_access", Mock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_agent_loop_openai", loop_mock),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
+            with self.assertRaises(ExecutionError):
+                await executor._execute_agent_task(executor.node_map["at"], {})
+        self.assertEqual(loop_mock.await_count, 1)  # did NOT fall through to k2
+
+    async def test_agent_task_falls_through_when_no_tool_ran(self) -> None:
+        # R9: a key error BEFORE any tool executed is safe to retry on the next
+        # credential candidate.
+        executor = _make_executor(self._agent_task_schema())
+        executor._agent_credentials = [{"ref": "k1", "model": "gpt-4o"}, {"ref": "k2", "model": "gpt-4o"}]
+        executor._agent_tool_calls_made = 0
+        calls = {"n": 0}
+
+        async def fake_loop(*_a, **_k):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # No tool executed under k1 (counter unchanged) — just a bad key.
+                raise ExecutionError("AGENT_TASK_LLM_ERROR", "insufficient credits", "at")
+            return ("done", [])
+
+        loop_mock = AsyncMock(side_effect=fake_loop)
+        with (
+            patch.object(executor, "_enforce_agent_model_access", Mock()),
+            patch.object(executor, "_check_platform_credits", new=AsyncMock()),
+            patch.object(executor, "_fetch_api_key", AsyncMock(return_value=("key", "openai"))),
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_agent_loop_openai", loop_mock),
+            patch.object(executor, "_ensure_agent_report", AsyncMock(side_effect=lambda _n, _c, _s, inv: inv)),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
+            result = await executor._execute_agent_task(executor.node_map["at"], {})
+        self.assertEqual(result["summary"], "done")
+        self.assertEqual(loop_mock.await_count, 2)  # fell through to k2
 
     async def test_agent_loop_openai_with_tool_calls(self) -> None:
         schema = _simple_schema([{"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}}])

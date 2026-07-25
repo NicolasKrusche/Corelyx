@@ -99,7 +99,7 @@ from connectors.introspection import (
     introspect_connection,
     supports_introspection,
 )
-from engine.executor import ExecutionError, ProgramExecutor, close_llm_client
+from engine.executor import CancellationError, ExecutionError, ProgramExecutor, close_llm_client
 from engine.circuit_breaker import list_known_circuits, reset_all_circuits
 from engine.usage_tracker import track_usage
 from compliance import (
@@ -268,6 +268,12 @@ async def trigger_workflow(workflow_id: str) -> None:
         async with _acquire_run_slot(get_user_priority_tier(db, user_id)):
             await executor.execute(None)
         final_status = "completed"
+    except CancellationError:
+        # User-initiated cancel (the web cancel route already set status
+        # "cancelled"). Keep it "cancelled" and DON'T treat it as a failure:
+        # no clobber to "failed", no failure email/push/sentinel (R5).
+        final_status = "cancelled"
+        error_message = None
     except ExecutionError as e:
         error_message = e.message
     except Exception as e:
@@ -285,7 +291,8 @@ async def trigger_workflow(workflow_id: str) -> None:
             **telemetry,
         )
         await release_run_locks(db, run_id)
-        # Track billing usage for cron-triggered runs
+        # Track billing usage for cron-triggered runs. This stays unconditional:
+        # a cancelled run still consumed the tokens it consumed before stopping.
         if executor and telemetry:
             try:
                 org_id_val: str | None = None
@@ -312,7 +319,11 @@ async def trigger_workflow(workflow_id: str) -> None:
                 )
             except Exception:
                 pass
-        await _notify_complete(run_id, workflow_id, user_id, final_status, error_message)
+        # Suppress the completion callback for a user cancellation — it would
+        # otherwise fire the run-failure notification path and downstream
+        # program-chain triggers for a run the user deliberately stopped.
+        if final_status != "cancelled":
+            await _notify_complete(run_id, workflow_id, user_id, final_status, error_message)
 
 
 # ── Cron heartbeat: runtime → web ────────────────────────────────────────────
@@ -802,6 +813,11 @@ async def _run_program(
     try:
         await _run_with_active_timeout(executor, trigger_payload)
         final_status = "completed"
+    except CancellationError:
+        # User-initiated cancel: keep status "cancelled" (don't clobber to
+        # "failed") and suppress the failure notification path (R5).
+        final_status = "cancelled"
+        error_message = None
     except asyncio.TimeoutError as e:
         error_message = str(e) or f"Run exceeded maximum execution time ({RUN_TIMEOUT_SECONDS}s)"
     except ExecutionError as e:
@@ -820,7 +836,8 @@ async def _run_program(
             **executor.run_telemetry_payload(),
         )
         await release_run_locks(db, run_id)
-        # Track billing usage for this run
+        # Track billing usage for this run. Unconditional by design: a cancelled
+        # run still consumed the tokens it consumed before being stopped.
         telemetry = executor.run_telemetry_payload()
         started_at_val = None
         try:
@@ -895,8 +912,11 @@ async def _run_program(
             )
         except Exception:
             pass  # Best-effort: never block run completion
-        # Notify Next.js — fires inter-program triggers for completed runs
-        await _notify_complete(run_id, program_id, user_id, final_status, error_message)
+        # Notify Next.js — fires inter-program triggers for completed runs. Skip
+        # it for a user cancellation so no failure email/push or downstream
+        # program-chain trigger fires for a deliberately stopped run.
+        if final_status != "cancelled":
+            await _notify_complete(run_id, program_id, user_id, final_status, error_message)
 
         # Structured logging for run completion/failure events
         telemetry = executor.run_telemetry_payload()

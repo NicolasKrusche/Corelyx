@@ -53,7 +53,7 @@ class OpenaiConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/completion",
+            f"{_BASE}/completions",
             headers=headers,
             json=params,
         )
@@ -70,7 +70,7 @@ class OpenaiConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/embedding",
+            f"{_BASE}/embeddings",
             headers=headers,
             json=params,
         )

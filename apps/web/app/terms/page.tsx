@@ -196,7 +196,9 @@ Austrian consumer arbitration: Consumers may also contact the Austrian Internet 
 
 For disputes arising from these Terms or your use of the Service, the competent courts of Vienna, Austria have jurisdiction.
 
-If you are a consumer resident in the European Union or the European Economic Area, you may also bring proceedings before the courts of your country of habitual residence. The mandatory consumer protection laws of your country of residence apply to the extent they afford greater protection than Austrian law and cannot be derogated from by agreement.`,
+If you are a consumer resident in the European Union or the European Economic Area, you may also bring proceedings before the courts of your country of habitual residence. The mandatory consumer protection laws of your country of residence apply to the extent they afford greater protection than Austrian law and cannot be derogated from by agreement.
+
+Contract language: These Terms, the Privacy Policy, the Data Processing Agreement, and all other contractual documentation are provided and concluded in English. English is the authoritative contract language. Any translation of the user interface or of these documents into another language is provided for convenience only, and in the event of any conflict or ambiguity the English version prevails.`,
   },
   {
     id: "severability",

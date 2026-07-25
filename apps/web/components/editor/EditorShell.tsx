@@ -677,6 +677,10 @@ export function EditorShell({
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const schemaRef = useRef(state.schema);
   schemaRef.current = state.schema;
+  // Mirror the reducer's dirtyCounter so performSave can capture it at snapshot
+  // time (see W5): MARK_SAVED then only clears isDirty if nothing changed since.
+  const dirtyCounterRef = useRef(state.dirtyCounter);
+  dirtyCounterRef.current = state.dirtyCounter;
 
   useEffect(() => {
     if (!state.isDirty) return;
@@ -693,6 +697,19 @@ export function EditorShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.isDirty, state.schema]);
 
+  // Warn before leaving with unsaved (or in-flight) changes. Saves can take
+  // 1-3s; closing the tab in that window would otherwise lose the edits silently.
+  useEffect(() => {
+    if (!state.isDirty && !state.isSaving) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Legacy browsers require returnValue to be set to trigger the prompt.
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [state.isDirty, state.isSaving]);
+
   // ── Save function ─────────────────────────────────────────────────────────
 
   // Version of the schema our edits are based on. Sent with every save; the
@@ -707,9 +724,12 @@ export function EditorShell({
 
   const performSave = useCallback(
     (schema: ProgramSchema): Promise<boolean> => {
+      // Capture the dirty counter for THIS snapshot now. If edits land while the
+      // save is in flight, the counter advances and MARK_SAVED won't clear dirty.
+      const savedCounter = dirtyCounterRef.current;
       const chained = (pendingSaveRef.current ?? Promise.resolve(true))
         .catch(() => false)
-        .then(() => doSaveRef.current(schema));
+        .then(() => doSaveRef.current(schema, savedCounter));
       pendingSaveRef.current = chained;
       return chained;
     },
@@ -717,7 +737,7 @@ export function EditorShell({
   );
 
   const doSave = useCallback(
-    async (schema: ProgramSchema): Promise<boolean> => {
+    async (schema: ProgramSchema, savedCounter?: number): Promise<boolean> => {
       dispatch({ type: "SET_SAVING", saving: true });
       try {
         const res = await fetch(`/api/programs/${programId}`, {
@@ -752,7 +772,7 @@ export function EditorShell({
           } else {
             setValidationNotice("Draft saved.");
           }
-          dispatch({ type: "MARK_SAVED" });
+          dispatch({ type: "MARK_SAVED", savedCounter });
           return true;
         } else if (res.status === 409 && body?.error === "SCHEMA_VERSION_CONFLICT") {
           const message =

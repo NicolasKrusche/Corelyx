@@ -112,7 +112,9 @@ class CleanupStaleLocksTests(unittest.TestCase):
 
     def test_deletes_lock_held_by_long_dead_running_run(self):
         future = _iso(datetime.now(timezone.utc) + timedelta(minutes=20))
-        stale_start = _iso(datetime.now(timezone.utc) - timedelta(minutes=30))
+        # Must clear the new 60-min orphan window (which covers the 30-min paid
+        # active ceiling with margin) to still count as orphaned.
+        stale_start = _iso(datetime.now(timezone.utc) - timedelta(minutes=90))
         locks = [{"id": "l1", "locked_by_run_id": "r1", "expires_at": future}]
         runs = [{"id": "r1", "status": "running", "started_at": stale_start}]
         deleted, remaining = self._run(locks, runs)
@@ -127,6 +129,43 @@ class CleanupStaleLocksTests(unittest.TestCase):
         deleted, remaining = self._run(locks, runs)
         self.assertEqual(deleted, 0)
         self.assertEqual([r["id"] for r in remaining], ["l1"])
+
+    def test_keeps_lock_for_long_run_with_fresh_watcher_heartbeat(self):
+        """R13: a run started well past the orphan window but actively watched
+        (fresh heartbeat, e.g. paused on a long approval) must NOT be reaped."""
+        future = _iso(datetime.now(timezone.utc) + timedelta(minutes=20))
+        old_start = _iso(datetime.now(timezone.utc) - timedelta(hours=3))
+        fresh_beat = _iso(datetime.now(timezone.utc) - timedelta(seconds=20))
+        locks = [{"id": "l1", "locked_by_run_id": "r1", "expires_at": future}]
+        runs = [
+            {
+                "id": "r1",
+                "status": "running",
+                "started_at": old_start,
+                "watcher_heartbeat_at": fresh_beat,
+            }
+        ]
+        deleted, remaining = self._run(locks, runs)
+        self.assertEqual(deleted, 0)
+        self.assertEqual([r["id"] for r in remaining], ["l1"])
+
+    def test_reaps_long_run_with_stale_watcher_heartbeat(self):
+        """A stale heartbeat (watcher died) does not save an over-age run's lock."""
+        future = _iso(datetime.now(timezone.utc) + timedelta(minutes=20))
+        old_start = _iso(datetime.now(timezone.utc) - timedelta(hours=3))
+        stale_beat = _iso(datetime.now(timezone.utc) - timedelta(minutes=30))
+        locks = [{"id": "l1", "locked_by_run_id": "r1", "expires_at": future}]
+        runs = [
+            {
+                "id": "r1",
+                "status": "running",
+                "started_at": old_start,
+                "watcher_heartbeat_at": stale_beat,
+            }
+        ]
+        deleted, remaining = self._run(locks, runs)
+        self.assertEqual(deleted, 1)
+        self.assertEqual(remaining, [])
 
 
 if __name__ == "__main__":

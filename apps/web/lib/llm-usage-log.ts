@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/api";
 
 /* Web-side LLM usage logging — the counterpart of the runtime's
@@ -60,7 +61,7 @@ export function recordLlmUsage(opts: {
   const enrichedRow = { ...baseRow, source: opts.source, billing: opts.billing, billed_credits: 0 };
 
   const db = createServiceClient();
-  void (async () => {
+  const insertTask = async () => {
     const enriched = await (db as any).from("llm_usage_logs").insert(enrichedRow);
     if (!enriched.error) return;
     const message = String(enriched.error.message ?? "").toLowerCase();
@@ -74,5 +75,17 @@ export function recordLlmUsage(opts: {
     // Billing columns not migrated yet (20260708120000): keep the base row.
     const base = await (db as any).from("llm_usage_logs").insert(baseRow);
     if (base.error) console.warn("[llm-usage] insert failed:", base.error.message);
-  })();
+  };
+
+  // Schedule with after() so the insert survives the serverless freeze that can
+  // follow the response (a bare fire-and-forget promise loses the usage row and
+  // undermines cost tracking). Falls back to a detached promise if called
+  // outside a request scope, where after() is unavailable.
+  try {
+    after(() => insertTask().catch((error) => {
+      console.warn("[llm-usage] insert failed:", error instanceof Error ? error.message : "unknown error");
+    }));
+  } catch {
+    void insertTask().catch(() => undefined);
+  }
 }

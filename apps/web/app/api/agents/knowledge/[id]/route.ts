@@ -73,6 +73,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!user) return apiError("Unauthorized", 401);
   const ws = await getActiveWorkspace(user.id);
   if (!ws) return apiError("No active workspace", 400);
+  // Same gate as PATCH: viewers can't delete knowledge (its chunks cascade).
+  if (!canContributeToWorkspace(ws.role)) return apiError("Viewers cannot delete knowledge.", 403);
 
   const service = createServiceClient() as Service;
   const { data, error } = await service

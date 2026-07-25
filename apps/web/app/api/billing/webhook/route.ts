@@ -4,7 +4,7 @@ import { createServiceClient, apiError } from "@/lib/api";
 import { getTierFromPriceId } from "@/lib/billing";
 import { getStripeClient } from "@/lib/stripe";
 import { applyCreditPurchase } from "@/lib/credits";
-import { maybeFireAutoRecharge } from "@/lib/auto-recharge";
+import { creditAutoRecharge, maybeFireAutoRecharge } from "@/lib/auto-recharge";
 
 const ACTIVE_SUB_STATUSES = new Set([
   "trialing",
@@ -28,9 +28,17 @@ async function applySubscriptionToWorkspace(subscription: Stripe.Subscription) {
   const priceId = subscription.items.data[0]?.price?.id ?? "";
   const mappedTier = getTierFromPriceId(priceId);
   const isActive = ACTIVE_SUB_STATUSES.has(status);
-  const currentPeriodEnd =
+  // Stripe's 2025 "Basil" API moved current_period_end off the subscription and
+  // onto each subscription item. Read the top-level field for older API versions,
+  // then fall back to the item-level field so plan_expires_at (renewal date) is
+  // never silently written null on modern accounts.
+  const topLevelPeriodEnd =
     (subscription as Stripe.Subscription & { current_period_end?: number | null })
       .current_period_end ?? null;
+  const itemPeriodEnd =
+    (subscription.items.data[0] as unknown as { current_period_end?: number | null } | undefined)
+      ?.current_period_end ?? null;
+  const currentPeriodEnd = topLevelPeriodEnd ?? itemPeriodEnd;
   const customerId =
     typeof subscription.customer === "string"
       ? subscription.customer
@@ -147,6 +155,25 @@ export async function POST(request: Request) {
             workspace_id: metadata.workspace_id ?? "",
           },
         });
+      }
+      break;
+    }
+
+    case "payment_intent.succeeded": {
+      // Catch-up for auto-recharge payments that settle asynchronously: the
+      // synchronous charge path only credits when the intent returns "succeeded"
+      // immediately, so a "processing" intent (e.g. delayed card auth) would be
+      // charged but never credited without this. Idempotent vs the synchronous
+      // path — both credit through creditAutoRecharge, keyed on the intent id.
+      const pi = event.data.object as Stripe.PaymentIntent;
+      const metadata = pi.metadata ?? {};
+      if (metadata.type === "credits_auto_recharge") {
+        const userId = metadata.user_id;
+        const amountCredits = Number.parseInt(metadata.amount_credits ?? "0", 10);
+        const priceUsd = Number.parseFloat(metadata.price_usd ?? "0");
+        if (userId && Number.isSafeInteger(amountCredits) && amountCredits > 0 && priceUsd > 0) {
+          await creditAutoRecharge({ userId, paymentIntentId: pi.id, credits: amountCredits, priceUsd });
+        }
       }
       break;
     }

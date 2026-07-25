@@ -933,10 +933,15 @@ export async function POST(request: Request) {
     }
 
     const existingRow = rawExisting as unknown as { id: string; schema_version: number | null };
-    const nextVersion = (existingRow.schema_version ?? 0) + 1;
+    const currentVersion = existingRow.schema_version;
+    const nextVersion = (currentVersion ?? 0) + 1;
     const now = new Date().toISOString();
 
-    const { data: updatedProgram, error: updateError } = await supabase
+    // Compare-and-swap on schema_version, mirroring /api/programs/[id] PATCH: a
+    // refinement landing during an editor autosave must not silently overwrite
+    // the canvas edits (nor duplicate a program_versions version number). The
+    // loser gets a 409 and the editor reloads instead of losing work.
+    let refinementUpdate = supabase
       .from("programs")
       .update({
         name: schema.program_name,
@@ -945,9 +950,14 @@ export async function POST(request: Request) {
         schema_version: nextVersion,
         updated_at: now,
       } as unknown as never)
-      .eq("id", existing_program_id!)
+      .eq("id", existing_program_id!);
+    refinementUpdate =
+      currentVersion === null
+        ? refinementUpdate.is("schema_version", null)
+        : refinementUpdate.eq("schema_version", currentVersion);
+    const { data: updatedProgram, error: updateError } = await refinementUpdate
       .select("id, name, description, execution_mode, is_active, created_at")
-      .single();
+      .maybeSingle();
 
     if (updateError) {
       return loggedApiError(
@@ -955,6 +965,17 @@ export async function POST(request: Request) {
         500,
         "genesis.refinement_update_failed",
         { error: updateError.message }
+      );
+    }
+    if (!updatedProgram) {
+      return NextResponse.json(
+        {
+          error: "SCHEMA_VERSION_CONFLICT",
+          message:
+            "This workflow was changed elsewhere (another tab, the Triggers page, or Genesis). Reload the editor to continue.",
+          current_version: currentVersion ?? 0,
+        },
+        { status: 409 }
       );
     }
 

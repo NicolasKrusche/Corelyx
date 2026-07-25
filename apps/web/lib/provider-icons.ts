@@ -1,3 +1,26 @@
+/**
+ * Connector / provider logo URLs.
+ *
+ * PRIVACY / COMPLIANCE FOLLOW-UP (do not ship long-term as-is):
+ * Every URL below is hotlinked from a third-party host — Google's favicon
+ * service (`google.com/s2/favicons`) and Wikimedia (`upload.wikimedia.org`,
+ * `commons.wikimedia.org`). Because the dashboard renders these <img> tags in
+ * the user's browser, each page view leaks the user's IP address (and referrer)
+ * to Google and Wikimedia on every render, with no consent and no legitimate
+ * need — the same class of third-country transfer that the LG München
+ * Google-Fonts ruling found unlawful. These icons should be SELF-HOSTED: bundle
+ * the ~60 SVG/PNG assets under `apps/web/public/provider-icons/` and point the
+ * map at local paths (e.g. `/provider-icons/slack.svg`). That removes the IP
+ * leak entirely and also stops relying on unversioned external URLs that can
+ * break or change. Do NOT fetch the assets from within this repo's tooling
+ * without a deliberate, reviewed vendoring step (license/trademark check).
+ *
+ * TRADEMARKS: these are third-party marks used only for identification of the
+ * connector they represent. A non-affiliation disclaimer is shown in the site
+ * footer ("All product names, logos, and brands are property of their
+ * respective owners..."). Vendor brand-guideline review is still recommended
+ * before self-hosting official assets.
+ */
 export const PROVIDER_ICON_URL: Record<string, string> = {
   gmail: "https://commons.wikimedia.org/wiki/Special:FilePath/Gmail_icon_(2020).svg",
   thunderbird: "https://commons.wikimedia.org/wiki/Special:FilePath/Thunderbird_2023_icon.svg",

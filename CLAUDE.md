@@ -17,7 +17,7 @@ The workspace package scope is still `@flowos/*`. Treat that as a technical pack
 ```powershell
 pnpm --filter @flowos/schema type-check
 pnpm --filter @flowos/db type-check
-pnpm --filter @flowos/web type-check -- --incremental false
+pnpm --filter @flowos/web exec tsc --noEmit --incremental false
 pnpm --filter @flowos/web lint
 pnpm --filter @flowos/web test
 pnpm --filter @flowos/web build

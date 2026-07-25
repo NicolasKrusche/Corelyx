@@ -280,7 +280,24 @@ class TestHallucinationCheck(unittest.IsolatedAsyncioTestCase):
             output = await executor._execute_agent(executor.node_map["a"], INPUT_DATA)
         self.assertEqual(output, AGENT_OUTPUT)
 
-    async def test_judge_limit_errors_still_abort(self) -> None:
+    async def test_judge_run_limit_exceeded_still_aborts(self) -> None:
+        # The limiter raises RunLimitExceeded (NOT an ExecutionError) from inside
+        # the judge call. It must propagate and abort the run — not be swallowed
+        # by the judge's fail-open path (R10). The old test mocked an
+        # ExecutionError, which the fail-open `except Exception` never sees, so
+        # it passed while prod fell open on the real (RunLimitExceeded) type.
+        from engine.run_limits import RunLimitExceeded
+
+        executor = self._patched_executor()
+        limit_error = RunLimitExceeded("Run cost limit exceeded")
+        patches, _ = self._common_patches(executor, limit_error)
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            with self.assertRaises(RunLimitExceeded):
+                await executor._execute_agent(executor.node_map["a"], INPUT_DATA)
+
+    async def test_judge_execution_error_still_aborts(self) -> None:
+        # An ExecutionError from the judge (e.g. a hard limit surfaced as one)
+        # must also keep its abort semantics.
         executor = self._patched_executor()
         limit_error = ExecutionError("LIMIT_EXCEEDED", "Run cost limit exceeded", "a")
         patches, _ = self._common_patches(executor, limit_error)
