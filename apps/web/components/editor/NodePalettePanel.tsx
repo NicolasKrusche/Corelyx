@@ -22,7 +22,9 @@ export type ConnectionSubtype =
   | "calendar" | "docs" | "drive" | "airtable" | "hubspot"
   | "typeform" | "asana" | "outlook"
   | "shopify" | "zoom" | "sentry" | "gitlab" | "confluence"
-  | "jira" | "dropbox" | "todoist" | "calendly";
+  | "jira" | "dropbox" | "todoist" | "calendly"
+  // Community marketplace connectors
+  | "zendesk" | "stripe" | "notion-db";
 
 export type NoteColor = "yellow" | "blue" | "pink" | "green";
 

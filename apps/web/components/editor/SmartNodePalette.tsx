@@ -61,6 +61,8 @@ import {
   X,
   Sparkles,
   ArrowRight,
+  Headphones,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -99,6 +101,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Ticket,
   Cloud,
   CalendarCheck,
+  Headphones,
+  CreditCard,
 };
 
 function PaletteIcon({ icon, className }: { icon: string; className?: string }) {

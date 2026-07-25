@@ -40,7 +40,8 @@ export type NodeCategory =
   | "logic"
   | "ai"
   | "output"
-  | "annotation";
+  | "annotation"
+  | "community";
 
 // ─── Palette entry ───────────────────────────────────────────────────────────
 
@@ -569,6 +570,43 @@ export const PALETTE_NODES: PaletteNodeEntry[] = [
     ports: { inputs: [], outputs: ["data"] },
     tags: ["calendly", "scheduling", "meeting", "booking"],
   },
+  // ── Community Connectors (from marketplace registry) ────────────────────────
+  {
+    key: "community-zendesk",
+    nodeType: "connection",
+    subtype: "zendesk",
+    label: "Zendesk",
+    description: "Create, update, and search support tickets",
+    category: "community",
+    provider: "zendesk",
+    icon: "Headphones",
+    ports: { inputs: ["data"], outputs: ["data"] },
+    tags: ["zendesk", "support", "tickets", "helpdesk", "community", "marketplace"],
+  },
+  {
+    key: "community-stripe",
+    nodeType: "connection",
+    subtype: "stripe",
+    label: "Stripe",
+    description: "Manage payments, customers, and subscriptions",
+    category: "community",
+    provider: "stripe",
+    icon: "CreditCard",
+    ports: { inputs: ["data"], outputs: ["data", "text"] },
+    tags: ["stripe", "payments", "billing", "subscriptions", "community", "marketplace"],
+  },
+  {
+    key: "community-notion-db",
+    nodeType: "connection",
+    subtype: "notion-db",
+    label: "Notion DB",
+    description: "Advanced Notion database queries with filters and sorts",
+    category: "community",
+    provider: "notion",
+    icon: "BookOpen",
+    ports: { inputs: ["data"], outputs: ["data", "array"] },
+    tags: ["notion", "database", "queries", "community", "marketplace"],
+  },
 ];
 
 // ─── Lookup helpers ──────────────────────────────────────────────────────────
@@ -586,6 +624,7 @@ export const ALL_CATEGORIES: NodeCategory[] = [
   "ai",
   "output",
   "annotation",
+  "community",
 ];
 
 /** Category display metadata. */
@@ -599,4 +638,5 @@ export const CATEGORY_META: Record<
   ai:         { label: "AI",          color: "text-purple-700 dark:text-purple-400", bgColor: "bg-purple-500/15" },
   output:     { label: "Output",      color: "text-orange-700 dark:text-orange-400", bgColor: "bg-orange-500/15" },
   annotation: { label: "Annotations", color: "text-amber-700 dark:text-amber-400",  bgColor: "bg-amber-500/15" },
+  community:   { label: "Community",   color: "text-cyan-700 dark:text-cyan-400",    bgColor: "bg-cyan-500/15" },
 };
