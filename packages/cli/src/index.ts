@@ -1,38 +1,49 @@
-#!/usr/bin/env node
 import { Command } from 'commander';
-import { devCommand } from './commands/dev.js';
-import { deployCommand } from './commands/deploy.js';
-import { loginCommand } from './commands/login.js';
-import { logoutCommand } from './commands/logout.js';
-import { whoamiCommand } from './commands/whoami.js';
-import { programsCommand } from './commands/programs/index.js';
-import { nodesCommand } from './commands/nodes/index.js';
-import { version } from '../package.json';
+import { devCommand } from './commands/dev';
+import { deployCommand } from './commands/deploy';
+import { loginCommand } from './commands/login';
+import { logoutCommand } from './commands/logout';
+import { whoamiCommand } from './commands/whoami';
+import { programsExportCommand } from './commands/programs/export';
+import { programsImportCommand } from './commands/programs/import';
+import { programsListCommand } from './commands/programs/list';
+import { programsRunCommand } from './commands/programs/run';
+import { programsStreamCommand } from './commands/programs/stream';
+import { nodesCreateCommand } from './commands/nodes/create';
+import { nodesBuildCommand } from './commands/nodes/build';
+import { nodesPublishCommand } from './commands/nodes/publish';
 
-const program = new Command()
+const program = new Command();
+
+program
   .name('corelyx')
   .description('Corelyx CLI — Build, test, deploy agentic workflows')
-  .version(version)
-  .addHelpText('after', `
-Examples:
-  $ corelyx dev                    # Start local dev stack (Docker Compose)
-  $ corelyx deploy                 # Deploy to production (Vercel + Supabase + Railway)
-  $ corelyx login                  # Login to Corelyx Cloud
-  $ corelyx whoami                 # Show current user
-  $ corelyx programs list          # List programs
-  $ corelyx nodes create           # Scaffold a new connector/node
-  $ corelyx nodes build            # Build a connector for publishing
-  $ corelyx nodes publish          # Publish connector to registry`);
+  .version('0.1.0');
 
 program.addCommand(devCommand);
 program.addCommand(deployCommand);
 program.addCommand(loginCommand);
 program.addCommand(logoutCommand);
 program.addCommand(whoamiCommand);
-program.addCommand(programsCommand);
-program.addCommand(nodesCommand);
 
-program.parseAsync(process.argv).catch((error: Error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+// Programs subcommands
+const programs = new Command('programs');
+programs
+  .description('Manage Corelyx programs')
+  .addCommand(programsExportCommand)
+  .addCommand(programsImportCommand)
+  .addCommand(programsListCommand)
+  .addCommand(programsRunCommand)
+  .addCommand(programsStreamCommand);
+program.addCommand(programs);
+
+// Nodes subcommands
+const nodes = new Command('nodes');
+nodes
+  .description('Manage Corelyx nodes/connectors')
+  .addCommand(nodesCreateCommand)
+  .addCommand(nodesBuildCommand)
+  .addCommand(nodesPublishCommand);
+program.addCommand(nodes);
+
+program.parse(process.argv);

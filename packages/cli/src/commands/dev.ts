@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { execa } from 'execa';
+import { execa, execaSync } from 'execa';
 import { existsSync, readFileSync, writeFileSync } from 'fs-extra';
 import { join } from 'path';
 import chalk from 'chalk';
@@ -26,19 +26,19 @@ interface DevOptions {
 function checkPrerequisites(): { docker: boolean; pnpm: boolean; supabase: boolean } {
   const checks = { docker: false, pnpm: false, supabase: false };
   
-  try { execa.sync('docker', ['--version']); checks.docker = true; } catch {}
-  try { execa.sync('pnpm', ['--version']); checks.pnpm = true; } catch {}
-  try { execa.sync('supabase', ['--version']); checks.supabase = true; } catch {}
+  try { execaSync('docker', ['--version']); checks.docker = true; } catch {}
+  try { execaSync('pnpm', ['--version']); checks.pnpm = true; } catch {}
+  try { execaSync('supabase', ['--version']); checks.supabase = true; } catch {}
   
   return checks;
 }
 
 function checkDockerCompose(): boolean {
   try {
-    execa.sync('docker', ['compose', 'version']);
+    execaSync('docker', ['compose', 'version']);
     return true;
   } catch {
-    try { execa.sync('docker-compose', ['--version']); return true; } catch {}
+    try { execaSync('docker-compose', ['--version']); return true; } catch {}
   }
   return false;
 }
