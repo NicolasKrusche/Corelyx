@@ -1,0 +1,4 @@
+# Playwright runtime artifacts — never commit these
+.auth/
+playwright-report/
+test-results/
