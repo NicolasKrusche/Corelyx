@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, ShieldOff, ShieldCheck } from "lucide-react";
+import { UserEmailAutocomplete } from "@/components/admin/user-email-autocomplete";
 
 type UserResult = {
   id: string;
@@ -18,11 +19,14 @@ export function AdminUsersClient({ currentUserId }: { currentUserId: string }) {
   const [reason, setReason] = useState("");
   const [feedback, setFeedback] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
 
-  async function search() {
-    if (query.trim().length < 3) return;
+  // `override` lets a suggestion click search immediately: the `query` state
+  // update from the same click has not been applied yet at this point.
+  async function search(override?: string) {
+    const term = (override ?? query).trim();
+    if (term.length < 3) return;
     setSearching(true);
     setFeedback(null);
-    const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(term)}`);
     const data = await res.json() as { users: UserResult[] };
     setResults(data.users ?? []);
     setSearching(false);
@@ -60,14 +64,18 @@ export function AdminUsersClient({ currentUserId }: { currentUserId: string }) {
     <div className="space-y-4">
       {/* Search bar */}
       <div className="flex gap-2">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") void search(); }}
-          placeholder="Search by email…"
-          className="flex-1 rounded-lg border border-input bg-background/60 px-3 py-2.5 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50"
-        />
+        <div className="flex-1">
+          <UserEmailAutocomplete
+            value={query}
+            onChange={setQuery}
+            // Picking a suggestion is the whole interaction here — run the
+            // lookup straight away rather than making the admin press Search.
+            onSelect={(u) => void search(u.email)}
+            onSubmit={() => void search()}
+            placeholder="Search by email…"
+            className="rounded-lg border-input bg-background/60 px-3 py-2.5 placeholder:text-muted-foreground/40 focus:border-border focus:ring-1 focus:ring-primary/50"
+          />
+        </div>
         <button
           type="button"
           onClick={() => void search()}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { UserEmailAutocomplete } from "@/components/admin/user-email-autocomplete";
 
 // Admin controls for the explicit test-firm registry. A firm is designated here
 // on purpose — never inferred from having a connector.
@@ -48,13 +49,22 @@ export function AddTestFirm() {
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-[240px] flex-1">
-          <label className="block text-xs font-medium text-muted-foreground">Workspace ID or firm email</label>
-          <input
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            placeholder="acme@firm.com  or  a1b2c3d4-…"
-            className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm outline-none focus:border-blue-500"
-          />
+          <label htmlFor="test-firm-target" className="block text-xs font-medium text-muted-foreground">
+            Workspace ID or firm email
+          </label>
+          <div className="mt-1">
+            {/* Free text stays valid: this field also accepts a workspace UUID,
+                which the directory has nothing to suggest for. */}
+            <UserEmailAutocomplete
+              id="test-firm-target"
+              value={target}
+              onChange={setTarget}
+              onSubmit={() => void add()}
+              placeholder="acme@firm.com  or  a1b2c3d4-…"
+              disabled={busy}
+              className="rounded-md focus:border-blue-500"
+            />
+          </div>
         </div>
         <div className="min-w-[160px] flex-1">
           <label className="block text-xs font-medium text-muted-foreground">Label (firm name, optional)</label>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError, createServiceClient } from "@/lib/api";
 import { isAdmin } from "@/lib/admin";
+import { findUserByExactEmail } from "@/lib/admin-user-lookup";
 import { createServerClient } from "@/lib/supabase/server";
 import { writeAppLog } from "@/lib/app-logs";
 
@@ -123,16 +124,11 @@ export async function POST(request: Request) {
 
   const service = createServiceClient();
 
-  // Look up the user by email
-  const { data: authData, error: authError } = await (service.auth.admin as unknown as {
-    listUsers(): Promise<{ data: { users: Array<{ id: string; email?: string }> } | null; error: unknown }>;
-  }).listUsers();
-
-  if (authError || !authData) return apiError("Could not look up users", 500);
-
-  const found = authData.users.find(
-    (u) => u.email?.toLowerCase() === parsed.data.email.toLowerCase()
-  );
+  // Look up the user by email. This goes through findUserByExactEmail rather
+  // than listUsers() directly: an unparameterised listUsers() only returns the
+  // first page of accounts (50 by default), so adding anyone who signed up
+  // after the first fifty users failed with a misleading "no user found".
+  const found = await findUserByExactEmail(service, parsed.data.email);
   if (!found) return apiError("No user found with that email", 404);
   if (found.id === admin.id) return apiError("You are already a team member", 400);
 

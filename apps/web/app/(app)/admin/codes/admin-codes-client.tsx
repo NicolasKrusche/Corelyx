@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Copy, Check, RotateCcw, X } from "lucide-react";
+import { UserEmailAutocomplete } from "@/components/admin/user-email-autocomplete";
 
 const CODE_TYPES = [
   { value: "solo_lifetime",  label: "Solo — Lifetime" },
@@ -34,11 +35,6 @@ interface CodeRow {
   is_active: boolean;
   created_at: string;
   redemptions: RedemptionRow[];
-}
-
-interface UserResult {
-  id: string;
-  email: string;
 }
 
 const TYPE_COLORS: Record<CodeType, string> = {
@@ -94,10 +90,8 @@ export function AdminCodesClient() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [newCode, setNewCode] = useState<string | null>(null);
 
-  // User search
+  // Free text of the "lock to user" field; lockedEmail holds the picked address.
   const [userQuery, setUserQuery] = useState("");
-  const [userResults, setUserResults] = useState<UserResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
 
   const fetchCodes = useCallback(async () => {
     setLoading(true);
@@ -110,20 +104,6 @@ export function AdminCodesClient() {
   }, []);
 
   useEffect(() => { void fetchCodes(); }, [fetchCodes]);
-
-  useEffect(() => {
-    if (userQuery.length < 3) { setUserResults([]); return; }
-    const t = setTimeout(async () => {
-      setSearchLoading(true);
-      const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(userQuery)}`);
-      if (res.ok) {
-        const data = await res.json() as { users: UserResult[] };
-        setUserResults(data.users ?? []);
-      }
-      setSearchLoading(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [userQuery]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -157,7 +137,7 @@ export function AdminCodesClient() {
       setCreateError(data.error ?? "Failed to create code.");
     } else {
       setNewCode(data.code!.code);
-      setLabel(""); setCustomCode(""); setLockedEmail(""); setMaxUses(""); setExpiresAt(""); setUserQuery(""); setUserResults([]);
+      setLabel(""); setCustomCode(""); setLockedEmail(""); setMaxUses(""); setExpiresAt(""); setUserQuery("");
       void fetchCodes();
     }
     setSubmitting(false);
@@ -293,36 +273,27 @@ export function AdminCodesClient() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                   Lock to user <span className="text-muted-foreground/50">(optional)</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="text" placeholder="Search by email…"
-                    value={userQuery} onChange={(e) => { setUserQuery(e.target.value); setLockedEmail(""); }}
-                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
-                  />
-                  {lockedEmail && (
-                    <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2">
-                      <span className="text-xs text-green-600 dark:text-green-400 flex-1 truncate">{lockedEmail}</span>
-                      <button type="button" onClick={() => { setLockedEmail(""); setUserQuery(""); }} className="text-muted-foreground/50 hover:text-foreground">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )}
-                  {userResults.length > 0 && !lockedEmail && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border border-border bg-card shadow-lg overflow-hidden">
-                      {searchLoading && <p className="px-3 py-2 text-xs text-muted-foreground">Searching…</p>}
-                      {userResults.map((u) => (
-                        <button
-                          key={u.id}
-                          type="button"
-                          onClick={() => { setLockedEmail(u.email); setUserQuery(u.email); setUserResults([]); }}
-                          className="w-full text-left px-3 py-2 text-xs hover:bg-accent transition-colors truncate"
-                        >
-                          {u.email}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <UserEmailAutocomplete
+                  value={userQuery}
+                  onChange={(v) => { setUserQuery(v); setLockedEmail(""); }}
+                  onSelect={(u) => setLockedEmail(u.email)}
+                  placeholder="Search by email…"
+                  disabled={submitting}
+                  className="rounded-lg border-input focus:border-border focus:ring-1 focus:ring-primary/50"
+                />
+                {lockedEmail && (
+                  <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2">
+                    <span className="text-xs text-green-600 dark:text-green-400 flex-1 truncate">{lockedEmail}</span>
+                    <button
+                      type="button"
+                      aria-label="Clear locked user"
+                      onClick={() => { setLockedEmail(""); setUserQuery(""); }}
+                      className="text-muted-foreground/50 hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
