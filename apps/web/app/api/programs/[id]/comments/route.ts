@@ -179,7 +179,7 @@ export async function DELETE(
   const { searchParams } = new URL(request.url);
   const queryCommentId = searchParams.get("comment_id");
   const parsed = DeleteCommentSchema.safeParse(
-    queryCommentId ? { comment_id: queryCommentId } : await request.json().catch(()(null))
+    queryCommentId ? { comment_id: queryCommentId } : await request.json().catch(() => null)
   );
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
