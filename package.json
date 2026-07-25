@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.1",
     "tsx": "^4.22.4",
     "turbo": "^2.10.5",
     "typescript": "^5.4.5"
