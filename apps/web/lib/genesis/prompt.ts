@@ -499,7 +499,7 @@ export const CONNECTOR_DEFINITIONS: Record<string, ConnectorDef> = {
   pandadoc: { tier: 3, stub: `PANDADOC: list_documents, send_document` },
   paperform: { tier: 3, stub: `PAPERFORM: list_forms, get_submissions` },
   personio: { tier: 3, stub: `PERSONIO: list_employees, get_employee` },
-  pinecone: { tier: 3, stub: `PINECONE: query_index, upsert_vectors` },
+  pinecone: { tier: 3, stub: `PINECONE: query_index(index_host REQUIRED,vector,top_k), upsert_vectors(index_host REQUIRED,vectors) — index_host is the per-index data-plane host from Pinecone describe_index / the console (e.g. "my-index-abc123.svc.us-east-1-aws.pinecone.io"), NOT api.pinecone.io` },
   pipedrive: { tier: 3, stub: `PIPEDRIVE: list_deals, create_deal` },
   plausible: { tier: 3, stub: `PLAUSIBLE: get_stats, query_breakdown` },
   posthog: { tier: 3, stub: `POSTHOG: get_feature_flags, query_events` },

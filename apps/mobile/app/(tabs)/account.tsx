@@ -106,6 +106,15 @@ export default function Account() {
     });
   }
 
+  // Legal pages always point at the canonical public web host (not API_BASE_URL,
+  // which is localhost in dev) so the privacy policy / terms are reachable from
+  // any build. Required for App Store / Play Store apps that handle auth + push.
+  function openLegal(path: string) {
+    Linking.openURL("https://www.corelyx.app" + path).catch(() => {
+      Alert.alert("Couldn't open link", `Visit https://www.corelyx.app${path} in your browser.`);
+    });
+  }
+
   function confirmRevoke(device: Device) {
     Alert.alert(
       "Revoke device",
@@ -267,6 +276,15 @@ export default function Account() {
                 ))}
               </View>
             )}
+          </Card>
+
+          {/* Legal */}
+          <Card>
+            <Text style={font.title}>Legal</Text>
+            <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
+              <Button label="Privacy Policy" variant="ghost" onPress={() => openLegal("/privacy")} />
+              <Button label="Terms of Service" variant="ghost" onPress={() => openLegal("/terms")} />
+            </View>
           </Card>
 
           <Button label="Sign out" variant="danger" onPress={confirmSignOut} />

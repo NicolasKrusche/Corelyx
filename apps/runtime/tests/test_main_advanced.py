@@ -359,6 +359,42 @@ class TestRunProgram(unittest.IsolatedAsyncioTestCase):
             mock_executor_cls.return_value = executor
             await _run_program(schema, "r1", "p1", "u1", {"x": 1})
 
+    async def test_user_cancellation_is_not_treated_as_failure(self) -> None:
+        """R5: a CancellationError must leave the run "cancelled" (not clobber it
+        to "failed") and must NOT fire the completion/failure-notification path."""
+        from engine.executor import CancellationError
+
+        schema = {
+            "version": "1.0",
+            "program_id": "p1",
+            "program_name": "Test",
+            "execution_mode": "autonomous",
+            "nodes": [],
+            "edges": [],
+            "triggers": [],
+            "version_history": [],
+            "metadata": {},
+        }
+        with (
+            patch("main.get_db"),
+            patch("main.ProgramExecutor") as mock_executor_cls,
+            patch("main.update_run", new=AsyncMock()) as mock_update,
+            patch("main.release_run_locks", new=AsyncMock()),
+            patch("main._notify_complete", new=AsyncMock()) as mock_notify,
+        ):
+            executor = Mock()
+            executor.execute = AsyncMock(side_effect=CancellationError())
+            executor.run_telemetry_payload.return_value = {}
+            executor.retention_expiry = "2026-01-01T00:00:00+00:00"
+            mock_executor_cls.return_value = executor
+            await _run_program(schema, "r1", "p1", "u1", {"x": 1})
+
+        # Status written as "cancelled", not "failed", with no error message.
+        self.assertEqual(mock_update.await_args.kwargs["status"], "cancelled")
+        self.assertIsNone(mock_update.await_args.kwargs["error_message"])
+        # The failure-notification path must be suppressed for a user cancel.
+        mock_notify.assert_not_awaited()
+
 
 class _FakeApprovalExecutor:
     """Stands in for ProgramExecutor in _run_with_active_timeout tests: a

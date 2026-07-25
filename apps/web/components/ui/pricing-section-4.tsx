@@ -84,7 +84,7 @@ const plans: Plan[] = [
     col: 3,
     buttonText: "Contact sales",
     href: "mailto:sales@corelyx.app",
-    highlights: ["Unlimited seats", "2,000 runs / month", "Dedicated success manager", "SLA guarantee"],
+    highlights: ["Unlimited seats", "2,000 runs / month", "Dedicated success manager", "Uptime target with SLA credits"],
   },
 ];
 
@@ -189,6 +189,12 @@ function PlanCard({ plan, isYearly }: { plan: Plan; isYearly: boolean }) {
       >
         <Link href={plan.href}>{buttonText}</Link>
       </Button>
+
+      {plan.price > 0 && (
+        <p className="text-muted-foreground/60 mt-2 text-center text-[11px]">
+          Renews {isYearly ? "annually" : "monthly"} until cancelled
+        </p>
+      )}
 
       <ul className="mt-6 space-y-2.5 border-t border-border/60 pt-5">
         {plan.highlights.map((item) => (

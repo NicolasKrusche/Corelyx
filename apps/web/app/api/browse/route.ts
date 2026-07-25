@@ -53,8 +53,16 @@ export async function GET(request: Request) {
   }
 
   if (q) {
-    // ilike on name OR description
-    query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
+    // Strip PostgREST filter metacharacters before interpolating the raw term
+    // into the .or() string. Without this, a comma/paren in `q` breaks out of
+    // the ilike value and injects extra filter conditions (a malformed query /
+    // 500 / DoS vector; private rows stay protected by the ANDed is_public
+    // filter regardless). `%` `*` `\` `"` are dropped so the term stays literal.
+    const safeQ = q.replace(/[,()%*\\"]/g, "").trim();
+    if (safeQ) {
+      // ilike on name OR description
+      query = query.or(`name.ilike.%${safeQ}%,description.ilike.%${safeQ}%`);
+    }
   }
 
   if (remainingLimit > 0) {

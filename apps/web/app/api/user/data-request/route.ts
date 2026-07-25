@@ -197,7 +197,7 @@ export async function POST(request: Request) {
   }
 
   if (requestType === "withdrawal") {
-    autoFulfillSummary = "Marketing-related cookies and analytics consent have been cleared. Essential authentication cookies remain because they are strictly necessary.";
+    autoFulfillSummary = "Your consent to anonymised product analytics has been withdrawn and your server-side analytics opt-out is now recorded. Corelyx does not set marketing or advertising cookies; only strictly necessary authentication cookies and saved interface preferences (such as theme) remain, because they are essential to run the service.";
     const completed = await updateDsr(service, record.id, { status: "completed", response_summary: autoFulfillSummary, completed_at: new Date().toISOString() });
     if (completed) record = completed;
     await insertMessage(record.id, "admin", autoFulfillSummary).catch(() => undefined);

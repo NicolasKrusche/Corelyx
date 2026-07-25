@@ -105,7 +105,7 @@ export const TIERS = [
       { text: "1-year run history" },
       { text: "Dedicated success manager" },
       { text: "Custom integrations on request" },
-      { text: "SLA guarantee" },
+      { text: "Uptime target with SLA credits" },
     ],
     missing: [],
   },
@@ -119,7 +119,7 @@ export const ENTERPRISE_TIER = {
     "Dedicated infrastructure & private cloud options",
     "SSO / SAML & advanced access controls",
     "Full audit log & compliance exports",
-    "Custom SLA with guaranteed uptime",
+    "Custom SLA with defined uptime targets and service credits",
     "Onboarding, training & custom integrations",
     "Named customer success manager",
   ],
@@ -275,6 +275,12 @@ export function PricingTiers({ ctas, enterpriseCta }: { ctas: TierCTA[]; enterpr
                       >
                         {displayLabel}
                       </Link>
+                    )}
+
+                    {cta.checkout && (
+                      <p className="text-muted-foreground/50 mt-2 text-center text-[11px]">
+                        Renews {interval === "year" ? "annually" : "monthly"} until cancelled
+                      </p>
                     )}
 
                     {"socialProof" in tier && tier.socialProof && (

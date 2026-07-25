@@ -407,6 +407,17 @@ async def touch_run_watcher_heartbeat(db: Client, run_id: str) -> None:
     except Exception as exc:
         print(f"[db] WARNING: could not update watcher heartbeat for run {run_id}: {exc}", flush=True)
 
+    # Push this run's resource-lock TTL forward too (R13). A legitimately paused
+    # run (waiting on approval / ask_user / a file op, up to ~24h) heartbeats
+    # every poll; without renewal its lock would time-expire after LOCK_TTL and
+    # be reaped mid-wait, letting a second run grab the same connection. The
+    # orphan sweep separately exempts runs with a fresh heartbeat.
+    try:
+        new_expiry = (datetime.now(timezone.utc) + timedelta(minutes=LOCK_TTL_MINUTES)).isoformat()
+        db.table("resource_locks").update({"expires_at": new_expiry}).eq("locked_by_run_id", run_id).execute()
+    except Exception as exc:
+        print(f"[db] WARNING: could not renew resource-lock TTL for run {run_id}: {exc}", flush=True)
+
 
 async def create_node_execution(db: Client, run_id: str, node_id: str) -> dict:
     # No DB-level unique constraint on (run_id, node_id), so check first to
@@ -575,11 +586,20 @@ async def get_existing_lock(db: Client, resource_type: str, resource_id: str) ->
 # it) and must not block new runs for the full lock TTL.
 _TERMINAL_RUN_STATUSES = ("completed", "success", "partial", "failed", "cancelled")
 
-# No legitimate run executes longer than the runtime's per-run timeout
-# (RUN_TIMEOUT_SECONDS = 600s). A lock still held by a run that started well
-# beyond that window means the run was killed (e.g. process OOM/redeploy)
-# without releasing its locks and left its status stuck at "running".
-_ORPHAN_RUN_AGE_SECONDS = 15 * 60
+# A lock held by a run that started this long ago AND has no fresh watcher
+# heartbeat means the run was killed (process OOM/redeploy) without releasing
+# its locks and left its status stuck at "running". This must clear the paid
+# tier's *active* execution ceiling (MAX_EXECUTION_TIME_PAID = 1800s) with
+# margin — the old 15-min value reaped legitimate long paid runs mid-flight
+# (R13). Genuinely long-but-alive runs (e.g. paused up to ~24h on an approval)
+# renew their lock TTL and are exempted from this sweep by their heartbeat.
+_ORPHAN_RUN_AGE_SECONDS = 60 * 60
+
+# A run whose watcher wrote a heartbeat within this window is actively being
+# watched (a live suspend/resume wait loop, ~30s poll cadence), so its lock is
+# NOT orphaned even if the run started long ago. Generous vs. the poll cadence
+# to tolerate transient DB hiccups.
+_WATCHER_HEARTBEAT_FRESH_SECONDS = 5 * 60
 
 
 async def cleanup_stale_locks(db: Client) -> int:
@@ -609,8 +629,28 @@ async def cleanup_stale_locks(db: Client) -> int:
     if not run_ids:
         return deleted
 
-    runs_res = db.table("runs").select("id, status, started_at").in_("id", run_ids).execute()
+    # watcher_heartbeat_at may be absent on older DBs (migration not yet
+    # applied); PostgREST just omits the key, and the freshness check below
+    # treats a missing/blank value as "no heartbeat" — the safe direction.
+    try:
+        runs_res = (
+            db.table("runs").select("id, status, started_at, watcher_heartbeat_at").in_("id", run_ids).execute()
+        )
+    except Exception:
+        runs_res = db.table("runs").select("id, status, started_at").in_("id", run_ids).execute()
     runs_by_id = {r["id"]: r for r in (runs_res.data or [])}
+
+    def _has_fresh_heartbeat(run: dict) -> bool:
+        hb = run.get("watcher_heartbeat_at")
+        if not hb:
+            return False
+        try:
+            beat = datetime.fromisoformat(str(hb).replace("Z", "+00:00"))
+            if beat.tzinfo is None:
+                beat = beat.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            return False
+        return (now - beat).total_seconds() <= _WATCHER_HEARTBEAT_FRESH_SECONDS
 
     def _is_orphaned(run_id: str) -> bool:
         run = runs_by_id.get(run_id)
@@ -618,6 +658,10 @@ async def cleanup_stale_locks(db: Client) -> int:
             return True
         if run.get("status") in _TERMINAL_RUN_STATUSES:
             return True
+        # A run actively watched by a live wait loop (approval / ask_user / file
+        # op) is not orphaned no matter how long ago it started (R13).
+        if _has_fresh_heartbeat(run):
+            return False
         started_at = run.get("started_at")
         if started_at:
             try:

@@ -50,7 +50,7 @@ class CohereConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/generate_text",
+            f"{_BASE}/generate",
             headers=headers,
             json=params or {},
         )
@@ -64,7 +64,7 @@ class CohereConnector(IConnector):
         r = await request_with_rate_limit(
             client,
             "POST",
-            f"{_BASE}/embed_text",
+            f"{_BASE}/embed",
             headers=headers,
             json=params or {},
         )

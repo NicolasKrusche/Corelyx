@@ -119,17 +119,29 @@ export async function dispatchEventTriggers(
   const db = createServiceClient();
   const payload = normalizeEventPayload(input.source, input.event, input.payload ?? {});
 
-  const { data: triggersRaw, error: trigErr } = await db
-    .from("triggers")
-    .select("id, program_id, config, is_active")
-    .eq("type", "event")
-    .eq("is_active", true);
+  // Filter by source server-side (config->>source) and paginate: an unfiltered
+  // scan truncates at PostgREST's 1000-row default once there are that many
+  // active event triggers platform-wide, so an arbitrary subset of users' event
+  // workflows silently stops firing. Narrowing to this source and ranging through
+  // every page guarantees nothing is dropped.
+  const PAGE_SIZE = 1000;
+  const triggers: TriggerRow[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: pageRaw, error: trigErr } = await db
+      .from("triggers")
+      .select("id, program_id, config, is_active")
+      .eq("type", "event")
+      .eq("is_active", true)
+      .eq("config->>source", input.source)
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (trigErr) {
-    throw new Error(`Failed to load event triggers: ${trigErr.message}`);
+    if (trigErr) {
+      throw new Error(`Failed to load event triggers: ${trigErr.message}`);
+    }
+    const page = (pageRaw ?? []) as unknown as TriggerRow[];
+    triggers.push(...page);
+    if (page.length < PAGE_SIZE) break;
   }
-
-  const triggers = (triggersRaw ?? []) as unknown as TriggerRow[];
   const matching = triggers.filter((trigger) => {
     const cfg = trigger.config ?? {};
     if (cfg.source !== input.source || !eventNamesMatch(input.source, cfg.event, input.event)) {

@@ -28,15 +28,36 @@ import {
 } from "@/lib/security/sentinel";
 
 /**
- * POST /api/triggers/webhook/[token]
+ * POST/GET /api/triggers/webhook/[token]
  *
  * Public endpoint — no auth required (secured by the opaque token in the URL).
  * Receives an inbound webhook, looks up the trigger, creates a run, dispatches
  * to the Python runtime.
+ *
+ * Both verbs share one path: the UI and schema let users configure a webhook
+ * trigger as GET or POST, so a GET-only endpoint would 405 every GET webhook
+ * silently. Only the payload source differs — POST reads a JSON body, GET reads
+ * query params — and the signature is computed over the (empty for GET) body
+ * exactly the same way.
  */
 export async function POST(
   request: Request,
-  { params: routeParams }: { params: Promise<{ token: string }> }
+  routeParams: { params: Promise<{ token: string }> }
+) {
+  return handleWebhookTrigger(request, routeParams, "POST");
+}
+
+export async function GET(
+  request: Request,
+  routeParams: { params: Promise<{ token: string }> }
+) {
+  return handleWebhookTrigger(request, routeParams, "GET");
+}
+
+async function handleWebhookTrigger(
+  request: Request,
+  { params: routeParams }: { params: Promise<{ token: string }> },
+  method: "GET" | "POST"
 ) {
   const limited = await enforcePublicEndpointRateLimit(request, "custom-webhook");
   if (limited) return limited;
@@ -50,9 +71,14 @@ export async function POST(
   if (await isSecurityLocked("webhook_token", tokenScopeId)) {
     return apiError("Not found", 404);
   }
-  const boundedBody = await readBoundedTextBody(request);
-  if (!boundedBody.ok) return boundedBody.response;
-  const rawBody = boundedBody.text;
+  // POST carries a JSON body (signed); GET has none, so its signature is computed
+  // over the empty string, matching a bodyless POST.
+  let rawBody = "";
+  if (method === "POST") {
+    const boundedBody = await readBoundedTextBody(request);
+    if (!boundedBody.ok) return boundedBody.response;
+    rawBody = boundedBody.text;
+  }
   const signature = request.headers.get(WEBHOOK_SIGNATURE_HEADER);
   const timestamp = request.headers.get(WEBHOOK_TIMESTAMP_HEADER);
 
@@ -128,12 +154,16 @@ export async function POST(
     return apiError("Trigger is disabled", 409);
   }
 
-  // Parse incoming payload (optional body)
+  // Parse incoming payload. POST: optional JSON body. GET: query params.
   let payload: Record<string, unknown> = {};
-  try {
-    if (rawBody) payload = JSON.parse(rawBody);
-  } catch {
-    // Ignore parse errors — payload is best-effort
+  if (method === "POST") {
+    try {
+      if (rawBody) payload = JSON.parse(rawBody);
+    } catch {
+      // Ignore parse errors — payload is best-effort
+    }
+  } else {
+    payload = Object.fromEntries(new URL(request.url).searchParams.entries());
   }
 
   // Fetch program to get schema + user_id

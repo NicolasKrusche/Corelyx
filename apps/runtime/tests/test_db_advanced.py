@@ -203,9 +203,13 @@ class TouchRunWatcherHeartbeatTests(unittest.TestCase):
     def test_touch_heartbeat_success(self):
         db = _make_db()
         self._run(db)
-        db.table.assert_called_with("runs")
-        update_call = db.table.return_value.update.call_args
-        self.assertIn("watcher_heartbeat_at", update_call.args[0])
+        # Renews both the run heartbeat and (R13) this run's resource-lock TTL,
+        # so assert across all calls rather than just the last one.
+        db.table.assert_any_call("runs")
+        db.table.assert_any_call("resource_locks")
+        update_payloads = [c.args[0] for c in db.table.return_value.update.call_args_list]
+        self.assertTrue(any("watcher_heartbeat_at" in p for p in update_payloads))
+        self.assertTrue(any("expires_at" in p for p in update_payloads))
 
     def test_touch_heartbeat_swallows_db_error(self):
         db = _make_db()

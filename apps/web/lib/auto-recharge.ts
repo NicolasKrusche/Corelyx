@@ -5,7 +5,7 @@
 import { createServiceClient } from "@/lib/api";
 import { findCreditPack, formatCredits } from "@/lib/credit-packs";
 import { getStripeClient } from "@/lib/stripe";
-import { topUpUserCredits, getUserCreditBalance } from "@/lib/credits";
+import { applyCreditPurchase, getUserCreditBalance } from "@/lib/credits";
 import { sendEmail } from "@/lib/email";
 
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -119,9 +119,21 @@ export async function maybeFireAutoRecharge(userId: string): Promise<void> {
   const balance = await getUserCreditBalance(userId);
   if (balance.total === Infinity || balance.total >= Number(cfg.threshold_credits)) return;
 
-  await (service.from("auto_recharge_configs") as any)
-    .update({ last_triggered_at: new Date().toISOString() })
+  // Claim the cooldown with a compare-and-swap so two near-simultaneous callers
+  // (e.g. concurrent /api/internal/credits deductions) can't both pass the checks
+  // above and double-charge the saved card. Only the caller that actually flips
+  // last_triggered_at from the exact value it observed proceeds; the loser's
+  // conditional update matches zero rows and bails.
+  const claimedAt = new Date().toISOString();
+  const claimBuilder = (service.from("auto_recharge_configs") as any)
+    .update({ last_triggered_at: claimedAt })
     .eq("user_id", userId);
+  const claimQuery =
+    cfg.last_triggered_at === null
+      ? claimBuilder.is("last_triggered_at", null)
+      : claimBuilder.eq("last_triggered_at", cfg.last_triggered_at);
+  const { data: claimedRows } = await claimQuery.select("user_id");
+  if (!Array.isArray(claimedRows) || claimedRows.length === 0) return;
 
   const { data: profileData } = await service
     .from("profiles")
@@ -141,6 +153,7 @@ export async function maybeFireAutoRecharge(userId: string): Promise<void> {
       paymentMethodId: profile.stripe_payment_method_id,
       credits: pack.credits,
       priceUsd: pack.priceUsd,
+      claimedAt,
     });
   } else if (profile?.email) {
     await sendLowBalanceEmail({
@@ -151,40 +164,77 @@ export async function maybeFireAutoRecharge(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Credit an auto-recharge payment exactly once, keyed on the Stripe
+ * PaymentIntent id. Called from both the synchronous charge path (below) and the
+ * async `payment_intent.succeeded` webhook — whichever runs first credits, the
+ * other is a no-op. Reuses applyCreditPurchase's ON CONFLICT(stripe_session_id)
+ * idempotency with the PaymentIntent id as the unique key (auto-recharge has no
+ * Checkout session).
+ */
+export async function creditAutoRecharge(opts: {
+  userId: string;
+  paymentIntentId: string;
+  credits: number;
+  priceUsd: number;
+}): Promise<void> {
+  await applyCreditPurchase({
+    userId: opts.userId,
+    amountCredits: opts.credits,
+    priceUsd: opts.priceUsd,
+    stripeSessionId: opts.paymentIntentId,
+    stripePaymentIntentId: opts.paymentIntentId,
+  });
+}
+
 async function chargeStoredPaymentMethod({
   userId,
   customerId,
   paymentMethodId,
   credits,
   priceUsd,
+  claimedAt,
 }: {
   userId: string;
   customerId: string;
   paymentMethodId: string;
   credits: number;
   priceUsd: number;
+  claimedAt: string;
 }): Promise<void> {
   const stripe = getStripeClient();
   try {
-    const pi = await stripe.paymentIntents.create({
-      amount: Math.round(priceUsd * 100),
-      currency: "usd",
-      customer: customerId,
-      payment_method: paymentMethodId,
-      off_session: true,
-      confirm: true,
-      description: `Corelyx auto-recharge - ${formatCredits(credits)} credits`,
-      metadata: {
-        type: "credits_auto_recharge",
-        amount_credits: String(credits),
-        price_usd: String(priceUsd),
-        user_id: userId,
+    const pi = await stripe.paymentIntents.create(
+      {
+        amount: Math.round(priceUsd * 100),
+        currency: "usd",
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        description: `Corelyx auto-recharge - ${formatCredits(credits)} credits`,
+        metadata: {
+          type: "credits_auto_recharge",
+          amount_credits: String(credits),
+          price_usd: String(priceUsd),
+          user_id: userId,
+        },
       },
-    });
+      // Stable idempotency key derived from the user + the claimed cooldown
+      // timestamp: a retried invocation (or any duplicate caller that slipped
+      // past the CAS claim) reuses the same PaymentIntent instead of charging
+      // the card twice. The key rotates each cooldown window, well within
+      // Stripe's 24h idempotency-key retention.
+      { idempotencyKey: `auto-recharge:${userId}:${claimedAt}` },
+    );
 
     if (pi.status === "succeeded") {
-      await topUpUserCredits(userId, credits);
+      // Idempotent credit keyed on the PaymentIntent id, so the async
+      // payment_intent.succeeded webhook can't double-credit if it also fires.
+      await creditAutoRecharge({ userId, paymentIntentId: pi.id, credits, priceUsd });
     }
+    // Otherwise the intent is still "processing" (async payment method): the
+    // payment_intent.succeeded webhook credits it later — see billing/webhook.
   } catch {
     const service = createServiceClient();
     const { data } = await service.from("profiles").select("email").eq("id", userId).single();

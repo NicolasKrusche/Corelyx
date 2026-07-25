@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { apiError } from "@/lib/api";
 import { getValidInternalServiceClaims } from "@/lib/internal-auth";
 import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     body: rawBody,
   });
   if (!claims?.sub) return apiError("Unauthorized", 401);
+  const userId = claims.sub;
 
   let body: unknown;
   try {
@@ -55,12 +56,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const ok = await deductUserCredits(claims.sub, amount);
+    const ok = await deductUserCredits(userId, amount);
     if (!ok) {
       return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 });
     }
-    // Fire-and-forget: check if auto-recharge should trigger
-    void maybeFireAutoRecharge(claims.sub).catch(() => undefined);
+    // Check if auto-recharge should trigger. Scheduled with after() so the work
+    // survives the serverless freeze that follows the response — a bare
+    // `void promise` here can be frozen before it reaches Stripe/Supabase, which
+    // is exactly how auto-recharge silently never fired.
+    after(() => maybeFireAutoRecharge(userId).catch(() => undefined));
     return NextResponse.json({ ok: true });
   } catch {
     return apiError("Failed to deduct credits", 500);

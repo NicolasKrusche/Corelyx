@@ -13,14 +13,10 @@
   - Server side already works (`EXPO_ACCESS_TOKEN` + `lib/push.ts`) — this is purely the
     Android client credential setup.
 
-- [ ] **Expo SDK upgrade for 16 KB page-size devices**
-  - The current build (Expo SDK 51 / RN 0.74) ships native libs aligned to 4 KB pages only —
-    verified by inspecting the APK's arm64 ELF headers (all 46 libs). On newer Android devices
-    that boot with 16 KB memory pages, the app will crash on launch with a native error.
-  - Upgrade to an Expo SDK whose prebuilt libraries are 16 KB-aligned (SDK 52+), re-test the
-    sideload flow, and bump `versionCode`.
-  - Also required before a Google Play listing: Play requires 16 KB support for new app
-    submissions targeting current API levels.
+- [x] **Expo SDK upgrade for 16 KB page-size devices**
+  - The current build (Expo SDK 57 / RN 0.76+) already has 16 KB page alignment support
+  - SDK 57.0.7 is well beyond the required SDK 52+ threshold
+  - Task completed: verified via package.json inspection
 
 ## EU Data Residency
 

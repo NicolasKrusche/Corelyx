@@ -1,0 +1,9 @@
+# Corelyx security contact and disclosure policy (RFC 9116).
+# If you believe you have found a security vulnerability, please report it to
+# the address below. We appreciate coordinated, responsible disclosure.
+
+Contact: mailto:security@corelyx.app
+Expires: 2027-07-24T00:00:00.000Z
+Policy: https://www.corelyx.app/security
+Preferred-Languages: en, de
+Canonical: https://www.corelyx.app/.well-known/security.txt

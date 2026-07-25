@@ -8,7 +8,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 T = TypeVar("T")
 
@@ -40,12 +40,18 @@ class CircuitBreaker:
         recovery_timeout: float = 60.0,
         half_open_max_calls: int = 3,
         expected_exception: type[Exception] = Exception,
+        failure_predicate: Optional[Callable[[BaseException], bool]] = None,
     ):
         self.name = name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.half_open_max_calls = half_open_max_calls
         self.expected_exception = expected_exception
+        # Optional classifier: return True only for exceptions that should trip
+        # the circuit (e.g. transport/5xx failures). Lets callers exclude
+        # per-tenant config/limit errors that are not a shared-service outage.
+        # When None, any `expected_exception` counts (legacy behaviour).
+        self._failure_predicate = failure_predicate
 
         self._state = CircuitState.CLOSED
         self._failure_count = 0
@@ -142,11 +148,19 @@ class CircuitBreaker:
 
         try:
             result = await func(*args, **kwargs)
+        except Exception as exc:
+            if self._counts_as_failure(exc):
+                self.record_failure()
+            raise
+        else:
             self.record_success()
             return result
-        except self.expected_exception:
-            self.record_failure()
-            raise
+
+    def _counts_as_failure(self, exc: BaseException) -> bool:
+        """Whether `exc` should count against the circuit's failure budget."""
+        if self._failure_predicate is not None:
+            return bool(self._failure_predicate(exc))
+        return isinstance(exc, self.expected_exception)
 
 
 class CircuitOpenError(Exception):
@@ -159,10 +173,18 @@ class CircuitOpenError(Exception):
 _circuit_breakers: dict[str, CircuitBreaker] = {}
 
 
-def get_circuit_breaker(name: str) -> CircuitBreaker:
-    """Get or create a circuit breaker by name."""
+def get_circuit_breaker(
+    name: str,
+    *,
+    failure_predicate: Optional[Callable[[BaseException], bool]] = None,
+) -> CircuitBreaker:
+    """Get or create a circuit breaker by name.
+
+    `failure_predicate` is applied only when the circuit is first created;
+    subsequent lookups return the existing instance unchanged.
+    """
     if name not in _circuit_breakers:
-        _circuit_breakers[name] = CircuitBreaker(name)
+        _circuit_breakers[name] = CircuitBreaker(name, failure_predicate=failure_predicate)
     return _circuit_breakers[name]
 
 
@@ -184,14 +206,30 @@ OAUTH_TOKEN_CIRCUIT = "oauth_token"
 VAULT_CIRCUIT = "vault"
 
 
-def get_llm_circuit() -> CircuitBreaker:
-    """Get the circuit breaker for LLM calls."""
-    return get_circuit_breaker(LLM_CIRCUIT)
+def get_llm_circuit(
+    key: Optional[str] = None,
+    *,
+    failure_predicate: Optional[Callable[[BaseException], bool]] = None,
+) -> CircuitBreaker:
+    """Circuit breaker for LLM calls.
+
+    `key` (e.g. the credential ref/provider) scopes the circuit so one tenant's
+    dead key or exhausted quota can't open a circuit shared with every other
+    tenant. Passing no key returns the un-scoped baseline used by the admin
+    dashboard.
+    """
+    name = f"{LLM_CIRCUIT}:{key}" if key else LLM_CIRCUIT
+    return get_circuit_breaker(name, failure_predicate=failure_predicate)
 
 
-def get_oauth_token_circuit() -> CircuitBreaker:
-    """Get the circuit breaker for OAuth token refresh."""
-    return get_circuit_breaker(OAUTH_TOKEN_CIRCUIT)
+def get_oauth_token_circuit(
+    key: Optional[str] = None,
+    *,
+    failure_predicate: Optional[Callable[[BaseException], bool]] = None,
+) -> CircuitBreaker:
+    """Circuit breaker for OAuth token refresh, scoped per `key` (connection)."""
+    name = f"{OAUTH_TOKEN_CIRCUIT}:{key}" if key else OAUTH_TOKEN_CIRCUIT
+    return get_circuit_breaker(name, failure_predicate=failure_predicate)
 
 
 def get_vault_circuit() -> CircuitBreaker:

@@ -16,3 +16,6 @@ android/
 
 # EAS
 .easignore
+
+# Firebase (developer-provided, contains credentials)
+google-services.json

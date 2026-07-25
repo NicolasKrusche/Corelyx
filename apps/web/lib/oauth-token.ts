@@ -147,11 +147,18 @@ export async function upsertOAuthConnection(
   const workspace = await getActiveWorkspace(params.userId);
   if (!workspace) throw new Error(`No active workspace found for user ${params.userId}`);
 
-  // Look up any existing connections rows for this user + label
+  // Look up any existing connections rows to reuse on reconnect. Match must
+  // include provider AND workspace_id, not just (user_id, name): two providers
+  // can share a label (a "Slack" row and a "Notion" row), and the same label can
+  // exist in two workspaces. Matching on name alone would let a Notion reconnect
+  // overwrite the Slack row's Vault secret (leaving the row still tagged slack),
+  // or silently update workspace A's row while reconnecting from workspace B.
   const { data: existing } = await supabase
     .from("connections")
     .select("id, vault_secret_id")
     .eq("user_id", params.userId)
+    .eq("workspace_id", workspace.workspaceId)
+    .eq("provider", params.provider)
     .eq("name", params.label);
 
   const rows = (existing ?? []) as Array<{ id: string; vault_secret_id: string }>;
@@ -168,10 +175,15 @@ export async function upsertOAuthConnection(
       await supabase.from("connections").delete().eq("id", extra.id);
     }
 
-    // Update the primary row in-place (preserves its UUID → program_connections stay intact)
+    // Update the primary row in-place (preserves its UUID → program_connections
+    // stay intact). Re-stamp provider/workspace_id/auth_type as well so a reused
+    // row can never carry stale identity from a previous connection.
     const { error } = await supabase
       .from("connections")
       .update({
+        provider: params.provider,
+        workspace_id: workspace.workspaceId,
+        auth_type: "oauth",
         vault_secret_id: newVaultId,
         scopes: params.scopes,
         metadata: params.metadata,

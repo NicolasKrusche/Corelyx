@@ -180,6 +180,9 @@ function SiteFooter() {
               support@corelyx.app
             </a>
           </p>
+          <p className="max-w-3xl text-xs leading-5 text-white/30">
+            All product names, logos, and brands are property of their respective owners and are used for identification only; their use does not imply endorsement.
+          </p>
         </div>
       </div>
     </footer>

@@ -108,15 +108,25 @@ async function countMonthlyRuns(userId: string, workspaceId?: string | null): Pr
   const serviceClient = createServiceClient();
   const resolvedWorkspaceId = await resolveWorkspaceId(userId, workspaceId);
 
-  let programQuery = serviceClient
-    .from("programs")
-    .select("id");
-  programQuery = resolvedWorkspaceId ? programQuery.eq("workspace_id", resolvedWorkspaceId) : programQuery.eq("user_id", userId);
-  const { data: programRows } = await programQuery;
+  // Paginate the program-id fetch: a plain select truncates at PostgREST's
+  // 1000-row default, so a workspace with >1000 programs would undercount its
+  // monthly runs and never hit the run limit. Range through every page.
+  const PAGE_SIZE = 1000;
+  const programIds: string[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let programQuery = serviceClient
+      .from("programs")
+      .select("id")
+      .range(from, from + PAGE_SIZE - 1);
+    programQuery = resolvedWorkspaceId ? programQuery.eq("workspace_id", resolvedWorkspaceId) : programQuery.eq("user_id", userId);
+    const { data: programRows } = await programQuery;
+    const page = (programRows ?? []) as { id: string }[];
+    programIds.push(...page.map((r) => r.id));
+    if (page.length < PAGE_SIZE) break;
+  }
 
-  if (!programRows || programRows.length === 0) return 0;
+  if (programIds.length === 0) return 0;
 
-  const programIds = (programRows as { id: string }[]).map((r) => r.id);
   const monthStart = utcMonthStart();
 
   const { count } = await serviceClient

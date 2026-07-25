@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { serverLog } from "@/lib/server-log";
 import {
@@ -86,16 +86,20 @@ export async function POST(request: Request) {
       { status: 403 }
     );
   }
-  // Fire 80% warning email in background (non-blocking)
+  // Fire 80% warning email in the background. Scheduled with after() so it
+  // survives the post-response serverless freeze — a bare `void` promise here
+  // can be frozen before the email is sent.
   if (runLimitCheck.warnAt80Percent && user.email && runLimitCheck.currentCount && runLimitCheck.totalAllowed) {
-    void isNotificationEnabled(user.id, "run_limit_warnings").then((enabled) => {
-      if (enabled) {
-        void sendRunLimitWarningEmail({
-          to: user.email!,
-          used: runLimitCheck.currentCount!,
-          total: runLimitCheck.totalAllowed!,
-          tier: "free",
-        });
+    const warnEmail = user.email;
+    const warnUsed = runLimitCheck.currentCount;
+    const warnTotal = runLimitCheck.totalAllowed;
+    after(async () => {
+      try {
+        if (await isNotificationEnabled(user.id, "run_limit_warnings")) {
+          await sendRunLimitWarningEmail({ to: warnEmail, used: warnUsed, total: warnTotal, tier: "free" });
+        }
+      } catch {
+        /* non-fatal */
       }
     });
   }

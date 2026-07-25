@@ -715,6 +715,21 @@ class HallucinationError(ExecutionError):
         )
 
 
+def _circuit_ignores_user_errors(exc: BaseException) -> bool:
+    """Failure classifier for the LLM/OAuth circuit breakers (R7).
+
+    A circuit breaker should trip only on shared-service outages
+    (transport/connection failures, 5xx). A single tenant's own problem must
+    NOT open a process-global circuit and take down every other tenant:
+      * a dead/invalid BYOK key or bad config surfaces as ExecutionError
+        (e.g. MAX_RETRIES_EXHAUSTED after a permanent 401), and
+      * a tenant exceeding their own token/cost/credit cap surfaces as
+        RunLimitExceeded.
+    Neither is a provider outage, so neither counts toward tripping the circuit.
+    """
+    return not isinstance(exc, (ExecutionError, RunLimitExceeded))
+
+
 # S13: hard cap on loop iteration count to prevent cost/DoS via attacker-shaped
 # upstream lists. Schemas that legitimately need more iterations should be split.
 MAX_LOOP_ITEMS = 100
@@ -1039,7 +1054,11 @@ async def _ssrf_safe_request(
     address we checked, not a re-resolved one. This closes the DNS-rebinding gap
     between validation and connection.
     """
-    pinned_ip = _validate_outbound_url(url)
+    # _validate_outbound_url resolves DNS via the blocking socket.getaddrinfo.
+    # Run it in a worker thread so a slow resolver can't stall the shared event
+    # loop (and with it every other concurrent run's execution/cancellation
+    # polling/watchdog). R11.
+    pinned_ip = await asyncio.to_thread(_validate_outbound_url, url)
 
     # _validate_outbound_url is stubbed out in unit tests; only pin when it
     # returned a concrete IP. In production it always returns a validated IP, so
@@ -1553,128 +1572,179 @@ class ProgramExecutor:
                 **self._node_telemetry_payload(trigger_node.id),
             )
 
-        # Topological execution
+        # Topological execution — Kahn-style in-degree gating (R3). A node runs
+        # only after EVERY one of its incoming-edge sources has been resolved
+        # (executed or skipped), so a join/fan-in node never runs on just its
+        # first-arriving parent (which left the other parents' data unresolved
+        # and the run green-but-empty). `visited` == resolved (executed/skipped).
         visited: set[str] = {trigger_node.id}
-        queue: list[str] = [trigger_node.id]
         failures: list[ExecutionError] = []
 
-        while queue:
+        # Parents of each node, restricted to edges whose endpoints both exist
+        # and whose source is reachable from the trigger — gating must never
+        # wait on a source that will never run (that would strand the node).
+        reachable_from_trigger = self._reachable_nodes_from([trigger_node.id])
+        node_parents: dict[str, list[str]] = {n.id: [] for n in self.schema.nodes}
+        for edge in self.schema.edges:
+            if (
+                edge.to in node_parents
+                and edge.from_node in self.node_map
+                and edge.from_node in reachable_from_trigger
+            ):
+                node_parents[edge.to].append(edge.from_node)
+
+        # Ready-to-run frontier: nodes whose parents are all resolved.
+        ready: list[str] = []
+        ready_set: set[str] = set()
+
+        def _enqueue_ready_children(parent_id: str) -> None:
+            for e in self.edges_from.get(parent_id, []):
+                child = e.to
+                if child in visited or child in ready_set or child not in self.node_map:
+                    continue
+                if all(p in visited for p in node_parents.get(child, ())):
+                    ready.append(child)
+                    ready_set.add(child)
+
+        _enqueue_ready_children(trigger_node.id)
+
+        while ready:
             # Cancellation check on each iteration
             current_status = await get_run_status(self.db, self.run_id)
             if current_status == "cancelled":
                 raise CancellationError()
 
-            current_id = queue.pop(0)
-            outgoing = self.edges_from.get(current_id, [])
-            current_output = state.get(current_id)
-            if isinstance(current_output, dict) and "__branch_target__" in current_output:
-                selected_target = current_output.get("__branch_target__")
-                selected_edges = [edge for edge in outgoing if edge.to == selected_target]
-                if not selected_edges:
-                    raise ExecutionError(
-                        "BRANCH_TARGET_INVALID",
-                        f"Branch node '{current_id}' selected '{selected_target}', "
-                        "but no matching outgoing edge exists.",
-                        current_id,
-                    )
-                selected_reachable = self._reachable_nodes_from([edge.to for edge in selected_edges])
-                skipped = await self._skip_nodes_from(
-                    [edge.to for edge in outgoing if edge.to != selected_target],
-                    excluded=visited | selected_reachable,
-                )
-                visited.update(skipped)
-                for skipped_node_id in skipped:
-                    state[skipped_node_id] = {"__skipped__": True}
-                outgoing = selected_edges
+            current_id = ready.pop(0)
+            ready_set.discard(current_id)
+            if current_id in visited:
+                continue
+            target_node = self.node_map.get(current_id)
+            if not target_node:
+                continue
 
-            for edge in outgoing:
-                target_node = self.node_map.get(edge.to)
-                if not target_node or edge.to in visited:
-                    continue
+            # Resolve input via data mapping
+            input_data = self._resolve_input(current_id, state)
 
-                # Resolve input via data mapping
-                input_data = self._resolve_input(edge.to, state)
+            # Execute the target node
+            try:
+                output = await self._execute_node(target_node, input_data)
+                state[current_id] = output
+                visited.add(current_id)
 
-                # Execute the target node
-                try:
-                    output = await self._execute_node(target_node, input_data)
-                    state[edge.to] = output
-                    visited.add(edge.to)
+                # A failed-open retry path (fail_program_on_exhaust=False)
+                # returns a NODE_ERROR_KEY-tagged output instead of raising,
+                # so this node never hits the `except ExecutionError` branch
+                # below. Without this, the run's overall status came out
+                # "completed" even though a node genuinely failed — no
+                # failure email, no security-sentinel event, no downstream
+                # program-trigger cascade. Track it the same way the raising
+                # path already does: keep walking the graph, but still fail
+                # the run once the walk finishes.
+                if isinstance(output, dict) and isinstance(output.get(NODE_ERROR_KEY), str) and output[NODE_ERROR_KEY]:
+                    failures.append(ExecutionError("NODE_FAILED_CONTINUED", output[NODE_ERROR_KEY], current_id))
 
-                    # A failed-open retry path (fail_program_on_exhaust=False)
-                    # returns a NODE_ERROR_KEY-tagged output instead of raising,
-                    # so this node never hits the `except ExecutionError` branch
-                    # below. Without this, the run's overall status came out
-                    # "completed" even though a node genuinely failed — no
-                    # failure email, no security-sentinel event, no downstream
-                    # program-trigger cascade. Track it the same way the raising
-                    # path already does: keep walking the graph, but still fail
-                    # the run once the walk finishes.
-                    if isinstance(output, dict) and isinstance(output.get(NODE_ERROR_KEY), str) and output[NODE_ERROR_KEY]:
-                        failures.append(ExecutionError("NODE_FAILED_CONTINUED", output[NODE_ERROR_KEY], edge.to))
-
-                    # Only explicit control-flow nodes may halt descendants.
-                    # Connector output is data and must never control execution.
-                    is_filtered_out = (
-                        target_node.type == "step"
-                        and isinstance(target_node.config, StepConfig)
-                        and target_node.config.logic_type == "filter"
-                        and isinstance(output, dict)
-                        and output.get("__filtered_out__") is True
-                    )
-                    if is_filtered_out:
-                        skipped = await self._skip_descendants_from(
-                            edge.to,
-                            excluded=visited,
+                # Branch: output selects one outgoing target. Skip the
+                # non-selected targets' exclusive subtrees, preserving anything
+                # also reachable from the selected path (diamonds re-join).
+                if isinstance(output, dict) and "__branch_target__" in output:
+                    selected_target = output.get("__branch_target__")
+                    outgoing = self.edges_from.get(current_id, [])
+                    selected_edges = [edge for edge in outgoing if edge.to == selected_target]
+                    if not selected_edges:
+                        raise ExecutionError(
+                            "BRANCH_TARGET_INVALID",
+                            f"Branch node '{current_id}' selected '{selected_target}', "
+                            "but no matching outgoing edge exists.",
+                            current_id,
                         )
-                        visited.update(skipped)
-                        for skipped_node_id in skipped:
-                            state[skipped_node_id] = {"__skipped__": True}
-                        continue
-
-                    # If this is a loop step, expand it: run all downstream nodes once
-                    # per item instead of once with the whole list.
-                    if isinstance(output, dict) and "__loop_items__" in output:
-                        body_visited = await self._execute_loop_body(edge.to, output, state)
-                        visited.update(body_visited)
-                        # Don't push loop body nodes onto the main queue — they're done.
-                    else:
-                        queue.append(edge.to)
-                except CancellationError:
-                    raise
-                except ExecutionError as e:
-                    await update_node_execution(
-                        self.db,
-                        self.run_id,
-                        edge.to,
-                        status="failed",
-                        error_message=e.message,
-                        completed_at="now()",
-                        data_region=self.data_region,
-                        retention_expiry=self.retention_expiry,
-                        block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
-                        **self._node_telemetry_payload(edge.to),
-                    )
-                    # Defensive backstop: agent nodes now self-correct on
-                    # hallucination and downgrade to a non-fatal warning rather than
-                    # raising (see _execute_agent), so this rarely fires — but if a
-                    # HALLUCINATION_DETECTED ever propagates, abort the whole run so
-                    # independent branches never act on fabricated content.
-                    if e.code == "HALLUCINATION_DETECTED":
-                        raise
-                    if target_node.type == "agent":
-                        agent_cfg = target_node.config
-                        if isinstance(agent_cfg, AgentConfig) and agent_cfg.retry.fail_program_on_exhaust:
-                            raise
-                    visited.add(edge.to)
-                    skipped = await self._skip_descendants_from(
-                        edge.to,
-                        excluded=visited,
+                    selected_reachable = self._reachable_nodes_from([edge.to for edge in selected_edges])
+                    skipped = await self._skip_nodes_from(
+                        [edge.to for edge in outgoing if edge.to != selected_target],
+                        excluded=visited | selected_reachable,
                     )
                     visited.update(skipped)
                     for skipped_node_id in skipped:
                         state[skipped_node_id] = {"__skipped__": True}
-                    failures.append(e)
+                    for skipped_node_id in skipped:
+                        _enqueue_ready_children(skipped_node_id)
+                    _enqueue_ready_children(current_id)
+                    continue
+
+                # Only explicit control-flow nodes may halt descendants.
+                # Connector output is data and must never control execution.
+                is_filtered_out = (
+                    target_node.type == "step"
+                    and isinstance(target_node.config, StepConfig)
+                    and target_node.config.logic_type == "filter"
+                    and isinstance(output, dict)
+                    and output.get("__filtered_out__") is True
+                )
+                if is_filtered_out:
+                    # R4: a false filter kills its OWN downstream, but must not
+                    # skip nodes still reachable from a live branch (a shared
+                    # join fed by a live sibling). Those stay unvisited and run
+                    # once their live parent(s) resolve (gating handles them).
+                    live_reachable = self._nodes_reachable_from_live(state, trigger_node.id)
+                    skipped = await self._skip_descendants_from(
+                        current_id,
+                        excluded=visited | live_reachable,
+                    )
+                    visited.update(skipped)
+                    for skipped_node_id in skipped:
+                        state[skipped_node_id] = {"__skipped__": True}
+                    for skipped_node_id in skipped:
+                        _enqueue_ready_children(skipped_node_id)
+                    _enqueue_ready_children(current_id)
+                    continue
+
+                # If this is a loop step, expand it: run all downstream nodes once
+                # per item instead of once with the whole list.
+                if isinstance(output, dict) and "__loop_items__" in output:
+                    body_visited = await self._execute_loop_body(current_id, output, state)
+                    visited.update(body_visited)
+                    # Loop body nodes are done; surface any children now unblocked.
+                    for body_id in body_visited:
+                        _enqueue_ready_children(body_id)
+                    continue
+
+                _enqueue_ready_children(current_id)
+            except CancellationError:
+                raise
+            except ExecutionError as e:
+                await update_node_execution(
+                    self.db,
+                    self.run_id,
+                    current_id,
+                    status="failed",
+                    error_message=e.message,
+                    completed_at="now()",
+                    data_region=self.data_region,
+                    retention_expiry=self.retention_expiry,
+                    block_warning_reasons=[e.message] if e.code == "COMPLIANCE_BLOCKED" else [],
+                    **self._node_telemetry_payload(current_id),
+                )
+                # Defensive backstop: agent nodes now self-correct on
+                # hallucination and downgrade to a non-fatal warning rather than
+                # raising (see _execute_agent), so this rarely fires — but if a
+                # HALLUCINATION_DETECTED ever propagates, abort the whole run so
+                # independent branches never act on fabricated content.
+                if e.code == "HALLUCINATION_DETECTED":
+                    raise
+                if target_node.type == "agent":
+                    agent_cfg = target_node.config
+                    if isinstance(agent_cfg, AgentConfig) and agent_cfg.retry.fail_program_on_exhaust:
+                        raise
+                visited.add(current_id)
+                skipped = await self._skip_descendants_from(
+                    current_id,
+                    excluded=visited,
+                )
+                visited.update(skipped)
+                for skipped_node_id in skipped:
+                    state[skipped_node_id] = {"__skipped__": True}
+                for skipped_node_id in skipped:
+                    _enqueue_ready_children(skipped_node_id)
+                failures.append(e)
 
         if failures:
             raise failures[0]
@@ -1707,6 +1777,32 @@ class ProgramExecutor:
             reachable.add(nid)
             frontier.extend(e.to for e in self.edges_from.get(nid, []))
         return reachable
+
+    def _nodes_reachable_from_live(self, state: dict[str, Any], trigger_id: str) -> set[str]:
+        """Nodes still reachable from the trigger along a path that avoids every
+        already-dead node (skipped or filtered-out).
+
+        Used so a false filter only skips descendants with NO surviving live
+        path (R4): a shared join fed by a live sibling branch must keep running.
+        The filter node itself is dead (its output carries __filtered_out__), so
+        liveness never propagates through it — but it propagates through any
+        not-yet-resolved node, which is the safe direction (gating still blocks
+        those until their own parents resolve, and a later dead branch will skip
+        them if they turn out to have no live parent after all).
+        """
+        dead: set[str] = set()
+        for nid, st in state.items():
+            if isinstance(st, dict) and (st.get("__skipped__") or st.get("__filtered_out__")):
+                dead.add(nid)
+        live: set[str] = set()
+        frontier: list[str] = [trigger_id]
+        while frontier:
+            nid = frontier.pop()
+            if nid in live or nid in dead:
+                continue
+            live.add(nid)
+            frontier.extend(e.to for e in self.edges_from.get(nid, []))
+        return live
 
     async def _skip_nodes_from(
         self,
@@ -1877,15 +1973,44 @@ class ProgramExecutor:
                                     fe.to for fe in self.edges_from.get(reject_nid, []) if fe.to in body_ids
                                 )
 
-                # Handle filter short-circuits: skip all descendants within the body.
+                # Handle filter short-circuits: skip descendants within the body,
+                # but NOT ones still reachable from a live branch in the body — a
+                # shared join fed by a live sibling must still run this iteration
+                # (R4, loop variant).
                 if isinstance(out, dict) and out.get("__filtered_out__") is True:
-                    filter_frontier = [e.to for e in self.edges_from.get(nid, []) if e.to in body_ids]
+                    dead_body: set[str] = set(skipped_in_iteration)
+                    dead_body.add(nid)
+                    for bnid in body_ids:
+                        bst = local_state.get(bnid)
+                        if isinstance(bst, dict) and (bst.get("__filtered_out__") or bst.get("__skipped__")):
+                            dead_body.add(bnid)
+                    live_body: set[str] = set()
+                    live_frontier = [
+                        e.to
+                        for e in self.edges_from.get(loop_node_id, [])
+                        if e.to in body_ids and e.to not in dead_body
+                    ]
+                    while live_frontier:
+                        lnid = live_frontier.pop()
+                        if lnid in live_body or lnid in dead_body or lnid not in body_ids:
+                            continue
+                        live_body.add(lnid)
+                        live_frontier.extend(e.to for e in self.edges_from.get(lnid, []) if e.to in body_ids)
+                    filter_frontier = [
+                        e.to
+                        for e in self.edges_from.get(nid, [])
+                        if e.to in body_ids and e.to not in live_body
+                    ]
                     while filter_frontier:
                         reject_nid = filter_frontier.pop()
-                        if reject_nid in skipped_in_iteration or reject_nid not in body_ids:
+                        if reject_nid in skipped_in_iteration or reject_nid not in body_ids or reject_nid in live_body:
                             continue
                         skipped_in_iteration.add(reject_nid)
-                        filter_frontier.extend(fe.to for fe in self.edges_from.get(reject_nid, []) if fe.to in body_ids)
+                        filter_frontier.extend(
+                            fe.to
+                            for fe in self.edges_from.get(reject_nid, [])
+                            if fe.to in body_ids and fe.to not in live_body
+                        )
 
         # Write aggregated results back to the shared state
         for nid, results in iteration_results.items():
@@ -2233,8 +2358,10 @@ class ProgramExecutor:
         provider_id = "openrouter" if use_platform_key else provider_for_model(cfg.model, provider)
         await self._enforce_provider_policy(provider_id, node.id, model_id=cfg.model)
 
-        # Execute with retry and circuit breaker protection
-        circuit = get_llm_circuit()
+        # Execute with retry and circuit breaker protection. Scope the circuit
+        # to this credential (R7) so one tenant's dead key can't open a shared
+        # circuit for everyone, and don't count per-tenant config/limit errors.
+        circuit = get_llm_circuit(api_key_ref, failure_predicate=_circuit_ignores_user_errors)
 
         async def _generate(active_cfg: AgentConfig) -> dict:
             try:
@@ -2343,6 +2470,12 @@ class ProgramExecutor:
             verdict_raw = await self._call_llm(
                 judge_cfg, api_key, provider, judge_input, node_id, deduct_credits=deduct_credits
             )
+        except RunLimitExceeded:
+            # The limiter raises RunLimitExceeded (NOT an ExecutionError). Without
+            # this explicit re-raise it would hit the fail-open `except Exception`
+            # below, silently swallowing a token/cost/credit breach — the judge
+            # call would keep spending past the user's cap. Propagate it.
+            raise
         except ExecutionError:
             # Run limits (token/cost/credit) must keep their normal abort semantics.
             raise
@@ -2519,7 +2652,11 @@ class ProgramExecutor:
             system_prompt = system_prompt + "".join(prior_lines)
 
         sanitized_system = self._pii.sanitize_text(system_prompt)
-        sanitized_input = self._pii.sanitize_value(input_data)
+        # Narrow to the fields the node's input_schema declares before the model
+        # sees them — same token-bounding the plain-agent path applies. Without
+        # this, input_schema was parsed and ignored, so the task agent was handed
+        # the upstream node's entire output (body_html, attachments, …).
+        sanitized_input = self._pii.sanitize_value(_narrow_to_input_schema(input_data, cfg.input_schema))
         input_json = json.dumps(sanitized_input.value)
         max_iterations = max(1, min(int(cfg.max_iterations or 8), 25))
         # Reporting back to the user is always available, even if the generated
@@ -2581,6 +2718,11 @@ class ProgramExecutor:
             )
 
             self._limiter.check_llm_call()
+            # Snapshot the run's tool-call count so a mid-loop credential failure
+            # can tell "nothing executed yet" (safe to retry on the next key) from
+            # "a tool already ran" (retrying would re-execute completed writes,
+            # e.g. re-send an email). See the except below (R9).
+            tool_calls_before = self._agent_tool_calls_made
             try:
                 # Native Anthropic API (BYOK Claude) uses a different tools + message
                 # shape. OpenRouter exposes Claude via the OpenAI-compatible path.
@@ -2602,7 +2744,12 @@ class ProgramExecutor:
                     )
             except ExecutionError as e:
                 last_error = e
-                if has_more and _is_agent_key_error(e.message):
+                # Only fall through to the next credential candidate if NO tool
+                # call executed under this key. Once a tool has run, restarting
+                # the loop on a fresh key re-plans and re-executes completed
+                # writes — fail the node instead of double-sending (R9).
+                no_tool_executed = self._agent_tool_calls_made == tool_calls_before
+                if has_more and no_tool_executed and _is_agent_key_error(e.message):
                     continue
                 raise
 
@@ -3667,6 +3814,10 @@ class ProgramExecutor:
                     result = await connector.execute(operation, params, access_token)
                     if not is_write:
                         await self._record_connector_source(connection_ref)
+                        # Screen the post-refresh read too — the first attempt's
+                        # 401 meant this read never ran through the critical-signal
+                        # check, so without this a refreshed read bypasses it.
+                        await self._screen_read_for_critical(provider_id, operation, result)
                     return {"ok": True, "result": result}
                 except ConnectorError as retry_exc:
                     # Refresh token was rejected too — same as the workflow-node
@@ -3980,7 +4131,12 @@ class ProgramExecutor:
             over_expr = extra.get("over", "input")
             item_var = extra.get("item_var", "item")
             items = _safe_eval_transform(over_expr, input_data)
-            if not isinstance(items, list):
+            if isinstance(items, (str, bytes)):
+                # A string/bytes is a single value, not a sequence to fan out —
+                # iterating it would run the loop body once per character (each a
+                # possible paid connector/LLM call). Treat it as one item.
+                items = [items]
+            elif not isinstance(items, list):
                 items = list(items) if hasattr(items, "__iter__") else [items]
             return {"items": items, "item_var": item_var, "__loop_items__": items}
 
@@ -4090,8 +4246,9 @@ class ProgramExecutor:
             provider_id = self._provider_for_connection(connection_id)
             await self._enforce_provider_policy(provider_id, node.id)
 
-            # Fetch OAuth token with circuit breaker protection
-            circuit = get_oauth_token_circuit()
+            # Fetch OAuth token with circuit breaker protection, scoped per
+            # connection (R7) so one bad connection can't open a global circuit.
+            circuit = get_oauth_token_circuit(connection_id, failure_predicate=_circuit_ignores_user_errors)
             try:
                 access_token = await circuit.call(self._fetch_oauth_token, connection_id)
             except CircuitOpenError as e:
@@ -4476,10 +4633,20 @@ class ProgramExecutor:
             )
 
         if response.status_code >= 400:
-            raise ExecutionError(
-                "HTTP_REQUEST_FAILED",
-                f"{method} {resolved_url} returned {response.status_code}",
-            )
+            message = f"{method} {resolved_url} returned {response.status_code}"
+            if response.status_code in RETRYABLE_LLM_STATUS_CODES:
+                # Transient status (5xx / 429 / 408 / 409 / 425): raise a plain
+                # (non-ExecutionError) error so the node's retry config actually
+                # applies. _with_retry re-raises ExecutionError immediately, so a
+                # status failure never reached the retry loop before (R1/R8) —
+                # meaning retry:{max_attempts:3} did nothing on a 503 and the
+                # fail_program_on_exhaust failed-open path was unreachable. A
+                # plain error flows through _with_retry (which classifies these
+                # "returned {code}" codes as retryable) and, on exhaustion,
+                # honours fail_program_on_exhaust like every other node error.
+                raise RuntimeError(message)
+            # Permanent 4xx (bad auth/URL/not-found): fail immediately, no retry.
+            raise ExecutionError("HTTP_REQUEST_FAILED", message)
 
         if cfg.parse_response:
             try:
@@ -4540,7 +4707,7 @@ class ProgramExecutor:
                 node.id,
             )
 
-        circuit = get_oauth_token_circuit()
+        circuit = get_oauth_token_circuit(connection_id, failure_predicate=_circuit_ignores_user_errors)
         try:
             return await circuit.call(self._fetch_oauth_token, connection_id)
         except CircuitOpenError as e:
@@ -4818,15 +4985,25 @@ class ProgramExecutor:
         twice -- confusing when already decided, and orphaning the original
         row when still pending. Reuse the existing row instead.
         """
+        # limit(1) (not .single()) so legacy duplicate node_executions rows don't
+        # crash this path — mirrors the trigger pre-completion check.
         result = (
             self.db.table("node_executions")
             .select("id")
             .eq("run_id", self.run_id)
             .eq("node_id", node.id)
-            .single()
+            .order("created_at", desc=True)
+            .limit(1)
             .execute()
         )
-        node_exec_id: str = result.data["id"]
+        rows = result.data or []
+        if not rows:
+            raise ExecutionError(
+                "NODE_EXECUTION_MISSING",
+                f"No node_execution row found for node '{node.id}' while requesting approval.",
+                node.id,
+            )
+        node_exec_id: str = rows[0]["id"]
 
         existing_row: dict[str, Any] | None = None
         try:

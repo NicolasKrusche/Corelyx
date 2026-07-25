@@ -170,10 +170,10 @@ def _imap_connect(creds: _Creds) -> imaplib.IMAP4:
     _reject_internal_host(creds.imap_host, "IMAP")
     try:
         if creds.security == "starttls":
-            client: imaplib.IMAP4 = imaplib.IMAP4(creds.imap_host, creds.imap_port)
+            client: imaplib.IMAP4 = imaplib.IMAP4(creds.imap_host, creds.imap_port, timeout=30)
             client.starttls()
         else:
-            client = imaplib.IMAP4_SSL(creds.imap_host, creds.imap_port)
+            client = imaplib.IMAP4_SSL(creds.imap_host, creds.imap_port, timeout=30)
         client.login(creds.username, creds.password)
         return client
     except (imaplib.IMAP4.error, OSError) as exc:
@@ -277,7 +277,9 @@ def _build_search(p: dict[str, Any]) -> list[str]:
 # ── IMAP write (triage) ────────────────────────────────────────────────────────
 #
 # All operate on one message by UID in a source folder (default INBOX). Moves use
-# COPY + \Deleted + EXPUNGE (works on every IMAP server, no MOVE extension needed).
+# COPY + \Deleted + a UID-targeted EXPUNGE (UIDPLUS) so only the moved message is
+# removed — never every \Deleted-flagged message in the folder (see
+# _expunge_only_uid). Works on every IMAP server, no MOVE extension needed.
 # Destination folder names vary per server (Archive/Junk/Trash, "[Gmail]/Trash",
 # "Deleted Items", …) — callers can pass `dest`; otherwise we use a sensible
 # default and surface a clear error pointing at list_folders if it doesn't exist.
@@ -300,6 +302,51 @@ def _select_rw(client: imaplib.IMAP4, folder: str) -> None:
         raise ConnectorError("IMAP_ERROR", f"Folder '{folder}' not found.")
 
 
+def _server_has_uidplus(client: imaplib.IMAP4) -> bool:
+    """True when the server advertises the UIDPLUS (RFC 4315) extension.
+
+    imaplib caches the greeting/login CAPABILITY list on ``client.capabilities``
+    (uppercased tuple); we also re-query live in case it wasn't re-advertised
+    after login.
+    """
+    caps = getattr(client, "capabilities", ()) or ()
+    if any(str(c).upper() == "UIDPLUS" for c in caps):
+        return True
+    try:
+        typ, data = client.capability()
+    except Exception:  # noqa: BLE001
+        return False
+    if typ != "OK":
+        return False
+    tokens = b" ".join(d for d in (data or []) if isinstance(d, (bytes, bytearray))).upper()
+    return b"UIDPLUS" in tokens
+
+
+def _expunge_only_uid(client: imaplib.IMAP4, uid: str) -> None:
+    """Permanently remove ONLY this \\Deleted-flagged message.
+
+    A blanket ``client.expunge()`` permanently expunges EVERY message flagged
+    ``\\Deleted`` in the selected folder. Thunderbird (and IMAP generally)
+    leaves messages flagged ``\\Deleted`` until a manual Compact, so a single
+    archive/move/spam/trash op could irreversibly destroy every pending
+    soft-deleted message in that folder.
+
+    ``UID EXPUNGE <uid>`` (RFC 4315 / UIDPLUS) removes only the given UID. When
+    the server does not advertise UIDPLUS we deliberately do NOT expunge: the
+    message keeps its ``\\Deleted`` flag (it is already soft-deleted, and for a
+    move it was already COPYed to the destination), so nothing is lost and no
+    unrelated mail is destroyed — the user's normal Compact finishes the job.
+    """
+    if not _server_has_uidplus(client):
+        return
+    try:
+        client.uid("EXPUNGE", uid)
+    except imaplib.IMAP4.error:
+        # Server advertised UIDPLUS but rejected the command for this mailbox:
+        # leave \Deleted set rather than risk a blanket expunge.
+        return
+
+
 def _move(creds: _Creds, p: dict[str, Any], dest: str) -> dict[str, Any]:
     uid = _require_uid(p)
     folder = _source_folder(p)
@@ -316,7 +363,7 @@ def _move(creds: _Creds, p: dict[str, Any], dest: str) -> dict[str, Any]:
                 f"Could not copy to '{dest}'. Use list_folders to get the exact folder name.",
             )
         client.uid("STORE", uid, "+FLAGS", r"(\Deleted)")
-        client.expunge()
+        _expunge_only_uid(client, uid)
         return {"moved": True, "uid": uid, "from": folder, "to": dest}
     finally:
         _logout(client)
@@ -346,7 +393,7 @@ def _trash(creds: _Creds, p: dict[str, Any]) -> dict[str, Any]:
         try:
             _select_rw(client, folder)
             client.uid("STORE", uid, "+FLAGS", r"(\Deleted)")
-            client.expunge()
+            _expunge_only_uid(client, uid)
             return {"deleted": True, "permanent": True, "uid": uid, "from": folder}
         finally:
             _logout(client)

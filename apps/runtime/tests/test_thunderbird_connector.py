@@ -30,6 +30,7 @@ if "connectors" not in _sys.modules or not getattr(_sys.modules.get("connectors"
     _sys.modules["connectors.base"] = _base
 
 import email
+import imaplib
 import json
 import socket
 from unittest.mock import patch
@@ -162,8 +163,10 @@ def test_parse_folder_name_from_list_line():
 
 
 class _FakeIMAP:
-    def __init__(self) -> None:
+    def __init__(self, capabilities=("IMAP4REV1", "UIDPLUS"), expunge_error=False) -> None:
         self.calls: list[tuple] = []
+        self.capabilities = tuple(capabilities)
+        self._expunge_error = expunge_error
 
     def select(self, folder, readonly=False):
         self.calls.append(("select", folder, readonly))
@@ -171,11 +174,18 @@ class _FakeIMAP:
 
     def uid(self, command, *args):
         self.calls.append(("uid", command, args))
+        if command.upper() == "EXPUNGE" and self._expunge_error:
+            raise imaplib.IMAP4.error("server rejected UID EXPUNGE")
         return ("OK", [b"1"])
 
     def expunge(self):
         self.calls.append(("expunge",))
         return ("OK", [b""])
+
+    def capability(self):
+        self.calls.append(("capability",))
+        caps = b" ".join(c.encode() for c in self.capabilities)
+        return ("OK", [caps])
 
     def logout(self):
         pass
@@ -218,23 +228,71 @@ def test_mark_read_sets_seen_via_writable_select(monkeypatch):
     assert store[2][1] == "+FLAGS" and store[2][2] == r"(\Seen)"
 
 
-def test_archive_copies_then_deletes_and_expunges(monkeypatch):
-    fake = _FakeIMAP()
+def test_archive_copies_then_uid_expunges_only_that_uid(monkeypatch):
+    # R2: archive/move must UID-EXPUNGE only the moved message, never blanket
+    # expunge (which would destroy every \Deleted-flagged message in the folder).
+    fake = _FakeIMAP()  # advertises UIDPLUS
     monkeypatch.setattr(tb, "_imap_connect", lambda creds: fake)
     out = tb._archive(_creds(), {"uid": "7"})
     assert out["moved"] is True and out["to"] == "Archive"
     uid_cmds = [c[1] for c in fake.calls if c[0] == "uid"]
+    assert "COPY" in uid_cmds and "STORE" in uid_cmds and "EXPUNGE" in uid_cmds
+    # Never a blanket expunge.
+    assert not any(c[0] == "expunge" for c in fake.calls)
+    # The UID EXPUNGE targeted only uid 7.
+    expunge_args = [c[2] for c in fake.calls if c[0] == "uid" and c[1] == "EXPUNGE"]
+    assert expunge_args == [("7",)]
+
+
+def test_move_without_uidplus_leaves_deleted_flag_and_never_blanket_expunges(monkeypatch):
+    # R2: no UIDPLUS -> leave \Deleted set (message already COPYed / soft-deleted),
+    # and NEVER call the blanket expunge that would nuke unrelated deleted mail.
+    fake = _FakeIMAP(capabilities=("IMAP4REV1",))
+    monkeypatch.setattr(tb, "_imap_connect", lambda creds: fake)
+    out = tb._archive(_creds(), {"uid": "7"})
+    assert out["moved"] is True
+    uid_cmds = [c[1] for c in fake.calls if c[0] == "uid"]
     assert "COPY" in uid_cmds and "STORE" in uid_cmds
-    assert any(c[0] == "expunge" for c in fake.calls)
+    assert "EXPUNGE" not in uid_cmds
+    assert not any(c[0] == "expunge" for c in fake.calls)
 
 
-def test_trash_permanent_deletes_without_copy(monkeypatch):
+def test_uid_expunge_rejection_is_swallowed_not_escalated_to_blanket(monkeypatch):
+    # If the server advertises UIDPLUS but rejects UID EXPUNGE, we must leave
+    # \Deleted set rather than fall back to a destructive blanket expunge.
+    fake = _FakeIMAP(expunge_error=True)
+    monkeypatch.setattr(tb, "_imap_connect", lambda creds: fake)
+    out = tb._archive(_creds(), {"uid": "7"})
+    assert out["moved"] is True
+    assert not any(c[0] == "expunge" for c in fake.calls)
+
+
+def test_trash_permanent_uid_expunges_only_that_uid(monkeypatch):
     fake = _FakeIMAP()
     monkeypatch.setattr(tb, "_imap_connect", lambda creds: fake)
     out = tb._trash(_creds(), {"uid": "7", "permanent": "true"})
     assert out["deleted"] is True and out["permanent"] is True
     uid_cmds = [c[1] for c in fake.calls if c[0] == "uid"]
-    assert "COPY" not in uid_cmds and "STORE" in uid_cmds
+    assert "COPY" not in uid_cmds and "STORE" in uid_cmds and "EXPUNGE" in uid_cmds
+    assert not any(c[0] == "expunge" for c in fake.calls)
+    expunge_args = [c[2] for c in fake.calls if c[0] == "uid" and c[1] == "EXPUNGE"]
+    assert expunge_args == [("7",)]
+
+
+def test_server_has_uidplus_detected_from_attribute():
+    assert tb._server_has_uidplus(_FakeIMAP(capabilities=("IMAP4REV1", "UIDPLUS"))) is True
+    assert tb._server_has_uidplus(_FakeIMAP(capabilities=("IMAP4REV1",))) is False
+
+
+def test_server_has_uidplus_falls_back_to_live_capability_query():
+    # capabilities attr empty but the live CAPABILITY response includes UIDPLUS.
+    class _CapOnly:
+        capabilities = ()
+
+        def capability(self):
+            return ("OK", [b"IMAP4REV1 UIDPLUS LITERAL+"])
+
+    assert tb._server_has_uidplus(_CapOnly()) is True
 
 
 def test_move_message_requires_dest():

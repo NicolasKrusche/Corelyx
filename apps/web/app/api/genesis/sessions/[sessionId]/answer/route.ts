@@ -115,6 +115,12 @@ export async function POST(
     expires_at: string;
   };
 
+  // Defense in depth: every write below goes through the RLS-bypassing service
+  // client, so don't rely on genesis_sessions RLS alone for ownership. Reject
+  // any session that isn't the caller's before touching the service client (404,
+  // not 403 — don't leak that the session exists).
+  if (session.user_id !== userId) return apiError("Session not found", 404);
+
   const serviceClient = createServiceClient();
 
   if (session.status !== "awaiting_clarification") {
@@ -344,9 +350,14 @@ export async function POST(
   const validation = validatePostGenesis(schema, connectionRows);
 
   // ── Persist: program row, version snapshot, trigger sync, session update ──
-  const nextVersion = (program.schema_version ?? 0) + 1;
+  const currentVersion = program.schema_version;
+  const nextVersion = (currentVersion ?? 0) + 1;
   const now = new Date().toISOString();
-  const { error: updateError } = await serviceClient
+  // Compare-and-swap on schema_version, mirroring /api/programs/[id] PATCH: a
+  // clarification answer landing during an editor autosave must not silently
+  // revert the canvas edits (and duplicate a program_versions version number).
+  // The loser gets a 409 and the editor reloads instead of losing work.
+  let updateQuery = serviceClient
     .from("programs")
     .update({
       name: schema.program_name,
@@ -356,7 +367,25 @@ export async function POST(
       updated_at: now,
     } as unknown as never)
     .eq("id", program.id);
+  updateQuery =
+    currentVersion === null
+      ? updateQuery.is("schema_version", null)
+      : updateQuery.eq("schema_version", currentVersion);
+  const { data: updatedProgram, error: updateError } = await updateQuery
+    .select("id")
+    .maybeSingle();
   if (updateError) return apiError(updateError.message, 500);
+  if (!updatedProgram) {
+    return NextResponse.json(
+      {
+        error: "SCHEMA_VERSION_CONFLICT",
+        message:
+          "This workflow was changed elsewhere (another tab, the Triggers page, or Genesis). Reload the editor to continue.",
+        current_version: currentVersion ?? 0,
+      },
+      { status: 409 }
+    );
+  }
 
   await serviceClient.from("program_versions").insert({
     program_id: program.id,

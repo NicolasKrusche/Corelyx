@@ -7,6 +7,26 @@ const RESEND_API_URL = "https://api.resend.com/emails";
 const FROM = process.env.FROM_EMAIL ?? "Corelyx <noreply@corelyx.app>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.corelyx.app";
 
+// Notification preferences are managed in the in-app settings. Bulk/notification
+// emails (run failures, run-limit warnings, and similar) carry a List-Unsubscribe
+// header so mailbox providers (Gmail, Yahoo) can present an unsubscribe/manage
+// affordance and treat the mail correctly for deliverability. Transactional-only
+// mail (password resets, 2FA codes, receipts) intentionally does NOT include it.
+//
+// NOTE: RFC 8058 one-click (List-Unsubscribe-Post: List-Unsubscribe=One-Click) is
+// intentionally omitted — it requires an unauthenticated, tokenized POST endpoint
+// that unsubscribes without a session, which does not yet exist. The URL below
+// opens the notification-preferences settings, where the user toggles the
+// category off. Adding a real one-click endpoint is a tracked follow-up.
+const NOTIFICATION_PREFS_URL = `${APP_URL}/settings`;
+const UNSUBSCRIBE_SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@corelyx.app";
+
+function listUnsubscribeHeaders(): Record<string, string> {
+  return {
+    "List-Unsubscribe": `<${NOTIFICATION_PREFS_URL}>, <mailto:${UNSUBSCRIBE_SUPPORT_EMAIL}?subject=Unsubscribe%20from%20notifications>`,
+  };
+}
+
 interface SendEmailOptions {
   to: string | string[];
   subject: string;
@@ -15,9 +35,11 @@ interface SendEmailOptions {
   cc?: string | string[];
   bcc?: string | string[];
   replyTo?: string;
+  /** Extra SMTP headers (e.g. List-Unsubscribe) passed through to Resend. */
+  headers?: Record<string, string>;
 }
 
-export async function sendEmail({ to, subject, html, from, cc, bcc, replyTo }: SendEmailOptions): Promise<void> {
+export async function sendEmail({ to, subject, html, from, cc, bcc, replyTo, headers }: SendEmailOptions): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY not set — skipping email send");
@@ -38,6 +60,7 @@ export async function sendEmail({ to, subject, html, from, cc, bcc, replyTo }: S
       ...(cc ? { cc } : {}),
       ...(bcc ? { bcc } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
+      ...(headers ? { headers } : {}),
     }),
     cache: "no-store",
   });
@@ -393,6 +416,7 @@ export async function sendRunFailureEmail({
   await sendEmail({
     to,
     subject: `Run failed: "${programName}"`,
+    headers: listUnsubscribeHeaders(),
     html: `
 <!DOCTYPE html>
 <html lang="en">
@@ -492,6 +516,7 @@ export async function sendRunLimitWarningEmail({
   await sendEmail({
     to,
     subject: `You've used ${pct}% of your monthly runs`,
+    headers: listUnsubscribeHeaders(),
     html: `
 <!DOCTYPE html>
 <html lang="en">

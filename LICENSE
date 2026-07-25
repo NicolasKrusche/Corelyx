@@ -6,8 +6,8 @@ No person or entity may use, copy, modify, merge, publish, distribute,
 sublicense, sell, or otherwise exploit this software or any associated
 documentation without prior written permission from the copyright holder.
 
-Any use without such permission is subject to a contractual penalty of
-EUR 100,000 (one hundred thousand euros) per violation.
+This software is distributed with third-party open-source components. Their
+licenses and required notices are listed in THIRD_PARTY_LICENSES.md.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

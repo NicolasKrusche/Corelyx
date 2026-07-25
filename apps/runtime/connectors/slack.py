@@ -183,8 +183,17 @@ def _raise_for_status(r: httpx.Response, operation: str) -> dict:
         )
     data = r.json()
     if not data.get("ok"):
+        error = data.get("error", "unknown")
+        # Slack signals auth failures as HTTP 200 + ok:false. Map the token
+        # errors to TOKEN_EXPIRED so the runtime's force-refresh/reconnect path
+        # (which keys off the code, not the HTTP status) actually triggers.
+        if error in ("invalid_auth", "token_expired", "not_authed", "account_inactive", "token_revoked"):
+            raise ConnectorError(
+                "TOKEN_EXPIRED",
+                f"Slack {operation} failed: OAuth access token is invalid or expired ({error})",
+            )
         raise ConnectorError(
             "SLACK_API_ERROR",
-            f"Slack {operation} error: {data.get('error', 'unknown')}",
+            f"Slack {operation} error: {error}",
         )
     return data
