@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-07-25T00:00:00Z",
+  "entries": [
+    {
+      "name": "community/zendesk",
+      "version": "1.2.0",
+      "description": "Create, update, and search Zendesk support tickets",
+      "author": "flowos-community",
+      "repository": "https://github.com/flowos-community/zendesk-connector",
+      "operations": [
+        { "name": "list_tickets", "description": "List all support tickets with optional filters", "parameterCount": 4 },
+        { "name": "get_ticket", "description": "Get a single ticket by ID", "parameterCount": 1 },
+        { "name": "create_ticket", "description": "Create a new support ticket", "parameterCount": 6 },
+        { "name": "update_ticket", "description": "Update an existing ticket", "parameterCount": 3 }
+      ],
+      "rating": 4.7,
+      "downloads": 1240,
+      "tags": ["support", "tickets", "helpdesk", "customer-service"],
+      "provider": "zendesk",
+      "icon": "Headphones",
+      "publishedAt": "2026-07-10T14:30:00Z",
+      "requiresAuth": true
+    },
+    {
+      "name": "community/stripe",
+      "version": "2.0.1",
+      "description": "Manage Stripe payments, customers, and subscriptions",
+      "author": "payments-team",
+      "repository": "https://github.com/flowos-community/stripe-connector",
+      "operations": [
+        { "name": "list_customers", "description": "List all Stripe customers", "parameterCount": 3 },
+        { "name": "create_payment_intent", "description": "Create a new payment intent", "parameterCount": 5 },
+        { "name": "list_invoices", "description": "List invoices with optional filters", "parameterCount": 4 },
+        { "name": "retrieve_subscription", "description": "Get subscription details by ID", "parameterCount": 1 },
+        { "name": "create_webhook_endpoint", "description": "Register a new webhook endpoint", "parameterCount": 3 }
+      ],
+      "rating": 4.9,
+      "downloads": 3420,
+      "tags": ["payments", "billing", "subscriptions", "invoices", "stripe"],
+      "provider": "stripe",
+      "icon": "CreditCard",
+      "publishedAt": "2026-07-18T09:00:00Z",
+      "requiresAuth": true
+    },
+    {
+      "name": "community/notion-db",
+      "version": "1.0.0",
+      "description": "Advanced Notion database queries with filters and sorts",
+      "author": "notion-power-users",
+      "repository": "https://github.com/flowos-community/notion-db-connector",
+      "operations": [
+        { "name": "query_database", "description": "Query a Notion database with filters and sorts", "parameterCount": 3 },
+        { "name": "get_database_schema", "description": "Retrieve the property schema of a database", "parameterCount": 1 },
+        { "name": "create_database_entry", "description": "Create a new row in a database", "parameterCount": 2 }
+      ],
+      "rating": 4.3,
+      "downloads": 870,
+      "tags": ["notion", "database", "queries", "workspace"],
+      "provider": "notion",
+      "icon": "BookOpen",
+      "publishedAt": "2026-06-28T16:45:00Z",
+      "requiresAuth": true
+    }
+  ]
+}
