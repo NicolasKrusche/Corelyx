@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { UserEmailAutocomplete } from "@/components/admin/user-email-autocomplete";
 import type { TeamMember } from "@/app/api/admin/team/route";
 
 const ROLE_OPTIONS = [
@@ -217,14 +218,16 @@ export function AdminTeamClient() {
         </p>
         <form onSubmit={(e) => void addMember(e)} className="mt-4 flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-48">
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
-            <input
-              type="email"
+            <label htmlFor="team-add-email" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Email
+            </label>
+            <UserEmailAutocomplete
+              id="team-add-email"
               value={addEmail}
-              onChange={(e) => setAddEmail(e.target.value)}
+              onChange={setAddEmail}
               placeholder="team@corelyx.app"
               required
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              disabled={adding}
             />
           </div>
           <div>

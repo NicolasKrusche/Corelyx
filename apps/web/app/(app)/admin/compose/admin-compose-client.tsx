@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { UserEmailAutocomplete } from "@/components/admin/user-email-autocomplete";
 
 const FALLBACK_SENDERS = ["noreply@corelyx.app", "support@corelyx.app", "legal@corelyx.app"];
 
@@ -88,7 +89,7 @@ export function AdminComposeClient() {
 
           <div>
             <div className="flex items-center justify-between">
-              <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">To</label>
+              <label htmlFor="compose-to" className="mb-1.5 block text-xs font-semibold text-muted-foreground">To</label>
               {!showCcBcc && (
                 <button
                   type="button"
@@ -99,30 +100,36 @@ export function AdminComposeClient() {
                 </button>
               )}
             </div>
-            <input
+            <UserEmailAutocomplete
+              id="compose-to"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={setTo}
+              multiple
               placeholder="someone@example.com, someone-else@example.com"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              disabled={sending}
             />
           </div>
 
           {showCcBcc && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">Cc</label>
-                <input
+                <label htmlFor="compose-cc" className="mb-1.5 block text-xs font-semibold text-muted-foreground">Cc</label>
+                <UserEmailAutocomplete
+                  id="compose-cc"
                   value={cc}
-                  onChange={(e) => setCc(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  onChange={setCc}
+                  multiple
+                  disabled={sending}
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">Bcc</label>
-                <input
+                <label htmlFor="compose-bcc" className="mb-1.5 block text-xs font-semibold text-muted-foreground">Bcc</label>
+                <UserEmailAutocomplete
+                  id="compose-bcc"
                   value={bcc}
-                  onChange={(e) => setBcc(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  onChange={setBcc}
+                  multiple
+                  disabled={sending}
                 />
               </div>
             </div>
