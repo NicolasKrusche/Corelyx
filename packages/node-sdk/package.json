@@ -1,0 +1,54 @@
+{
+  "name": "@flowos/node-sdk",
+  "version": "0.1.0",
+  "description": "Corelyx Node SDK — Schema-first node/trigger/connection/agent definitions with Zod + TypeScript",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./defineNode": {
+      "types": "./src/defineNode.ts",
+      "default": "./src/defineNode.ts"
+    },
+    "./defineTrigger": {
+      "types": "./src/defineTrigger.ts",
+      "default": "./src/defineTrigger.ts"
+    },
+    "./defineConnection": {
+      "types": "./src/defineConnection.ts",
+      "default": "./src/defineConnection.ts"
+    },
+    "./defineAgent": {
+      "types": "./src/defineAgent.ts",
+      "default": "./src/defineAgent.ts"
+    }
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  },
+  "peerDependencies": {
+    "zod": "^3.23.0"
+  },
+  "files": ["src"],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
