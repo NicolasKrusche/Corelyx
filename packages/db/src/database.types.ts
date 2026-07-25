@@ -6,6 +6,774 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      "admin_audit_logs": {
+        Row: {
+          "id": string;
+          "timestamp": string;
+          "actor_id": string;
+          "actor_email": string | null;
+          "actor_role": string | null;
+          "actor_ip": string | null;
+          "actor_user_agent": string | null;
+          "target_type": string;
+          "target_id": string;
+          "target_identifier": string | null;
+          "action": string;
+          "risk_level": string;
+          "reason": string | null;
+          "metadata": Json | null;
+          "request_id": string | null;
+          "ip_address": string | null;
+          "user_agent": string | null;
+          "referer": string | null;
+          "success": boolean;
+          "error_message": string | null;
+          "affected_resources": string[] | null;
+          "legal_basis": string;
+          "data_subject_ids": string[] | null;
+          "retention_category": string;
+          "retention_days": number;
+          "workspace_id": string | null;
+          "correlation_id": string | null;
+          "session_id": string | null;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "timestamp"?: string;
+          "actor_id": string;
+          "actor_email"?: string | null;
+          "actor_role"?: string | null;
+          "actor_ip"?: string | null;
+          "actor_user_agent"?: string | null;
+          "target_type": string;
+          "target_id": string;
+          "target_identifier"?: string | null;
+          "action": string;
+          "risk_level": string;
+          "reason"?: string | null;
+          "metadata"?: Json | null;
+          "request_id"?: string | null;
+          "ip_address"?: string | null;
+          "user_agent"?: string | null;
+          "referer"?: string | null;
+          "success"?: boolean;
+          "error_message"?: string | null;
+          "affected_resources"?: string[] | null;
+          "legal_basis"?: string;
+          "data_subject_ids"?: string[] | null;
+          "retention_category"?: string;
+          "retention_days"?: number;
+          "workspace_id"?: string | null;
+          "correlation_id"?: string | null;
+          "session_id"?: string | null;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "timestamp"?: string;
+          "actor_id"?: string;
+          "actor_email"?: string | null;
+          "actor_role"?: string | null;
+          "actor_ip"?: string | null;
+          "actor_user_agent"?: string | null;
+          "target_type"?: string;
+          "target_id"?: string;
+          "target_identifier"?: string | null;
+          "action"?: string;
+          "risk_level"?: string;
+          "reason"?: string | null;
+          "metadata"?: Json | null;
+          "request_id"?: string | null;
+          "ip_address"?: string | null;
+          "user_agent"?: string | null;
+          "referer"?: string | null;
+          "success"?: boolean;
+          "error_message"?: string | null;
+          "affected_resources"?: string[] | null;
+          "legal_basis"?: string;
+          "data_subject_ids"?: string[] | null;
+          "retention_category"?: string;
+          "retention_days"?: number;
+          "workspace_id"?: string | null;
+          "correlation_id"?: string | null;
+          "session_id"?: string | null;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "approval_escalations": {
+        Row: {
+          "id": string;
+          "approval_id": string;
+          "escalated_to": string;
+          "escalation_reason": string;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "approval_id": string;
+          "escalated_to": string;
+          "escalation_reason": string;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "approval_id"?: string;
+          "escalated_to"?: string;
+          "escalation_reason"?: string;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "program_comments": {
+        Row: {
+          "id": string;
+          "program_id": string;
+          "node_id": string;
+          "user_id": string;
+          "body": string;
+          "resolved": boolean;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "program_id": string;
+          "node_id": string;
+          "user_id": string;
+          "body": string;
+          "resolved"?: boolean;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "program_id"?: string;
+          "node_id"?: string;
+          "user_id"?: string;
+          "body"?: string;
+          "resolved"?: boolean;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "program_approvals": {
+        Row: {
+          "id": string;
+          "program_id": string;
+          "reviewer_id": string;
+          "status": string;
+          "note": string | null;
+          "created_at": string;
+          "decided_at": string | null;
+        };
+        Insert: {
+          "id"?: string;
+          "program_id": string;
+          "reviewer_id": string;
+          "status"?: string;
+          "note"?: string | null;
+          "created_at"?: string;
+          "decided_at"?: string | null;
+        };
+        Update: {
+          "id"?: string;
+          "program_id"?: string;
+          "reviewer_id"?: string;
+          "status"?: string;
+          "note"?: string | null;
+          "created_at"?: string;
+          "decided_at"?: string | null;
+        };
+        Relationships: [];
+      };
+      "teams": {
+        Row: {
+          "id": string;
+          "name": string;
+          "owner_id": string;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "name": string;
+          "owner_id": string;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "name"?: string;
+          "owner_id"?: string;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "team_members": {
+        Row: {
+          "team_id": string;
+          "user_id": string;
+          "role": string;
+          "invited_at": string;
+        };
+        Insert: {
+          "team_id": string;
+          "user_id": string;
+          "role": string;
+          "invited_at"?: string;
+        };
+        Update: {
+          "team_id"?: string;
+          "user_id"?: string;
+          "role"?: string;
+          "invited_at"?: string;
+        };
+        Relationships: [];
+      };
+      "program_shares": {
+        Row: {
+          "program_id": string;
+          "team_id": string;
+          "permission": string;
+          "shared_at": string;
+        };
+        Insert: {
+          "program_id": string;
+          "team_id": string;
+          "permission": string;
+          "shared_at"?: string;
+        };
+        Update: {
+          "program_id"?: string;
+          "team_id"?: string;
+          "permission"?: string;
+          "shared_at"?: string;
+        };
+        Relationships: [];
+      };
+      "dead_letter_entries": {
+        Row: {
+          "id": string;
+          "program_id": string;
+          "run_id": string;
+          "node_id": string;
+          "node_type": string;
+          "node_config": Json;
+          "input_data": Json;
+          "error_message": string;
+          "error_type": string;
+          "attempt_count": number;
+          "retry_policy": Json;
+          "created_at": string;
+          "updated_at": string;
+          "retried_at": string | null;
+          "retry_count": number;
+          "last_error": string | null;
+          "status": string;
+          "metadata": Json;
+        };
+        Insert: {
+          "id"?: string;
+          "program_id": string;
+          "run_id": string;
+          "node_id": string;
+          "node_type": string;
+          "node_config"?: Json;
+          "input_data"?: Json;
+          "error_message": string;
+          "error_type": string;
+          "attempt_count"?: number;
+          "retry_policy"?: Json;
+          "created_at"?: string;
+          "updated_at"?: string;
+          "retried_at"?: string | null;
+          "retry_count"?: number;
+          "last_error"?: string | null;
+          "status"?: string;
+          "metadata"?: Json;
+        };
+        Update: {
+          "id"?: string;
+          "program_id"?: string;
+          "run_id"?: string;
+          "node_id"?: string;
+          "node_type"?: string;
+          "node_config"?: Json;
+          "input_data"?: Json;
+          "error_message"?: string;
+          "error_type"?: string;
+          "attempt_count"?: number;
+          "retry_policy"?: Json;
+          "created_at"?: string;
+          "updated_at"?: string;
+          "retried_at"?: string | null;
+          "retry_count"?: number;
+          "last_error"?: string | null;
+          "status"?: string;
+          "metadata"?: Json;
+        };
+        Relationships: [];
+      };
+      "organizations": {
+        Row: {
+          "id": string;
+          "name": string;
+          "slug": string;
+          "owner_id": string;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "name": string;
+          "slug": string;
+          "owner_id": string;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "name"?: string;
+          "slug"?: string;
+          "owner_id"?: string;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [];
+      };
+      "org_memberships": {
+        Row: {
+          "id": string;
+          "org_id": string;
+          "user_id": string;
+          "role": string;
+          "invited_by": string | null;
+          "invited_at": string | null;
+          "accepted_at": string | null;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "org_id": string;
+          "user_id": string;
+          "role": string;
+          "invited_by"?: string | null;
+          "invited_at"?: string | null;
+          "accepted_at"?: string | null;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "org_id"?: string;
+          "user_id"?: string;
+          "role"?: string;
+          "invited_by"?: string | null;
+          "invited_at"?: string | null;
+          "accepted_at"?: string | null;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "org_invites": {
+        Row: {
+          "id": string;
+          "org_id": string;
+          "email": string;
+          "role": string;
+          "token": string;
+          "expires_at": string;
+          "created_at": string;
+          "accepted_at": string | null;
+        };
+        Insert: {
+          "id"?: string;
+          "org_id": string;
+          "email": string;
+          "role": string;
+          "token": string;
+          "expires_at": string;
+          "created_at"?: string;
+          "accepted_at"?: string | null;
+        };
+        Update: {
+          "id"?: string;
+          "org_id"?: string;
+          "email"?: string;
+          "role"?: string;
+          "token"?: string;
+          "expires_at"?: string;
+          "created_at"?: string;
+          "accepted_at"?: string | null;
+        };
+        Relationships: [];
+      };
+      "billing_plans": {
+        Row: {
+          "id": string;
+          "name": string;
+          "slug": string;
+          "seat_price_monthly": number;
+          "included_seats": number;
+          "execution_price_per_minute": number;
+          "included_execution_minutes": number;
+          "byok_platform_fee_monthly": number;
+          "stripe_price_id": string | null;
+          "stripe_byok_price_id": string | null;
+          "features": Json;
+          "sort_order": number;
+          "is_active": boolean;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "name": string;
+          "slug": string;
+          "seat_price_monthly"?: number;
+          "included_seats"?: number;
+          "execution_price_per_minute"?: number;
+          "included_execution_minutes"?: number;
+          "byok_platform_fee_monthly"?: number;
+          "stripe_price_id"?: string | null;
+          "stripe_byok_price_id"?: string | null;
+          "features"?: Json;
+          "sort_order"?: number;
+          "is_active"?: boolean;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "name"?: string;
+          "slug"?: string;
+          "seat_price_monthly"?: number;
+          "included_seats"?: number;
+          "execution_price_per_minute"?: number;
+          "included_execution_minutes"?: number;
+          "byok_platform_fee_monthly"?: number;
+          "stripe_price_id"?: string | null;
+          "stripe_byok_price_id"?: string | null;
+          "features"?: Json;
+          "sort_order"?: number;
+          "is_active"?: boolean;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "org_subscriptions": {
+        Row: {
+          "id": string;
+          "org_id": string;
+          "plan_id": string;
+          "billing_mode": string;
+          "stripe_subscription_id": string | null;
+          "stripe_customer_id": string | null;
+          "status": string;
+          "current_period_start": string;
+          "current_period_end": string;
+          "seats_count": number;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "org_id": string;
+          "plan_id": string;
+          "billing_mode"?: string;
+          "stripe_subscription_id"?: string | null;
+          "stripe_customer_id"?: string | null;
+          "status"?: string;
+          "current_period_start"?: string;
+          "current_period_end"?: string;
+          "seats_count"?: number;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "org_id"?: string;
+          "plan_id"?: string;
+          "billing_mode"?: string;
+          "stripe_subscription_id"?: string | null;
+          "stripe_customer_id"?: string | null;
+          "status"?: string;
+          "current_period_start"?: string;
+          "current_period_end"?: string;
+          "seats_count"?: number;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [];
+      };
+      "usage_records": {
+        Row: {
+          "id": string;
+          "org_id": string;
+          "run_id": string | null;
+          "execution_minutes": number;
+          "tokens_used": number;
+          "model": string | null;
+          "billing": string;
+          "estimated_cost_usd": number;
+          "billed_amount": number;
+          "recorded_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "org_id": string;
+          "run_id"?: string | null;
+          "execution_minutes"?: number;
+          "tokens_used"?: number;
+          "model"?: string | null;
+          "billing"?: string;
+          "estimated_cost_usd"?: number;
+          "billed_amount"?: number;
+          "recorded_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "org_id"?: string;
+          "run_id"?: string | null;
+          "execution_minutes"?: number;
+          "tokens_used"?: number;
+          "model"?: string | null;
+          "billing"?: string;
+          "estimated_cost_usd"?: number;
+          "billed_amount"?: number;
+          "recorded_at"?: string;
+        };
+        Relationships: [];
+      };
+      "compliance_assessments": {
+        Row: {
+          "id": string;
+          "program_id": string;
+          "risk_level": string;
+          "risk_score": number;
+          "factors": Json;
+          "assessed_at": string;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "program_id": string;
+          "risk_level": string;
+          "risk_score": number;
+          "factors"?: Json;
+          "assessed_at"?: string;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "program_id"?: string;
+          "risk_level"?: string;
+          "risk_score"?: number;
+          "factors"?: Json;
+          "assessed_at"?: string;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "connector_health_events": {
+        Row: {
+          "id": string;
+          "connector_name": string;
+          "workspace_id": string | null;
+          "check_type": string;
+          "status": string;
+          "error_message": string | null;
+          "latency_ms": number | null;
+          "retry_count": number;
+          "next_retry_at": string | null;
+          "checked_at": string;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "connector_name": string;
+          "workspace_id"?: string | null;
+          "check_type": string;
+          "status": string;
+          "error_message"?: string | null;
+          "latency_ms"?: number | null;
+          "retry_count"?: number;
+          "next_retry_at"?: string | null;
+          "checked_at"?: string;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "connector_name"?: string;
+          "workspace_id"?: string | null;
+          "check_type"?: string;
+          "status"?: string;
+          "error_message"?: string | null;
+          "latency_ms"?: number | null;
+          "retry_count"?: number;
+          "next_retry_at"?: string | null;
+          "checked_at"?: string;
+          "created_at"?: string;
+        };
+        Relationships: [];
+      };
+      "playground_test_cases": {
+        Row: {
+          "id": string;
+          "user_id": string;
+          "name": string;
+          "prompt": string;
+          "expected_schema": Json | null;
+          "tags": string[] | null;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "user_id": string;
+          "name": string;
+          "prompt": string;
+          "expected_schema"?: Json | null;
+          "tags"?: string[] | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "user_id"?: string;
+          "name"?: string;
+          "prompt"?: string;
+          "expected_schema"?: Json | null;
+          "tags"?: string[] | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [];
+      };
+      "webhook_endpoints": {
+        Row: {
+          "id": string;
+          "trigger_id": string;
+          "program_id": string;
+          "user_id": string;
+          "workspace_id": string | null;
+          "name": string;
+          "signing_secret": string;
+          "signature_header": string | null;
+          "timestamp_header": string | null;
+          "signature_prefix": string | null;
+          "allowed_methods": string[] | null;
+          "is_active": boolean | null;
+          "created_at": string | null;
+          "updated_at": string | null;
+        };
+        Insert: {
+          "id"?: string;
+          "trigger_id": string;
+          "program_id": string;
+          "user_id": string;
+          "workspace_id"?: string | null;
+          "name"?: string;
+          "signing_secret": string;
+          "signature_header"?: string | null;
+          "timestamp_header"?: string | null;
+          "signature_prefix"?: string | null;
+          "allowed_methods"?: string[] | null;
+          "is_active"?: boolean | null;
+          "created_at"?: string | null;
+          "updated_at"?: string | null;
+        };
+        Update: {
+          "id"?: string;
+          "trigger_id"?: string;
+          "program_id"?: string;
+          "user_id"?: string;
+          "workspace_id"?: string | null;
+          "name"?: string;
+          "signing_secret"?: string;
+          "signature_header"?: string | null;
+          "timestamp_header"?: string | null;
+          "signature_prefix"?: string | null;
+          "allowed_methods"?: string[] | null;
+          "is_active"?: boolean | null;
+          "created_at"?: string | null;
+          "updated_at"?: string | null;
+        };
+        Relationships: [];
+      };
+      "workspace_env_vars": {
+        Row: {
+          "id": string;
+          "workspace_id": string;
+          "name": string;
+          "vault_secret_id": string;
+          "created_by": string | null;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "workspace_id": string;
+          "name": string;
+          "vault_secret_id": string;
+          "created_by"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "workspace_id"?: string;
+          "name"?: string;
+          "vault_secret_id"?: string;
+          "created_by"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [];
+      };
+      "templates": {
+        Row: {
+          "id": string;
+          "name": string;
+          "description": string;
+          "category": string;
+          "genesis_prompt": string;
+          "program_json": Json;
+          "thumbnail_url": string | null;
+          "is_public": boolean;
+          "created_by": string | null;
+          "created_at": string;
+          "updated_at": string;
+          "user_id": string | null;
+          "fork_count": number | null;
+        };
+        Insert: {
+          "id"?: string;
+          "name": string;
+          "description"?: string;
+          "category"?: string;
+          "genesis_prompt": string;
+          "program_json": Json;
+          "thumbnail_url"?: string | null;
+          "is_public"?: boolean;
+          "created_by"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+          "user_id"?: string | null;
+          "fork_count"?: number | null;
+        };
+        Update: {
+          "id"?: string;
+          "name"?: string;
+          "description"?: string;
+          "category"?: string;
+          "genesis_prompt"?: string;
+          "program_json"?: Json;
+          "thumbnail_url"?: string | null;
+          "is_public"?: boolean;
+          "created_by"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+          "user_id"?: string | null;
+          "fork_count"?: number | null;
+        };
+        Relationships: [];
+      };
       "account_deletion_audit": {
         Row: {
           "id": string;
