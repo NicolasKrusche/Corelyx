@@ -138,8 +138,8 @@ export async function POST(
       restored_version_id: targetVersion.id,
       new_schema_version: nextVersion,
       active_run_warning: activeRunWarning,
+      workspace_id: access?.workspaceId ?? null,
     },
-    workspaceId: access?.workspaceId,
     success: true,
   });
 
