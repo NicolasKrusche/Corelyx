@@ -1,39 +1,8 @@
 from __future__ import annotations
-import sys as _sys
-import types as _types
-from pathlib import Path as _Path
-from unittest.mock import MagicMock as _MagicMock
-
-for _m in list(_sys.modules):
-    if _m.startswith("connectors.") or _m == "engine.executor":
-        del _sys.modules[_m]
-
-if "connectors" not in _sys.modules or not getattr(_sys.modules.get("connectors"), "_is_stub", False):
-    _base = _types.ModuleType("connectors.base")
-    class _CE(Exception):
-        def __init__(self, code="", message=""):
-            super().__init__(message)
-            self.code = code
-            self.message = message
-    _base.ConnectorError = _CE
-    _base.IConnector = type("IConnector", (), {})
-    _conn = _types.ModuleType("connectors")
-    _conn._is_stub = True
-    _conn.get_connector = _MagicMock(return_value=None)
-    _conn.REGISTRY = {}
-    _conn.IConnector = _base.IConnector
-    _conn.ConnectorError = _CE
-    # Keep the stub importable as a *package* so `import connectors.<mod>`
-    # still resolves to the real module on disk. Without __path__ the stub
-    # is a plain module, and because these stubs are installed at import
-    # time and never torn down, the first agent test collected poisoned
-    # sys.modules for every later test in the session.
-    _conn.__path__ = [str(_Path(__file__).resolve().parent.parent / "connectors")]
-    _sys.modules["connectors"] = _conn
-    _sys.modules["connectors.base"] = _base
 
 
 import json
+import socket
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
@@ -174,6 +143,23 @@ class GenesisComprehensiveProgramTests(unittest.IsolatedAsyncioTestCase):
     def setUpClass(cls) -> None:
         cls.raw_program = json.loads(PROGRAM_JSON_PATH.read_text(encoding="utf-8"))
         cls.program = parse_schema(cls.raw_program)
+
+    def setUp(self) -> None:
+        # The fixture program's HTTP nodes point at httpbin.org, and
+        # _validate_http_url resolves the hostname to screen it against the
+        # private ranges before any request is built. These tests already mock
+        # httpx.AsyncClient, so no HTTP call was going out — but that lookup is a
+        # live DNS query, so the tests only passed while DNS was reachable and
+        # while httpbin.org kept resolving to a public address.
+        #
+        # Stub the resolver to a fixed public IP: the SSRF check still runs its
+        # real logic, offline and deterministically.
+        resolver = patch(
+            "engine.executor.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))],
+        )
+        resolver.start()
+        self.addCleanup(resolver.stop)
 
     # ── Schema Structure Tests ───────────────────────────────────────────────
 

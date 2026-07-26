@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import sys
+from contextlib import ExitStack
 from pathlib import Path
 import unittest
 
@@ -42,7 +44,22 @@ for _provider, _cls in sorted(REGISTRY.items()):
                     mock_resp.json.return_value = [{"id": "site1"}]
                 else:
                     mock_resp.json.return_value = {}
-                with patch("connectors.rate_limit.request_with_rate_limit", new=AsyncMock(return_value=mock_resp)):
+                # Patch the name where it is *used*, not only where it is defined.
+                # Connector modules do `from .rate_limit import
+                # request_with_rate_limit` at import time, so patching only
+                # connectors.rate_limit leaves that module-local binding pointing
+                # at the real function. Most connectors reject the unknown
+                # operation before calling anything, which hid this — but basecamp
+                # and jira resolve the account first, so the unpatched call went
+                # out to launchpad.37signals.com / api.atlassian.com for real.
+                targets = ["connectors.rate_limit.request_with_rate_limit"]
+                module = sys.modules.get(cls.__module__)
+                if module is not None and hasattr(module, "request_with_rate_limit"):
+                    targets.append(f"{cls.__module__}.request_with_rate_limit")
+
+                with ExitStack() as stack:
+                    for target in targets:
+                        stack.enter_context(patch(target, new=AsyncMock(return_value=mock_resp)))
                     with self.assertRaises(ConnectorError):
                         asyncio.run(inst.execute("__nonexistent_operation__", {}, "token"))
 

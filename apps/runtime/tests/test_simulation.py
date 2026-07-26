@@ -194,8 +194,16 @@ def _make_schema(
 
 
 def _run(coro):
-    """Run an async coroutine in a synchronous test."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Run an async coroutine in a synchronous test.
+
+    Uses asyncio.run rather than get_event_loop().run_until_complete(): the
+    latter reads *global* event-loop state, which any other test module using
+    IsolatedAsyncioTestCase will have closed and cleared by the time these
+    tests run. That left get_event_loop() handing back a closed loop, so the
+    coroutine was never awaited and 27 tests here failed in the full suite
+    while passing in isolation. asyncio.run creates and disposes its own loop.
+    """
+    return asyncio.run(coro)
 
 
 # ─── Mock Connector Registry Tests ──────────────────────────────────────────
