@@ -244,7 +244,7 @@ VALUES (
       {"id":"trigger-1","type":"trigger","label":"Every hour","description":"Check for updates hourly.","connection":null,"config":{"trigger_type":"cron","expression":"0 * * * *","timezone":"UTC"},"position":{"x":100,"y":200},"status":"idle"},
       {"id":"hubspot-1","type":"connection","label":"List contacts","description":"Fetch recent HubSpot contacts.","connection":null,"config":{"scope_access":"read","scope_required":[],"operation":"list_contacts","operation_params":{"limit":50}},"position":{"x":420,"y":200},"status":"idle"},
       {"id":"filter-1","type":"step","label":"Skip if empty","description":"No contacts found.","connection":null,"config":{"logic_type":"filter","condition":"len(data.get(\"contacts\", [])) > 0","pass_schema":null},"position":{"x":740,"y":200},"status":"idle"},
-      {"id":"loop-1","type":"step","label":"Loop over contacts","description":"Process each contact.","connection":null,"config":{"logic_type":"loop","over":"data['contacts']","item_var":"contact"},"position":{"x":1060,"y":200},"status":"idle"},
+      {"id":"loop-1","type":"step","label":"Loop over contacts","description":"Process each contact.","connection":null,"config":{"logic_type":"loop","over":"data[''contacts'']","item_var":"contact"},"position":{"x":1060,"y":200},"status":"idle"},
       {"id":"hubspot-2","type":"connection","label":"Update CRM","description":"Update the contact record.","connection":null,"config":{"scope_access":"write","scope_required":[],"operation":"update_contact","operation_params":{"contact_id":"{{loop-1.contact.id}}","firstname":"{{loop-1.contact.firstname}}","lastname":"{{loop-1.contact.lastname}}","email":"{{loop-1.contact.email}}"}},"position":{"x":1380,"y":200},"status":"idle"}
     ],
     "edges": [
