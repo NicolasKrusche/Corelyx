@@ -56,11 +56,16 @@ set search_path = public
 as $$
   select exists (
     -- program owner
+    -- Was: join public.workspaces w on w.id = p.workspace_id ... w.user_id.
+    -- `workspaces` has no user_id column (ownership is created_by, and
+    -- membership lives in workspace_memberships), so this raised
+    -- "column w.user_id does not exist" — LANGUAGE sql bodies are validated at
+    -- CREATE time. programs.user_id is the program's owner, which is what the
+    -- comment describes, and needs no join at all.
     select 1
     from public.programs p
-    join public.workspaces w on w.id = p.workspace_id
     where p.id = p_program_id
-      and w.user_id = p_user_id
+      and p.user_id = p_user_id
   ) or exists (
     -- workspace admin/owner
     select 1
