@@ -18,7 +18,7 @@
     "gen:types:rest": "node scripts/generate-rest-types.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.43.4"
+    "@supabase/supabase-js": "2.110.7"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

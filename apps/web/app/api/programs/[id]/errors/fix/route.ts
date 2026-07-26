@@ -120,9 +120,6 @@ export async function PUT(
     .from("programs")
     .select("id, schema, schema_version")
     .eq("id", params.id)
-    // @supabase/ssr 0.5.2's generics predate supabase-js 2.101, so its .from()
-    // resolves to never. Type the row here rather than casting the client.
-    .returns<{ id: string; schema: unknown; schema_version: number | null }[]>()
     .single();
 
   if (!programRow) return apiError("Program not found", 404);

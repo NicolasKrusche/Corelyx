@@ -29,7 +29,9 @@ async function loadConnectionForUser(
     .single();
 
   if (error || !data) return { error: apiError("Connection not found", 404) };
-  const row = data as Record<string, unknown> & { workspace_id: string };
+  // `columns` is a runtime string, so supabase-js types the select result as a
+  // ParserError rather than a row shape. Callers narrow `row` themselves.
+  const row = data as unknown as Record<string, unknown> & { workspace_id: string };
 
   const role = await getWorkspaceRole(row.workspace_id, userId);
   if (!role) return { error: apiError("Connection not found", 404) };

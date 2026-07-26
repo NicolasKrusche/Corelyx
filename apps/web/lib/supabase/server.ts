@@ -1,4 +1,5 @@
 import { createServerClient as _createServerClient } from "@supabase/ssr";
+import type { CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import * as React from "react";
 import type { Database } from "@flowos/db";
@@ -34,7 +35,10 @@ export async function createServerClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+        // @supabase/ssr also passes no-store response headers as a second
+        // argument, but next/headers exposes no way to set response headers from
+        // here. Middleware applies them on the responses it builds.
+        setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)

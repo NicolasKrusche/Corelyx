@@ -291,11 +291,21 @@ export async function middleware(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+      setAll(
+        cookiesToSet: { name: string; value: string; options: CookieOptions }[],
+        headers: Record<string, string>
+      ) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = nextWithSecurity();
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options)
+        );
+        // A response carrying refreshed auth cookies must never be cached by a
+        // CDN or reverse proxy — otherwise one user's session token can be
+        // served to another. @supabase/ssr supplies the no-store headers to
+        // apply; set them after nextWithSecurity() so they survive the rebuild.
+        Object.entries(headers).forEach(([key, value]) =>
+          supabaseResponse.headers.set(key, value)
         );
       },
     },
