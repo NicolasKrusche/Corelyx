@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { getTeamRole } from "@/lib/auth/team-context";
 
 const UpdateTeamSchema = z.object({
   name: z.string().trim().min(1).max(120),
 });
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type TeamRow = {
   id: string;

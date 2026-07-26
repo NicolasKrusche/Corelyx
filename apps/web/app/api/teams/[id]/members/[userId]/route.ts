@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { getTeamRole } from "@/lib/auth/team-context";
 
 const UpdateRoleSchema = z.object({
   role: z.enum(["admin", "member", "viewer"]),
 });
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 /**
  * PATCH /api/teams/[id]/members/[userId] — Change a member's role (admins only).

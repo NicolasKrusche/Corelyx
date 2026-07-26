@@ -8,6 +8,7 @@ must let the run continue unchanged.
 from __future__ import annotations
 import sys as _sys
 import types as _types
+from pathlib import Path as _Path
 from unittest.mock import MagicMock as _MagicMock
 
 for _m in list(_sys.modules):
@@ -29,6 +30,12 @@ if "connectors" not in _sys.modules or not getattr(_sys.modules.get("connectors"
     _conn.REGISTRY = {}
     _conn.IConnector = _base.IConnector
     _conn.ConnectorError = _CE
+    # Keep the stub importable as a *package* so `import connectors.<mod>`
+    # still resolves to the real module on disk. Without __path__ the stub
+    # is a plain module, and because these stubs are installed at import
+    # time and never torn down, the first agent test collected poisoned
+    # sys.modules for every later test in the session.
+    _conn.__path__ = [str(_Path(__file__).resolve().parent.parent / "connectors")]
     _sys.modules["connectors"] = _conn
     _sys.modules["connectors.base"] = _base
 

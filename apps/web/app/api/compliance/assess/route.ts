@@ -1,13 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ProgramSchemaZ } from "@flowos/schema";
-import { createServiceClient } from "@/lib/api";
+import { createServiceClient, type LooseServiceClient } from "@/lib/api";
 import { getRequestUser } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { classifyRisk } from "@/lib/compliance/risk-classifier";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 /**
  * POST /api/compliance/assess

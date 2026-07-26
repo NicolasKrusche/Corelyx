@@ -1,10 +1,6 @@
 import type { User } from "@supabase/supabase-js";
-import { createServiceClient } from "@/lib/api";
+import { createServiceClient, type LooseServiceClient } from "@/lib/api";
 import type { WorkspaceRole } from "@/lib/workspace-types";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type MembershipRow = {
   workspace_id: string;

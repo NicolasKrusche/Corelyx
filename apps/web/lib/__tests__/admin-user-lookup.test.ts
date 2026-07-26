@@ -18,7 +18,7 @@ function clientWithRpc(rows: FakeUser[]) {
 }
 
 /**
- * Service client from a database where migration 20260725120000 has not been
+ * Service client from a database where migration 20260725130000 has not been
  * applied: the RPC errors and the GoTrue admin API serves `users` in pages.
  */
 function clientWithoutRpc(users: FakeUser[], pageSize = 1000) {

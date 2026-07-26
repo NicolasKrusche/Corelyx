@@ -1,9 +1,7 @@
-import type { createServiceClient } from "@/lib/api";
+import type { LooseServiceClient } from "@/lib/api";
 
 // Loose client: the audit tables (node_executions, agent_reports) are not in the
 // generated typed schema surface, so we widen `.from()` the same way the route does.
-type LooseServiceClient = ReturnType<typeof createServiceClient> & { from(table: string): any };
-
 const MAX_AUDIT_RUNS = 200;
 
 export type AgentAuditData = {

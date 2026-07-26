@@ -3,7 +3,7 @@
  *
  * Emails live in `auth.users`, which PostgREST does not expose, so these
  * helpers prefer the `admin_search_users` SECURITY DEFINER function added in
- * migration 20260725120000 and fall back to paging the GoTrue admin API when
+ * migration 20260725130000 and fall back to paging the GoTrue admin API when
  * that migration has not been applied yet.
  *
  * The fallback exists because GoTrue's admin API has no server-side email

@@ -1,5 +1,5 @@
 import { ProgramSchemaZ, type ProgramSchema } from "@flowos/schema";
-import { createServiceClient } from "@/lib/api";
+import { createServiceClient, type LooseServiceClient } from "@/lib/api";
 import {
   buildDataFlowPreview,
   type DataFlowPreviewItem,
@@ -15,10 +15,6 @@ import {
 } from "@/lib/compliance/governance";
 import { loadWorkspaceComplianceSettings } from "@/lib/compliance/server";
 import { resolvePersistedDpiaStatus } from "@/lib/compliance/dpia-drafts";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type ProgramRow = ProgramInventorySource & {
   user_id: string;

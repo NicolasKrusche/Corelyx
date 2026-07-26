@@ -74,7 +74,7 @@ export async function POST(
     ) {
       const workspaceId = programData.workspace_id as string;
       const { data: memberData } = await serviceClient
-        .from("workspace_members")
+        .from("workspace_memberships")
         .select("role")
         .eq("workspace_id", workspaceId)
         .eq("user_id", user.id)
@@ -108,10 +108,12 @@ export async function POST(
     ) {
       const workspaceId = programData.workspace_id as string;
       const { data: members } = await serviceClient
-        .from("workspace_members")
+        .from("workspace_memberships")
         .select("user_id, role")
         .eq("workspace_id", workspaceId)
-        .eq("role", "admin");
+        // Roles are owner/admin/member/viewer — escalating to 'admin' alone
+        // skipped the workspace owner.
+        .in("role", ["owner", "admin"]);
 
       if (members && Array.isArray(members)) {
         adminUserIds = (members as unknown as AdminMember[])

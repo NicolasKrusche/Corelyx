@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { getTeamMembers, getTeamRole } from "@/lib/auth/team-context";
 
@@ -11,10 +11,6 @@ const InviteMemberSchema = z.object({
     .transform((e) => e.trim().toLowerCase()),
   role: z.enum(["admin", "member", "viewer"]),
 });
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 /**
  * GET /api/teams/[id]/members — List team members (requires membership).

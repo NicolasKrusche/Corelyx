@@ -65,3 +65,13 @@ desktop_app_plan.md
 genesis_v2_plan.md
 mobile_app_plan.md
 opus_working_style.md
+
+# Local agent/orchestration state — machine-specific, not part of the project
+.hermes/
+.corelyx_loop.json
+
+# Vendored CLI tarballs must never be committed (a 49 MB gh_2.52.0_linux_amd64
+# tree was added by accident in 2fe9902 and removed in this branch)
+gh_*_linux_amd64/
+gh_*_darwin_*/
+gh_*_windows_*/

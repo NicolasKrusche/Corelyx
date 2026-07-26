@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/api";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
+import { createServiceClient, type LooseServiceClient } from "@/lib/api";
 
 /**
  * POST /api/webhooks/stripe — Handle Stripe webhook events.

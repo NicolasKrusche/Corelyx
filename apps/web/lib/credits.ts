@@ -138,7 +138,7 @@ export async function deductUserCredits(userId: string, amountCredits: number): 
 
   if (row.storage === "credits") {
     // The DB function computes the included/purchased split under the row lock
-    // (migration 20260724120000). Pass only the total and the plan's included
+    // (migration 20260724130000). Pass only the total and the plan's included
     // limit, so two concurrent deductions can't both claim the same included
     // remainder from a stale snapshot and spuriously fail the second one.
     const { data, error: rpcError } = await (service as RpcClient).rpc("deduct_user_credits_raw", {

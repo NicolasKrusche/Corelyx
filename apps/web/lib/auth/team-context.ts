@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { createServiceClient } from "@/lib/api";
+import { createServiceClient, type LooseServiceClient } from "@/lib/api";
 
 /**
  * Team roles, most privileged first. The team owner is always treated as an
@@ -29,10 +29,6 @@ export type TeamMember = {
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
-};
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
 };
 
 /**
