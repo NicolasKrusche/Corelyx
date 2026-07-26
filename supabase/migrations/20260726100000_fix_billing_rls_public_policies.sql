@@ -124,9 +124,12 @@ REVOKE SELECT, INSERT, UPDATE, DELETE ON public.org_invites FROM anon, authentic
 
 DROP POLICY IF EXISTS "Users can view all templates" ON public.templates;
 
+-- created_by is the ownership column (20260719090000) and the one the app
+-- writes. There is no templates.user_id: 20260722230000 only adds it when the
+-- table has neither user_id nor created_by, which is never true here.
+-- `status` is added by 20260724000000, which runs before this migration.
 CREATE POLICY "read public or own templates" ON public.templates
   FOR SELECT USING (
     (is_public AND status = 'approved')
     OR created_by = auth.uid()
-    OR user_id = auth.uid()
   );

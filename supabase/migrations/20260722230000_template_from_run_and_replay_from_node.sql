@@ -37,22 +37,31 @@ CREATE POLICY "Users can view all templates"
   USING (true);
 
 -- Users can create templates (for "Save as Template" feature)
+--
+-- These three policies referenced `user_id`, which templates does not have. The
+-- DO block above only adds user_id when the table has NEITHER user_id NOR
+-- created_by — and 20260719090000 creates templates WITH created_by, so the
+-- column is never added and every policy below failed with
+-- "column user_id does not exist".
+--
+-- created_by is the real ownership column and the one the app writes:
+-- /api/runs/[id]/save-as-template inserts `created_by: user.id`.
 DROP POLICY IF EXISTS "Users can create own templates" ON public.templates;
 CREATE POLICY "Users can create own templates"
   ON public.templates FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (auth.uid() = created_by);
 
 -- Users can update their own templates
 DROP POLICY IF EXISTS "Users can update own templates" ON public.templates;
 CREATE POLICY "Users can update own templates"
   ON public.templates FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = created_by);
 
 -- Users can delete their own templates
 DROP POLICY IF EXISTS "Users can delete own templates" ON public.templates;
 CREATE POLICY "Users can delete own templates"
   ON public.templates FOR DELETE
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = created_by);
 
 -- Add parent_run_id to runs table for replay provenance tracking
 DO $$
