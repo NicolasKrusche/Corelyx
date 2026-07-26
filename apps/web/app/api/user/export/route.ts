@@ -1,4 +1,4 @@
-﻿import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+﻿import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { serverLog } from "@/lib/server-log";
 
 type ProgramRow = {
@@ -222,10 +222,6 @@ type RedemptionRow = {
 };
 
 type DbError = { message: string };
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type AppLogTable = {
   insert(values: Record<string, unknown>): PromiseLike<{ error: DbError | null }>;

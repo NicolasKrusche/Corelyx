@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type InviteRow = {
   id: string;

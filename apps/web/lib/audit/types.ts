@@ -25,7 +25,7 @@ export type AdminActionType =
   | 'admin.program.suspend'
   | 'admin.connector.create'
   | 'admin.connector.update'
-  'admin.connector.delete'
+  | 'admin.connector.delete'
   | 'admin.connector.configure'
   | 'admin.connector.credentials.rotate'
   | 'admin.connector.credentials.revoke'
@@ -86,6 +86,13 @@ export interface AdminActionContext {
   userAgent?: string;
   referer?: string;
 
+  // Correlation and scoping. These are caller-supplied inputs — logAdminAction
+  // reads them off the context and carries them onto the stored record — so
+  // they belong here rather than only on AdminAuditRecord.
+  workspaceId?: string;
+  correlationId?: string;
+  sessionId?: string;
+
   // Outcome
   success: boolean;
   errorMessage?: string;
@@ -101,9 +108,10 @@ export interface AdminActionContext {
 export interface AdminAuditRecord extends AdminActionContext {
   id: string;
   timestamp: string;
-  workspaceId?: string;
-  correlationId?: string;
-  sessionId?: string;
+  // Narrowed to required: logAdminAction always populates this, generating one
+  // when the caller does not supply it, so downstream consumers (SIEM export)
+  // can rely on it.
+  correlationId: string;
 }
 
 export interface AdminAuditQuery {

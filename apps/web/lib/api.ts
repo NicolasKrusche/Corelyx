@@ -143,6 +143,29 @@ export function createServiceClient() {
   );
 }
 
+/**
+ * Service client whose `from()` is deliberately untyped.
+ *
+ * Routes for features whose tables are not yet in the generated `Database`
+ * types use this to opt out of table-name checking and cast the rows
+ * themselves.
+ *
+ * The `Omit<..., "from">` matters. The obvious spelling —
+ *
+ *     ReturnType<typeof createServiceClient> & { from(table: string): any }
+ *
+ * — does not work: intersecting two objects that both declare `from` produces
+ * an overload set in which the strongly-typed signature is still resolved
+ * first, so a known table name goes down the typed path and an unknown one
+ * collapses the result to `never` rather than `any`. That spelling was
+ * copy-pasted into ~33 route/lib files and silently did nothing in all of
+ * them. Omitting the typed member first leaves only the loose signature.
+ */
+export type LooseServiceClient = Omit<ReturnType<typeof createServiceClient>, "from"> & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from(table: string): any;
+};
+
 function assertServiceRoleKey(key: string) {
   const parts = key.split(".");
   if (parts.length < 2) return;

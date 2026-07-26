@@ -1,14 +1,10 @@
-import { createServiceClient } from "@/lib/api";
+import { createServiceClient, type LooseServiceClient } from "@/lib/api";
 import {
   DEFAULT_WORKSPACE_COMPLIANCE,
   mergeWorkspaceComplianceSettings,
   type WorkspaceComplianceSettings,
   type WorkflowProviderContext,
 } from "@/lib/compliance/workflow";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 export async function loadWorkspaceComplianceSettings(
   workspaceId: string,

@@ -13,6 +13,7 @@
  */
 
 import type { ProgramSchema, Node, ConnectionNode, AgentNode } from "@flowos/schema";
+import { connectorProvider } from "./connector-fields";
 
 // ─── Risk Levels ────────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ export function classifyRisk(schema: ProgramSchema): RiskAssessment {
   for (const node of schema.nodes) {
     if (node.type !== "connection") continue;
     const conn = node as ConnectionNode;
-    const provider = (conn.config?.provider ?? conn.connection ?? "").toLowerCase();
+    const provider = connectorProvider(conn);
 
     // Check connector risk tags
     for (const [keyword, tags] of Object.entries(CONNECTOR_RISK_TAGS)) {
@@ -305,8 +306,10 @@ export function classifyRisk(schema: ProgramSchema): RiskAssessment {
   }
 
   // 4. Metadata-based signals
-  const meta = schema.metadata as Record<string, unknown>;
-  if (meta.human_oversight_required === false) {
+  // `human_oversight_required` is a typed optional field on ProgramMetadata, so
+  // read it directly — the previous `as Record<string, unknown>` cast only
+  // suppressed type checking on a field that is already known.
+  if (schema.metadata.human_oversight_required === false) {
     const w = WEIGHT_NO_HUMAN_OVERSIGHT;
     score += w;
     factors.push({

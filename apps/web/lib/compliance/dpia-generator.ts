@@ -8,6 +8,7 @@
 
 import type { ProgramSchema, Node, ConnectionNode, AgentNode } from "@flowos/schema";
 import type { RiskAssessment } from "./risk-classifier";
+import { connectorProvider } from "./connector-fields";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -96,8 +97,7 @@ function detectRecipients(schema: ProgramSchema): string[] {
   for (const node of schema.nodes) {
     if (node.type !== "connection") continue;
     const conn = node as ConnectionNode;
-    const provider = conn.config?.provider ?? conn.connection ?? "Unknown integration";
-    recipients.add(provider);
+    recipients.add(connectorProvider(conn) || "Unknown integration");
   }
 
   return Array.from(recipients);
@@ -116,10 +116,12 @@ function detectDataFlows(schema: ProgramSchema): Array<{
     nodeLabels[node.id] = (node as any).label ?? node.id;
   }
 
-  // Map edges to data flows
+  // Map edges to data flows. Canonical schema edges are `from`/`to` —
+  // `source`/`target` is React Flow's editor naming and is undefined here,
+  // which previously made every flow row render as "undefined → undefined".
   for (const edge of schema.edges) {
-    const source = nodeLabels[edge.source] ?? edge.source;
-    const target = nodeLabels[edge.target] ?? edge.target;
+    const source = nodeLabels[edge.from] ?? edge.from;
+    const target = nodeLabels[edge.to] ?? edge.to;
     flows.push({
       from: source,
       to: target,

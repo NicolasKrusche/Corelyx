@@ -14,8 +14,10 @@ import type {
   AdminAuditQuery,
   AdminAuditExportOptions,
   AdminRiskAssessment,
-  ADMIN_ACTION_RISK_MAP,
 } from '@/lib/audit/types';
+// A value, not a type — it must be a runtime import or assessAdminRisk below
+// throws at module load.
+import { ADMIN_ACTION_RISK_MAP } from '@/lib/audit/types';
 
 type ServiceDb = ReturnType<typeof createServiceClient> & { from(table: string): any; rpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> };
 
@@ -197,23 +199,26 @@ async function forwardToSiem(record: AdminAuditRecord): Promise<void> {
       eventType: record.action,
       severity: mapRiskToSiemSeverity(record.riskLevel),
       timestamp: record.timestamp,
+      // SiemRecord uses `| null` for absent values, so coalesce rather than
+      // passing `undefined` through — JSON.stringify would drop those keys
+      // entirely and the SIEM would see a differently-shaped event.
       actor: {
         id: record.actorId,
-        email: record.actorEmail,
-        role: record.actorRole,
-        ip: record.actorIp,
+        email: record.actorEmail ?? null,
+        role: record.actorRole ?? null,
+        ip: record.actorIp ?? null,
       },
       target: {
         type: record.targetType,
         id: record.targetId,
-        identifier: record.targetIdentifier,
+        identifier: record.targetIdentifier ?? null,
       },
       action: record.action,
       outcome: record.success ? 'success' : 'failure',
       riskLevel: record.riskLevel,
-      details: record.metadata,
+      details: record.metadata ?? null,
       correlationId: record.correlationId,
-      workspaceId: record.workspaceId,
+      workspaceId: record.workspaceId ?? null,
     });
   } catch {
     // SIEM forward failure is logged but doesn't block
@@ -335,7 +340,21 @@ export async function exportAdminAuditLogs(
       }
       case 'csv': {
         const { toCsv } = await import('@/lib/compliance/export');
-        const data = toCsv(records);
+        // toCsv takes (headers, rows) — it was being called with the record
+        // array alone, so CSV export could never have produced valid output.
+        // Columns are listed explicitly so the export stays stable if the
+        // record shape gains fields.
+        const columns = [
+          'id', 'timestamp', 'action', 'riskLevel', 'success',
+          'actorId', 'actorEmail', 'actorRole', 'actorIp',
+          'targetType', 'targetId', 'targetIdentifier',
+          'workspaceId', 'correlationId', 'sessionId',
+          'reason', 'errorMessage', 'legalBasis', 'retentionCategory',
+        ] as const;
+        const data = toCsv(
+          [...columns],
+          records.map((r) => columns.map((c) => r[c] ?? '')),
+        );
         return {
           data,
           filename: `${baseFilename}.csv`,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { getTeamRole } from "@/lib/auth/team-context";
 import {
@@ -19,10 +19,6 @@ const UpdateShareSchema = z.object({
   user_id: z.string().uuid().optional(),
   role: z.enum(PROGRAM_ROLES).nullable().optional(),
 });
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type WorkspaceMemberRow = {
   user_id: string;

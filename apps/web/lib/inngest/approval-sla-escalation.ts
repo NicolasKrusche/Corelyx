@@ -140,12 +140,21 @@ export const approvalSlaEscalation = inngest.createFunction(
           if (programData && typeof programData === "object" && "workspace_id" in programData) {
             const workspaceId = programData.workspace_id as string;
 
-            // Get workspace admin users
+            // Get the workspace's owner and admins.
+            //
+            // Two fixes here: the table is `workspace_memberships`
+            // (`workspace_members` has never existed — migrations
+            // 20260611100000 and 20260722220000 both corrected the same typo
+            // in RLS policies), so this query previously returned nothing and
+            // the escalation silently notified no one. And the role filter has
+            // to include 'owner': roles are owner/admin/member/viewer, so
+            // filtering to 'admin' alone skipped the one person who always has
+            // authority over the workspace.
             const { data: members } = await db
-              .from("workspace_members")
+              .from("workspace_memberships")
               .select("user_id, role")
               .eq("workspace_id", workspaceId)
-              .eq("role", "admin");
+              .in("role", ["owner", "admin"]);
 
             if (members && Array.isArray(members)) {
               for (const member of members) {

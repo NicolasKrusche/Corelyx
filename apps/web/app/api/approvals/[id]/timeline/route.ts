@@ -45,8 +45,11 @@ export async function GET(
       "workspace_id" in programData
     ) {
       const { data: memberData } = await serviceClient
-        .from("workspace_members")
-        .select("id")
+        // `workspace_members` does not exist — the table is
+        // `workspace_memberships`, and it has a composite (workspace_id,
+        // user_id) primary key rather than an `id` column.
+        .from("workspace_memberships")
+        .select("user_id")
         .eq("workspace_id", programData.workspace_id as string)
         .eq("user_id", user.id)
         .limit(1);

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { canManageWorkspace, type WorkspaceRole } from "@/lib/workspaces";
 
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
+// Extends the shared loose client with an untyped `storage` for bucket access.
+type LooseStorageClient = LooseServiceClient & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   storage: any;
 };
 

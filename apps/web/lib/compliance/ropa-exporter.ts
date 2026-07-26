@@ -7,6 +7,7 @@
  */
 
 import type { ProgramSchema, ConnectionNode } from "@flowos/schema";
+import { connectorProvider, connectorOperation } from "./connector-fields";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,7 @@ function buildRopaRecords(schema: ProgramSchema): RopaRecord[] {
   for (const node of schema.nodes) {
     if (node.type !== "connection") continue;
     const conn = node as ConnectionNode;
-    const provider = (conn.config?.provider ?? conn.connection ?? "unknown").toLowerCase();
+    const provider = connectorProvider(conn) || "unknown";
     const recipientInfo = PROVIDER_RECIPIENT_MAP[provider];
 
     const recipient = {
@@ -215,8 +216,10 @@ function buildRopaRecords(schema: ProgramSchema): RopaRecord[] {
 }
 
 function determineProcessingPurpose(conn: ConnectionNode): string {
-  const provider = (conn.config?.provider ?? conn.connection ?? "").toLowerCase();
-  const action = (conn.config?.action ?? conn.config?.operation ?? "").toLowerCase();
+  const provider = connectorProvider(conn);
+  // Was `config.action ?? config.operation`, but no ConnectionConfig variant has
+  // an `action` field — that branch was always undefined.
+  const action = connectorOperation(conn);
 
   // AI model providers
   if (["openai", "anthropic", "google_ai", "cohere"].some((k) => provider.includes(k))) {

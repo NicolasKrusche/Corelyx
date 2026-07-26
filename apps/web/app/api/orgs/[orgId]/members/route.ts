@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { randomBytes } from "crypto";
 
@@ -16,10 +16,6 @@ const UpdateMemberSchema = z.object({
   user_id: z.string().uuid(),
   role: z.enum(["owner", "admin", "editor", "viewer"]),
 });
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type MembershipRow = {
   id: string;

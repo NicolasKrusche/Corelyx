@@ -1,10 +1,8 @@
 import { createHash } from "crypto";
-import type { createServiceClient } from "@/lib/api";
+import type { LooseServiceClient } from "@/lib/api";
 import { loadGovernanceInventory } from "@/lib/compliance/governance-server";
 import { collectAgentAudit } from "@/lib/compliance/agent-audit";
 import { recordsToCsv, toCsv, zipArchive, type ZipEntry } from "@/lib/compliance/export";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & { from(table: string): any };
 
 // Bounds keep an on-demand export from unbounded scans. Approvals are drawn from
 // the most recent runs per workspace; truncation (if any) is noted in MANIFEST.

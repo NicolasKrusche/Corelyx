@@ -100,7 +100,7 @@ export function MyTemplates() {
         <div>
           <h2 className="text-lg font-semibold">My Templates</h2>
           <p className="text-sm text-muted-foreground">
-            Templates you've created. Published templates appear in the marketplace.
+            Templates you&apos;ve created. Published templates appear in the marketplace.
           </p>
         </div>
         <Button
@@ -154,7 +154,7 @@ export function MyTemplates() {
               : `No ${filterStatus} templates.`}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Use "Save as Template" from any run to create your first template.
+            Use &quot;Save as Template&quot; from any run to create your first template.
           </p>
         </div>
       ) : (

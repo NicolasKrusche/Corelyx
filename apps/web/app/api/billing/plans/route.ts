@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 
 type PlanRow = {
   id: string;

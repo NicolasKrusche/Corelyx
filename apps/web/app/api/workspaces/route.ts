@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
+import { apiError, createServiceClient, getAuthUser, type LooseServiceClient } from "@/lib/api";
 import { writeAppLog } from "@/lib/app-logs";
 import { canManageWorkspace, type WorkspaceRole } from "@/lib/workspaces";
 import { checkWorkspaceLimit } from "@/lib/limits";
@@ -43,10 +43,6 @@ const UpdateWorkspaceSchema = z.discriminatedUnion("action", [
     bulk_write_approval_threshold: z.number().int().positive().optional(),
   }),
 ]);
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type WorkspaceRow = {
   id: string;

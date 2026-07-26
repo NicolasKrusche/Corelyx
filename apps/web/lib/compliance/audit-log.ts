@@ -1,8 +1,6 @@
-import type { createServiceClient } from "@/lib/api";
+import type { LooseServiceClient } from "@/lib/api";
 import type { ComplianceCheck } from "@/lib/compliance/workflow";
 import { toCsv } from "@/lib/compliance/export";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & { from(table: string): any };
 
 const IN_CHUNK = 300;
 

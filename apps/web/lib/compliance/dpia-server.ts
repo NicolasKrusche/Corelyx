@@ -1,7 +1,7 @@
 import "server-only";
 
 import { ProgramSchemaZ, type ProgramSchema } from "@flowos/schema";
-import { createServiceClient } from "@/lib/api";
+import { createServiceClient, type LooseServiceClient } from "@/lib/api";
 import {
   loadWorkflowProviderContext,
   loadWorkspaceComplianceSettings,
@@ -14,10 +14,6 @@ import {
   type DpiaDraftInput,
   type ProgramInventorySource,
 } from "@/lib/compliance/governance";
-
-type LooseServiceClient = ReturnType<typeof createServiceClient> & {
-  from(table: string): any;
-};
 
 type DpiaProgramRow = ProgramInventorySource & {
   user_id: string;
