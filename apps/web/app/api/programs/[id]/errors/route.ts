@@ -22,7 +22,7 @@ export async function GET(
 
   const serviceClient = createServiceClient();
   const { data: entries, error: dlqError } = await serviceClient
-    .from("dead_letter_queue")
+    .from("dead_letter_entries")
     .select("*")
     .eq("program_id", params.id)
     .order("created_at", { ascending: false })

@@ -39,7 +39,7 @@ export async function POST(
   // Fetch the DLQ entry from Supabase
   const serviceClient = createServiceClient();
   const { data: dlqRow, error: dlqError } = await serviceClient
-    .from("dead_letter_queue")
+    .from("dead_letter_entries")
     .select("*")
     .eq("id", parsed.data.error_id)
     .eq("program_id", params.id)
@@ -105,7 +105,7 @@ export async function PUT(
   // Verify the DLQ entry exists
   const serviceClient = createServiceClient();
   const { data: dlqRow, error: dlqError } = await serviceClient
-    .from("dead_letter_queue")
+    .from("dead_letter_entries")
     .select("id, error_message")
     .eq("id", parsed.data.error_id)
     .eq("program_id", params.id)
@@ -169,7 +169,7 @@ export async function PUT(
 
   // Mark the DLQ entry as resolved
   await serviceClient
-    .from("dead_letter_queue")
+    .from("dead_letter_entries")
     .update({ status: "resolved", updated_at: new Date().toISOString() })
     .eq("id", parsed.data.error_id);
 
