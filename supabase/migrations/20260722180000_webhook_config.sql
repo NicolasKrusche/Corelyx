@@ -67,12 +67,27 @@ ALTER TABLE public.webhook_endpoints FORCE ROW LEVEL SECURITY;
 
 -- ─── HELPER: generate signing secret ────────────────────────────────────────
 
+-- Was: SELECT encode(gen_random_bytes(32), 'hex');
+--
+-- gen_random_bytes() comes from pgcrypto, which Supabase installs into the
+-- `extensions` schema — not `public` — so a SECURITY DEFINER function pinned to
+-- `SET search_path = public` cannot resolve it and the CREATE fails with
+-- "function gen_random_bytes(integer) does not exist". Widening the search_path
+-- to include `extensions` would work, but it makes a security-relevant function
+-- depend on where an extension happens to be installed.
+--
+-- gen_random_uuid() needs no extension at all (pg_catalog, PG13+) and is
+-- already proven in this database — 47 migrations use it and every live table's
+-- id defaults to it. Two v4 UUIDs stripped of dashes give 64 hex characters
+-- from the same CSPRNG, i.e. 244 bits of entropy, which is ample for a signing
+-- secret and matches the previous output format exactly.
 CREATE OR REPLACE FUNCTION public.generate_webhook_signing_secret()
 RETURNS TEXT
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public AS $$
-  SELECT encode(gen_random_bytes(32), 'hex');
+  SELECT replace(gen_random_uuid()::text, '-', '')
+      || replace(gen_random_uuid()::text, '-', '');
 $$;
 
 REVOKE EXECUTE ON FUNCTION public.generate_webhook_signing_secret() FROM PUBLIC, anon, authenticated;
