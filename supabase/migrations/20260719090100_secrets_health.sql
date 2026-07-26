@@ -33,7 +33,7 @@ create policy "secrets_health_events_read_workspace"
   on public.secrets_health_events for select
   to authenticated
   using (workspace_id is null or workspace_id in (
-    select workspace_id from public.workspace_members
+    select workspace_id from public.workspace_memberships
     where user_id = auth.uid ()
   ));
 

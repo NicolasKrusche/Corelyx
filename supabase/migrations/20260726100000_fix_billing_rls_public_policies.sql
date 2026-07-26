@@ -77,3 +77,56 @@ FROM anon, authenticated;
 -- default Supabase grants still handed authenticated table-level write
 -- privileges, so revoke those too — a user rewriting seat_price_monthly or
 -- flipping is_active would corrupt the public pricing page.
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Section 4 — org_invites: every invite token was world-readable
+--
+-- 20260723120000_multi_tenant_orgs.sql:159
+--
+--   create policy "invite token read for accept"
+--     on org_invites for select using (true);
+--
+-- No TO clause, so this covers anon as well as authenticated. `org_invites` has
+-- a `token text not null unique` column, so ANY caller could dump the whole
+-- table and read every pending invite token for every organization — then POST
+-- one to the accept endpoint and join an org they were never invited to. It also
+-- exposed the email address of everyone who has ever been invited.
+--
+-- The policy's stated reason ("so the invitee can look up their invite before
+-- they're a member") does not require it: /api/orgs/invite/[token] resolves the
+-- token with createServiceClient(), which bypasses RLS. No client ever reads
+-- this table directly.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+DROP POLICY IF EXISTS "invite token read for accept" ON org_invites;
+
+REVOKE SELECT, INSERT, UPDATE, DELETE ON public.org_invites FROM anon, authenticated;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Section 5 — templates: private drafts were readable by everyone
+--
+-- 20260722230000_template_from_run_and_replay_from_node.sql:35
+--
+--   CREATE POLICY "Users can view all templates"
+--     ON public.templates FOR SELECT USING (true);
+--
+-- The comment above it says "public + their own", but `is_public` defaults to
+-- FALSE, so USING (true) published every user's unpublished drafts — including
+-- `program_json` (the complete workflow, i.e. whatever business logic it
+-- encodes) and `genesis_prompt` — to every other user.
+--
+-- Restored to the documented intent: a template is readable if it is public and
+-- approved for the marketplace, or if you own it. `status` and `user_id` are
+-- added by 20260724000000; this migration runs after it, so both exist.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+DROP POLICY IF EXISTS "Users can view all templates" ON public.templates;
+
+CREATE POLICY "read public or own templates" ON public.templates
+  FOR SELECT USING (
+    (is_public AND status = 'approved')
+    OR created_by = auth.uid()
+    OR user_id = auth.uid()
+  );
