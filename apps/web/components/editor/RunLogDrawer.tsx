@@ -387,7 +387,7 @@ export function RunLogDrawer({
                               node_type: node?.type ?? "unknown",
                               node_config: {},
                               input_data: {},
-                              error_message: exec.error_message,
+                              error_message: exec.error_message ?? "",
                               error_type: data.analysis.error_category,
                               attempt_count: 0,
                               retry_policy: {},

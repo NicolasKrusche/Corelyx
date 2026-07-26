@@ -3,7 +3,7 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       "account_deletion_audit": {
@@ -157,7 +157,15 @@ export interface Database {
           "session_id"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_logs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "agent_flags": {
         Row: {
@@ -214,7 +222,22 @@ export interface Database {
           "resolved_at"?: string | null;
           "resolved_by"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "agent_flags_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_flags_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "agent_knowledge": {
         Row: {
@@ -259,7 +282,15 @@ export interface Database {
           "canvas_x"?: number | null;
           "canvas_y"?: number | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "agent_knowledge_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "agent_knowledge_chunks": {
         Row: {
@@ -289,7 +320,22 @@ export interface Database {
           "embedding"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "agent_knowledge_chunks_knowledge_id_fkey";
+            columns: ["knowledge_id"];
+            isOneToOne: false;
+            referencedRelation: "agent_knowledge";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_knowledge_chunks_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "agent_knowledge_links": {
         Row: {
@@ -316,7 +362,29 @@ export interface Database {
           "label"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "agent_knowledge_links_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_knowledge_links_from_id_fkey";
+            columns: ["from_id"];
+            isOneToOne: false;
+            referencedRelation: "agent_knowledge";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_knowledge_links_to_id_fkey";
+            columns: ["to_id"];
+            isOneToOne: false;
+            referencedRelation: "agent_knowledge";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "agent_relations": {
         Row: {
@@ -358,7 +426,36 @@ export interface Database {
           "run_id"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "agent_relations_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_relations_from_program_id_fkey";
+            columns: ["from_program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_relations_target_program_id_fkey";
+            columns: ["target_program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_relations_target_knowledge_id_fkey";
+            columns: ["target_knowledge_id"];
+            isOneToOne: false;
+            referencedRelation: "agent_knowledge";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "agent_reports": {
         Row: {
@@ -394,7 +491,22 @@ export interface Database {
           "dry_run"?: boolean;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "agent_reports_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_reports_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "api_keys": {
         Row: {
@@ -436,7 +548,22 @@ export interface Database {
           "workspace_id"?: string;
           "last_used_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "api_keys_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "app_logs": {
         Row: {
@@ -484,7 +611,29 @@ export interface Database {
           "duration_ms"?: number | null;
           "created_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "app_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "app_logs_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "app_logs_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "approval_escalations": {
         Row: {
@@ -508,7 +657,15 @@ export interface Database {
           "escalation_reason"?: string;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "approval_escalations_approval_id_fkey";
+            columns: ["approval_id"];
+            isOneToOne: false;
+            referencedRelation: "approvals";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "approvals": {
         Row: {
@@ -571,7 +728,29 @@ export interface Database {
           "final_executed_action"?: Json | null;
           "sla_hours"?: number | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "approvals_node_execution_id_fkey";
+            columns: ["node_execution_id"];
+            isOneToOne: false;
+            referencedRelation: "node_executions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "approvals_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "approvals_approver_id_fkey";
+            columns: ["approver_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "auto_recharge_configs": {
         Row: {
@@ -679,7 +858,15 @@ export interface Database {
           "assessed_at"?: string;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "compliance_assessments_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "connection_webhook_secrets": {
         Row: {
@@ -709,7 +896,15 @@ export interface Database {
           "created_at"?: string;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "connection_webhook_secrets_connection_id_fkey";
+            columns: ["connection_id"];
+            isOneToOne: false;
+            referencedRelation: "connections";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "connections": {
         Row: {
@@ -766,7 +961,22 @@ export interface Database {
           "rotation_due_at"?: string | null;
           "last_health_check_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "connections_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "connections_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "connector_health_events": {
         Row: {
@@ -868,7 +1078,15 @@ export interface Database {
           "created_at"?: string;
           "amount_credits"?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "credit_purchases_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "data_retention_audit": {
         Row: {
@@ -955,7 +1173,15 @@ export interface Database {
           "updated_at"?: string;
           "user_followup"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "data_subject_requests_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "dead_letter_entries": {
         Row: {
@@ -1018,7 +1244,22 @@ export interface Database {
           "status"?: string;
           "metadata"?: Json;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "dead_letter_entries_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dead_letter_entries_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "device_folder_grants": {
         Row: {
@@ -1045,7 +1286,22 @@ export interface Database {
           "permission"?: string;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "device_folder_grants_device_id_fkey";
+            columns: ["device_id"];
+            isOneToOne: false;
+            referencedRelation: "devices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "device_folder_grants_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "devices": {
         Row: {
@@ -1102,7 +1358,15 @@ export interface Database {
           "is_default_2fa"?: boolean;
           "client_install_id"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "devices_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "dsr_messages": {
         Row: {
@@ -1126,7 +1390,15 @@ export interface Database {
           "body"?: string;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "dsr_messages_dsr_id_fkey";
+            columns: ["dsr_id"];
+            isOneToOne: false;
+            referencedRelation: "data_subject_requests";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "feedback": {
         Row: {
@@ -1219,7 +1491,36 @@ export interface Database {
           "completed_at"?: string | null;
           "expires_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "file_operations_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "file_operations_node_execution_id_fkey";
+            columns: ["node_execution_id"];
+            isOneToOne: false;
+            referencedRelation: "node_executions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "file_operations_device_id_fkey";
+            columns: ["device_id"];
+            isOneToOne: false;
+            referencedRelation: "devices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "file_operations_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "file_snapshots": {
         Row: {
@@ -1267,7 +1568,36 @@ export interface Database {
           "restored_at"?: string | null;
           "expires_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "file_snapshots_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "file_snapshots_device_id_fkey";
+            columns: ["device_id"];
+            isOneToOne: false;
+            referencedRelation: "devices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "file_snapshots_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "file_snapshots_op_id_fkey";
+            columns: ["op_id"];
+            isOneToOne: false;
+            referencedRelation: "file_operations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "genesis_sessions": {
         Row: {
@@ -1303,7 +1633,29 @@ export interface Database {
           "updated_at"?: string;
           "expires_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "genesis_sessions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "genesis_sessions_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "genesis_sessions_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "llm_usage_logs": {
         Row: {
@@ -1354,7 +1706,22 @@ export interface Database {
           "run_id"?: string | null;
           "workspace_id"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "llm_usage_logs_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "llm_usage_logs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "metrics": {
         Row: {
@@ -1489,7 +1856,22 @@ export interface Database {
           "retention_expiry"?: string | null;
           "token_usage"?: Json | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "node_executions_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "node_executions_approver_id_fkey";
+            columns: ["approver_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "notifications": {
         Row: {
@@ -1552,7 +1934,15 @@ export interface Database {
           "consumed_at"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "oauth_state_nonces_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "onboarding_profiles": {
         Row: {
@@ -1636,7 +2026,15 @@ export interface Database {
           "created_at"?: string;
           "accepted_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "org_invites_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "org_memberships": {
         Row: {
@@ -1669,7 +2067,15 @@ export interface Database {
           "accepted_at"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "org_memberships_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "org_subscriptions": {
         Row: {
@@ -1714,7 +2120,22 @@ export interface Database {
           "created_at"?: string;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "org_subscriptions_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "org_subscriptions_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "billing_plans";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "organizations": {
         Row: {
@@ -1744,7 +2165,15 @@ export interface Database {
           "updated_at"?: string;
           "subscription_id"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "organizations_subscription_id_fkey";
+            columns: ["subscription_id"];
+            isOneToOne: false;
+            referencedRelation: "org_subscriptions";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "personal_api_tokens": {
         Row: {
@@ -1780,7 +2209,15 @@ export interface Database {
           "updated_at"?: string;
           "kind"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "personal_api_tokens_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "playground_test_cases": {
         Row: {
@@ -1990,7 +2427,15 @@ export interface Database {
           "created_at"?: string;
           "decided_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_approvals_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "program_comments": {
         Row: {
@@ -2020,7 +2465,15 @@ export interface Database {
           "resolved"?: boolean;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_comments_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "program_connections": {
         Row: {
@@ -2035,7 +2488,22 @@ export interface Database {
           "program_id"?: string;
           "connection_id"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_connections_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "program_connections_connection_id_fkey";
+            columns: ["connection_id"];
+            isOneToOne: false;
+            referencedRelation: "connections";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "program_dpia_drafts": {
         Row: {
@@ -2080,7 +2548,15 @@ export interface Database {
           "source_snapshot"?: Json;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_dpia_drafts_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "program_memberships": {
         Row: {
@@ -2107,7 +2583,29 @@ export interface Database {
           "created_at"?: string;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_memberships_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "program_memberships_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "program_memberships_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "program_notification_settings": {
         Row: {
@@ -2131,7 +2629,15 @@ export interface Database {
           "notify_completions"?: boolean;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_notification_settings_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "program_shares": {
         Row: {
@@ -2152,7 +2658,22 @@ export interface Database {
           "permission"?: string;
           "shared_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_shares_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "program_shares_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "program_versions": {
         Row: {
@@ -2182,7 +2703,15 @@ export interface Database {
           "created_at"?: string | null;
           "patch"?: Json | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "program_versions_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "programs": {
         Row: {
@@ -2302,7 +2831,29 @@ export interface Database {
           "agent_saved_template"?: boolean;
           "decision_log"?: Json | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "programs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "programs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "programs_folder_id_fkey";
+            columns: ["folder_id"];
+            isOneToOne: false;
+            referencedRelation: "workspace_folders";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "push_subscriptions": {
         Row: {
@@ -2401,7 +2952,15 @@ export interface Database {
           "created_by"?: string | null;
           "created_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "redemption_codes_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "redemptions": {
         Row: {
@@ -2422,7 +2981,22 @@ export interface Database {
           "user_id"?: string;
           "redeemed_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "redemptions_code_id_fkey";
+            columns: ["code_id"];
+            isOneToOne: false;
+            referencedRelation: "redemption_codes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "redemptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "resource_locks": {
         Row: {
@@ -2449,7 +3023,15 @@ export interface Database {
           "acquired_at"?: string | null;
           "expires_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "resource_locks_locked_by_run_id_fkey";
+            columns: ["locked_by_run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "runs": {
         Row: {
@@ -2545,7 +3127,29 @@ export interface Database {
           "llm_token_count"?: number;
           "node_execution_count"?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "runs_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "runs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "runs_parent_run_id_fkey";
+            columns: ["parent_run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "secrets_health_events": {
         Row: {
@@ -2683,7 +3287,22 @@ export interface Database {
           "revoked_at"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "support_access_grants_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "support_access_grants_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "support_tickets";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "support_messages": {
         Row: {
@@ -2707,7 +3326,15 @@ export interface Database {
           "content"?: string;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "support_tickets";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "support_tickets": {
         Row: {
@@ -2746,7 +3373,15 @@ export interface Database {
           "updated_at"?: string;
           "assigned_to"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_assigned_to_fkey";
+            columns: ["assigned_to"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "system_settings": {
         Row: {
@@ -2788,7 +3423,15 @@ export interface Database {
           "role"?: string;
           "invited_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "teams": {
         Row: {
@@ -2896,7 +3539,15 @@ export interface Database {
           "created_by"?: string | null;
           "created_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "test_firms_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "trigger_events": {
         Row: {
@@ -2932,7 +3583,29 @@ export interface Database {
           "message"?: string | null;
           "payload"?: Json | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "trigger_events_trigger_id_fkey";
+            columns: ["trigger_id"];
+            isOneToOne: false;
+            referencedRelation: "triggers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trigger_events_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trigger_events_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "triggers": {
         Row: {
@@ -2971,7 +3644,15 @@ export interface Database {
           "last_fired_at"?: string | null;
           "updated_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "triggers_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "two_factor_challenges": {
         Row: {
@@ -3019,7 +3700,15 @@ export interface Database {
           "requester_ip"?: string | null;
           "requester_label"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "two_factor_challenges_approver_device_id_fkey";
+            columns: ["approver_device_id"];
+            isOneToOne: false;
+            referencedRelation: "devices";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "usage": {
         Row: {
@@ -3055,7 +3744,15 @@ export interface Database {
           "connection_count"?: number | null;
           "created_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "usage_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "usage_records": {
         Row: {
@@ -3094,7 +3791,22 @@ export interface Database {
           "billed_amount"?: number;
           "recorded_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "usage_records_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "usage_records_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "runs";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "webhook_deliveries": {
         Row: {
@@ -3166,7 +3878,29 @@ export interface Database {
           "created_at"?: string | null;
           "updated_at"?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_trigger_id_fkey";
+            columns: ["trigger_id"];
+            isOneToOne: false;
+            referencedRelation: "triggers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "webhook_endpoints_program_id_fkey";
+            columns: ["program_id"];
+            isOneToOne: false;
+            referencedRelation: "programs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "webhook_endpoints_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "workspace_env_vars": {
         Row: {
@@ -3196,7 +3930,22 @@ export interface Database {
           "created_at"?: string;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "workspace_env_vars_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_env_vars_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "workspace_folders": {
         Row: {
@@ -3226,7 +3975,22 @@ export interface Database {
           "created_at"?: string;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "workspace_folders_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_folders_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "workspace_invitations": {
         Row: {
@@ -3265,7 +4029,29 @@ export interface Database {
           "created_at"?: string;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "workspace_invitations_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_invitations_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_invitations_accepted_by_fkey";
+            columns: ["accepted_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "workspace_memberships": {
         Row: {
@@ -3292,7 +4078,29 @@ export interface Database {
           "created_at"?: string;
           "updated_at"?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "workspace_memberships_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_memberships_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_memberships_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       "workspaces": {
         Row: {
@@ -3412,7 +4220,15 @@ export interface Database {
           "stripe_subscription_id"?: string | null;
           "bonus_genesis_uses"?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "workspaces_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: {
@@ -3424,30 +4240,126 @@ export interface Database {
           total_tokens: number | null;
           request_count: number | null;
         };
+        // Required: postgrest-js GenericView demands Relationships on every
+        // view. Without it Views fails Record<string, GenericView>, so
+        // Database['public'] no longer extends GenericSchema, the client's
+        // Schema generic resolves to `never`, and EVERY .from().select() on
+        // EVERY table types as never.
+        Relationships: [];
       };
     };
     Functions: {
-      get_daily_llm_cost: {
+      admin_dead_letter_stats: {
         Args: {
-          target_date: string;
+          program_id?: string;
         };
-        Returns: number;
+        Returns: Json;
       };
-      cleanup_expired_credential_locks: {
-        Args: Record<PropertyKey, never>;
-        Returns: undefined;
-      };
-      increment_fork_count: {
+      admin_llm_daily_series: {
         Args: {
-          program_id: string;
+          since: string;
         };
-        Returns: undefined;
+        Returns: Json;
       };
-      purge_expired_operational_data: {
+      admin_llm_finance_summary: {
         Args: {
-          p_payload_retention?: string;
-          p_run_retention?: string;
-          p_audit_retention?: string;
+          since: string;
+        };
+        Returns: Json;
+      };
+      admin_llm_model_spread: {
+        Args: {
+          since: string;
+        };
+        Returns: Json;
+      };
+      admin_llm_top_users: {
+        Args: {
+          max_rows?: number;
+          since: string;
+        };
+        Returns: Json;
+      };
+      admin_purge_old_dead_letters: {
+        Args: {
+          older_than_days?: number;
+          program_id?: string;
+        };
+        Returns: Json;
+      };
+      admin_resolve_dead_letter: {
+        Args: {
+          entry_id: string;
+          resolution_note?: string;
+        };
+        Returns: Json;
+      };
+      admin_retrigger_dead_letter: {
+        Args: {
+          entry_id: string;
+          new_run_id?: string;
+        };
+        Returns: Json;
+      };
+      admin_search_users: {
+        Args: {
+          p_limit?: number;
+          p_query: string;
+        };
+        Returns: Json;
+      };
+      apply_credit_purchase: {
+        Args: {
+          p_amount_credits: number;
+          p_price_usd: number;
+          p_stripe_payment_intent_id: string;
+          p_stripe_session_id: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      apply_security_lock: {
+        Args: {
+          p_locked_by: string;
+          p_reason: string;
+          p_scope_id: string;
+          p_scope_type: string;
+          p_ttl_seconds: number;
+        };
+        Returns: Json;
+      };
+      can_edit_program: {
+        Args: {
+          p_program_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      can_manage_org: {
+        Args: {
+          p_org_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      can_manage_workspace: {
+        Args: {
+          p_user_id?: string;
+          p_workspace_id: string;
+        };
+        Returns: Json;
+      };
+      can_run_program: {
+        Args: {
+          p_program_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      can_view_program: {
+        Args: {
+          p_program_id: string;
+          p_user_id?: string;
         };
         Returns: Json;
       };
@@ -3457,14 +4369,266 @@ export interface Database {
           p_limit: number;
           p_window_seconds: number;
         };
-        Returns: boolean;
+        Returns: Json;
+      };
+      deduct_user_credits_raw: {
+        Args: {
+          p_amount: number;
+          p_included_limit: number;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      ensure_org_subscription: {
+        Args: {
+          p_org_id: string;
+        };
+        Returns: Json;
+      };
+      generate_webhook_signing_secret: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      get_admin_audit_stats: {
+        Args: {
+          p_days?: number;
+          p_workspace_id?: string;
+        };
+        Returns: Json;
+      };
+      increment_fork_count: {
+        Args: {
+          program_id: string;
+        };
+        Returns: Json;
+      };
+      is_org_member: {
+        Args: {
+          p_org_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      is_org_owner: {
+        Args: {
+          p_org_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      is_security_locked: {
+        Args: {
+          p_scope_id: string;
+          p_scope_type: string;
+        };
+        Returns: Json;
+      };
+      is_team_admin: {
+        Args: {
+          p_team_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      is_team_member: {
+        Args: {
+          p_team_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      is_workspace_contributor: {
+        Args: {
+          p_user_id?: string;
+          p_workspace_id: string;
+        };
+        Returns: Json;
+      };
+      is_workspace_member: {
+        Args: {
+          p_user_id?: string;
+          p_workspace_id: string;
+        };
+        Returns: Json;
+      };
+      match_agent_knowledge_chunks: {
+        Args: {
+          match_count?: number;
+          query_embedding: string;
+          target_workspace_ids: Json[];
+        };
+        Returns: Json;
+      };
+      program_access_role: {
+        Args: {
+          p_program_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      program_analytics_summary: {
+        Args: {
+          p_program_id: string;
+        };
+        Returns: Json;
+      };
+      program_cost_by_node_type: {
+        Args: {
+          p_program_id: string;
+        };
+        Returns: Json;
+      };
+      program_cost_trend: {
+        Args: {
+          p_limit?: number;
+          p_program_id: string;
+        };
+        Returns: Json;
+      };
+      program_model_comparison: {
+        Args: {
+          p_program_id: string;
+        };
+        Returns: Json;
+      };
+      program_token_usage_summary: {
+        Args: {
+          p_program_id: string;
+        };
+        Returns: Json;
+      };
+      purge_expired_operational_data: {
+        Args: {
+          p_app_log_retention?: string;
+          p_audit_retention?: string;
+          p_payload_retention?: string;
+          p_run_retention?: string;
+        };
+        Returns: Json;
+      };
+      query_admin_audit_logs: {
+        Args: {
+          p_action?: string;
+          p_actor_id?: string;
+          p_date_from?: string;
+          p_date_to?: string;
+          p_limit?: number;
+          p_offset?: number;
+          p_risk_level?: string;
+          p_sort_by?: string;
+          p_sort_order?: string;
+          p_success?: boolean;
+          p_target_id?: string;
+          p_target_type?: string;
+          p_workspace_id?: string;
+        };
+        Returns: Json;
+      };
+      record_admin_audit_log: {
+        Args: {
+          p_action: string;
+          p_actor_email: string;
+          p_actor_id: string;
+          p_actor_ip: string;
+          p_actor_role: string;
+          p_actor_user_agent: string;
+          p_affected_resources: Json[];
+          p_correlation_id: string;
+          p_data_subject_ids: Json[];
+          p_error_message: string;
+          p_id: string;
+          p_ip_address: string;
+          p_legal_basis: string;
+          p_metadata: Json;
+          p_reason: string;
+          p_referer: string;
+          p_request_id: string;
+          p_retention_category: string;
+          p_retention_days: number;
+          p_risk_level: string;
+          p_session_id: string;
+          p_success: boolean;
+          p_target_id: string;
+          p_target_identifier: string;
+          p_target_type: string;
+          p_timestamp: string;
+          p_user_agent: string;
+          p_workspace_id: string;
+        };
+        Returns: Json;
+      };
+      record_security_event: {
+        Args: {
+          p_action: string;
+          p_details: Json;
+          p_event: string;
+          p_scope_id: string;
+          p_scope_type: string;
+          p_severity: string;
+          p_user_id: string;
+          p_window_seconds: number;
+        };
+        Returns: Json;
       };
       redeem_code_atomic: {
         Args: {
           p_code: string;
+          p_user_email: string;
           p_user_id: string;
           p_workspace_id: string;
-          p_user_email: string;
+        };
+        Returns: Json;
+      };
+      release_security_lock: {
+        Args: {
+          p_released_by: string;
+          p_scope_id: string;
+          p_scope_type: string;
+        };
+        Returns: Json;
+      };
+      rls_auto_enable: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      top_up_user_credits: {
+        Args: {
+          p_amount_credits: number;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      user_can_access_shared_program: {
+        Args: {
+          p_program_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      user_can_review_program: {
+        Args: {
+          p_program_id: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      vault_delete_secret: {
+        Args: {
+          p_secret_id: string;
+        };
+        Returns: Json;
+      };
+      vault_retrieve_secret: {
+        Args: {
+          p_secret_id: string;
+        };
+        Returns: Json;
+      };
+      vault_store_secret: {
+        Args: {
+          p_description?: string;
+          p_name: string;
+          p_secret: string;
         };
         Returns: Json;
       };

@@ -25,8 +25,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Resolved outside the try so the catch below can still log programId — it
+  // was declared inside the try, leaving `id` out of scope in the handler.
+  const { id } = await params;
   try {
-    const { id } = await params;
     const supabase = await createServerClient();
     const {
       data: { user },

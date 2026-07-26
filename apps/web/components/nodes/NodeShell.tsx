@@ -193,6 +193,12 @@ export interface NodeShellProps {
   questionPin?: string | null;
   /** Number of unresolved review comments on this node. */
   commentCount?: number;
+  /**
+   * React Flow node id, needed to report which node a comment click belongs to.
+   * The indicator below referenced a bare `id` that was never a prop, so the
+   * click handler could not compile.
+   */
+  nodeId?: string;
   /** Callback when the comment indicator is clicked. */
   onCommentClick?: (nodeId: string) => void;
   /**
@@ -232,6 +238,7 @@ export function NodeShell({
   warning,
   questionPin,
   commentCount,
+  nodeId,
   onCommentClick,
   outputPreview,
   footer,
@@ -271,10 +278,10 @@ export function NodeShell({
       </div>
 
       {/* Comment indicator — below status indicator */}
-      {commentCount !== undefined && commentCount > 0 && (
+      {nodeId && commentCount !== undefined && commentCount > 0 && (
         <div className="absolute right-2 top-8 z-20">
           <button
-            onClick={(e) => { e.stopPropagation(); onCommentClick?.(id as string); }}
+            onClick={(e) => { e.stopPropagation(); onCommentClick?.(nodeId); }}
             className="flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-full bg-blue-500 px-1 text-[8px] font-bold text-white shadow-sm transition-transform hover:scale-110"
             title={`${commentCount} unresolved comment${commentCount !== 1 ? "s" : ""}`}
           >

@@ -28,6 +28,8 @@ type PlanRow = {
   included_execution_minutes: number;
   byok_platform_fee_monthly: number;
   features: string[];
+  stripe_price_id: string | null;
+  stripe_byok_price_id: string | null;
 };
 
 type OrgRow = {

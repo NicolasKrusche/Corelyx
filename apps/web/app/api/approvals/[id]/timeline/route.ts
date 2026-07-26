@@ -24,11 +24,12 @@ export async function GET(
   if (approvalError || !approval) return apiError("Approval not found", 404);
 
   // Verify the user has access (owner or workspace member)
-  const programId =
-    approval.context &&
-    typeof approval.context.program_id === "string"
-      ? approval.context.program_id
+  // `context` is typed Json, so narrow to an object before indexing it.
+  const ctx =
+    approval.context && typeof approval.context === "object" && !Array.isArray(approval.context)
+      ? (approval.context as Record<string, unknown>)
       : null;
+  const programId = typeof ctx?.program_id === "string" ? ctx.program_id : null;
 
   let hasAccess = approval.user_id === user.id;
 
@@ -84,7 +85,7 @@ export async function GET(
   events.push({
     id: `created-${approvalId}`,
     type: "created",
-    timestamp: approval.created_at,
+    timestamp: approval.created_at ?? new Date(0).toISOString(),
     actor: "system",
     details: {
       sla_hours: approval.sla_hours ?? 24,
