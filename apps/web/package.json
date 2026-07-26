@@ -15,7 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.3",
+    "@anthropic-ai/sdk": "^0.112.3",
     "@dagrejs/dagre": "^3.0.0",
     "@flowos/db": "workspace:*",
     "@flowos/registry": "workspace:*",
