@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@flowos/connector-kit": "workspace:*",
-    "zod": "^3.23.8"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
