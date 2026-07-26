@@ -4,7 +4,7 @@ import { ProgramSchemaZ, type ProgramSchema } from "@flowos/schema";
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
 import { canView, canEdit, getProgramAccess } from "@/lib/workspaces";
-import { applyJsonPatch, JsonPatchOpZ } from "@/lib/genesis/fixit";
+import { applyJsonPatch, JsonPatchOpZ, type JsonPatchOp } from "@/lib/genesis/fixit";
 import {
   classifyError,
   type DLQEntry,
@@ -68,7 +68,9 @@ export async function POST(
     dlq_entry_id: entry.id,
     error_category: errorCategory,
     root_cause: fixSuggestion?.root_cause ?? `Error classified as: ${errorCategory.replace(/_/g, " ")}`,
-    fix_suggestion: fixSuggestion?.fix ?? null as unknown as ErrorAnalysisResult["fix_suggestion"],
+    fix_suggestion: fixSuggestion?.fix
+      ? { ...fixSuggestion.fix, addresses_errors: fixSuggestion.fix.addresses_errors ?? [entry.id] }
+      : null,
     confidence: fixSuggestion?.confidence ?? 0.5,
     analyzed_at: new Date().toISOString(),
   };
@@ -118,6 +120,9 @@ export async function PUT(
     .from("programs")
     .select("id, schema, schema_version")
     .eq("id", params.id)
+    // @supabase/ssr 0.5.2's generics predate supabase-js 2.101, so its .from()
+    // resolves to never. Type the row here rather than casting the client.
+    .returns<{ id: string; schema: unknown; schema_version: number | null }[]>()
     .single();
 
   if (!programRow) return apiError("Program not found", 404);
@@ -187,8 +192,11 @@ interface LLMFixResponse {
   confidence: number;
   fix: {
     description: string;
-    patch: Array<{ op: string; path: string; value?: unknown }>;
+    patch: JsonPatchOp[];
     confidence: number;
+    // FixSuggestion requires this; the model does not reliably return it, so
+    // the call site defaults it to the DLQ entry being addressed.
+    addresses_errors?: string[];
   } | null;
 }
 

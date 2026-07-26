@@ -121,8 +121,8 @@ export interface ErrorAnalysisResult {
   error_category: ErrorCategory;
   /** Human-readable root cause explanation. */
   root_cause: string;
-  /** AI-generated fix suggestion. */
-  fix_suggestion: FixSuggestion;
+  /** AI-generated fix suggestion, or null when none could be produced. */
+  fix_suggestion: FixSuggestion | null;
   /** Confidence in the classification and fix (0–1). */
   confidence: number;
   /** When the analysis was performed. */

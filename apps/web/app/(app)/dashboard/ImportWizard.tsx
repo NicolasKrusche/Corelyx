@@ -344,7 +344,9 @@ export function ImportWizard() {
       )}
 
       {/* Preview */}
-      {parsedPreview && !parseError && (
+      {/* `parsedPreview` is unknown, so guard with a boolean — a bare
+          `parsedPreview &&` renders the unknown value itself when falsy. */}
+      {parsedPreview != null && !parseError && (
         <div className="mt-4">
           <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Preview

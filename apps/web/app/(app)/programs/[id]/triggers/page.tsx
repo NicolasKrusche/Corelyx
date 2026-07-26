@@ -76,7 +76,18 @@ export default async function TriggersPage({
       .limit(50),
   ]);
 
-  let triggersRaw = triggersEnriched.data;
+  // Typed to the BASE columns — the subset both branches are guaranteed to
+  // return. Inferring from the ENRICHED query made the fallback assignment
+  // fail, since BASE has no webhook_token / next_run_at / last_fired_at.
+  type BaseTriggerRow = {
+    id: string;
+    program_id: string;
+    type: string;
+    config: unknown;
+    is_active: boolean | null;
+    created_at: string | null;
+  };
+  let triggersRaw: BaseTriggerRow[] | null = triggersEnriched.data;
   if (triggersEnriched.error) {
     const fallback = await serviceClient
       .from("triggers")

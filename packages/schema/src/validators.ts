@@ -1,13 +1,14 @@
 import { z } from "zod";
+import type { DataSchema } from "./types";
 
 // ─── SHARED ───────────────────────────────────────────────────────────────
 
-export const DataSchemaZ: z.ZodType<{
-  type: "object" | "string" | "number" | "boolean" | "array";
-  properties?: Record<string, unknown>;
-  items?: unknown;
-  required?: string[];
-}> = z.lazy(() =>
+// Annotated as the DataSchema interface rather than a structural near-copy.
+// It previously declared `properties?: Record<string, unknown>` and
+// `items?: unknown` for the recursive positions, so a parsed program was not
+// assignable to ProgramSchema and every caller that validated then passed the
+// result on — the compliance DPIA/RoPA/assess routes — failed to type-check.
+export const DataSchemaZ: z.ZodType<DataSchema> = z.lazy(() =>
   z.object({
     type: z.enum(["object", "string", "number", "boolean", "array"]),
     properties: z.record(DataSchemaZ).optional(),

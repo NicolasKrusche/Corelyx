@@ -50,6 +50,8 @@ type Subscription = {
   current_period_start: string;
   current_period_end: string;
   seats_count: number;
+  // Read below to decide whether to show the Stripe portal link.
+  stripe_customer_id: string | null;
 };
 
 type UsageSummary = {
@@ -329,8 +331,8 @@ export default function BillingPage() {
                 />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip
-                  formatter={(value: number) => [`${value.toFixed(2)} min`, "Minutes"]}
-                  labelFormatter={(label: string) => new Date(label).toLocaleDateString()}
+                  formatter={(value) => [`${Number(value).toFixed(2)} min`, "Minutes"]}
+                  labelFormatter={(label) => new Date(String(label)).toLocaleDateString()}
                 />
                 <Bar dataKey="minutes" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -363,10 +365,10 @@ export default function BillingPage() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => [`$${value.toFixed(4)}`, "Cost"]}
+                  formatter={(value) => [`$${Number(value).toFixed(4)}`, "Cost"]}
                 />
                 <Legend
-                  formatter={(value: string) => value.split("/").pop() ?? value}
+                  formatter={(value) => String(value).split("/").pop() ?? String(value)}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -395,8 +397,8 @@ export default function BillingPage() {
               />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(value: number) => [`$${value.toFixed(4)}`, "Cost"]}
-                labelFormatter={(label: string) => new Date(label).toLocaleDateString()}
+                formatter={(value) => [`$${Number(value).toFixed(4)}`, "Cost"]}
+                labelFormatter={(label) => new Date(String(label)).toLocaleDateString()}
               />
               <Line type="monotone" dataKey="cost" stroke="#8b5cf6" strokeWidth={2} dot={false} />
             </LineChart>

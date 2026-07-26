@@ -166,7 +166,7 @@ export async function recordAdminAction(
     const assessment = assessAdminRisk(context.action);
     if (assessment.siemExportRequired || riskLevel === 'high' || riskLevel === 'critical') {
       // Fire and forget - don't block on SIEM
-      forwardToSiem(record).catch(() => {});
+      forwardToSiem(record as AdminAuditRecord).catch(() => {});
     }
 
     return { success: true, auditId };
@@ -281,7 +281,7 @@ export async function queryAdminAuditLogs(
     }
 
     return {
-      records: (data ?? []) as AdminAuditRecord[],
+      records: (data ?? []) as unknown as AdminAuditRecord[],
       total: count ?? 0,
       hasMore: (count ?? 0) > offset + limit,
     };

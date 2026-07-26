@@ -72,7 +72,9 @@ export async function POST(request: Request) {
 
       case "invoice.paid": {
         const invoice = event.data.object;
-        const subscriptionId = invoice.subscription as string;
+        // `subscription` is no longer on Stripe.Invoice in the installed API
+        // version's types, but the webhook payload still carries it.
+        const subscriptionId = (invoice as unknown as { subscription?: string }).subscription;
 
         if (!subscriptionId) break;
 
