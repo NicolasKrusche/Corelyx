@@ -10,6 +10,7 @@ import {
   Scale,
   ScrollText,
   Shield,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ const TABS = [
   { href: "/governance/data-controls", label: "Data Controls", icon: Shield },
   { href: "/governance/access", label: "Access & Credentials", icon: KeyRound },
   { href: "/governance/ai-act", label: "AI Act Checkpoints", icon: Scale },
+  { href: "/governance/compliance", label: "AI Act Readiness", icon: ShieldCheck },
   { href: "/governance/exports", label: "Exports", icon: Download },
 ] as const;
 

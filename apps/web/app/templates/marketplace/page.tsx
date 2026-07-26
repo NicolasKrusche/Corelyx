@@ -167,7 +167,7 @@ export default function TemplateMarketplacePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/templates">
+          <Link href="/library">
             <Button variant="outline" size="sm">
               ← Back to Gallery
             </Button>

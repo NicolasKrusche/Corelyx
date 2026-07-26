@@ -1091,7 +1091,7 @@ export function Sidebar({
         <div className="space-y-0.5">
           <NavItem href="/browse" label={tNav("browse")} active={pathname.startsWith("/browse")}
             icon={<BrowseIcon />} isDark={isDark} />
-          <NavItem href="/templates" label="Templates" active={pathname.startsWith("/templates")}
+          <NavItem href="/library" label="Templates" active={pathname.startsWith("/library")}
             icon={<TemplatesIcon />} isDark={isDark} tourId="nav-templates" />
           <NavItem href="/connections" label={tNav("connections")} active={pathname.startsWith("/connections")}
             icon={<LinkIcon />} isDark={isDark} tourId="nav-connections" />
@@ -1111,7 +1111,7 @@ export function Sidebar({
               <NavSubItem href="/governance/access" label={tSidebar("governanceNav.access")} active={pathname.startsWith("/governance/access")} isDark={isDark} />
               <NavSubItem href="/governance/ai-act" label={tSidebar("governanceNav.aiAct")} active={pathname.startsWith("/governance/ai-act")} isDark={isDark} />
               <NavSubItem href="/governance/exports" label={tSidebar("governanceNav.exports")} active={pathname.startsWith("/governance/exports")} isDark={isDark} />
-              <NavSubItem href="/compliance" label="AI Act Dashboard" active={pathname.startsWith("/compliance")} isDark={isDark} />
+              <NavSubItem href="/governance/compliance" label="AI Act Dashboard" active={pathname.startsWith("/governance/compliance")} isDark={isDark} />
             </div>
           </div>
         </div>

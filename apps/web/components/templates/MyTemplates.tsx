@@ -106,7 +106,7 @@ export function MyTemplates() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => router.push("/templates")}
+          onClick={() => router.push("/library")}
         >
           Browse Marketplace
         </Button>
@@ -227,7 +227,7 @@ export function MyTemplates() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push(`/templates`)}
+                    onClick={() => router.push(`/library`)}
                   >
                     View
                   </Button>

@@ -2,17 +2,17 @@ import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { canView, getProgramAccess } from "@/lib/workspaces";
 
-// GET /api/programs/[programId]/runs/[runId]/execution-data
+// GET /api/programs/[id]/runs/[runId]/execution-data
 // Returns node execution data for a specific run — read-only, zero cost.
 export async function GET(
   _request: Request,
-  { params: routeParams }: { params: Promise<{ programId: string; runId: string }> }
+  { params: routeParams }: { params: Promise<{ id: string; runId: string }> }
 ) {
   const params = await routeParams;
   const user = await getAuthUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  const { programId, runId } = params;
+  const { id: programId, runId } = params;
 
   const access = await getProgramAccess(programId, user.id);
   if (!canView(access)) return apiError("Run not found", 404);

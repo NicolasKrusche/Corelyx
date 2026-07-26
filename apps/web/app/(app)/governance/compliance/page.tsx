@@ -13,7 +13,7 @@ import {
   ShieldAlert,
   ShieldX,
 } from "lucide-react";
-import { CineEyebrow, CINE_TITLE } from "@/components/cinematic";
+import { CINE_TITLE } from "@/components/cinematic";
 import { ComplianceCard, type ComplianceIndicators } from "@/components/compliance/ComplianceCard";
 import { cn } from "@/lib/utils";
 import type { ComplianceRiskLevel } from "@/lib/compliance/risk-classifier";
@@ -228,9 +228,8 @@ export default function ComplianceDashboardPage() {
 
   return (
     <div className="space-y-6 text-foreground">
-      {/* Page header */}
+      {/* Page header — the governance layout already renders the section eyebrow */}
       <div className="space-y-3">
-        <CineEyebrow>Compliance Dashboard</CineEyebrow>
         <div className="flex items-end justify-between gap-4">
           <div>
             <h1 className={cn("text-2xl", CINE_TITLE)}>AI Act Readiness Score</h1>
