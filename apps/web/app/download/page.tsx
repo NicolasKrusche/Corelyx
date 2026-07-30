@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 type OS = "windows" | "macos" | "linux" | "unknown";
@@ -32,7 +34,21 @@ function detectOS(): OS {
   return "unknown";
 }
 
+function BackArrow() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4" aria-hidden="true">
+      <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function DownloadPage() {
+  const router = useRouter();
+  // /download is a public page reachable from the marketing site, the dashboard,
+  // and direct links (a shared URL, or the ?apk= bounce from /api/mobile/apk).
+  // Only offer "Back" when there is same-tab history to go back to — on a direct
+  // open, history.length is 1 and router.back() would dead-end on a blank tab.
+  const [canGoBack, setCanGoBack] = useState(false);
   const [os, setOs] = useState<OS>("unknown");
   // Set when /api/mobile/apk bounced back because no APK could be resolved
   // (?apk=unavailable|error) — rendered as an inline note instead of the raw
@@ -40,6 +56,7 @@ export default function DownloadPage() {
   const [apkNotice, setApkNotice] = useState<"unavailable" | "error" | null>(null);
   useEffect(() => {
     setOs(detectOS());
+    setCanGoBack(window.history.length > 1);
     // window.location instead of useSearchParams: no Suspense boundary needed.
     const flag = new URLSearchParams(window.location.search).get("apk");
     if (flag === "unavailable" || flag === "error") setApkNotice(flag);
@@ -51,6 +68,27 @@ export default function DownloadPage() {
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-16 dark:bg-gray-950">
       <div className="mx-auto w-full max-w-4xl">
+        <div className="mb-8">
+          {canGoBack ? (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 -ml-2 text-sm text-gray-600 transition-colors hover:bg-gray-200/60 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/60 dark:hover:text-gray-100"
+            >
+              <BackArrow />
+              Back
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 -ml-2 text-sm text-gray-600 transition-colors hover:bg-gray-200/60 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/60 dark:hover:text-gray-100"
+            >
+              <BackArrow />
+              Home
+            </Link>
+          )}
+        </div>
+
         <h1 className="text-center text-3xl font-semibold text-gray-900 dark:text-gray-50">Get Corelyx</h1>
         <p className="mx-auto mt-3 max-w-xl text-center text-sm text-gray-600 dark:text-gray-400">
           Run and manage your workflows and agents — on your machine and in your pocket.
