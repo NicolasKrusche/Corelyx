@@ -1369,6 +1369,14 @@ class ProgramExecutor:
             "billing": billing,
             "billed_credits": _non_negative_int(billed_credits),
         }
+        # The base_row insert is a FALLBACK, not a follow-up. It used to sit
+        # after the try/except at this indent level, so the success path fell
+        # through into it and every call wrote two rows — one enriched, one
+        # bare. `source`/`billing`/`billed_credits` are NOT NULL DEFAULT, so the
+        # stray row inserted cleanly and went unnoticed, but it carried the same
+        # estimated_cost_usd, which double-counted every cost SUM on the admin
+        # finance pages.
+        billing_columns_missing = False
         try:
             db.table("llm_usage_logs").insert(enriched_row).execute()
         except Exception as exc:
@@ -1379,12 +1387,15 @@ class ProgramExecutor:
             if not _looks_like_missing_column_error(exc, billing_columns):
                 log.warning("llm_usage_log_insert_failed", error=str(exc)[:200])
                 return
-        # Billing columns not migrated yet (20260708120000): keep the base audit row.
-        try:
-            db.table("llm_usage_logs").insert(base_row).execute()
-        except Exception as exc:
-            self._llm_usage_logging_disabled = True
-            log.warning("llm_usage_logging_disabled", error=str(exc)[:200])
+            billing_columns_missing = True
+
+        if billing_columns_missing:
+            # Billing columns not migrated yet (20260708120000): keep the base audit row.
+            try:
+                db.table("llm_usage_logs").insert(base_row).execute()
+            except Exception as exc:
+                self._llm_usage_logging_disabled = True
+                log.warning("llm_usage_logging_disabled", error=str(exc)[:200])
 
         # Capture token_usage JSONB for the node execution record
         token_usage = {

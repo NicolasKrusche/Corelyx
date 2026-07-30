@@ -228,6 +228,11 @@ class TestLogLlmUsage(unittest.TestCase):
         executor.user_id = "user-1"
         executor.workspace_id = "ws-1"
         executor.run_id = "run-1"
+        # __new__ skips __init__, so every attribute the method under test
+        # touches has to be set here. _log_llm_usage stashes each call on the
+        # node's telemetry (executor.py:1399) so it reaches
+        # node_executions.token_usage; __init__ seeds this per schema node.
+        executor._node_telemetry = {}
         return executor
 
     def _insert_db(self, execute_effects: list[Any]) -> tuple[Mock, Mock]:

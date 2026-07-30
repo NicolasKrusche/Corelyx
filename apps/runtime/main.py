@@ -918,10 +918,14 @@ async def _run_program(
         if final_status != "cancelled":
             await _notify_complete(run_id, program_id, user_id, final_status, error_message)
 
-        # Structured logging for run completion/failure events
+        # Structured logging for run completion/failure events.
+        #
+        # No "event" key in here: structlog's BoundLogger.info/.error already
+        # bind `event` from the first positional argument, so passing one in the
+        # **kwargs raises "got multiple values for argument 'event'" — inside
+        # this finally block, which meant the metrics insert below never ran.
         telemetry = executor.run_telemetry_payload()
         run_event = {
-            "event": f"run_{final_status}",
             "run_id": run_id,
             "program_id": program_id,
             "user_id": user_id,
@@ -935,10 +939,12 @@ async def _run_program(
         }
         if error_message:
             run_event["error_message"] = error_message[:500]
+        # Name the event off final_status so a cancellation is not filed as a
+        # failure, and so these line up with the metric_name written below.
         if final_status == "completed":
-            log.info("run_completed", **run_event)
+            log.info(f"run_{final_status}", **run_event)
         else:
-            log.error("run_failed", **run_event)
+            log.error(f"run_{final_status}", **run_event)
 
         # Emit metrics to the metrics table for aggregation
         try:
