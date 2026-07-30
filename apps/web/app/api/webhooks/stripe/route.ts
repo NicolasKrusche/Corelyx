@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, type LooseServiceClient } from "@/lib/api";
+import {
+  epochToIso,
+  invoiceSubscriptionId,
+  subscriptionPeriod,
+} from "@/lib/stripe-payload-shapes";
 
 /**
  * POST /api/webhooks/stripe — Handle Stripe webhook events.
@@ -72,11 +77,17 @@ export async function POST(request: Request) {
 
       case "invoice.paid": {
         const invoice = event.data.object;
-        // `subscription` is no longer on Stripe.Invoice in the installed API
-        // version's types, but the webhook payload still carries it.
-        const subscriptionId = (invoice as unknown as { subscription?: string }).subscription;
+        const subscriptionId = invoiceSubscriptionId(invoice);
 
-        if (!subscriptionId) break;
+        if (!subscriptionId) {
+          // One-off invoices legitimately have no subscription. Log it anyway:
+          // this is also the branch a future API-shape change lands in, and it
+          // used to swallow every renewal without a trace.
+          console.log(
+            `[stripe-webhook] invoice.paid: no subscription on invoice ${invoice.id} (parent.type=${invoice.parent?.type ?? "none"}) — skipping`
+          );
+          break;
+        }
 
         // Find org by Stripe subscription ID
         const { data: sub } = await service
@@ -87,21 +98,25 @@ export async function POST(request: Request) {
 
         if (!sub) break;
 
-        // Extend the billing period
-        const periodStart = new Date(invoice.period_start * 1000);
-        const periodEnd = new Date(invoice.period_end * 1000);
+        // Extend the billing period. Routed through epochToIso so a malformed
+        // timestamp yields null rather than throwing RangeError out of the
+        // handler — a throw here becomes a 500, which Stripe retries for days.
+        const periodStart = epochToIso(invoice.period_start);
+        const periodEnd = epochToIso(invoice.period_end);
 
         await service
           .from("org_subscriptions")
           .update({
             status: "active",
-            current_period_start: periodStart.toISOString(),
-            current_period_end: periodEnd.toISOString(),
+            // Only overwrite the stored window when we actually resolved one;
+            // a null would clear a period that is still valid.
+            ...(periodStart ? { current_period_start: periodStart } : {}),
+            ...(periodEnd ? { current_period_end: periodEnd } : {}),
             updated_at: new Date().toISOString(),
           } as never)
           .eq("id", sub.id);
 
-        console.log(`[stripe-webhook] invoice.paid: sub=${sub.id} period_end=${periodEnd.toISOString()}`);
+        console.log(`[stripe-webhook] invoice.paid: sub=${sub.id} period_end=${periodEnd ?? "unchanged"}`);
         break;
       }
 
@@ -120,23 +135,25 @@ export async function POST(request: Request) {
         };
 
         const newStatus = statusMap[subscription.status] ?? "active";
+        const period = subscriptionPeriod(subscription);
 
         await service
           .from("org_subscriptions")
           .update({
             status: newStatus,
             seats_count: subscription.items?.data?.[0]?.quantity ?? 1,
-            current_period_start: new Date(
-              (subscription as any).current_period_start * 1000
-            ).toISOString(),
-            current_period_end: new Date(
-              (subscription as any).current_period_end * 1000
-            ).toISOString(),
+            // Omitted rather than nulled when unresolvable: the status change is
+            // the point of this event, and it should still land even if the
+            // period window cannot be read.
+            ...(period.start ? { current_period_start: period.start } : {}),
+            ...(period.end ? { current_period_end: period.end } : {}),
             updated_at: new Date().toISOString(),
           } as never)
           .eq("stripe_subscription_id", stripeSubId);
 
-        console.log(`[stripe-webhook] customer.subscription.updated: ${stripeSubId} → ${newStatus}`);
+        console.log(
+          `[stripe-webhook] customer.subscription.updated: ${stripeSubId} → ${newStatus} (period_end=${period.end ?? "unresolved"})`
+        );
         break;
       }
 
