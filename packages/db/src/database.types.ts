@@ -924,6 +924,7 @@ export type Database = {
           "workspace_id": string;
           "rotation_due_at": string | null;
           "last_health_check_at": string | null;
+          "disabled_reason": string | null;
         };
         Insert: {
           "id"?: string;
@@ -942,6 +943,7 @@ export type Database = {
           "workspace_id": string;
           "rotation_due_at"?: string | null;
           "last_health_check_at"?: string | null;
+          "disabled_reason"?: string | null;
         };
         Update: {
           "id"?: string;
@@ -960,6 +962,7 @@ export type Database = {
           "workspace_id"?: string;
           "rotation_due_at"?: string | null;
           "last_health_check_at"?: string | null;
+          "disabled_reason"?: string | null;
         };
         Relationships: [
           {

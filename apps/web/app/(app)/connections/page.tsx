@@ -35,7 +35,11 @@ import {
   isPrimaryConnectionName,
 } from "@/lib/connection-utils";
 import { PROVIDER_ICON_URL } from "@/lib/provider-icons";
-import { PAY_PER_USE_PROVIDERS } from "@/lib/connector-tiers";
+import {
+  PAY_PER_USE_PROVIDERS,
+  connectorBillsExternally,
+  connectorRequiresPaidPlan,
+} from "@/lib/connector-tiers";
 
 type Connection = {
   id: string;
@@ -274,9 +278,14 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 
-// PAY_PER_USE_PROVIDERS imported from @/lib/connector-tiers — providers that
-// bill the user's own external account per usage (Stripe, Twilio, OpenAI, etc.).
-// Connecting them requires Solo plan or higher.
+// Two distinct ideas from @/lib/connector-tiers, deliberately not merged:
+//   connectorBillsExternally  — informational. Usage hits the user's own account
+//                               at that provider. Available on every plan.
+//   connectorRequiresPaidPlan — an actual gate. AI-inference connectors only,
+//                               because they can run models on a user-supplied
+//                               key and would otherwise bypass the BYOK plan gate.
+// Rendering both as one amber "Solo" lock is what made every pay-per-use
+// connector look paywalled when only three of them are.
 
 const POPULAR_PROVIDER_IDS = ["gmail", "slack", "notion", "sheets", "hubspot", "github", "asana", "drive"];
 
@@ -672,6 +681,12 @@ export default function ConnectionsPage() {
   const [imapFields, setImapFields] = useState(emptyImap);
   const isImapProvider = apiKeyProvider === "thunderbird";
 
+  // null while unknown — openProvider only blocks on an explicit false, so a
+  // slow or failed entitlements fetch degrades to the old behaviour (dialog
+  // opens, server 403s) instead of locking out a user who is actually entitled.
+  const [byokAllowed, setByokAllowed] = useState<boolean | null>(null);
+  const [gatedProviderId, setGatedProviderId] = useState<string | null>(null);
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -693,6 +708,23 @@ export default function ConnectionsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/entitlements");
+        if (!res.ok) return;
+        const data = (await res.json()) as { entitlements?: { byok?: boolean } };
+        if (!cancelled && typeof data.entitlements?.byok === "boolean") {
+          setByokAllowed(data.entitlements.byok);
+        }
+      } catch {
+        // Leave byokAllowed null — see the note on the state declaration.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Open API key dialog when redirected back from the catch-all OAuth route
   useEffect(() => {
@@ -818,6 +850,13 @@ export default function ConnectionsPage() {
   }, [activeProviderId]);
 
   function openProvider(providerId: string, connectionId?: string) {
+    // Short-circuit before the connect dialog rather than after: the server
+    // returns 403 either way, but discovering that only once you have pasted an
+    // API key is a wasted upgrade prompt and a wasted minute.
+    if (connectorRequiresPaidPlan(providerId) && byokAllowed === false) {
+      setGatedProviderId(providerId);
+      return;
+    }
     setActiveProviderId(providerId);
     setHighlightedConnectionId(connectionId ?? null);
   }
@@ -1454,7 +1493,8 @@ export default function ConnectionsPage() {
             {filteredAvailableProviders.length > 0 ? (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {filteredAvailableProviders.map((provider) => {
-                  const isPro = PAY_PER_USE_PROVIDERS.has(provider.id);
+                  const isGated = connectorRequiresPaidPlan(provider.id);
+                  const billsExternally = connectorBillsExternally(provider.id);
                   return (
                     <button
                       key={provider.id}
@@ -1466,12 +1506,16 @@ export default function ConnectionsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold">{provider.label}</p>
-                          {isPro && (
+                          {isGated ? (
                             <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
                               <Lock className="h-2.5 w-2.5" />
                               Solo
                             </span>
-                          )}
+                          ) : billsExternally ? (
+                            <span className="inline-flex items-center rounded-full bg-muted-foreground/10 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80">
+                              Your account
+                            </span>
+                          ) : null}
                         </div>
                         <p className="truncate text-[11px] text-muted-foreground/60">
                           {provider.description}
@@ -1503,11 +1547,19 @@ export default function ConnectionsPage() {
             const wave1 = AVAILABLE_PROVIDERS.filter(
               (p) => p.wave === 1 && !connectedProviders.has(p.id),
             );
+            // Group by "does this spend money at the provider", not by plan —
+            // only the AI-inference few are plan-gated now, and they get their
+            // own section so the lock icon means one thing.
+            const isLater = (p: Provider) =>
+              (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id);
             const moreFree = AVAILABLE_PROVIDERS.filter(
-              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && !PAY_PER_USE_PROVIDERS.has(p.id),
+              (p) => isLater(p) && !PAY_PER_USE_PROVIDERS.has(p.id),
+            );
+            const moreExternal = AVAILABLE_PROVIDERS.filter(
+              (p) => isLater(p) && PAY_PER_USE_PROVIDERS.has(p.id) && !connectorRequiresPaidPlan(p.id),
             );
             const morePro = AVAILABLE_PROVIDERS.filter(
-              (p) => (p.wave === 2 || p.wave === 3) && !connectedProviders.has(p.id) && PAY_PER_USE_PROVIDERS.has(p.id),
+              (p) => isLater(p) && connectorRequiresPaidPlan(p.id),
             );
 
             const sections: Array<{ label: string; description: string; providers: Provider[]; isPro?: boolean }> = [];
@@ -1525,10 +1577,19 @@ export default function ConnectionsPage() {
                 providers: moreFree,
               });
             }
+            if (moreExternal.length > 0) {
+              sections.push({
+                label: "Billed to your account",
+                description:
+                  "Available on every plan. Connect with your own API key or account — usage is billed to you by the provider, not by Corelyx.",
+                providers: moreExternal,
+              });
+            }
             if (morePro.length > 0) {
               sections.push({
                 label: "Solo plan",
-                description: "Billed per usage to your own account — requires Solo plan or higher. Connect with your own API key.",
+                description:
+                  "These run AI models on your own API key, which requires Solo or higher. Corelyx's built-in AI works on every plan with your included credits.",
                 providers: morePro,
                 isPro: true,
               });
@@ -1728,12 +1789,16 @@ export default function ConnectionsPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="truncate text-sm font-semibold">{activeProvider.label}</p>
-                          {PAY_PER_USE_PROVIDERS.has(activeProvider.id) && (
+                          {connectorRequiresPaidPlan(activeProvider.id) ? (
                             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
                               <Lock className="h-2.5 w-2.5" />
                               Solo
                             </span>
-                          )}
+                          ) : connectorBillsExternally(activeProvider.id) ? (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-muted-foreground/10 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80">
+                              Your account
+                            </span>
+                          ) : null}
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
                           {activeProviderConnections.length === 0
@@ -1841,6 +1906,34 @@ export default function ConnectionsPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={gatedProviderId !== null} onOpenChange={(open) => !open && setGatedProviderId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-amber-500" />
+              {gatedProviderId ? (PROVIDER_LABELS[gatedProviderId] ?? gatedProviderId) : ""} needs Solo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 px-6 pb-2 text-sm text-muted-foreground">
+            <p>
+              This connector runs AI models on your own API key, which is available
+              on the Solo plan and above.
+            </p>
+            <p>
+              You can still use Corelyx&apos;s built-in AI on your current plan with your
+              included credits — and every other connector, including the ones billed
+              to your own account like Stripe and Twilio, works on every plan.
+            </p>
+          </div>
+          <DialogFooter className="border-t border-border/60 px-6 py-4">
+            <Button variant="outline" onClick={() => setGatedProviderId(null)}>
+              Close
+            </Button>
+            <Button onClick={() => router.push("/pricing")}>View plans</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

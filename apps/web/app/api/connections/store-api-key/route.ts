@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient, apiError } from "@/lib/api";
 import { upsertOAuthConnection } from "@/lib/oauth-token";
-import { checkPayPerUseConnectorAccess } from "@/lib/limits";
-import { PAY_PER_USE_PROVIDERS } from "@/lib/connector-tiers";
+import { checkConnectorAccess } from "@/lib/limits";
 
 /**
  * Store an API key (or any static credential) as a connection in Vault.
@@ -37,12 +36,11 @@ export async function POST(request: Request) {
     return apiError("Missing or invalid 'api_key'", 400);
   }
 
-  // Pay-per-use connectors require Solo plan or higher
-  if (PAY_PER_USE_PROVIDERS.has(provider.trim())) {
-    const access = await checkPayPerUseConnectorAccess(user.id);
-    if (!access.allowed) {
-      return apiError(access.upgradeMessage ?? access.reason ?? "Solo plan required", 403);
-    }
+  // Connectors are ungated except AI-inference providers — checkConnectorAccess
+  // decides, and short-circuits without a DB read for everything else.
+  const access = await checkConnectorAccess(user.id, provider);
+  if (!access.allowed) {
+    return apiError(access.upgradeMessage ?? access.reason ?? "Solo plan required", 403);
   }
 
   const resolvedLabel =

@@ -5,6 +5,8 @@ import { getTierFromPriceId } from "@/lib/billing";
 import { getStripeClient } from "@/lib/stripe";
 import { applyCreditPurchase } from "@/lib/credits";
 import { creditAutoRecharge, maybeFireAutoRecharge } from "@/lib/auto-recharge";
+import { AI_INFERENCE_PROVIDERS } from "@/lib/connector-tiers";
+import { getEntitlements, parseTier } from "@/lib/entitlements";
 
 const ACTIVE_SUB_STATUSES = new Set([
   "trialing",
@@ -63,13 +65,62 @@ async function applySubscriptionToWorkspace(subscription: Stripe.Subscription) {
         stripe_customer_id: customerId,
       } as never)
       .eq("id", workspaceId);
-    return;
+  } else {
+    await service
+      .from("profiles")
+      .update({ tier, plan_expires_at: planExpiresAt } as never)
+      .eq("id", userId);
   }
 
-  await service
-    .from("profiles")
-    .update({ tier, plan_expires_at: planExpiresAt } as never)
-    .eq("id", userId);
+  await syncGatedConnections(service, { tier, userId, workspaceId });
+}
+
+/**
+ * Reconcile gated connectors with the tier we just wrote.
+ *
+ * Downgrading to a plan without BYOK disables AI-inference connections; coming
+ * back up re-enables the ones we disabled. Without this the row keeps its
+ * credential and the user keeps seeing it listed as connected, while every run
+ * fails a 403 at the token endpoint with no explanation of why.
+ *
+ * Disabled, never deleted: the Vault secret and the workflow wiring survive, so
+ * resubscribing restores a working setup instead of forcing a re-auth of every
+ * connector. Only rows we disabled are re-enabled — a connection disabled for
+ * any other reason is left alone.
+ *
+ * Best-effort by design. Stripe retries on non-2xx, and a failure here must not
+ * cost the user the tier change itself, which is the part they paid for.
+ */
+async function syncGatedConnections(
+  service: ReturnType<typeof createServiceClient>,
+  { tier, userId, workspaceId }: { tier: string; userId?: string; workspaceId?: string },
+) {
+  const scopeColumn = workspaceId ? "workspace_id" : "user_id";
+  const scopeValue = workspaceId ?? userId;
+  if (!scopeValue) return;
+
+  const entitled = getEntitlements(parseTier(tier)).byok;
+
+  try {
+    const { error } = entitled
+      ? await service
+          .from("connections")
+          .update({ disabled_reason: null } as never)
+          .eq(scopeColumn, scopeValue)
+          .eq("disabled_reason", "tier_downgrade")
+      : await service
+          .from("connections")
+          .update({ disabled_reason: "tier_downgrade" } as never)
+          .eq(scopeColumn, scopeValue)
+          .in("provider", [...AI_INFERENCE_PROVIDERS])
+          .is("disabled_reason", null);
+
+    if (error) {
+      console.error("[billing/webhook] syncGatedConnections failed:", error.message);
+    }
+  } catch (err) {
+    console.error("[billing/webhook] syncGatedConnections threw:", err);
+  }
 }
 
 export async function POST(request: Request) {

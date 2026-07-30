@@ -42,8 +42,10 @@ export interface PlanEntitlements {
   maxTeamSeats: number | null;
   maxWorkspaces: number | null;
 
-  // Pay-per-use connectors (Stripe, Twilio, OpenAI, etc.) — requires own API key/OAuth account
-  payPerUseConnectors: boolean;
+  // NOTE: there is deliberately no `payPerUseConnectors` flag. Connector access
+  // is not tiered — see the policy note in lib/connector-tiers.ts. AI-inference
+  // connectors are the sole exception and they ride `byok` above, so the gate
+  // can't drift away from the LLM entitlement it exists to protect.
 
   // Platform AI credits included per month (null = unlimited, 0 = none).
   //
@@ -79,7 +81,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: 3,
     triggers: { manual: true, cron: true, webhook: false, event: false, program: false },
     byok: false,
-    payPerUseConnectors: false,
     hitlApprovals: true,
     conflictDetection: false,
     priorityExecution: false,
@@ -103,7 +104,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: 5,
     triggers: { manual: true, cron: true, webhook: true, event: false, program: false },
     byok: true,
-    payPerUseConnectors: true,
     hitlApprovals: true,
     conflictDetection: false,
     priorityExecution: false,
@@ -122,7 +122,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
-    payPerUseConnectors: true,
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: false,
@@ -141,7 +140,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
-    payPerUseConnectors: true,
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: true,
@@ -160,7 +158,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
-    payPerUseConnectors: true,
     hitlApprovals: true,
     conflictDetection: true,
     priorityExecution: true,

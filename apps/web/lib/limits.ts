@@ -6,6 +6,7 @@
 import { createServiceClient } from "@/lib/api";
 import { isAdminEmail } from "@/lib/admin";
 import { serverLog } from "@/lib/server-log";
+import { connectorRequiresPaidPlan } from "@/lib/connector-tiers";
 import {
   getEntitlements,
   parseTier,
@@ -426,19 +427,38 @@ export async function incrementGenesisUses(userId: string, workspaceId?: string 
     .eq("id", idValue);
 }
 
-/** Check whether the user can connect pay-per-use providers (Solo+ only). */
-export async function checkPayPerUseConnectorAccess(userId: string, workspaceId?: string | null): Promise<LimitCheckResult> {
+/**
+ * Check whether the user may connect *or execute* a given connector.
+ *
+ * Connector access is ungated by design — see the policy note in
+ * lib/connector-tiers.ts. Only AI-inference connectors are gated, and they ride
+ * the BYOK entitlement rather than a separate flag so the three enforcement
+ * points (this, /api/keys, and the runtime's `_enforce_agent_model_access`)
+ * can't drift into disagreeing about who may run a model on their own key.
+ *
+ * Takes the provider explicitly: callers must not assume the gate applies to
+ * every pay-per-use provider, because it no longer does.
+ */
+export async function checkConnectorAccess(
+  userId: string,
+  provider: string,
+  workspaceId?: string | null
+): Promise<LimitCheckResult> {
+  if (!connectorRequiresPaidPlan(provider)) return { allowed: true };
+
   const profile = await getBillingScope(userId, workspaceId);
   const ent = getEntitlements(profile.tier);
 
-  if (ent.payPerUseConnectors) return { allowed: true };
+  if (ent.byok) return { allowed: true };
 
   return {
     allowed: false,
-    reason: "Pay-per-use connectors require Solo plan or higher",
+    reason: `${provider} runs AI models on your own API key, which requires the Solo plan or higher`,
     upgradeMessage:
-      "Connectors like Stripe, Twilio, OpenAI, and AWS S3 bill your own account per usage. " +
-      "They require Solo plan or higher so you can connect them with your own API key. Upgrade to Solo to unlock them.",
+      `Connecting ${provider} lets workflows run AI models on your own API key. ` +
+      "That requires the Solo plan or higher. On the Free plan you can still use " +
+      "Corelyx's built-in AI with your included credits, and every non-AI connector " +
+      "(Stripe, Twilio, AWS, and the rest) is available on every plan.",
   };
 }
 
