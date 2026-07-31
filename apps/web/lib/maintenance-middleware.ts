@@ -7,6 +7,7 @@ import {
   DEFAULT_MAINTENANCE_MESSAGE,
 } from "@/lib/system-flags";
 import { matchDisabledArea } from "@/lib/maintenance-areas";
+import { isProtectedAppPath } from "@/lib/protected-app-routes";
 import {
   MAINTENANCE_BYPASS_PARAM,
   MAINTENANCE_BYPASS_COOKIE,
@@ -19,10 +20,14 @@ import {
  * Maintenance-mode + feature kill-switch gate, backed by the `system_settings`
  * DB row so it can be toggled at runtime without a redeploy.
  *
- * When full maintenance is on, everyone is blocked except admins (so they can
- * verify fixes): page requests are rewritten to /maintenance, API requests get
- * a 503. When maintenance is off, individual feature kill-switches can still
- * soft-block specific API routes while the rest of the app stays up.
+ * When full maintenance is on, the *signed-in app* goes dark for everyone except
+ * admins (so they can verify fixes): app pages get a 503 maintenance page, API
+ * requests get a 503 JSON body. The public marketing site (homepage, pricing,
+ * docs, blog, legal/SEO pages) deliberately stays online throughout — it needs
+ * no backend, and taking it down costs sign-ups and search rankings for an
+ * outage that never affected it. When maintenance is off, individual feature
+ * kill-switches can still soft-block specific API routes while the rest of the
+ * app stays up.
  *
  * Returns a NextResponse to short-circuit the request, or null to continue.
  */
@@ -225,6 +230,12 @@ export async function maintenanceGate(request: NextRequest): Promise<NextRespons
     }
 
     if (isExempt(pathname) || isTrustedMobileRequest(request)) return null;
+
+    // Only the signed-in app + its APIs go dark. Everything else is the public
+    // marketing/SEO site, which keeps serving normally (see the header comment).
+    // Allowlist-by-omission is deliberate but guarded: protected-app-routes.ts is
+    // kept in sync with the route-group directories by its own test.
+    if (!isProtectedAppPath(pathname) && !pathname.startsWith("/api/")) return null;
 
     const { userId, email } = await readSessionIdentity(request);
     if (await isMaintenanceBypassAdmin(userId, email)) {
