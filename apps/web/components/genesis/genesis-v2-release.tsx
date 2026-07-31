@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
-// Lazy-load the modal (it pulls in React Flow + the real node components) so the
-// app-wide gate mounted in the layout doesn't bundle React Flow onto every page.
+// Lazy-load the modal so the app-wide gate mounted in the layout doesn't add
+// the announcement's stage/canvas code to every page's bundle.
+// Active design: "Product film" (landing-page language). To go back to the
+// "Flightdeck" water edition, import "./genesis-v2-release-modal" and use
+// m.GenesisV2ReleaseModal instead.
 export const GenesisV2ReleaseModal = dynamic(
-  () => import("./genesis-v2-release-modal").then((m) => m.GenesisV2ReleaseModal),
+  () => import("./genesis-v2-release-modal-film").then((m) => m.GenesisV2ReleaseModalFilm),
   { ssr: false }
 );
 

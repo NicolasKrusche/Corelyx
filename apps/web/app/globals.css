@@ -1497,3 +1497,562 @@
   .gv2-chip { opacity: 1 !important; transform: scale(0.5) !important; }
   .gv2-scanning .gv2-card::after { display: none; }
 }
+
+
+/* ══ Genesis V2 release — "Product film" landing-language edition (gvf-*) ══ */
+/* The announcement restyled to match the landing page: ink #05060a environment,
+   perspective grid, drifting depth particles, cyan signal accents, brand-orange
+   CTAs, film grain. Palette hardcoded (like the landing) so it renders the same
+   under every app theme. Self-contained; the "Flightdeck" water edition (gv2-*)
+   above stays available one import away. */
+
+.gvf-root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.gvf-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 6, 10, 0.95);
+  backdrop-filter: blur(10px);
+  animation: gvf-fade 0.5s ease-out;
+}
+@keyframes gvf-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Environment: the landing CinematicBackdrop recreated ──
+   Above the blurred backdrop, below the card; pointer-events:none so
+   click-to-close still lands on the backdrop underneath. */
+.gvf-env {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  animation: gvf-fade 0.9s ease-out;
+}
+.gvf-env-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(to right, rgba(120, 160, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 160, 255, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 0%, transparent 80%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 0%, transparent 80%);
+}
+.gvf-env-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.gvf-env-glow { position: absolute; width: 640px; height: 640px; }
+.gvf-env-glow-a {
+  left: -160px;
+  top: 25%;
+  background: radial-gradient(circle, rgba(27, 58, 107, 0.22) 0%, transparent 60%);
+}
+.gvf-env-glow-b {
+  right: -160px;
+  top: 66%;
+  background: radial-gradient(circle, rgba(240, 90, 40, 0.12) 0%, transparent 60%);
+}
+.gvf-env-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+/* Film grain above everything (landing FilmGrain). Static texture — free. */
+.gvf-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ── Card ── */
+.gvf-modal:focus { outline: none; }
+.gvf-modal {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 44rem;
+  border-radius: 1.15rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(120% 80% at 12% -10%, rgba(27, 58, 107, 0.35), transparent 55%),
+    radial-gradient(110% 90% at 94% 112%, rgba(240, 90, 40, 0.14), transparent 55%),
+    linear-gradient(180deg, #0b0e15 0%, #06070d 55%, #05060a 100%);
+  box-shadow: 0 40px 120px -20px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  color: #eef1f8;
+}
+/* Landing-hero entrance: rise + de-blur. Base state is the resolved one, so
+   reduced motion (animation:none) shows the card immediately. */
+.gvf-modal--in { animation: gvf-modal-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes gvf-modal-in {
+  0%   { opacity: 0; transform: translateY(46px) scale(0.96); filter: blur(14px); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* Beat progress — the landing ScrollProgress gradient, scaled per beat. */
+.gvf-progress {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  height: 2px;
+  overflow: hidden;
+}
+.gvf-progress-bar {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #f05a28, #ff7a4d, #38bdf8);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Cinematic stage + camera rig ── */
+.gvf-stage {
+  position: relative;
+  height: 330px;
+  overflow: hidden;
+  perspective: 1200px;
+  perspective-origin: 50% 42%;
+  background: radial-gradient(85% 95% at 50% 32%, #090c13 0%, #05060a 72%);
+}
+.gvf-stage-grid {
+  position: absolute;
+  inset: -20%;
+  opacity: 0.55;
+  background-image:
+    linear-gradient(to right, rgba(120, 160, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 160, 255, 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 62% at 50% 42%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 70% 62% at 50% 42%, #000 25%, transparent 78%);
+  animation: gvf-grid-drift 30s linear infinite;
+}
+@keyframes gvf-grid-drift { to { background-position: 48px 48px; } }
+.gvf-ribbon {
+  position: absolute;
+  left: -5%;
+  top: 18%;
+  width: 110%;
+  height: 64%;
+  opacity: 0.34;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+}
+.gvf-camera {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-origin: 0 0;
+  transform-style: preserve-3d;
+  transition: transform 1.15s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.gvf-layer {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* Mid plane: connection edges — cyan→brand gradient base (the landing
+   SystemGraph edge), with a flowing cyan glow dash on top. */
+.gvf-lines {
+  width: 720px;
+  height: 380px;
+  overflow: visible;
+}
+.gvf-edge { transition: opacity 0.5s ease; }
+.gvf-edge-hidden { opacity: 0; }
+.gvf-edge-base {
+  fill: none;
+  stroke: url(#gvf-edge-grad);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.gvf-edge-glow {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 14 210;
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.85));
+  opacity: 0.9;
+  animation: gvf-flow 2.6s linear infinite;
+}
+@keyframes gvf-flow { to { stroke-dashoffset: -224; } }
+
+/* Mid plane: node cards — the landing SystemGraph/NodeChip look. */
+.gvf-node {
+  position: absolute;
+  width: 162px;
+  transition: opacity 0.5s ease, filter 0.5s ease;
+}
+.gvf-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: rgba(11, 14, 21, 0.92);
+  box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.75), 0 0 20px -8px rgba(56, 189, 248, 0.35);
+  transition: border-color 0.5s ease, box-shadow 0.5s ease;
+}
+.gvf-ico {
+  display: flex;
+  height: 1.65rem;
+  width: 1.65rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #38bdf8;
+  transition: color 0.5s ease;
+}
+.gvf-status {
+  height: 5px;
+  width: 5px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.5s ease, box-shadow 0.5s ease;
+}
+
+.gvf-dim { opacity: 0.32; filter: saturate(0.6); }
+.gvf-focus .gvf-card {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.8), 0 0 30px -4px rgba(56, 189, 248, 0.6);
+}
+.gvf-focus .gvf-status {
+  background: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.9);
+  animation: gvf-status-pulse 1.6s ease-in-out infinite;
+}
+@keyframes gvf-status-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+.gvf-ghost { opacity: 0; pointer-events: none; }
+.gvf-ghost.gvf-show { opacity: 1; }
+
+/* Introspection radar sweep (accounts beat) */
+.gvf-scanning .gvf-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.3) 40deg, transparent 90deg);
+  animation: gvf-sweep 1.8s linear infinite;
+  pointer-events: none;
+}
+@keyframes gvf-sweep { to { transform: rotate(360deg); } }
+
+/* Diff semantics (surgical-edits beat) — the landing state palette. */
+.gvf-added .gvf-card {
+  border-color: rgba(52, 211, 153, 0.65);
+  box-shadow: 0 0 26px -4px rgba(52, 211, 153, 0.5);
+  animation: gvf-added-in 1.8s ease both;
+}
+.gvf-added .gvf-ico { color: #34d399; }
+.gvf-added .gvf-status { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.9); }
+@keyframes gvf-added-in {
+  0%   { opacity: 0; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  25%  { opacity: 1; box-shadow: 0 0 26px 2px rgba(52, 211, 153, 0.65); }
+  100% { opacity: 1; box-shadow: 0 0 16px -4px rgba(52, 211, 153, 0.45); }
+}
+.gvf-changed .gvf-card {
+  border-color: rgba(245, 177, 76, 0.7);
+  animation: gvf-amber 1.6s ease-in-out infinite;
+}
+.gvf-changed .gvf-ico { color: #f5b14c; }
+.gvf-changed .gvf-status { background: #f5b14c; box-shadow: 0 0 8px rgba(245, 177, 76, 0.9); }
+@keyframes gvf-amber {
+  0%, 100% { box-shadow: 0 0 8px -4px rgba(245, 177, 76, 0.3); }
+  50% { box-shadow: 0 0 26px 0 rgba(245, 177, 76, 0.6); }
+}
+.gvf-removed .gvf-card {
+  border-color: rgba(240, 86, 63, 0.6);
+  opacity: 0.55;
+  filter: grayscale(0.55);
+}
+.gvf-removed .gvf-ico { color: #f0563f; }
+.gvf-removed .gvf-status { background: #f0563f; }
+.gvf-strike {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 2px;
+  background: rgba(240, 86, 63, 0.9);
+  transform: rotate(-5deg) scaleX(0);
+  transform-origin: left center;
+  animation: gvf-strike 1.6s ease-out 0.3s forwards;
+}
+@keyframes gvf-strike { to { transform: rotate(-5deg) scaleX(1); } }
+
+/* Clarifying-question pin (asks beat) — amber "human review" bubble.
+   Supersampled 2×: tiny text inside the preserve-3d camera rig is rasterized
+   once at natural size, then the per-beat camera zoom stretches the texture
+   and blurs it. Render at double metrics and scale(0.5) so the texture
+   carries 2× pixels — crisp under any beat zoom. Anchored bottom-center so
+   the pin keeps its exact position over the node. */
+.gvf-pin {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  width: max-content;
+  max-width: 380px;
+  transform: translateX(-50%) scale(0.5);
+  transform-origin: 50% 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  border-radius: 1.1rem;
+  border: 2px solid rgba(245, 177, 76, 0.65);
+  background: rgba(11, 14, 21, 0.96);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  box-shadow: 0 16px 44px -12px rgba(245, 177, 76, 0.45), 0 0 30px -6px rgba(245, 177, 76, 0.4);
+  animation: gvf-bob 2.2s ease-in-out infinite;
+}
+.gvf-pin::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -10px;
+  border: 10px solid transparent;
+  border-top-color: rgba(245, 177, 76, 0.65);
+}
+.gvf-pin-ico { height: 1.6rem; width: 1.6rem; flex-shrink: 0; color: #f5b14c; }
+@keyframes gvf-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0) scale(0.5); }
+  50% { transform: translateX(-50%) translateY(-10px) scale(0.5); }
+}
+
+/* Introspection chips flying into the Gmail node — the landing's governance
+   marker pill (mono, uppercase, cyan). Supersampled 2× like .gvf-pin,
+   anchored top-left so the inline top/left placement is unchanged. */
+.gvf-chip {
+  position: absolute;
+  padding: 0.32rem 0.75rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  background: rgba(10, 20, 31, 0.92);
+  color: #a5e3ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 0 22px -6px rgba(56, 189, 248, 0.55);
+  transform: scale(0.5);
+  transform-origin: 0 0;
+  animation: gvf-chip-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes gvf-chip-in {
+  0% { opacity: 0; transform: translate(-44px, 12px) scale(0.35); }
+  100% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+}
+
+/* Near plane: drifting light particles (landing depth-particle blue) */
+.gvf-near { transform: translateZ(150px); }
+.gvf-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(86, 184, 255, 0.9);
+  filter: blur(0.5px) drop-shadow(0 0 6px #56b8ff);
+  animation: gvf-float 6s ease-in-out infinite;
+}
+@keyframes gvf-float {
+  0%, 100% { opacity: 0.12; transform: translateY(0); }
+  50% { opacity: 0.7; transform: translateY(-14px); }
+}
+
+/* ── Depth scrim over the world ── */
+.gvf-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 6, 10, 0.55) 0%,
+    transparent 20%,
+    transparent 62%,
+    rgba(5, 6, 10, 0.9) 100%
+  );
+}
+
+/* ── Top HUD row ── */
+.gvf-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+}
+.gvf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
+.gvf-skip {
+  padding: 0.28rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.gvf-skip:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+
+/* ── Copy panel ── */
+.gvf-panel {
+  position: relative;
+  min-height: 150px;
+  padding: 1.15rem 1.4rem 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.gvf-hud { animation: gvf-hud-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes gvf-hud-in {
+  from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+/* Word-by-word title rise (landing hero). Base state is resolved — reduced
+   motion (animation:none) simply shows the words. */
+.gvf-word { animation: gvf-word-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes gvf-word-in {
+  from { transform: translateY(115%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.gvf-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 40rem;
+}
+
+/* ── Footer controls ── */
+.gvf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.4rem 0.95rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.gvf-dot {
+  height: 6px;
+  width: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  transition: all 0.3s ease;
+}
+.gvf-dot:hover { background: rgba(255, 255, 255, 0.45); }
+.gvf-dot--active {
+  width: 22px;
+  background: linear-gradient(90deg, #f05a28, #ff7a4d);
+  box-shadow: 0 0 12px -2px rgba(240, 90, 40, 0.7);
+}
+.gvf-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2.25rem;
+  padding: 0 1.05rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.gvf-btn-ghost:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.gvf-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2.25rem;
+  padding: 0 1.15rem;
+  border-radius: 9999px;
+  background: #f05a28;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 10px 40px -10px rgba(240, 90, 40, 0.8);
+  transition: opacity 0.2s ease;
+}
+.gvf-btn-primary:hover { opacity: 0.9; }
+
+/* ══ Reduced motion: calm, static, legible poster ══ */
+@media (prefers-reduced-motion: reduce) {
+  .gvf-camera { transition: none !important; }
+  .gvf-backdrop,
+  .gvf-env,
+  .gvf-modal--in,
+  .gvf-hud,
+  .gvf-word,
+  .gvf-stage-grid,
+  .gvf-edge-glow,
+  .gvf-focus .gvf-status,
+  .gvf-scanning .gvf-card::after,
+  .gvf-added .gvf-card,
+  .gvf-changed .gvf-card,
+  .gvf-strike,
+  .gvf-pin,
+  .gvf-chip,
+  .gvf-particle {
+    animation: none !important;
+  }
+  .gvf-progress-bar { transition: none !important; }
+  .gvf-near,
+  .gvf-ribbon {
+    display: none !important;
+  }
+  .gvf-edge-glow { stroke-dashoffset: 0; opacity: 0.5; }
+  .gvf-strike { transform: rotate(-5deg) scaleX(1); }
+  /* Keep the 2× supersample scale — "none" would render the chip double-size. */
+  .gvf-chip { opacity: 1 !important; transform: scale(0.5) !important; }
+  .gvf-scanning .gvf-card::after { display: none; }
+}
