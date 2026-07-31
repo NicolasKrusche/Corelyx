@@ -10,6 +10,11 @@ import {
   type Difficulty,
 } from "@/lib/templates/template-data";
 
+type ProgramJson = {
+  nodes?: Array<{ id?: string; type?: string; data?: Record<string, unknown> }>;
+  edges?: Array<unknown>;
+};
+
 type AdminTemplate = {
   id: string;
   name: string;
@@ -26,7 +31,47 @@ type AdminTemplate = {
   created_by: string;
   created_at: string;
   fork_count: number;
+  // Both are returned by GET /api/templates and were previously declared
+  // nowhere, so the review UI rendered the description twice under a "Genesis
+  // prompt preview" label and never showed the workflow at all.
+  genesis_prompt: string | null;
+  program_json: ProgramJson | null;
+  // Attached by GET /api/templates for admin callers only.
+  creator_name?: string | null;
+  creator_username?: string | null;
 };
+
+/** Who submitted this, falling back to a short id when the profile has no name. */
+function creatorLabel(tpl: AdminTemplate): string {
+  if (tpl.creator_name?.trim()) {
+    return tpl.creator_username?.trim()
+      ? `${tpl.creator_name.trim()} (@${tpl.creator_username.trim()})`
+      : tpl.creator_name.trim();
+  }
+  if (tpl.creator_username?.trim()) return `@${tpl.creator_username.trim()}`;
+  return `${tpl.created_by.slice(0, 8)}…`;
+}
+
+/** Node types + counts, so a reviewer can see what a template actually does. */
+function summarizeProgram(program: ProgramJson | null): {
+  nodeCount: number;
+  edgeCount: number;
+  types: Array<{ type: string; count: number }>;
+} {
+  const nodes = Array.isArray(program?.nodes) ? program.nodes : [];
+  const counts = new Map<string, number>();
+  for (const node of nodes) {
+    const type = typeof node?.type === "string" && node.type ? node.type : "unknown";
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+  return {
+    nodeCount: nodes.length,
+    edgeCount: Array.isArray(program?.edges) ? program.edges.length : 0,
+    types: [...counts.entries()]
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count),
+  };
+}
 
 type FilterStatus = "all" | "pending" | "approved" | "rejected";
 
@@ -36,6 +81,8 @@ export function AdminTemplatesClient() {
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("pending");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<{
     templateId: string;
     templateName: string;
@@ -50,16 +97,10 @@ export function AdminTemplatesClient() {
 
     try {
       const res = await fetch(`/api/templates?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to load templates");
+      if (!res.ok) throw new Error(`Failed to load templates (${res.status})`);
       const data = await res.json();
-      // Filter by status client-side since the API returns all templates
-      let filtered = data.templates ?? [];
-      if (filterStatus !== "all") {
-        filtered = filtered.filter(
-          (t: AdminTemplate) => t.status === filterStatus
-        );
-      }
-      setTemplates(filtered);
+      // The API applies ?status server-side; no client-side re-filter needed.
+      setTemplates(data.templates ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
@@ -71,26 +112,51 @@ export function AdminTemplatesClient() {
     loadTemplates();
   }, [loadTemplates]);
 
-  async function handleApprove(templateId: string) {
+  /**
+   * Both review actions previously swallowed every failure — `catch {}` with no
+   * error state, and an `if (res.ok)` with no else. A 403 or 500 left the card
+   * unchanged with no message, which is indistinguishable from the click not
+   * registering. Surface it instead.
+   */
+  async function submitReview(
+    templateId: string,
+    body: { action: "approve" | "reject"; rejection_reason?: string }
+  ): Promise<boolean> {
+    setActionError(null);
     setActionLoading(templateId);
     try {
       const res = await fetch(`/api/templates/${templateId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "approve" }),
+        body: JSON.stringify(body),
       });
-      if (res.ok) {
-        setTemplates((prev) =>
-          prev.map((t) =>
-            t.id === templateId ? { ...t, status: "approved" } : t
-          )
+      if (!res.ok) {
+        const detail = await res
+          .json()
+          .then((d: { error?: string }) => d.error)
+          .catch(() => null);
+        setActionError(
+          `Failed to ${body.action} template (${res.status})${detail ? `: ${detail}` : ""}`
         );
+        return false;
       }
-    } catch {
-      // Silently fail
+      return true;
+    } catch (err) {
+      setActionError(
+        `Failed to ${body.action} template: ${err instanceof Error ? err.message : "network error"}`
+      );
+      return false;
     } finally {
       setActionLoading(null);
     }
+  }
+
+  async function handleApprove(templateId: string) {
+    const ok = await submitReview(templateId, { action: "approve" });
+    if (!ok) return;
+    setTemplates((prev) =>
+      prev.map((t) => (t.id === templateId ? { ...t, status: "approved" } : t))
+    );
   }
 
   function openRejectModal(templateId: string, templateName: string) {
@@ -100,32 +166,23 @@ export function AdminTemplatesClient() {
 
   async function handleReject() {
     if (!rejectModal) return;
-    setActionLoading(rejectModal.templateId);
-    try {
-      const res = await fetch(`/api/templates/${rejectModal.templateId}/review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "reject",
-          rejection_reason: rejectReason.trim() || undefined,
-        }),
-      });
-      if (res.ok) {
-        setTemplates((prev) =>
-          prev.map((t) =>
-            t.id === rejectModal.templateId
-              ? { ...t, status: "rejected", rejection_reason: rejectReason.trim() || null }
-              : t
-          )
-        );
-      }
-    } catch {
-      // Silently fail
-    } finally {
-      setActionLoading(null);
-      setRejectModal(null);
-      setRejectReason("");
-    }
+    const { templateId } = rejectModal;
+    const reason = rejectReason.trim();
+    const ok = await submitReview(templateId, {
+      action: "reject",
+      rejection_reason: reason || undefined,
+    });
+    // Keep the modal open on failure so the typed reason is not lost.
+    if (!ok) return;
+    setTemplates((prev) =>
+      prev.map((t) =>
+        t.id === templateId
+          ? { ...t, status: "rejected", rejection_reason: reason || null }
+          : t
+      )
+    );
+    setRejectModal(null);
+    setRejectReason("");
   }
 
   const statusFilters: { value: FilterStatus; label: string }[] = [
@@ -178,6 +235,19 @@ export function AdminTemplatesClient() {
         </div>
       )}
 
+      {actionError && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="shrink-0 text-xs underline underline-offset-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Loading */}
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2">
@@ -221,7 +291,7 @@ export function AdminTemplatesClient() {
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  by {tpl.created_by.slice(0, 8)}… •{" "}
+                  by <span className="text-foreground/80">{creatorLabel(tpl)}</span> •{" "}
                   {new Date(tpl.created_at).toLocaleDateString()}
                 </p>
               </CardHeader>
@@ -252,14 +322,64 @@ export function AdminTemplatesClient() {
                   )}
                 </div>
 
-                {/* Genesis prompt preview */}
-                {tpl.description && (
-                  <div className="rounded-md bg-muted/30 p-2">
-                    <p className="text-xs text-muted-foreground line-clamp-2 font-mono">
-                      {tpl.description}
-                    </p>
-                  </div>
-                )}
+                {/* What this template actually does — the point of a review
+                    queue. Previously this block re-rendered `description` under
+                    a "Genesis prompt preview" label, so a reviewer approved
+                    workflows having never seen one. */}
+                {(() => {
+                  const summary = summarizeProgram(tpl.program_json);
+                  const isOpen = expandedId === tpl.id;
+                  return (
+                    <div className="rounded-md border border-border/60 bg-muted/20">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(isOpen ? null : tpl.id)}
+                        className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left"
+                      >
+                        <span className="text-xs font-medium">
+                          {summary.nodeCount > 0
+                            ? `Workflow — ${summary.nodeCount} node${summary.nodeCount === 1 ? "" : "s"}, ${summary.edgeCount} edge${summary.edgeCount === 1 ? "" : "s"}`
+                            : "Workflow — empty or missing"}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {isOpen ? "Hide" : "Inspect"}
+                        </span>
+                      </button>
+
+                      {summary.types.length > 0 && (
+                        <div className="flex flex-wrap gap-1 px-2.5 pb-2">
+                          {summary.types.map(({ type, count }) => (
+                            <Badge key={type} variant="outline" className="text-[10px]">
+                              {type}
+                              {count > 1 ? ` ×${count}` : ""}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {isOpen && (
+                        <div className="space-y-2 border-t border-border/60 px-2.5 py-2">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Genesis prompt
+                            </p>
+                            <p className="mt-0.5 whitespace-pre-wrap break-words font-mono text-[11px] text-muted-foreground">
+                              {tpl.genesis_prompt?.trim() || "— none —"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              program_json
+                            </p>
+                            <pre className="mt-0.5 max-h-64 overflow-auto rounded bg-background/60 p-2 font-mono text-[10px] leading-relaxed">
+                              {JSON.stringify(tpl.program_json ?? {}, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {tpl.status === "rejected" && tpl.rejection_reason && (
                   <div className="rounded-md bg-destructive/5 border border-destructive/20 p-2">

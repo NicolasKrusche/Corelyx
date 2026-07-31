@@ -58,6 +58,12 @@ export default function TemplateMarketplacePage() {
 
   useEffect(() => {
     const params = new URLSearchParams();
+    // Ask for approved explicitly rather than relying on the caller's row
+    // visibility. For a normal user RLS already limits this to approved-public
+    // plus their own, but an admin reads past RLS so the review queue works —
+    // without this they would browse the public marketplace seeing pending and
+    // rejected submissions mixed in with the live ones.
+    params.set("status", "approved");
     if (activeCategory !== "all") params.set("category", activeCategory);
     if (search.trim()) params.set("search", search.trim());
 

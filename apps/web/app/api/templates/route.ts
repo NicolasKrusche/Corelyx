@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { createServerClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/admin";
+
+const TEMPLATE_COLUMNS =
+  "id, name, description, category, difficulty, estimated_runtime, required_connections, tags, genesis_prompt, program_json, thumbnail_url, is_public, status, rejection_reason, created_by, created_at, fork_count";
 
 /**
  * GET /api/templates
@@ -11,8 +15,23 @@ import { createServerClient } from "@/lib/supabase/server";
  *   ?search=github         — search by name or description
  *   ?connector=Gmail       — filter by required connection
  *   ?difficulty=easy       — filter by difficulty level
- *   ?status=pending        — filter by review status
- * Returns public templates and user's own templates.
+ *   ?status=pending        — filter by review status (admins only in practice;
+ *                            a normal caller can only ever see their own rows
+ *                            plus approved public ones, whatever they pass)
+ *
+ * Row visibility is enforced by RLS, NOT by this handler. That is deliberate:
+ * this route used to read with the service client, which bypasses RLS, and
+ * applied no is_public/status/ownership filter of its own — so every logged-in
+ * user could read every other user's unpublished drafts, including the complete
+ * `program_json` workflow and `genesis_prompt`. Migration 20260726100000 had
+ * already tightened the policy to
+ *
+ *     (is_public AND status = 'approved') OR created_by = auth.uid()
+ *
+ * specifically to close that hole, but the fix did nothing while the only read
+ * path went around it. The user-scoped client below puts the policy back in
+ * charge. Admins still get the unfiltered view for the review queue, via an
+ * explicit privilege check rather than as an accident of the client type.
  */
 export async function GET(request: Request) {
   const supabase = await createServerClient();
@@ -28,16 +47,26 @@ export async function GET(request: Request) {
   const difficulty = searchParams.get("difficulty");
   const status = searchParams.get("status");
 
-  const db = createServiceClient();
+  // Admins moderate templates they do not own and that are not yet public, so
+  // they need to see past RLS. Everyone else reads through it.
+  const callerIsAdmin = await isAdmin(user.id, user.email ?? undefined);
+  const db = callerIsAdmin ? createServiceClient() : supabase;
 
-  let query = db
-    .from("templates")
-    .select(
-      "id, name, description, category, difficulty, estimated_runtime, required_connections, tags, genesis_prompt, program_json, thumbnail_url, is_public, status, rejection_reason, created_by, created_at, fork_count"
+  let query = db.from("templates").select(TEMPLATE_COLUMNS);
+
+  // Defence in depth: state the same rule the RLS policy states, in the query.
+  //
+  // Relying on RLS alone is what produced the original bug — the handler said
+  // "RLS already handles access" while reading with a client that bypasses it.
+  // This database has also drifted from its migration files repeatedly, so
+  // "the policy is applied" is not a safe assumption to build a privacy
+  // boundary on. With both in place the leak requires two independent failures.
+  if (!callerIsAdmin) {
+    query = query.or(
+      `and(is_public.eq.true,status.eq.approved),created_by.eq.${user.id}`
     );
+  }
 
-  // RLS already handles access; filter for public or user-owned
-  // The RLS policy allows authenticated users to read all templates (internal beta)
   if (category) {
     query = query.eq("category", category);
   }
@@ -75,6 +104,49 @@ export async function GET(request: Request) {
         (c: string) => c.toLowerCase() === connector.toLowerCase()
       )
     );
+  }
+
+  // Attach the submitter's display name for the review queue. Admin-only: a
+  // reviewer needs to tell one submitter from another (a repeat spammer is
+  // invisible when every card reads "by 4f3a91c2…"), but nobody else has a
+  // reason to learn who authored a template.
+  //
+  // display_name/username rather than email on purpose — enough to identify a
+  // submitter across cards, without moving contact details into a response that
+  // did not carry them before. `profiles` has no email column anyway.
+  if (callerIsAdmin && templates.length > 0) {
+    const creatorIds = [
+      ...new Set(
+        templates
+          .map((t) => (t as { created_by?: string }).created_by)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      ),
+    ];
+
+    if (creatorIds.length > 0) {
+      // Best-effort: a failure here must not cost the reviewer the queue.
+      const { data: profiles } = await createServiceClient()
+        .from("profiles")
+        .select("id, display_name, username")
+        .in("id", creatorIds);
+
+      const byId = new Map(
+        ((profiles ?? []) as Array<{
+          id: string;
+          display_name: string | null;
+          username: string | null;
+        }>).map((p) => [p.id, p])
+      );
+
+      templates = templates.map((t) => {
+        const creator = byId.get((t as { created_by?: string }).created_by ?? "");
+        return {
+          ...t,
+          creator_name: creator?.display_name ?? null,
+          creator_username: creator?.username ?? null,
+        };
+      });
+    }
   }
 
   return NextResponse.json({ templates });
