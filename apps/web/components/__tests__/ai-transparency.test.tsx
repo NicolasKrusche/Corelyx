@@ -8,7 +8,10 @@ import {
 } from "../ai-transparency";
 
 describe("AI transparency components", () => {
-  it("renders a fixed, non-dismissible global AI disclosure", () => {
+  it("renders a fixed global AI disclosure, expanded by default and collapsible but never removable", () => {
+    // Art. 50 requires disclosure at first interaction/exposure: SSR default is
+    // the full expanded banner. Users may collapse it to a pill (it stays on
+    // screen) so it cannot cover bottom-anchored UI on small screens.
     const markup = renderToStaticMarkup(
       <PersistentAiDisclosure
         title="AI disclosure"
@@ -20,7 +23,7 @@ describe("AI transparency components", () => {
     expect(markup).toContain("persistent-ai-disclosure");
     expect(markup).toContain("fixed");
     expect(markup).toContain("You are interacting with AI");
-    expect(markup).not.toContain("<button");
+    expect(markup).toContain('aria-expanded="true"');
   });
 
   it("identifies AI-authored messages visibly and accessibly", () => {

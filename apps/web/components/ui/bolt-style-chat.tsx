@@ -513,7 +513,7 @@ export function BoltStyleChat({
   onModelChange,
 }: BoltChatProps) {
   return (
-    <div className='relative flex min-h-screen w-full flex-col items-center overflow-hidden bg-background text-foreground'>
+    <div className='relative flex min-h-[100dvh] w-full flex-col items-center overflow-hidden bg-background text-foreground'>
       <RayBackground />
 
       {!hideHero && (
@@ -522,7 +522,7 @@ export function BoltStyleChat({
         </div>
       )}
 
-      <div className='relative z-10 flex w-full flex-1 flex-col items-center justify-center px-4 pb-10 pt-36 sm:pt-40'>
+      <div className='relative z-10 flex w-full flex-1 flex-col items-center justify-center px-4 pb-24 pt-36 sm:pb-10 sm:pt-40'>
         {!hideHero && (
           <div className='mb-5 text-center'>
             <h1 className='mb-1 text-4xl font-bold tracking-tight sm:text-5xl'>

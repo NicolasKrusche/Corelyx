@@ -227,14 +227,18 @@ function NewProgramPageInner() {
   }, [connectionsOpen]);
 
   useEffect(() => {
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
+    // Only lock horizontal scroll (the w-screen breakout would otherwise show
+    // a horizontal scrollbar). Vertical scroll must stay available: on small
+    // viewports the prompt toolbar can sit under the fixed bottom notices
+    // (cookie banner, AI disclosure) and scrolling is the escape hatch.
+    const previousBodyOverflowX = document.body.style.overflowX;
+    const previousHtmlOverflowX = document.documentElement.style.overflowX;
+    document.body.style.overflowX = "hidden";
+    document.documentElement.style.overflowX = "hidden";
 
     return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflowX = previousBodyOverflowX;
+      document.documentElement.style.overflowX = previousHtmlOverflowX;
     };
   }, []);
 
