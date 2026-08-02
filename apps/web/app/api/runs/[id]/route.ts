@@ -29,7 +29,7 @@ export async function GET(
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     connector_api_calls: number;
     model_call_count: number;
     created_at: string;
@@ -38,7 +38,7 @@ export async function GET(
   const { data: runRaw, error: runError } = await serviceClient
     .from("runs")
     .select(
-      "id, program_id, status, triggered_by, trigger_payload, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
+      "id, program_id, status, triggered_by, trigger_payload, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, created_at"
     )
     .eq("id", runId)
     .single();
@@ -75,7 +75,7 @@ export async function GET(
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     connector_api_calls: number;
     model_call_count: number;
     created_at: string;
@@ -84,7 +84,7 @@ export async function GET(
   const { data: execsRaw, error: execsError } = await serviceClient
     .from("node_executions")
     .select(
-      "id, node_id, status, input_payload, output_payload, error_message, retry_count, started_at, completed_at, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
+      "id, node_id, status, input_payload, output_payload, error_message, retry_count, started_at, completed_at, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, created_at"
     )
     .eq("run_id", runId)
     .order("created_at", { ascending: true });

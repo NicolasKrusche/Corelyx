@@ -23,7 +23,7 @@ type RunRow = {
   status: string;
   started_at: string;
   completed_at: string | null;
-  estimated_cost_usd: number | null;
+  billed_cost_usd: number | null;
 };
 
 type QueryResult<T> = { data: T[] | null; error: unknown };
@@ -114,7 +114,7 @@ export async function GET() {
 
     const runsQuery = serviceClient
       .from("runs")
-      .select("id, program_id, status, started_at, completed_at, estimated_cost_usd")
+      .select("id, program_id, status, started_at, completed_at, billed_cost_usd")
       .in("program_id", programIds)
       .gte("started_at", thirtyDaysAgo)
       .not("started_at", "is", null)
@@ -129,14 +129,14 @@ export async function GET() {
     // Group runs by program
     const runsByProgram = new Map<
       string,
-      { status: RunStatus; started_at: string; estimated_cost_usd: number }[]
+      { status: RunStatus; started_at: string; billed_cost_usd: number }[]
     >();
     for (const run of runs ?? []) {
       const arr = runsByProgram.get(run.program_id) ?? [];
       arr.push({
         status: run.status as RunStatus,
         started_at: run.started_at,
-        estimated_cost_usd: run.estimated_cost_usd ?? 0,
+        billed_cost_usd: run.billed_cost_usd ?? 0,
       });
       runsByProgram.set(run.program_id, arr);
     }
@@ -154,7 +154,7 @@ export async function GET() {
       const successRate =
         totalRuns > 0 ? (completedRuns / totalRuns) * 100 : 100;
       const cost30d = programRuns.reduce(
-        (sum, r) => sum + (r.estimated_cost_usd || 0),
+        (sum, r) => sum + (r.billed_cost_usd || 0),
         0,
       );
 

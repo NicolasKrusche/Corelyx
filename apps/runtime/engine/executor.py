@@ -163,6 +163,19 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, tuple[float, float]] = {
 PLATFORM_MARKUP = 10.0
 CREDITS_PER_USD = 1000
 
+
+def _user_billed_cost_usd(billed_credits: int, estimated_cost_usd: float) -> float:
+    """User-facing cost of one LLM call in USD.
+
+    Platform-billed calls: the marked-up charge (billed credits converted back
+    to dollars). BYOK/free calls: the raw provider cost passes through — the
+    user pays their own provider directly and no markup exists. User-visible
+    surfaces (runs.billed_cost_usd) must show this, never raw platform cost.
+    """
+    if billed_credits > 0:
+        return billed_credits / CREDITS_PER_USD
+    return estimated_cost_usd
+
 # Mirrors apps/web/lib/genesis/request.ts OPENROUTER_FALLBACK_MODELS. Tried, in
 # order, when the requested model fails — for every OpenRouter-routed call, so it
 # must be reliable rather than merely cheap. The ":free" slugs previously here
@@ -371,6 +384,7 @@ def _empty_telemetry() -> TelemetryPayload:
         "completion_tokens": 0,
         "total_tokens": 0,
         "estimated_cost_usd": 0.0,
+        "billed_cost_usd": 0.0,
         "connector_api_calls": 0,
         "model_call_count": 0,
     }
@@ -1298,6 +1312,7 @@ class ProgramExecutor:
         completion_tokens: int = 0,
         total_tokens: int = 0,
         estimated_cost_usd: float = 0.0,
+        billed_cost_usd: float = 0.0,
         connector_api_calls: int = 0,
         model_call_count: int = 0,
     ) -> None:
@@ -1312,6 +1327,7 @@ class ProgramExecutor:
         if tt == 0:
             tt = pt + ct
         cost = _non_negative_float(estimated_cost_usd)
+        billed = _non_negative_float(billed_cost_usd)
         connector_calls = _non_negative_int(connector_api_calls)
         model_calls = _non_negative_int(model_call_count)
 
@@ -1321,6 +1337,11 @@ class ProgramExecutor:
         node_metrics["estimated_cost_usd"] += cost
         node_metrics["connector_api_calls"] += connector_calls
         node_metrics["model_call_count"] += model_calls
+        # .get: billed_cost_usd was added later, so telemetry dicts restored
+        # from older snapshots may not carry the key yet.
+        node_metrics["billed_cost_usd"] = (
+            _non_negative_float(node_metrics.get("billed_cost_usd", 0.0)) + billed
+        )
 
         self._run_telemetry["prompt_tokens"] += pt
         self._run_telemetry["completion_tokens"] += ct
@@ -1328,6 +1349,9 @@ class ProgramExecutor:
         self._run_telemetry["estimated_cost_usd"] += cost
         self._run_telemetry["connector_api_calls"] += connector_calls
         self._run_telemetry["model_call_count"] += model_calls
+        self._run_telemetry["billed_cost_usd"] = (
+            _non_negative_float(self._run_telemetry.get("billed_cost_usd", 0.0)) + billed
+        )
 
     def _log_llm_usage(
         self,
@@ -1397,13 +1421,18 @@ class ProgramExecutor:
                 self._llm_usage_logging_disabled = True
                 log.warning("llm_usage_logging_disabled", error=str(exc)[:200])
 
-        # Capture token_usage JSONB for the node execution record
+        # Capture token_usage JSONB for the node execution record.
+        # billed_cost_usd is the only figure user-facing surfaces may show;
+        # estimated_cost_usd stays raw for the admin pages.
         token_usage = {
             "model": model,
             "prompt_tokens": _non_negative_int(prompt_tokens),
             "completion_tokens": _non_negative_int(completion_tokens),
             "total_tokens": _non_negative_int(total_tokens),
             "estimated_cost_usd": _round_cost(_non_negative_float(estimated_cost_usd)),
+            "billed_cost_usd": _round_cost(
+                _user_billed_cost_usd(_non_negative_int(billed_credits), _non_negative_float(estimated_cost_usd))
+            ),
             "source": source,
         }
         # Store on the node telemetry so it gets written to node_executions.token_usage
@@ -1427,6 +1456,7 @@ class ProgramExecutor:
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
             "estimated_cost_usd": _round_cost(_non_negative_float(metrics.get("estimated_cost_usd", 0.0))),
+            "billed_cost_usd": _round_cost(_non_negative_float(metrics.get("billed_cost_usd", 0.0))),
             "connector_api_calls": _non_negative_int(metrics.get("connector_api_calls", 0)),
             "model_call_count": _non_negative_int(metrics.get("model_call_count", 0)),
         }
@@ -1439,6 +1469,7 @@ class ProgramExecutor:
                 "total_completion_tokens": completion_tokens,
                 "total_tokens": total_tokens,
                 "total_cost_usd": _round_cost(_non_negative_float(metrics.get("estimated_cost_usd", 0.0))),
+                "total_billed_cost_usd": _round_cost(_non_negative_float(metrics.get("billed_cost_usd", 0.0))),
             }
         return result
 
@@ -1453,6 +1484,7 @@ class ProgramExecutor:
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
             "estimated_cost_usd": _round_cost(_non_negative_float(self._run_telemetry.get("estimated_cost_usd", 0.0))),
+            "billed_cost_usd": _round_cost(_non_negative_float(self._run_telemetry.get("billed_cost_usd", 0.0))),
             "connector_api_calls": _non_negative_int(self._run_telemetry.get("connector_api_calls", 0)),
             "model_call_count": _non_negative_int(self._run_telemetry.get("model_call_count", 0)),
         }
@@ -3391,13 +3423,6 @@ class ProgramExecutor:
         )
         self._limiter.check_llm_tokens(total_tokens)
         self._limiter.check_cost(estimated_cost_usd)
-        self._record_telemetry(
-            node_id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            estimated_cost_usd=estimated_cost_usd,
-        )
         billing_platform = getattr(self, "_agent_billing_platform", False)
         billed_credits = 0
         if (
@@ -3406,6 +3431,14 @@ class ProgramExecutor:
             and getattr(self, "user_id", None)
         ):
             billed_credits = math.ceil(estimated_cost_usd * PLATFORM_MARKUP * CREDITS_PER_USD)
+        self._record_telemetry(
+            node_id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            estimated_cost_usd=estimated_cost_usd,
+            billed_cost_usd=_user_billed_cost_usd(billed_credits, estimated_cost_usd),
+        )
         self._log_llm_usage(
             node_id,
             model,
@@ -4085,6 +4118,7 @@ class ProgramExecutor:
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
             estimated_cost_usd=estimated_cost_usd,
+            billed_cost_usd=_user_billed_cost_usd(billed_credits, estimated_cost_usd),
         )
         self._log_llm_usage(
             node_id,

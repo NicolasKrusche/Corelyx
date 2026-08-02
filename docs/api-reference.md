@@ -254,7 +254,7 @@ Return the run plus its per-node executions.
   "run": {
     "id": "…", "program_id": "…", "status": "success",
     "started_at": "…", "completed_at": "…", "error_message": null,
-    "total_tokens": 1234, "estimated_cost_usd": 0.02, "connector_api_calls": 5
+    "total_tokens": 1234, "billed_cost_usd": 0.02, "connector_api_calls": 5
   },
   "program": { "id": "…", "name": "…", "schema": { "…": "…" } },
   "node_executions": [
@@ -267,7 +267,7 @@ Return the run plus its per-node executions.
 
 Related: `POST /api/runs/:id/cancel`, `POST /api/runs/:id/replay`,
 `POST /api/runs/:id/replay-from-node`, `POST /api/runs/:id/analyze` (AI failure
-analysis), `POST /api/runs/:id/save-as-template`.
+analysis).
 
 ---
 

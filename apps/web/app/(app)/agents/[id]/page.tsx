@@ -155,7 +155,7 @@ export default async function AgentDetailPage({
 
   const { data: runRows } = await service
     .from("runs")
-    .select("id, status, error_message, triggered_by, created_at, estimated_cost_usd")
+    .select("id, status, error_message, triggered_by, created_at, billed_cost_usd")
     .eq("program_id", id)
     .order("created_at", { ascending: false })
     .limit(1);
@@ -165,7 +165,7 @@ export default async function AgentDetailPage({
     error_message: string | null;
     triggered_by: string | null;
     created_at: string;
-    estimated_cost_usd: number | null;
+    billed_cost_usd: number | null;
   } | null;
 
   let summary: string | null = null;
@@ -569,14 +569,14 @@ export default async function AgentDetailPage({
                       "—"}
                   </dd>
                 </div>
-                {typeof latestRun.estimated_cost_usd === "number" &&
-                  latestRun.estimated_cost_usd > 0 && (
+                {typeof latestRun.billed_cost_usd === "number" &&
+                  latestRun.billed_cost_usd > 0 && (
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-muted-foreground">AI cost</dt>
                       <dd className="font-medium tabular-nums">
                         ~$
-                        {latestRun.estimated_cost_usd.toFixed(
-                          latestRun.estimated_cost_usd < 0.01 ? 4 : 2
+                        {latestRun.billed_cost_usd.toFixed(
+                          latestRun.billed_cost_usd < 0.01 ? 4 : 2
                         )}
                       </dd>
                     </div>

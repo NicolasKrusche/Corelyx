@@ -123,10 +123,10 @@ function parseQuery(query: string): RunFilter {
 
   // Sorting
   if (/\bmost\s+expensive|costliest|highest\s+cost|expensive\b/i.test(q)) {
-    filter.order_by = "estimated_cost_usd";
+    filter.order_by = "billed_cost_usd";
     filter.ascending = false;
   } else if (/\bleast\s+expensive|cheapest|lowest\s+cost\b/i.test(q)) {
-    filter.order_by = "estimated_cost_usd";
+    filter.order_by = "billed_cost_usd";
     filter.ascending = true;
   } else if (/\blongest\b/i.test(q)) {
     filter.order_by = "started_at"; // rough proxy
@@ -158,8 +158,8 @@ function describeFilter(filter: RunFilter): string {
   if (filter.max_created_at) parts.push(`created_at <= ${filter.max_created_at}`);
   if (filter.program_id) parts.push(`program_id = ${filter.program_id}`);
   if (filter.trigger_source) parts.push(`trigger_source = '${filter.trigger_source}'`);
-  if (filter.min_cost !== undefined) parts.push(`estimated_cost_usd >= ${filter.min_cost}`);
-  if (filter.max_cost !== undefined) parts.push(`estimated_cost_usd <= ${filter.max_cost}`);
+  if (filter.min_cost !== undefined) parts.push(`billed_cost_usd >= ${filter.min_cost}`);
+  if (filter.max_cost !== undefined) parts.push(`billed_cost_usd <= ${filter.max_cost}`);
   parts.push(`ORDER BY ${filter.order_by} ${filter.ascending ? "ASC" : "DESC"}`);
   parts.push(`LIMIT ${filter.limit}`);
   return `SELECT * FROM runs WHERE ${parts.join(" AND ").replace(/ AND ORDER/, " ORDER").replace(/ AND LIMIT/, " LIMIT")}`;
@@ -204,12 +204,14 @@ export async function POST(request: Request) {
     });
   }
 
-  // Build Supabase query
+  // Build Supabase query. Cost exposed to users is billed_cost_usd (marked-up
+  // platform charge / BYOK pass-through) — never raw estimated_cost_usd, which
+  // would leak the platform margin.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let qb: any = supabase
     .from("runs")
     .select(
-      "id, program_id, status, triggered_by, trigger_source, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at, workflow_version, data_region"
+      "id, program_id, status, triggered_by, trigger_source, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, created_at, workflow_version, data_region"
     )
     .in("program_id", workspaceProgramIds);
 
@@ -229,10 +231,10 @@ export async function POST(request: Request) {
     qb = qb.eq("trigger_source", filter.trigger_source);
   }
   if (filter.min_cost !== undefined) {
-    qb = qb.gte("estimated_cost_usd", filter.min_cost);
+    qb = qb.gte("billed_cost_usd", filter.min_cost);
   }
   if (filter.max_cost !== undefined) {
-    qb = qb.lte("estimated_cost_usd", filter.max_cost);
+    qb = qb.lte("billed_cost_usd", filter.max_cost);
   }
 
   qb = qb.order(filter.order_by, { ascending: filter.ascending }).limit(filter.limit);

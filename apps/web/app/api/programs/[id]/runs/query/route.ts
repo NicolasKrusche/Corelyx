@@ -38,7 +38,7 @@ CREATE TABLE runs (
   prompt_tokens INTEGER,
   completion_tokens INTEGER,
   total_tokens INTEGER,
-  estimated_cost_usd DECIMAL(10,6),
+  billed_cost_usd DECIMAL(14,6), -- cost billed to the user in USD
   connector_api_calls INTEGER,
   model_call_count INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -55,11 +55,12 @@ IMPORTANT RULES:
 6. Return ONLY the raw SQL query text. No explanations, no markdown, no code fences.
 7. The query will be filtered by program_id on the server side, so you don't need to include that filter.
 8. Use column names exactly as defined in the schema above.
+9. Any question about cost, expense, price, or spend refers to billed_cost_usd — the amount billed to the user. There is no other cost column; never reference estimated_cost_usd.
 
 Examples:
 - "Show all failed runs" → SELECT * FROM runs WHERE status = 'failed' ORDER BY created_at DESC LIMIT 200
 - "Runs from the last 7 days" → SELECT * FROM runs WHERE created_at >= NOW() - INTERVAL '7 days' ORDER BY created_at DESC LIMIT 200
-- "Most expensive runs" → SELECT * FROM runs ORDER BY estimated_cost_usd DESC LIMIT 200
+- "Most expensive runs" → SELECT * FROM runs ORDER BY billed_cost_usd DESC LIMIT 200
 - "How many runs succeeded?" → SELECT COUNT(*) as count FROM runs WHERE status = 'completed'
 - "Average token usage" → SELECT AVG(prompt_tokens) as avg_prompt, AVG(completion_tokens) as avg_completion, AVG(total_tokens) as avg_total FROM runs WHERE status = 'completed' LIMIT 200
 - "Runs by trigger source" → SELECT trigger_source, COUNT(*) as count FROM runs GROUP BY trigger_source ORDER BY count DESC LIMIT 200

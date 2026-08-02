@@ -35,10 +35,17 @@ async def track_usage(
     prompt_tokens: int,
     completion_tokens: int,
     estimated_cost_usd: float,
+    billed_cost_usd: float | None = None,
     model: str | None = None,
     billing: str = "platform",
 ) -> None:
     """Record usage for a completed run into usage_records.
+
+    estimated_cost_usd is RAW provider cost (admin-only). billed_amount is what
+    the user actually pays — the marked-up platform charge, or the raw cost
+    passed through for BYOK. The billing usage endpoint reads billed_amount, so
+    a missing value here would show the user $0; fall back to the raw cost
+    rather than under-report.
 
     Called from main.py after a run finishes. Best-effort: failures are
     logged but never raise — usage tracking must never break a run.
@@ -54,6 +61,8 @@ async def track_usage(
             delta = completed_at - started_at
             execution_minutes = round(delta.total_seconds() / 60.0, 4)
 
+        billed_amount = billed_cost_usd if billed_cost_usd is not None else estimated_cost_usd
+
         db = _get_db()
         result = db.table("usage_records").insert(
             {
@@ -64,6 +73,7 @@ async def track_usage(
                 "model": model or "",
                 "billing": billing,
                 "estimated_cost_usd": round(estimated_cost_usd, 6),
+                "billed_amount": round(billed_amount, 6),
                 "recorded_at": datetime.now(timezone.utc).isoformat(),
             }
         ).execute()
@@ -82,6 +92,7 @@ async def track_usage(
                 execution_minutes=execution_minutes,
                 tokens=total_tokens,
                 cost_usd=estimated_cost_usd,
+                billed_amount=billed_amount,
                 model=model,
                 billing=billing,
             )

@@ -471,7 +471,7 @@ describe("Simulation Engine — agent nodes", () => {
     expect(result.nodes["agent_1"].output_data.response).toContain("MOCK AGENT");
     expect(result.nodes["agent_1"].output_data.model).toBe("gpt-4o");
     expect(result.nodes["agent_1"].estimated_tokens).toBeGreaterThan(0);
-    expect(result.nodes["agent_1"].estimated_cost_usd).toBeGreaterThan(0);
+    expect(result.nodes["agent_1"].billed_cost_usd).toBeGreaterThan(0);
   });
 
   it("executes agent_task node type", async () => {
@@ -605,10 +605,10 @@ describe("Simulation Engine — cost and token tracking", () => {
       ]
     );
     const result = await runProgramSimulation(schema);
-    expect(result.total_estimated_cost_usd).toBeGreaterThan(0);
+    expect(result.total_billed_cost_usd).toBeGreaterThan(0);
     expect(result.total_estimated_tokens).toBeGreaterThan(0);
-    // Each agent contributes ~0.001 cost
-    expect(result.total_estimated_cost_usd).toBeGreaterThanOrEqual(0.002);
+    // Each agent contributes ~0.001 raw cost, quoted at the platform markup
+    expect(result.total_billed_cost_usd).toBeGreaterThanOrEqual(0.02);
   });
 
   it("connection nodes have zero cost by default", async () => {
@@ -619,7 +619,7 @@ describe("Simulation Engine — cost and token tracking", () => {
       [makeEdge("trigger_1", "gmail_1")]
     );
     const result = await runProgramSimulation(schema);
-    expect(result.nodes["gmail_1"].estimated_cost_usd).toBe(0);
+    expect(result.nodes["gmail_1"].billed_cost_usd).toBe(0);
     expect(result.nodes["gmail_1"].estimated_tokens).toBe(0);
   });
 });

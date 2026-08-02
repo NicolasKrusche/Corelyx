@@ -314,6 +314,7 @@ async def trigger_workflow(workflow_id: str) -> None:
                     prompt_tokens=telemetry.get("prompt_tokens", 0),
                     completion_tokens=telemetry.get("completion_tokens", 0),
                     estimated_cost_usd=telemetry.get("estimated_cost_usd", 0.0),
+                    billed_cost_usd=telemetry.get("billed_cost_usd"),
                     model=None,
                     billing="platform",
                 )
@@ -907,6 +908,7 @@ async def _run_program(
                 prompt_tokens=telemetry.get("prompt_tokens", 0),
                 completion_tokens=telemetry.get("completion_tokens", 0),
                 estimated_cost_usd=telemetry.get("estimated_cost_usd", 0.0),
+                billed_cost_usd=telemetry.get("billed_cost_usd"),
                 model=None,
                 billing=billing_mode,
             )

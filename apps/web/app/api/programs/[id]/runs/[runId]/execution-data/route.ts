@@ -22,7 +22,7 @@ export async function GET(
   // Verify the run belongs to this program
   const { data: runRaw, error: runError } = await serviceClient
     .from("runs")
-    .select("id, program_id, status, started_at, completed_at, triggered_by, trigger_payload, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count")
+    .select("id, program_id, status, started_at, completed_at, triggered_by, trigger_payload, error_message, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count")
     .eq("id", runId)
     .eq("program_id", programId)
     .single();
@@ -41,7 +41,7 @@ export async function GET(
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     connector_api_calls: number;
     model_call_count: number;
   };
@@ -62,7 +62,7 @@ export async function GET(
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     connector_api_calls: number;
     model_call_count: number;
     created_at: string;
@@ -71,7 +71,7 @@ export async function GET(
   const { data: execsRaw, error: execsError } = await serviceClient
     .from("node_executions")
     .select(
-      "id, node_id, status, input_payload, output_payload, error_message, retry_count, started_at, completed_at, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
+      "id, node_id, status, input_payload, output_payload, error_message, retry_count, started_at, completed_at, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, created_at"
     )
     .eq("run_id", runId)
     .order("created_at", { ascending: true });
@@ -92,7 +92,7 @@ export async function GET(
       total_tokens: run.total_tokens,
       prompt_tokens: run.prompt_tokens,
       completion_tokens: run.completion_tokens,
-      estimated_cost_usd: run.estimated_cost_usd,
+      billed_cost_usd: run.billed_cost_usd,
       connector_api_calls: run.connector_api_calls,
       model_call_count: run.model_call_count,
     },
@@ -108,7 +108,7 @@ export async function GET(
       total_tokens: e.total_tokens,
       prompt_tokens: e.prompt_tokens,
       completion_tokens: e.completion_tokens,
-      estimated_cost_usd: e.estimated_cost_usd,
+      billed_cost_usd: e.billed_cost_usd,
       connector_api_calls: e.connector_api_calls,
       model_call_count: e.model_call_count,
       created_at: e.created_at,

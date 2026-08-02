@@ -4,6 +4,14 @@
  */
 import { getMockResponse } from "./mock-connectors";
 
+/**
+ * Platform markup applied to LLM cost when the user runs on platform keys —
+ * mirrors PLATFORM_MARKUP in apps/runtime/engine/executor.py. The dry-run
+ * preview must quote what a real run would be billed (runs.billed_cost_usd),
+ * not the raw provider cost, or it under-quotes the charge 10×.
+ */
+const PLATFORM_MARKUP = 10;
+
 export interface NodeSimulationState {
   node_id: string;
   status: "pending" | "running" | "completed" | "failed" | "skipped";
@@ -13,7 +21,7 @@ export interface NodeSimulationState {
   started_at: string | null;
   completed_at: string | null;
   duration_ms: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   estimated_tokens: number;
   is_mock: boolean;
 }
@@ -34,7 +42,7 @@ export interface SimulationResult {
     mapping: Record<string, unknown>;
   }>;
   errors: string[];
-  total_estimated_cost_usd: number;
+  total_billed_cost_usd: number;
   total_estimated_tokens: number;
 }
 
@@ -109,7 +117,7 @@ export async function runProgramSimulation(
       nodes: {},
       edges_traversed: [],
       errors: ["No trigger node found in schema"],
-      total_estimated_cost_usd: 0,
+      total_billed_cost_usd: 0,
       total_estimated_tokens: 0,
     };
   }
@@ -125,7 +133,7 @@ export async function runProgramSimulation(
       started_at: null,
       completed_at: null,
       duration_ms: 0,
-      estimated_cost_usd: 0,
+      billed_cost_usd: 0,
       estimated_tokens: 0,
       is_mock: true,
     };
@@ -194,7 +202,7 @@ export async function runProgramSimulation(
 
     // Simulate based on node type
     let outputData: Record<string, unknown> = {};
-    let estimatedCost = 0;
+    let billedCost = 0;
     let estimatedTokens = 0;
 
     switch (node.type) {
@@ -220,11 +228,11 @@ export async function runProgramSimulation(
           response: `[MOCK AGENT] Processed input with keys: ${Object.keys(inputData).join(", ")}`,
           model: node.config.model || "gpt-4o-mini",
           estimated_tokens: JSON.stringify(inputData).length / 4 + 50,
-          estimated_cost_usd: 0.001,
+          billed_cost_usd: 0.001 * PLATFORM_MARKUP,
           is_mock: true,
         };
         estimatedTokens = outputData.estimated_tokens as number;
-        estimatedCost = outputData.estimated_cost_usd as number;
+        billedCost = outputData.billed_cost_usd as number;
         break;
 
       case "step":
@@ -267,7 +275,7 @@ export async function runProgramSimulation(
     nodeStates[nodeId].status = "completed";
     nodeStates[nodeId].completed_at = new Date().toISOString();
     nodeStates[nodeId].duration_ms = Date.now() - nodeStartTime;
-    nodeStates[nodeId].estimated_cost_usd = estimatedCost;
+    nodeStates[nodeId].billed_cost_usd = billedCost;
     nodeStates[nodeId].estimated_tokens = estimatedTokens;
 
     // Record edges traversed
@@ -300,7 +308,7 @@ export async function runProgramSimulation(
   let totalCost = 0;
   let totalTokens = 0;
   for (const state of Object.values(nodeStates)) {
-    totalCost += state.estimated_cost_usd;
+    totalCost += state.billed_cost_usd;
     totalTokens += state.estimated_tokens;
   }
 
@@ -320,7 +328,7 @@ export async function runProgramSimulation(
     nodes: nodeStates,
     edges_traversed: edgesTraversed,
     errors,
-    total_estimated_cost_usd: Math.round(totalCost * 1000000) / 1000000,
+    total_billed_cost_usd: Math.round(totalCost * 1000000) / 1000000,
     total_estimated_tokens: totalTokens,
   };
 }

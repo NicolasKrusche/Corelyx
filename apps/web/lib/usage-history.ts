@@ -31,7 +31,7 @@ export async function getUsageHistory(
 
   const { data: runRows } = await db
     .from("runs")
-    .select("started_at, status, estimated_cost_usd")
+    .select("started_at, status, billed_cost_usd")
     .in("program_id", programIds)
     .gte("started_at", thirtyDaysAgo)
     .not("started_at", "is", null);
@@ -43,13 +43,13 @@ export async function getUsageHistory(
   for (const row of runRows as Array<{
     started_at: string;
     status: string;
-    estimated_cost_usd: number | string | null;
+    billed_cost_usd: number | string | null;
   }>) {
     const day = row.started_at.slice(0, 10);
     const entry = byDay.get(day) ?? { date: day, runs: 0, failed: 0, cost_usd: 0 };
     entry.runs++;
     if (row.status === "failed") entry.failed++;
-    entry.cost_usd += Number(row.estimated_cost_usd ?? 0);
+    entry.cost_usd += Number(row.billed_cost_usd ?? 0);
     byDay.set(day, entry);
   }
 

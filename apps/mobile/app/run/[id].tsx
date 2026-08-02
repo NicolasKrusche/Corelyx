@@ -170,9 +170,9 @@ export default function RunDetailScreen() {
               </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={font.tiny}>Est. cost</Text>
+              <Text style={font.tiny}>Cost</Text>
               <Text style={[font.title, { marginTop: 2 }]}>
-                ${(run.estimated_cost_usd ?? 0).toFixed(4)}
+                ${(run.billed_cost_usd ?? 0).toFixed(4)}
               </Text>
             </View>
           </Row>

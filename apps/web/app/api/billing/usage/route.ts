@@ -78,7 +78,7 @@ export async function GET(request: Request) {
   // Fetch usage records for this org since period start
   const { data: records, error } = await service
     .from("usage_records")
-    .select("execution_minutes, tokens_used, model, billing, estimated_cost_usd, recorded_at")
+    .select("execution_minutes, tokens_used, model, billing, estimated_cost_usd, billed_amount, recorded_at")
     .eq("org_id", orgId)
     .gte("recorded_at", sinceISO)
     .order("recorded_at", { ascending: false });
@@ -86,6 +86,18 @@ export async function GET(request: Request) {
   if (error) return apiError(error.message, 500);
 
   const rows = (records ?? []) as UsageRow[];
+
+  // Cost shown to users: the marked-up billed_amount for platform-billed
+  // records, raw pass-through for BYOK. estimated_cost_usd is raw provider
+  // cost and must never surface here.
+  // billed_amount only started being written alongside migration 20260802130000
+  // (which backfills it); a row still at 0 predates that or was written by a
+  // runtime not yet redeployed, so apply the markup rather than report $0.
+  const PLATFORM_MARKUP = 10;
+  const userCost = (row: UsageRow) => {
+    if (row.billing !== "platform") return row.estimated_cost_usd;
+    return row.billed_amount > 0 ? row.billed_amount : row.estimated_cost_usd * PLATFORM_MARKUP;
+  };
 
   // Aggregate totals
   let totalMinutes = 0;
@@ -105,7 +117,7 @@ export async function GET(request: Request) {
   for (const row of rows) {
     totalMinutes += row.execution_minutes;
     totalTokens += row.tokens_used;
-    totalCost += row.estimated_cost_usd;
+    totalCost += userCost(row);
 
     // By model aggregation
     const modelKey = row.model || "unknown";
@@ -113,14 +125,14 @@ export async function GET(request: Request) {
     if (existing) {
       existing.minutes += row.execution_minutes;
       existing.tokens += row.tokens_used;
-      existing.cost += row.estimated_cost_usd;
+      existing.cost += userCost(row);
       existing.count += 1;
     } else {
       byModelMap.set(modelKey, {
         model: modelKey,
         minutes: row.execution_minutes,
         tokens: row.tokens_used,
-        cost: row.estimated_cost_usd,
+        cost: userCost(row),
         count: 1,
       });
     }
@@ -131,13 +143,13 @@ export async function GET(request: Request) {
     if (dayEntry) {
       dayEntry.minutes += row.execution_minutes;
       dayEntry.tokens += row.tokens_used;
-      dayEntry.cost += row.estimated_cost_usd;
+      dayEntry.cost += userCost(row);
     } else {
       dailyMap.set(dayStr, {
         date: dayStr,
         minutes: row.execution_minutes,
         tokens: row.tokens_used,
-        cost: row.estimated_cost_usd,
+        cost: userCost(row),
       });
     }
   }

@@ -2,9 +2,10 @@
  * Program analytics data access layer.
  *
  * Fetches aggregated cost/token data for the per-program analytics dashboard.
- * Primary path: RPC functions from migration 20260722120000 (fast, server-side).
- * Fallback path (migration not applied yet): scan runs + node_executions rows
- * and aggregate in JS — degraded but functional.
+ * Primary path: RPC functions from migration 20260722120000, rewritten by
+ * 20260802130000 to aggregate billed cost (the user-facing figure) instead of
+ * raw provider cost. Fallback path (migration not applied yet): scan runs +
+ * node_executions rows and aggregate in JS — degraded but functional.
  *
  * Usage: call from server components or API routes that already verified
  * program access via getProgramAccess().
@@ -125,7 +126,7 @@ export async function getCostTrend(
   const { data: runsRaw } = await db
     .from("runs")
     .select(
-      "id, status, started_at, estimated_cost_usd, prompt_tokens, completion_tokens, total_tokens, model_call_count, completed_at",
+      "id, status, started_at, billed_cost_usd, prompt_tokens, completion_tokens, total_tokens, model_call_count, completed_at",
     )
     .eq("program_id", programId)
     .gte("started_at", thirtyDaysAgo)
@@ -142,7 +143,7 @@ export async function getCostTrend(
         runId: r.id,
         status: r.status,
         startedAt: r.started_at,
-        costUsd: Number(r.estimated_cost_usd ?? 0),
+        costUsd: Number(r.billed_cost_usd ?? 0),
         promptTokens: Number(r.prompt_tokens ?? 0),
         completionTokens: Number(r.completion_tokens ?? 0),
         totalTokens: Number(r.total_tokens ?? 0),
@@ -180,7 +181,7 @@ export async function getCostByNodeType(
   // Fallback: aggregate from node_executions
   const { data: execsRaw } = await db
     .from("node_executions")
-    .select("node_id, status, total_tokens, estimated_cost_usd, input_payload")
+    .select("node_id, status, total_tokens, billed_cost_usd, input_payload")
     .in("status", ["completed", "failed"]);
 
   const execs = (execsRaw ?? []) as any[];
@@ -198,7 +199,7 @@ export async function getCostByNodeType(
     };
     existing.executionCount++;
     existing.totalTokens += Number(e.total_tokens ?? 0);
-    existing.totalCostUsd += Number(e.estimated_cost_usd ?? 0);
+    existing.totalCostUsd += Number(e.billed_cost_usd ?? 0);
     byType.set(nodeType, existing);
   }
 
@@ -238,10 +239,12 @@ export async function getModelComparison(
     };
   }
 
-  // Fallback: aggregate from llm_usage_logs joined with runs
+  // Fallback: aggregate from llm_usage_logs joined with runs. Cost shown to
+  // users is the billed figure: marked-up platform charge (billed_credits,
+  // 1000 credits = $1) or raw BYOK/free pass-through — never raw platform cost.
   const { data: logsRaw } = await db
     .from("llm_usage_logs")
-    .select("model, total_tokens, estimated_cost_usd, source, run_id");
+    .select("model, total_tokens, estimated_cost_usd, billing, billed_credits, source, run_id");
 
   const logs = (logsRaw ?? []) as any[];
   // Filter to this program's runs
@@ -266,7 +269,10 @@ export async function getModelComparison(
     };
     existing.callCount++;
     existing.totalTokens += Number(l.total_tokens ?? 0);
-    existing.totalCostUsd += Number(l.estimated_cost_usd ?? 0);
+    existing.totalCostUsd +=
+      l.billing === "platform" && Number(l.billed_credits ?? 0) > 0
+        ? Number(l.billed_credits) / 1000
+        : Number(l.estimated_cost_usd ?? 0);
     byModel.set(key, existing);
   }
 
@@ -349,7 +355,7 @@ export async function getAnalyticsSummary(
   const { data: runsRaw } = await db
     .from("runs")
     .select(
-      "status, estimated_cost_usd, total_tokens, model_call_count, started_at, completed_at",
+      "status, billed_cost_usd, total_tokens, model_call_count, started_at, completed_at",
     )
     .eq("program_id", programId)
     .not("started_at", "is", null);
@@ -359,7 +365,7 @@ export async function getAnalyticsSummary(
   const completedRuns = runs.filter((r) => r.status === "completed").length;
   const failedRuns = runs.filter((r) => r.status === "failed").length;
   const totalCostUsd = runs.reduce(
-    (sum, r) => sum + Number(r.estimated_cost_usd ?? 0),
+    (sum, r) => sum + Number(r.billed_cost_usd ?? 0),
     0,
   );
   const totalTokens = runs.reduce(

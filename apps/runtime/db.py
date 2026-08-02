@@ -12,6 +12,7 @@ TELEMETRY_COLUMNS = {
     "completion_tokens",
     "total_tokens",
     "estimated_cost_usd",
+    "billed_cost_usd",
     "connector_api_calls",
     "model_call_count",
     "token_usage",

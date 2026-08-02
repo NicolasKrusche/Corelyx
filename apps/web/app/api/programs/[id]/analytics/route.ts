@@ -9,7 +9,7 @@ type RunRow = {
   started_at: string;
   completed_at: string | null;
   status: string;
-  total_cost_usd: number | null;
+  billed_cost_usd: number | null;
   total_tokens: number | null;
 };
 
@@ -17,7 +17,7 @@ type NodeExecRow = {
   node_id: string;
   node_type: string;
   status: string;
-  estimated_cost_usd: number | null;
+  billed_cost_usd: number | null;
   estimated_tokens: number | null;
 };
 
@@ -53,7 +53,7 @@ export async function GET(
     // Fetch runs with cost data
     const runsResult = await (supabase
       .from("runs")
-      .select("id, started_at, completed_at, status, total_cost_usd, total_tokens")
+      .select("id, started_at, completed_at, status, billed_cost_usd, total_tokens")
       .eq("program_id", id)
       .order("started_at", { ascending: false })
       .limit(100) as unknown as Promise<{ data: RunRow[] | null; error: unknown }>);
@@ -71,12 +71,12 @@ export async function GET(
         node_id,
         node_type,
         status,
-        estimated_cost_usd,
+        billed_cost_usd,
         estimated_tokens,
         runs!inner(program_id, id)
       `)
       .eq("runs.program_id", id)
-      .not("estimated_cost_usd", "is", null) as unknown as Promise<{ data: NodeExecRow[] | null; error: unknown }>);
+      .not("billed_cost_usd", "is", null) as unknown as Promise<{ data: NodeExecRow[] | null; error: unknown }>);
     const { data: nodeExecutions, error: nodeError } = nodeResult;
 
     if (nodeError) {
@@ -101,7 +101,7 @@ export async function GET(
         total_tokens: 0,
       };
       existing.total_runs += 1;
-      existing.total_cost_usd += exec.estimated_cost_usd || 0;
+      existing.total_cost_usd += exec.billed_cost_usd || 0;
       existing.total_tokens += exec.estimated_tokens || 0;
       nodeCostMap.set(exec.node_id, existing);
     }
@@ -112,7 +112,7 @@ export async function GET(
     }));
 
     // Compute summary stats
-    const totalCost = (runs || []).reduce((sum, r) => sum + (r.total_cost_usd || 0), 0);
+    const totalCost = (runs || []).reduce((sum, r) => sum + (r.billed_cost_usd || 0), 0);
     const totalTokens = (runs || []).reduce((sum, r) => sum + (r.total_tokens || 0), 0);
     const totalRuns = (runs || []).length;
     const avgCostPerRun = totalRuns > 0 ? totalCost / totalRuns : 0;
@@ -127,7 +127,7 @@ export async function GET(
       runs: (runs || []).map((r) => ({
         run_id: r.id,
         started_at: r.started_at,
-        total_cost_usd: r.total_cost_usd || 0,
+        total_cost_usd: r.billed_cost_usd || 0,
         total_tokens: r.total_tokens || 0,
         status: r.status,
       })),

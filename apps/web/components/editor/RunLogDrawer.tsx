@@ -343,8 +343,8 @@ export function RunLogDrawer({
                     {exec.connector_api_calls > 0 && (
                       <span>API calls: {fmt(exec.connector_api_calls)}</span>
                     )}
-                    {exec.estimated_cost_usd > 0 && (
-                      <span>cost: {fmtUsd(exec.estimated_cost_usd)}</span>
+                    {exec.billed_cost_usd > 0 && (
+                      <span>cost: {fmtUsd(exec.billed_cost_usd)}</span>
                     )}
                   </div>
                 )}

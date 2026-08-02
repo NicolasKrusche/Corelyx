@@ -101,7 +101,7 @@ type RunRow = {
   prompt_tokens: number | null;
   completion_tokens: number | null;
   total_tokens: number | null;
-  estimated_cost_usd: number | null;
+  billed_cost_usd: number | null;
   connector_api_calls: number | null;
   model_call_count: number | null;
   created_at: string;
@@ -119,7 +119,7 @@ type NodeExecutionRow = {
   prompt_tokens: number | null;
   completion_tokens: number | null;
   total_tokens: number | null;
-  estimated_cost_usd: number | null;
+  billed_cost_usd: number | null;
   connector_api_calls: number | null;
   model_call_count: number | null;
   started_at: string | null;
@@ -348,7 +348,7 @@ export async function GET() {
       db
         .from("runs")
         .select(
-          "id, program_id, triggered_by, trigger_payload, status, execution_mode, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at"
+          "id, program_id, triggered_by, trigger_payload, status, execution_mode, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, created_at"
         )
         .in("program_id", programIds)
         .order("created_at", { ascending: false }),
@@ -367,7 +367,7 @@ export async function GET() {
     const { data } = await db
       .from("node_executions")
       .select(
-        "id, run_id, node_id, status, input_payload, output_payload, error_message, retry_count, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, started_at, completed_at, created_at"
+        "id, run_id, node_id, status, input_payload, output_payload, error_message, retry_count, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, started_at, completed_at, created_at"
       )
       .in("run_id", runIds)
       .order("created_at", { ascending: false });

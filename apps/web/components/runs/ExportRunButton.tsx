@@ -19,7 +19,7 @@ type NodeExecutionRow = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   connector_api_calls: number;
   model_call_count: number;
   created_at: string;
@@ -38,7 +38,7 @@ interface ExportRunButtonProps {
     total_tokens: number;
     prompt_tokens: number;
     completion_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     connector_api_calls: number;
     model_call_count: number;
   };
@@ -71,7 +71,7 @@ export function ExportRunButton({
         prompt_tokens: exec.prompt_tokens,
         completion_tokens: exec.completion_tokens,
         total_tokens: exec.total_tokens,
-        estimated_cost_usd: exec.estimated_cost_usd,
+        billed_cost_usd: exec.billed_cost_usd,
         connector_api_calls: exec.connector_api_calls,
         model_call_count: exec.model_call_count,
         created_at: exec.created_at,

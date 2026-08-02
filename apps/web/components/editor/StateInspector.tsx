@@ -32,7 +32,7 @@ export interface NodeSimulationState {
   started_at: string | null;
   completed_at: string | null;
   duration_ms: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   estimated_tokens: number;
   is_mock: boolean;
 }
@@ -343,7 +343,7 @@ export function StateInspector({
                 </span>
               </div>
               <div className="text-lg font-bold tabular-nums">
-                {formatCost(nodeState.estimated_cost_usd)}
+                {formatCost(nodeState.billed_cost_usd)}
               </div>
             </Card>
 

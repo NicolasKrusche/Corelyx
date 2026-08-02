@@ -18,7 +18,7 @@ type NodeExecution = {
   started_at: string | null;
   completed_at: string | null;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   created_at: string;
 };
 
@@ -31,7 +31,7 @@ type RunRow = {
   completed_at: string | null;
   error_message: string | null;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   created_at: string;
   programs: { name: string | null } | null;
   node_executions: NodeExecution[] | null;
@@ -102,7 +102,7 @@ function runToLog(run: RunRow): Log {
   const nodeCount = run.node_executions?.length ?? 0;
   if (nodeCount > 0) tags.push(`${nodeCount} node${nodeCount === 1 ? "" : "s"}`);
   if (run.total_tokens > 0) tags.push(`${run.total_tokens.toLocaleString()} tok`);
-  if (run.estimated_cost_usd > 0) tags.push(`$${run.estimated_cost_usd.toFixed(4)}`);
+  if (run.billed_cost_usd > 0) tags.push(`$${run.billed_cost_usd.toFixed(4)}`);
 
   return {
     id: run.id,
@@ -174,8 +174,8 @@ function RunDetail({ run }: { run: RunRow }) {
             Cost
           </p>
           <p className="font-mono text-foreground">
-            {run.estimated_cost_usd > 0
-              ? `$${run.estimated_cost_usd.toFixed(4)}`
+            {run.billed_cost_usd > 0
+              ? `$${run.billed_cost_usd.toFixed(4)}`
               : "—"}{" "}
             <span className="text-muted-foreground">
               {run.total_tokens > 0
@@ -352,9 +352,9 @@ export function LogsClient() {
         .select(
           `
           id, program_id, status, triggered_by, started_at, completed_at,
-          error_message, total_tokens, estimated_cost_usd, created_at,
+          error_message, total_tokens, billed_cost_usd, created_at,
           programs!inner(name),
-          node_executions(id, node_id, status, error_message, started_at, completed_at, total_tokens, estimated_cost_usd, created_at)
+          node_executions(id, node_id, status, error_message, started_at, completed_at, total_tokens, billed_cost_usd, created_at)
           `
         )
         .order("created_at", { ascending: false })

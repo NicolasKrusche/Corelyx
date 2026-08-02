@@ -398,7 +398,7 @@ export async function GET(request: Request) {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     connector_api_calls: number;
     model_call_count: number;
     created_at: string;
@@ -406,7 +406,7 @@ export async function GET(request: Request) {
 
   let runsQuery = serviceClient
     .from("runs")
-    .select("id, status, triggered_by, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd, connector_api_calls, model_call_count, created_at")
+    .select("id, status, triggered_by, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, created_at")
     .eq("program_id", program_id)
     .order("created_at", { ascending: false })
     .limit(50);

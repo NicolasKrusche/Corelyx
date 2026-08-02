@@ -52,7 +52,7 @@ const RESULT_COLUMNS: Array<{ key: string; label: string; className?: string }> 
   { key: "triggered_by", label: "Triggered by" },
   { key: "trigger_source", label: "Source" },
   { key: "created_at", label: "Created", className: "tabular-nums text-xs" },
-  { key: "estimated_cost_usd", label: "Cost ($)", className: "tabular-nums" },
+  { key: "billed_cost_usd", label: "Cost ($)", className: "tabular-nums" },
   { key: "total_tokens", label: "Tokens", className: "tabular-nums" },
   { key: "error_message", label: "Error", className: "max-w-[200px] truncate text-red-400 text-xs" },
 ];
@@ -233,7 +233,7 @@ export function NLQueryPanel({ programId, onResults }: Props) {
         return String(value);
       }
     }
-    if (key === "estimated_cost_usd" && typeof value === "number") {
+    if ((key === "billed_cost_usd" || key === "estimated_cost_usd") && typeof value === "number") {
       return value < 0.01 ? "<$0.01" : `$${value.toFixed(4)}`;
     }
     if (key === "total_tokens" && typeof value === "number") {

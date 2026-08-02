@@ -51,7 +51,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const { data: runRows } = await service
     .from("runs")
-    .select("id, status, error_message, triggered_by, created_at, estimated_cost_usd")
+    .select("id, status, error_message, triggered_by, created_at, billed_cost_usd")
     .eq("program_id", programId)
     .order("created_at", { ascending: false })
     .limit(1);
@@ -61,7 +61,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     error_message: string | null;
     triggered_by: string | null;
     created_at: string;
-    estimated_cost_usd: number | null;
+    billed_cost_usd: number | null;
   } | null;
 
   let reports: Array<{

@@ -32,7 +32,7 @@ interface PastRun {
   completed_at: string | null;
   error_message: string | null;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   created_at: string;
 }
 
@@ -48,7 +48,7 @@ interface NodeExecutionData {
   total_tokens: number;
   prompt_tokens: number;
   completion_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   connector_api_calls: number;
   model_call_count: number;
   created_at: string;
@@ -65,7 +65,7 @@ interface RunData {
   total_tokens: number;
   prompt_tokens: number;
   completion_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   connector_api_calls: number;
   model_call_count: number;
 }
@@ -374,7 +374,7 @@ export function ExecutionReplayPanel({
   const selectedRun = pastRuns.find((r) => r.id === selectedRunId);
 
   // Compute aggregate cost/tokens for the run
-  const totalCost = nodeExecutions.reduce((sum, e) => sum + (e.estimated_cost_usd ?? 0), 0);
+  const totalCost = nodeExecutions.reduce((sum, e) => sum + (e.billed_cost_usd ?? 0), 0);
   const totalTokens = nodeExecutions.reduce((sum, e) => sum + (e.total_tokens ?? 0), 0);
 
   return (
@@ -446,9 +446,9 @@ export function ExecutionReplayPanel({
                         <span className="text-[10px] text-muted-foreground">
                           {formatDateTime(run.started_at)}
                         </span>
-                        {run.estimated_cost_usd > 0 && (
+                        {run.billed_cost_usd > 0 && (
                           <span className="text-[10px] text-muted-foreground">
-                            {fmtUsd(run.estimated_cost_usd)}
+                            {fmtUsd(run.billed_cost_usd)}
                           </span>
                         )}
                       </div>
@@ -605,9 +605,9 @@ export function ExecutionReplayPanel({
                               {formatDuration(step.started_at, step.completed_at)}
                             </span>
                           )}
-                          {step.estimated_cost_usd > 0 && (
+                          {step.billed_cost_usd > 0 && (
                             <Badge variant="secondary" className="text-[8px] h-3 px-1">
-                              ${step.estimated_cost_usd.toFixed(4)}
+                              ${step.billed_cost_usd.toFixed(4)}
                             </Badge>
                           )}
                           {step.total_tokens > 0 && (
@@ -753,7 +753,7 @@ export function ExecutionReplayPanel({
                 </div>
 
                 {/* Token & Cost breakdown */}
-                {(currentStep.total_tokens > 0 || currentStep.estimated_cost_usd > 0) && (
+                {(currentStep.total_tokens > 0 || currentStep.billed_cost_usd > 0) && (
                   <div className="rounded-lg border border-border p-3 space-y-2">
                     <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Cost Breakdown
@@ -775,7 +775,7 @@ export function ExecutionReplayPanel({
                     <div className="flex items-center justify-between text-xs border-t border-border pt-2">
                       <div className="flex items-center gap-1">
                         <DollarSignIcon className="h-3 w-3 text-primary" />
-                        <span className="font-medium">{fmtUsd(currentStep.estimated_cost_usd)}</span>
+                        <span className="font-medium">{fmtUsd(currentStep.billed_cost_usd)}</span>
                       </div>
                       {currentStep.connector_api_calls > 0 && (
                         <span className="text-muted-foreground">

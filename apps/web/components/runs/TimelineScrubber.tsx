@@ -18,7 +18,7 @@ type NodeExecutionRow = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   connector_api_calls: number;
   model_call_count: number;
   created_at: string;

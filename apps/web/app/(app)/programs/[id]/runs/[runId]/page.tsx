@@ -8,7 +8,6 @@ import { StopRunButton } from "./stop-button";
 import { SkipTriggerButton } from "./skip-trigger-button";
 import { ReplayButton } from "./replay-button";
 import { FailureAnalysisPanel } from "@/components/runs/FailureAnalysisPanel";
-import { SaveAsTemplateButton } from "@/components/runs/SaveAsTemplateButton";
 import { ReplayFromNodeModal } from "@/components/runs/ReplayFromNodeModal";
 import { ExportRunButton } from "@/components/runs/ExportRunButton";
 
@@ -26,7 +25,7 @@ type RunRow = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   connector_api_calls: number;
   model_call_count: number;
   created_at: string;
@@ -45,7 +44,7 @@ type NodeExecutionRow = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   connector_api_calls: number;
   model_call_count: number;
   created_at: string;
@@ -65,7 +64,7 @@ function normalizeRunRow(raw: unknown): RunRow {
     prompt_tokens: Number(row.prompt_tokens ?? 0),
     completion_tokens: Number(row.completion_tokens ?? 0),
     total_tokens: Number(row.total_tokens ?? 0),
-    estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+    billed_cost_usd: Number(row.billed_cost_usd ?? 0),
     connector_api_calls: Number(row.connector_api_calls ?? 0),
     model_call_count: Number(row.model_call_count ?? 0),
     created_at: row.created_at ?? new Date(0).toISOString(),
@@ -87,7 +86,7 @@ function normalizeNodeExecutionRow(raw: unknown): NodeExecutionRow {
     prompt_tokens: Number(row.prompt_tokens ?? 0),
     completion_tokens: Number(row.completion_tokens ?? 0),
     total_tokens: Number(row.total_tokens ?? 0),
-    estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+    billed_cost_usd: Number(row.billed_cost_usd ?? 0),
     connector_api_calls: Number(row.connector_api_calls ?? 0),
     model_call_count: Number(row.model_call_count ?? 0),
     created_at: row.created_at ?? new Date(0).toISOString(),
@@ -262,9 +261,6 @@ export default async function RunLogPage({
               }
             />
           )}
-          {["completed", "success"].includes(run.status) && (
-            <SaveAsTemplateButton runId={run.id} programName={prog.name} />
-          )}
           {["completed", "success", "failed", "cancelled"].includes(run.status) && (
             <ExportRunButton
               runId={run.id}
@@ -282,7 +278,7 @@ export default async function RunLogPage({
                 prompt_tokens: e.prompt_tokens,
                 completion_tokens: e.completion_tokens,
                 total_tokens: e.total_tokens,
-                estimated_cost_usd: e.estimated_cost_usd,
+                billed_cost_usd: e.billed_cost_usd,
                 connector_api_calls: e.connector_api_calls,
                 model_call_count: e.model_call_count,
                 created_at: e.created_at,
@@ -296,7 +292,7 @@ export default async function RunLogPage({
                 total_tokens: run.total_tokens,
                 prompt_tokens: run.prompt_tokens,
                 completion_tokens: run.completion_tokens,
-                estimated_cost_usd: run.estimated_cost_usd,
+                billed_cost_usd: run.billed_cost_usd,
                 connector_api_calls: run.connector_api_calls,
                 model_call_count: run.model_call_count,
               }}
@@ -342,8 +338,8 @@ export default async function RunLogPage({
           </p>
         </div>
         <div>
-          <span className="text-muted-foreground">Estimated model cost</span>
-          <p className="mt-0.5">{formatUsd(run.estimated_cost_usd)}</p>
+          <span className="text-muted-foreground">Model cost</span>
+          <p className="mt-0.5">{formatUsd(run.billed_cost_usd)}</p>
         </div>
         <div>
           <span className="text-muted-foreground">Model calls</span>

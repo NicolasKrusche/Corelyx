@@ -27,14 +27,14 @@ export async function GET(
     completed_at: string | null;
     error_message: string | null;
     total_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     created_at: string;
   };
 
   const { data: runsRaw, error: runsError } = await serviceClient
     .from("runs")
     .select(
-      "id, status, triggered_by, started_at, completed_at, error_message, total_tokens, estimated_cost_usd, created_at"
+      "id, status, triggered_by, started_at, completed_at, error_message, total_tokens, billed_cost_usd, created_at"
     )
     .eq("program_id", programId)
     .order("created_at", { ascending: false })
@@ -50,7 +50,7 @@ export async function GET(
     completed_at: r.completed_at,
     error_message: r.error_message,
     total_tokens: r.total_tokens,
-    estimated_cost_usd: r.estimated_cost_usd,
+    billed_cost_usd: r.billed_cost_usd,
     created_at: r.created_at,
   }));
 

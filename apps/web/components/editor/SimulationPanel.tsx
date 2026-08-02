@@ -45,7 +45,7 @@ interface SimulationResult {
     mapping: Record<string, unknown>;
   }[];
   errors: string[];
-  total_estimated_cost_usd: number;
+  total_billed_cost_usd: number;
   total_estimated_tokens: number;
 }
 
@@ -434,9 +434,9 @@ export function SimulationPanel({
                                 : `${(step.duration_ms / 1000).toFixed(1)}s`}
                             </span>
                           )}
-                          {step.estimated_cost_usd > 0 && (
+                          {step.billed_cost_usd > 0 && (
                             <Badge variant="secondary" className="text-[8px] h-3 px-1">
-                              ${step.estimated_cost_usd.toFixed(4)}
+                              ${step.billed_cost_usd.toFixed(4)}
                             </Badge>
                           )}
                           {step.estimated_tokens > 0 && (
@@ -482,7 +482,7 @@ export function SimulationPanel({
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
                   <div className="text-sm font-bold text-primary tabular-nums">
-                    {simulationResult.total_estimated_cost_usd.toFixed(4)}
+                    {simulationResult.total_billed_cost_usd.toFixed(4)}
                   </div>
                   <div className="text-[9px] text-muted-foreground">Cost</div>
                 </div>

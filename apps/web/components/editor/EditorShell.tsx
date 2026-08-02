@@ -91,7 +91,7 @@ export interface NodeExecutionData {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  estimated_cost_usd: number;
+  billed_cost_usd: number;
   connector_api_calls: number;
   model_call_count: number;
   created_at: string;
@@ -1180,7 +1180,7 @@ export function EditorShell({
       prompt_tokens?: number;
       completion_tokens?: number;
       total_tokens?: number;
-      estimated_cost_usd?: number;
+      billed_cost_usd?: number;
       connector_api_calls?: number;
       model_call_count?: number;
       created_at?: string;
@@ -1218,7 +1218,7 @@ export function EditorShell({
           prompt_tokens: Number(row.prompt_tokens ?? 0),
           completion_tokens: Number(row.completion_tokens ?? 0),
           total_tokens: Number(row.total_tokens ?? 0),
-          estimated_cost_usd: Number(row.estimated_cost_usd ?? 0),
+          billed_cost_usd: Number(row.billed_cost_usd ?? 0),
           connector_api_calls: Number(row.connector_api_calls ?? 0),
           model_call_count: Number(row.model_call_count ?? 0),
           created_at: row.created_at ?? new Date(0).toISOString(),
@@ -1727,7 +1727,7 @@ export function EditorShell({
           prompt_tokens?: number;
           completion_tokens?: number;
           total_tokens?: number;
-          estimated_cost_usd?: number;
+          billed_cost_usd?: number;
           connector_api_calls?: number;
           model_call_count?: number;
           created_at?: string;
@@ -1747,7 +1747,7 @@ export function EditorShell({
             prompt_tokens: Number(ne.prompt_tokens ?? 0),
             completion_tokens: Number(ne.completion_tokens ?? 0),
             total_tokens: Number(ne.total_tokens ?? 0),
-            estimated_cost_usd: Number(ne.estimated_cost_usd ?? 0),
+            billed_cost_usd: Number(ne.billed_cost_usd ?? 0),
             connector_api_calls: Number(ne.connector_api_calls ?? 0),
             model_call_count: Number(ne.model_call_count ?? 0),
             created_at: ne.created_at ?? new Date(0).toISOString(),

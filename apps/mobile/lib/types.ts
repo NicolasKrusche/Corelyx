@@ -56,7 +56,7 @@ export interface RunDetail {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
-    estimated_cost_usd: number;
+    billed_cost_usd: number;
     created_at: string;
   };
   program: { id: string; name: string; schema: { nodes?: Array<{ id: string; label?: string; type?: string }> } };

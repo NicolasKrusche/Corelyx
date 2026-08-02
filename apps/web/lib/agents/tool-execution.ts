@@ -316,7 +316,7 @@ async function getRun(service: LooseClient, userId: string, args: Record<string,
   if (!runId) return { ok: false, error: "run_id is required." };
   const { data: run, error } = await service
     .from("runs")
-    .select("id, program_id, status, triggered_by, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd")
+    .select("id, program_id, status, triggered_by, started_at, completed_at, error_message, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd")
     .eq("id", runId)
     .eq("user_id", userId)
     .maybeSingle();
