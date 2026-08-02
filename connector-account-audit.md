@@ -53,14 +53,3 @@ Some existing Google redirect URIs use `https://www.corelyx.app`; keep both host
 | dbt cloud | blocked | Signup needs password plus reCAPTCHA/terms flow; no secure password store available. |
 | notion | blocked | `office@corelyx.app` code mail arrived, but Notion rejected the visible code; magic link returned to the same error; Google login requires popup flow unsupported by current in-app browser session. |
 | slack | blocked | Google get-started OAuth callback returned Slack generic error. Email signup shows embedded verification iframe and keeps Continue disabled. |
-| github | blocked | Browser login via Google reached GitHub 2FA/SMS. GitHub app is available in Codex, but provider browser account setup cannot continue without 2FA. |
-| gitlab | blocked | GitLab sign-in stays behind Cloudflare bot/security verification. |
-| figma | blocked | Google OAuth login hangs on Google's `signin/oauth/id` redirect in the in-app browser; direct return to Figma lands back on login. |
-| dropbox | blocked | Developer app page redirects to Dropbox login; login DOM loads but the in-app browser renders a blank/untypeable surface, so account/app creation cannot be completed reliably. |
-| reddit | blocked | Developer apps page redirects to Reddit login with `js_challenge`; the one-time email link form keeps Continue disabled for both `office@corelyx.app` and Gmail. |
-| hubspot | blocked | Free signup page loads, but Google login moves into an inaccessible/blank `accounts.google.com/gsi/transform` surface and the email signup button remains disabled after both allowed emails. |
-| sentry | blocked | Google login reaches Google's `signin/oauth/id` redirect and does not return to Sentry in the in-app browser; no passwordless fallback completed. |
-| zohocrm / zohoprojects | blocked | Zoho API Console login offers Google, but after selecting Gmail it hangs on Google's `signin/oauth/id` redirect in the in-app browser; no Zoho OAuth client created. |
-| asana | blocked | In-app browser aborts loading both `https://asana.com` and `https://asana.com/signup` with `net::ERR_ABORTED`. |
-| clickup | blocked | Signup requires password account creation and terms form; login only exposes email/password or SSO, no usable Google OAuth path. No secure password store available. |
-| trello | blocked | Atlassian/Trello Google signup reached final account creation, then required reCAPTCHA in a cross-origin iframe that the in-app browser cannot interact with. |
