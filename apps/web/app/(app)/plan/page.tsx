@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { PricingTiers, PricingFAQ } from "@/components/pricing/pricing-tiers";
 import { CineEyebrow } from "@/components/cinematic";
+import { PLAN_PRICING, formatEur } from "@/lib/pricing-plans";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -31,8 +32,8 @@ export default async function PricingPage() {
       style: (currentTier === "free" ? "disabled" : "border") as "disabled" | "border",
     },
     {
-      label: currentTier === "plus" ? "Current plan" : currentTierIndex > 1 ? "Downgrade" : "Start for €9.90",
-      labelYear: currentTier === "plus" || currentTierIndex > 1 ? undefined : "Start for €6.90/mo",
+      label: currentTier === "plus" ? "Current plan" : currentTierIndex > 1 ? "Downgrade" : `Start for ${formatEur(PLAN_PRICING.plus.price)}`,
+      labelYear: currentTier === "plus" || currentTierIndex > 1 ? undefined : `Start for ${formatEur(PLAN_PRICING.plus.yearlyMonthly)}/mo`,
       checkout: currentTier !== "plus" && currentTierIndex <= 1 ? { tier: "plus" as const, interval: "month" as const } : undefined,
       href: currentTier === "plus" || currentTierIndex > 1 ? "/dashboard" : undefined,
       style: (currentTier === "plus" ? "disabled" : "border") as "disabled" | "border",

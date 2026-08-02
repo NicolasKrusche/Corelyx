@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { isAdminEmail } from "@/lib/admin";
 import { PlanPreviewToggle } from "./plan-preview-toggle";
 import { formatCredits } from "@/lib/credit-packs";
+import { PLAN_PRICING, formatEur } from "@/lib/pricing-plans";
 import { BillingCheckoutButton } from "@/components/billing-checkout-button";
 
 export const metadata: Metadata = { title: "Credits & Usage" };
@@ -203,7 +204,9 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     {
       id: "plus" as const,
       label: "SOLO",
-      price: "€9.90",
+      // Prices come from lib/pricing-plans so this card can't drift from the
+      // public pricing page and the /plan page.
+      price: formatEur(PLAN_PRICING.plus.price),
       period: "/month",
       features: [
         "5 programs",
@@ -226,7 +229,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     {
       id: "pro" as const,
       label: "TEAM",
-      price: "€19.90",
+      price: formatEur(PLAN_PRICING.pro.price),
       period: "/month",
       features: [
         "Everything in Solo, plus:",
@@ -249,7 +252,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
     {
       id: "builder" as const,
       label: "SCALE",
-      price: "€49.90",
+      price: formatEur(PLAN_PRICING.builder.price),
       period: "/month",
       features: [
         "Everything in Team, plus:",

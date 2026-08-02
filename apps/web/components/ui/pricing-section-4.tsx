@@ -53,7 +53,7 @@ const plans: Plan[] = [
     col: 0,
     buttonText: "Start for free",
     href: "/signup",
-    highlights: ["2 programs", "50 runs / month", "150+ standard connectors", "Human-in-the-loop approvals", "Community support"],
+    highlights: ["2 programs", "50 runs / month", "500 platform AI credits", "150+ standard connectors", "Human-in-the-loop approvals", "Community support"],
   },
   {
     key: "plus",

@@ -30,6 +30,7 @@ export const TIERS = [
       { text: "150+ standard connectors", note: "(OAuth-based apps)" },
       { text: "7-day run history" },
       { text: "Visual editor only" },
+      { text: "500 platform AI credits / month", note: "(enough to try it out)" },
       { text: "3 Genesis AI uses / month" },
       { text: "Manual & cron triggers" },
       { text: "Human-in-the-loop approvals" },
@@ -136,7 +137,7 @@ export const FAQ = [
   },
   {
     q: "What are platform AI credits?",
-    a: "An alternative to BYOK - use Corelyx's managed key and pay from a credit balance. Credits are included monthly with Solo (2,500), Team (10,000), and Scale (15,000) plans, and you can top up anytime. All providers are supported via a single key.",
+    a: "An alternative to BYOK - use Corelyx's managed key and pay from a credit balance. Every plan includes a monthly allowance — Free (500), Solo (2,500), Team (10,000), Scale (15,000) — and you can top up anytime. Top-up packs start at 5,000 credits for $5, and the larger packs add bonus credits (+5% at $25, +10% at $50). All providers are supported via a single key.",
   },
   {
     q: "Can I use my own API keys on paid plans?",

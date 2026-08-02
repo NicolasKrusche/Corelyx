@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { findCreditPack } from "@/lib/credit-packs";
+import { CREDIT_PACK_AMOUNTS, findCreditPack, formatPackRate } from "@/lib/credit-packs";
 
 type Config = {
   isEnabled: boolean;
@@ -11,7 +11,9 @@ type Config = {
 };
 
 const THRESHOLD_OPTIONS = [1_000, 2_000, 5_000, 10_000] as const;
-const AMOUNT_OPTIONS = [5_000, 10_000, 26_250, 55_000] as const;
+// Derived from CREDIT_PACKS so this list cannot drift from what checkout will
+// actually accept — /api/credits/auto-recharge validates against the same packs.
+const AMOUNT_OPTIONS = CREDIT_PACK_AMOUNTS;
 
 export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymentMethod: boolean }) {
   const [config, setConfig] = useState<Config>({
@@ -22,7 +24,8 @@ export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymen
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const rechargePriceUsd = findCreditPack(config.rechargeCredits)?.priceUsd;
+  const rechargePack = findCreditPack(config.rechargeCredits);
+  const rechargePriceUsd = rechargePack?.priceUsd;
 
   useEffect(() => {
     fetch("/api/credits/auto-recharge")
@@ -144,11 +147,16 @@ export function AutoRechargeSettings({ hasSavedPaymentMethod }: { hasSavedPaymen
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground/70">
+        <div className="flex items-start justify-between gap-3 text-xs text-muted-foreground/70">
           <span>
             Will charge <span className="font-medium text-foreground">${rechargePriceUsd?.toFixed(2) ?? "0.00"}</span> to add <span className="font-medium text-foreground">{config.rechargeCredits.toLocaleString("en-US")} credits</span> when balance &lt; <span className="font-medium text-foreground">{config.thresholdCredits.toLocaleString("en-US")}</span>
+            {rechargePack?.bonusLabel && (
+              <>
+                {" "}— <span className="font-medium text-green-600">{rechargePack.bonusLabel}</span>, {formatPackRate(rechargePack)}
+              </>
+            )}
           </span>
-          {saved && <span className="text-green-600 font-medium">Saved ✓</span>}
+          {saved && <span className="shrink-0 text-green-600 font-medium">Saved ✓</span>}
         </div>
       </div>
     </section>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { CREDIT_PACKS, formatCredits } from "@/lib/credit-packs";
+import { CREDIT_PACKS, formatCredits, formatPackRate } from "@/lib/credit-packs";
 
 const CRYPTO_ENABLED = process.env.NEXT_PUBLIC_STRIPE_CRYPTO_ENABLED === "true";
 
@@ -83,6 +83,16 @@ export function CreditsTopUp() {
         <div className="flex items-center justify-between px-4 py-2.5 text-sm">
           <span className="text-muted-foreground">Selected pack</span>
           <span className="font-medium">{formatCredits(selectedPack.credits)} credits</span>
+        </div>
+        {/* The $25 and $50 packs grant bonus credits, so their rate beats the
+            1,000-per-dollar base. Spell it out rather than leaving the buyer to
+            divide it themselves. */}
+        <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+          <span className="text-muted-foreground">Rate</span>
+          <span className={selectedPack.bonusLabel ? "font-medium text-green-600" : "text-muted-foreground"}>
+            {formatPackRate(selectedPack)}
+            {selectedPack.bonusLabel && ` · ${selectedPack.bonusLabel}`}
+          </span>
         </div>
         <div className="flex items-center justify-between px-4 py-2.5 text-sm font-semibold">
           <span>Total today</span>

@@ -32,8 +32,12 @@ export const COMPARISON_FEATURES: FeatureItem[] = [
   },
   { label: "Bring your own key (BYOK)", values: [false, true, true, true] },
   {
+    // Free is 500, not "none": OpenRouter's free-tier models were dropped
+    // platform-wide for rate-limiting, so Free runs the same real model as
+    // everyone else, bounded by a small allowance. Keep in step with
+    // ENTITLEMENTS.*.includedAiCredits in lib/entitlements.ts.
     label: "Platform AI credits / month",
-    values: ["—", "2,500", "10,000", "15,000"],
+    values: ["500", "2,500", "10,000", "15,000"],
   },
   { label: "Genesis AI uses / month", values: ["3", "5", "Unlimited", "Unlimited"] },
   { label: "AI agents (one-time tasks)", values: [false, true, true, true] },
