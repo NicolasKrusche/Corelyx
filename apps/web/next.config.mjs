@@ -59,6 +59,18 @@ const nextConfig = {
         destination: "/admin/circuits",
         permanent: true,
       },
+      // The template marketplace and /library gallery were removed in favor of
+      // /browse; keep old links and bookmarks working.
+      {
+        source: "/templates/marketplace",
+        destination: "/browse",
+        permanent: true,
+      },
+      {
+        source: "/library",
+        destination: "/browse",
+        permanent: true,
+      },
     ];
   },
 };
