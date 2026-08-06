@@ -993,12 +993,16 @@ class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
         executor._fetch_oauth_token = AsyncMock(return_value="token")
         executor._enforce_provider_policy = AsyncMock()
 
+        # Asserted against _execute_connection, the layer that raises. Going
+        # through _execute_node instead puts the retry executor in the way: the
+        # default policy is failed-open, so the error is swallowed into a
+        # NODE_ERROR_KEY output and the code never surfaces.
         with (
             patch("engine.executor.get_connector", return_value=None),
             patch("engine.executor.update_node_execution", new=AsyncMock()),
         ):
             with self.assertRaises(ExecutionError) as ctx:
-                await executor._execute_node(node, {})
+                await executor._execute_connection(node, {})
             self.assertEqual(ctx.exception.code, "CONNECTOR_NOT_FOUND")
 
     async def test_oauth_connection_unresolved_param(self) -> None:
@@ -1027,7 +1031,7 @@ class ConnectionExecutionTests(unittest.IsolatedAsyncioTestCase):
             patch("engine.executor.update_node_execution", new=AsyncMock()),
         ):
             with self.assertRaises(ExecutionError) as ctx:
-                await executor._execute_node(node, {})
+                await executor._execute_connection(node, {})
             self.assertEqual(ctx.exception.code, "UNRESOLVED_OPERATION_PARAM")
 
     async def test_oauth_connection_token_expired_retry(self) -> None:

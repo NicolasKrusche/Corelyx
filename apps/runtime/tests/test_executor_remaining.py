@@ -17,11 +17,13 @@ from schema import (
     parse_schema,
 )
 from engine.executor import (
+    NODE_ERROR_KEY,
     ConflictError,
     ExecutionError,
     ProgramExecutor,
     run_agent,
 )
+from engine.retry import BackoffType, RetryPolicy
 
 os.environ.setdefault("SUPABASE_URL", "http://localhost")
 os.environ.setdefault("SUPABASE_KEY", "test-key")
@@ -170,22 +172,117 @@ class TestRunAgent(unittest.IsolatedAsyncioTestCase):
 
 
 class TestExecuteNodeCatchAll(unittest.IsolatedAsyncioTestCase):
-    async def test_catch_all_exception_wraps_node_failed(self) -> None:
-        schema = _simple_schema(
-            [
-                {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
-                {"id": "s", "type": "step", "config": {"logic_type": "transform"}},
-            ]
+    """What a node's own exception does depends on fail_program_on_exhaust.
+
+    The default policy is failed-open (see create_retry_policy_for_node), so a
+    raising step does NOT abort the run — it returns a NODE_ERROR_KEY-tagged
+    output and the graph walker fails the run once the walk finishes. Only an
+    exception raised outside the retry executor reaches the catch-all.
+    """
+
+    def _executor(self) -> Any:
+        return _make_executor(
+            _simple_schema(
+                [
+                    {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+                    {"id": "s", "type": "step", "config": {"logic_type": "transform"}},
+                ]
+            )
         )
-        executor = _make_executor(schema)
+
+    def _policy(self, fail_on_exhaust: bool) -> RetryPolicy:
+        # Patched in rather than set on the node: StepConfig has no `retry`
+        # field, so a step's retry block lands in `extra` and never reaches
+        # create_retry_policy_for_node. One attempt, no backoff, keeps the test
+        # instant.
+        return RetryPolicy(
+            max_attempts=1,
+            backoff_type=BackoffType.NONE,
+            backoff_base_seconds=0.0,
+            fail_program_on_exhaust=fail_on_exhaust,
+            timeout_per_attempt_seconds=5.0,
+            timeout_total_seconds=5.0,
+        )
+
+    async def test_catch_all_wraps_an_exception_raised_outside_the_retry_path(self) -> None:
+        executor = self._executor()
         node = executor.node_map["s"]
         with (
+            patch(
+                "engine.executor.create_retry_policy_for_node",
+                return_value=self._policy(False),
+            ),
+            patch.object(executor, "_execute_step", return_value={"ok": True}),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch(
+                "engine.executor.record_node_execution",
+                side_effect=ValueError("boom"),
+            ),
+            self.assertRaises(ExecutionError) as ctx,
+        ):
+            await executor._execute_node(node, {"a": 1})
+        self.assertEqual(ctx.exception.code, "NODE_FAILED")
+        self.assertIn("boom", ctx.exception.message)
+
+    async def test_failed_open_returns_the_nodes_real_error(self) -> None:
+        # Regression: the dead-letter enqueue on this path raised
+        # "'coroutine' object has no attribute 'enqueue'", which replaced the
+        # node's actual error as the run's failure message.
+        executor = self._executor()
+        node = executor.node_map["s"]
+        dlq = Mock()
+        dlq.enqueue = AsyncMock(return_value="entry-1")
+        with (
+            patch(
+                "engine.executor.create_retry_policy_for_node",
+                return_value=self._policy(False),
+            ),
+            patch.object(executor, "_execute_step", side_effect=ValueError("boom")),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_dead_letter_queue", AsyncMock(return_value=dlq)),
+        ):
+            output = await executor._execute_node(node, {"a": 1})
+
+        self.assertIn("boom", output[NODE_ERROR_KEY])
+        self.assertIn("enqueued to DLQ", output[NODE_ERROR_KEY])
+        self.assertNotIn("coroutine", output[NODE_ERROR_KEY])
+        dlq.enqueue.assert_awaited_once()
+
+    async def test_failed_open_survives_a_dead_letter_write_failure(self) -> None:
+        executor = self._executor()
+        node = executor.node_map["s"]
+        dlq = Mock()
+        dlq.enqueue = AsyncMock(side_effect=RuntimeError("dlq unreachable"))
+        with (
+            patch(
+                "engine.executor.create_retry_policy_for_node",
+                return_value=self._policy(False),
+            ),
+            patch.object(executor, "_execute_step", side_effect=ValueError("boom")),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_dead_letter_queue", AsyncMock(return_value=dlq)),
+        ):
+            output = await executor._execute_node(node, {"a": 1})
+
+        # The node's own error survives; the DLQ's does not take its place.
+        self.assertIn("boom", output[NODE_ERROR_KEY])
+        self.assertIn("DLQ enqueue failed", output[NODE_ERROR_KEY])
+        self.assertNotIn("dlq unreachable", output[NODE_ERROR_KEY])
+
+    async def test_fail_program_on_exhaust_still_aborts_the_run(self) -> None:
+        executor = self._executor()
+        node = executor.node_map["s"]
+        with (
+            patch(
+                "engine.executor.create_retry_policy_for_node",
+                return_value=self._policy(True),
+            ),
             patch.object(executor, "_execute_step", side_effect=ValueError("boom")),
             patch("engine.executor.update_node_execution", new=AsyncMock()),
             self.assertRaises(ExecutionError) as ctx,
         ):
             await executor._execute_node(node, {"a": 1})
-        self.assertEqual(ctx.exception.code, "NODE_FAILED")
+        self.assertEqual(ctx.exception.code, "MAX_RETRIES_EXHAUSTED")
         self.assertIn("boom", ctx.exception.message)
 
 

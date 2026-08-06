@@ -80,7 +80,7 @@ from engine.credential_lock import (
     get_token_refresh_manager,
 )
 from engine.retry import RetryPolicy, RetryExecutor, create_retry_policy_for_node
-from engine.dead_letter import DeadLetterQueue, get_dead_letter_queue
+from engine.dead_letter import get_dead_letter_queue
 from engine.tracing import async_span, get_tracer
 from telemetry import record_node_execution
 from internal_auth import build_internal_service_headers
@@ -2222,9 +2222,6 @@ class ProgramExecutor:
                 node_telemetry_fn=self._node_telemetry_payload,
             )
             
-            # Get dead letter queue for enqueueing on failure
-            dlq = get_dead_letter_queue()
-
             async def execute_node_with_retry() -> dict:
                 """Execute the node with retry logic."""
                 if node.type == "agent":
@@ -2308,30 +2305,12 @@ class ProgramExecutor:
                     # Retries exhausted - enqueue to dead letter queue if fail_program_on_exhaust is False
                     if not retry_policy.fail_program_on_exhaust:
                         error = retry_result.error or Exception("Unknown error after retries")
-                        await dlq.enqueue(
-                            program_id=self.program_id,
-                            run_id=self.run_id,
-                            node_id=node.id,
-                            node_type=node.type,
-                            node_config=node.config.model_dump() if hasattr(node.config, 'model_dump') else {},
-                            input_data=log_input,
-                            error=error,
-                            attempt_count=retry_result.attempt_count,
-                            retry_policy={
-                                "max_attempts": retry_policy.max_attempts,
-                                "backoff_type": retry_policy.backoff_type.value,
-                                "backoff_base_seconds": retry_policy.backoff_base_seconds,
-                                "fail_program_on_exhaust": retry_policy.fail_program_on_exhaust,
-                                "timeout_per_attempt_seconds": retry_policy.timeout_per_attempt_seconds,
-                                "timeout_total_seconds": retry_policy.timeout_total_seconds,
-                            },
-                            metadata={
-                                "final_outcome": retry_result.final_outcome.value,
-                                "total_duration": retry_result.total_duration,
-                            },
+                        enqueued = await self._enqueue_dead_letter(
+                            node, log_input, error, retry_result, retry_policy
                         )
                         # Return error-tagged output so run continues (failed-open)
-                        return {NODE_ERROR_KEY: f"[Retries exhausted - enqueued to DLQ] {str(error)}"}
+                        marker = "enqueued to DLQ" if enqueued else "DLQ enqueue failed"
+                        return {NODE_ERROR_KEY: f"[Retries exhausted - {marker}] {str(error)}"}
                     else:
                         # fail_program_on_exhaust=True - raise ExecutionError to fail the run
                         raise ExecutionError("MAX_RETRIES_EXHAUSTED", str(retry_result.error), node.id)
@@ -2348,6 +2327,56 @@ class ProgramExecutor:
                     duration_ms=duration_ms,
                 )
                 raise ExecutionError("NODE_FAILED", str(e), node.id) from e
+
+    async def _enqueue_dead_letter(
+        self,
+        node: SchemaNode,
+        log_input: dict,
+        error: Exception,
+        retry_result,
+        retry_policy,
+    ) -> bool:
+        """Record a retry-exhausted node in the dead-letter queue.
+
+        Returns True when the entry was written. Bookkeeping must never replace
+        the node's real error: a failure here used to propagate out of the
+        failed-open branch and surface to the user as the run's error message,
+        hiding the actual cause. So it is logged and swallowed instead.
+        """
+        try:
+            dlq = await get_dead_letter_queue()
+            await dlq.enqueue(
+                program_id=self.program_id,
+                run_id=self.run_id,
+                node_id=node.id,
+                node_type=node.type,
+                node_config=node.config.model_dump() if hasattr(node.config, 'model_dump') else {},
+                input_data=log_input,
+                error=error,
+                attempt_count=retry_result.attempt_count,
+                retry_policy={
+                    "max_attempts": retry_policy.max_attempts,
+                    "backoff_type": retry_policy.backoff_type.value,
+                    "backoff_base_seconds": retry_policy.backoff_base_seconds,
+                    "fail_program_on_exhaust": retry_policy.fail_program_on_exhaust,
+                    "timeout_per_attempt_seconds": retry_policy.timeout_per_attempt_seconds,
+                    "timeout_total_seconds": retry_policy.timeout_total_seconds,
+                },
+                metadata={
+                    "final_outcome": retry_result.final_outcome.value,
+                    "total_duration": retry_result.total_duration,
+                },
+            )
+            return True
+        except Exception as dlq_error:
+            log.error(
+                "dead_letter.enqueue_failed",
+                node_id=node.id,
+                run_id=self.run_id,
+                dlq_error=str(dlq_error)[:300],
+                node_error=str(error)[:300],
+            )
+            return False
 
     async def _execute_agent(self, node: SchemaNode, input_data: dict) -> dict:
         cfg: AgentConfig = node.config  # type: ignore[assignment]
