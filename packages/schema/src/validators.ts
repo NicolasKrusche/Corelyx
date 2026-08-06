@@ -163,19 +163,31 @@ export const AgentTaskNodeZ = NodeBaseZ.extend({
 
 // ─── STEP NODE ────────────────────────────────────────────────────────────
 
+/**
+ * Shared across every logic_type. z.object strips unknown keys, so a step's
+ * retry block was silently dropped here before this existed — the runtime then
+ * fell back to the default policy with no indication anything was ignored.
+ */
+const StepConfigCommonZ = {
+  retry: RetryConfigZ.nullable().optional(),
+};
+
 export const StepConfigZ = z.discriminatedUnion("logic_type", [
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("transform"),
     transformation: z.string().min(1),
     input_schema: DataSchemaZ.nullable(),
     output_schema: DataSchemaZ.nullable(),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("filter"),
     condition: z.string().min(1),
     pass_schema: DataSchemaZ.nullable(),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("branch"),
     conditions: z
       .array(z.object({ condition: z.string().min(1), target_node_id: z.string().min(1) }))
@@ -183,29 +195,35 @@ export const StepConfigZ = z.discriminatedUnion("logic_type", [
     default_branch: z.string().min(1),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("delay"),
     seconds: z.number().min(0),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("loop"),
     over: z.string().min(1),
     item_var: z.string().min(1),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("format"),
     template: z.string().min(1),
     output_key: z.string().min(1),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("parse"),
     input_key: z.string().min(1),
     format: z.enum(["json", "csv", "lines"]),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("deduplicate"),
     key: z.string().min(1),
   }),
   z.object({
+    ...StepConfigCommonZ,
     logic_type: z.literal("sort"),
     key: z.string().min(1),
     order: z.enum(["asc", "desc"]),

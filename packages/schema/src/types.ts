@@ -212,16 +212,31 @@ export interface StepNode extends NodeBase {
   config: StepConfig;
 }
 
-export type StepConfig =
-  | { logic_type: "transform"; transformation: string; input_schema: DataSchema | null; output_schema: DataSchema | null }
-  | { logic_type: "filter"; condition: string; pass_schema: DataSchema | null }
-  | { logic_type: "branch"; conditions: BranchCondition[]; default_branch: string }
-  | { logic_type: "delay"; seconds: number }
-  | { logic_type: "loop"; over: string; item_var: string }
-  | { logic_type: "format"; template: string; output_key: string }
-  | { logic_type: "parse"; input_key: string; format: "json" | "csv" | "lines" }
-  | { logic_type: "deduplicate"; key: string }
-  | { logic_type: "sort"; key: string; order: "asc" | "desc" };
+/**
+ * Fields shared by every step regardless of logic_type.
+ *
+ * Steps have always been retried — create_retry_policy_for_node falls back to
+ * 3 attempts with exponential backoff — but until this field existed there was
+ * no way to tune that, switch it off for a step where retrying is wrong (a
+ * delay, a non-idempotent write), or ask for a step failure to abort the run
+ * instead of continuing failed-open. Omitted or null keeps the defaults.
+ */
+export interface StepConfigCommon {
+  retry?: RetryConfig | null;
+}
+
+export type StepConfig = StepConfigCommon &
+  (
+    | { logic_type: "transform"; transformation: string; input_schema: DataSchema | null; output_schema: DataSchema | null }
+    | { logic_type: "filter"; condition: string; pass_schema: DataSchema | null }
+    | { logic_type: "branch"; conditions: BranchCondition[]; default_branch: string }
+    | { logic_type: "delay"; seconds: number }
+    | { logic_type: "loop"; over: string; item_var: string }
+    | { logic_type: "format"; template: string; output_key: string }
+    | { logic_type: "parse"; input_key: string; format: "json" | "csv" | "lines" }
+    | { logic_type: "deduplicate"; key: string }
+    | { logic_type: "sort"; key: string; order: "asc" | "desc" }
+  );
 
 export interface BranchCondition {
   condition: string;

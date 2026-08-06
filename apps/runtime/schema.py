@@ -73,6 +73,10 @@ class StepConfig:
         "deduplicate",
         "sort",
     ]
+    # None keeps create_retry_policy_for_node's defaults (3 attempts,
+    # exponential, failed-open). Before this field existed a step's retry block
+    # landed in `extra` and was never read, so step retries were unconfigurable.
+    retry: Optional[RetryConfig] = None
     extra: dict = field(default_factory=dict)
 
 
@@ -296,8 +300,13 @@ def _parse_node_config(
         return TriggerConfig(trigger_type=trigger_type, extra=extra)
     elif node_type == "step":
         logic_type = raw.get("logic_type", "transform")
-        extra = {k: v for k, v in raw.items() if k != "logic_type"}
-        return StepConfig(logic_type=logic_type, extra=extra)
+        retry_raw = raw.get("retry")
+        extra = {k: v for k, v in raw.items() if k not in ("logic_type", "retry")}
+        return StepConfig(
+            logic_type=logic_type,
+            retry=_parse_retry(retry_raw) if isinstance(retry_raw, dict) else None,
+            extra=extra,
+        )
     elif node_type == "connection":
         connector_type = raw.get("connector_type")
         if connector_type == "file":
