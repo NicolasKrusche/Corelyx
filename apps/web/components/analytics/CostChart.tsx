@@ -9,35 +9,92 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-
-interface RunCostData {
-  run_id: string;
-  started_at: string;
-  total_cost_usd: number;
-  total_tokens: number;
-  status: string;
-}
+import type { CostTrendRow } from "@/lib/program-analytics";
+import { formatCreditAmount, usdToCredits } from "@/lib/credit-packs";
 
 interface CostChartProps {
-  data: RunCostData[];
+  data: CostTrendRow[];
+}
+
+const COMPLETED = "hsl(142, 76%, 36%)";
+const FAILED = "hsl(0, 72%, 51%)";
+
+type Point = {
+  ts: number;
+  label: string;
+  credits: number;
+  status: string;
+};
+
+/**
+ * getCostTrend returns camelCase rows ordered newest-first, with startedAt as an
+ * ISO timestamp. Rows whose timestamp will not parse are dropped — rendering
+ * them produced a chart axis of "Invalid Date" ticks.
+ */
+function toPoint(row: CostTrendRow): Point | null {
+  const ts = new Date(row.startedAt).getTime();
+  if (!Number.isFinite(ts)) return null;
+  return {
+    ts,
+    label: new Date(ts).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    credits: usdToCredits(row.costUsd),
+    status: row.status,
+  };
+}
+
+/** Dot colour carries run status, which the single credits series cannot. */
+function StatusDot(props: { cx?: number; cy?: number; payload?: Point }) {
+  const { cx, cy, payload } = props;
+  if (cx == null || cy == null) return <g />;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={3.5}
+      fill={payload?.status === "failed" ? FAILED : COMPLETED}
+    />
+  );
+}
+
+function CostTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: Point }[];
+}) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-sm">
+      <p className="font-medium text-foreground">{point.label}</p>
+      <p className="mt-1 text-muted-foreground">
+        {formatCreditAmount(point.credits)} credits
+      </p>
+      <p
+        className={
+          point.status === "failed"
+            ? "text-red-500"
+            : "text-emerald-500"
+        }
+      >
+        {point.status}
+      </p>
+    </div>
+  );
 }
 
 export function CostChart({ data }: CostChartProps) {
   const chartData = data
-    .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
-    .map((run) => ({
-      date: new Date(run.started_at).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      cost: run.total_cost_usd,
-      tokens: run.total_tokens,
-      status: run.status,
-    }));
+    .map(toPoint)
+    .filter((p): p is Point => p !== null)
+    .sort((a, b) => a.ts - b.ts);
 
   if (chartData.length === 0) {
     return (
@@ -49,43 +106,31 @@ export function CostChart({ data }: CostChartProps) {
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={chartData}>
+      <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
         <XAxis
-          dataKey="date"
+          dataKey="label"
           tick={{ fontSize: 11 }}
           angle={-45}
           textAnchor="end"
-          height={60}
+          height={70}
+          interval="preserveStartEnd"
+          minTickGap={24}
         />
-        <YAxis yAxisId="cost" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="tokens" orientation="right" tick={{ fontSize: 11 }} />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "hsl(var(--background))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "8px",
-            fontSize: "12px",
-          }}
+        <YAxis
+          tick={{ fontSize: 11 }}
+          width={56}
+          tickFormatter={(v: number) => formatCreditAmount(v)}
         />
-        <Legend />
+        <Tooltip content={<CostTooltip />} />
         <Line
-          yAxisId="cost"
           type="monotone"
-          dataKey="cost"
-          stroke="hsl(142, 76%, 36%)"
+          dataKey="credits"
+          stroke={COMPLETED}
           strokeWidth={2}
-          dot={{ r: 4 }}
-          name="Cost (USD)"
-        />
-        <Line
-          yAxisId="tokens"
-          type="monotone"
-          dataKey="tokens"
-          stroke="hsl(217, 91%, 60%)"
-          strokeWidth={2}
-          dot={{ r: 4 }}
-          name="Tokens"
+          dot={<StatusDot />}
+          activeDot={{ r: 5 }}
+          name="Credits"
         />
       </LineChart>
     </ResponsiveContainer>

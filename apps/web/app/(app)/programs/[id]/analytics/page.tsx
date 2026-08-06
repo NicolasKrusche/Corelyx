@@ -12,19 +12,17 @@ import {
 import { CostChart } from "@/components/analytics/CostChart";
 import { ModelComparisonChart } from "@/components/analytics/ModelComparisonChart";
 import { NodeTypeCostChart } from "@/components/analytics/NodeTypeCostChart";
+import { formatUsdAsCredits } from "@/lib/credit-packs";
 import {
   ArrowLeft,
   BarChart3,
-  Bot,
-  DollarSign,
+  Coins,
   Hash,
   TrendingUp,
   Zap,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-function usd(v: number) { return `$${v.toFixed(4)}`; }
 
 function StatCard({
   label,
@@ -82,10 +80,13 @@ export default async function AnalyticsPage({
   const s = summary.data;
   const avgDuration =
     s.totalRuns > 0 ? s.totalDurationMs / s.totalRuns : 0;
+  const avgModelCalls =
+    s.totalRuns > 0 ? s.totalModelCalls / s.totalRuns : 0;
   function fmtDuration(ms: number) {
     if (ms < 1000) return `${Math.round(ms)}ms`;
     if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${Math.floor(ms / 60000)}m`;
+    if (ms < 3600000) return `${Math.floor(ms / 60000)}m`;
+    return `${(ms / 3600000).toFixed(1)}h`;
   }
 
   return (
@@ -103,7 +104,7 @@ export default async function AnalyticsPage({
           </h1>
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
             <BarChart3 className="h-3 w-3" />
-            Cost &amp; Token Telemetry
+            Credit Telemetry
           </span>
         </div>
         {(summary.degraded || costTrend.degraded) && (
@@ -122,21 +123,21 @@ export default async function AnalyticsPage({
           icon={<Zap className="w-5 h-5 text-primary" />}
         />
         <StatCard
-          label="Total Cost"
-          value={usd(s.totalCostUsd)}
-          sub={`${usd(s.avgCostPerRun)} avg/run`}
-          icon={<DollarSign className="w-5 h-5 text-emerald-500" />}
+          label="Credits Spent"
+          value={formatUsdAsCredits(s.totalCostUsd)}
+          sub={`${formatUsdAsCredits(s.avgCostPerRun)} avg/run`}
+          icon={<Coins className="w-5 h-5 text-emerald-500" />}
         />
         <StatCard
-          label="Total Tokens"
-          value={s.totalTokens.toLocaleString()}
-          sub={`${Math.round(s.avgTokensPerRun).toLocaleString()} avg/run`}
+          label="Model Calls"
+          value={s.totalModelCalls.toLocaleString()}
+          sub={`${avgModelCalls.toFixed(1)} avg/run`}
           icon={<Hash className="w-5 h-5 text-blue-500" />}
         />
         <StatCard
           label="Avg Duration"
           value={fmtDuration(avgDuration)}
-          sub={`${s.totalModelCalls} model calls total`}
+          sub={`${fmtDuration(s.totalDurationMs)} total runtime`}
           icon={<TrendingUp className="w-5 h-5 text-purple-500" />}
         />
       </div>
@@ -144,13 +145,13 @@ export default async function AnalyticsPage({
       {/* Cost trend */}
       <section className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Cost per Run</h2>
+          <h2 className="text-lg font-semibold text-foreground">Credits per Run</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Estimated provider cost over time — green = completed, red = failed
+            Credits charged per run over time — green = completed, red = failed
           </p>
         </div>
         <div className="p-6">
-          <CostChart data={costTrend.data as any} />
+          <CostChart data={costTrend.data} />
         </div>
       </section>
 
@@ -158,9 +159,9 @@ export default async function AnalyticsPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
           <div className="px-6 py-4 border-b border-border">
-            <h2 className="text-lg font-semibold text-foreground">Cost by Node Type</h2>
+            <h2 className="text-lg font-semibold text-foreground">Credits by Node Type</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              How much each node type contributes to total cost
+              How much each node type contributes to total credit spend
             </p>
           </div>
           <div className="p-6">
@@ -172,11 +173,11 @@ export default async function AnalyticsPage({
           <div className="px-6 py-4 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground">Model Comparison</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Cost and usage breakdown by LLM model
+              Credit spend and call volume by LLM model
             </p>
           </div>
           <div className="p-6">
-            <ModelComparisonChart data={modelComparison.data as any} />
+            <ModelComparisonChart data={modelComparison.data} />
           </div>
         </section>
       </div>

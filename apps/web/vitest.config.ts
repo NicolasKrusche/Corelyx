@@ -6,6 +6,13 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
   },
+  // tsconfig says jsx: "preserve" for Next, which leaves esbuild on the classic
+  // runtime — any component that renders JSX without importing React then
+  // throws "React is not defined" under test only. Match what Next compiles.
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "react",
+  },
   resolve: {
     alias: {
       "server-only": path.resolve(__dirname, "test/stubs/server-only.ts"),

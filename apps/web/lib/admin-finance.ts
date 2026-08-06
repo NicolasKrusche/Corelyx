@@ -13,7 +13,8 @@ import { ENTITLEMENTS } from "@/lib/entitlements";
      - billing = 'byok'     → the user's own key pays (passthrough, not ours)
    billed_credits is what the user was charged (1000 credits = $1). */
 
-export const CREDITS_PER_USD = 1000;
+export { CREDITS_PER_USD } from "@/lib/credit-packs";
+import { CREDITS_PER_USD } from "@/lib/credit-packs";
 
 const FALLBACK_ROW_CAP = 5000;
 

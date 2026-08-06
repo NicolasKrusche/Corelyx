@@ -9,29 +9,52 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-
-interface ModelUsageData {
-  model: string;
-  total_runs: number;
-  total_cost_usd: number;
-  total_tokens: number;
-  avg_tokens_per_run: number;
-}
+import type { ModelComparisonRow } from "@/lib/program-analytics";
+import { formatCreditAmount, usdToCredits } from "@/lib/credit-packs";
 
 interface ModelComparisonChartProps {
-  data: ModelUsageData[];
+  data: ModelComparisonRow[];
+}
+
+type Bucket = {
+  model: string;
+  fullName: string;
+  credits: number;
+  calls: number;
+  source: string;
+};
+
+function ModelTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: Bucket }[];
+}) {
+  if (!active || !payload?.length) return null;
+  const bucket = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-sm">
+      <p className="font-medium text-foreground">{bucket.fullName}</p>
+      <p className="mt-1 text-muted-foreground">
+        {formatCreditAmount(bucket.credits)} credits
+      </p>
+      <p className="text-muted-foreground">
+        {bucket.calls.toLocaleString()} call{bucket.calls === 1 ? "" : "s"} ·{" "}
+        {bucket.source}
+      </p>
+    </div>
+  );
 }
 
 export function ModelComparisonChart({ data }: ModelComparisonChartProps) {
-  const chartData = data.map((item) => ({
+  const chartData: Bucket[] = data.map((item) => ({
     model: item.model.split("/").pop() || item.model,
     fullName: item.model,
-    runs: item.total_runs,
-    cost: item.total_cost_usd,
-    tokens: item.total_tokens,
-    avgTokens: item.avg_tokens_per_run,
+    credits: usdToCredits(item.totalCostUsd),
+    calls: item.callCount,
+    source: item.source,
   }));
 
   if (chartData.length === 0) {
@@ -44,27 +67,28 @@ export function ModelComparisonChart({ data }: ModelComparisonChartProps) {
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData}>
+      <BarChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-        <XAxis dataKey="model" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
-        <YAxis yAxisId="cost" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="tokens" orientation="right" tick={{ fontSize: 11 }} />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "hsl(var(--background))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "8px",
-            fontSize: "12px",
-          }}
-          formatter={(value: any, name: any, props: any) => {
-            if (name === "cost") return [`$${Number(value).toFixed(4)}`, "Cost (USD)"];
-            if (name === "tokens") return [Number(value).toLocaleString(), "Tokens"];
-            return [value, name];
-          }}
+        <XAxis
+          dataKey="model"
+          tick={{ fontSize: 11 }}
+          angle={-45}
+          textAnchor="end"
+          height={70}
+          interval={0}
         />
-        <Legend />
-        <Bar yAxisId="cost" dataKey="cost" fill="hsl(142, 76%, 36%)" name="Cost (USD)" radius={[4, 4, 0, 0]} />
-        <Bar yAxisId="tokens" dataKey="tokens" fill="hsl(217, 91%, 60%)" name="Tokens" radius={[4, 4, 0, 0]} />
+        <YAxis
+          tick={{ fontSize: 11 }}
+          width={56}
+          tickFormatter={(v: number) => formatCreditAmount(v)}
+        />
+        <Tooltip content={<ModelTooltip />} cursor={{ fillOpacity: 0.08 }} />
+        <Bar
+          dataKey="credits"
+          fill="hsl(142, 76%, 36%)"
+          name="Credits"
+          radius={[4, 4, 0, 0]}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

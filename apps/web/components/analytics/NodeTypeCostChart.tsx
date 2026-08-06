@@ -9,6 +9,7 @@ import {
   Legend,
 } from "recharts";
 import type { NodeTypeCostRow } from "@/lib/program-analytics";
+import { formatCreditAmount, usdToCredits } from "@/lib/credit-packs";
 
 type Props = { data: NodeTypeCostRow[] };
 
@@ -17,7 +18,9 @@ const COLORS = [
   "#ec4899", "#f43f5e", "#f97316", "#14b8a6",
 ];
 
-function usd(v: number) { return v < 0.01 ? `$${v.toFixed(6)}` : `$${v.toFixed(4)}`; }
+function credits(usdValue: number) {
+  return formatCreditAmount(usdToCredits(usdValue));
+}
 
 export function NodeTypeCostChart({ data }: Props) {
   if (data.length === 0) {
@@ -27,8 +30,11 @@ export function NodeTypeCostChart({ data }: Props) {
       </div>
     );
   }
-  const chartData = data.map((r) => ({ name: r.nodeType, value: r.totalCostUsd, ...r }));
-  const total = chartData.reduce((s, r) => s + r.value, 0);
+  const chartData = data.map((r) => ({
+    ...r,
+    name: r.nodeType,
+    value: usdToCredits(r.totalCostUsd),
+  }));
 
   return (
     <div className="space-y-4">
@@ -54,7 +60,10 @@ export function NodeTypeCostChart({ data }: Props) {
               borderRadius: "8px",
               fontSize: "12px",
             }}
-            formatter={(value: any) => [usd(value), "Cost"]}
+            formatter={(value: any) => [
+              `${formatCreditAmount(Number(value))} credits`,
+              "Cost",
+            ]}
           />
           <Legend wrapperStyle={{ fontSize: "11px" }} />
         </PieChart>
@@ -66,9 +75,8 @@ export function NodeTypeCostChart({ data }: Props) {
             <tr className="border-b border-border text-left text-muted-foreground">
               <th className="pb-2 font-medium">Node Type</th>
               <th className="pb-2 font-medium text-right">Executions</th>
-              <th className="pb-2 font-medium text-right">Total Tokens</th>
-              <th className="pb-2 font-medium text-right">Total Cost</th>
-              <th className="pb-2 font-medium text-right">Avg Cost</th>
+              <th className="pb-2 font-medium text-right">Total Credits</th>
+              <th className="pb-2 font-medium text-right">Avg Credits</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -82,9 +90,8 @@ export function NodeTypeCostChart({ data }: Props) {
                   </div>
                 </td>
                 <td className="py-1.5 text-right">{row.executionCount}</td>
-                <td className="py-1.5 text-right">{row.totalTokens.toLocaleString()}</td>
-                <td className="py-1.5 text-right">{usd(row.totalCostUsd)}</td>
-                <td className="py-1.5 text-right">{usd(row.avgCostUsd)}</td>
+                <td className="py-1.5 text-right">{credits(row.totalCostUsd)}</td>
+                <td className="py-1.5 text-right">{credits(row.avgCostUsd)}</td>
               </tr>
             ))}
           </tbody>

@@ -29,6 +29,42 @@ export function formatCredits(credits: number): string {
   return Math.round(credits).toLocaleString("en-US");
 }
 
+/**
+ * Consumption rate: usage is always charged at 1,000 credits per $1 of billed
+ * cost, whatever the credit cost to acquire. The bonus packs above move the
+ * *purchase* rate only — so the billed USD columns (runs.billed_cost_usd,
+ * node_executions.billed_cost_usd, llm_usage_logs.billed_credits / 1000)
+ * convert back to credits exactly.
+ */
+export const CREDITS_PER_USD = 1_000;
+
+/** Billed USD → credits. Exact for platform-billed usage; BYOK/free rows carry
+ *  raw pass-through provider cost, so their credit figure is nominal. */
+export function usdToCredits(billedUsd: number): number {
+  return billedUsd * CREDITS_PER_USD;
+}
+
+/**
+ * Credit amount for display. A single charge is a whole credit, but totals and
+ * averages are fractional — keep a little precision on small values instead of
+ * rounding a real cost down to a flat "0".
+ */
+export function formatCreditAmount(credits: number): string {
+  if (!Number.isFinite(credits) || credits === 0) return "0";
+  const abs = Math.abs(credits);
+  const decimals = abs < 1 ? 2 : abs < 100 ? 1 : 0;
+  // Round first, then let toLocaleString drop a trailing ".0" — a chart axis of
+  // "30.0, 60.0, 90.0, 120" reads worse than "30, 60, 90, 120".
+  return Number(credits.toFixed(decimals)).toLocaleString("en-US", {
+    maximumFractionDigits: decimals,
+  });
+}
+
+/** Billed USD → credits, formatted for display. 0.0152 → "15.2". */
+export function formatUsdAsCredits(billedUsd: number): string {
+  return formatCreditAmount(usdToCredits(billedUsd));
+}
+
 /** Credits granted per USD for a pack — 1,000 base, more on the bonus packs. */
 export function creditsPerUsd(pack: CreditPack): number {
   return pack.credits / pack.priceUsd;
