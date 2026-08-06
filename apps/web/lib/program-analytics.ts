@@ -86,6 +86,34 @@ async function callRpc(
   return result;
 }
 
+/**
+ * node_id → node type, read from the program's own schema.
+ *
+ * The schema is the authoritative record of what a node is. The analytics RPCs
+ * used to guess from `output_payload->>'type'`, which picks up the "object" of
+ * a JSON-Schema-shaped output and collapsed every node into one bucket called
+ * "object" (see migration 20260805120000).
+ */
+async function getNodeTypesFromSchema(
+  db: Db,
+  programId: string,
+): Promise<Map<string, string>> {
+  const { data } = await db
+    .from("programs")
+    .select("schema")
+    .eq("id", programId)
+    .single();
+
+  const nodes = (data as any)?.schema?.nodes;
+  const byId = new Map<string, string>();
+  if (Array.isArray(nodes)) {
+    for (const n of nodes) {
+      if (n?.id && n?.type) byId.set(String(n.id), String(n.type));
+    }
+  }
+  return byId;
+}
+
 // ---------------------------------------------------------------------------
 // Public functions
 // ---------------------------------------------------------------------------
@@ -178,17 +206,35 @@ export async function getCostByNodeType(
     };
   }
 
-  // Fallback: aggregate from node_executions
+  // Fallback: aggregate from node_executions.
+  //
+  // This query used to have no program filter at all — it summed the whole
+  // node_executions table, so one program's analytics reported every other
+  // program's executions and cost. Scope it to this program's runs.
+  const { data: programRuns } = await db
+    .from("runs")
+    .select("id")
+    .eq("program_id", programId);
+  const runIds = (programRuns ?? []).map((r: any) => r.id);
+
+  if (runIds.length === 0) return { data: [], degraded: true };
+
   const { data: execsRaw } = await db
     .from("node_executions")
     .select("node_id, status, total_tokens, billed_cost_usd, input_payload")
+    .in("run_id", runIds)
     .in("status", ["completed", "failed"]);
+
+  const nodeTypeById = await getNodeTypesFromSchema(db, programId);
 
   const execs = (execsRaw ?? []) as any[];
   const byType = new Map<string, NodeTypeCostRow>();
 
   for (const e of execs) {
-    const nodeType = "unknown";
+    const nodeType =
+      nodeTypeById.get(e.node_id) ??
+      (e.input_payload as any)?._node_type ??
+      "unknown";
     const existing = byType.get(nodeType) ?? {
       nodeType,
       executionCount: 0,
