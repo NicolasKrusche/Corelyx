@@ -352,6 +352,8 @@
       "runLimitReached": "今月の実行制限に達しました",
       "runWarning": "警告: 実行クォータの80%を使用済み",
       "resetsMonthly": "毎月リセット",
+      "bonusGenesis": "ボーナス Genesis",
+      "bonusGenesisHint": "クレジットを消費しない無料生成",
       "purchased": "+{count}購入済み（期限なし）"
     },
     "credits": {

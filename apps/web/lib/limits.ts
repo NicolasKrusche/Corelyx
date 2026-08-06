@@ -154,37 +154,20 @@ function isCurrentMonth(isoTimestamp: string | null): boolean {
   );
 }
 
-// ─── Genesis allowance arithmetic ─────────────────────────────────────────────
+// ─── Genesis allowance ────────────────────────────────────────────────────────
 
 /*
- * A `genesis_uses` redemption code grants a one-time pool (bonus_genesis_uses)
- * on top of the plan's monthly allowance. The two rules below are what keep it
- * one-time, and they have to agree:
+ * Genesis is paid for in credits, like every other model call — see
+ * lib/genesis/credit-cost.ts. There is no longer a per-plan monthly use
+ * ceiling: an account's included credit allowance is the ceiling, which is what
+ * the plan tiers were always meant to express.
  *
- *   - the plan allowance is always spent first, so genesis_uses_this_month
- *     pins at the plan limit and the pool only drains after that;
- *   - the ceiling is plan + whatever is left in the pool, so it shrinks as the
- *     pool empties and lands back on the bare plan limit once it is gone.
- *
- * Spending the pool first would instead let it refill on every monthly reset,
- * turning a campaign grant into a permanent entitlement. This differs from
- * bonus_runs, which checkRunLimit deliberately re-adds every month.
+ * bonus_genesis_uses survives as a pool of credit-FREE generations, granted by
+ * a `genesis_uses` redemption code (migration 20260717120000, issued for the
+ * Relay.app migration). It is spent before any credits are charged and it does
+ * not refill, so a campaign grant stays one-time. genesis_uses_this_month is
+ * still incremented, but only as an analytics counter — nothing gates on it.
  */
-
-/** Genesis uses allowed this month for a capped plan, given the bonus left. */
-export function genesisCeiling(planPerMonth: number, bonusRemaining: number): number {
-  return planPerMonth + Math.max(0, bonusRemaining);
-}
-
-/** Which bucket the next Genesis use comes out of. */
-export function genesisSpendTarget(
-  planPerMonth: number | null,
-  usedThisMonth: number,
-  bonusRemaining: number
-): "plan" | "bonus" {
-  const planExhausted = planPerMonth !== null && usedThisMonth >= planPerMonth;
-  return planExhausted && bonusRemaining > 0 ? "bonus" : "plan";
-}
 
 // ─── Public result type ───────────────────────────────────────────────────────
 
@@ -354,49 +337,41 @@ export async function checkBYOKAccess(userId: string, workspaceId?: string | nul
   };
 }
 
-/** Check genesis access and return current usage stats. */
-export async function checkGenesisAccess(userId: string, workspaceId?: string | null): Promise<
-  LimitCheckResult & { usesThisMonth: number; maxUses: number | null }
-> {
-  const profile = await getBillingScope(userId, workspaceId);
-  const ent = getEntitlements(profile.tier);
-
-  if (ent.genesisUsesPerMonth === null) {
-    return { allowed: true, usesThisMonth: 0, maxUses: null };
-  }
-
-  const usesThisMonth = isCurrentMonth(profile.genesis_month_reset_at)
-    ? profile.genesis_uses_this_month
-    : 0;
-
-  const totalAllowed = genesisCeiling(ent.genesisUsesPerMonth, profile.bonus_genesis_uses ?? 0);
-
-  if (usesThisMonth >= totalAllowed) {
-    const tierNames: Record<string, string> = {
-      free: "Free", plus: "Solo", pro: "Team", builder: "Scale", unlimited: "Unlimited",
-    };
-    const tierName = tierNames[profile.tier] ?? profile.tier;
-    const nextTierHint = profile.tier === "free"
-      ? "Upgrade to Solo for more Genesis uses."
-      : profile.tier === "plus"
-      ? "Upgrade to Team for unlimited Genesis."
-      : "Contact support to increase your limit.";
-    return {
-      allowed: false,
-      reason: `Genesis AI limit reached (${usesThisMonth}/${totalAllowed} this month on ${tierName} plan)`,
-      upgradeMessage: `You've used all ${totalAllowed} Genesis AI uses this month on the ${tierName} plan. ${nextTierHint}`,
-      usesThisMonth,
-      maxUses: totalAllowed,
-    };
-  }
-
-  return { allowed: true, usesThisMonth, maxUses: totalAllowed };
+export interface GenesisGrant {
+  /** Credit-free generations left in the one-time bonus pool. */
+  bonusRemaining: number;
+  /** Generations run this month. Reported for display; nothing gates on it. */
+  usesThisMonth: number;
 }
 
-/** Record one genesis use after a successful genesis call. */
-export async function incrementGenesisUses(userId: string, workspaceId?: string | null): Promise<void> {
+/** Read the account's Genesis bonus pool and this month's usage counter. */
+export async function getGenesisGrant(
+  userId: string,
+  workspaceId?: string | null,
+): Promise<GenesisGrant> {
   const profile = await getBillingScope(userId, workspaceId);
-  const ent = getEntitlements(profile.tier);
+  return {
+    bonusRemaining: Math.max(0, profile.bonus_genesis_uses ?? 0),
+    usesThisMonth: isCurrentMonth(profile.genesis_month_reset_at)
+      ? profile.genesis_uses_this_month
+      : 0,
+  };
+}
+
+/**
+ * Record one Genesis generation.
+ *
+ * `fromBonus` drains the credit-free pool instead of leaving the caller to be
+ * charged; the caller decides which applies by reading getGenesisGrant before
+ * the generation and passing the same answer here, so a pool that emptied
+ * mid-flight can't be double-spent against a charge that never happened.
+ */
+export async function recordGenesisUse(
+  userId: string,
+  workspaceId?: string | null,
+  options?: { fromBonus?: boolean },
+): Promise<void> {
+  const profile = await getBillingScope(userId, workspaceId);
   const serviceClient = createServiceClient();
   const table = profile.workspaceId ? "workspaces" : "profiles";
   const idValue = profile.workspaceId ?? userId;
@@ -405,26 +380,15 @@ export async function incrementGenesisUses(userId: string, workspaceId?: string 
     ? profile.genesis_uses_this_month
     : 0;
 
-  const target = genesisSpendTarget(
-    ent.genesisUsesPerMonth,
-    currentUses,
-    profile.bonus_genesis_uses
-  );
-  if (target === "bonus") {
-    await serviceClient
-      .from(table)
-      .update({ bonus_genesis_uses: profile.bonus_genesis_uses - 1 } as never)
-      .eq("id", idValue);
-    return;
+  const update: Record<string, unknown> = {
+    genesis_uses_this_month: currentUses + 1,
+    genesis_month_reset_at: new Date().toISOString(),
+  };
+  if (options?.fromBonus && profile.bonus_genesis_uses > 0) {
+    update.bonus_genesis_uses = profile.bonus_genesis_uses - 1;
   }
 
-  await serviceClient
-    .from(table)
-    .update({
-      genesis_uses_this_month: currentUses + 1,
-      genesis_month_reset_at: new Date().toISOString(),
-    } as never)
-    .eq("id", idValue);
+  await serviceClient.from(table).update(update as never).eq("id", idValue);
 }
 
 /**

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { getActiveWorkspace } from "@/lib/workspaces";
-import { getRunUsage, checkGenesisAccess } from "@/lib/limits";
+import { getRunUsage, getGenesisGrant } from "@/lib/limits";
 import { isAdminEmail } from "@/lib/admin";
 import { parseTier } from "@/lib/entitlements";
 import { getUserCreditBalance } from "@/lib/credits";
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
         : Promise.resolve({ data: null }),
       db.auth.admin.getUserById(user.id),
       getRunUsage(user.id, workspaceId),
-      checkGenesisAccess(user.id, workspaceId),
+      getGenesisGrant(user.id, workspaceId),
       getUserCreditBalance(user.id).catch(() => null),
     ]);
 
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
     workspaces,
     usage: {
       runs: { current: runUsage.current, total: runUsage.total },
-      genesis: { usesThisMonth: genesisAccess.usesThisMonth, maxUses: genesisAccess.maxUses },
+      genesis: { usesThisMonth: genesisAccess.usesThisMonth, bonusRemaining: genesisAccess.bonusRemaining },
       aiCredits: creditBalance
         ? {
             availableIncluded: creditBalance.availableIncluded === Infinity ? null : creditBalance.availableIncluded,

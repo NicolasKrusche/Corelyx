@@ -1,81 +1,96 @@
 import { describe, expect, it } from "vitest";
-import { genesisCeiling, genesisSpendTarget } from "../limits";
+import {
+  creditsForRawUsd,
+  estimateGenesisCredits,
+  estimateTokens,
+  GENESIS_CREDIT_MARKUP,
+} from "@/lib/genesis/credit-cost";
+import { CREDITS_PER_USD } from "@/lib/credit-packs";
 
-/* The `genesis_uses` redemption code (Relay.app migration campaign) grants a
-   one-time pool on top of the plan's monthly allowance. These two helpers are
-   what make it one-time rather than a permanent monthly uplift. */
+/* Genesis is paid for out of the credit balance rather than a per-plan monthly
+   counter. What matters is that the pre-flight estimate is pessimistic enough
+   that an expensive model can never overdraw an account. */
 
-describe("genesisCeiling", () => {
-  it("is the bare plan limit with no bonus", () => {
-    expect(genesisCeiling(3, 0)).toBe(3);
+const CHEAP = { promptUsdPerToken: 0.15 / 1e6, completionUsdPerToken: 0.6 / 1e6 };
+const SONNET = { promptUsdPerToken: 3 / 1e6, completionUsdPerToken: 15 / 1e6 };
+const O1_PRO = { promptUsdPerToken: 150 / 1e6, completionUsdPerToken: 600 / 1e6 };
+
+describe("creditsForRawUsd", () => {
+  it("applies the Genesis markup on top of the credit rate", () => {
+    expect(creditsForRawUsd(1)).toBe(GENESIS_CREDIT_MARKUP * CREDITS_PER_USD);
   });
 
-  it("adds the remaining bonus to the plan limit", () => {
-    expect(genesisCeiling(3, 15)).toBe(18);
-    expect(genesisCeiling(5, 15)).toBe(20);
+  it("rounds up so a sub-credit call is never free", () => {
+    expect(creditsForRawUsd(0.0000001)).toBe(1);
   });
 
-  it("ignores a negative bonus rather than lowering the plan limit", () => {
-    expect(genesisCeiling(3, -5)).toBe(3);
-  });
-});
-
-describe("genesisSpendTarget", () => {
-  it("spends the plan allowance while it lasts, even with a bonus available", () => {
-    expect(genesisSpendTarget(3, 0, 15)).toBe("plan");
-    expect(genesisSpendTarget(3, 2, 15)).toBe("plan");
+  it("charges nothing for a zero or unreported cost", () => {
+    expect(creditsForRawUsd(0)).toBe(0);
+    expect(creditsForRawUsd(Number.NaN)).toBe(0);
+    expect(creditsForRawUsd(-5)).toBe(0);
   });
 
-  it("falls through to the bonus once the plan allowance is used up", () => {
-    expect(genesisSpendTarget(3, 3, 15)).toBe("bonus");
-  });
-
-  it("stays on plan when the allowance is gone and no bonus is left", () => {
-    // checkGenesisAccess denies here; the write must not go negative.
-    expect(genesisSpendTarget(3, 3, 0)).toBe("plan");
-  });
-
-  it("never touches the bonus on unlimited plans", () => {
-    expect(genesisSpendTarget(null, 999, 15)).toBe("plan");
+  it("stays below the runtime's 10x execution markup", () => {
+    // Genesis is the acquisition funnel — pricing it like production traffic
+    // put every mid-tier model out of reach on the smaller plans.
+    expect(GENESIS_CREDIT_MARKUP).toBeLessThan(10);
   });
 });
 
-describe("a redeemed bonus is one-time, not a monthly uplift", () => {
-  it("drains the pool across months instead of refilling it", () => {
-    const PLAN = 3;
-    let bonus = 15;
-    let usedThisMonth = 0;
+describe("estimateGenesisCredits", () => {
+  const promptTokens = 11_000;
+  const maxOutputTokens = 16_384;
 
-    const spendOne = () => {
-      // Mirrors checkGenesisAccess: deny once the month's uses meet the ceiling.
-      if (usedThisMonth >= genesisCeiling(PLAN, bonus)) return false;
-      if (genesisSpendTarget(PLAN, usedThisMonth, bonus) === "bonus") bonus -= 1;
-      else usedThisMonth += 1;
-      return true;
-    };
+  it("prices the whole prompt plus a full output budget", () => {
+    const credits = estimateGenesisCredits({ pricing: CHEAP, promptTokens, maxOutputTokens });
+    const expectedUsd =
+      promptTokens * CHEAP.promptUsdPerToken + maxOutputTokens * CHEAP.completionUsdPerToken;
+    expect(credits).toBe(creditsForRawUsd(expectedUsd));
+  });
 
-    // Month 1: burn the plan allowance, then 5 out of the pool.
-    for (let i = 0; i < 8; i++) expect(spendOne()).toBe(true);
-    expect(usedThisMonth).toBe(PLAN); // pins at the plan limit
-    expect(bonus).toBe(10);
+  it("keeps the standard model within a Free plan's allowance", () => {
+    // Free carries 500 included credits and is locked to the default model.
+    const credits = estimateGenesisCredits({ pricing: CHEAP, promptTokens, maxOutputTokens })!;
+    expect(credits).toBeLessThan(500);
+  });
 
-    // Month rolls over: the counter resets but the pool does NOT refill.
-    usedThisMonth = 0;
-    expect(genesisCeiling(PLAN, bonus)).toBe(13);
+  it("prices the catalog's most expensive model out of every plan", () => {
+    // This is the whole point: Scale has the largest allowance at 15,000
+    // credits, and one o1-pro generation must still not fit inside it.
+    const credits = estimateGenesisCredits({ pricing: O1_PRO, promptTokens, maxOutputTokens })!;
+    expect(credits).toBeGreaterThan(15_000);
+  });
 
-    // Month 2: burn the plan allowance and the rest of the pool.
-    for (let i = 0; i < 13; i++) expect(spendOne()).toBe(true);
-    expect(bonus).toBe(0);
+  it("leaves a mid-tier model usable on a Solo allowance", () => {
+    // Solo carries 2,500 credits; a typical Sonnet generation should fit
+    // several times over, which the 10x execution markup would not allow.
+    const typical = estimateGenesisCredits({
+      pricing: SONNET,
+      promptTokens: 7_000,
+      maxOutputTokens: 6_000,
+    })!;
+    expect(typical).toBeLessThan(2_500 / 2);
+  });
 
-    // Pool exhausted — the ceiling is back to the bare plan limit and the
-    // month's allowance is spent, so further uses are denied.
-    expect(genesisCeiling(PLAN, bonus)).toBe(PLAN);
-    expect(spendOne()).toBe(false);
+  it("returns null when the model's price is unknown", () => {
+    // The caller must treat this as "cannot price", never as free.
+    expect(estimateGenesisCredits({ pricing: null, promptTokens, maxOutputTokens })).toBeNull();
+  });
 
-    // Month 3: only the plan allowance returns. The bonus is gone for good.
-    usedThisMonth = 0;
-    expect(genesisCeiling(PLAN, bonus)).toBe(PLAN);
-    for (let i = 0; i < PLAN; i++) expect(spendOne()).toBe(true);
-    expect(spendOne()).toBe(false);
+  it("treats negative token counts as zero rather than a discount", () => {
+    expect(
+      estimateGenesisCredits({ pricing: CHEAP, promptTokens: -100, maxOutputTokens: -100 }),
+    ).toBe(0);
+  });
+});
+
+describe("estimateTokens", () => {
+  it("approximates four characters per token", () => {
+    expect(estimateTokens("a".repeat(4_000))).toBe(1_000);
+  });
+
+  it("rounds up so a short prompt still counts", () => {
+    expect(estimateTokens("hi")).toBe(1);
+    expect(estimateTokens("")).toBe(0);
   });
 });

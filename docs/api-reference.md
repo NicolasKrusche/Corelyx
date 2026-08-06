@@ -123,6 +123,13 @@ Genesis turns natural language into a validated `ProgramSchema`. Both
 a **single endpoint** — the presence of `existing_program_id` + `refinement`
 selects refinement.
 
+**Billing.** Generations on the Corelyx platform key are charged to the account's
+AI credit balance, priced from the model's actual token usage. The request is
+rejected with `402 INSUFFICIENT_CREDITS` when the balance would not cover the
+worst case for the chosen model, so an expensive model can never overdraw the
+account. BYOK requests are billed by the provider directly and cost no credits.
+Accounts holding a `genesis_uses` grant spend those free generations first.
+
 ### `POST /api/genesis`
 
 **Body** (validated by `GenesisRequestSchema`)
@@ -185,7 +192,7 @@ selects refinement.
 | Status | Error | Meaning |
 | --- | --- | --- |
 | `403` | `EU_COMPLIANCE_BLOCKED` | Pre-filter blocked the request; see `message` |
-| `403` | `GENESIS_LIMIT_REACHED` | Monthly Genesis quota reached |
+| `402` | `INSUFFICIENT_CREDITS` | Balance does not cover this generation on the chosen model |
 | `403` | `PROGRAM_LIMIT_REACHED` | Program count limit reached |
 | `402` | `INSUFFICIENT_CREDITS` | Not enough credits for the platform key |
 | `429` | `RATE_LIMITED` | >10 Genesis calls/min/user |
@@ -399,7 +406,7 @@ Validation failures include the flattened Zod issues under `details`.
 
 ### Stable error codes (selection)
 
-`GENESIS_LIMIT_REACHED`, `PROGRAM_LIMIT_REACHED`, `RUN_LIMIT_REACHED`,
+`INSUFFICIENT_CREDITS`, `PROGRAM_LIMIT_REACHED`, `RUN_LIMIT_REACHED`,
 `INSUFFICIENT_CREDITS`, `RATE_LIMITED`, `EU_COMPLIANCE_BLOCKED`,
 `WORKFLOW_NOT_RUNNABLE`, `TRIGGER_PAYLOAD_REQUIRED`, `SECURITY_LOCKED`,
 `AI_EDIT_INVALID_GRAPH`.

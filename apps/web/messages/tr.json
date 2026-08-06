@@ -352,6 +352,8 @@
       "runLimitReached": "Bu ay çalıştırma limitine ulaşıldı",
       "runWarning": "Uyarı: Çalıştırma kotasının %80'i kullanıldı",
       "resetsMonthly": "Aylık olarak sıfırlanır",
+      "bonusGenesis": "Bonus Genesis",
+      "bonusGenesisHint": "Kredi harcamayan ücretsiz üretimler",
       "purchased": "+{count} satın alındı (asla sona ermez)"
     },
     "credits": {

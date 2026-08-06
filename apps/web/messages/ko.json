@@ -352,6 +352,8 @@
       "runLimitReached": "이번 달 실행 한도에 도달했습니다",
       "runWarning": "경고: 실행 할당량의 80% 사용됨",
       "resetsMonthly": "매월 초기화",
+      "bonusGenesis": "보너스 Genesis",
+      "bonusGenesisHint": "크레딧을 사용하지 않는 무료 생성",
       "purchased": "+{count}개 구매됨 (만료 없음)"
     },
     "credits": {

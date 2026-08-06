@@ -39,7 +39,14 @@ export const COMPARISON_FEATURES: FeatureItem[] = [
     label: "Platform AI credits / month",
     values: ["500", "2,500", "10,000", "15,000"],
   },
-  { label: "Genesis AI uses / month", values: ["3", "5", "Unlimited", "Unlimited"] },
+  // Genesis is paid for out of the credit allowance above rather than a
+  // separate monthly counter, so what differs between plans is how far those
+  // credits stretch — and which models you may spend them on.
+  { label: "Genesis AI generations", values: ["From credits", "From credits", "From credits", "From credits"] },
+  {
+    label: "Genesis model choice",
+    values: ["Standard model", "Any model", "Any model", "Any model"],
+  },
   { label: "AI agents (one-time tasks)", values: [false, true, true, true] },
   { label: "Human-in-the-loop approvals", values: [true, true, true, true] },
   { label: "Custom conflict handling (skip/fail policies)", values: [false, false, true, true] },

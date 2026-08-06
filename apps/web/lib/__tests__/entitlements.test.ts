@@ -34,7 +34,6 @@ describe("getEntitlements", () => {
     expect(ent.maxPrograms).toBe(2);
     expect(ent.runsPerMonth).toBe(50);
     expect(ent.runHistoryDays).toBe(7);
-    expect(ent.genesisUsesPerMonth).toBe(3);
     expect(ent.byok).toBe(false);
     expect(ent.hitlApprovals).toBe(true);
     expect(ent.conflictDetection).toBe(false);
@@ -56,7 +55,6 @@ describe("getEntitlements", () => {
     expect(ent.maxPrograms).toBe(5);
     expect(ent.runsPerMonth).toBe(75);
     expect(ent.runHistoryDays).toBe(30);
-    expect(ent.genesisUsesPerMonth).toBe(5);
     expect(ent.byok).toBe(true);
     expect(ent.hitlApprovals).toBe(true);
     expect(ent.conflictDetection).toBe(false);
@@ -78,7 +76,6 @@ describe("getEntitlements", () => {
     expect(ent.maxPrograms).toBeNull();
     expect(ent.runsPerMonth).toBe(500);
     expect(ent.runHistoryDays).toBe(90);
-    expect(ent.genesisUsesPerMonth).toBeNull();
     expect(ent.byok).toBe(true);
     expect(ent.hitlApprovals).toBe(true);
     expect(ent.conflictDetection).toBe(true);
@@ -109,7 +106,6 @@ describe("getEntitlements", () => {
     expect(ent.maxPrograms).toBeNull();
     expect(ent.runsPerMonth).toBeNull();
     expect(ent.runHistoryDays).toBeNull();
-    expect(ent.genesisUsesPerMonth).toBeNull();
     expect(ent.byok).toBe(true);
     expect(ent.hitlApprovals).toBe(true);
     expect(ent.conflictDetection).toBe(true);
@@ -197,12 +193,16 @@ describe("ENTITLEMENTS record", () => {
     expect(ENTITLEMENTS.unlimited.includedAiCredits).toBeNull();
   });
 
-  it("free and plus are the tiers with fixed Genesis monthly limits", () => {
-    expect(ENTITLEMENTS.free.genesisUsesPerMonth).not.toBeNull();
-    expect(ENTITLEMENTS.plus.genesisUsesPerMonth).toBe(5);
-    expect(ENTITLEMENTS.pro.genesisUsesPerMonth).toBeNull();
-    expect(ENTITLEMENTS.builder.genesisUsesPerMonth).toBeNull();
-    expect(ENTITLEMENTS.unlimited.genesisUsesPerMonth).toBeNull();
+  it("gates Genesis on the credit allowance, not a per-plan use counter", () => {
+    // The monthly counter is gone: an account's included credits are the
+    // ceiling, so every tier's Genesis budget follows includedAiCredits.
+    for (const tier of ["free", "plus", "pro", "builder", "unlimited"] as const) {
+      expect(ENTITLEMENTS[tier]).not.toHaveProperty("genesisUsesPerMonth");
+    }
+    // Only Free is restricted to the standard model; paid plans pick any model
+    // and pay for it out of the same balance.
+    expect(ENTITLEMENTS.free.genesisPlatformModelTier).toBe("free");
+    expect(ENTITLEMENTS.plus.genesisPlatformModelTier).not.toBe("free");
   });
 
   it("free and plus are the only tiers with maxPrograms !== null", () => {

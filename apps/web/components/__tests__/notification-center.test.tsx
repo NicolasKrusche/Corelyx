@@ -28,7 +28,6 @@ describe("NotificationCenter", () => {
             failedRunsCount: 0,
             usage: {
               runs: { current: 0, total: null },
-              genesis: { usesThisMonth: 0, maxUses: null },
               aiCredits: null,
             },
           }

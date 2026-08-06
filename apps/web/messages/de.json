@@ -367,6 +367,8 @@
       "runLimitReached": "Ausführungslimit diesen Monat erreicht",
       "runWarning": "Warnung: 80 % des Ausführungskontingents verwendet",
       "resetsMonthly": "Setzt sich monatlich zurück",
+      "bonusGenesis": "Bonus-Genesis",
+      "bonusGenesisHint": "Kostenlose Generierungen ohne Credits",
       "purchased": "+{count} gekauft (verfällt nie)"
     },
     "credits": {

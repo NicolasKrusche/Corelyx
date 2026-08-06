@@ -352,6 +352,8 @@
       "runLimitReached": "Miesięczny limit uruchomień osiągnięty",
       "runWarning": "Ostrzeżenie: wykorzystano 80% limitu uruchomień",
       "resetsMonthly": "Resetuje się co miesiąc",
+      "bonusGenesis": "Bonusowe Genesis",
+      "bonusGenesisHint": "Darmowe generacje bez zużycia kredytów",
       "purchased": "+{count} zakupionych (nigdy nie wygasa)"
     },
     "credits": {

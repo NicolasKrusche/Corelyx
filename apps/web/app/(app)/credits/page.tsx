@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/api";
 import { getUserCreditBalance } from "@/lib/credits";
 import { getEntitlements, parseTier } from "@/lib/entitlements";
-import { getRunUsage, checkGenesisAccess } from "@/lib/limits";
+import { getRunUsage, getGenesisGrant } from "@/lib/limits";
 import { getActiveWorkspace } from "@/lib/workspaces";
 import { CreditsTopUp, PastPurchasesLink } from "./credits-topup";
 import { AutoRechargeSettings } from "./auto-recharge-settings";
@@ -140,7 +140,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   const [creditBalance, runUsage, genesisAccess, usageHistory, apiKeysRes, purchasesRes] = await Promise.all([
     getUserCreditBalance(user.id),
     getRunUsage(user.id, workspaceId),
-    checkGenesisAccess(user.id, workspaceId),
+    getGenesisGrant(user.id, workspaceId),
     getUsageHistory(user.id, workspaceId),
     service.from("api_keys").select("id, name", { count: "exact" }).eq("workspace_id", workspaceId ?? "").limit(5),
     getCreditPurchases(service, user.id),
@@ -153,10 +153,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
   // When previewing a plan, substitute limits from entitlements so the display
   // reflects the selected plan rather than the user's real DB-stored limits.
   const runsTotal = previewTier !== null ? ent.runsPerMonth : runUsage.total;
-  const genesisTotal = previewTier !== null ? ent.genesisUsesPerMonth : genesisAccess.maxUses;
-
   const runsLeft = runsTotal === null ? null : Math.max(0, runsTotal - runUsage.current);
-  const genesisLeft = genesisTotal === null ? null : Math.max(0, genesisTotal - genesisAccess.usesThisMonth);
   const apiKeyCount = apiKeysRes.count ?? 0;
   const purchases = purchasesRes;
 
@@ -214,7 +211,7 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
         "All 200+ connectors",
         "BYOK (bring your own API key)",
         "2,500 platform AI credits / month",
-        "5 Genesis AI uses / month",
+        "Genesis AI on any model (paid from credits)",
         "30-day run history",
         "Webhook triggers",
         "Email support",
@@ -436,13 +433,17 @@ export default async function CreditsPage({ searchParams }: { searchParams: Prom
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-violet-500"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/><path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
                   Genesis AI
                 </span>
-                <span className="text-xs">
-                  {genesisAccess.usesThisMonth} / {genesisTotal === null ? "unlimited" : genesisTotal}
+                <span className="text-xs text-muted-foreground">
+                  {genesisAccess.bonusRemaining > 0
+                    ? `${genesisAccess.bonusRemaining} free left`
+                    : "Paid from credits"}
                 </span>
               </div>
-              <StatBarMuted value={genesisAccess.usesThisMonth} max={genesisTotal} />
               <p className="mt-1 text-[11px] text-muted-foreground/60">
-                {genesisAccess.usesThisMonth} generation{genesisAccess.usesThisMonth !== 1 ? "s" : ""} used in {now.toLocaleDateString("en-US", { month: "long" })}
+                {genesisAccess.usesThisMonth} generation{genesisAccess.usesThisMonth !== 1 ? "s" : ""} in {now.toLocaleDateString("en-US", { month: "long" })}
+                {genesisAccess.bonusRemaining > 0
+                  ? ` · ${genesisAccess.bonusRemaining} bonus generation${genesisAccess.bonusRemaining !== 1 ? "s" : ""} remaining`
+                  : " · each one draws from your credit balance"}
               </p>
             </div>
 

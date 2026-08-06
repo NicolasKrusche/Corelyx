@@ -367,6 +367,8 @@
       "runLimitReached": "Run limit reached this month",
       "runWarning": "Warning: 80% of run quota used",
       "resetsMonthly": "Resets monthly",
+      "bonusGenesis": "Bonus Genesis",
+      "bonusGenesisHint": "Free generations that don't use credits",
       "purchased": "+{count} purchased (never expires)"
     },
     "credits": {

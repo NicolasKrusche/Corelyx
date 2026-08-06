@@ -13,7 +13,6 @@ type SidebarData = {
   failedRunsCount: number;
   usage: {
     runs: { current: number; total: number | null };
-    genesis: { usesThisMonth: number; maxUses: number | null };
     aiCredits: { availableIncluded: number | null; availablePurchased: number; total: number | null } | null;
   };
 };
@@ -103,18 +102,8 @@ function buildAlerts(data: SidebarData): Alert[] {
     }
   }
 
-  if (data.usage.genesis.maxUses !== null) {
-    const left = data.usage.genesis.maxUses - data.usage.genesis.usesThisMonth;
-    if (left <= 0) {
-      alerts.push({
-        id: "genesis-limit",
-        kind: "warning",
-        title: "Genesis limit reached",
-        body: "You've used all Genesis AI calls for this month.",
-        href: "/credits",
-      });
-    }
-  }
+  // Genesis is paid for in credits now, so the credit-balance alert above
+  // already covers running out. Nothing left to warn about separately.
 
   return alerts;
 }

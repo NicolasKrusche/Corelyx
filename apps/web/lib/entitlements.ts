@@ -20,7 +20,6 @@ export interface PlanEntitlements {
   maxPrograms: number | null;
   runsPerMonth: number | null;
   runHistoryDays: number | null;
-  genesisUsesPerMonth: number | null;
 
   // Trigger access
   triggers: TriggerEntitlements;
@@ -78,7 +77,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxPrograms: 2,
     runsPerMonth: 50,
     runHistoryDays: 7,
-    genesisUsesPerMonth: 3,
     triggers: { manual: true, cron: true, webhook: false, event: false, program: false },
     byok: false,
     hitlApprovals: true,
@@ -101,7 +99,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxPrograms: 5,
     runsPerMonth: 75,
     runHistoryDays: 30,
-    genesisUsesPerMonth: 5,
     triggers: { manual: true, cron: true, webhook: true, event: false, program: false },
     byok: true,
     hitlApprovals: true,
@@ -119,7 +116,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxPrograms: null,
     runsPerMonth: 500,
     runHistoryDays: 90,
-    genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
     hitlApprovals: true,
@@ -137,7 +133,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxPrograms: null,
     runsPerMonth: 2000,
     runHistoryDays: 365,
-    genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
     hitlApprovals: true,
@@ -155,7 +150,6 @@ export const ENTITLEMENTS: Record<Tier, PlanEntitlements> = {
     maxPrograms: null,
     runsPerMonth: null,
     runHistoryDays: null,
-    genesisUsesPerMonth: null,
     triggers: { manual: true, cron: true, webhook: true, event: true, program: true },
     byok: true,
     hitlApprovals: true,

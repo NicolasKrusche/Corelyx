@@ -35,6 +35,12 @@ export function recordLlmUsage(opts: {
   billing: "platform" | "byok";
   source: string; // e.g. "genesis"
   workspaceId?: string | null;
+  /**
+   * Credits actually charged for this call. Genesis passes what it deducted
+   * (see lib/genesis/credit-cost.ts); leave unset for calls that carry no
+   * charge, such as BYOK or a bonus-funded generation.
+   */
+  billedCredits?: number;
 }): void {
   if (!opts.userId) return;
 
@@ -55,10 +61,17 @@ export function recordLlmUsage(opts: {
     total_tokens: totalTokens,
     estimated_cost_usd: costUsd,
   };
-  // Genesis usage is metered via genesis_uses_* quotas, not credits, so
-  // billed_credits stays 0 — the finances page shows it as unbilled platform
-  // cost rather than pretending it was charged.
-  const enrichedRow = { ...baseRow, source: opts.source, billing: opts.billing, billed_credits: 0 };
+  // Genesis now charges credits like everything else, so this carries the real
+  // figure. It stays 0 for calls that genuinely weren't billed — BYOK, and
+  // generations funded by a bonus grant — which the finances page then shows as
+  // unbilled platform cost rather than pretending it was charged.
+  const billedCredits = Math.max(0, Math.round(Number(opts.billedCredits) || 0));
+  const enrichedRow = {
+    ...baseRow,
+    source: opts.source,
+    billing: opts.billing,
+    billed_credits: billedCredits,
+  };
 
   const db = createServiceClient();
   const insertTask = async () => {

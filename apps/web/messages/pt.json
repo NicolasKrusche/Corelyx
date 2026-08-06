@@ -352,6 +352,8 @@
       "runLimitReached": "Limite de execuções atingido este mês",
       "runWarning": "Aviso: 80% da cota de execuções utilizada",
       "resetsMonthly": "Reinicia mensalmente",
+      "bonusGenesis": "Genesis bônus",
+      "bonusGenesisHint": "Gerações gratuitas que não usam créditos",
       "purchased": "+{count} comprados (nunca expiram)"
     },
     "credits": {

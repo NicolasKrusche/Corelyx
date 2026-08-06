@@ -412,7 +412,7 @@ export function Sidebar({
   const [runUsageCurrent, setRunUsageCurrent] = useState(0);
   const [runUsageTotal, setRunUsageTotal] = useState<number | null>(null);
   const [genesisUsageCurrent, setGenesisUsageCurrent] = useState(0);
-  const [genesisUsageTotal, setGenesisUsageTotal] = useState<number | null>(null);
+  const [genesisBonusLeft, setGenesisBonusLeft] = useState(0);
   const [aiCreditsAvailable, setAiCreditsAvailable] = useState<number | null>(null);
   const [aiCreditsPurchased, setAiCreditsPurchased] = useState(0);
   const [advanced, setAdvanced] = useAdvancedMode();
@@ -478,8 +478,6 @@ export function Sidebar({
   const runUsagePercent = runUsageTotal ? Math.min(100, Math.round(runUsageRatio * 100)) : 0;
   const runWarningAt80 = runUsageTotal !== null && runUsageRatio >= 0.8 && runUsageRatio < 1;
   const runLimitReached = runUsageTotal !== null && runUsageRatio >= 1;
-  const genesisUsageRatio = genesisUsageTotal ? genesisUsageCurrent / genesisUsageTotal : 0;
-  const genesisUsagePercent = genesisUsageTotal ? Math.min(100, Math.round(genesisUsageRatio * 100)) : 0;
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
   const activeWorkspaceTierLabel = tTiers(activeWorkspace?.tier ?? tier);
 
@@ -490,7 +488,7 @@ export function Sidebar({
     workspaces: SidebarWorkspace[];
     usage: {
       runs: { current: number; total: number | null };
-      genesis: { usesThisMonth: number; maxUses: number | null };
+      genesis: { usesThisMonth: number; bonusRemaining: number };
       aiCredits: {
         availableIncluded: number | null;
         availablePurchased: number;
@@ -523,7 +521,7 @@ export function Sidebar({
       setRunUsageCurrent(data.usage.runs.current);
       setRunUsageTotal(data.usage.runs.total);
       setGenesisUsageCurrent(data.usage.genesis.usesThisMonth);
-      setGenesisUsageTotal(data.usage.genesis.maxUses);
+      setGenesisBonusLeft(data.usage.genesis.bonusRemaining);
       if (data.usage.aiCredits) {
         setAiCreditsAvailable(data.usage.aiCredits.total);
         setAiCreditsPurchased(data.usage.aiCredits.availablePurchased);
@@ -1180,25 +1178,23 @@ export function Sidebar({
               </p>
             </div>
 
-            <div className={cn(
-              "mt-2 rounded-xl px-3 py-2.5",
-              isDark ? "bg-white/5" : "bg-black/5"
-            )}>
-              <div className="flex items-center justify-between text-[12px] font-medium">
-                <span>{tSidebar("usage.monthlyAiCredits")}</span>
-                <span>{genesisUsageTotal === null ? tSidebar("usage.unlimited") : `${genesisUsageCurrent} / ${genesisUsageTotal}`}</span>
+            {/* Genesis draws on the credit balance shown below, so it no
+                longer gets a counter of its own. A bonus grant is the one
+                Genesis-specific thing left worth surfacing. */}
+            {genesisBonusLeft > 0 && (
+              <div className={cn(
+                "mt-2 rounded-xl px-3 py-2.5",
+                isDark ? "bg-white/5" : "bg-black/5"
+              )}>
+                <div className="flex items-center justify-between text-[12px] font-medium">
+                  <span>{tSidebar("usage.bonusGenesis")}</span>
+                  <span>{genesisBonusLeft}</span>
+                </div>
+                <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>
+                  {tSidebar("usage.bonusGenesisHint")}
+                </p>
               </div>
-              <div className={cn("mt-2 h-1.5 rounded-full", isDark ? "bg-blue-200/20" : "bg-black/10")}>
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: genesisUsageTotal === null ? "100%" : `${genesisUsagePercent}%`,
-                    backgroundColor: "hsl(var(--primary))",
-                  }}
-                />
-              </div>
-              <p className={cn("mt-2 text-[11px]", isDark ? "text-blue-100/75" : "text-gray-600")}>{tSidebar("usage.resetsMonthly")}</p>
-            </div>
+            )}
 
             <div className={cn(
               "mt-2 rounded-xl px-3 py-2.5",

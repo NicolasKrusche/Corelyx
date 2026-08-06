@@ -1,10 +1,24 @@
 export type PlatformModelTier = "free" | "standard" | "premium";
 
+/** USD per token, as OpenRouter reports it (not per million). */
+export type ModelPricing = {
+  promptUsdPerToken: number;
+  completionUsdPerToken: number;
+};
+
 export type PlatformModelOption = {
   id: string;
   label: string;
   sublabel: string;
   tier: PlatformModelTier;
+  /**
+   * Null when the catalog is unavailable and we fall back below. Genesis needs
+   * this to price a generation *before* running it — the spread across the
+   * catalog is enormous (gpt-4o-mini is $0.60 per 1M output tokens, o1-pro is
+   * $600), so charging only after the fact would let a single generation run up
+   * a bill far beyond the caller's balance.
+   */
+  pricing: ModelPricing | null;
 };
 
 /**
@@ -29,12 +43,17 @@ export const PLATFORM_MODEL_FALLBACK_CATALOG: PlatformModelOption[] = [
     label: "OpenAI: GPT-4o Mini",
     sublabel: "Fast and affordable",
     tier: "standard",
+    // Pricing is deliberately null here rather than hardcoded: a stale price
+    // baked into the fallback would silently under-charge. Genesis treats a
+    // null as "cannot price this generation" and applies its own guard.
+    pricing: null,
   },
   {
     id: "anthropic/claude-sonnet-4.6",
     label: "Anthropic: Claude Sonnet 4.6",
     sublabel: "High quality",
     tier: "standard",
+    pricing: null,
   },
 ];
 
@@ -76,7 +95,17 @@ type OpenRouterModel = {
   id?: unknown;
   name?: unknown;
   context_length?: unknown;
+  pricing?: { prompt?: unknown; completion?: unknown };
 };
+
+/** OpenRouter reports prices as decimal strings in USD per token. */
+function parsePricing(raw: OpenRouterModel["pricing"]): ModelPricing | null {
+  const prompt = Number(raw?.prompt);
+  const completion = Number(raw?.completion);
+  if (!Number.isFinite(prompt) || !Number.isFinite(completion)) return null;
+  if (prompt < 0 || completion < 0) return null;
+  return { promptUsdPerToken: prompt, completionUsdPerToken: completion };
+}
 
 function formatContextLength(value: unknown): string | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
@@ -108,6 +137,7 @@ export function toPlatformModelCatalog(models: unknown): PlatformModelOption[] {
       label: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : id,
       sublabel: buildSublabel(raw),
       tier: "standard",
+      pricing: parsePricing(raw.pricing),
     });
   }
 

@@ -43,19 +43,16 @@ import {
   pruneUnresolvedReferences,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
-import { checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
+import { checkProgramLimit, getGenesisGrant, recordGenesisUse } from "@/lib/limits";
+import { estimateGenesisCredits, estimateTokens } from "@/lib/genesis/credit-cost";
+import { checkGenesisAffordability, chargeGenesisUsage } from "@/lib/genesis/billing";
+import type { ModelPricing } from "@/lib/genesis/platform-models";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorDetails, writeAppLog } from "@/lib/app-logs";
 import { serverLog } from "@/lib/server-log";
-import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
+import { type LlmUsageLike } from "@/lib/llm-usage-log";
 import { ensureProcessingAllowed } from "@/lib/compliance";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers, syncWebhookTriggers } from "@/lib/triggers/event-trigger-sync";
-import { getUserCreditBalance, deductUserCredits } from "@/lib/credits";
-
-// Fixed credit charge per Genesis generation using the Corelyx platform key.
-const GENESIS_PLATFORM_RATE_CREDITS = 2_000;
-// AI edit (refinement) via platform key - flat 1,000 credits per edit.
-const GENESIS_EDIT_PLATFORM_RATE_CREDITS = 1_000;
 import { canContributeToWorkspace, canEdit, canView, getActiveWorkspace, getProgramAccess } from "@/lib/workspaces";
 import {
   GENESIS_MAX_TOKENS,
@@ -125,6 +122,8 @@ export async function POST(request: Request) {
   // BYOK: use whatever the client sent.
   const userTier = await getUserTier(userId);
   let model: string;
+  // Kept so the credit pre-flight can price the chosen model before spending.
+  let modelPricing: ModelPricing | null = null;
   if (usePlatformKey) {
     const ent = getEntitlements(userTier);
     const catalog = await getOpenRouterModelCatalog();
@@ -132,6 +131,7 @@ export async function POST(request: Request) {
     const allowedIds = new Set(allowedModels.map((m) => m.id));
     const requestedModel = parsed.data.model;
     model = requestedModel && allowedIds.has(requestedModel) ? requestedModel : PLATFORM_DEFAULT_MODEL;
+    modelPricing = catalog.find((m) => m.id === model)?.pricing ?? null;
   } else {
     model = parsed.data.model ?? "claude-sonnet-4-6";
   }
@@ -225,15 +225,10 @@ export async function POST(request: Request) {
   }
 
   // Check genesis AI access against the workspace plan.
-  const genesisCheck = await checkGenesisAccess(userId, workspaceId);
-  if (!genesisCheck.allowed) {
-    const upgradeMessage = genesisCheck.upgradeMessage ?? "Genesis AI limit reached.";
-    await logGenesis("warning", "genesis.monthly_limit_reached", "failed", upgradeMessage);
-    return NextResponse.json(
-      { error: "GENESIS_LIMIT_REACHED", message: upgradeMessage },
-      { status: 403 }
-    );
-  }
+  // A `genesis_uses` grant funds this generation outright; otherwise it is paid
+  // for in credits, checked against the actual model price further down.
+  const genesisGrant = await getGenesisGrant(userId, workspaceId);
+  const bonusFunded = usePlatformKey && genesisGrant.bonusRemaining > 0;
 
   // Check program limit before generating (skip for refinements — no new program created)
   if (!isRefinement) {
@@ -329,15 +324,34 @@ export async function POST(request: Request) {
     if (!platformRawKey) {
       return loggedApiError("Platform AI key is not available.", 503, "genesis.platform_key_unavailable");
     }
-    // Check the user has enough credits before we spend anything.
-    // Editor refinements use their own flat credit charge.
-    const requiredCredits = isRefinement ? GENESIS_EDIT_PLATFORM_RATE_CREDITS : GENESIS_PLATFORM_RATE_CREDITS;
-    const balance = await getUserCreditBalance(userId);
-    if (balance.total < requiredCredits) {
-      return NextResponse.json(
-        { error: "INSUFFICIENT_CREDITS", message: `At least ${requiredCredits.toLocaleString("en-US")} credits are required to use the Corelyx platform key for ${isRefinement ? "AI edits" : "generation"}.` },
-        { status: 402 }
-      );
+    // Price this specific generation before spending anything on it. A bonus
+    // grant covers it outright; otherwise the balance has to cover the worst
+    // case for the chosen model.
+    if (!bonusFunded) {
+      const promptTokens =
+        estimateTokens(genesisSystemPrompt) +
+        estimateTokens(sanitizedDescription.value) +
+        (sanitizedRefinement ? estimateTokens(sanitizedRefinement.value) : 0) +
+        (sanitizedExistingSchema ? estimateTokens(JSON.stringify(sanitizedExistingSchema.value)) : 0);
+      const estimatedCredits = estimateGenesisCredits({
+        pricing: modelPricing,
+        promptTokens,
+        maxOutputTokens: GENESIS_MAX_TOKENS,
+      });
+      const affordability = await checkGenesisAffordability(userId, estimatedCredits);
+      if (!affordability.affordable) {
+        const needed = affordability.estimatedCredits;
+        return NextResponse.json(
+          {
+            error: "INSUFFICIENT_CREDITS",
+            message:
+              needed === null
+                ? "You're out of AI credits. Top up or switch to your own API key to keep using Genesis."
+                : `This ${isRefinement ? "AI edit" : "generation"} needs about ${needed.toLocaleString("en-US")} credits on ${model} and you have ${affordability.balance.toLocaleString("en-US")}. Pick a cheaper model, top up, or use your own API key.`,
+          },
+          { status: 402 }
+        );
+      }
     }
     // vault_secret_id holds the raw API key for platform entries — handled in the loop below.
     keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];
@@ -555,13 +569,13 @@ export async function POST(request: Request) {
           modelUsed = candidateModel;
           usedKeyRow = currentKeyRow;
           usedApiKey = currentApiKey;
-          recordLlmUsage({
+          await chargeGenesisUsage({
             userId,
             workspaceId,
             model: candidateModel,
             usage: usageData,
             billing: currentKeyRow.id === "platform" ? "platform" : "byok",
-            source: "genesis",
+            bonusFunded,
           });
           break keyAttemptLoop; // success
         } catch (err) {
@@ -698,13 +712,13 @@ export async function POST(request: Request) {
             temperature: GENESIS_TEMPERATURE,
             messages: [{ role: "user", content: repairPrompt }],
           });
-          recordLlmUsage({
+          await chargeGenesisUsage({
             userId,
             workspaceId,
             model: modelUsed,
             usage: repairMsg.usage as LlmUsageLike,
             billing: usedKeyRow?.id === "platform" ? "platform" : "byok",
-            source: "genesis",
+            bonusFunded,
           });
           repairedText = repairMsg.content[0]?.type === "text"
             ? (repairMsg.content[0] as { type: "text"; text: string }).text
@@ -721,13 +735,13 @@ export async function POST(request: Request) {
             ...(apiKeyRow.provider === "openrouter" && ({ usage: { include: true } } as object)),
             messages: [{ role: "user", content: repairPrompt }],
           });
-          recordLlmUsage({
+          await chargeGenesisUsage({
             userId,
             workspaceId,
             model: modelUsed,
             usage: (repairMsg as { usage?: LlmUsageLike }).usage ?? null,
             billing: usedKeyRow?.id === "platform" ? "platform" : "byok",
-            source: "genesis",
+            bonusFunded,
           });
           repairedText = repairMsg.choices[0]?.message?.content ?? "";
         }
@@ -1035,8 +1049,7 @@ export async function POST(request: Request) {
       },
       existing_program_id
     );
-    await incrementGenesisUses(userId, workspaceId);
-    if (usePlatformKey) await deductUserCredits(userId, GENESIS_EDIT_PLATFORM_RATE_CREDITS);
+    await recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded });
     return NextResponse.json({ program: updatedProgram, schema, validation, patch: patchSummary }, { status: 200 });
   }
 
@@ -1162,7 +1175,6 @@ export async function POST(request: Request) {
     },
     program.id
   );
-  await incrementGenesisUses(userId, workspaceId);
-  if (usePlatformKey) await deductUserCredits(userId, GENESIS_PLATFORM_RATE_CREDITS);
+  await recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded });
   return NextResponse.json({ program, schema, validation }, { status: 201 });
 }

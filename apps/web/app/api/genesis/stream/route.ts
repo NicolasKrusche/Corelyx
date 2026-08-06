@@ -28,7 +28,10 @@ import {
   pruneUnresolvedReferences,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
-import { checkAgentAccess, checkProgramLimit, checkGenesisAccess, incrementGenesisUses } from "@/lib/limits";
+import { checkAgentAccess, checkProgramLimit, getGenesisGrant, recordGenesisUse } from "@/lib/limits";
+import { estimateGenesisCredits, estimateTokens } from "@/lib/genesis/credit-cost";
+import { checkGenesisAffordability, chargeGenesisUsage } from "@/lib/genesis/billing";
+import type { ModelPricing } from "@/lib/genesis/platform-models";
 import { rateLimit } from "@/lib/rate-limit";
 import { truncateForLog, writeAppLog } from "@/lib/app-logs";
 import { assignAgentNodeDefaults, extractJson, normalizeSchema } from "@/lib/genesis/parsing";
@@ -49,7 +52,7 @@ import {
 import { extractClarifications, MAX_CLARIFICATIONS, type GenesisClarification } from "@/lib/genesis/clarifications";
 import { hasTechnicalAccess } from "@/lib/admin-auth";
 import { serverLog } from "@/lib/server-log";
-import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
+import { type LlmUsageLike } from "@/lib/llm-usage-log";
 import { getUserAiContext } from "@/lib/onboarding/profile";
 import { syncCronTriggers, syncEventTriggers, syncFileWatchTriggers, syncWebhookTriggers } from "@/lib/triggers/event-trigger-sync";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -163,6 +166,9 @@ export async function POST(request: Request) {
   // Platform-key path: paid users may supply a `model` override; free users are
   // locked to the default. BYOK path: `model` is always required by the schema.
   let model: string;
+  // Kept so the credit pre-flight below can price the chosen model. Null on the
+  // BYOK path (the user's own key pays) or when the catalog was unavailable.
+  let modelPricing: ModelPricing | null = null;
   if (usePlatformKey) {
     const catalog = await getOpenRouterModelCatalog();
     const requestedModel = parsed.data.model;
@@ -185,6 +191,7 @@ export async function POST(request: Request) {
     } else {
       model = PLATFORM_MODEL;
     }
+    modelPricing = catalog.find((m) => m.id === model)?.pricing ?? null;
   } else {
     model = parsed.data.model ?? "claude-sonnet-4-6";
   }
@@ -253,8 +260,8 @@ export async function POST(request: Request) {
     : serviceClient.from("api_keys").select("id, vault_secret_id, provider")
         .eq("workspace_id", workspaceId).eq("is_valid", true);
 
-  const [genesisCheck, limitCheck, connResult, keysResult, userProfileContext] = await Promise.all([
-    checkGenesisAccess(userId, workspaceId),
+  const [genesisGrant, limitCheck, connResult, keysResult, userProfileContext] = await Promise.all([
+    getGenesisGrant(userId, workspaceId),
     isRefinement ? Promise.resolve({ allowed: true, upgradeMessage: null }) : checkProgramLimit(userId, workspaceId),
     pendingConnections,
     pendingApiKeys,
@@ -263,8 +270,11 @@ export async function POST(request: Request) {
     getUserAiContext(serviceClient as unknown as { from(table: string): any }, userId).catch(() => null),
   ]);
 
-  if (!genesisCheck.allowed) return sseErrorResponse(genesisCheck.upgradeMessage ?? "Genesis AI limit reached.", "GENESIS_LIMIT_REACHED");
   if (!limitCheck.allowed) return sseErrorResponse(limitCheck.upgradeMessage ?? "Program limit reached.", "PROGRAM_LIMIT_REACHED");
+
+  // A `genesis_uses` grant funds this generation outright; otherwise it is paid
+  // for in credits, and the affordability check below decides whether it runs.
+  const bonusFunded = usePlatformKey && genesisGrant.bonusRemaining > 0;
 
   // Resolve connections
   let connections: GenesisConnectionRow[] = [];
@@ -356,6 +366,34 @@ export async function POST(request: Request) {
       : buildGenesisSystemPrompt(providersForPrompt, null, capabilitySection, {
           allowClarifications: v2Enabled && !isRefinement,
         });
+
+  // ── Credit pre-flight ───────────────────────────────────────────────────────
+  // Priced now that the real prompt exists, and before a single token is spent.
+  // The catalog spans three orders of magnitude on output price, so charging
+  // only afterwards would let one generation on an expensive model run up a
+  // bill many times the caller's balance.
+  if (usePlatformKey && !bonusFunded) {
+    const promptTokens =
+      estimateTokens(genesisSystemPrompt) +
+      estimateTokens(sanitizedDescription.value) +
+      (sanitizedExistingSchema ? estimateTokens(JSON.stringify(sanitizedExistingSchema.value)) : 0);
+    const estimatedCredits = estimateGenesisCredits({
+      pricing: modelPricing,
+      promptTokens,
+      maxOutputTokens: GENESIS_MAX_TOKENS,
+    });
+
+    const affordability = await checkGenesisAffordability(userId, estimatedCredits);
+    if (!affordability.affordable) {
+      const needed = affordability.estimatedCredits;
+      return sseErrorResponse(
+        needed === null
+          ? "You're out of AI credits. Top up or switch to your own API key to keep using Genesis."
+          : `This generation needs about ${needed.toLocaleString("en-US")} credits on ${model} and you have ${affordability.balance.toLocaleString("en-US")}. Pick a cheaper model, top up, or use your own API key.`,
+        "INSUFFICIENT_CREDITS",
+      );
+    }
+  }
 
   // Resolve API keys
   let keyCandidates: GenesisApiKeyRow[];
@@ -527,13 +565,13 @@ export async function POST(request: Request) {
               modelUsed = candidateModel;
               usedApiKey = currentApiKey;
               usedKeyRow = currentKeyRow;
-              recordLlmUsage({
+              await chargeGenesisUsage({
                 userId,
                 workspaceId,
                 model: candidateModel,
                 usage: usageData,
                 billing: currentKeyRow.id === "platform" ? "platform" : "byok",
-                source: "genesis",
+                bonusFunded,
               });
               serverLog({
                 level: "info",
@@ -953,7 +991,7 @@ export async function POST(request: Request) {
                 validation_warnings: validation.warnings.length,
               },
             }),
-            incrementGenesisUses(userId, workspaceId),
+            recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded }),
           ]);
         } else {
           send({ type: "status", message: "Saving program..." });
@@ -1088,7 +1126,7 @@ export async function POST(request: Request) {
                 pii_redactions: sanitizedDescription.redactions,
               },
             }),
-            incrementGenesisUses(userId, workspaceId),
+            recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded }),
           ]);
         }
       } catch (err) {

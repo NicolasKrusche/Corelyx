@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError, getAuthUser } from "@/lib/api";
 import { getEntitlements } from "@/lib/entitlements";
-import { getRunUsage, checkGenesisAccess } from "@/lib/limits";
+import { getRunUsage, getGenesisGrant } from "@/lib/limits";
 import { isAdminEmail } from "@/lib/admin";
 import { parseTier } from "@/lib/entitlements";
 import { createServiceClient } from "@/lib/api";
@@ -38,7 +38,7 @@ export async function GET() {
   const entitlements = getEntitlements(tier);
   const [runUsage, genesisAccess] = await Promise.all([
     getRunUsage(user.id, activeWorkspace?.workspaceId ?? null),
-    checkGenesisAccess(user.id, activeWorkspace?.workspaceId ?? null),
+    getGenesisGrant(user.id, activeWorkspace?.workspaceId ?? null),
   ]);
 
   return NextResponse.json({
@@ -51,7 +51,7 @@ export async function GET() {
       },
       genesis: {
         usesThisMonth: genesisAccess.usesThisMonth,
-        maxUses: genesisAccess.maxUses,
+        bonusRemaining: genesisAccess.bonusRemaining,
       },
     },
   });

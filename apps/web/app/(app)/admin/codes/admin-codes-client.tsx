@@ -12,7 +12,7 @@ const CODE_TYPES = [
   { value: "solo_trial",     label: "Solo — Trial (days)" },
   { value: "team_trial",     label: "Team — Trial (days)" },
   { value: "run_credits",    label: "Run Credits (+N runs)" },
-  { value: "genesis_uses",   label: "Genesis Uses (+N one-time)" },
+  { value: "genesis_uses",   label: "Free Genesis Generations (+N one-time)" },
 ] as const;
 
 type CodeType = typeof CODE_TYPES[number]["value"];
@@ -51,7 +51,7 @@ const TYPE_COLORS: Record<CodeType, string> = {
 function codeValueLabel(row: CodeRow): string {
   if (row.type === "solo_trial" || row.type === "team_trial") return `${row.value?.days ?? 30}d trial`;
   if (row.type === "run_credits") return `+${row.value?.runs ?? 100} runs`;
-  if (row.type === "genesis_uses") return `+${row.value?.uses ?? 15} Genesis`;
+  if (row.type === "genesis_uses") return `+${row.value?.uses ?? 15} free Genesis`;
   return "lifetime";
 }
 
@@ -234,15 +234,16 @@ export function AdminCodesClient() {
               )}
               {type === "genesis_uses" && (
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Number of Genesis generations</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Number of free Genesis generations</label>
                   <input
                     type="number" min="1"
                     value={genesisUses} onChange={(e) => setGenesisUses(e.target.value)}
                     className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                   />
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    One-time grant on top of the plan&apos;s monthly allowance — spent only after that
-                    allowance runs out, and not renewed each month. Set an expiry below to time-box a campaign.
+                    Genesis is normally paid for out of the account&apos;s AI credits. This grants N
+                    generations that cost no credits at all, spent before any are charged. One-time —
+                    not renewed each month. Set an expiry below to time-box a campaign.
                   </p>
                 </div>
               )}

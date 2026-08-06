@@ -352,6 +352,8 @@
       "runLimitReached": "Uitvoerlingslimiet bereikt deze maand",
       "runWarning": "Waarschuwing: 80% van het uitvoeringsquotum gebruikt",
       "resetsMonthly": "Wordt maandelijks opnieuw ingesteld",
+      "bonusGenesis": "Bonus-Genesis",
+      "bonusGenesisHint": "Gratis generaties zonder credits",
       "purchased": "+{count} gekocht (verloopt nooit)"
     },
     "credits": {
