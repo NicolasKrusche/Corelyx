@@ -1,9 +1,16 @@
 /**
- * Failure Analysis Engine
+ * Failure analysis.
  *
- * Analyzes node_execution errors from a failed run and produces structured
- * root-cause analysis with fix suggestions. This is the AI-native USP vs
- * n8n/Make/Zapier which only show raw error logs.
+ * Classifies node_execution errors from a failed run into a known category and
+ * attaches the fix that actually resolves that category, so the run log offers
+ * a next step instead of only a stack trace.
+ *
+ * This is a deterministic rule engine, not a model call — every category below
+ * is decided by the regexes in CLASSIFICATION_RULES. It used to POST to a
+ * `${RUNTIME_URL}/analyze` endpoint that the runtime has never implemented, so
+ * the "LLM-enhanced" path 404'd on every failed run and silently fell back
+ * here. That dead call was removed: it cost a round trip per page view, and it
+ * was the one internal web→runtime call that carried no shared secret.
  */
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -21,6 +28,24 @@ export type ErrorCategory =
   | "unknown";
 
 export type FixType = "auto_fix" | "manual_fix" | "reconnect";
+
+/**
+ * Human wording for a category. Phrased to stand alone as a noun so it can be
+ * dropped into a sentence without an article — "a unknown error" and "a auth
+ * expired error" were both reachable when summaries interpolated the raw enum.
+ */
+export const CATEGORY_LABEL: Record<ErrorCategory, string> = {
+  api_rate_limit: "Rate limited",
+  auth_expired: "Expired credentials",
+  data_format_mismatch: "Unexpected data format",
+  timeout: "Timed out",
+  schema_validation: "Schema validation failed",
+  connection_not_found: "Missing connection",
+  api_key_invalid: "Invalid API key",
+  permission_denied: "Permission denied",
+  network_error: "Network error",
+  unknown: "Unclassified error",
+};
 
 export interface FixSuggestion {
   type: FixType;
@@ -266,175 +291,20 @@ function classifyError(
 
   return {
     category: "unknown",
-    rootCause:
-      "An unexpected error occurred. Review the error message and node input/output for more details.",
+    rootCause: "This error doesn't match a known failure pattern.",
     fixes: [
       {
         type: "manual_fix",
-        title: "Check node configuration",
+        title: "Check the node's input",
         description:
-          "Review the node settings and ensure all required fields are filled correctly.",
-      },
-      {
-        type: "manual_fix",
-        title: "View full error details",
-        description:
-          "Copy the error message and search for it in the provider's documentation or support forum.",
+          "Expand the failed node in the timeline below and compare its input against what the step expects — most unclassified failures come from an upstream value being missing or the wrong shape.",
       },
     ],
     confidence: 0.3,
   };
 }
 
-// ─── LLM-Powered Root Cause Generation ─────────────────────────────────────
-
-function buildAnalysisPrompt(
-  runId: string,
-  runError: string | null,
-  failedExecs: NodeExecutionError[],
-  nodeMap: Record<string, { label?: string; type?: string }>,
-): string {
-  const execSummaries = failedExecs
-    .map((e) => {
-      const node = nodeMap[e.node_id];
-      const label = e.node_label ?? node?.label ?? e.node_id;
-      const type = e.node_type ?? node?.type ?? "unknown";
-      return [
-        `- Node: "${label}" (${type}, id: ${e.node_id})`,
-        `  Error: ${e.error_message ?? "N/A"}`,
-        `  Retry count: ${e.retry_count ?? 0}`,
-      ].join("\n");
-    })
-    .join("\n");
-
-  return [
-    "You are analyzing a failed workflow run. Given the run-level error and per-node execution errors, provide:",
-    "1. A concise root cause summary (1–2 sentences) identifying the most likely primary cause of failure.",
-    "2. For each failed node, a 1-sentence root cause and whether it matches: api_rate_limit, auth_expired, data_format_mismatch, timeout, schema_validation, connection_not_found, api_key_invalid, permission_denied, network_error, or unknown.",
-    "",
-    `Run ID: ${runId}`,
-    `Run-level error: ${runError ?? "none"}`,
-    "",
-    "Failed node executions:",
-    execSummaries || "(no per-node errors recorded)",
-  ].join("\n");
-}
-
-/**
- * Uses the LLM (via the runtime's internal model) to generate a richer root
- * cause analysis. Falls back to rule-based classification if LLM is unavailable.
- *
- * This function is exported for use in the API route. It requires the
- * createServiceClient from @/lib/api — callers pass it in to avoid circular deps.
- */
-export async function generateLLMAnalysis(
-  dbClient: { from: (table: string) => { select: (...cols: string[]) => any; eq: (col: string, val: string) => any; single: () => Promise<{ data: unknown; error: unknown }> } },
-  runId: string,
-  runError: string | null,
-  failedExecs: NodeExecutionError[],
-  nodeMap: Record<string, { label?: string; type?: string }>,
-): Promise<FailureAnalysis> {
-  const analyzedAt = new Date().toISOString();
-
-  // Try LLM analysis if available
-  let llmResult: { summary?: string; nodeCategories?: Record<string, { category: string; rootCause: string; confidence: number }> } | null = null;
-
-  try {
-    const prompt = buildAnalysisPrompt(runId, runError, failedExecs, nodeMap);
-    const runtimeUrl = process.env.RUNTIME_URL ?? process.env.NEXT_PUBLIC_RUNTIME_URL;
-
-    if (runtimeUrl) {
-      const res = await fetch(`${runtimeUrl}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          model: "fast", // use fast/cheap model for analysis
-          max_tokens: 800,
-        }),
-        signal: AbortSignal.timeout(10_000), // 10s timeout
-      });
-
-      if (res.ok) {
-        const data = (await res.json()) as { text?: string };
-        if (data.text) {
-          // Parse structured output from LLM
-          const summaryMatch = data.text.match(/(?:root.?cause|summary)[:\s]*["']?([^"'\n]+)/i);
-          llmResult = {
-            summary: summaryMatch?.[1]?.trim(),
-          };
-        }
-      }
-    }
-  } catch {
-    // LLM unavailable — fall back to rule-based classification
-  }
-
-  // Rule-based classification for each failed node
-  const nodeAnalyses: NodeAnalysis[] = failedExecs.map((exec) => {
-    const node = nodeMap[exec.node_id];
-    const label = exec.node_label ?? node?.label ?? exec.node_id;
-    const type = exec.node_type ?? node?.type ?? "unknown";
-    const msg = exec.error_message ?? "Unknown error";
-
-    const classification = classifyError(msg);
-
-    // Override with LLM category if available
-    const llmNode = llmResult?.nodeCategories?.[exec.node_id];
-    const category = (llmNode?.category as ErrorCategory) ?? classification.category;
-    const rootCause = llmNode?.rootCause ?? classification.rootCause;
-    const confidence = llmNode?.confidence ?? classification.confidence;
-
-    return {
-      node_id: exec.node_id,
-      node_label: label,
-      node_type: type,
-      error_category: category,
-      error_message: msg,
-      root_cause: rootCause,
-      fix_suggestions: classification.fixes.map((f) => ({
-        ...f,
-        node_id: exec.node_id,
-      })),
-      confidence,
-    };
-  });
-
-  // Derive overall category from the highest-confidence failure
-  const sortedByConfidence = [...nodeAnalyses].sort((a, b) => b.confidence - a.confidence);
-  const overallCategory = sortedByConfidence[0]?.error_category ?? "unknown";
-
-  // Aggregate unique fix suggestions
-  const seenTitles = new Set<string>();
-  const allFixes: FixSuggestion[] = [];
-  for (const na of nodeAnalyses) {
-    for (const fix of na.fix_suggestions) {
-      if (!seenTitles.has(fix.title)) {
-        seenTitles.add(fix.title);
-        allFixes.push(fix);
-      }
-    }
-  }
-
-  // Overall summary
-  const summaryPrefix = llmResult?.summary
-    ? llmResult.summary
-    : `This run failed because ${sortedByConfidence.length === 1 ? `node "${sortedByConfidence[0].node_label}" encountered a ${overallCategory.replace(/_/g, " ")} error` : `${sortedByConfidence.length} nodes encountered errors`}.`;
-
-  return {
-    run_id: runId,
-    overall_category: overallCategory,
-    root_cause_summary: summaryPrefix,
-    nodes: nodeAnalyses,
-    fix_suggestions: allFixes,
-    analyzed_at: analyzedAt,
-  };
-}
-
-/**
- * Lightweight rule-based analysis (no LLM). Used when the API endpoint
- * cannot reach the runtime or when a fast response is needed.
- */
+/** Classify a failed run's node errors and collect the fixes worth offering. */
 export function analyzeFailure(
   runId: string,
   runError: string | null,
@@ -479,16 +349,19 @@ export function analyzeFailure(
     }
   }
 
-  const summaryPrefix = runError
-    ? `Run failed: ${runError.slice(0, 200)}`
-    : sortedByConfidence.length === 1
-      ? `Node "${sortedByConfidence[0].node_label}" failed with a ${overallCategory.replace(/_/g, " ")} error.`
-      : `${sortedByConfidence.length} nodes encountered errors.`;
+  // Name the node and the category rather than echoing the raw error — the run
+  // log already prints that verbatim directly above this panel.
+  const primary = sortedByConfidence[0];
+  const summary = !primary
+    ? "This run recorded no node-level errors."
+    : nodeAnalyses.length === 1
+      ? `${CATEGORY_LABEL[overallCategory]} in "${primary.node_label}".`
+      : `${nodeAnalyses.length} nodes failed. First: "${primary.node_label}" — ${CATEGORY_LABEL[primary.error_category].toLowerCase()}.`;
 
   return {
     run_id: runId,
     overall_category: overallCategory,
-    root_cause_summary: summaryPrefix,
+    root_cause_summary: summary,
     nodes: nodeAnalyses,
     fix_suggestions: allFixes,
     analyzed_at: analyzedAt,

@@ -8,6 +8,7 @@ import type { Edge, Node } from "@flowos/schema";
 import { RunGraphFlow } from "./run-graph-flow";
 import { AiGeneratedContentNotice } from "@/components/ai-transparency";
 import { TimelineScrubber } from "@/components/runs/TimelineScrubber";
+import { formatUsdAsCredits } from "@/lib/credit-packs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,16 +44,7 @@ function formatDuration(start: string | null, end: string | null): string {
 }
 
 function formatInteger(value: number): string {
-  return new Intl.NumberFormat().format(value);
-}
-
-function formatUsd(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 6,
-  }).format(value);
+  return new Intl.NumberFormat("en-US").format(value);
 }
 
 function normalizeNodeExecutionRow(raw: unknown): NodeExecutionRow {
@@ -418,21 +410,16 @@ export function RunLogLive({
                     </p>
                   )}
 
-                  {(exec.total_tokens > 0 || exec.connector_api_calls > 0 || exec.model_call_count > 0) && (
+                  {(exec.billed_cost_usd > 0 || exec.connector_api_calls > 0 || exec.model_call_count > 0) && (
                     <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-                      {exec.total_tokens > 0 && (
-                        <span>
-                          tokens: {formatInteger(exec.total_tokens)} ({formatInteger(exec.prompt_tokens)} in / {formatInteger(exec.completion_tokens)} out)
-                        </span>
+                      {exec.billed_cost_usd > 0 && (
+                        <span>credits: {formatUsdAsCredits(exec.billed_cost_usd)}</span>
                       )}
                       {exec.model_call_count > 0 && (
                         <span>model calls: {formatInteger(exec.model_call_count)}</span>
                       )}
                       {exec.connector_api_calls > 0 && (
                         <span>connector API calls: {formatInteger(exec.connector_api_calls)}</span>
-                      )}
-                      {exec.billed_cost_usd > 0 && (
-                        <span>cost: {formatUsd(exec.billed_cost_usd)}</span>
                       )}
                     </div>
                   )}

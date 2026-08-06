@@ -10,6 +10,8 @@ import { ReplayButton } from "./replay-button";
 import { FailureAnalysisPanel } from "@/components/runs/FailureAnalysisPanel";
 import { ReplayFromNodeModal } from "@/components/runs/ReplayFromNodeModal";
 import { ExportRunButton } from "@/components/runs/ExportRunButton";
+import { formatDateTime } from "@/lib/format-datetime";
+import { formatUsdAsCredits } from "@/lib/credit-packs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,22 +107,8 @@ function formatDuration(start: string | null, end: string | null): string {
   return `${Math.floor(diff / 60000)}m ${Math.floor((diff % 60000) / 1000)}s`;
 }
 
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString();
-}
-
 function formatInteger(value: number): string {
-  return new Intl.NumberFormat().format(value);
-}
-
-function formatUsd(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 6,
-  }).format(value);
+  return new Intl.NumberFormat("en-US").format(value);
 }
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -332,14 +320,8 @@ export default async function RunLogPage({
           </p>
         </div>
         <div>
-          <span className="text-muted-foreground">Token usage</span>
-          <p className="mt-0.5">
-            {formatInteger(run.total_tokens)} total ({formatInteger(run.prompt_tokens)} in / {formatInteger(run.completion_tokens)} out)
-          </p>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Model cost</span>
-          <p className="mt-0.5">{formatUsd(run.billed_cost_usd)}</p>
+          <span className="text-muted-foreground">Credits used</span>
+          <p className="mt-0.5">{formatUsdAsCredits(run.billed_cost_usd)}</p>
         </div>
         <div>
           <span className="text-muted-foreground">Model calls</span>
@@ -359,12 +341,8 @@ export default async function RunLogPage({
         )}
       </div>
 
-      {/* AI Failure Analysis */}
-      <FailureAnalysisPanel
-        runId={runId}
-        runStatus={run.status}
-        runErrorMessage={run.error_message}
-      />
+      {/* Failure analysis */}
+      <FailureAnalysisPanel runId={runId} runStatus={run.status} />
 
       {/* Live node execution timeline */}
       <RunLogLive

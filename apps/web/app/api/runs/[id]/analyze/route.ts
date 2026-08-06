@@ -3,7 +3,6 @@ import { apiError, createServiceClient, getAuthUser } from "@/lib/api";
 import { canView, getProgramAccess } from "@/lib/workspaces";
 import {
   analyzeFailure,
-  generateLLMAnalysis,
   type NodeExecutionError,
 } from "@/lib/runs/failure-analysis";
 
@@ -83,15 +82,10 @@ export async function POST(
   }
 
   if (failedExecs.length === 0) {
+    // Nothing to classify — let analyzeFailure produce the empty result so the
+    // shape and wording match every other response from this route.
     return NextResponse.json({
-      analysis: {
-        run_id: runId,
-        overall_category: "unknown",
-        root_cause_summary: "No error details available for this run.",
-        nodes: [],
-        fix_suggestions: [],
-        analyzed_at: new Date().toISOString(),
-      },
+      analysis: analyzeFailure(runId, null, [], {}),
     });
   }
 
@@ -111,20 +105,7 @@ export async function POST(
   }
 
   // ── Run analysis ──────────────────────────────────────────────────────────
-  // Try LLM-enhanced analysis first; fall back to rule-based
-  let analysis;
-  try {
-    analysis = await generateLLMAnalysis(
-      serviceClient as any,
-      runId,
-      run.error_message,
-      failedExecs,
-      nodeMap,
-    );
-  } catch {
-    // LLM unavailable — use rule-based
-    analysis = analyzeFailure(runId, run.error_message, failedExecs, nodeMap);
-  }
+  const analysis = analyzeFailure(runId, run.error_message, failedExecs, nodeMap);
 
   return NextResponse.json({ analysis });
 }
