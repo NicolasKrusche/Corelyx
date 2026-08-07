@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { canView, canRun, getProgramAccess } from "@/lib/workspaces";
+import { POST as replayFromNode } from "@/app/api/runs/[id]/replay-from-node/route";
 
 // GET /api/programs/[id]/dead-letter — list dead letter entries
 export async function GET(
@@ -108,20 +109,33 @@ export async function POST(
     return apiError("Cannot retrigger a purged entry", 400);
   }
 
-  // Call the admin_retrigger_dead_letter RPC function
-  const { data: newRunId, error: rpcError } = await serviceClient.rpc(
-    "admin_retrigger_dead_letter",
-    {
-      entry_id: entry_id,
-    }
-  );
-
-  if (rpcError) {
-    console.error("Retrigger RPC error:", rpcError);
-    return apiError("Failed to retrigger dead letter entry", 500);
+  // Retriggering means re-running the workflow from the node that died, with
+  // the input it died on — which is exactly replay-from-node. It used to go
+  // through admin_retrigger_dead_letter instead, and that RPC could never work:
+  // it inserts `node_executions.input_data` and `runs.trigger_type`, neither of
+  // which is a real column, so every retrigger raised inside Postgres and came
+  // back as a 500. Even had it applied, it only wrote a 'running' run row and a
+  // 'pending' node_executions row — nothing dispatched to the runtime and
+  // nothing polls for pending executions, so the run would have hung forever.
+  // Delegating keeps one dispatch path under test rather than two, and inherits
+  // its pre-flight validation and runtime error handling.
+  if (!entry.run_id) {
+    return apiError("This entry has no originating run to replay.", 422);
   }
 
-  // Update entry status to 'retried' and increment retry_count
+  const replayResponse = await replayFromNode(
+    new Request(new URL(request.url).origin + `/api/runs/${entry.run_id}/replay-from-node`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ node_id: entry.node_id, edited_input: entry.input_data ?? {} }),
+    }),
+    { params: Promise.resolve({ id: entry.run_id as string }) }
+  );
+
+  // Only count it as retried once the runtime has actually accepted the work,
+  // so a failed dispatch leaves the entry pending and retriggerable.
+  if (!replayResponse.ok) return replayResponse;
+
   await serviceClient
     .from("dead_letter_entries")
     .update({
@@ -132,9 +146,10 @@ export async function POST(
     })
     .eq("id", entry_id);
 
+  const replayBody = (await replayResponse.json()) as { run_id?: string };
   return NextResponse.json({
     success: true,
-    new_run_id: newRunId,
+    new_run_id: replayBody.run_id ?? null,
     message: "Dead letter entry retriggered successfully",
   });
 }

@@ -11,7 +11,7 @@ import os
 import re
 import socket
 from datetime import datetime, timedelta, timezone
-from dataclasses import replace
+from dataclasses import asdict, is_dataclass, replace
 import html as _html_module
 from urllib.parse import urljoin, urlsplit
 from typing import Any, Callable
@@ -79,7 +79,7 @@ from engine.run_limits import (
 from engine.credential_lock import (
     get_token_refresh_manager,
 )
-from engine.retry import RetryPolicy, RetryExecutor, create_retry_policy_for_node
+from engine.retry import RetryOutcome, RetryPolicy, RetryExecutor, create_retry_policy_for_node
 from engine.dead_letter import get_dead_letter_queue
 from engine.tracing import async_span, get_tracer
 from telemetry import record_node_execution
@@ -744,6 +744,34 @@ def _circuit_ignores_user_errors(exc: BaseException) -> bool:
     return not isinstance(exc, (ExecutionError, RunLimitExceeded))
 
 
+def _serialize_node_config(config: Any) -> dict:
+    """JSON-safe view of a node's config, for its dead-letter entry.
+
+    `node.config` is always a plain dataclass built by schema._parse_node_config
+    (AgentConfig / StepConfig / HttpConnectionConfig / …), and dataclasses have
+    no `model_dump`. Probing only for that attribute therefore matched nothing
+    and stamped every dead-letter row with an empty config — discarding the one
+    thing the column exists for, since apps/web/lib/errors/error-analysis.ts
+    feeds it to the failure analyser.
+
+    Runs on the failure path, so it must never raise: an unconvertible config
+    degrades to {} rather than taking the enqueue down with it.
+    """
+    try:
+        if hasattr(config, "model_dump"):
+            raw = config.model_dump()
+        elif is_dataclass(config) and not isinstance(config, type):
+            raw = asdict(config)
+        elif isinstance(config, dict):
+            raw = dict(config)
+        else:
+            raw = dict(vars(config))
+        # Round-trip so enums/datetimes/tuples can't fail the PostgREST insert.
+        return json.loads(json.dumps(raw, default=str))
+    except Exception:
+        return {}
+
+
 # S13: hard cap on loop iteration count to prevent cost/DoS via attacker-shaped
 # upstream lists. Schemas that legitimately need more iterations should be split.
 MAX_LOOP_ITEMS = 100
@@ -1120,6 +1148,10 @@ class ProgramExecutor:
     # User-set capability scope for this agent run (None = unrestricted).
     # {"allow_writes": bool, "allowed_providers": list[str] | None}
     _agent_capabilities: "dict | None" = None
+    # node_id -> note left by an inner retry loop that exhausted and failed OPEN,
+    # drained by _execute_node to write the dead-letter entry. Class default is
+    # None (not {}) so __new__-built instances share no mutable state.
+    _failed_open_exhaustions: "dict[str, dict] | None" = None
 
     def __init__(
         self,
@@ -1186,6 +1218,8 @@ class ProgramExecutor:
         # BULK_WRITE_APPROVAL_THRESHOLD (so we prompt once, not per write).
         self._write_ops_executed = 0
         self._bulk_write_approved = False
+        # See _record_failed_open_exhaustion.
+        self._failed_open_exhaustions = {}
         # Cross-run memory: prior agent reports (same lineage) supplied by the web
         # run dispatch, injected into agent_task context. [{title, body, created_at}]
         self._prior_agent_reports: list[dict[str, str]] | None = None
@@ -2235,9 +2269,19 @@ class ProgramExecutor:
                 else:
                     return input_data  # trigger: pass through
 
+            # Drop any note left by an earlier execution of this node (loop
+            # iteration, re-dispatch) so it cannot be charged to this one.
+            (self._failed_open_exhaustions or {}).pop(node.id, None)
+
             try:
                 retry_result = await retry_executor.execute(execute_node_with_retry)
-                
+
+                # Taken once, here, before either branch runs: a node execution
+                # therefore produces at most one dead-letter entry, whether the
+                # exhaustion happened in an inner retry loop (below) or in the
+                # outer one (the else branch).
+                failed_open = (self._failed_open_exhaustions or {}).pop(node.id, None)
+
                 if retry_result.success:
                     output = retry_result.result
                     
@@ -2300,6 +2344,30 @@ class ProgramExecutor:
                         model_calls=int(node_metrics.get("model_call_count", 0) or 0),
                         program_id=self.program_id,
                     )
+
+                    # An inner retry loop that exhausted and failed open landed
+                    # here rather than in the exhaust branch below, so this is
+                    # the only chance to dead-letter it. Purely additive: the
+                    # run still continues, the node stays "failed", and the
+                    # error still travels in NODE_ERROR_KEY exactly as before —
+                    # _enqueue_dead_letter swallows its own failures, so it
+                    # cannot mask the node's real error either.
+                    if node_error and failed_open is not None:
+                        await self._enqueue_dead_letter(
+                            node,
+                            log_input,
+                            failed_open["error"],
+                            retry_result,
+                            retry_policy,
+                            attempt_count=failed_open["attempts"],
+                            extra_metadata={
+                                # The outer RetryResult scored this a success;
+                                # the failure was one level down.
+                                "final_outcome": RetryOutcome.EXHAUSTED.value,
+                                "failed_open": True,
+                                "exhausted_in": failed_open["scope"],
+                            },
+                        )
                     return output
                 else:
                     # Retries exhausted - enqueue to dead letter queue if fail_program_on_exhaust is False
@@ -2328,6 +2396,32 @@ class ProgramExecutor:
                 )
                 raise ExecutionError("NODE_FAILED", str(e), node.id) from e
 
+    def _record_failed_open_exhaustion(
+        self,
+        node_id: str,
+        error: Exception | None,
+        attempts: int,
+        scope: str,
+    ) -> None:
+        """Note that an inner retry loop exhausted and failed OPEN.
+
+        A failed-open exhaustion RETURNS a NODE_ERROR_KEY-tagged output instead
+        of raising, so the outer RetryExecutor in _execute_node scores it as a
+        success and the exhaust branch that writes the dead-letter entry never
+        runs. Agent LLM calls and HTTP connection nodes fail only this way, so
+        without this note the product's most common failure class never reached
+        the queue at all. _execute_node drains the note and writes the entry —
+        the write stays there because that is where the node and its logged
+        input are in scope, and it keeps one enqueue site per node execution.
+        """
+        if self._failed_open_exhaustions is None:
+            self._failed_open_exhaustions = {}
+        self._failed_open_exhaustions[node_id] = {
+            "error": error if isinstance(error, Exception) else Exception(str(error or "Unknown error after retries")),
+            "attempts": attempts,
+            "scope": scope,
+        }
+
     async def _enqueue_dead_letter(
         self,
         node: SchemaNode,
@@ -2335,6 +2429,9 @@ class ProgramExecutor:
         error: Exception,
         retry_result,
         retry_policy,
+        *,
+        attempt_count: int | None = None,
+        extra_metadata: dict | None = None,
     ) -> bool:
         """Record a retry-exhausted node in the dead-letter queue.
 
@@ -2342,18 +2439,24 @@ class ProgramExecutor:
         the node's real error: a failure here used to propagate out of the
         failed-open branch and surface to the user as the run's error message,
         hiding the actual cause. So it is logged and swallowed instead.
+
+        `attempt_count` / `extra_metadata` let a caller whose attempts happened
+        in an *inner* retry loop describe them accurately — the outer
+        RetryResult only ever saw one (apparently successful) attempt there.
         """
         try:
-            dlq = await get_dead_letter_queue()
+            # Reuse the run's client rather than building a new Supabase client
+            # per entry.
+            dlq = await get_dead_letter_queue(self.db)
             await dlq.enqueue(
                 program_id=self.program_id,
                 run_id=self.run_id,
                 node_id=node.id,
                 node_type=node.type,
-                node_config=node.config.model_dump() if hasattr(node.config, 'model_dump') else {},
+                node_config=_serialize_node_config(node.config),
                 input_data=log_input,
                 error=error,
-                attempt_count=retry_result.attempt_count,
+                attempt_count=retry_result.attempt_count if attempt_count is None else attempt_count,
                 retry_policy={
                     "max_attempts": retry_policy.max_attempts,
                     "backoff_type": retry_policy.backoff_type.value,
@@ -2365,6 +2468,7 @@ class ProgramExecutor:
                 metadata={
                     "final_outcome": retry_result.final_outcome.value,
                     "total_duration": retry_result.total_duration,
+                    **(extra_metadata or {}),
                 },
             )
             return True
@@ -2595,7 +2699,9 @@ class ProgramExecutor:
 
         strict_retry = replace(cfg.retry, fail_program_on_exhaust=True)
         last_error: ExecutionError | None = None
+        tried_models = 0
         for index, candidate_model in enumerate(model_candidates):
+            tried_models += 1
             candidate_cfg = cfg if candidate_model == cfg.model else replace(cfg, model=candidate_model)
             try:
                 return await self._with_retry(
@@ -2634,6 +2740,16 @@ class ProgramExecutor:
         if cfg.retry.fail_program_on_exhaust:
             raise ExecutionError("MAX_RETRIES_EXHAUSTED", err_msg, node_id) from last_error
 
+        # Each candidate ran the strict retry loop above, which raised rather
+        # than leaving its own note — so this is where the fallback path reports
+        # its exhaustion. Upper bound: a candidate that hit a non-retryable 4xx
+        # stopped before using its full attempt budget.
+        self._record_failed_open_exhaustion(
+            node_id,
+            last_error,
+            tried_models * max(strict_retry.max_attempts, 1),
+            "llm_model_fallback",
+        )
         await update_node_execution(
             self.db,
             self.run_id,
@@ -5707,6 +5823,9 @@ class ProgramExecutor:
         node_id: str,
     ) -> Any:
         last_error: Exception | None = None
+        # Initialised so the attempt count below is defined even for a policy
+        # that permits zero attempts.
+        attempt = 0
         for attempt in range(1, retry.max_attempts + 1):
             try:
                 return await fn()
@@ -5752,6 +5871,7 @@ class ProgramExecutor:
         # tag the returned output — the generic completion write and the loop
         # aggregation would otherwise overwrite this row with a clean
         # "completed" and lose the error.
+        self._record_failed_open_exhaustion(node_id, last_error, attempt, "node_retry")
         await update_node_execution(
             self.db,
             self.run_id,

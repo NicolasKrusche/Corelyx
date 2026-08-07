@@ -269,6 +269,178 @@ class TestExecuteNodeCatchAll(unittest.IsolatedAsyncioTestCase):
         self.assertIn("DLQ enqueue failed", output[NODE_ERROR_KEY])
         self.assertNotIn("dlq unreachable", output[NODE_ERROR_KEY])
 
+    async def test_inner_failed_open_exhaustion_reaches_the_dead_letter_queue(self) -> None:
+        # The queue only ever saw the OUTER retry executor's exhaustion. Agent
+        # LLM calls and HTTP connection nodes exhaust in an INNER _with_retry
+        # that fails open by RETURNING a NODE_ERROR_KEY output instead of
+        # raising, so the outer executor scored them as successes and the
+        # product's most common failure class never dead-lettered at all.
+        executor = self._executor()
+        node = executor.node_map["s"]
+        dlq = Mock()
+        dlq.enqueue = AsyncMock(return_value="entry-1")
+        update = AsyncMock()
+
+        async def _boom() -> dict:
+            raise RuntimeError("provider exploded")
+
+        async def _step(node_arg: Any, input_data: dict) -> dict:
+            return await executor._with_retry(_boom, RetryConfig(2, "none", 0.0, False), node_arg.id)
+
+        with (
+            patch(
+                "engine.executor.create_retry_policy_for_node",
+                return_value=self._policy(False),
+            ),
+            patch.object(executor, "_execute_step", side_effect=_step),
+            patch("engine.executor.update_node_execution", new=update),
+            patch("engine.executor.get_dead_letter_queue", AsyncMock(return_value=dlq)),
+        ):
+            output = await executor._execute_node(node, {"a": 1})
+
+        # Fail-open semantics are untouched: the run continues, the error still
+        # travels in NODE_ERROR_KEY, and the node row is still marked failed.
+        self.assertEqual(output[NODE_ERROR_KEY], "[Retries exhausted - continuing run] provider exploded")
+        self.assertIn("failed", [c.kwargs.get("status") for c in update.await_args_list])
+
+        dlq.enqueue.assert_awaited_once()
+        kwargs = dlq.enqueue.call_args.kwargs
+        self.assertEqual(kwargs["node_id"], "s")
+        self.assertEqual(kwargs["node_config"]["logic_type"], "transform")
+        self.assertIn("provider exploded", str(kwargs["error"]))
+        # The inner loop's attempts, not the outer executor's single one.
+        self.assertEqual(kwargs["attempt_count"], 2)
+        self.assertEqual(kwargs["metadata"]["final_outcome"], "exhausted")
+        self.assertTrue(kwargs["metadata"]["failed_open"])
+        self.assertEqual(kwargs["metadata"]["exhausted_in"], "node_retry")
+
+    async def test_an_http_connection_node_dead_letters_when_it_fails_open(self) -> None:
+        schema = _simple_schema(
+            [
+                {"id": "t", "type": "trigger", "config": {"trigger_type": "manual"}},
+                {
+                    "id": "c",
+                    "type": "connection",
+                    "config": {
+                        "connector_type": "http",
+                        "method": "GET",
+                        "url": "https://api.example.com/things",
+                    },
+                },
+            ]
+        )
+        executor = _make_executor(schema)
+        node = executor.node_map["c"]
+        dlq = Mock()
+        dlq.enqueue = AsyncMock(return_value="entry-1")
+
+        with (
+            patch.object(executor, "_enforce_provider_policy", new=AsyncMock()),
+            patch.object(executor, "_execute_http_connection", side_effect=RuntimeError("connection refused")),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_dead_letter_queue", AsyncMock(return_value=dlq)),
+        ):
+            output = await executor._execute_node(node, {"a": 1})
+
+        self.assertIn("connection refused", output[NODE_ERROR_KEY])
+        dlq.enqueue.assert_awaited_once()
+        kwargs = dlq.enqueue.call_args.kwargs
+        self.assertEqual(kwargs["node_type"], "connection")
+        self.assertEqual(kwargs["node_config"]["url"], "https://api.example.com/things")
+
+    async def test_a_failed_open_dead_letter_write_still_cannot_mask_the_error(self) -> None:
+        executor = self._executor()
+        node = executor.node_map["s"]
+        dlq = Mock()
+        dlq.enqueue = AsyncMock(side_effect=RuntimeError("dlq unreachable"))
+
+        async def _boom() -> dict:
+            raise RuntimeError("provider exploded")
+
+        async def _step(node_arg: Any, input_data: dict) -> dict:
+            return await executor._with_retry(_boom, RetryConfig(1, "none", 0.0, False), node_arg.id)
+
+        with (
+            patch(
+                "engine.executor.create_retry_policy_for_node",
+                return_value=self._policy(False),
+            ),
+            patch.object(executor, "_execute_step", side_effect=_step),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_dead_letter_queue", AsyncMock(return_value=dlq)),
+        ):
+            output = await executor._execute_node(node, {"a": 1})
+
+        self.assertIn("provider exploded", output[NODE_ERROR_KEY])
+        self.assertNotIn("dlq unreachable", output[NODE_ERROR_KEY])
+
+    async def test_exactly_one_entry_per_exhausted_execution(self) -> None:
+        # Two guarantees at once: the outer exhaust branch does not also fire for
+        # an inner failed-open exhaustion, and the note left behind cannot be
+        # charged to a later execution of the same node that succeeded.
+        executor = self._executor()
+        node = executor.node_map["s"]
+        dlq = Mock()
+        dlq.enqueue = AsyncMock(return_value="entry-1")
+
+        async def _boom() -> dict:
+            raise RuntimeError("provider exploded")
+
+        async def _failing_step(node_arg: Any, input_data: dict) -> dict:
+            return await executor._with_retry(_boom, RetryConfig(1, "none", 0.0, False), node_arg.id)
+
+        with (
+            patch(
+                "engine.executor.create_retry_policy_for_node",
+                return_value=self._policy(False),
+            ),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+            patch("engine.executor.get_dead_letter_queue", AsyncMock(return_value=dlq)),
+        ):
+            with patch.object(executor, "_execute_step", side_effect=_failing_step):
+                await executor._execute_node(node, {"a": 1})
+            self.assertEqual(dlq.enqueue.await_count, 1)
+
+            with patch.object(executor, "_execute_step", return_value={"ok": True}):
+                output = await executor._execute_node(node, {"a": 1})
+
+        self.assertEqual(output, {"ok": True})
+        self.assertEqual(dlq.enqueue.await_count, 1)
+
+    async def test_llm_model_fallback_exhaustion_dead_letters(self) -> None:
+        # The other inner failed-open exit: every fallback model ran its own
+        # (strict, raising) retry loop, so the note has to be left here.
+        schema = _simple_schema(
+            [
+                {
+                    "id": "a",
+                    "type": "agent",
+                    "config": {
+                        "model": "openai/gpt-4o-mini",
+                        "api_key_ref": "cred-1",
+                        "retry": {"max_attempts": 1, "backoff": "none", "fail_program_on_exhaust": False},
+                    },
+                }
+            ]
+        )
+        executor = _make_executor(schema)
+        cfg = executor.node_map["a"].config
+
+        with (
+            patch.object(executor, "_call_llm", side_effect=RuntimeError("LLM API error 503 upstream")),
+            patch("engine.executor.update_node_execution", new=AsyncMock()),
+        ):
+            output = await executor._call_llm_with_platform_fallback(
+                cfg, "key", "openrouter", {}, "a", deduct_credits=True
+            )
+
+        # Fail-open behaviour is unchanged — only the note is new.
+        self.assertIn("503", output[NODE_ERROR_KEY])
+        note = executor._failed_open_exhaustions["a"]
+        self.assertEqual(note["scope"], "llm_model_fallback")
+        self.assertEqual(note["attempts"], 2)
+        self.assertIn("503", str(note["error"]))
+
     async def test_fail_program_on_exhaust_still_aborts_the_run(self) -> None:
         executor = self._executor()
         node = executor.node_map["s"]
