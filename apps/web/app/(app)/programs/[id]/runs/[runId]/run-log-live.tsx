@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createBrowserClient } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Edge, Node } from "@flowos/schema";
 import { RunGraphFlow } from "./run-graph-flow";
 import { AiGeneratedContentNotice } from "@/components/ai-transparency";
 import { TimelineScrubber } from "@/components/runs/TimelineScrubber";
 import { formatUsdAsCredits } from "@/lib/credit-packs";
+import { formatTimeOnly } from "@/lib/format-datetime";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,14 @@ type NodeExecutionRow = {
   model_call_count: number;
   created_at: string;
 };
+
+/**
+ * Exactly the columns NodeExecutionRow carries. `select("*")` shipped
+ * `estimated_cost_usd` — the raw provider cost, i.e. the platform margin — to
+ * the browser on every poll; `billed_cost_usd` is the only cost a user may see.
+ */
+const EXEC_COLUMNS =
+  "id, node_id, status, input_payload, output_payload, error_message, retry_count, started_at, completed_at, prompt_tokens, completion_tokens, total_tokens, billed_cost_usd, connector_api_calls, model_call_count, created_at";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -220,7 +230,11 @@ export function RunLogLive({
   const [runStatus, setRunStatus] = useState(initialRunStatus);
   const [elapsed, setElapsed] = useState<string>("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevTerminalRef = useRef(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  // Seeded from the run's state at mount: starting at `false` made an already
+  // finished run look like it had just turned terminal, so every page load of a
+  // finished run fired a router.refresh().
+  const prevTerminalRef = useRef(TERMINAL.has(initialRunStatus));
   const supabase = createBrowserClient();
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
 
@@ -263,7 +277,7 @@ export function RunLogLive({
   const fetchExecs = async () => {
     const { data } = await supabase
       .from("node_executions")
-      .select("*")
+      .select(EXEC_COLUMNS)
       .eq("run_id", runId)
       .order("created_at", { ascending: true });
     if (data && data.length > 0) setExecs(data.map(normalizeNodeExecutionRow));
@@ -277,6 +291,19 @@ export function RunLogLive({
       .single();
     const row = data as { status?: string } | null;
     if (row?.status) setRunStatus(row.status);
+  };
+
+  // Idempotent: both the terminal-status effect and unmount call this, and
+  // whichever runs first leaves the refs empty for the other.
+  const stopLiveUpdates = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
   };
 
   useEffect(() => {
@@ -301,6 +328,7 @@ export function RunLogLive({
         }
       )
       .subscribe();
+    channelRef.current = channel;
 
     pollRef.current = setInterval(async () => {
       await fetchExecs();
@@ -308,19 +336,18 @@ export function RunLogLive({
     }, POLL_INTERVAL_MS);
 
     return () => {
-      supabase.removeChannel(channel);
-      if (pollRef.current) clearInterval(pollRef.current);
+      stopLiveUpdates();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
-  // Stop polling once terminal
+  // Stop polling once terminal. This effect, not the one above, is what tears
+  // the subscription down mid-session: that one is keyed on runId alone, so it
+  // does not re-run when a live run finishes and its channel stayed open.
   useEffect(() => {
-    if (isTerminal && pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-      fetchExecs();
-    }
+    if (!isTerminal) return;
+    stopLiveUpdates();
+    fetchExecs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTerminal]);
 
@@ -395,7 +422,7 @@ export function RunLogLive({
                     </div>
                     <div className="text-xs text-muted-foreground shrink-0 text-right">
                       {exec.started_at
-                        ? `${new Date(exec.started_at).toLocaleTimeString()} · ${duration}`
+                        ? `${formatTimeOnly(exec.started_at)} · ${duration}`
                         : "—"}
                     </div>
                   </div>

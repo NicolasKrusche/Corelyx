@@ -69,19 +69,25 @@ describe("analyzeFailure", () => {
   });
 
   it("summarises multi-node failures by count and first node", () => {
+    // Execution order and confidence order disagree on purpose: the node that
+    // failed first is the unclassified one (confidence 0.3), the rate limit that
+    // follows classifies at 0.95. "First:" must follow execution order — it used
+    // to name the highest-confidence node, so it named the second failure.
     const result = analyzeFailure(
       "run-1",
       null,
       [
-        { node_id: "loop-emails", error_message: "429 too many requests" },
         { node_id: "notion-write", error_message: "something inexplicable" },
+        { node_id: "loop-emails", error_message: "429 too many requests" },
       ],
       NODE_MAP,
     );
 
     expect(result.root_cause_summary).toBe(
-      '2 nodes failed. First: "Loop through emails" — rate limited.',
+      '2 nodes failed. First: "Write to Notion" — unclassified error.',
     );
+    // The overall category still comes from the best-classified failure.
+    expect(result.overall_category).toBe("api_rate_limit");
   });
 
   it("falls back to the run-level error when a node recorded none", () => {

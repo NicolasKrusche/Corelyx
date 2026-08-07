@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { CATEGORY_LABEL } from "@/lib/runs/failure-analysis";
 import type {
@@ -70,6 +70,7 @@ export function FailureAnalysisPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const autoFetchedRunRef = useRef<string | null>(null);
 
   const fetchAnalysis = useCallback(async () => {
     if (runStatus !== "failed") return;
@@ -90,11 +91,17 @@ export function FailureAnalysisPanel({
     }
   }, [runId, runStatus]);
 
+  // Auto-fetch once per run, and only once: gating on `!analysis` alone meant a
+  // failed response left every condition true, so the effect re-fired itself
+  // without backoff or cap against a route that has no rate limit. Retrying is
+  // the "Try again" button's job — it calls fetchAnalysis directly, so this flag
+  // never blocks it.
   useEffect(() => {
-    if (runStatus === "failed" && !analysis && !loading) {
-      fetchAnalysis();
-    }
-  }, [runStatus, analysis, loading, fetchAnalysis]);
+    if (runStatus !== "failed") return;
+    if (autoFetchedRunRef.current === runId) return;
+    autoFetchedRunRef.current = runId;
+    fetchAnalysis();
+  }, [runId, runStatus, fetchAnalysis]);
 
   if (runStatus !== "failed") return null;
 

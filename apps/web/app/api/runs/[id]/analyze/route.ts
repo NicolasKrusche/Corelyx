@@ -45,18 +45,18 @@ export async function POST(
   if (!canView(access)) return apiError("Run not found", 404);
 
   // ── Fetch node executions ─────────────────────────────────────────────────
+  // The payloads are unbounded JSONB and nothing here reads them, so they are
+  // not selected — this route runs on every view of a failed run.
   type ExecRow = {
     node_id: string;
     status: string;
     error_message: string | null;
-    input_payload: unknown;
-    output_payload: unknown;
     retry_count: number | null;
   };
 
   const { data: execsRaw } = await serviceClient
     .from("node_executions")
-    .select("node_id, status, error_message, input_payload, output_payload, retry_count")
+    .select("node_id, status, error_message, retry_count")
     .eq("run_id", runId)
     .order("created_at", { ascending: true });
 
@@ -66,19 +66,28 @@ export async function POST(
     .map((e) => ({
       node_id: e.node_id,
       error_message: e.error_message,
-      input_payload: e.input_payload,
-      output_payload: e.output_payload,
       retry_count: e.retry_count,
     }));
 
   // If no per-node failures, use the run-level error as a single "node"
   if (failedExecs.length === 0 && run.error_message) {
-    // Try to find which node was executing when the run failed
-    const lastExec = allExecs[allExecs.length - 1];
-    failedExecs.push({
-      node_id: lastExec?.node_id ?? "unknown",
-      error_message: run.error_message,
-    });
+    // Try to find which node was executing when the run failed. Taking the last
+    // execution regardless of status blamed nodes the timeline shows as green.
+    const culprit = [...allExecs]
+      .reverse()
+      .find((e) => !["completed", "success", "skipped"].includes(e.status));
+    failedExecs.push(
+      culprit
+        ? { node_id: culprit.node_id, error_message: run.error_message }
+        : // Every step finished cleanly, so the failure belongs to the run
+          // itself; naming any node here would contradict the timeline.
+          {
+            node_id: runId,
+            node_label: "This run",
+            node_type: "run",
+            error_message: run.error_message,
+          },
+    );
   }
 
   if (failedExecs.length === 0) {

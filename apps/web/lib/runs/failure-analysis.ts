@@ -350,13 +350,16 @@ export function analyzeFailure(
   }
 
   // Name the node and the category rather than echoing the raw error — the run
-  // log already prints that verbatim directly above this panel.
+  // log already prints that verbatim directly above this panel. "First:" is the
+  // first failure in execution order (failedExecs arrives created_at ascending),
+  // not the best-classified one; only overall_category ranks by confidence.
   const primary = sortedByConfidence[0];
+  const first = nodeAnalyses[0];
   const summary = !primary
     ? "This run recorded no node-level errors."
     : nodeAnalyses.length === 1
       ? `${CATEGORY_LABEL[overallCategory]} in "${primary.node_label}".`
-      : `${nodeAnalyses.length} nodes failed. First: "${primary.node_label}" — ${CATEGORY_LABEL[primary.error_category].toLowerCase()}.`;
+      : `${nodeAnalyses.length} nodes failed. First: "${first.node_label}" — ${CATEGORY_LABEL[first.error_category].toLowerCase()}.`;
 
   return {
     run_id: runId,
