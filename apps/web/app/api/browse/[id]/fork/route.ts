@@ -6,8 +6,10 @@ import type { ProgramSchema } from "@flowos/schema";
 import { validatePostGenesis } from "@/lib/validation";
 import { findPremadeBrowseProgram } from "@/lib/browse-programs";
 import { withAllSchemaTriggersPaused } from "@/lib/triggers/schema-trigger-state";
+import { sanitizeSchemaForPublicCopy } from "@/lib/programs/public-schema";
 import { canContributeToWorkspace, getActiveWorkspace } from "@/lib/workspaces";
 import { ensureUserProvisioned } from "@/lib/auth/provisioning";
+import { checkProgramLimit } from "@/lib/limits";
 
 /**
  * POST /api/browse/[id]/fork
@@ -39,6 +41,19 @@ export async function POST(
     return apiError("Viewers cannot fork programs.", 403);
   }
 
+  // Forking creates a program like every other creation path, so it owes the
+  // same plan check — without this it was the one way past the program cap.
+  const limitCheck = await checkProgramLimit(user.id, ws.workspaceId);
+  if (!limitCheck.allowed) {
+    return NextResponse.json(
+      {
+        error: "PROGRAM_LIMIT_REACHED",
+        message: limitCheck.upgradeMessage ?? "Program limit reached.",
+      },
+      { status: 403 }
+    );
+  }
+
   const db = createServiceClient();
 
   type SourceRow = { id: string; name: string; description: string | null; schema: unknown; is_public: boolean };
@@ -55,7 +70,9 @@ export async function POST(
       is_public: true,
     };
   } else {
-    // Fetch the public program (RLS allows reading is_public = true)
+    // Fetch the published program. The is_public filter is the access check in
+    // its own right — this is a service-role client, so it does not (and since
+    // migration 20260807120000 could not) lean on an RLS policy for it.
     const { data: sourceRaw, error: sourceError } = await db
       .from("programs")
       .select("id, name, description, schema, is_public")
@@ -68,8 +85,14 @@ export async function POST(
     shouldIncrementForkCount = true;
   }
 
+  // Strip the publisher's credentials before anything is copied. The stored
+  // schema still holds their real API keys, HTTP auth values and device/webhook
+  // ids — publishing deliberately no longer rewrites it (see the publish
+  // route), so this is the boundary where a program stops being the author's.
+  const sanitizedSource = sanitizeSchemaForPublicCopy(source.schema);
+
   // Validate the schema (should always be valid, but be defensive)
-  const schemaResult = ProgramSchemaZ.safeParse(source.schema);
+  const schemaResult = ProgramSchemaZ.safeParse(sanitizedSource);
   if (!schemaResult.success) {
     return apiError("Source program schema is invalid", 422);
   }
@@ -151,12 +174,17 @@ export async function POST(
     change_summary: `Created from browse program "${source.name}" (${source.id})`,
   } as unknown as never);
 
-  // Increment fork_count on the source (best-effort via RPC)
+  // Increment fork_count on the source (best-effort via RPC).
+  // `.rpc()` returns a PostgrestFilterBuilder, which is only PromiseLike: it
+  // has `then` but no `catch`, so the previous `.catch(() => {})` threw a
+  // TypeError outside the try block and turned every community fork into a 500
+  // *after* the program had already been created.
   if (shouldIncrementForkCount) {
-    const rpcClient = db as unknown as {
-      rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
-    };
-    await rpcClient.rpc("increment_fork_count", { program_id: params.id }).catch(() => {});
+    try {
+      await db.rpc("increment_fork_count", { program_id: params.id });
+    } catch {
+      // A stalled counter must not fail a fork that already succeeded.
+    }
   }
 
   const linkedNames = new Set(matchedConnections.map((c) => c.name));

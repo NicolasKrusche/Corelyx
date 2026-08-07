@@ -19,6 +19,13 @@ import {
  *
  * No authentication required — public endpoint.
  */
+/** Parse a query-string integer, falling back to `fallback` on anything unusable. */
+function boundedInt(raw: string | null, fallback: number, min: number, max: number): number {
+  const parsed = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const tag    = searchParams.get("tag") ?? undefined;
@@ -28,8 +35,11 @@ export async function GET(request: Request) {
     .filter(Boolean);
   const q      = searchParams.get("q")?.trim() ?? undefined;
   const sort   = searchParams.get("sort") === "popular" ? "popular" : "latest";
-  const limit  = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "6", 10), 1), 96);
-  const offset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10), 0);
+  // parseInt("abc") is NaN, and NaN survives Math.min/Math.max — which returned
+  // an empty page alongside a non-zero total, leaving the client's infinite
+  // scroll convinced there was more and refetching forever.
+  const limit  = boundedInt(searchParams.get("limit"), 6, 1, 96);
+  const offset = boundedInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
 
   const db = createServiceClient();
   const activeTags = tags.length > 0 ? tags : tag ? [tag] : [];
@@ -115,7 +125,11 @@ export async function GET(request: Request) {
     fork_count: getBrowseUseCount(p),
     published_at: p.published_at,
     public_author_name: p.public_author_name,
-    author_username: p.user_id ? (usernameMap.get(p.user_id) ?? null) : null,
+    // Paired with the opted-in display name only: the card links that name to
+    // /u/<username>, so returning it for a publisher who left the name blank
+    // would deanonymize them through the JSON even though nothing renders it.
+    author_username:
+      p.public_author_name && p.user_id ? (usernameMap.get(p.user_id) ?? null) : null,
     schema_version: p.schema_version,
     // Derive node summary from schema without returning the full schema
     node_summary: deriveNodeSummary(p.schema),

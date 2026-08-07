@@ -155,23 +155,21 @@ export async function POST(
     }
   }
 
-  // Sanitize schema — replace user-specific credential refs with sentinel values
-  const programRow = program as unknown as { schema: Record<string, unknown> };
-  const sanitizedSchema = sanitizeSchemaForPublish(programRow.schema);
-
   const now = new Date().toISOString();
 
+  // Publishing only flips visibility — it must not touch the schema. Writing a
+  // sanitized copy back over the owner's row replaced their agent nodes'
+  // api_key_ref with __USER_ASSIGNED__, which the runtime's preflight rejects
+  // as critical (PRE_004), so publishing silently broke the very program that
+  // had to run successfully to become publishable — and unpublishing never put
+  // it back. Credentials are stripped on the way out instead, when someone
+  // else copies the program (see lib/programs/public-schema.ts).
   const update: Record<string, unknown> = {
     is_public: publish,
     ...(normalizedTags.length > 0 || tags !== undefined ? { tags: normalizedTags } : {}),
     ...(authorName !== undefined ? { public_author_name: authorName } : {}),
     ...(publish ? { published_at: now } : { published_at: null }),
   };
-
-  // If publishing, write the sanitized schema so public viewers see clean refs
-  if (publish) {
-    update.schema = sanitizedSchema;
-  }
 
   const { data: updated, error: updateError } = await db
     .from("programs")
@@ -185,40 +183,3 @@ export async function POST(
   return NextResponse.json({ program: updated });
 }
 
-// ─── Schema sanitization ──────────────────────────────────────────────────────
-
-/**
- * Strips user-specific credential identifiers from a schema so it is safe
- * to publish. Replaces api_key_ref UUIDs with the __USER_ASSIGNED__ sentinel.
- * Connection names are left intact — users match them to their own connections.
- */
-function sanitizeSchemaForPublish(schema: Record<string, unknown>): Record<string, unknown> {
-  const nodes = Array.isArray(schema.nodes) ? schema.nodes : [];
-
-  const sanitizedNodes = nodes.map((node: unknown) => {
-    if (!node || typeof node !== "object" || Array.isArray(node)) return node;
-    const n = node as Record<string, unknown>;
-    if (n.type !== "agent") return n;
-
-    const config = n.config && typeof n.config === "object" && !Array.isArray(n.config)
-      ? (n.config as Record<string, unknown>)
-      : {};
-
-    // Only replace if it looks like a real UUID ref (not already a sentinel)
-    const apiKeyRef = config.api_key_ref;
-    const sanitizedRef =
-      typeof apiKeyRef === "string" && apiKeyRef !== "__USER_ASSIGNED__" && apiKeyRef !== ""
-        ? "__USER_ASSIGNED__"
-        : apiKeyRef;
-
-    return {
-      ...n,
-      config: {
-        ...config,
-        api_key_ref: sanitizedRef,
-      },
-    };
-  });
-
-  return { ...schema, nodes: sanitizedNodes };
-}

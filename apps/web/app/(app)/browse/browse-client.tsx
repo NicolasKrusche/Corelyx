@@ -196,7 +196,10 @@ export function BrowseClient({
         return next;
       });
       setTotal(data.total);
-      setHasMore(nextLength < data.total);
+      // Stop when a page adds nothing new: with only duplicates coming back,
+      // nextLength never moves and `nextLength < total` kept the observer
+      // refetching the same page indefinitely.
+      setHasMore(data.programs.length > 0 && nextLength > programs.length && nextLength < data.total);
     } catch {
       setHasMore(false);
     } finally {
@@ -244,8 +247,17 @@ export function BrowseClient({
       .filter((program) => program.name.toLowerCase().includes(q.trim().toLowerCase()))
       .slice(0, 6)
     : [];
-  const visiblePrograms = selectedProgramId
+  // Fall back to the full option pool when the picked program isn't in the
+  // current result list. Choosing a suggestion clears `q`, which resets
+  // `programs` to the server's first page — so picking anything outside that
+  // page used to filter the grid down to nothing and blank the search box.
+  const selectedFromPrograms = selectedProgramId
     ? programs.filter((program) => program.id === selectedProgramId)
+    : null;
+  const visiblePrograms = selectedProgramId
+    ? (selectedFromPrograms?.length
+        ? selectedFromPrograms
+        : programOptions.filter((program) => program.id === selectedProgramId))
     : programs;
   const isFiltered = Boolean(q || selectedApp || selectedUseCase || selectedProgramId);
 
