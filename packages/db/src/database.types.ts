@@ -4260,7 +4260,7 @@ export type Database = {
     Functions: {
       admin_dead_letter_stats: {
         Args: {
-          program_id?: string;
+          p_program_id?: string;
         };
         Returns: Json;
       };
@@ -4291,8 +4291,8 @@ export type Database = {
       };
       admin_purge_old_dead_letters: {
         Args: {
-          older_than_days?: number;
-          program_id?: string;
+          p_older_than_days?: number;
+          p_program_id?: string;
         };
         Returns: Json;
       };
@@ -4300,13 +4300,6 @@ export type Database = {
         Args: {
           entry_id: string;
           resolution_note?: string;
-        };
-        Returns: Json;
-      };
-      admin_retrigger_dead_letter: {
-        Args: {
-          entry_id: string;
-          new_run_id?: string;
         };
         Returns: Json;
       };
@@ -4404,6 +4397,20 @@ export type Database = {
           p_workspace_id?: string;
         };
         Returns: Json;
+      };
+      consume_genesis_bonus: {
+        Args: {
+          p_user_id: string;
+          p_workspace_id?: string;
+        };
+        Returns: boolean;
+      };
+      refund_genesis_bonus: {
+        Args: {
+          p_user_id: string;
+          p_workspace_id?: string;
+        };
+        Returns: undefined;
       };
       increment_fork_count: {
         Args: {
