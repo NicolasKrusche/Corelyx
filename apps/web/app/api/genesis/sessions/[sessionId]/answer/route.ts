@@ -9,7 +9,10 @@ export const maxDuration = 120;
 import { createServerClient } from "@/lib/supabase/server";
 import { apiError, createServiceClient } from "@/lib/api";
 import { vaultRetrieve } from "@/lib/vault";
-import { recordLlmUsage, type LlmUsageLike } from "@/lib/llm-usage-log";
+import { type LlmUsageLike } from "@/lib/llm-usage-log";
+import { chargeGenesisUsage, checkGenesisAffordability } from "@/lib/genesis/billing";
+import { estimateGenesisCredits, estimateTokens } from "@/lib/genesis/credit-cost";
+import type { ModelPricing } from "@/lib/genesis/platform-models";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeAppLog } from "@/lib/app-logs";
 import { ensureProcessingAllowed } from "@/lib/compliance";
@@ -63,8 +66,12 @@ const AnswerRequestZ = z.object({
 
 // POST /api/genesis/sessions/[sessionId]/answer
 // Genesis V2 phase 3: apply one clarification answer as a scoped patch to the
-// generated program. Quota/credits were charged by the generation itself —
-// answering questions is free, so users are never punished for engaging.
+// generated program.
+//
+// This is a full model call on the platform key, so it is charged like any
+// other. It used to only log usage and charge nothing, which left an uncapped
+// free path to the platform key: answering costs the same as generating, and a
+// session's questions can be answered repeatedly.
 export async function POST(
   request: Request,
   { params: routeParams }: { params: Promise<{ sessionId: string }> }
@@ -156,6 +163,7 @@ export async function POST(
   let apiKey: string;
   let provider: string;
   let model: string;
+  let modelPricing: ModelPricing | null = null;
   if (use_platform_key === true) {
     const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
     if (!platformRawKey) return apiError("Platform AI key is not available.", 503);
@@ -175,6 +183,7 @@ export async function POST(
     model = generatedModel && catalog.some((m) => m.id === generatedModel)
       ? generatedModel
       : PLATFORM_DEFAULT_MODEL;
+    modelPricing = catalog.find((m) => m.id === model)?.pricing ?? null;
   } else {
     if (!api_key_id) return apiError("api_key_id is required when not using the platform key", 400);
     const { data: keyRow, error: keyError } = await serviceClient
@@ -246,6 +255,30 @@ export async function POST(
     availableConnections
   );
 
+  // Price the call before spending anything on it, exactly as the generate
+  // routes do — the catalog spans three orders of magnitude on output price.
+  if (use_platform_key === true) {
+    const estimatedCredits = estimateGenesisCredits({
+      pricing: modelPricing,
+      promptTokens: estimateTokens(systemPrompt) + estimateTokens(userMessage),
+      maxOutputTokens: GENESIS_MAX_TOKENS,
+    });
+    const affordability = await checkGenesisAffordability(userId, estimatedCredits);
+    if (!affordability.affordable) {
+      const needed = affordability.estimatedCredits;
+      return NextResponse.json(
+        {
+          error: "INSUFFICIENT_CREDITS",
+          message:
+            needed === null
+              ? "You're out of AI credits. Top up or switch to your own API key to keep using Genesis."
+              : `Answering this question needs about ${needed.toLocaleString("en-US")} credits on ${model} and you have ${affordability.balance.toLocaleString("en-US")}.`,
+        },
+        { status: 402 }
+      );
+    }
+  }
+
   // ── Model call (single key, provider-internal model fallbacks) ──
   let rawText = "";
   let modelUsed = model;
@@ -287,13 +320,14 @@ export async function POST(
       }
       if (rawText) {
         modelUsed = candidateModel;
-        recordLlmUsage({
+        await chargeGenesisUsage({
           userId,
           workspaceId: session.workspace_id,
           model: candidateModel,
           usage: usageData,
+          pricing: modelPricing,
           billing: use_platform_key === true ? "platform" : "byok",
-          source: "genesis",
+          bonusFunded: false,
         });
         break;
       }

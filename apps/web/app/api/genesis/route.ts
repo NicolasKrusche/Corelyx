@@ -43,7 +43,7 @@ import {
   pruneUnresolvedReferences,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
-import { checkProgramLimit, getGenesisGrant, recordGenesisUse } from "@/lib/limits";
+import { checkProgramLimit, consumeGenesisBonus, recordGenesisUse, refundGenesisBonus } from "@/lib/limits";
 import { estimateGenesisCredits, estimateTokens } from "@/lib/genesis/credit-cost";
 import { checkGenesisAffordability, chargeGenesisUsage } from "@/lib/genesis/billing";
 import type { ModelPricing } from "@/lib/genesis/platform-models";
@@ -224,11 +224,6 @@ export async function POST(request: Request) {
     workspaceId = ws.workspaceId;
   }
 
-  // Check genesis AI access against the workspace plan.
-  // A `genesis_uses` grant funds this generation outright; otherwise it is paid
-  // for in credits, checked against the actual model price further down.
-  const genesisGrant = await getGenesisGrant(userId, workspaceId);
-  const bonusFunded = usePlatformKey && genesisGrant.bonusRemaining > 0;
 
   // Check program limit before generating (skip for refinements — no new program created)
   if (!isRefinement) {
@@ -319,9 +314,30 @@ export async function POST(request: Request) {
   const serviceClient = createServiceClient();
   let keyCandidates: GenesisApiKeyRow[];
 
+  // A `genesis_uses` grant funds this generation outright; otherwise it is paid
+  // for in credits. The claim is atomic, so two requests can't both spend the
+  // same last unit — deciding it from a plain read let a pool of one fund as
+  // many concurrent generations as the rate limiter allowed. It is taken here,
+  // as late as possible and next to the spend it authorises, and handed back by
+  // `releaseBonus` on every path where no model call ends up being billed.
+  let bonusFunded = false;
+  if (usePlatformKey) {
+    bonusFunded = await consumeGenesisBonus(userId, workspaceId);
+  }
+  // Once a model call has been billed against the claimed unit it is genuinely
+  // spent, so later failures (parsing, saving) must not hand it back.
+  let bonusFinalized = false;
+  const settleBonus = () => { bonusFinalized = true; };
+  const releaseBonus = async () => {
+    if (!bonusFunded || bonusFinalized) return;
+    bonusFinalized = true;
+    await refundGenesisBonus(userId, workspaceId);
+  };
+
   if (usePlatformKey) {
     const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
     if (!platformRawKey) {
+      await releaseBonus();
       return loggedApiError("Platform AI key is not available.", 503, "genesis.platform_key_unavailable");
     }
     // Price this specific generation before spending anything on it. A bonus
@@ -574,9 +590,11 @@ export async function POST(request: Request) {
             workspaceId,
             model: candidateModel,
             usage: usageData,
+            pricing: modelPricing,
             billing: currentKeyRow.id === "platform" ? "platform" : "byok",
             bonusFunded,
           });
+          settleBonus();
           break keyAttemptLoop; // success
         } catch (err) {
           lastErr = err;
@@ -633,6 +651,7 @@ export async function POST(request: Request) {
           serverLog({ level: "error", event: "genesis.model.call_failed", message: "Model call failed.", details: { provider: currentKeyRow.provider, model: candidateModel } });
           if (isPromptTooLarge(err)) {
             if (keyIndex < keyCandidates.length - 1) break modelAttemptLoop; // try next key
+            await releaseBonus();
             return loggedApiError(
               `The Genesis prompt is too large for all available models. Try adding an Anthropic or OpenAI key.`,
               422,
@@ -640,6 +659,7 @@ export async function POST(request: Request) {
               { provider: currentKeyRow.provider, model: candidateModel, error: errorDetails(err) }
             );
           }
+          await releaseBonus();
           return loggedApiError(
             "Genesis model call failed. Try another model or key.",
             502,
@@ -661,6 +681,7 @@ export async function POST(request: Request) {
   const useAnthropicSDK = apiKeyRow.provider === "anthropic";
 
   if (!rawText) {
+    await releaseBonus();
     return loggedApiError(
       "Genesis model call failed after trying all available keys.",
       502,
@@ -717,6 +738,7 @@ export async function POST(request: Request) {
             workspaceId,
             model: modelUsed,
             usage: repairMsg.usage as LlmUsageLike,
+            pricing: modelPricing,
             billing: usedKeyRow?.id === "platform" ? "platform" : "byok",
             bonusFunded,
           });
@@ -740,6 +762,7 @@ export async function POST(request: Request) {
             workspaceId,
             model: modelUsed,
             usage: (repairMsg as { usage?: LlmUsageLike }).usage ?? null,
+            pricing: modelPricing,
             billing: usedKeyRow?.id === "platform" ? "platform" : "byok",
             bonusFunded,
           });
@@ -1049,7 +1072,7 @@ export async function POST(request: Request) {
       },
       existing_program_id
     );
-    await recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded });
+    await recordGenesisUse(userId, workspaceId);
     return NextResponse.json({ program: updatedProgram, schema, validation, patch: patchSummary }, { status: 200 });
   }
 
@@ -1175,6 +1198,6 @@ export async function POST(request: Request) {
     },
     program.id
   );
-  await recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded });
+  await recordGenesisUse(userId, workspaceId);
   return NextResponse.json({ program, schema, validation }, { status: 201 });
 }

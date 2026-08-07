@@ -359,17 +359,55 @@ export async function getGenesisGrant(
 }
 
 /**
- * Record one Genesis generation.
+ * Claim one credit-free generation from the bonus pool.
  *
- * `fromBonus` drains the credit-free pool instead of leaving the caller to be
- * charged; the caller decides which applies by reading getGenesisGrant before
- * the generation and passing the same answer here, so a pool that emptied
- * mid-flight can't be double-spent against a charge that never happened.
+ * Returns true only for the caller that actually took a unit. Deciding this by
+ * reading the pool and later writing back `remaining - 1` let concurrent
+ * requests all read the same value and all run free; the decrement is now a
+ * single guarded UPDATE in the database (migration 20260807130000), so exactly
+ * one caller wins and everyone else is charged credits.
+ *
+ * Callers must release the claim with `refundGenesisBonus` if the generation
+ * they claimed it for never happens.
+ */
+export async function consumeGenesisBonus(
+  userId: string,
+  workspaceId?: string | null,
+): Promise<boolean> {
+  const profile = await getBillingScope(userId, workspaceId);
+  const serviceClient = createServiceClient();
+  const { data, error } = await serviceClient.rpc("consume_genesis_bonus", {
+    p_user_id: userId,
+    p_workspace_id: profile.workspaceId ?? undefined,
+  });
+  // Failing closed here only means the caller pays credits they can afford —
+  // the safe direction when the pool's state is unknown.
+  if (error) return false;
+  return data === true;
+}
+
+/** Hand back a bonus unit claimed for a generation that never ran. */
+export async function refundGenesisBonus(
+  userId: string,
+  workspaceId?: string | null,
+): Promise<void> {
+  const profile = await getBillingScope(userId, workspaceId);
+  const serviceClient = createServiceClient();
+  await serviceClient.rpc("refund_genesis_bonus", {
+    p_user_id: userId,
+    p_workspace_id: profile.workspaceId ?? undefined,
+  });
+}
+
+/**
+ * Record one Genesis generation against the monthly analytics counter.
+ *
+ * The bonus pool is not touched here — `consumeGenesisBonus` already claimed
+ * the unit atomically before the generation ran.
  */
 export async function recordGenesisUse(
   userId: string,
   workspaceId?: string | null,
-  options?: { fromBonus?: boolean },
 ): Promise<void> {
   const profile = await getBillingScope(userId, workspaceId);
   const serviceClient = createServiceClient();
@@ -380,15 +418,13 @@ export async function recordGenesisUse(
     ? profile.genesis_uses_this_month
     : 0;
 
-  const update: Record<string, unknown> = {
-    genesis_uses_this_month: currentUses + 1,
-    genesis_month_reset_at: new Date().toISOString(),
-  };
-  if (options?.fromBonus && profile.bonus_genesis_uses > 0) {
-    update.bonus_genesis_uses = profile.bonus_genesis_uses - 1;
-  }
-
-  await serviceClient.from(table).update(update as never).eq("id", idValue);
+  await serviceClient
+    .from(table)
+    .update({
+      genesis_uses_this_month: currentUses + 1,
+      genesis_month_reset_at: new Date().toISOString(),
+    } as never)
+    .eq("id", idValue);
 }
 
 /**

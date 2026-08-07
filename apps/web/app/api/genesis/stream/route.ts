@@ -28,7 +28,7 @@ import {
   pruneUnresolvedReferences,
   validateProgramDraft,
 } from "@/lib/workflow/normalize";
-import { checkAgentAccess, checkProgramLimit, getGenesisGrant, recordGenesisUse } from "@/lib/limits";
+import { checkAgentAccess, checkProgramLimit, consumeGenesisBonus, recordGenesisUse, refundGenesisBonus } from "@/lib/limits";
 import { estimateGenesisCredits, estimateTokens } from "@/lib/genesis/credit-cost";
 import { checkGenesisAffordability, chargeGenesisUsage } from "@/lib/genesis/billing";
 import type { ModelPricing } from "@/lib/genesis/platform-models";
@@ -260,8 +260,7 @@ export async function POST(request: Request) {
     : serviceClient.from("api_keys").select("id, vault_secret_id, provider")
         .eq("workspace_id", workspaceId).eq("is_valid", true);
 
-  const [genesisGrant, limitCheck, connResult, keysResult, userProfileContext] = await Promise.all([
-    getGenesisGrant(userId, workspaceId),
+  const [limitCheck, connResult, keysResult, userProfileContext] = await Promise.all([
     isRefinement ? Promise.resolve({ allowed: true, upgradeMessage: null }) : checkProgramLimit(userId, workspaceId),
     pendingConnections,
     pendingApiKeys,
@@ -271,10 +270,6 @@ export async function POST(request: Request) {
   ]);
 
   if (!limitCheck.allowed) return sseErrorResponse(limitCheck.upgradeMessage ?? "Program limit reached.", "PROGRAM_LIMIT_REACHED");
-
-  // A `genesis_uses` grant funds this generation outright; otherwise it is paid
-  // for in credits, and the affordability check below decides whether it runs.
-  const bonusFunded = usePlatformKey && genesisGrant.bonusRemaining > 0;
 
   // Resolve connections
   let connections: GenesisConnectionRow[] = [];
@@ -367,6 +362,23 @@ export async function POST(request: Request) {
           allowClarifications: v2Enabled && !isRefinement,
         });
 
+  // A `genesis_uses` grant funds this generation outright; otherwise it is paid
+  // for in credits. Claimed atomically so two requests can't both spend the
+  // same last unit, and released below if no model call ends up being billed.
+  let bonusFunded = false;
+  if (usePlatformKey) {
+    bonusFunded = await consumeGenesisBonus(userId, workspaceId);
+  }
+  // Once a model call has been billed against the claimed unit it is genuinely
+  // spent, so later failures (parsing, saving) must not hand it back.
+  let bonusFinalized = false;
+  const settleBonus = () => { bonusFinalized = true; };
+  const releaseBonus = async () => {
+    if (!bonusFunded || bonusFinalized) return;
+    bonusFinalized = true;
+    await refundGenesisBonus(userId, workspaceId);
+  };
+
   // ── Credit pre-flight ───────────────────────────────────────────────────────
   // Priced now that the real prompt exists, and before a single token is spent.
   // The catalog spans three orders of magnitude on output price, so charging
@@ -402,7 +414,10 @@ export async function POST(request: Request) {
     // Streaming builds consume the plan's Genesis-use allowance. Platform
     // credits remain metered for workflow execution and editor refinements.
     const platformRawKey = process.env.PLATFORM_OPENROUTER_API_KEY ?? "";
-    if (!platformRawKey) return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
+    if (!platformRawKey) {
+      await releaseBonus();
+      return sseErrorResponse("Platform AI key is not available.", "PLATFORM_KEY_UNAVAILABLE");
+    }
     keyCandidates = [{ id: "platform", vault_secret_id: platformRawKey, provider: "openrouter" }];
   } else {
     const { data: allKeyRows, error: keysError } = keysResult;
@@ -570,9 +585,11 @@ export async function POST(request: Request) {
                 workspaceId,
                 model: candidateModel,
                 usage: usageData,
+                pricing: modelPricing,
                 billing: currentKeyRow.id === "platform" ? "platform" : "byok",
                 bonusFunded,
               });
+              settleBonus();
               serverLog({
                 level: "info",
                 event: "genesis.stream.model_used",
@@ -991,7 +1008,7 @@ export async function POST(request: Request) {
                 validation_warnings: validation.warnings.length,
               },
             }),
-            recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded }),
+            recordGenesisUse(userId, workspaceId),
           ]);
         } else {
           send({ type: "status", message: "Saving program..." });
@@ -1126,10 +1143,11 @@ export async function POST(request: Request) {
                 pii_redactions: sanitizedDescription.redactions,
               },
             }),
-            recordGenesisUse(userId, workspaceId, { fromBonus: bonusFunded }),
+            recordGenesisUse(userId, workspaceId),
           ]);
         }
       } catch (err) {
+        await releaseBonus();
         const message = err instanceof Error ? err.message : String(err);
         if (complianceBlockReason) {
           send({ type: "error", message, code: "EU_COMPLIANCE_BLOCKED" });
