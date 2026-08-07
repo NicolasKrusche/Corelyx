@@ -1250,15 +1250,21 @@ function AgentSidebar({
           </FieldGroup>
 
           {config.retry.backoff !== "none" && (
-            <FieldGroup label="Base seconds" htmlFor="retry-base" helpKey="retry.backoff_base_seconds">
+            <FieldGroup label="Base seconds (0-60)" htmlFor="retry-base" helpKey="retry.backoff_base_seconds">
               <Input
                 id="retry-base"
                 type="number"
                 min={0}
+                max={60}
                 value={config.retry.backoff_base_seconds}
                 onChange={(e) =>
                   onUpdate({
-                    retry: { ...config.retry, backoff_base_seconds: Number(e.target.value) },
+                    retry: {
+                      ...config.retry,
+                      // Clamped, like max attempts above: `max` alone does not stop
+                      // typing, and the runtime raises above 60 rather than clamping.
+                      backoff_base_seconds: Math.min(60, Math.max(0, Number(e.target.value))),
+                    },
                   })
                 }
               />
@@ -1579,6 +1585,16 @@ const LOGIC_TYPE_OPTIONS: { value: StepConfig["logic_type"]; label: string; grou
   { value: "delay",       label: "Delay",       group: "Flow" },
 ];
 
+/** Matches DEFAULT_RETRY in lib/workflow/normalize.ts and the runtime's
+ *  create_retry_policy_for_node fallback, so switching the toggle on starts
+ *  from what the step was already doing. */
+const STEP_DEFAULT_RETRY: RetryConfig = {
+  max_attempts: 3,
+  backoff: "exponential",
+  backoff_base_seconds: 5,
+  fail_program_on_exhaust: false,
+};
+
 function makeDefaultStepConfig(t: StepConfig["logic_type"]): StepConfig {
   switch (t) {
     case "transform":   return { logic_type: "transform", transformation: "", input_schema: null, output_schema: null };
@@ -1885,6 +1901,105 @@ function StepSidebar({
               <option value="desc">Descending (Z → A, 9 → 0)</option>
             </Select>
           </FieldGroup>
+        </>
+      )}
+
+      <StepRetryFields config={config} onUpdate={onUpdate} />
+    </div>
+  );
+}
+
+/**
+ * Retry settings for a step, shared by every logic type.
+ *
+ * Opt-in on purpose: a step with no `retry` block is not "retry disabled", it
+ * is "use the runtime's defaults" (3 attempts, exponential) — so the toggle has
+ * to distinguish absent from configured rather than always writing a value.
+ * Turning it off deletes the block instead of pinning today's defaults, which
+ * would silently freeze the step against any future change to them.
+ */
+function StepRetryFields({
+  config,
+  onUpdate,
+}: {
+  config: StepConfig;
+  onUpdate: (patch: Partial<StepConfig>) => void;
+}) {
+  const retry = config.retry ?? null;
+
+  return (
+    <div className="space-y-3 border-t border-border pt-3">
+      <Toggle
+        id="step-retry-enabled"
+        checked={retry !== null}
+        onChange={(v) => onUpdate({ retry: v ? { ...STEP_DEFAULT_RETRY } : null })}
+        label="Customize retries"
+        helpKey="retry.max_attempts"
+      />
+
+      {retry === null ? (
+        <p className="text-[11px] text-muted-foreground">
+          Retried {STEP_DEFAULT_RETRY.max_attempts} times with exponential backoff, then the run
+          continues without this step.
+        </p>
+      ) : (
+        <>
+          <FieldGroup label="Max attempts (1–5)" htmlFor="step-retry-attempts" helpKey="retry.max_attempts">
+            <Input
+              id="step-retry-attempts"
+              type="number"
+              min={1}
+              max={5}
+              value={retry.max_attempts}
+              onChange={(e) =>
+                onUpdate({
+                  retry: { ...retry, max_attempts: Math.min(5, Math.max(1, Number(e.target.value))) },
+                })
+              }
+            />
+          </FieldGroup>
+
+          <FieldGroup label="Backoff strategy" htmlFor="step-retry-backoff" helpKey="retry.backoff">
+            <Select
+              id="step-retry-backoff"
+              value={retry.backoff}
+              onChange={(e) =>
+                onUpdate({ retry: { ...retry, backoff: e.target.value as RetryConfig["backoff"] } })
+              }
+            >
+              <option value="none">None</option>
+              <option value="linear">Linear</option>
+              <option value="exponential">Exponential</option>
+            </Select>
+          </FieldGroup>
+
+          {retry.backoff !== "none" && (
+            <FieldGroup label="Base seconds (0-60)" htmlFor="step-retry-base" helpKey="retry.backoff_base_seconds">
+              <Input
+                id="step-retry-base"
+                type="number"
+                min={0}
+                max={60}
+                value={retry.backoff_base_seconds}
+                onChange={(e) =>
+                  onUpdate({
+                    retry: {
+                      ...retry,
+                      backoff_base_seconds: Math.min(60, Math.max(0, Number(e.target.value))),
+                    },
+                  })
+                }
+              />
+            </FieldGroup>
+          )}
+
+          <Toggle
+            id="step-retry-fail"
+            checked={retry.fail_program_on_exhaust}
+            onChange={(v) => onUpdate({ retry: { ...retry, fail_program_on_exhaust: v } })}
+            label="Fail program when retries exhausted"
+            helpKey="retry.fail_program_on_exhaust"
+          />
         </>
       )}
     </div>
@@ -2459,14 +2574,20 @@ function ConnectionSidebar({
                 </Select>
               </FieldGroup>
               {retryConfig.backoff !== "none" && (
-                <FieldGroup label="Backoff base seconds" htmlFor="http-retry-base" helpKey="retry.backoff_base_seconds">
+                <FieldGroup label="Backoff base seconds (0-60)" htmlFor="http-retry-base" helpKey="retry.backoff_base_seconds">
                   <Input
                     id="http-retry-base"
                     type="number"
                     min={0}
+                    max={60}
                     value={retryConfig.backoff_base_seconds}
                     onChange={(e) =>
-                      onUpdate({ retry: { ...retryConfig, backoff_base_seconds: Number(e.target.value) } })
+                      onUpdate({
+                        retry: {
+                          ...retryConfig,
+                          backoff_base_seconds: Math.min(60, Math.max(0, Number(e.target.value))),
+                        },
+                      })
                     }
                   />
                 </FieldGroup>

@@ -1,5 +1,5 @@
 import { ProgramDraftSchemaZ } from "@flowos/schema";
-import type { ProgramSchema, Node as SchemaNode, TriggerConfig, StepConfig, RunStatus } from "@flowos/schema";
+import type { ProgramSchema, Node as SchemaNode, TriggerConfig, StepConfig, RetryConfig, RunStatus } from "@flowos/schema";
 import { z } from "zod";
 import { nextFiveFieldCronRun } from "@/lib/cron-expression";
 
@@ -193,13 +193,31 @@ function normalizeTriggerConfig(config: MutableRecord): TriggerConfig {
   return { trigger_type: "manual" };
 }
 
+/**
+ * Step retry, preserved across normalization for every logic_type.
+ *
+ * This is not the agent/agent_task/http treatment. There `retry` is a required
+ * (or explicitly nullable) field, so an absent block is materialized as
+ * DEFAULT_RETRY. A step's retry is optional *and* nullable (`StepConfigZ`), and
+ * the runtime reads it as `retry: Optional[RetryConfig] = None`, where None
+ * means "keep create_retry_policy_for_node's defaults". Writing a default here
+ * would therefore turn "unset" into a pinned policy on every save, so an absent
+ * retry stays absent and only a supplied block is normalized.
+ */
+function stepRetryFields(config: MutableRecord): { retry?: RetryConfig } {
+  if (!isRecord(config.retry)) return {};
+  return { retry: { ...DEFAULT_RETRY, ...config.retry } as never };
+}
+
 function normalizeStepConfig(config: MutableRecord): StepConfig {
   const logicType = typeof config.logic_type === "string" ? config.logic_type : "transform";
+  const retry = stepRetryFields(config);
   if (logicType === "filter") {
     return {
       logic_type: "filter",
       condition: typeof config.condition === "string" ? config.condition : "",
       pass_schema: isRecord(config.pass_schema) ? config.pass_schema as unknown as FilterStepConfig["pass_schema"] : null,
+      ...retry,
     };
   }
   if (logicType === "branch") {
@@ -207,16 +225,18 @@ function normalizeStepConfig(config: MutableRecord): StepConfig {
       logic_type: "branch",
       conditions: Array.isArray(config.conditions) ? config.conditions as BranchStepConfig["conditions"] : [],
       default_branch: typeof config.default_branch === "string" ? config.default_branch : "",
+      ...retry,
     };
   }
   if (logicType === "delay") {
-    return { logic_type: "delay", seconds: numberValue(config.seconds, 5) };
+    return { logic_type: "delay", seconds: numberValue(config.seconds, 5), ...retry };
   }
   if (logicType === "loop") {
     return {
       logic_type: "loop",
       over: typeof config.over === "string" ? config.over : "",
       item_var: typeof config.item_var === "string" ? config.item_var : "item",
+      ...retry,
     };
   }
   if (logicType === "format") {
@@ -224,6 +244,7 @@ function normalizeStepConfig(config: MutableRecord): StepConfig {
       logic_type: "format",
       template: typeof config.template === "string" ? config.template : "",
       output_key: typeof config.output_key === "string" ? config.output_key : "text",
+      ...retry,
     };
   }
   if (logicType === "parse") {
@@ -232,16 +253,18 @@ function normalizeStepConfig(config: MutableRecord): StepConfig {
       logic_type: "parse",
       input_key: typeof config.input_key === "string" ? config.input_key : "text",
       format,
+      ...retry,
     };
   }
   if (logicType === "deduplicate") {
-    return { logic_type: "deduplicate", key: typeof config.key === "string" ? config.key : "id" };
+    return { logic_type: "deduplicate", key: typeof config.key === "string" ? config.key : "id", ...retry };
   }
   if (logicType === "sort") {
     return {
       logic_type: "sort",
       key: typeof config.key === "string" ? config.key : "id",
       order: config.order === "desc" ? "desc" : "asc",
+      ...retry,
     };
   }
   return {
@@ -249,6 +272,7 @@ function normalizeStepConfig(config: MutableRecord): StepConfig {
     transformation: typeof config.transformation === "string" ? config.transformation : "",
     input_schema: isRecord(config.input_schema) ? config.input_schema as unknown as TransformStepConfig["input_schema"] : null,
     output_schema: isRecord(config.output_schema) ? config.output_schema as unknown as TransformStepConfig["output_schema"] : null,
+    ...retry,
   };
 }
 

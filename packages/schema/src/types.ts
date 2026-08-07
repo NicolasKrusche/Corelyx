@@ -394,7 +394,7 @@ export interface DataSchema {
 export interface RetryConfig {
   max_attempts: number;        // 1–5
   backoff: "none" | "linear" | "exponential";
-  backoff_base_seconds: number;
+  backoff_base_seconds: number; // 0–60 (runtime rejects anything higher)
   fail_program_on_exhaust: boolean;
 }
 

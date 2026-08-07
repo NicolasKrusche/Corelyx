@@ -11,8 +11,10 @@
  * program access via getProgramAccess().
  */
 import { createServiceClient } from "@/lib/api";
+import type { Database } from "@flowos/db";
 
 type Db = ReturnType<typeof createServiceClient>;
+type DbFunctions = Database["public"]["Functions"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,14 +78,125 @@ export type AnalyticsResult<T> = { data: T; degraded: boolean };
 // RPC helpers (primary path)
 // ---------------------------------------------------------------------------
 
-async function callRpc(
+/**
+ * The RPCs this module depends on, resolved against the generated Database
+ * types instead of being passed as a bare string.
+ *
+ * `Extract` rather than a plain union is what makes drift loud: if one of these
+ * functions is renamed or dropped from database.types.ts, its name leaves this
+ * union and the call site stops compiling. The previous `(db as any).rpc(...)`
+ * type-checked no matter what, so a renamed function or a changed argument name
+ * stayed green and only showed up in production as every program quietly
+ * rendering the degraded fallback.
+ */
+type AnalyticsRpc = Extract<
+  keyof DbFunctions,
+  | "program_analytics_summary"
+  | "program_cost_by_node_type"
+  | "program_cost_trend"
+  | "program_model_comparison"
+  | "program_token_usage_summary"
+>;
+
+async function callRpc<Fn extends AnalyticsRpc>(
   db: Db,
-  fn: string,
-  args: Record<string, unknown>,
+  fn: Fn,
+  args: DbFunctions[Fn]["Args"],
 ): Promise<{ data: unknown[] | null; error: unknown }> {
-  // Supabase JS v2 RPC call
-  const result = await (db as any).rpc(fn, args);
-  return result;
+  // Supabase JS v2 RPC call. These functions all return a JSON array; anything
+  // else is treated as "no usable result" so the caller takes the fallback,
+  // which is what the `Array.isArray` guard at each call site did before.
+  const { data, error } = await db.rpc(fn, args);
+  return { data: Array.isArray(data) ? (data as unknown[]) : null, error };
+}
+
+// ---------------------------------------------------------------------------
+// Fallback helpers (degraded path)
+// ---------------------------------------------------------------------------
+
+// PostgREST caps a single response at ~1000 rows, so an unbounded fallback read
+// silently truncates instead of erroring. Every fallback scan below pages.
+const PAGE_SIZE = 1000;
+// Run ids go into an `?run_id=in.(...)` query string; chunking keeps that URL
+// far below the server's request-line limit for programs with many runs.
+const RUN_ID_CHUNK = 200;
+
+type NodeExecutionRow = {
+  node_id: string;
+  status: string | null;
+  total_tokens: number | null;
+  billed_cost_usd: number | null;
+  input_payload: unknown;
+};
+
+function chunkIds(ids: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
+  return chunks;
+}
+
+/**
+ * Every run id for a program.
+ *
+ * Ordered by id so `.range()` paging is stable — without an explicit order
+ * PostgREST gives no row-order guarantee across requests, which would let a
+ * page repeat or skip rows and skew the aggregates built from them.
+ */
+async function fetchProgramRunIds(db: Db, programId: string): Promise<string[]> {
+  const ids: string[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await db
+      .from("runs")
+      .select("id")
+      .eq("program_id", programId)
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) break;
+    const page = (data ?? []) as { id: string }[];
+    for (const row of page) ids.push(row.id);
+    if (page.length < PAGE_SIZE) break;
+  }
+  return ids;
+}
+
+/** Completed/failed node executions for the given runs, chunked and paged. */
+async function fetchLlmUsageLogs(db: Db, runIds: string[]): Promise<any[]> {
+  const rows: any[] = [];
+  for (const ids of chunkIds(runIds, RUN_ID_CHUNK)) {
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await db
+        .from("llm_usage_logs")
+        .select("model, total_tokens, estimated_cost_usd, billing, billed_credits, source, run_id")
+        .in("run_id", ids)
+        .order("id", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) break;
+      const page = (data ?? []) as any[];
+      for (const row of page) rows.push(row);
+      if (page.length < PAGE_SIZE) break;
+    }
+  }
+  return rows;
+}
+
+async function fetchNodeExecutions(db: Db, runIds: string[]): Promise<NodeExecutionRow[]> {
+  const rows: NodeExecutionRow[] = [];
+  for (const ids of chunkIds(runIds, RUN_ID_CHUNK)) {
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await db
+        .from("node_executions")
+        .select("node_id, status, total_tokens, billed_cost_usd, input_payload")
+        .in("run_id", ids)
+        .in("status", ["completed", "failed"])
+        .order("id", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) break;
+      const page = (data ?? []) as NodeExecutionRow[];
+      for (const row of page) rows.push(row);
+      if (page.length < PAGE_SIZE) break;
+    }
+  }
+  return rows;
 }
 
 /**
@@ -211,23 +324,18 @@ export async function getCostByNodeType(
   // This query used to have no program filter at all — it summed the whole
   // node_executions table, so one program's analytics reported every other
   // program's executions and cost. Scope it to this program's runs.
-  const { data: programRuns } = await db
-    .from("runs")
-    .select("id")
-    .eq("program_id", programId);
-  const runIds = (programRuns ?? []).map((r: any) => r.id);
+  //
+  // Both reads page: the run-id fetch used to stop at PostgREST's ~1000-row cap
+  // (so a busy program undercounted, and the truncated id list still risked
+  // overflowing the `.in()` URL), and the executions fetch has the same cap.
+  const runIds = await fetchProgramRunIds(db, programId);
 
   if (runIds.length === 0) return { data: [], degraded: true };
 
-  const { data: execsRaw } = await db
-    .from("node_executions")
-    .select("node_id, status, total_tokens, billed_cost_usd, input_payload")
-    .in("run_id", runIds)
-    .in("status", ["completed", "failed"]);
+  const execs = await fetchNodeExecutions(db, runIds);
 
   const nodeTypeById = await getNodeTypesFromSchema(db, programId);
 
-  const execs = (execsRaw ?? []) as any[];
   const byType = new Map<string, NodeTypeCostRow>();
 
   for (const e of execs) {
@@ -288,22 +396,19 @@ export async function getModelComparison(
   // Fallback: aggregate from llm_usage_logs joined with runs. Cost shown to
   // users is the billed figure: marked-up platform charge (billed_credits,
   // 1000 credits = $1) or raw BYOK/free pass-through — never raw platform cost.
-  const { data: logsRaw } = await db
-    .from("llm_usage_logs")
-    .select("model, total_tokens, estimated_cost_usd, billing, billed_credits, source, run_id");
-
-  const logs = (logsRaw ?? []) as any[];
-  // Filter to this program's runs
-  const { data: programRuns } = await db
-    .from("runs")
-    .select("id")
-    .eq("program_id", programId);
-  const runIds = new Set((programRuns ?? []).map((r: any) => r.id));
+  // Scoped to this program's runs in the query rather than after the fact. The
+  // previous shape selected from llm_usage_logs with no filter at all, so
+  // PostgREST's ~1000-row cap truncated it to the newest rows across every user
+  // and program — on a busy install the client-side run_id filter then matched
+  // almost nothing and the comparison came back near-empty. Chunked and paged
+  // like the node-execution fallback, for the same reason.
+  const runIds = await fetchProgramRunIds(db, programId);
+  if (runIds.length === 0) return { data: [], degraded: true };
+  const logs = await fetchLlmUsageLogs(db, runIds);
 
   const byModel = new Map<string, ModelComparisonRow>();
 
   for (const l of logs) {
-    if (!runIds.has(l.run_id)) continue;
     const key = `${l.model ?? "unknown"}|${l.source ?? "workflow"}`;
     const existing = byModel.get(key) ?? {
       model: l.model ?? "unknown",

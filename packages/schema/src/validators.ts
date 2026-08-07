@@ -20,7 +20,12 @@ export const DataSchemaZ: z.ZodType<DataSchema> = z.lazy(() =>
 export const RetryConfigZ = z.object({
   max_attempts: z.number().int().min(1).max(5),
   backoff: z.enum(["none", "linear", "exponential"]),
-  backoff_base_seconds: z.number().min(0),
+  // Capped at the runtime's own ceiling (apps/runtime/schema.py
+  // MAX_BACKOFF_BASE_SECONDS = 60). `_bounded_float` there *raises* rather than
+  // clamps, and parse_schema runs unguarded in /execute — so an unbounded value
+  // accepted here was persisted, then turned every dispatch into an HTTP 500
+  // and the run never started.
+  backoff_base_seconds: z.number().min(0).max(60),
   fail_program_on_exhaust: z.boolean(),
 });
 

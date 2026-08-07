@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { ProgramSchemaZ } from "@flowos/schema";
+import { ProgramSchemaZ, RetryConfigZ, StepConfigZ } from "@flowos/schema";
 import { normalizeProgramDraft, validateProgramDraft, getDraftValidationMessage } from "../normalize";
+
+const STEP_RETRY = {
+  max_attempts: 2,
+  backoff: "linear" as const,
+  backoff_base_seconds: 10,
+  fail_program_on_exhaust: true,
+};
+
+function stepConfig(schema: { nodes: { config: unknown }[] }, index = 0) {
+  return schema.nodes[index]!.config as Record<string, unknown>;
+}
 
 describe("workflow draft normalization", () => {
   it("allows structurally safe drafts that are not executable yet", () => {
@@ -172,5 +183,167 @@ describe("workflow draft normalization", () => {
     expect(schema.execution_mode).toBe("approval_required");
     expect(schema.metadata.description).toBe("Existing description");
     expect(schema.metadata.genesis_timestamp).toBe("2026-01-01T00:00:00.000Z");
+  });
+});
+
+// normalizeStepConfig rebuilds a step's config from its logic-type fields, so
+// anything it forgets to copy is dropped on every write path (editor save,
+// Genesis, import). It forgot `retry`, which made step retry policies
+// unreachable end to end: the request succeeded and stored nothing.
+describe("step retry normalization", () => {
+  const stepConfigsByLogicType: Record<string, Record<string, unknown>> = {
+    transform: { logic_type: "transform", transformation: "return input;" },
+    filter: { logic_type: "filter", condition: "input.ok" },
+    branch: {
+      logic_type: "branch",
+      conditions: [{ condition: "input.ok", target_node_id: "n2" }],
+      default_branch: "n3",
+    },
+    delay: { logic_type: "delay", seconds: 30 },
+    loop: { logic_type: "loop", over: "input.items", item_var: "item" },
+    format: { logic_type: "format", template: "{{ input }}", output_key: "text" },
+    parse: { logic_type: "parse", input_key: "text", format: "json" },
+    deduplicate: { logic_type: "deduplicate", key: "id" },
+    sort: { logic_type: "sort", key: "id", order: "desc" },
+  };
+
+  it.each(Object.keys(stepConfigsByLogicType))(
+    "keeps a step retry policy through normalization (%s)",
+    (logicType) => {
+      const schema = normalizeProgramDraft({
+        nodes: [
+          {
+            id: "step-1",
+            type: "step",
+            label: "Step",
+            config: { ...stepConfigsByLogicType[logicType], retry: STEP_RETRY },
+          },
+        ],
+        edges: [],
+      });
+
+      expect(stepConfig(schema).retry).toEqual(STEP_RETRY);
+      expect(StepConfigZ.safeParse(stepConfig(schema)).success).toBe(true);
+    }
+  );
+
+  it("leaves an unset step retry absent instead of pinning a default policy", () => {
+    const schema = normalizeProgramDraft({
+      nodes: [
+        {
+          id: "step-1",
+          type: "step",
+          label: "Step",
+          config: { logic_type: "transform", transformation: "return input;" },
+        },
+        {
+          id: "step-2",
+          type: "step",
+          label: "Cleared",
+          config: { logic_type: "delay", seconds: 5, retry: null },
+        },
+      ],
+      edges: [],
+    });
+
+    // The runtime reads a missing block as `retry: Optional[RetryConfig] = None`
+    // and keeps create_retry_policy_for_node's defaults, so materializing one
+    // here would silently convert "unset" into a pinned policy on every save.
+    expect(stepConfig(schema)).not.toHaveProperty("retry");
+    expect(stepConfig(schema, 1)).not.toHaveProperty("retry");
+    expect(StepConfigZ.safeParse(stepConfig(schema)).success).toBe(true);
+  });
+
+  it("fills a partial step retry block from the defaults, as agent and http configs do", () => {
+    const schema = normalizeProgramDraft({
+      nodes: [
+        {
+          id: "step-1",
+          type: "step",
+          label: "Step",
+          config: { logic_type: "transform", transformation: "return input;", retry: { max_attempts: 1 } },
+        },
+      ],
+      edges: [],
+    });
+
+    expect(stepConfig(schema).retry).toEqual({
+      max_attempts: 1,
+      backoff: "exponential",
+      backoff_base_seconds: 5,
+      fail_program_on_exhaust: false,
+    });
+  });
+
+  it("survives canonical validation so the retry reaches the runtime payload", () => {
+    const schema = normalizeProgramDraft({
+      program_name: "Step retry",
+      nodes: [
+        { id: "manual-1", type: "trigger", label: "Manual", config: { trigger_type: "manual" } },
+        {
+          id: "step-1",
+          type: "step",
+          label: "Transform",
+          config: { logic_type: "transform", transformation: "return input;", retry: STEP_RETRY },
+        },
+      ],
+      edges: [{ source: "manual-1", target: "step-1" }],
+    });
+
+    expect(validateProgramDraft(schema).success).toBe(true);
+
+    const result = ProgramSchemaZ.safeParse(schema);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.nodes[1]!.config).toMatchObject({ retry: STEP_RETRY });
+    }
+  });
+});
+
+// The runtime caps backoff_base_seconds at 60 (MAX_BACKOFF_BASE_SECONDS) and
+// _bounded_float raises instead of clamping, so a larger value validated here
+// became an HTTP 500 out of /execute and the run never dispatched.
+describe("retry config bounds", () => {
+  it("rejects a backoff base above the runtime ceiling", () => {
+    expect(RetryConfigZ.safeParse({ ...STEP_RETRY, backoff_base_seconds: 61 }).success).toBe(false);
+    expect(RetryConfigZ.safeParse({ ...STEP_RETRY, backoff_base_seconds: 3600 }).success).toBe(false);
+  });
+
+  it("accepts the boundary values the runtime accepts", () => {
+    expect(RetryConfigZ.safeParse({ ...STEP_RETRY, backoff_base_seconds: 0 }).success).toBe(true);
+    expect(RetryConfigZ.safeParse({ ...STEP_RETRY, backoff_base_seconds: 60 }).success).toBe(true);
+  });
+
+  it("rejects an out-of-range retry wherever a node config embeds one", () => {
+    const overCeiling = { ...STEP_RETRY, backoff_base_seconds: 120 };
+
+    expect(
+      StepConfigZ.safeParse({
+        logic_type: "delay",
+        seconds: 5,
+        retry: overCeiling,
+      }).success
+    ).toBe(false);
+
+    const schema = normalizeProgramDraft({
+      nodes: [
+        {
+          id: "agent-1",
+          type: "agent",
+          label: "Agent",
+          config: { model: "gpt-4o", api_key_ref: "key", retry: overCeiling },
+        },
+      ],
+      edges: [],
+    });
+    const result = ProgramSchemaZ.safeParse(schema);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // Assert the *reason*, so this can't start passing for an unrelated
+      // missing field if the agent config shape changes.
+      expect(
+        result.error.issues.some((issue) => issue.path.join(".").endsWith("retry.backoff_base_seconds"))
+      ).toBe(true);
+    }
   });
 });
