@@ -21,7 +21,7 @@
     "ora": "^8.1.0",
     "prompts": "^2.4.2",
     "execa": "^9.3.0",
-    "fs-extra": "^11.2.0",
+    "fs-extra": "^11.4.1",
     "yaml": "^2.5.0"
   },
   "devDependencies": {
