@@ -50,7 +50,7 @@
     "jsonrepair": "^3.13.3",
     "jszip": "^3.10.1",
     "lenis": "^1.3.25",
-    "lucide-react": "^0.469.0",
+    "lucide-react": "^1.27.0",
     "motion": "^12.38.0",
     "next": "15.5.21",
     "next-intl": "^4.12.0",
